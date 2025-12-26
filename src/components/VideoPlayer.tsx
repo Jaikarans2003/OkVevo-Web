@@ -25,6 +25,38 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
 
     // Stitching State
     const [isStitching, setIsStitching] = useState(false);
+    const [activeBlobUrl, setActiveBlobUrl] = useState<string | null>(null);
+    const [isLoadingBlob, setIsLoadingBlob] = useState(false);
+
+    // Fetch Blob when current video changes (to bypass COOP/COEP)
+    React.useEffect(() => {
+        const url = videoUrls[currentVideoIndex];
+        if (!url) {
+            setActiveBlobUrl(null);
+            return;
+        }
+
+        let isMounted = true;
+        setIsLoadingBlob(true);
+
+        fetch(url)
+            .then(res => res.blob())
+            .then(blob => {
+                if (isMounted) {
+                    const objectUrl = URL.createObjectURL(blob);
+                    setActiveBlobUrl(objectUrl);
+                    setIsLoadingBlob(false);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to load video blob:", err);
+                if (isMounted) setIsLoadingBlob(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentVideoIndex, videoUrls]);
 
     // Timeline State
     const [timelineItems, setTimelineItems] = useState<Array<{
@@ -484,10 +516,10 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                 /* Simple Video Player */
                 <div className="border-2 border-gray-700 rounded-lg overflow-hidden relative">
                     {/* Render Video OR Loading State */}
-                    {videoUrls[currentVideoIndex] ? (
+                    {activeBlobUrl ? (
                         <video
-                            key={videoUrls[currentVideoIndex]}
-                            src={videoUrls[currentVideoIndex]!}
+                            key={activeBlobUrl}
+                            src={activeBlobUrl}
                             controls
                             autoPlay
                             onEnded={() => {
@@ -503,7 +535,9 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                     ) : (
                         <div className="w-full h-[500px] flex flex-col items-center justify-center text-gray-500 bg-gray-900/50">
                             <Loader2 className="w-12 h-12 mb-4 animate-spin text-blue-500" />
-                            <span className="text-lg font-medium text-white">Generating Scene {currentVideoIndex + 1}...</span>
+                            <span className="text-lg font-medium text-white">
+                                {isLoadingBlob ? 'Loading Video...' : `Generating Scene ${currentVideoIndex + 1}...`}
+                            </span>
                             <span className="text-sm text-gray-400 mt-2">Please wait</span>
                         </div>
                     )}

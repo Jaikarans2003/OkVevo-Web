@@ -12,7 +12,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/replicate/, ''),
       },
     },
-    // Removed Cross-Origin headers to fix external video playback. 
-    // This disables SharedArrayBuffer, so multi-threaded ffmpeg.wasm will fail.
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
 })

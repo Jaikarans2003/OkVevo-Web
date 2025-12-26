@@ -206,6 +206,15 @@ export function useVideoGeneration() {
         setStatus('');
     };
 
+    const updateAnalyzedScene = (index: number, field: keyof Scene, value: string) => {
+        setAnalyzedScenes(prev => {
+            if (!prev) return null;
+            const newScenes = [...prev];
+            newScenes[index] = { ...newScenes[index], [field]: value };
+            return newScenes;
+        });
+    };
+
     return {
         analyzedScenes,
         videoUrls,
@@ -214,6 +223,7 @@ export function useVideoGeneration() {
         status,
         analyzePrompt,
         generateVideosFromScenes,
-        resetAnalysis
+        resetAnalysis,
+        updateAnalyzedScene // Export new function
     };
 }

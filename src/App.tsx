@@ -13,7 +13,8 @@ export default function TextToVideoGenerator() {
     status,
     analyzePrompt,
     generateVideosFromScenes,
-    resetAnalysis
+    resetAnalysis,
+    updateAnalyzedScene
   } = useVideoGeneration();
 
   // UI State
@@ -162,29 +163,54 @@ export default function TextToVideoGenerator() {
 
             <div className="grid gap-6">
               {analyzedScenes.map((scene, idx) => (
-                <div key={idx} className="bg-gray-900 border border-gray-800 rounded-lg p-6 hover:border-gray-700 transition-colors">
+                <div key={idx} className="bg-gray-900 border border-gray-800 rounded-lg p-6 hover:border-blue-900/50 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-lg text-blue-400">{scene.scene}</h3>
+                    <h3 className="font-bold text-lg text-blue-400">Scene {idx + 1}: {scene.scene}</h3>
                     <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">20s</span>
                   </div>
 
                   <div className="space-y-4 text-sm text-gray-300">
+                    {/* Visuals - Editable */}
                     <div>
-                      <strong className="text-white block mb-1">Objective:</strong>
-                      {scene.scene_objective}
+                      <label className="text-white block mb-1 font-semibold flex items-center gap-2">
+                        Visuals
+                        <span className="text-xs text-gray-500 font-normal">(AI Suggested)</span>
+                      </label>
+                      <textarea
+                        value={scene.primary_visuals}
+                        onChange={(e) => updateAnalyzedScene(idx, 'primary_visuals', e.target.value)}
+                        className="w-full bg-black/50 text-white p-3 rounded border border-gray-700 focus:border-blue-500 focus:outline-none resize-none transition-colors"
+                        rows={3}
+                      />
                     </div>
+
+                    {/* Objective - Editable */}
                     <div>
-                      <strong className="text-white block mb-1">Visuals:</strong>
-                      {scene.primary_visuals}
+                      <label className="text-white block mb-1 font-semibold">Objective</label>
+                      <input
+                        type="text"
+                        value={scene.scene_objective}
+                        onChange={(e) => updateAnalyzedScene(idx, 'scene_objective', e.target.value)}
+                        className="w-full bg-black/50 text-white p-2 rounded border border-gray-700 focus:border-blue-500 focus:outline-none transition-colors"
+                      />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
+                      {/* Tone - Editable */}
                       <div>
-                        <strong className="text-white block mb-1">Tone:</strong>
-                        <span className="text-purple-400">{scene.emotional_tone}</span>
+                        <label className="text-white block mb-1 font-semibold">Mood / Tone</label>
+                        <input
+                          type="text"
+                          value={scene.emotional_tone}
+                          onChange={(e) => updateAnalyzedScene(idx, 'emotional_tone', e.target.value)}
+                          className="w-full bg-black/50 text-purple-300 p-2 rounded border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
+                        />
                       </div>
+
+                      {/* Transition - Read Only (Lower priority to edit) */}
                       <div>
                         <strong className="text-white block mb-1">Transition:</strong>
-                        <span className="text-gray-400 italic">{scene.transition_logic}</span>
+                        <span className="text-gray-500 italic block py-2">{scene.transition_logic}</span>
                       </div>
                     </div>
                   </div>
