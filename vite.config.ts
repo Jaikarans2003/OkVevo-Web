@@ -12,5 +12,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/replicate/, ''),
       },
     },
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
 })
