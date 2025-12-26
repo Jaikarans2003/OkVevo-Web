@@ -3,7 +3,7 @@ import { Film, Image, Play, Pause, Download, Video, Scissors, Crop, X, Plus, Loa
 import { videoStitcher } from '../services/VideoStitcherService';
 
 interface VideoPlayerProps {
-    videoUrls: string[];
+    videoUrls: (string | null)[]; // Update type to accept nulls
     currentVideoIndex: number;
     setCurrentVideoIndex: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -57,58 +57,47 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
         }
     };
 
+    const handleDownloadingHelper = (url: string | null, name: string) => {
+        if (!url) return;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
     const handleDownload = () => {
-        if (videoUrls.length > 0) {
-            const url = videoUrls[currentVideoIndex];
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `tunetales-scene-${currentVideoIndex + 1}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        const url = videoUrls[currentVideoIndex];
+        handleDownloadingHelper(url, `tunetales-scene-${currentVideoIndex + 1}.mp4`);
     };
 
     const handleDownloadEdited = () => {
-        if (videoUrls.length > 0) {
-            const url = videoUrls[currentVideoIndex];
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `tunetales-edited-${Date.now()}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        const url = videoUrls[currentVideoIndex];
+        handleDownloadingHelper(url, `tunetales-edited-${Date.now()}.mp4`);
     };
 
     const handleDownloadAll = () => {
         videoUrls.forEach((url, index) => {
-            setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `tunetales-scene-${index + 1}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }, index * 500); // Stagger downloads slightly
+            if (url) {
+                setTimeout(() => {
+                    handleDownloadingHelper(url, `tunetales-scene-${index + 1}.mp4`);
+                }, index * 500);
+            }
         });
     };
 
     const handleStitchAndDownload = async () => {
-        if (videoUrls.length < 2) return;
+        const validUrls = videoUrls.filter((u): u is string => u !== null);
+        if (validUrls.length < 2) return;
 
         setIsStitching(true);
         try {
-            const finalUrl = await videoStitcher.stitchVideos(videoUrls);
-            const a = document.createElement('a');
-            a.href = finalUrl;
-            a.download = `tunetales-full-movie-${Date.now()}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const finalUrl = await videoStitcher.stitchVideos(validUrls);
+            handleDownloadingHelper(finalUrl, `tunetales-full-movie-${Date.now()}.mp4`);
         } catch (error) {
             console.error('Stitching failed:', error);
-            alert('Failed to stitch videos. Please make sure your browser supports SharedArrayBuffer (Desktop Chrome/Edge/Firefox).');
+            alert('Stitching Unavailable: To fix video playback issues, we disabled generic browser isolation. Video Stitching requires enabled isolation. Please download clips individually for now.');
         } finally {
             setIsStitching(false);
         }
@@ -204,47 +193,58 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                 /* Video Editor Interface */
                 <div className="space-y-6">
                     {/* Video Preview */}
-                    <div className="relative bg-gray-900 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                        <video
-                            key={videoUrls[currentVideoIndex]} // Force re-render on source change
-                            ref={videoRef}
-                            src={videoUrls[currentVideoIndex]}
-                            autoPlay
-                            onEnded={() => {
-                                if (currentVideoIndex < videoUrls.length - 1) {
-                                    setCurrentVideoIndex(prev => prev + 1);
-                                } else {
-                                    setIsPlaying(false);
-                                }
-                            }}
-                            onLoadedMetadata={handleLoadedMetadata}
-                            className="w-full h-full object-contain"
-                            style={{
-                                clipPath: `inset(${cropSettings.y}% ${100 - cropSettings.x - cropSettings.width}% ${100 - cropSettings.y - cropSettings.height}% ${cropSettings.x}%)`
-                            }}
-                        />
+                    <div className="relative bg-gray-900 rounded-lg overflow-hidden border border-gray-800" style={{ aspectRatio: '16/9' }}>
+
+                        {/* Render Video OR Loading State */}
+                        {videoUrls[currentVideoIndex] ? (
+                            <video
+                                key={videoUrls[currentVideoIndex]} // Force re-render on source change
+                                ref={videoRef}
+                                src={videoUrls[currentVideoIndex]!}
+                                autoPlay
+                                onEnded={() => {
+                                    if (currentVideoIndex < videoUrls.length - 1) {
+                                        setCurrentVideoIndex(prev => prev + 1);
+                                    } else {
+                                        setIsPlaying(false);
+                                    }
+                                }}
+                                onLoadedMetadata={handleLoadedMetadata}
+                                className="w-full h-full object-contain"
+                                style={{
+                                    clipPath: `inset(${cropSettings.y}% ${100 - cropSettings.x - cropSettings.width}% ${100 - cropSettings.y - cropSettings.height}% ${cropSettings.x}%)`
+                                }}
+                            />
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 bg-gray-900/50">
+                                <Loader2 className="w-12 h-12 mb-4 animate-spin text-blue-500" />
+                                <span className="text-lg font-medium text-white">Generating Scene {currentVideoIndex + 1}...</span>
+                                <span className="text-sm text-gray-400 mt-2">Please wait</span>
+                            </div>
+                        )}
 
                         {/* Scene Indicator Overlay */}
-                        <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-2 py-1 text-xs font-mono space-y-1">
-                            <div>Scene {currentVideoIndex + 1}/{videoUrls.length}</div>
-                            <div className="text-yellow-400">Clip Duration: {videoDuration.toFixed(1)}s</div>
+                        <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-2 py-1 text-xs font-mono space-y-1 z-10">
+                            <div className="text-white">Scene {currentVideoIndex + 1}/{videoUrls.length}</div>
+                            {videoUrls[currentVideoIndex] && <div className="text-yellow-400">Clip Duration: {videoDuration.toFixed(1)}s</div>}
                         </div>
 
                         {/* Video Controls Overlay */}
-                        <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 rounded-lg p-4">
+                        <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 rounded-lg p-4 z-10 backdrop-blur-sm">
                             <div className="flex items-center gap-4 mb-2">
                                 {/* Previous Scene */}
                                 <button
                                     onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
                                     disabled={currentVideoIndex === 0}
-                                    className="text-white disabled:text-gray-600 hover:text-blue-400"
+                                    className="text-white disabled:text-gray-600 hover:text-blue-400 transition-colors"
                                 >
                                     Prev
                                 </button>
 
                                 <button
                                     onClick={handlePlayPause}
-                                    className="bg-white text-black p-2 rounded-full hover:bg-gray-200 transition-colors"
+                                    disabled={!videoUrls[currentVideoIndex]}
+                                    className="bg-white text-black p-2 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                                 </button>
@@ -253,13 +253,14 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                                 <button
                                     onClick={() => setCurrentVideoIndex(Math.min(videoUrls.length - 1, currentVideoIndex + 1))}
                                     disabled={currentVideoIndex === videoUrls.length - 1}
-                                    className="text-white disabled:text-gray-600 hover:text-blue-400"
+                                    className="text-white disabled:text-gray-600 hover:text-blue-400 transition-colors"
                                 >
                                     Next
                                 </button>
 
-                                <div className="flex-1 text-white text-sm">
-                                    Total Sequence: 60s
+                                {/* Status Text */}
+                                <div className="flex-1 text-right text-xs text-gray-300">
+                                    {videoUrls[currentVideoIndex] ? 'Ready' : 'Generating...'}
                                 </div>
                             </div>
                         </div>
@@ -482,21 +483,30 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
             ) : (
                 /* Simple Video Player */
                 <div className="border-2 border-gray-700 rounded-lg overflow-hidden relative">
-                    <video
-                        key={videoUrls[currentVideoIndex]}
-                        src={videoUrls[currentVideoIndex]}
-                        controls
-                        autoPlay
-                        onEnded={() => {
-                            if (currentVideoIndex < videoUrls.length - 1) {
-                                setCurrentVideoIndex(prev => prev + 1);
-                            }
-                        }}
-                        className="w-full"
-                        style={{ maxHeight: '500px' }}
-                    >
-                        Your browser does not support the video tag.
-                    </video>
+                    {/* Render Video OR Loading State */}
+                    {videoUrls[currentVideoIndex] ? (
+                        <video
+                            key={videoUrls[currentVideoIndex]}
+                            src={videoUrls[currentVideoIndex]!}
+                            controls
+                            autoPlay
+                            onEnded={() => {
+                                if (currentVideoIndex < videoUrls.length - 1) {
+                                    setCurrentVideoIndex(prev => prev + 1);
+                                }
+                            }}
+                            className="w-full"
+                            style={{ maxHeight: '500px' }}
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                    ) : (
+                        <div className="w-full h-[500px] flex flex-col items-center justify-center text-gray-500 bg-gray-900/50">
+                            <Loader2 className="w-12 h-12 mb-4 animate-spin text-blue-500" />
+                            <span className="text-lg font-medium text-white">Generating Scene {currentVideoIndex + 1}...</span>
+                            <span className="text-sm text-gray-400 mt-2">Please wait</span>
+                        </div>
+                    )}
 
                     {/* Simple Scene Indicator */}
                     <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-2 py-1 text-xs font-mono text-white pointer-events-none">

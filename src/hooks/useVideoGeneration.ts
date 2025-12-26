@@ -42,9 +42,17 @@ export function useVideoGeneration() {
         const modelConfig = MODELS['tunetales'];
         const generatedUrls: string[] = [];
 
+        // Track per-scene status
+        const sceneStatuses = ['Pending', 'Pending', 'Pending'];
+        const updateSceneStatus = (idx: number, msg: string) => {
+            sceneStatuses[idx] = msg;
+            // Update global status string
+            setStatus(`Scene 1: ${sceneStatuses[0]} | Scene 2: ${sceneStatuses[1]} | Scene 3: ${sceneStatuses[2]}`);
+        };
+
         try {
             // Helper to handle rate limits (429) gracefully
-            const createPredictionWithRetry = async (payload: any, sceneIndex: number): Promise<any> => {
+            const createPredictionWithRetry = async (payload: any, sceneIndex: number, onStatus?: (msg: string) => void): Promise<any> => {
                 const maxRetries = 5; // Increased retries for strict rate limits
                 let attempt = 0;
 
@@ -68,12 +76,11 @@ export function useVideoGeneration() {
                                 if (jsonErr.retry_after) retrySeconds = Math.ceil(jsonErr.retry_after) + 2;
                                 else if (jsonErr.detail && jsonErr.detail.includes('retry_after')) {
                                     // Sometimes detail string has it? No, usually in separate field.
-                                    // Use default generous wait.
                                 }
                             } catch { }
 
                             console.warn(`Scene ${sceneIndex + 1} hit rate limit (429). Retrying in ${retrySeconds}s...`);
-                            setStatus(`Rate limit hit. Pausing ${retrySeconds}s for Scene ${sceneIndex + 1}...`);
+                            if (onStatus) onStatus(`Rate limited. Waiting ${retrySeconds}s...`);
 
                             await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
                             attempt++;
@@ -90,7 +97,9 @@ export function useVideoGeneration() {
                     } catch (err: any) {
                         console.error(`Attempt ${attempt + 1} failed:`, err);
                         if (attempt === maxRetries - 1) throw err;
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Basic network backoff
+                        if (onStatus) onStatus(`Retrying (${attempt + 1}/${maxRetries})...`);
+
+                        await new Promise(resolve => setTimeout(resolve, 3000)); // Basic network backoff
                         attempt++;
                     }
                 }
@@ -99,6 +108,7 @@ export function useVideoGeneration() {
 
             // 2. Generate 3 videos with robust retry logic
             const generateScene = async (scene: Scene, index: number) => {
+                updateSceneStatus(index, 'Starting...');
                 const richPrompt = `${scene.primary_visuals}. Emotional Tone: ${scene.emotional_tone}.`;
 
                 const payload = modelConfig.payloadBuilder(richPrompt, {
@@ -108,46 +118,66 @@ export function useVideoGeneration() {
                     aspectRatio: '16:9'
                 });
 
-                let prediction = await createPredictionWithRetry(payload, index);
+                try {
+                    let prediction = await createPredictionWithRetry(payload, index, (msg) => updateSceneStatus(index, msg));
 
-                // Poll for completion
-                while (
-                    prediction.status !== 'succeeded' &&
-                    prediction.status !== 'failed' &&
-                    prediction.status !== 'canceled'
-                ) {
-                    await new Promise((resolve) => setTimeout(resolve, 3000));
-                    const pollResponse = await fetch(`/api/replicate/predictions/${prediction.id}`, {
-                        headers: { 'Authorization': `Bearer ${import.meta.env.VITE_REPLICATE_API_TOKEN}` },
-                    });
+                    updateSceneStatus(index, 'Processing...');
 
-                    // Handle Rate Limit during polling too
-                    if (pollResponse.status === 429) {
-                        console.log('Polling hit rate limit, backing off...');
-                        await new Promise(resolve => setTimeout(resolve, 5000));
-                        continue;
+                    // Poll for completion
+                    while (
+                        prediction.status !== 'succeeded' &&
+                        prediction.status !== 'failed' &&
+                        prediction.status !== 'canceled'
+                    ) {
+                        await new Promise((resolve) => setTimeout(resolve, 3000));
+                        const pollResponse = await fetch(`/api/replicate/predictions/${prediction.id}`, {
+                            headers: { 'Authorization': `Bearer ${import.meta.env.VITE_REPLICATE_API_TOKEN}` },
+                        });
+
+                        // Handle Rate Limit during polling too
+                        if (pollResponse.status === 429) {
+                            updateSceneStatus(index, 'Polling rate limit...');
+                            await new Promise(resolve => setTimeout(resolve, 5000));
+                            continue;
+                        }
+
+                        prediction = await pollResponse.json();
+
+                        if (prediction.status === 'failed') {
+                            updateSceneStatus(index, 'Failed');
+                            // Expose the actual error details from Replicate
+                            const detailedError = prediction.error?.message || prediction.error || JSON.stringify(prediction.logs) || 'Unknown error';
+                            console.error(`Scene ${index + 1} Replicate Error:`, prediction);
+                            throw new Error(`Scene ${index + 1} failed: ${detailedError}`);
+                        }
+
+                        // Show detailed status if simplified
+                        if (prediction.status !== 'succeeded') {
+                            // Map 'processing' -> 'Rendering...'
+                            const friendlyStatus = prediction.status === 'processing' ? 'Rendering...' :
+                                prediction.status === 'starting' ? 'Starting...' : prediction.status;
+                            updateSceneStatus(index, friendlyStatus);
+                        }
                     }
 
-                    prediction = await pollResponse.json();
-                    if (prediction.status === 'failed') throw new Error(`Scene ${index + 1} generation failed`);
-                }
+                    if (prediction.output) {
+                        updateSceneStatus(index, 'Done!');
+                        return Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+                    }
+                    throw new Error(`No output for scene ${index + 1}`);
 
-                if (prediction.output) {
-                    return Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+                } catch (e: any) {
+                    updateSceneStatus(index, 'Failed');
+                    throw e;
                 }
-                throw new Error(`No output for scene ${index + 1}`);
             };
 
-            setStatus('Generating 3 scenes (auto-throttled)...');
+            setStatus('Initializing scenes...');
 
             // Execute generations
-            // Since we have robust retry logic, we can fire them off. 
-            // The ones that hit 429 will just wait and retry automatically.
             const p1 = generateScene(scenes[0], 0);
-
             await new Promise(r => setTimeout(r, 2000));
             const p2 = generateScene(scenes[1], 1);
-
             await new Promise(r => setTimeout(r, 2000));
             const p3 = generateScene(scenes[2], 2);
 
@@ -156,7 +186,7 @@ export function useVideoGeneration() {
             generatedUrls.push(...results);
 
             setVideoUrls(generatedUrls);
-            setStatus(`Success! Generated ${generatedUrls.length} scenes (Total: ~${generatedUrls.length * 20}s)`);
+            setStatus(`Success! All scenes complete.`);
 
         } catch (err: unknown) {
             console.error('Generation error:', err);
