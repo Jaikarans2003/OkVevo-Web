@@ -129,7 +129,8 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
             handleDownloadingHelper(finalUrl, `tunetales-full-movie-${Date.now()}.mp4`);
         } catch (error) {
             console.error('Stitching failed:', error);
-            alert('Stitching Unavailable: To fix video playback issues, we disabled generic browser isolation. Video Stitching requires enabled isolation. Please download clips individually for now.');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Stitching Failed: ${errorMessage}. \n\nNote: If the error mentions 'SharedArrayBuffer', please fully restart your terminal/server to apply security headers.`);
         } finally {
             setIsStitching(false);
         }

@@ -1,5 +1,5 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { toBlobURL } from '@ffmpeg/util';
 
 class VideoStitcherService {
     private ffmpeg: FFmpeg | null = null;
@@ -43,10 +43,20 @@ class VideoStitcherService {
         ffmpeg.on('progress', progressListener);
 
         try {
-            // 1. Write files to FS
+            // Verify Browser Capabilities
+            if (!window.crossOriginIsolated) {
+                throw new Error('Browser is not cross-origin isolated. SharedArrayBuffer unavailable. Please restart server/browser to apply COOP/COEP headers.');
+            }
+
+            // 1. Write files to FS with explicitly CORS-enabled fetch
             for (let i = 0; i < videoUrls.length; i++) {
-                const data = await fetchFile(videoUrls[i]);
-                await ffmpeg.writeFile(`input${i}.mp4`, data);
+                // Fetch directly to Buffer to ensure we control the request
+                const response = await fetch(videoUrls[i]);
+                if (!response.ok) throw new Error(`Failed to fetch video ${i + 1}: ${response.statusText}`);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                await ffmpeg.writeFile(`input${i}.mp4`, uint8Array);
             }
 
             // 2. Build Filter Graph for 3 videos
