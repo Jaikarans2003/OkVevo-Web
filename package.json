@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export": "next build",
+    "deploy": "npm run export && firebase deploy --only hosting"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
