@@ -62,7 +62,7 @@ export function useVideoGeneration() {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${import.meta.env.VITE_REPLICATE_API_TOKEN}`,
+                                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_REPLICATE_API_TOKEN}`,
                             },
                             body: JSON.stringify(payload),
                         });
@@ -133,7 +133,7 @@ export function useVideoGeneration() {
                     ) {
                         await new Promise((resolve) => setTimeout(resolve, 3000));
                         const pollResponse = await fetch(`/api/replicate/predictions/${prediction.id}`, {
-                            headers: { 'Authorization': `Bearer ${import.meta.env.VITE_REPLICATE_API_TOKEN}` },
+                            headers: { 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_REPLICATE_API_TOKEN}` },
                         });
 
                         // Handle Rate Limit during polling too

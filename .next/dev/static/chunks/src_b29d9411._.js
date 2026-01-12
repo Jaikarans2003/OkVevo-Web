@@ -42,13 +42,9 @@ __turbopack_context__.s([
     "generateGreeting",
     ()=>generateGreeting
 ]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = /*#__PURE__*/ __turbopack_context__.i("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$google$2f$generative$2d$ai$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@google/generative-ai/dist/index.mjs [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$groq$2d$sdk$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/groq-sdk/index.mjs [app-client] (ecmascript) <locals>");
-const __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return `file://${__turbopack_context__.P("src/services/AIService.ts")}`;
-    }
-};
 ;
 ;
 // Retry logic with exponential backoff
@@ -75,11 +71,12 @@ const callWithRetry = async (fn, maxRetries = 3, baseDelay = 1000)=>{
 };
 const tryGeminiWithFallback = async (fullPrompt)=>{
     const apiKeys = [
-        __TURBOPACK__import$2e$meta__.env.VITE_GEMINI_API_KEY,
-        __TURBOPACK__import$2e$meta__.env.VITE_GOOGLE_API_KEY
+        ("TURBOPACK compile-time value", "AIzaSyC57aivXXa0PXCcsF54mSc0rbLjiGSdkxA"),
+        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_GOOGLE_API_KEY
     ].filter(Boolean);
     let lastError;
     for (const apiKey of apiKeys){
+        if (!apiKey) continue; // Skip undefined keys
         try {
             console.log(`Trying Gemini API with key: ${apiKey.substring(0, 10)}...`);
             const genAI = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$google$2f$generative$2d$ai$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["GoogleGenerativeAI"](apiKey);
@@ -151,7 +148,7 @@ const fallbackToGroq = async (fullPrompt)=>{
     try {
         console.log('Falling back to Groq API...');
         const groq = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$groq$2d$sdk$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["default"]({
-            apiKey: __TURBOPACK__import$2e$meta__.env.VITE_GROQ_API_KEY,
+            apiKey: ("TURBOPACK compile-time value", "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"),
             dangerouslyAllowBrowser: true
         });
         const prompt = `You are an elite film director following the LTX-2 Prompting Guide. Deconstruct the following enhanced story into exactly THREE self-contained cinematic scenes (20s each) for a 60s video.
@@ -225,8 +222,9 @@ const generateGreeting = async ()=>{
 };
 const enhanceStory = async (userStory)=>{
     try {
-        const apiKey = __TURBOPACK__import$2e$meta__.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY in .env file");
+        const apiKey = ("TURBOPACK compile-time value", "AIzaSyC57aivXXa0PXCcsF54mSc0rbLjiGSdkxA");
+        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+        ;
         const genAI = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$google$2f$generative$2d$ai$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["GoogleGenerativeAI"](apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
@@ -306,14 +304,10 @@ __turbopack_context__.s([
     "useVideoGeneration",
     ()=>useVideoGeneration
 ]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = /*#__PURE__*/ __turbopack_context__.i("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$models$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/config/models.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$AIService$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/services/AIService.ts [app-client] (ecmascript)");
-const __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return `file://${__turbopack_context__.P("src/hooks/useVideoGeneration.ts")}`;
-    }
-};
 var _s = __turbopack_context__.k.signature();
 ;
 ;
@@ -374,7 +368,7 @@ function useVideoGeneration() {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${__TURBOPACK__import$2e$meta__.env.VITE_REPLICATE_API_TOKEN}`
+                                'Authorization': `Bearer ${__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_REPLICATE_API_TOKEN}`
                             },
                             body: JSON.stringify(payload)
                         });
@@ -430,7 +424,7 @@ function useVideoGeneration() {
                         await new Promise((resolve)=>setTimeout(resolve, 3000));
                         const pollResponse = await fetch(`/api/replicate/predictions/${prediction.id}`, {
                             headers: {
-                                'Authorization': `Bearer ${__TURBOPACK__import$2e$meta__.env.VITE_REPLICATE_API_TOKEN}`
+                                'Authorization': `Bearer ${__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_REPLICATE_API_TOKEN}`
                             }
                         });
                         // Handle Rate Limit during polling too

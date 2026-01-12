@@ -43,13 +43,15 @@ const callWithRetry = async <T>(
 
 const tryGeminiWithFallback = async (fullPrompt: string): Promise<Scene[]> => {
   const apiKeys = [
-    import.meta.env.VITE_GEMINI_API_KEY,
-    import.meta.env.VITE_GOOGLE_API_KEY
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+    process.env.NEXT_PUBLIC_GOOGLE_API_KEY
   ].filter(Boolean);
 
   let lastError: Error;
 
   for (const apiKey of apiKeys) {
+    if (!apiKey) continue; // Skip undefined keys
+
     try {
       console.log(`Trying Gemini API with key: ${apiKey.substring(0, 10)}...`);
 
@@ -131,7 +133,7 @@ const fallbackToGroq = async (fullPrompt: string): Promise<Scene[]> => {
   try {
     console.log('Falling back to Groq API...');
     const groq = new Groq({
-      apiKey: import.meta.env.VITE_GROQ_API_KEY,
+      apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
       dangerouslyAllowBrowser: true
     });
 
@@ -221,8 +223,8 @@ export const generateGreeting = async (): Promise<string> => {
 
 export const enhanceStory = async (userStory: string): Promise<EnhancedStory> => {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY in .env file");
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing NEXT_PUBLIC_GEMINI_API_KEY in .env file");
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
