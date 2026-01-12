@@ -52,7 +52,7 @@ export function useVideoGeneration() {
 
         try {
             // Helper to handle rate limits (429) gracefully
-            const createPredictionWithRetry = async (payload: any, sceneIndex: number, onStatus?: (msg: string) => void): Promise<any> => {
+            const createPredictionWithRetry = async (payload: Record<string, unknown>, sceneIndex: number, onStatus?: (msg: string) => void): Promise<Record<string, unknown>> => {
                 const maxRetries = 5; // Increased retries for strict rate limits
                 let attempt = 0;
 
@@ -77,7 +77,9 @@ export function useVideoGeneration() {
                                 else if (jsonErr.detail && jsonErr.detail.includes('retry_after')) {
                                     // Sometimes detail string has it? No, usually in separate field.
                                 }
-                            } catch { }
+                            } catch (e) {
+                                console.error(e);
+                            }
 
                             console.warn(`Scene ${sceneIndex + 1} hit rate limit (429). Retrying in ${retrySeconds}s...`);
                             if (onStatus) onStatus(`Rate limited. Waiting ${retrySeconds}s...`);
@@ -94,7 +96,7 @@ export function useVideoGeneration() {
 
                         return await response.json();
 
-                    } catch (err: any) {
+                    } catch (err) {
                         console.error(`Attempt ${attempt + 1} failed:`, err);
                         if (attempt === maxRetries - 1) throw err;
                         if (onStatus) onStatus(`Retrying (${attempt + 1}/${maxRetries})...`);
@@ -119,7 +121,7 @@ export function useVideoGeneration() {
                 });
 
                 try {
-                    let prediction = await createPredictionWithRetry(payload, index, (msg) => updateSceneStatus(index, msg));
+                    let prediction: Record<string, unknown> = await createPredictionWithRetry(payload, index, (msg) => updateSceneStatus(index, msg));
 
                     updateSceneStatus(index, 'Processing...');
 
@@ -146,9 +148,9 @@ export function useVideoGeneration() {
                         if (prediction.status === 'failed') {
                             updateSceneStatus(index, 'Failed');
                             // Expose the actual error details from Replicate
-                            const detailedError = prediction.error?.message || prediction.error || JSON.stringify(prediction.logs) || 'Unknown error';
+                            const detailedError = (prediction.error as Record<string, unknown>)?.message || prediction.error || JSON.stringify(prediction.logs) || 'Unknown error';
                             console.error(`Scene ${index + 1} Replicate Error:`, prediction);
-                            throw new Error(`Scene ${index + 1} failed: ${detailedError}`);
+                            throw new Error(`Scene ${index + 1} failed: ${detailedError as string}`);
                         }
 
                         // Show detailed status if simplified
@@ -166,7 +168,7 @@ export function useVideoGeneration() {
                     }
                     throw new Error(`No output for scene ${index + 1}`);
 
-                } catch (e: any) {
+                } catch (e) {
                     updateSceneStatus(index, 'Failed');
                     throw e;
                 }
@@ -224,6 +226,7 @@ export function useVideoGeneration() {
         analyzePrompt,
         generateVideosFromScenes,
         resetAnalysis,
-        updateAnalyzedScene // Export new function
+        updateAnalyzedScene,
+        setAnalyzedScenes
     };
 }

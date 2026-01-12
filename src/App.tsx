@@ -1,274 +1,347 @@
-import { useState } from 'react';
-import { Film, Loader2, Video, Settings2, Info, ArrowRight, CheckCircle } from 'lucide-react';
-import { MODELS } from './config/models';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle } from 'lucide-react';
 import { useVideoGeneration } from './hooks/useVideoGeneration';
+import { useChatFlow } from './hooks/useChatFlow';
 import VideoPlayer from './components/VideoPlayer';
+import type { Scene, ChatMessage } from './services/AIService';
+import { MODELS } from './config/models';
 
-export default function TextToVideoGenerator() {
+export default function Brick2Brick() {
   const {
     analyzedScenes,
     videoUrls,
-    loading,
-    error,
-    status,
-    analyzePrompt,
+    error: videoError,
+    setAnalyzedScenes,
     generateVideosFromScenes,
     resetAnalysis,
     updateAnalyzedScene
   } = useVideoGeneration();
 
-  // UI State
+  const {
+    messages,
+    currentState,
+    loading: chatLoading,
+    error: chatError,
+    generatingVideos,
+    processUserStory,
+    handleEnhancementConfirmation,
+    handleProceedConfirmation,
+    resetConversation
+  } = useChatFlow();
+
   const [inputText, setInputText] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [guidanceScale, setGuidanceScale] = useState(MODELS['tunetales'].defaultGuidance);
+  const [guidanceScale,] = useState(MODELS['tunetales'].defaultGuidance);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleInitialGenerate = () => {
-    analyzePrompt(inputText);
-  };
-
-  const handleProceedClick = () => {
+  const handleGenerateVideos = useCallback(async () => {
     if (analyzedScenes) {
-      generateVideosFromScenes(analyzedScenes, guidanceScale);
+      await generateVideosFromScenes(analyzedScenes, guidanceScale);
+    }
+  }, [analyzedScenes, guidanceScale, generateVideosFromScenes]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useEffect(() => {
+    if (currentState === 'scenes_ready' && analyzedScenes) {
+      handleGenerateVideos();
+    }
+  }, [currentState, analyzedScenes, handleGenerateVideos]);
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || chatLoading) return;
+
+    const userMessage = inputText.trim();
+    setInputText('');
+
+    if (currentState === 'awaiting_enhancement_confirmation') {
+      const scenes = await handleEnhancementConfirmation(userMessage);
+      if (scenes) {
+        setAnalyzedScenes(scenes);
+      }
+    } else if (currentState === 'awaiting_proceed_confirmation') {
+      handleProceedConfirmation(userMessage);
+    } else {
+      await processUserStory(userMessage);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-8">
-      <div className="w-full max-w-4xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <Film className="w-12 h-12 text-white" />
+  const formatMessageContent = (content: string) => {
+    return content.split('\n').map((line, index) => {
+      if (line.startsWith('✨') || line.startsWith('🎬') || line.startsWith('🎵') || line.startsWith('🎥')) {
+        return (
+          <div key={index} className="flex items-start gap-2 mb-3">
+            <span className="text-lg">{line.substring(0, 2)}</span>
+            <span className="font-semibold text-orange-brand-300">{line.substring(2).split(':')[0]}:</span>
+            <span className="text-gray-brand-200">{line.substring(2).split(':')[1]}</span>
           </div>
-          <h1 className="text-4xl font-bold mb-2">Text to Video</h1>
-          <p className="text-gray-400">Transform your words into motion</p>
+        );
+      }
+      if (line.startsWith('•')) {
+        return (
+          <div key={index} className="ml-4 text-gray-brand-300 mb-1">
+            {line}
+          </div>
+        );
+      }
+      if (line.trim() === '') {
+        return <div key={index} className="h-2" />;
+      }
+      return (
+        <div key={index} className="text-gray-brand-200 leading-relaxed">
+          {line}
         </div>
+      );
+    });
+  };
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-200">
-            {error}
-          </div>
-        )}
-
-        {/* Input Section (Hidden if reviewing or generated) */}
-        {!analyzedScenes && videoUrls.length === 0 && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Model Info */}
-            <div className="w-full p-4 rounded-lg border border-gray-800 bg-gray-900/50 text-left">
-              <div className="flex items-center gap-3 mb-2">
-                <Video className="w-5 h-5 text-blue-400" />
-                <span className="font-semibold text-xl">{MODELS['tunetales'].name}</span>
-              </div>
-              <p className="text-sm text-gray-400">{MODELS['tunetales'].description}</p>
+  return (
+    <div className="h-screen bg-custom-bg text-custom-cream flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 p-4 bg-custom-bg">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-2">
+            <div className="p-2 bg-custom-orange rounded-full shadow-lg shadow-custom-orange/50">
+              <Film className="w-8 h-8 text-custom-cream" />
             </div>
+          </div>
+          <h1 className="text-2xl font-bold text-custom-orange">
+            Brick2Brick
+          </h1>
+          <p className="text-custom-cream/70 text-sm">Transform your words into motion</p>
+        </div>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description
-              </label>
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={`Describe the video you want ${MODELS['tunetales'].name} to create...`}
-                className="w-full h-40 bg-white text-black p-4 rounded-lg border-2 border-gray-300 focus:border-gray-500 focus:outline-none resize-none placeholder-gray-400 transition-colors"
-                disabled={loading}
-              />
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {messages.map((message: ChatMessage, index: number) => (
+            <div key={index} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-4 h-4 text-custom-cream" />
+                </div>
+              )}
 
-              {/* Advanced Settings Toggle */}
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  <Settings2 className="w-4 h-4" />
-                  {showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                </button>
+              <div className={`max-w-3xl ${message.role === 'user' ? 'order-1' : 'order-2'}`}>
+                {message.type === 'scene_review' && analyzedScenes ? (
+                  // Render Scene Reviewer inline
+                  <div className="bg-custom-cream/5 border border-custom-orange/30 rounded-2xl p-4 mr-12">
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-bold text-custom-orange">
+                        Scene Review
+                      </h2>
 
-                {showAdvanced && (
-                  <div className="mt-4 p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-4">
-                    {/* Guidance Scale */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                          Guidance Scale
-                          <div className="group relative">
-                            <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-xs text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              How closely to follow the prompt
+                      <div className="grid gap-4">
+                        {analyzedScenes?.map((scene: Scene, idx: number) => (
+                          <div key={idx} className={`bg-custom-bg border border-custom-orange/30 rounded-xl p-4 transition-all duration-300 ${generatingVideos ? 'opacity-75' : 'hover:border-custom-orange'
+                            }`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-bold text-lg text-custom-orange">Scene {idx + 1}</h3>
+                            </div>
+
+                            <div className="space-y-4 text-sm">
+                              <div>
+                                <label className="text-custom-cream block mb-2 font-semibold flex items-center gap-2">
+                                  Visuals
+                                  <span className="text-xs text-custom-orange font-normal">(AI Suggested)</span>
+                                </label>
+                                <textarea
+                                  value={scene.primary_visuals}
+                                  onChange={(e) => updateAnalyzedScene(idx, 'primary_visuals', e.target.value)}
+                                  readOnly={generatingVideos}
+                                  className={`w-full bg-custom-bg text-custom-cream p-3 rounded-lg border border-custom-orange/30 resize-none transition-all duration-300 ${generatingVideos
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'focus:border-custom-orange focus:outline-none'
+                                    }`}
+                                  rows={3}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-custom-cream block mb-2 font-semibold">Objective</label>
+                                <input
+                                  type="text"
+                                  value={scene.scene_objective}
+                                  onChange={(e) => updateAnalyzedScene(idx, 'scene_objective', e.target.value)}
+                                  readOnly={generatingVideos}
+                                  className={`w-full bg-custom-bg text-custom-cream p-2 rounded-lg border border-custom-orange/30 transition-all duration-300 ${generatingVideos
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'focus:border-custom-orange focus:outline-none'
+                                    }`}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-custom-cream block mb-2 font-semibold">Mood / Tone</label>
+                                  <input
+                                    type="text"
+                                    value={scene.emotional_tone}
+                                    onChange={(e) => updateAnalyzedScene(idx, 'emotional_tone', e.target.value)}
+                                    readOnly={generatingVideos}
+                                    className={`w-full bg-custom-bg text-custom-cream p-2 rounded-lg border border-custom-orange/30 transition-all duration-300 ${generatingVideos
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'focus:border-custom-orange focus:outline-none'
+                                      }`}
+                                  />
+                                </div>
+
+                                <div>
+                                  <strong className="text-custom-cream block mb-2">Transition:</strong>
+                                  <span className="text-custom-cream/70 italic block py-2 bg-custom-bg p-2 rounded-lg border border-custom-orange/30 text-xs">{scene.transition_logic}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </label>
-                        <span className="text-sm text-gray-400">{guidanceScale}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="10"
-                        step="0.5"
-                        value={guidanceScale}
-                        onChange={(e) => setGuidanceScale(parseFloat(e.target.value))}
-                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>Creative (1)</span>
-                        <span>Strict (10)</span>
+                        ))}
                       </div>
                     </div>
-
-                    {/* Fixed Settings Information */}
-                    <div className="text-sm text-gray-400 p-2">
-                      <p>Settings are optimized for TuneTales cinematic output.</p>
-                      <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Duration: 60s (3 scenes x 20s)</li>
-                        <li>Aspect Ratio: 16:9</li>
-                        <li>Audio: Generated</li>
-                      </ul>
+                  </div>
+                ) : (
+                  // Regular message rendering
+                  <div className={`rounded-2xl p-4 ${message.role === 'user'
+                    ? 'bg-custom-orange text-custom-cream ml-12'
+                    : 'bg-custom-cream/5 border border-custom-orange/30 mr-12'
+                    }`}>
+                    <div className="text-sm leading-relaxed">
+                      {formatMessageContent(message.content)}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            <button
-              onClick={handleInitialGenerate}
-              disabled={loading}
-              className="w-full bg-white text-black py-4 rounded-lg font-semibold text-lg hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Analyzing Scenes...
-                </>
-              ) : (
-                'Generate Scenarios'
+              {message.role === 'user' && (
+                <div className="w-8 h-8 bg-custom-cream/20 rounded-full flex items-center justify-center flex-shrink-0 order-2">
+                  <User className="w-4 h-4 text-custom-cream" />
+                </div>
               )}
-            </button>
-          </div>
-        )}
-
-        {/* Scene Review Section */}
-        {analyzedScenes && videoUrls.length === 0 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Scene Analysis</h2>
-              <button
-                onClick={resetAnalysis}
-                className="text-sm text-gray-400 hover:text-white underline"
-              >
-                Edit Prompt
-              </button>
             </div>
+          ))}
 
-            <div className="grid gap-6">
-              {analyzedScenes.map((scene, idx) => (
-                <div key={idx} className="bg-gray-900 border border-gray-800 rounded-lg p-6 hover:border-blue-900/50 transition-colors">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-lg text-blue-400">Scene {idx + 1}: {scene.scene}</h3>
-                    <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">20s</span>
-                  </div>
+          {chatLoading && (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin text-custom-orange" />
+              <p className="ml-4 text-lg text-custom-cream">Analyzing your story...</p>
+            </div>
+          )}
 
-                  <div className="space-y-4 text-sm text-gray-300">
-                    {/* Visuals - Editable */}
-                    <div>
-                      <label className="text-white block mb-1 font-semibold flex items-center gap-2">
-                        Visuals
-                        <span className="text-xs text-gray-500 font-normal">(AI Suggested)</span>
-                      </label>
-                      <textarea
-                        value={scene.primary_visuals}
-                        onChange={(e) => updateAnalyzedScene(idx, 'primary_visuals', e.target.value)}
-                        className="w-full bg-black/50 text-white p-3 rounded border border-gray-700 focus:border-blue-500 focus:outline-none resize-none transition-colors"
-                        rows={3}
-                      />
-                    </div>
 
-                    {/* Objective - Editable */}
-                    <div>
-                      <label className="text-white block mb-1 font-semibold">Objective</label>
-                      <input
-                        type="text"
-                        value={scene.scene_objective}
-                        onChange={(e) => updateAnalyzedScene(idx, 'scene_objective', e.target.value)}
-                        className="w-full bg-black/50 text-white p-2 rounded border border-gray-700 focus:border-blue-500 focus:outline-none transition-colors"
-                      />
-                    </div>
+          {/* Loader after Proceed */}
+          {generatingVideos && videoUrls.length === 0 && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                <Bot className="w-4 h-4 text-custom-cream" />
+              </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Tone - Editable */}
-                      <div>
-                        <label className="text-white block mb-1 font-semibold">Mood / Tone</label>
-                        <input
-                          type="text"
-                          value={scene.emotional_tone}
-                          onChange={(e) => updateAnalyzedScene(idx, 'emotional_tone', e.target.value)}
-                          className="w-full bg-black/50 text-purple-300 p-2 rounded border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
-                        />
-                      </div>
-
-                      {/* Transition - Read Only (Lower priority to edit) */}
-                      <div>
-                        <strong className="text-white block mb-1">Transition:</strong>
-                        <span className="text-gray-500 italic block py-2">{scene.transition_logic}</span>
-                      </div>
-                    </div>
+              <div className="max-w-3xl order-2">
+                <div className="bg-custom-cream/5 border border-custom-orange/30 rounded-2xl p-4 mr-12">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-custom-orange" />
+                    <p className="text-sm text-custom-cream">Generating videos from your scenes...</p>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <button
-              onClick={handleProceedClick}
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-4 rounded-lg font-semibold text-lg hover:bg-green-500 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Generating Video...
-                </>
-              ) : (
-                <>
-                  Proceed to Generation
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Video Player/Editor Section */}
-        {videoUrls.length > 0 && (
-          <div className="animate-in fade-in zoom-in duration-500 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-400">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-semibold">Generation Complete</span>
               </div>
+            </div>
+          )}
+
+
+          {/* Video Player */}
+          {videoUrls.length > 0 && (
+            <div className="animate-in fade-in zoom-in duration-500 space-y-8 mt-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-custom-orange">
+                  <CheckCircle className="w-6 h-6" />
+                  <span className="font-bold text-xl text-custom-orange">
+                    Video Generation Complete
+                  </span>
+                </div>
+                <button
+                  onClick={resetAnalysis}
+                  className="text-sm text-custom-orange hover:text-orange-400 underline transition-colors"
+                >
+                  Create New Video
+                </button>
+              </div>
+
+              <VideoPlayer
+                videoUrls={videoUrls}
+                currentVideoIndex={currentVideoIndex}
+                setCurrentVideoIndex={setCurrentVideoIndex}
+              />
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {(chatError || videoError) && (
+        <div className="p-4 bg-custom-orange/10 border-t border-custom-orange">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 text-custom-orange">
+              <div className="w-2 h-2 bg-custom-orange rounded-full animate-pulse"></div>
+              {chatError || videoError}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="flex-shrink-0 p-4 bg-custom-bg">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              {currentState === 'awaiting_story' && (
+                <button
+                  onClick={() => setInputText('@Script ')}
+                  className="absolute bottom-3 left-3 bg-custom-orange text-custom-cream px-3 py-1 text-xs font-bold rounded hover:bg-orange-600 transition-colors z-10"
+                >
+                  SCRIPT
+                </button>
+              )}
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={
+                  currentState === 'greeting' ? 'Loading...' :
+                    currentState === 'awaiting_story' ? 'Click SCRIPT and share your story or video idea...' :
+                      currentState === 'awaiting_enhancement_confirmation' ? 'Your response (yes/no)...' :
+                        currentState === 'awaiting_proceed_confirmation' ? 'Type "Proceed" to continue or provide feedback to regenerate scenes.' :
+                          'Type your message...'
+                }
+                className="w-full h-20 bg-custom-bg text-custom-cream p-4 rounded-xl border-2 border-custom-orange/30 focus:border-custom-orange focus:outline-none resize-none placeholder-custom-cream/30 transition-all duration-300"
+                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
               <button
-                onClick={resetAnalysis}
-                className="text-sm text-gray-400 hover:text-white underline"
+                onClick={handleSendMessage}
+                disabled={!inputText.trim() || chatLoading}
+                className="absolute bottom-3 right-3 bg-custom-orange p-2 rounded-lg text-custom-cream disabled:bg-custom-cream/10 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-110 active:scale-95"
               >
-                Create New Video
+                <Send className="w-5 h-5" />
               </button>
             </div>
-
-            <VideoPlayer
-              videoUrls={videoUrls}
-              currentVideoIndex={currentVideoIndex}
-              setCurrentVideoIndex={setCurrentVideoIndex}
-            />
           </div>
-        )}
 
-        {/* Loading Overlay for Status */}
-        {loading && (
-          <div className="fixed bottom-8 right-8 bg-black/80 backdrop-blur border border-gray-800 rounded-lg p-4 flex items-center gap-3 animate-pulse z-50">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-            <span className="text-sm">{status}</span>
+          <div className="flex justify-center mt-3">
+            <button
+              onClick={resetConversation}
+              className="text-xs text-custom-orange hover:text-orange-400 transition-colors flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Start New Conversation
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

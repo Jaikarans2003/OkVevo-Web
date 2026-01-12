@@ -97,15 +97,15 @@ class VideoStitcherService {
 
             // 3. Read result
             const data = await ffmpeg.readFile('output.mp4');
-            const blob = new Blob([data as any], { type: 'video/mp4' });
+            const blob = new Blob([data as BlobPart], { type: 'video/mp4' });
             return URL.createObjectURL(blob);
 
         } finally {
             // Cleanup FS to free memory
             for (let i = 0; i < videoUrls.length; i++) {
-                try { await ffmpeg.deleteFile(`input${i}.mp4`); } catch { }
+                try { await ffmpeg.deleteFile(`input${i}.mp4`); } catch (e) { console.error(e); }
             }
-            try { await ffmpeg.deleteFile('output.mp4'); } catch { }
+            try { await ffmpeg.deleteFile('output.mp4'); } catch (e) { console.error(e); }
 
             ffmpeg.off('progress', progressListener);
         }
