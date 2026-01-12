@@ -11,3 +11,28 @@
 [00:03:47.694] Server  LOG       Reload env: .env
 [00:03:47.890] Server  LOG     ✓ Compiled in 134ms
 [00:04:11.876] Browser LOG     Trying Gemini API with key: AIzaSyC57a...
+[00:04:29.133] Browser LOG     Gemini Response: {
+  "scenes": [
+    {
+      "scene": "Scene 1 (0-20s)",
+      "scene_objective": "Establish Elara's contemplative mood and the quiet setting, hinting at an upcoming interaction.",
+      "primary_visuals": "A medium shot, slightly low angle, establishes a cozy, dimly lit independent coffee shop in late afternoon. Golden light, diffused and soft, filters through a large, rain-streaked window, illuminating dust motes dancing in the air. The rich aroma of freshly brewed coffee and old books permeates the space. ELARA, a woman in her mid-20s with deep hazel eyes, dressed in a soft, oversized knit sweater and her hair pulled back loosely, sits alone at a small, worn wooden table. She cradles a warm ceramic mug in both hands, her gaze distant and fixed on the rain outside. Her expression is pensive, hinting at a quiet anticipation, and her eyes briefly flick towards the coffee shop's entrance. The camera executes a slow, almost imperceptible push-in on Elara's face, emphasizing her thoughtful state. Muffled sounds of distant city traffic, the gentle patter of rain against the window, and soft, melancholic jazz music play faintly, accompanied by the subtle clinking of ceramic.",
+      "emotional_tone": "Pensive, quiet anticipation, slightly melancholic",
+      "transition_logic": "A soft dissolve to the next scene."
+    },
+    {
+      "scene": "Scene 2 (20-40s)",
+      "scene_objective": "Deliver the 'Hi' and capture the immediate, subtle exchange.",
+      "primary_visuals": "A tight close-up on ELARA's face, maintaining the established setting of the cozy, dimly lit independent coffee shop in late afternoon. Golden light, diffused and soft, continues to filter through the large, rain-streaked window, illuminating dust motes dancing in the air. The rich aroma of freshly brewed coffee and old books still permeates the space. ELARA, the woman in her mid-20s with deep hazel eyes, dressed in a soft, oversized knit sweater and her hair pulled back loosely, is still seated alone at the small, worn wooden table. Her warm ceramic mug rests in front of her. Her deep hazel eyes, full of quiet thoughtfulness, now meet an unseen gaze just off-screen. A tiny, almost imperceptible, gentle smile plays on her lips as she mouths a soft, almost soundless 'Hi,' her eyes holding a gentle warmth and recognition. Her shoulders relax subtly, a silver pendant visible around her neck. The camera remains static, allowing the viewer to focus entirely on her nuanced facial expression. The soft, melancholic jazz music swells slightly, the gentle patter of rain against the window continues, and a soft, almost whispered 'Hi' (ambiguously from Elara or off-screen) is heard, creating an intimate moment.",
+      "emotional_tone": "Gentle connection, warmth, subtle recognition",
+      "transition_logic": "A quick, almost imperceptible cut to the next scene."
+    },
+    {
+      "scene": "Scene 3 (40-60s)",
+      "scene_objective": "Show Elara's internal reaction and the lingering feeling after the greeting.",
+      "primary_visuals": "A medium shot, slightly wider than Scene 1, shows ELARA in the same cozy, dimly lit independent coffee shop in late afternoon. Golden light, diffused and soft, still filters through the large, rain-streaked window, illuminating dust motes. The rich aroma of freshly brewed coffee and old books continues to permeate the space. ELARA, the woman in her mid-20s with deep hazel eyes, dressed in a soft, oversized knit sweater and her hair pulled back loosely, with a silver pendant around her neck, is still at her small, worn wooden table. Having just exchanged the soft greeting, she now turns her gaze back towards the rain-streaked window. A faint, genuine smile now rests comfortably on her lips, a stark contrast to her earlier pensive look. She brings her warm ceramic mug to her lips again, her movements more relaxed and fluid, a quiet contentment settling over her entire demeanor. Her deep hazel eyes seem a little brighter, reflecting a newfound peace. She exhales slowly, a sense of quiet joy washing over her. The camera executes a slow, gentle pull-back, gradually revealing more of the cozy coffee shop around her, emphasizing her relaxed posture and newfound comfort within the space. The soft, melancholic jazz music continues, now feeling more comforting and resolved. The gentle patter of rain against the window is softer, and a distant, contented sigh from Elara is heard.",
+      "emotional_tone": "Contentment, peace, quiet joy, lingering warmth",
+      "transition_logic": "Fade to black."
+    }
+  ]
+}
