@@ -148,7 +148,7 @@ const fallbackToGroq = async (fullPrompt)=>{
     try {
         console.log('Falling back to Groq API...');
         const groq = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$groq$2d$sdk$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["default"]({
-            apiKey: ("TURBOPACK compile-time value", "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"),
+            apiKey: ("TURBOPACK compile-time value", "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"),
             dangerouslyAllowBrowser: true
         });
         const prompt = `You are an elite film director following the LTX-2 Prompting Guide. Deconstruct the following enhanced story into exactly THREE self-contained cinematic scenes (20s each) for a 60s video.
@@ -368,7 +368,7 @@ function useVideoGeneration() {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_REPLICATE_API_TOKEN}`
+                                'Authorization': `Bearer ${("TURBOPACK compile-time value", "")}`
                             },
                             body: JSON.stringify(payload)
                         });
@@ -424,7 +424,7 @@ function useVideoGeneration() {
                         await new Promise((resolve)=>setTimeout(resolve, 3000));
                         const pollResponse = await fetch(`/api/replicate/predictions/${prediction.id}`, {
                             headers: {
-                                'Authorization': `Bearer ${__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_REPLICATE_API_TOKEN}`
+                                'Authorization': `Bearer ${("TURBOPACK compile-time value", "")}`
                             }
                         });
                         // Handle Rate Limit during polling too
@@ -444,7 +444,7 @@ function useVideoGeneration() {
                         // Show detailed status if simplified
                         if (prediction.status !== 'succeeded') {
                             // Map 'processing' -> 'Rendering...'
-                            const friendlyStatus = prediction.status === 'processing' ? 'Rendering...' : prediction.status === 'starting' ? 'Starting...' : prediction.status;
+                            const friendlyStatus = prediction.status === 'processing' ? 'Rendering...' : prediction.status === 'starting' ? 'Starting...' : String(prediction.status);
                             updateSceneStatus(index, friendlyStatus);
                         }
                     }

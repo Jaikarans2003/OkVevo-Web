@@ -156,8 +156,8 @@ export function useVideoGeneration() {
                         // Show detailed status if simplified
                         if (prediction.status !== 'succeeded') {
                             // Map 'processing' -> 'Rendering...'
-                            const friendlyStatus = prediction.status === 'processing' ? 'Rendering...' :
-                                prediction.status === 'starting' ? 'Starting...' : prediction.status;
+                            const friendlyStatus: string = prediction.status === 'processing' ? 'Rendering...' :
+                                prediction.status === 'starting' ? 'Starting...' : String(prediction.status);
                             updateSceneStatus(index, friendlyStatus);
                         }
                     }
