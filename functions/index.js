@@ -1,7 +1,11 @@
 const functions = require("firebase-functions");
+const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
+
+// Initialize Firebase Admin SDK
+admin.initializeApp();
 
 const app = express();
 
@@ -37,6 +41,44 @@ app.post("/api/gemini", async (req, res) => {
     } catch (error) {
         console.error("Gemini Proxy Error:", error);
         res.status(500).json({ error: "Failed to proxy to Gemini", details: error.message });
+    }
+});
+
+// Fetch Videos from Firebase Storage
+app.get("/api/videos/fetch", async (req, res) => {
+    try {
+        const bucket = admin.storage().bucket(); // Use default bucket
+        const videoIds = ['1', '2', '3'];
+
+        console.log('Fetching videos from Firebase Storage...');
+
+        const videos = await Promise.all(
+            videoIds.map(async (videoId) => {
+                const file = bucket.file(`MockAIGeneratedVideos/${videoId}.mp4`);
+
+                // Check if file exists
+                const [exists] = await file.exists();
+                if (!exists) {
+                    throw new Error(`Video ${videoId}.mp4 not found in storage`);
+                }
+
+                const [url] = await file.getSignedUrl({
+                    action: 'read',
+                    expires: Date.now() + 60 * 60 * 1000 // 1 hour expiration
+                });
+
+                return { id: videoId, url };
+            })
+        );
+
+        console.log(`Successfully fetched ${videos.length} video URLs`);
+        res.json({ videos });
+    } catch (error) {
+        console.error('Error fetching videos from storage:', error);
+        res.status(500).json({
+            error: 'Failed to fetch videos',
+            details: error.message
+        });
     }
 });
 

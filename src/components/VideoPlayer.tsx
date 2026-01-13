@@ -29,6 +29,7 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
     const [isLoadingBlob, setIsLoadingBlob] = useState(false);
 
     // Fetch Blob when current video changes (to bypass COOP/COEP)
+    // Commented out for Firebase Storage compatibility - using direct URLs instead
     React.useEffect(() => {
         const url = videoUrls[currentVideoIndex];
         if (!url) {
@@ -36,26 +37,9 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
             return;
         }
 
-        let isMounted = true;
-        setIsLoadingBlob(true);
-
-        fetch(url)
-            .then(res => res.blob())
-            .then(blob => {
-                if (isMounted) {
-                    const objectUrl = URL.createObjectURL(blob);
-                    setActiveBlobUrl(objectUrl);
-                    setIsLoadingBlob(false);
-                }
-            })
-            .catch(err => {
-                console.error("Failed to load video blob:", err);
-                if (isMounted) setIsLoadingBlob(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
+        // Use the URL directly instead of fetching as blob
+        setActiveBlobUrl(url);
+        setIsLoadingBlob(false);
     }, [currentVideoIndex, videoUrls]);
 
     // Timeline State
@@ -195,7 +179,7 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                 <button
                     onClick={() => setShowEditor(!showEditor)}
                     className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${showEditor
-                            ? 'bg-orange-gradient text-white hover:shadow-lg hover:shadow-orange-brand-600/30'
+                        ? 'bg-orange-gradient text-white hover:shadow-lg hover:shadow-orange-brand-600/30'
                         : 'bg-black text-gray-brand-300 hover:bg-gray-brand-900 hover:text-white'
                         } transform hover:scale-105 active:scale-95`}
                 >
@@ -403,7 +387,7 @@ export default function VideoPlayer({ videoUrls, currentVideoIndex, setCurrentVi
                                         max="100"
                                         value={cropSettings.height}
                                         onChange={(e) => setCropSettings({ ...cropSettings, height: parseInt(e.target.value) })}
-                                        className="w-full h-2 bg-black rounded-lg appearance-none cursor-pointer slider"    
+                                        className="w-full h-2 bg-black rounded-lg appearance-none cursor-pointer slider"
                                         style={{
                                             background: `linear-gradient(to right, #f97316 0%, #f97316 ${((cropSettings.height - 50) / 50) * 100}%, #374151 ${((cropSettings.height - 50) / 50) * 100}%, #374151 100%)`
                                         }}

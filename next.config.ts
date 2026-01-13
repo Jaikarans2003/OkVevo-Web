@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    output: 'export',
+    output: 'export', // Enabled for Firebase Hosting deployment
     async headers() {
         return [
             {
@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
                 headers: [
                     {
                         key: "Cross-Origin-Embedder-Policy",
-                        value: "require-corp",
+                        value: "credentialless", // Changed from require-corp to allow Storage videos
                     },
                     {
                         key: "Cross-Origin-Opener-Policy",

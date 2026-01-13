@@ -6,6 +6,7 @@ import { useVideoGeneration } from '../hooks/useVideoGeneration';
 import { useChatFlow } from '../hooks/useChatFlow';
 import VideoPlayer from '../components/VideoPlayer';
 import type { Scene, ChatMessage } from '../services/AIService';
+import { fetchVideosFromStorage } from '../services/StorageService';
 import { MODELS } from '../config/models';
 
 export default function Brick2Brick() {
@@ -34,6 +35,9 @@ export default function Brick2Brick() {
     const [inputText, setInputText] = useState('');
     const [guidanceScale,] = useState(MODELS['tunetales'].defaultGuidance);
     const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+    const [storageVideos, setStorageVideos] = useState<string[]>([]);
+    const [loadingStorageVideos, setLoadingStorageVideos] = useState(false);
+    const [storageError, setStorageError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const handleGenerateVideos = useCallback(async () => {
@@ -47,10 +51,11 @@ export default function Brick2Brick() {
     }, [messages]);
 
     useEffect(() => {
-        if (currentState === 'scenes_ready' && analyzedScenes) {
-            handleGenerateVideos();
+        if (currentState === 'scenes_ready') {
+            // Load videos from storage instead of generating new ones
+            handleLoadStorageVideos();
         }
-    }, [currentState, analyzedScenes, handleGenerateVideos]);
+    }, [currentState]);
 
     const handleSendMessage = async () => {
         if (!inputText.trim() || chatLoading) return;
@@ -67,6 +72,20 @@ export default function Brick2Brick() {
             handleProceedConfirmation(userMessage);
         } else {
             await processUserStory(userMessage);
+        }
+    };
+
+    const handleLoadStorageVideos = async () => {
+        setLoadingStorageVideos(true);
+        setStorageError(null);
+        try {
+            const urls = await fetchVideosFromStorage();
+            setStorageVideos(urls);
+            setCurrentVideoIndex(0);
+        } catch (error) {
+            setStorageError(error instanceof Error ? error.message : 'Failed to load videos');
+        } finally {
+            setLoadingStorageVideos(false);
         }
     };
 
@@ -276,17 +295,44 @@ export default function Brick2Brick() {
                         </div>
                     )}
 
+                    {/* Storage Videos Section */}
+                    {storageVideos.length > 0 && (
+                        <div className="animate-in fade-in zoom-in duration-500 space-y-8 mt-8">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 text-custom-orange">
+                                    <CheckCircle className="w-6 h-6" />
+                                    <span className="font-bold text-xl text-custom-orange">
+                                        Storage Videos Loaded
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => setStorageVideos([])}
+                                    className="text-sm text-custom-orange hover:text-orange-400 underline transition-colors"
+                                >
+                                    Clear Storage Videos
+                                </button>
+                            </div>
+
+                            <VideoPlayer
+                                videoUrls={storageVideos}
+                                currentVideoIndex={currentVideoIndex}
+                                setCurrentVideoIndex={setCurrentVideoIndex}
+                            />
+                        </div>
+                    )}
+
+
                     <div ref={messagesEndRef} />
                 </div>
             </div>
 
             {/* Error Display */}
-            {(chatError || videoError) && (
+            {(chatError || videoError || storageError) && (
                 <div className="p-4 bg-custom-orange/10 border-t border-custom-orange">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex items-center gap-2 text-custom-orange">
                             <div className="w-2 h-2 bg-custom-orange rounded-full animate-pulse"></div>
-                            {chatError || videoError}
+                            {chatError || videoError || storageError}
                         </div>
                     </div>
                 </div>
