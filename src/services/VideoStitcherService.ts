@@ -30,11 +30,14 @@ class VideoStitcherService {
     }
 
     async stitchVideos(videoUrls: string[], onProgress?: (progress: number) => void): Promise<string> {
-        if (!this.ffmpeg || !this.loaded) {
-            await this.load();
+        // Ensure FFmpeg is loaded first
+        await this.load();
+
+        if (!this.ffmpeg) {
+            throw new Error('Failed to initialize FFmpeg');
         }
 
-        const ffmpeg = this.ffmpeg!;
+        const ffmpeg = this.ffmpeg;
 
         // Progress handler
         const progressListener = ({ progress }: { progress: number }) => {

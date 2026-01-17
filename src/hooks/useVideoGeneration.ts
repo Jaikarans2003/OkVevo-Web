@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MODELS } from '../config/models';
 import { analyzeScenes } from '../services/AIService';
+import { stitchVideosWithLambda } from '../services/LambdaStitchService';
 import type { Scene } from '../services/AIService';
 
 export function useVideoGeneration() {
@@ -9,6 +10,8 @@ export function useVideoGeneration() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [status, setStatus] = useState('');
+    const [isStitching, setIsStitching] = useState(false);
+    const [stitchedVideoUrl, setStitchedVideoUrl] = useState<string | null>(null);
 
     const analyzePrompt = async (inputText: string) => {
         if (!inputText.trim()) {
@@ -38,22 +41,18 @@ export function useVideoGeneration() {
         setVideoUrls([]);
         setStatus('Initializing generation...');
 
-        // Tunetales model config
         const modelConfig = MODELS['tunetales'];
         const generatedUrls: string[] = [];
 
-        // Track per-scene status
         const sceneStatuses = ['Pending', 'Pending', 'Pending'];
         const updateSceneStatus = (idx: number, msg: string) => {
             sceneStatuses[idx] = msg;
-            // Update global status string
             setStatus(`Scene 1: ${sceneStatuses[0]} | Scene 2: ${sceneStatuses[1]} | Scene 3: ${sceneStatuses[2]}`);
         };
 
         try {
-            // Helper to handle rate limits (429) gracefully
             const createPredictionWithRetry = async (payload: Record<string, unknown>, sceneIndex: number, onStatus?: (msg: string) => void): Promise<Record<string, unknown>> => {
-                const maxRetries = 5; // Increased retries for strict rate limits
+                const maxRetries = 5;
                 let attempt = 0;
 
                 while (attempt < maxRetries) {
@@ -67,16 +66,12 @@ export function useVideoGeneration() {
                             body: JSON.stringify(payload),
                         });
 
-                        // Rate Limit Handling
                         if (response.status === 429) {
                             const errorText = await response.text();
-                            let retrySeconds = 12; // Default safe wait
+                            let retrySeconds = 12;
                             try {
                                 const jsonErr = JSON.parse(errorText);
                                 if (jsonErr.retry_after) retrySeconds = Math.ceil(jsonErr.retry_after) + 2;
-                                else if (jsonErr.detail && jsonErr.detail.includes('retry_after')) {
-                                    // Sometimes detail string has it? No, usually in separate field.
-                                }
                             } catch (e) {
                                 console.error(e);
                             }
@@ -86,7 +81,7 @@ export function useVideoGeneration() {
 
                             await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
                             attempt++;
-                            continue; // Retry logic
+                            continue;
                         }
 
                         if (!response.ok) {
@@ -101,14 +96,13 @@ export function useVideoGeneration() {
                         if (attempt === maxRetries - 1) throw err;
                         if (onStatus) onStatus(`Retrying (${attempt + 1}/${maxRetries})...`);
 
-                        await new Promise(resolve => setTimeout(resolve, 3000)); // Basic network backoff
+                        await new Promise(resolve => setTimeout(resolve, 3000));
                         attempt++;
                     }
                 }
                 throw new Error(`Scene ${sceneIndex + 1} failed after ${maxRetries} retries.`);
             };
 
-            // 2. Generate 3 videos with robust retry logic
             const generateScene = async (scene: Scene, index: number) => {
                 updateSceneStatus(index, 'Starting...');
                 const richPrompt = `${scene.primary_visuals}. Emotional Tone: ${scene.emotional_tone}.`;
@@ -125,7 +119,6 @@ export function useVideoGeneration() {
 
                     updateSceneStatus(index, 'Processing...');
 
-                    // Poll for completion
                     while (
                         prediction.status !== 'succeeded' &&
                         prediction.status !== 'failed' &&
@@ -136,7 +129,6 @@ export function useVideoGeneration() {
                             headers: { 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_REPLICATE_API_TOKEN}` },
                         });
 
-                        // Handle Rate Limit during polling too
                         if (pollResponse.status === 429) {
                             updateSceneStatus(index, 'Polling rate limit...');
                             await new Promise(resolve => setTimeout(resolve, 5000));
@@ -147,15 +139,12 @@ export function useVideoGeneration() {
 
                         if (prediction.status === 'failed') {
                             updateSceneStatus(index, 'Failed');
-                            // Expose the actual error details from Replicate
                             const detailedError = (prediction.error as Record<string, unknown>)?.message || prediction.error || JSON.stringify(prediction.logs) || 'Unknown error';
                             console.error(`Scene ${index + 1} Replicate Error:`, prediction);
                             throw new Error(`Scene ${index + 1} failed: ${detailedError as string}`);
                         }
 
-                        // Show detailed status if simplified
                         if (prediction.status !== 'succeeded') {
-                            // Map 'processing' -> 'Rendering...'
                             const friendlyStatus: string = prediction.status === 'processing' ? 'Rendering...' :
                                 prediction.status === 'starting' ? 'Starting...' : String(prediction.status);
                             updateSceneStatus(index, friendlyStatus);
@@ -176,7 +165,6 @@ export function useVideoGeneration() {
 
             setStatus('Initializing scenes...');
 
-            // Execute generations
             const p1 = generateScene(scenes[0], 0);
             await new Promise(r => setTimeout(r, 2000));
             const p2 = generateScene(scenes[1], 1);
@@ -201,11 +189,57 @@ export function useVideoGeneration() {
         }
     };
 
+    const stitchVideosWithAWSLambda = async () => {
+        setIsStitching(true);
+        setError('');
+
+        try {
+            console.log('🔍 Debugging stitching start...');
+            console.log('videoUrls array:', videoUrls);
+            console.log('videoUrls length:', videoUrls.length);
+            console.log('videoUrls content:', JSON.stringify(videoUrls, null, 2));
+
+            // Pass actual Firebase Storage URLs
+            const validUrls = videoUrls.filter(url => url !== null && url !== undefined && url.length > 0) as string[];
+
+            console.log('✅ Valid URLs found:', validUrls.length);
+            console.log('Valid URLs:', validUrls);
+
+            if (validUrls.length < 3) {
+                console.error('❌ Not enough videos. Expected 3, got:', validUrls.length);
+                throw new Error(`Not all videos are ready for stitching. Found ${validUrls.length}/3 videos.`);
+            }
+
+            console.log('🚀 Triggering Lambda stitching with URLs...');
+            const result = await stitchVideosWithLambda({
+                videoUrls: validUrls,
+                sessionId: `session-${Date.now()}`
+            });
+
+            if (result.success && result.videoUrl) {
+                setStitchedVideoUrl(result.videoUrl);
+                setStatus('Video stitched successfully! Ready to download.');
+                console.log('✅ Stitched video URL:', result.videoUrl);
+            } else {
+                throw new Error(result.error || 'Stitching failed');
+            }
+        } catch (err: unknown) {
+            console.error('Lambda stitching error:', err);
+            const errorMessage = err instanceof Error ? err.message : 'Failed to stitch videos';
+            setError(`Stitching failed: ${errorMessage}. Make sure FFmpeg layer is attached to Lambda.`);
+            setStatus('');
+        } finally {
+            setIsStitching(false);
+        }
+    };
+
     const resetAnalysis = () => {
         setAnalyzedScenes(null);
         setVideoUrls([]);
         setError('');
         setStatus('');
+        setIsStitching(false);
+        setStitchedVideoUrl(null);
     };
 
     const updateAnalyzedScene = (index: number, field: keyof Scene, value: string) => {
@@ -223,8 +257,11 @@ export function useVideoGeneration() {
         loading,
         error,
         status,
+        isStitching,
+        stitchedVideoUrl,
         analyzePrompt,
         generateVideosFromScenes,
+        stitchVideosWithAWSLambda,
         resetAnalysis,
         updateAnalyzedScene,
         setAnalyzedScenes

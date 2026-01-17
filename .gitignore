@@ -56,3 +56,8 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 node_modules
+
+# Lambda Layer Binaries
+lambda-stitch-function/ffmpeg-layer/bin/
+
+*.tgz

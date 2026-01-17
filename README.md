@@ -1,374 +1,381 @@
-# Brick2Brick (TuneTalezB2B) — Text to Video
+# Brick2Brick - AI Video Generation Platform
 
-Brick2Brick is a Next.js (App Router) web app that turns a user story into 3 cinematic scenes and fetches 3 pre-generated videos from Firebase Storage. It includes a Scene Review step with editable prompts and video playback.
+A Next.js application that generates and stitches AI-created videos using Replicate API, Firebase Storage, and AWS Lambda.
 
-## 🌐 Live Deployment
+## Features
 
-- **App**: https://text2video-16cbf.web.app
-- **Cloud Functions**: https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy
+### ✨ Core Functionality
+- **AI Video Generation**: Generate videos from text prompts using Replicate's AI models
+- **Video Stitching**: Automatically stitch 3 video clips into a single seamless video with crossfade transitions
+- **Firebase Storage Integration**: Store and retrieve generated videos
+- **AWS Lambda Processing**: Server-side video stitching with FFmpeg
+- **Scene Planning**: AI-powered scene breakdown and prompt generation using Google Gemini
 
-## What It Does
-
-- Chat-style flow to collect a story (expects `@Script ...` format)
-- AI scene breakdown into exactly 3 self-contained scene prompts (20s each)
-- Scene Review UI to edit visuals/objective/tone before generating
-- "Proceed" confirmation to fetch videos from Firebase Storage
-- Video playback with player controls
-
-## Tech Stack
-
-- **Frontend**: Next.js 16 (App Router) + React 19 + TypeScript
-- **Styling**: Tailwind CSS with custom brand colors
-- **AI providers**: Google Gemini with Groq fallback
-- **Backend**: Firebase Cloud Functions (Node.js 20)
-- **Storage**: Firebase Storage for video files
-- **Deployment**: Firebase Hosting (static export)
+### 🎬 Video Stitching Features
+- **Resolution Normalization**: Automatically scales videos to consistent 360x640 resolution
+- **Crossfade Transitions**: Smooth 1-second fade transitions between clips
+- **Audio Mixing**: Seamless audio crossfading
+- **Smart Error Handling**: Handles videos with different resolutions, frame rates, and audio formats
 
 ## Architecture
 
-### Frontend (Next.js Static Export)
-The app is deployed as a static site to Firebase Hosting with the following configuration:
-- Static export enabled via `output: 'export'` in `next.config.ts`
-- All API routes removed (now handled by Cloud Functions)
-- CORS headers configured for video playback
-
-### Backend (Firebase Cloud Functions)
-Cloud Functions provide serverless API endpoints:
-- **Gemini Proxy**: `/api/gemini` - Proxies requests to Google Gemini API
-- **Video Fetch**: `/api/videos/fetch` - Retrieves signed URLs for Firebase Storage videos
-- **Replicate Proxy**: Proxies to Replicate API (for future video generation)
-
-### Video Storage
-Videos are stored in Firebase Storage at:
 ```
-gs://text2video-16cbf.firebasestorage.app/MockAIGeneratedVideos/
-├── 1.mp4
-├── 2.mp4
-└── 3.mp4
+Frontend (Next.js) → API Routes → AWS Lambda (FFmpeg) → Firebase Storage
+                   ↓
+              Replicate API (Video Generation)
+                   ↓
+              Firebase Storage
 ```
 
-## Run Locally
+## Prerequisites
+
+- **Node.js** 18+ and npm
+- **Firebase Project** with Storage enabled
+- **AWS Account** with Lambda access
+- **Replicate API** account and API key
+- **Google Gemini API** key
+
+## Setup Instructions
+
+### 1. Clone and Install
 
 ```bash
-# Install dependencies
+git clone <your-repo-url>
+cd Brick2Brick
 npm install
+```
 
-# Run development server
+### 2. Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+# Replicate API (for video generation)
+NEXT_PUBLIC_REPLICATE_API_TOKEN=your_replicate_api_key
+
+# Google Gemini API (for scene planning)
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+
+# Groq API (optional - for alternative AI features)
+NEXT_PUBLIC_GROQ_API_KEY=your_groq_api_key
+
+# AWS Lambda Stitching Endpoint
+NEXT_PUBLIC_LAMBDA_STITCH_URL=https://your-api-gateway-url.amazonaws.com/production/stitch-videos
+```
+
+### 3. Firebase Setup
+
+#### Create Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project: `text2video-16cbf` (or your preferred name)
+3. Enable **Firebase Storage**
+4. Set Storage Rules to allow read/write (for development):
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null || true;
+    }
+  }
+}
+```
+
+#### Generate Service Account Key
+1. Go to **Project Settings** → **Service Accounts**
+2. Click **Generate New Private Key**
+3. Download the JSON file
+4. **Base64 encode it:**
+
+**On Windows (PowerShell):**
+```powershell
+$json = Get-Content -Path "path/to/serviceAccountKey.json" -Raw
+[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))
+```
+
+**On Linux/Mac:**
+```bash
+cat serviceAccountKey.json | base64 -w 0
+```
+
+5. Save the base64 string - you'll need it for Lambda
+
+### 4. AWS Lambda Setup
+
+#### Create Lambda Function
+
+1. **Go to AWS Lambda Console**
+2. **Create Function:**
+   - Name: `brick2brick-video-stitcher`
+   - Runtime: Node.js 18.x
+   - Architecture: x86_64
+
+3. **Configure Function:**
+   - **Timeout**: 900 seconds (15 minutes)
+   - **Memory**: 2048 MB (Lambda auto-scales to ~3GB during execution)
+
+4. **Add FFmpeg Layer:**
+   - Go to **Layers** → **Add Layer**
+   - **ARN**: `arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4`
+   - Alternative: `arn:aws:lambda:us-east-1:224059969284:layer:ffmpeg:1`
+
+5. **Set Environment Variables:**
+   - `FIREBASE_SERVICE_ACCOUNT_KEY`: (base64 encoded JSON from step 3)
+   - `FIREBASE_STORAGE_BUCKET`: `text2video-16cbf.firebasestorage.app`
+
+#### Deploy Lambda Code
+
+```bash
+cd lambda-stitch-function
+npm install
+```
+
+Create deployment package:
+
+**Windows PowerShell:**
+```powershell
+Compress-Archive -Path index.js,node_modules,package.json -DestinationPath function.zip -Force
+aws lambda update-function-code --function-name brick2brick-video-stitcher --zip-file fileb://function.zip --region us-east-1
+```
+
+**Linux/Mac:**
+```bash
+zip -r function.zip index.js node_modules package.json
+aws lambda update-function-code --function-name brick2brick-video-stitcher --zip-file fileb://function.zip --region us-east-1
+```
+
+#### Create Lambda Function URL (Recommended)
+
+1. Go to Lambda → **Configuration** → **Function URL**
+2. Click **Create function URL**
+3. **Settings:**
+   - Auth type: **NONE**
+   - Invoke mode: **RESPONSE_STREAM** (supports long execution)
+   - **Enable CORS:**
+     - Allow origins: `*`
+     - Allow methods: `POST, OPTIONS`
+     - Allow headers: `*`
+4. Copy the Function URL
+5. Update `.env`: `NEXT_PUBLIC_LAMBDA_STITCH_URL=<function-url>`
+
+**Note:** Function URLs may take 15-60 minutes for DNS propagation. Use API Gateway as fallback.
+
+#### Alternative: API Gateway (30s timeout)
+
+1. Create REST API in API Gateway
+2. Create POST method pointing to Lambda
+3. Deploy to stage: `production`
+4. Enable CORS
+5. Note the invoke URL
+
+### 5. Run the Application
+
+```bash
 npm run dev
 ```
 
-Open: http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000)
 
-**Note**: Local development uses API routes. For production deployment, see [Deployment](#deployment) section.
+## Usage
 
-## Scripts
+### Generate Videos
 
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production (static export)
-npm run start    # Start production server (local)
-npm run lint     # Run ESLint
-npm run export   # Build static export
-npm run deploy   # Build and deploy to Firebase Hosting
-```
+1. **Click "Create New Video"**
+2. **Type `@Script`** in the input
+3. **Enter your story** (e.g., "A cat discovers a magical garden")
+4. **Click "Proceed"**
+5. **Wait for 3 videos to generate** (~2-3 minutes)
+6. **Auto-stitch triggers** after all videos are ready
+7. **Download final stitched video!**
 
-## Environment Variables
+### View Storage Videos
 
-Set these in `.env.local` for local development (do not commit secrets):
-
-- `VITE_GOOGLE_API_KEY`: Google Gemini API key
-- `NEXT_PUBLIC_GEMINI_API_KEY`: Alternative Gemini key
-- `NEXT_PUBLIC_GROQ_API_KEY`: Groq fallback API key
-- `REPLICATE_API_TOKEN`: Replicate API token (for Cloud Functions)
-
-### Firebase Functions Configuration
-
-For production, set environment variables in Firebase Functions:
-
-```bash
-# Set Google API Key
-firebase functions:config:set google.key="YOUR_GOOGLE_API_KEY"
-
-# Set Replicate API Token
-firebase functions:config:set replicate.token="YOUR_REPLICATE_TOKEN"
-
-# View current config
-firebase functions:config:get
-```
-
-## Deployment
-
-### Initial Setup
-
-1. **Install Firebase CLI**:
-```bash
-npm install -g firebase-tools
-```
-
-2. **Login to Firebase**:
-```bash
-firebase login
-```
-
-3. **Verify project**:
-```bash
-firebase projects:list
-```
-
-### Deploy Cloud Functions
-
-```bash
-cd functions
-npm install
-cd ..
-firebase deploy --only functions
-```
-
-**Important**: Cloud Functions use Node.js 20 runtime (Node.js 18 was decommissioned on 2025-10-30).
-
-### Deploy Hosting
-
-```bash
-npm run build
-firebase deploy --only hosting
-```
-
-### Deploy Everything
-
-```bash
-firebase deploy
-```
-
-## Deployment Changes Made
-
-This section documents all the configuration changes required for Firebase deployment:
-
-### 1. Node.js Runtime Upgrade
-
-**File**: `functions/package.json`
-
-```diff
-"engines": {
--  "node": "18"
-+  "node": "20"
-}
-```
-
-**Reason**: Node.js 18 was decommissioned on 2025-10-30. Firebase requires Node.js 20 or later.
-
-### 2. Static Export Configuration
-
-**File**: `next.config.ts`
-
-```diff
--// output: 'export', // Commented out to enable API routes for local development
-+output: 'export', // Enabled for Firebase Hosting deployment
-```
-
-**Reason**: Firebase Hosting requires static files. API functionality moved to Cloud Functions.
-
-### 3. API Routes Removal
-
-**Removed**: `src/app/api/` directory
-
-**Reason**: Next.js API routes cannot be exported as static files. All API functionality now handled by Cloud Functions.
-
-### 4. Storage Service Update
-
-**File**: `src/services/StorageService.ts`
-
-```diff
--const response = await fetch('/api/videos/fetch');
-+const cloudFunctionUrl = 'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch';
-+const response = await fetch(cloudFunctionUrl);
-```
-
-**Reason**: Updated to use deployed Cloud Function endpoint instead of local API route.
-
-### 5. Firebase Storage Bucket Configuration
-
-**File**: `functions/index.js`
-
-```diff
--const bucket = admin.storage().bucket('text2video-16cbf.firebasestorage.app');
-+const bucket = admin.storage().bucket(); // Use default bucket
-```
-
-**Reason**: Simplified to use default Firebase Storage bucket for the project.
-
-### 6. CORS/COEP Headers Update
-
-**Files**: `next.config.ts` and `firebase.json`
-
-```diff
-{
-  "key": "Cross-Origin-Embedder-Policy",
--  "value": "require-corp"
-+  "value": "credentialless"
-}
-```
-
-**Reason**: Changed from `require-corp` to `credentialless` to allow Firebase Storage videos to load while still supporting SharedArrayBuffer for ffmpeg.wasm.
-
-### 7. IAM Permissions
-
-**Required**: Service Account Token Creator role for Cloud Functions service account
-
-**Service Account**: `text2video-16cbf@appspot.gserviceaccount.com`
-
-**Role**: `roles/iam.serviceAccountTokenCreator`
-
-**Reason**: Enables Cloud Functions to generate signed URLs for Firebase Storage objects.
-
-To grant this permission:
-```bash
-gcloud iam service-accounts add-iam-policy-binding text2video-16cbf@appspot.gserviceaccount.com \
-  --member=serviceAccount:text2video-16cbf@appspot.gserviceaccount.com \
-  --role=roles/iam.serviceAccountTokenCreator \
-  --project=text2video-16cbf
-```
-
-Or via [IAM Console](https://console.cloud.google.com/iam-admin/iam?project=text2video-16cbf).
-
-## How The App Is Structured
-
-**UI**
-- `src/app/page.tsx`: main chat UI, scene review renderer, and video fetch trigger
-- `src/components/VideoPlayer.tsx`: playback UI with player controls
-
-**State / Flow**
-- `src/hooks/useChatFlow.ts`: chat state machine and message list; emits `scene_review` message and waits for "Proceed"
-- `src/hooks/useVideoGeneration.ts`: handles video generation logic (currently bypassed for storage fetch)
-
-**Services**
-- `src/services/AIService.ts`: scene generation prompts + retry; Gemini first, then Groq fallback
-- `src/services/StorageService.ts`: fetches video URLs from Firebase Storage via Cloud Functions
-- `src/services/VideoStitcherService.ts`: stitches clips in-browser using ffmpeg.wasm (optional)
-
-**Cloud Functions**
-- `functions/index.js`: Express app with three main endpoints:
-  - `/api/gemini`: Proxy for Google Gemini API
-  - `/api/videos/fetch`: Fetches signed URLs from Firebase Storage
-  - `/*`: Catch-all proxy for Replicate API
-
-**Configuration**
-- `src/config/models.ts`: Replicate model config and payload builder
-- `tailwind.config.js`: brand colors and gradients
-- `firebase.json`: Firebase Hosting and Functions configuration
-- `.firebaserc`: Firebase project configuration
-
-## How Video Fetching Works
-
-1. User types **"PROCEED"** after reviewing scenes
-2. Frontend calls `fetchVideosFromStorage()` in `StorageService.ts`
-3. Request sent to Cloud Function: `/api/videos/fetch`
-4. Cloud Function:
-   - Connects to Firebase Storage default bucket
-   - Retrieves files: `MockAIGeneratedVideos/1.mp4`, `2.mp4`, `3.mp4`
-   - Generates signed URLs (valid for 1 hour)
-   - Returns URLs to frontend
-5. Videos displayed in `VideoPlayer` component
-
-## FFmpeg / Cross-Origin Isolation
-
-Video stitching (optional feature) requires `SharedArrayBuffer`, which requires cross-origin isolation. This repo sets COOP/COEP headers in `next.config.ts` and `firebase.json`.
-
-Current configuration:
-- `Cross-Origin-Embedder-Policy: credentialless`
-- `Cross-Origin-Opener-Policy: same-origin`
-
-This allows both:
-- SharedArrayBuffer for ffmpeg.wasm
-- Loading videos from Firebase Storage (cross-origin)
-
-If stitching fails with a `SharedArrayBuffer` or `crossOriginIsolated` error:
-- Fully restart the dev server
-- Use a fresh browser tab (sometimes a full browser restart helps)
-
-## Troubleshooting
-
-### Videos Not Loading
-
-**Error**: `Failed to fetch videos: Internal Server Error`
-
-**Solution**: Check Cloud Function logs:
-```bash
-firebase functions:log
-```
-
-Common issues:
-1. Videos missing from Storage - upload to `MockAIGeneratedVideos/` folder
-2. Service account permissions - ensure Token Creator role is granted
-3. Bucket configuration - verify default bucket is accessible
-
-### CORS Errors
-
-**Error**: `ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep`
-
-**Solution**: Verify COEP header is set to `credentialless` in both:
-- `next.config.ts`
-- `firebase.json`
-
-### Deployment Failures
-
-**Error**: `Runtime Node.js 18 was decommissioned`
-
-**Solution**: Update `functions/package.json` to use Node.js 20.
-
-**Error**: `Permission 'cloudfunctions.functions.setIamPolicy' denied`
-
-**Solution**: Grant your account the "Cloud Functions Admin" role in [IAM Console](https://console.cloud.google.com/iam-admin/iam?project=text2video-16cbf).
+1. **Click "Load from Storage"** (if you have existing videos in Firebase)
+2. **Browse individual videos**
+3. **Click "Stitch Videos"** to combine them
 
 ## Project Structure
 
 ```
 Brick2Brick/
-├── functions/                 # Firebase Cloud Functions
-│   ├── index.js              # Main Cloud Function (Express app)
-│   ├── package.json          # Node.js 20 runtime
-│   └── node_modules/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx         # Main application page
-│   │   ├── layout.tsx       # Root layout
-│   │   └── globals.css      # Global styles
+│   │   ├── page.tsx              # Main application UI
+│   │   └── api/
+│   │       └── stitch/route.ts   # API proxy for Lambda
 │   ├── components/
-│   │   ├── VideoPlayer.tsx  # Video playback component
-│   │   └── InteractiveDottedGrid.tsx
+│   │   └── VideoPlayer.tsx       # Video player with stitch UI
 │   ├── hooks/
-│   │   ├── useChatFlow.ts   # Chat state machine
-│   │   └── useVideoGeneration.ts
-│   ├── services/
-│   │   ├── AIService.ts     # Gemini/Groq integration
-│   │   ├── StorageService.ts # Firebase Storage fetching
-│   │   └── VideoStitcherService.ts
-│   └── config/
-│       └── models.ts         # Model configurations
-├── public/                   # Static assets
-├── out/                      # Build output (static export)
-├── firebase.json             # Firebase configuration
-├── .firebaserc              # Firebase project ID
-├── next.config.ts           # Next.js configuration
-├── tailwind.config.js       # Tailwind CSS configuration
-└── package.json             # Project dependencies
+│   │   ├── useVideoGeneration.ts # Video generation logic
+│   │   └── useChatFlow.ts
+        # AI chat flow
+│   └── services/
+│       ├── LambdaStitchService.ts # Lambda API client
+│       └── StorageService.ts      # Firebase Storage client
+├── lambda-stitch-function/
+│   ├── index.js                   # Lambda handler (FFmpeg stitching)
+│   └── package.json
+└── public/                        # Static assets
 ```
 
-## Firebase Console Links
+## Key Changes & Fixes
 
-- **Project Overview**: https://console.firebase.google.com/project/text2video-16cbf/overview
-- **Storage**: https://console.firebase.google.com/project/text2video-16cbf/storage
-- **Functions**: https://console.firebase.google.com/project/text2video-16cbf/functions
-- **Hosting**: https://console.firebase.google.com/project/text2video-16cbf/hosting
-- **IAM**: https://console.cloud.google.com/iam-admin/iam?project=text2video-16cbf
+### 1. Firebase Storage Integration
+- **Issue**: Wrong bucket name (`appspot.com` vs `firebasestorage.app`)
+- **Fix**: Updated Lambda to use correct bucket: `text2video-16cbf.firebasestorage.app`
+- **Files**: `lambda-stitch-function/index.js`
 
-## Notes
+### 2. Video Resolution Normalization
+- **Issue**: FFmpeg failed when videos had different resolutions (360x640 vs 360x638)
+- **Fix**: Added scaling filter to normalize all videos to 360x640
+- **Implementation**: 
+```javascript
+[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2
+```
 
-- The "Proceed" gate is implemented in `useChatFlow` (`awaiting_proceed_confirmation` → `scenes_ready`)
-- Scene prompts are designed to be self-contained
-- Videos are served with signed URLs that expire after 1 hour
-- Static export means no server-side rendering - all API calls go to Cloud Functions
-- Container images in Artifact Registry are auto-deleted after 10 days
+### 3. Auto-Stitch Logic
+- **Issue**: Stitching triggered before user confirmation
+- **Fix**: Moved logic from `useEffect` to `handleSendMessage` with proper validation
+- **Files**: `src/app/page.tsx`
+
+### 4. UI Improvements
+- Manual "Stitch Videos" button for storage videos
+- Loading states during stitching
+- Final video player with auto-play
+- Download button for stitched videos
+- Hide individual videos when stitching complete
+
+### 5. Lambda Optimization
+- Timeout: 15 minutes
+- Memory: 2048 MB (auto-scales to 3GB)
+- Response streaming for long executions
+- Enhanced error logging
+- Alternative path fallback for file resolution
+
+## Troubleshooting
+
+### Lambda Timeout (504 Error)
+
+**Symptom**: Request times out after 30 seconds  
+**Cause**: Using API Gateway (30s limit) instead of Function URL  
+**Solution**: 
+1. Create Lambda Function URL with RESPONSE_STREAM
+2. Update `.env` with Function URL
+3. Wait for DNS propagation (15-60 mins)
+
+**Workaround**: Video still stitches! Check CloudWatch logs for signed URL.
+
+### DNS Propagation Delays
+
+**Symptom**: `ENOTFOUND` errors when calling Function URL  
+**Solution**:
+1. Flush DNS: `ipconfig /flushdns` (Windows) or `sudo dscacheutil -flushcache` (Mac)
+2. Wait 30-60 minutes
+3. Try from different network (mobile hotspot)
+4. Use API Gateway temporarily
+
+### FFmpeg Errors
+
+**Check CloudWatch Logs**: 
+```
+https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs
+```
+
+Common issues:
+- Missing FFmpeg layer → Add layer ARN
+- Invalid video format → Check input videos are MP4
+- Memory exceeded → Increase Lambda memory
+
+### Firebase Permissions
+
+**Symptom**: "Access denied" errors  
+**Solution**: Update Storage Rules:
+```
+allow read, write: if true; // Development only!
+```
+
+For production, implement proper authentication.
+
+## Performance
+
+- **Video Generation**: 20-60 seconds per clip (Replicate)
+- **Video Stitching**: 30-40 seconds for 3 clips (Lambda)
+- **Total Workflow**: 2-4 minutes for complete stitched video
+
+## Cost Estimates
+
+- **Replicate**: ~$0.10 per 3 videos
+- **AWS Lambda**: $0.0000166667 per GB-second (~$0.02 per stitch)
+- **Firebase Storage**: $0.026 per GB stored
+- **API Gateway**: $3.50 per million requests
+
+**Estimated cost per video**: $0.12 - $0.15
+
+## Development
+
+### Local Testing
+
+```bash
+npm run dev
+```
+
+### Lambda Local Testing
+
+```bash
+cd lambda-stitch-function
+node test-local.js
+```
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+## Deployment
+
+### Recommended Stack
+- **Frontend**: Vercel or Firebase Hosting
+- **Lambda**: AWS Lambda (us-east-1)
+- **Storage**: Firebase Storage
+
+### Environment Variables (Production)
+Set all `.env` variables in your hosting platform's environment settings.
+
+## Security Notes
+
+- **Never commit** `.env` or Firebase service account keys
+- Use **proper Firebase Security Rules** in production
+- Implement **authentication** for production use
+- **Rate limit** video generation endpoints
+- **Validate** user inputs before processing
+
+## Future Enhancements
+
+- [ ] User authentication (Firebase Auth)
+- [ ] Video queue management
+- [ ] Progress tracking for long stitches
+- [ ] Multiple stitch formats (transitions, effects)
+- [ ] Video editing (trim, crop, filters)
+- [ ] Batch processing
+- [ ] Custom watermarks
+
+## Support
+
+For issues or questions:
+- Check CloudWatch logs for Lambda errors
+- Review browser console for frontend errors
+- Verify Firebase Storage permissions
+- Confirm AWS credentials are valid
 
 ## License
 
-[Your License Here]
+MIT License
+
+## Credits
+
+- Video Generation: [Replicate](https://replicate.com/)
+- Video Processing: [FFmpeg](https://ffmpeg.org/)
+- Cloud Storage: [Firebase](https://firebase.google.com/)
+- Serverless Compute: [AWS Lambda](https://aws.amazon.com/lambda/)
