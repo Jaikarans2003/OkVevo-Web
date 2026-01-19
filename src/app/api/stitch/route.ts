@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
+        if (data && !data.success && !data.error && data.message) {
+            data.error = data.message;
+            data.success = false;
+        }
+
         return NextResponse.json(data);
     } catch (error) {
         console.error('Proxy error:', error);

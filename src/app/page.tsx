@@ -1,3 +1,4 @@
+"use client";
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle } from 'lucide-react';
 import { useVideoGeneration } from '../hooks/useVideoGeneration';
