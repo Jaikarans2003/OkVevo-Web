@@ -3,7 +3,8 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 
 /**
- * AWS Lambda Handler for Video Stitching with URL support
+ * AWS Lambda Handler for Video Stitching
+ * Supports both HTTP (Function URL) and SQS triggers
  */
 
 let firebaseInitialized = false;
@@ -42,24 +43,15 @@ function initializeFirebase() {
 
 /**
  * Download a video from Firebase Storage using Admin SDK
- * @param {string} videoUrl - Firebase Storage signed URL
- * @param {string} filename - Destination filename
  */
 async function downloadVideoFromFirebase(videoUrl, filename) {
     try {
         console.log(`Processing URL: ${videoUrl}`);
 
-        // Extract path from Firebase signed URL
-        // URL format: https://storage.googleapis.com/BUCKET/path/to/video?GoogleAccessId=...&Expires=...&Signature=...
         const url = new URL(videoUrl);
-        console.log(`URL pathname: ${url.pathname}`);
-
-        // Match pattern: /bucket-name/path/to/file
         const pathMatch = url.pathname.match(/^\/[^\/]+\/(.+)$/);
 
         if (!pathMatch) {
-            console.error(`Failed to extract path from URL: ${videoUrl}`);
-            console.error(`Pathname: ${url.pathname}`);
             throw new Error(`Invalid Firebase URL format: ${videoUrl}`);
         }
 
@@ -67,46 +59,30 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
         console.log(`Extracted file path: ${filePath}`);
 
         const bucket = admin.storage().bucket();
-
-        // Try the extracted path first
         let file = bucket.file(filePath);
         let exists = await file.exists();
 
         if (!exists[0]) {
             console.warn(`File not found at: ${filePath}`);
-            console.log('Attempting alternative path in videos/ folder...');
-
-            // Try videos/ prefix if not already present
             if (!filePath.startsWith('videos/')) {
                 const altPath = `videos/${filePath.split('/').pop()}`;
-                console.log(`Trying alternate path: ${altPath}`);
                 file = bucket.file(altPath);
                 exists = await file.exists();
-
                 if (exists[0]) {
                     filePath = altPath;
-                    console.log(`✅ Found file at alternate path: ${altPath}`);
                 }
             }
         }
 
         if (!exists[0]) {
-            // List available files to help debug
-            console.log('Listing available files in bucket...');
             const [files] = await bucket.getFiles({ maxResults: 10 });
             console.log('Available files:', files.map(f => f.name));
             throw new Error(`File not found in Firebase Storage: ${filePath}`);
         }
 
         const destPath = `/tmp/${filename}`;
-
-        // Download file to /tmp
-        console.log(`Downloading ${filePath} to ${destPath}...`);
-        await file.download({
-            destination: destPath
-        });
-
-        console.log(`✅ Downloaded ${filename} from Firebase Storage`);
+        await file.download({ destination: destPath });
+        console.log(`✅ Downloaded ${filename}`);
         return destPath;
 
     } catch (error) {
@@ -117,12 +93,9 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
 
 /**
  * Stitch videos using FFmpeg with crossfade transitions
- * Handles videos with different resolutions by scaling to common size
  */
 function stitchVideos(inputFiles, outputFile) {
     return new Promise((resolve, reject) => {
-        // Scale all videos to 360x640 and apply crossfade transitions
-        // This handles resolution mismatches between videos
         const filter =
             `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
             `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
@@ -148,13 +121,10 @@ function stitchVideos(inputFiles, outputFile) {
             outputFile
         ];
 
-        console.log('Starting FFmpeg with resolution normalization...');
-        console.log('FFmpeg args:', args.join(' '));
-
+        console.log('Starting FFmpeg...');
         const ffmpeg = spawn('/opt/bin/ffmpeg', args);
 
         let stderr = '';
-
         ffmpeg.stderr.on('data', (data) => {
             stderr += data.toString();
             console.log('FFmpeg:', data.toString());
@@ -162,134 +132,146 @@ function stitchVideos(inputFiles, outputFile) {
 
         ffmpeg.on('close', (code) => {
             if (code === 0) {
-                console.log('✅ FFmpeg stitching completed successfully');
+                console.log('✅ Stitching complete');
                 resolve();
             } else {
-                console.error(`❌ FFmpeg failed with code: ${code}`);
-                console.error('FFmpeg stderr:', stderr);
-                reject(new Error(`FFmpeg exited with code ${code}: ${stderr}`));
+                console.error(`❌ FFmpeg failed: ${code}`);
+                reject(new Error(`FFmpeg exited with code ${code}`));
             }
         });
 
-        ffmpeg.on('error', (error) => {
-            console.error('❌ FFmpeg spawn error:', error);
-            reject(error);
-        });
+        ffmpeg.on('error', (error) => reject(error));
     });
 }
 
 /**
- * Main Lambda Handler
+ * Core stitching logic (extracted for reuse)
+ */
+async function processStitchingJob(videoUrls, sessionId = 'default') {
+    console.log(`Processing stitching job: ${sessionId}`);
+    console.log(`Video URLs:`, videoUrls);
+
+    // Download videos
+    const downloadedVideos = [];
+    for (let i = 0; i < videoUrls.length; i++) {
+        const path = await downloadVideoFromFirebase(videoUrls[i], `video${i + 1}.mp4`);
+        downloadedVideos.push(path);
+    }
+
+    // Stitch
+    const stitchedPath = '/tmp/stitched-output.mp4';
+    await stitchVideos(downloadedVideos, stitchedPath);
+
+    // Upload to Firebase
+    const timestamp = Date.now();
+    const destinationFilename = `stitched-${sessionId}-${timestamp}.mp4`;
+
+    const bucket = admin.storage().bucket();
+    await bucket.upload(stitchedPath, {
+        destination: `videos/${destinationFilename}`,
+        metadata: { contentType: 'video/mp4' }
+    });
+
+    // Generate signed URL
+    const file = bucket.file(`videos/${destinationFilename}`);
+    const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000
+    });
+
+    // Cleanup
+    [...downloadedVideos, stitchedPath].forEach(path => {
+        try { fs.unlinkSync(path); } catch (err) { }
+    });
+
+    console.log('✅ Stitching complete:', url);
+    return url;
+}
+
+/**
+ * Main Lambda Handler - Supports both HTTP and SQS triggers
  */
 exports.handler = async (event) => {
-    console.log('Lambda invoked. Event:', JSON.stringify(event));
+    console.log('Lambda invoked');
+    console.log('Event type:', event.Records ? 'SQS' : 'HTTP');
 
     try {
-        // Initialize Firebase
         initializeFirebase();
 
-        // Parse request body
-        const body = event.body ? JSON.parse(event.body) : event;
-        const { videoUrls, sessionId = 'default' } = body;
+        // Detect trigger type
+        if (event.Records && event.Records.length > 0) {
+            // ========== SQS TRIGGER ==========
+            console.log('🔹 SQS Trigger detected');
 
-        if (!videoUrls || videoUrls.length !== 3) {
+            // Process each SQS message (batch size = 1 recommended)
+            for (const record of event.Records) {
+                const body = JSON.parse(record.body);
+                const { jobId, videoUrls } = body;
+
+                if (!videoUrls || videoUrls.length !== 3) {
+                    throw new Error('SQS message must contain 3 video URLs');
+                }
+
+                console.log(`Processing SQS job: ${jobId}`);
+                const videoUrl = await processStitchingJob(videoUrls, jobId);
+
+                console.log(`✅ SQS job ${jobId} completed: ${videoUrl}`);
+                // Note: For SQS, the final video URL is returned in logs
+                // You could send this to Firestore/SNS for frontend polling
+            }
+
+            // SQS doesn't need HTTP response, just return success
+            return { statusCode: 200, body: 'SQS processing complete' };
+
+        } else {
+            // ========== HTTP TRIGGER (Legacy/Fallback) ==========
+            console.log('🔹 HTTP Trigger detected');
+
+            const body = event.body ? JSON.parse(event.body) : event;
+            const { videoUrls, sessionId = 'default' } = body;
+
+            if (!videoUrls || videoUrls.length !== 3) {
+                return {
+                    statusCode: 400,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    body: JSON.stringify({
+                        success: false,
+                        error: 'Must provide 3 video URLs'
+                    })
+                };
+            }
+
+            const videoUrl = await processStitchingJob(videoUrls, sessionId);
+
             return {
-                statusCode: 400,
+                statusCode: 200,
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 },
                 body: JSON.stringify({
-                    success: false,
-                    error: 'Request must include 3 video URLs'
+                    success: true,
+                    videoUrl,
+                    message: 'Video stitched successfully'
                 })
             };
         }
 
-        console.log(`Processing video stitching for session: ${sessionId}`);
-        console.log(`Video URLs:`, videoUrls);
-
-        // Download videos from Firebase Storage using Admin SDK
-        console.log('Downloading videos from Firebase Storage...');
-        const downloadedVideos = [];
-
-        for (let i = 0; i < videoUrls.length; i++) {
-            const destPath = await downloadVideoFromFirebase(videoUrls[i], `video${i + 1}.mp4`);
-            downloadedVideos.push(destPath);
-        }
-
-        // Stitch videos
-        const stitchedPath = '/tmp/stitched-output.mp4';
-        console.log('Stitching videos...');
-        await stitchVideos(downloadedVideos, stitchedPath);
-
-        // Upload to Firebase
-        const timestamp = Date.now();
-        const destinationFilename = `stitched-${sessionId}-${timestamp}.mp4`;
-        console.log(`Uploading stitched video as ${destinationFilename}...`);
-
-        const bucket = admin.storage().bucket();
-        await bucket.upload(stitchedPath, {
-            destination: `videos/${destinationFilename}`,
-            metadata: {
-                contentType: 'video/mp4'
-            }
-        });
-
-        // Generate signed URL (valid for 7 days)
-        const file = bucket.file(`videos/${destinationFilename}`);
-        const [url] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 7 * 24 * 60 * 60 * 1000  // 7 days
-        });
-
-        console.log('Video stitching completed successfully');
-        console.log('Signed URL:', url);
-
-        // Clean up tmp files
-        downloadedVideos.forEach(path => {
-            try {
-                fs.unlinkSync(path);
-            } catch (err) {
-                console.warn(`Failed to delete ${path}:`, err.message);
-            }
-        });
-
-        try {
-            fs.unlinkSync(stitchedPath);
-        } catch (err) {
-            console.warn('Failed to delete stitched file:', err.message);
-        }
-
-        return {
-            statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
-            },
-            body: JSON.stringify({
-                success: true,
-                videoUrl: url,
-                message: 'Video stitched successfully'
-            })
-        };
-
     } catch (error) {
-        console.error('Lambda error:', error);
+        console.error('❌ Lambda error:', error);
 
         return {
             statusCode: 500,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify({
                 success: false,
-                error: error.message || 'Video stitching failed'
+                error: error.message || 'Stitching failed'
             })
         };
     }

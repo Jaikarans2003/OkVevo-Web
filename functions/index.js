@@ -82,6 +82,60 @@ app.get("/api/videos/fetch", async (req, res) => {
     }
 });
 
+// Fetch Stitched Videos from videos/ folder
+app.get("/api/videos/fetch-stitched", async (req, res) => {
+    try {
+        const bucket = admin.storage().bucket();
+
+        console.log('Fetching stitched videos from videos/ folder...');
+
+        // List all files in videos/ folder that start with "stitched-"
+        const [files] = await bucket.getFiles({
+            prefix: 'videos/stitched-',
+        });
+
+        if (files.length === 0) {
+            console.log('No stitched videos found yet');
+            return res.json({ videos: [] });
+        }
+
+        // Sort by creation time (newest first)
+        files.sort((a, b) => {
+            const aTime = new Date(a.metadata.timeCreated).getTime();
+            const bTime = new Date(b.metadata.timeCreated).getTime();
+            return bTime - aTime;
+        });
+
+        // Get signed URLs for stitched videos (return max 5)
+        const videosToFetch = files.slice(0, 5);
+        const videos = await Promise.all(
+            videosToFetch.map(async (file) => {
+                const [url] = await file.getSignedUrl({
+                    action: 'read',
+                    expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
+                });
+
+                return {
+                    id: file.name.replace('videos/stitched-', '').replace('.mp4', ''),
+                    url,
+                    name: file.name,
+                    created: file.metadata.timeCreated
+                };
+            })
+        );
+
+        console.log(`Successfully fetched ${videos.length} stitched videos`);
+        res.json({ videos });
+    } catch (error) {
+        console.error('Error fetching stitched videos:', error);
+        res.status(500).json({
+            error: 'Failed to fetch stitched videos',
+            details: error.message
+        });
+    }
+});
+
+
 // Replicate API Proxy
 app.all("*", async (req, res) => {
     // Get token from Firebase Config or Environment

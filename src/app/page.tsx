@@ -110,41 +110,89 @@ export default function Brick2Brick() {
             const cleanedResponse = userMessage.toLowerCase().trim().replace(/[.,!?;:]/g, '');
 
             if (cleanedResponse === 'proceed' || cleanedResponse === 'yes' || cleanedResponse === 'continue') {
-                console.log('✅ User confirmed PROCEED. Fetching storage videos and stitching...');
+                console.log('✅ User confirmed PROCEED. Dispatching to SQS...');
 
                 try {
-                    // Fetch videos from storage
+                    // Fetch pre-stored videos from Firebase Storage
                     setLoadingStorageVideos(true);
+                    setStorageError(null);
+
                     const urls = await fetchVideosFromStorage();
 
                     if (urls.length < 3) {
-                        throw new Error('Need at least 3 videos in storage to stitch');
+                        throw new Error('Need at least 3 videos in storage');
                     }
 
                     setStorageVideos(urls);
                     console.log('📦 Fetched videos from storage:', urls);
 
-                    // Auto-stitch immediately
+                    // Dispatch to SQS stitching queue
                     setIsStitchingStorage(true);
-                    const { stitchVideosWithLambda } = await import('../services/LambdaStitchService');
+                    const { dispatchStitchingJob } = await import('../services/SQSStitchService');
 
-                    const result = await stitchVideosWithLambda({
-                        videoUrls: urls.slice(0, 3), // First 3 videos
-                        sessionId: `auto-${Date.now()}`
-                    });
+                    console.log('🚀 Dispatching to SQS stitching queue...');
+                    const result = await dispatchStitchingJob(urls.slice(0, 3));
 
-                    if (result.success && result.videoUrl) {
-                        setStorageStitchedUrl(result.videoUrl);
-                        console.log('✅ Auto-stitched successfully:', result.videoUrl);
+                    if (result.success) {
+                        console.log('✅ Dispatched to SQS:', result);
+
+                        // Start polling for stitched video (check every 5 seconds for 2 minutes)
+                        const pollForStitchedVideo = async () => {
+                            const maxAttempts = 24; // 24 attempts × 5 seconds = 2 minutes
+
+                            for (let i = 0; i < maxAttempts; i++) {
+                                // Wait 5 seconds between attempts
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                                try {
+                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for stitched video...`);
+
+                                    const response = await fetch(
+                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
+                                    );
+
+                                    if (!response.ok) {
+                                        console.warn('Failed to fetch stitched videos:', response.statusText);
+                                        continue;
+                                    }
+
+                                    const data = await response.json();
+
+                                    if (data.videos && data.videos.length > 0) {
+                                        // Found stitched video!
+                                        const latestVideo = data.videos[0]; // Newest first
+                                        setStorageStitchedUrl(latestVideo.url);
+                                        setIsStitchingStorage(false);
+                                        console.log('✅ Found stitched video:', latestVideo.url);
+                                        alert('🎉 Video stitched successfully! Playing now...');
+                                        return; // Exit polling
+                                    }
+
+                                    console.log(`⏳ Not ready yet (attempt ${i + 1}/${maxAttempts})...`);
+                                } catch (err) {
+                                    console.error('Polling error:', err);
+                                }
+                            }
+
+                            // After 2 minutes (24 attempts), show message
+                            console.log('⏱️ Polling timeout. Stitching may still be in progress.');
+                            alert('Stitching is taking longer than expected. Check Firebase Storage videos/ folder in a moment, or refresh the page.');
+                            setIsStitchingStorage(false);
+                        };
+
+                        // Start polling
+                        pollForStitchedVideo();
+
                     } else {
-                        throw new Error(result.error || 'Stitching failed');
+                        throw new Error(result.error || 'SQS dispatch failed');
                     }
+
                 } catch (error) {
-                    console.error('Error in fetch & stitch flow:', error);
-                    setStorageError(error instanceof Error ? error.message : 'Failed to fetch and stitch videos');
+                    console.error('Error in SQS dispatch flow:', error);
+                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch stitching job');
+                    setIsStitchingStorage(false);
                 } finally {
                     setLoadingStorageVideos(false);
-                    setIsStitchingStorage(false);
                 }
             }
 
@@ -514,7 +562,7 @@ export default function Brick2Brick() {
                                     currentState === 'greeting' ? 'Loading...' :
                                         currentState === 'awaiting_story' ? 'Click SCRIPT and share your story or video idea...' :
                                             currentState === 'awaiting_enhancement_confirmation' ? 'Your response (yes/no)...' :
-                                                currentState === 'awaiting_proceed_confirmation' ? 'Type "Proceed" to continue or provide feedback to regenerate scenes.' :
+                                                currentState === 'awaiting_proceed_confirmation' ? 'Type "proceed" to dispatch stitching job to queue...' :
                                                     'Type your message...'
                                 }
                                 className="w-full h-20 bg-custom-bg text-custom-cream p-4 rounded-xl border-2 border-custom-orange/30 focus:border-custom-orange focus:outline-none resize-none placeholder-custom-cream/30 transition-all duration-300"
