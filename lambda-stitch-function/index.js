@@ -92,18 +92,30 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
 }
 
 /**
- * Stitch videos using FFmpeg with crossfade transitions
+ * Stitch videos using FFmpeg with smooth crossfade transitions
+ * Enhanced with better interpolation and quality settings
  */
 function stitchVideos(inputFiles, outputFile) {
     return new Promise((resolve, reject) => {
+        // Enhanced crossfade with smoother transition using easing curves
+        // Using 'smoothleft' and 'smoothright' for natural feeling transitions
+        // Increased transition duration to 1.5s for more cinematic effect
+        const transitionDuration = 1.5;
+        const clipDuration = 20;
+
         const filter =
+            // Normalize all inputs: scale, pad, set framerate, and color format
             `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
             `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
             `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
-            `[v0][v1]xfade=transition=fade:duration=1:offset=19[vt1];` +
-            `[vt1][v2]xfade=transition=fade:duration=1:offset=38[outv];` +
-            `[0:a][1:a]acrossfade=d=1:c1=tri:c2=tri[a01];` +
-            `[a01][2:a]acrossfade=d=1:c1=tri:c2=tri[outa]`;
+            // Enhanced crossfade with smoother transitions
+            // First transition: fade with smooth easing
+            `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${clipDuration - transitionDuration}[vt1];` +
+            // Second transition: alternate between smoothleft/smoothright for variety
+            `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${(clipDuration * 2) - (transitionDuration * 2)}[outv];` +
+            // Enhanced audio crossfade with longer overlap for seamless audio
+            `[0:a][1:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
+            `[a01][2:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
 
         const args = [
             '-i', inputFiles[0],
@@ -113,11 +125,16 @@ function stitchVideos(inputFiles, outputFile) {
             '-map', '[outv]',
             '-map', '[outa]',
             '-c:v', 'libx264',
-            '-preset', 'medium',
-            '-crf', '23',
+            '-preset', 'slow',        // Better quality encoding for smoother transitions
+            '-crf', '20',             // Higher quality (lower CRF = better quality)
+            '-profile:v', 'high',     // Use high profile for better compression
+            '-level', '4.1',          // Compatibility level
+            '-pix_fmt', 'yuv420p',    // Ensure compatibility
             '-c:a', 'aac',
-            '-b:a', '192k',
-            '-movflags', '+faststart',
+            '-b:a', '256k',           // Higher audio bitrate for better quality
+            '-ar', '48000',           // Standard audio sample rate
+            '-movflags', '+faststart', // Enable fast start for web playback
+            '-y',                     // Overwrite output file
             outputFile
         ];
 

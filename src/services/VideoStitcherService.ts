@@ -62,28 +62,29 @@ class VideoStitcherService {
                 await ffmpeg.writeFile(`input${i}.mp4`, uint8Array);
             }
 
-            // 2. Build Filter Graph for 3 videos
-            // 20s clips. 1s overlap for crossfade.
-            // Clip 0 ends at 20s. Fade starts at 19s.
-            // Clip 1 starts. Joined at 19s.
-            // Result of [0][1] duration = 20 + 20 - 1 = 39s.
-            // Next fade starts at 39s - 1s = 38s.
+            // 2. Build Filter Graph for 3 videos with enhanced smooth transitions
+            // Enhanced crossfade with smoother easing for professional results
+            // Using 1.5s transitions for more cinematic effect
+            const transitionDuration = 1.5;
+            const clipDuration = 20;
 
-            // Inputs: [0:v][1:v][2:v]
-            // Crossfade 0+1: [0][1]xfade=transition=fade:duration=1:offset=19[v01];
-            // Crossfade v01+2: [v01][2]xfade=transition=fade:duration=1:offset=38[outv]
-            // Note: We also need to handle AUDIO (afade/acrossfade) if there is audio.
-            // Provided videos usually have audio. Simplest is amix or acrossfade.
-            // For now, let's assume we just concatenate/crossfade video. If audio is missing it might fail.
-            // Let's use a simpler "concat" demuxer approach IF the user accepts straightforward cuts (safer).
-            // But user asked for "smooth fade".
+            // Calculate offsets: 
+            // First transition starts at (20 - 1.5) = 18.5s
+            // After first merge: 20 + 20 - 1.5 = 38.5s total
+            // Second transition starts at (38.5 - 1.5) = 37s
 
-            // Complex filter for 3 videos
+            // Enhanced filter with smooth transitions
             const filter =
-                `[0:v][1:v]xfade=transition=fade:duration=1:offset=19[v01];` +
-                `[v01][2:v]xfade=transition=fade:duration=1:offset=38,format=yuv420p[outv];` +
-                `[0:a][1:a]acrossfade=d=1:c1=tri:c2=tri[a01];` +
-                `[a01][2:a]acrossfade=d=1:c1=tri:c2=tri[outa]`;
+                // Normalize all video inputs for consistent processing
+                `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v0];` +
+                `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v1];` +
+                `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v2];` +
+                // Smooth crossfade with easing for natural transitions
+                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${clipDuration - transitionDuration}[v01];` +
+                `[v01][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${(clipDuration * 2) - (transitionDuration * 2)}[outv];` +
+                // Enhanced audio crossfade with longer overlap
+                `[0:a][1:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
+                `[a01][2:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
 
             await ffmpeg.exec([
                 '-i', 'input0.mp4',
@@ -93,8 +94,10 @@ class VideoStitcherService {
                 '-map', '[outv]',
                 '-map', '[outa]',
                 '-c:v', 'libx264',
-                '-preset', 'ultrafast', // Speed over compression ratio
-                '-crf', '28',
+                '-preset', 'fast',      // Balance between speed and quality
+                '-crf', '23',           // Good quality for web
+                '-pix_fmt', 'yuv420p',  // Ensure compatibility
+                '-movflags', '+faststart', // Enable streaming
                 'output.mp4'
             ]);
 

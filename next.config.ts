@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    output: 'export', // Enabled for Firebase Hosting deployment
+    // output: 'export', // Disabled to allow API routes for SQS integration
     async headers() {
         return [
             {
