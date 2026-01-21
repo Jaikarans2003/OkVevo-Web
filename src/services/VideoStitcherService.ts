@@ -29,6 +29,35 @@ class VideoStitcherService {
         }
     }
 
+    private async getVideoDuration(ffmpeg: FFmpeg, filename: string): Promise<number> {
+        try {
+            // Read the file from ffmpeg's virtual filesystem
+            const data = await ffmpeg.readFile(filename) as Uint8Array;
+            const blob = new Blob([data as BlobPart], { type: 'video/mp4' });
+
+            // Use HTML5 video element to get duration
+            const video = document.createElement('video');
+            const url = URL.createObjectURL(blob);
+
+            return new Promise<number>((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    const dur = video.duration;
+                    URL.revokeObjectURL(url);
+                    console.log(`Video ${filename} duration: ${dur}s`);
+                    resolve(dur);
+                };
+                video.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('Failed to load video metadata'));
+                };
+                video.src = url;
+            });
+        } catch (error) {
+            console.error(`Failed to get duration for ${filename}:`, error);
+            throw error;
+        }
+    }
+
     async stitchVideos(videoUrls: string[], onProgress?: (progress: number) => void): Promise<string> {
         // Ensure FFmpeg is loaded first
         await this.load();
@@ -62,29 +91,44 @@ class VideoStitcherService {
                 await ffmpeg.writeFile(`input${i}.mp4`, uint8Array);
             }
 
-            // 2. Build Filter Graph for 3 videos with enhanced smooth transitions
-            // Enhanced crossfade with smoother easing for professional results
-            // Using 1.5s transitions for more cinematic effect
+            // 2. Probe video durations
+            const durations: number[] = [];
+            for (let i = 0; i < videoUrls.length; i++) {
+                const duration = await this.getVideoDuration(ffmpeg, `input${i}.mp4`);
+                durations.push(duration);
+            }
+
+            console.log('Video durations:', durations);
+
+            // 3. Build Filter Graph with dynamic offsets based on actual durations
             const transitionDuration = 1.5;
-            const clipDuration = 20;
 
-            // Calculate offsets: 
-            // First transition starts at (20 - 1.5) = 18.5s
-            // After first merge: 20 + 20 - 1.5 = 38.5s total
-            // Second transition starts at (38.5 - 1.5) = 37s
+            // Calculate dynamic offsets
+            const firstOffset = durations[0] - transitionDuration;
+            const secondOffset = durations[0] + durations[1] - (transitionDuration * 2);
 
-            // Enhanced filter with smooth transitions
+            console.log(`Transition timings:`);
+            console.log(`  First xfade: offset=${firstOffset}s`);
+            console.log(`  Second xfade: offset=${secondOffset}s`);
+            console.log(`  Expected total duration: ${durations[0] + durations[1] + durations[2] - (transitionDuration * 2)}s`);
+
+            // Enhanced filter with smooth transitions using actual durations
             const filter =
                 // Normalize all video inputs for consistent processing
                 `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v0];` +
                 `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v1];` +
                 `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[v2];` +
-                // Smooth crossfade with easing for natural transitions
-                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${clipDuration - transitionDuration}[v01];` +
-                `[v01][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${(clipDuration * 2) - (transitionDuration * 2)}[outv];` +
-                // Enhanced audio crossfade with longer overlap
-                `[0:a][1:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
-                `[a01][2:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+                // Smooth crossfade with dynamic offsets
+                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[v01];` +
+                `[v01][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv];` +
+                // Enhanced audio crossfade with proper timing
+                // Trim audio streams to match video durations
+                `[0:a]atrim=0:${durations[0]},asetpts=PTS-STARTPTS[a0];` +
+                `[1:a]atrim=0:${durations[1]},asetpts=PTS-STARTPTS[a1];` +
+                `[2:a]atrim=0:${durations[2]},asetpts=PTS-STARTPTS[a2];` +
+                // Crossfade audio streams
+                `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
+                `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
 
             await ffmpeg.exec([
                 '-i', 'input0.mp4',
@@ -101,7 +145,7 @@ class VideoStitcherService {
                 'output.mp4'
             ]);
 
-            // 3. Read result
+            // 4. Read result
             const data = await ffmpeg.readFile('output.mp4');
             const blob = new Blob([data as BlobPart], { type: 'video/mp4' });
             return URL.createObjectURL(blob);

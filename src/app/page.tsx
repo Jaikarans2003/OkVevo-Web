@@ -136,6 +136,16 @@ export default function Brick2Brick() {
                     if (result.success) {
                         console.log('✅ Dispatched to SQS:', result);
 
+                        // Capture the jobId for polling
+                        const jobId = result.jobId;
+
+                        if (!jobId) {
+                            console.error('❌ No jobId returned from SQS dispatch');
+                            alert('Error: No job ID received. Cannot track stitching progress.');
+                            setIsStitchingStorage(false);
+                            return;
+                        }
+
                         // Start polling for stitched video (check every 5 seconds for 2 minutes)
                         const pollForStitchedVideo = async () => {
                             const maxAttempts = 24; // 24 attempts × 5 seconds = 2 minutes
@@ -145,7 +155,7 @@ export default function Brick2Brick() {
                                 await new Promise(resolve => setTimeout(resolve, 5000));
 
                                 try {
-                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for stitched video...`);
+                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for stitched video with jobId: ${jobId}...`);
 
                                     const response = await fetch(
                                         'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
@@ -159,16 +169,22 @@ export default function Brick2Brick() {
                                     const data = await response.json();
 
                                     if (data.videos && data.videos.length > 0) {
-                                        // Found stitched video!
-                                        const latestVideo = data.videos[0]; // Newest first
-                                        setStorageStitchedUrl(latestVideo.url);
-                                        setIsStitchingStorage(false);
-                                        console.log('✅ Found stitched video:', latestVideo.url);
-                                        alert('🎉 Video stitched successfully! Playing now...');
-                                        return; // Exit polling
-                                    }
+                                        // Look for a video matching our jobId
+                                        const matchingVideo = data.videos.find((video: { url: string }) =>
+                                            video.url.includes(jobId)
+                                        );
 
-                                    console.log(`⏳ Not ready yet (attempt ${i + 1}/${maxAttempts})...`);
+                                        if (matchingVideo) {
+                                            // Found our specific stitched video!
+                                            setStorageStitchedUrl(matchingVideo.url);
+                                            setIsStitchingStorage(false);
+                                            console.log('✅ Found stitched video for jobId:', jobId, matchingVideo.url);
+                                            alert('🎉 Video stitched successfully! Playing now...');
+                                            return; // Exit polling
+                                        } else {
+                                            console.log(`⏳ Video with jobId ${jobId} not found yet (attempt ${i + 1}/${maxAttempts})...`);
+                                        }
+                                    }
                                 } catch (err) {
                                     console.error('Polling error:', err);
                                 }

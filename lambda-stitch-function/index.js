@@ -92,30 +92,101 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
 }
 
 /**
+ * Get video duration using ffmpeg (since ffprobe may not be available)
+ */
+function getVideoDuration(videoPath) {
+    return new Promise((resolve, reject) => {
+        // Use ffmpeg to get duration from stderr output
+        const ffmpeg = spawn('/opt/bin/ffmpeg', [
+            '-i', videoPath,
+            '-f', 'null',
+            '-'
+        ]);
+
+        let stderr = '';
+        ffmpeg.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        ffmpeg.on('close', (code) => {
+            // ffmpeg returns non-zero when using -f null, so we parse stderr regardless
+            // Look for "Duration: HH:MM:SS.mmm" in the output
+            const durationMatch = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+
+            if (durationMatch) {
+                const hours = parseInt(durationMatch[1]);
+                const minutes = parseInt(durationMatch[2]);
+                const seconds = parseFloat(durationMatch[3]);
+                const duration = hours * 3600 + minutes * 60 + seconds;
+
+                console.log(`Video duration for ${videoPath}: ${duration}s`);
+                resolve(duration);
+            } else {
+                reject(new Error(`Could not parse duration from ffmpeg output for ${videoPath}`));
+            }
+        });
+
+        ffmpeg.on('error', (error) => reject(error));
+    });
+}
+
+/**
  * Stitch videos using FFmpeg with smooth crossfade transitions
  * Enhanced with better interpolation and quality settings
+ * Now supports dynamic video durations
  */
-function stitchVideos(inputFiles, outputFile) {
+async function stitchVideos(inputFiles, outputFile) {
+    // Probe all video durations first
+    const durations = [];
+    for (const file of inputFiles) {
+        const duration = await getVideoDuration(file);
+        durations.push(duration);
+    }
+
+    console.log('Video durations:', durations);
+
     return new Promise((resolve, reject) => {
         // Enhanced crossfade with smoother transition using easing curves
         // Using 'smoothleft' and 'smoothright' for natural feeling transitions
         // Increased transition duration to 1.5s for more cinematic effect
         const transitionDuration = 1.5;
-        const clipDuration = 20;
+
+        // Calculate dynamic offsets based on actual video durations
+        // First transition: starts when first video is about to end
+        const firstOffset = durations[0] - transitionDuration;
+
+        // Second transition: starts at the end of the merged first two videos
+        // After first xfade: total_duration = duration[0] + duration[1] - transitionDuration
+        const secondOffset = durations[0] + durations[1] - (transitionDuration * 2);
+
+        console.log(`Transition timings:`);
+        console.log(`  First xfade: offset=${firstOffset}s (starts at ${firstOffset}s, ends at ${durations[0]}s)`);
+        console.log(`  Second xfade: offset=${secondOffset}s (starts at ${secondOffset}s)`);
+        console.log(`  Expected total duration: ${durations[0] + durations[1] + durations[2] - (transitionDuration * 2)}s`);
 
         const filter =
             // Normalize all inputs: scale, pad, set framerate, and color format
             `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
             `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
             `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
-            // Enhanced crossfade with smoother transitions
-            // First transition: fade with smooth easing
-            `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${clipDuration - transitionDuration}[vt1];` +
-            // Second transition: alternate between smoothleft/smoothright for variety
-            `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${(clipDuration * 2) - (transitionDuration * 2)}[outv];` +
-            // Enhanced audio crossfade with longer overlap for seamless audio
-            `[0:a][1:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
-            `[a01][2:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+            // Enhanced crossfade with smoother transitions using actual durations
+            // First transition: fade between v0 and v1
+            `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
+            // Second transition: fade between merged result and v2
+            `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv];` +
+            // Enhanced audio crossfade with proper timing
+            // Trim audio streams to match video durations and add crossfades
+            // First audio stays full duration
+            `[0:a]atrim=0:${durations[0]},asetpts=PTS-STARTPTS[a0];` +
+            // Second audio trimmed to its duration
+            `[1:a]atrim=0:${durations[1]},asetpts=PTS-STARTPTS[a1];` +
+            // Third audio trimmed to its duration
+            `[2:a]atrim=0:${durations[2]},asetpts=PTS-STARTPTS[a2];` +
+            // Crossfade first two audios
+            `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
+            // Crossfade result with third audio
+            `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+
 
         const args = [
             '-i', inputFiles[0],
