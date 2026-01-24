@@ -4,7 +4,7 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { jobId, videoUrls } = body;
+        const { jobId, videoUrls, audioUrl } = body;
 
         // Validate input
         if (!jobId || !videoUrls || !Array.isArray(videoUrls)) {
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         const messageBody = JSON.stringify({
             jobId,
             videoUrls,
+            audioUrl, // Include audioUrl in SQS message
             timestamp: new Date().toISOString(),
         });
 
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
             MessageDeduplicationId: `${jobId}-${Date.now()}`, // Prevent duplicates
         });
 
-        console.log('Sending message to SQS:', { jobId, videoUrls });
+        console.log('Sending message to SQS:', { jobId, videoUrls, audioUrl });
         const result = await sqsClient.send(command);
         console.log('SQS message sent successfully:', result.MessageId);
 

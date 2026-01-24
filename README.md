@@ -5,83 +5,88 @@ A Next.js application that generates and stitches AI-created videos using AWS SQ
 ## Features
 
 ### ✨ Core Functionality
-- **AI Scene Generation**: AI-powered scene breakdown using Google Gemini
+- **AI Narration Pipeline**: Single-shot generation of 1-minute narration scripts + cinematic scene descriptions using Google Gemini
+- **AI Voice Generation**: High-quality TTS audio using OpenAI (Shimmer/Coral voice)
 - **SQS FIFO Queue**: Deterministic video stitching with guaranteed ordering
+- **Audio-Video Synchronization**: Overlays TTS narration onto stitched videos, automatically muting original video audio
 - **Auto-Display**: Automatic polling and display of stitched videos
-- **Firebase Storage**: Store generated and stitched videos
-- **AWS Lambda Processing**: Server-side video stitching with FFmpeg
-- **Human-in-the-Loop**: Explicit user confirmation before video generation
+- **Firebase Storage**: Store generated scripts, audio, and videos
+- **AWS Lambda Processing**: Server-side video stitching with FFmpeg and audio mixing
 
 ### 🎬 Video Stitching Features
 - **FIFO Ordering**: Strict scene order preservation via SQS FIFO queues
+- **Audio Overlay**: Merges TTS narration with stitched video
 - **Resolution Normalization**: Automatically scales videos to consistent 360x640 resolution
-- **Crossfade Transitions**: Smooth 1-second fade transitions between clips
-- **Audio Mixing**: Seamless audio crossfading with acrossfade filter
-- **Smart Polling**: Checks for stitched video every 5 seconds for 2 minutes
+- **Crossfade Transitions**: Smooth 1.5-second fade transitions between clips
 - **Real-time Updates**: Auto-displays final video when ready
 
 ## Architecture
 
-### SQS FIFO Queue-Based Pipeline
+### Enhanced AI Narration Pipeline
 
+```mermaid
+graph TD
+    A[User Input: @Script] -->|Single Call| B[Gemini AI]
+    B -->|Generates| C[1-Min Narration Script]
+    B -->|Generates| D[3 Internal Scenes]
+    C -->|Auto-Generated| E[OpenAI TTS]
+    E -->|Audio File| F[Firebase Storage]
+    D -->|Internal Data| G[Scene Review UI]
+    G -->|Confirmed| H[Fetch Mock Videos]
+    H & F --> I[SQS FIFO Queue]
+    I -->|Audio URL + Video URLs| J[AWS Lambda]
+    J -->|FFmpeg Stitching| K[Final Video with Narration]
 ```
-User Input → Gemini AI (Scene Generation) → User Reviews & Confirms
-                                                      ↓
-                                            Type "proceed"
-                                                      ↓
-                         Frontend fetches 3 pre-stored videos from Firebase
-                                                      ↓
-                       Dispatches to SQS FIFO Stitching Queue
-                                    (via /api/sqs/stitch)
-                                                      ↓
-                           Lambda triggered by SQS event
-                                                      ↓
-                              FFmpeg stitches videos
-                                                      ↓
-                  Uploads final video to Firebase Storage (videos/)
-                                                      ↓
-           Frontend polls /api/videos/fetch-stitched every 5s
-                                                      ↓
-                     Auto-displays video when ready 🎉
-```
+
+### Flow Details
+
+1. **User Input**
+   - User types `@Script [story]`
+   - Triggering the single-shot Gemini generation
+
+2. **AI Generation (Optimized)**
+   - **One API Call** generating:
+     - 1-minute documentary-style narration
+     - 3 cinematic scene timestamps/descriptions
+
+3. **Audio Production**
+   - Narration sent to OpenAI TTS (`tts-1-hd`)
+   - Generated MP3 uploaded to Firebase Storage (`audio/`)
+
+4. **Stitching Process (AWS Lambda)**
+   - Triggered via SQS with `audioUrl` payload
+   - Downloads 3 videos + 1 audio file
+   - Mutes original video audio
+   - Overlays TTS narration track
+   - Stitches with crossfade transitions
 
 ### Key Components
 
 1. **Frontend (Next.js)**
-   - User interface for story input
-   - Scene review and confirmation
-   - SQS job dispatch
-   - Automatic polling and video display
+   - Chat interface for script generation
+   - Real-time Scene Reviewer
+   - Audio Player for narration preview
+   - Automatic SQS dispatch logic
 
 2. **API Routes**
-   - `/api/sqs/stitch` - Dispatch jobs to SQS
+   - `/api/sqs/stitch` - Logic to forward `videoUrls` AND `audioUrl` to SQS
    - `/api/videos/fetch-stitched` - Poll for completed videos
 
-3. **AWS SQS FIFO Queue**
-   - `brick2brick-stitching.fifo`
-   - Guarantees FIFO ordering
-   - Triggers Lambda for stitching
+3. **AWS Services**
+   - **SQS FIFO**: `brick2brick-stitching.fifo`
+   - **Lambda**: `brick2brick-video-stitcher` (Node.js + static FFmpeg)
 
-4. **AWS Lambda**
-   - SQS-triggered stitching function
-   - Downloads videos from Firebase
-   - FFmpeg processing
-   - Uploads result to Firebase
-
-5. **Firebase**
-   - **Storage**: `MockAIGeneratedVideos/` (source), `videos/` (stitched)
-   - **Functions**: Proxy for fetching videos
+4. **External APIs**
+   - **Google Gemini**: Content generation
+   - **OpenAI**: Text-to-Speech generation
 
 ## Prerequisites
 
 - **Node.js** 18+ and npm
-- **Firebase Project** with Storage enabled and Cloud Functions
-- **AWS Account** with:
-  - SQS access (for FIFO queues)
-  - Lambda access
-  - IAM permissions (to create policies)
-- **Google Gemini API** key (for scene generation)
-- **AWS IAM User** with SQS SendMessage permissions
+- **Firebase Project** with Storage enabled
+- **AWS Account** with SQS and Lambda access
+- **Google Gemini API** key (for text/scene generation)
+- **OpenAI API** key (for TTS audio generation)
 
 ## Setup Instructions
 
@@ -316,71 +321,57 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ### Complete Workflow
 
-1. **Enter Your Story**
-   - Type `@Script` in the chat input
-   - Enter your story (e.g., "A cat discovers a magical garden")
+1. **Enter Your Script**
+   - Type `@Script` followed by your story idea
+   - Example: `@Script A lonely robot discovers a flower on Mars`
    - Press Enter
+   - **Gemini AI** instantly generates both a 1-minute narration and 3 scene descriptions
 
-2. **Confirm Enhancement**
-   - AI will enhance your story with cinematic details
-   - Type `yes` to confirm
-
-3. **Review Generated Scenes**
-   - Gemini AI breaks story into exactly 3 scenes
-   - Review scene descriptions
-   - Provide feedback or type `proceed` to continue
-
-4. **Dispatch to Queue**
+2. **Review & Narration**
+   - Review the generated narration script
+   - Check the 3 cinematic scene descriptions
    - Type `proceed` to confirm
-   - Frontend fetches 3 pre-stored videos from Firebase
-   - Dispatches stitching job to SQS FIFO queue
 
-5. **Auto-Stitching**
-   - Lambda automatically triggered by SQS
-   - Downloads videos from Firebase Storage
-   - Stitches with FFmpeg (normalize + crossfade)
-   - Uploads final video to `videos/` folder
+3. **Generate Audio (Preview)**
+   - **OpenAI TTS** generates the high-quality narration audio
+   - An audio player appears - listen to the preview!
+   - Type `proceed` again to finalize
 
-6. **Auto-Display**
-   - Frontend polls every 5 seconds for stitched video
-   - Alert shows when ready: "🎉 Video stitched successfully!"
-   - Video auto-plays in the UI
-   - Download or share your final video!
+4. **Stitch & Create Video**
+   - The system fetches mock videos (placeholders)
+   - Dispatches job to **SQS FIFO Queue** with the audio URL
+   - **AWS Lambda** takes over:
+     - Downloads videos & audio
+     - Mutes original video tracks
+     - Overlays TTS narration
+     - Stitches with crossfade transitions
 
-### Timeline
-
-- **0:00** - Type "proceed"
-- **0:01** - Dispatched to SQS queue
-- **0:05** - Lambda starts stitching
-- **1:30** - FFmpeg processing complete
-- **1:35** - Video uploaded to Firebase
-- **1:40** - Frontend detects video
-- **1:40** - 🎉 Auto-plays!
+5. **Auto-Display**
+   - Frontend polls for the final video (every 5s)
+   - **Video Auto-Plays** when ready! 🎉
 
 ### Monitoring
 
 **Browser Console (F12):**
 ```
-✅ Dispatched to SQS: { jobId: '...', messageId: '...' }
-🔍 Polling attempt 1/24 for stitched video...
-⏳ Not ready yet...
-🔍 Polling attempt 18/24 for stitched video...
-✅ Found stitched video: https://storage.googleapis.com/.../stitched-...
+🎵 Generating audio narration...
+✅ Audio uploaded to Firebase
+🚀 Auto-dispatching to SQS with audio: https://...
+✅ Dispatched to SQS: { jobId: '...', audioUrl: '...' }
 ```
 
 **AWS CloudWatch Logs:**
 ```
-Lambda invoked
-Event type: SQS
 Processing SQS job: stitch-...
-Downloading videos from Firebase Storage...
-Stitching videos...
+Audio URL: https://firebasestorage...
+✅ Downloaded audio: narration.mp3
+Stitching 3 videos with audio overlay
 ✅ Stitching complete
 ```
 
 **Firebase Storage:**
-- Source videos: `MockAIGeneratedVideos/1.mp4`, `2.mp4`, `3.mp4`
-- Final video: `videos/stitched-stitch-{jobId}-{timestamp}.mp4`
+- **Audio**: `audio/narration-{session}.mp3`
+- **Final Video**: `videos/stitched-{jobId}.mp4`
 
 ## Project Structure
 

@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
 import { generateGreeting, analyzeScenes } from '../services/AIService';
 import type { ChatMessage, Scene } from '../services/AIService';
+import type { DirectNarrationResult } from '../services/NarrationService';
 
-export type ChatFlowState = 'greeting' | 'awaiting_story' | 'awaiting_enhancement_confirmation' | 'analyzing' | 'scenes_ready' | 'awaiting_proceed_confirmation';
+export type ChatFlowState =
+  | 'greeting'
+  | 'awaiting_story'
+  | 'generating_narration'
+  | 'awaiting_narration_confirmation'
+  | 'generating_audio'
+  | 'awaiting_final_confirmation'
+  | 'awaiting_enhancement_confirmation'
+  | 'analyzing'
+  | 'scenes_ready'
+  | 'awaiting_proceed_confirmation';
 
 export function useChatFlow() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -11,6 +22,8 @@ export function useChatFlow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatingVideos, setGeneratingVideos] = useState(false);
+  const [narrationResult, setNarrationResult] = useState<DirectNarrationResult | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   // Generate greeting on first load
   useEffect(() => {
@@ -131,6 +144,34 @@ export function useChatFlow() {
     }
   };
 
+  const handleNarrationConfirmation = (userResponse: string) => {
+    addUserMessage(userResponse);
+    const cleanedResponse = userResponse.toLowerCase().trim();
+
+    if (cleanedResponse.includes('regenerate') || cleanedResponse.includes('redo')) {
+      setCurrentState('awaiting_story');
+      addAssistantMessage("Let's try again! Please share your script using the '@Script' format.");
+      setNarrationResult(null);
+    } else if (cleanedResponse.includes('proceed') || cleanedResponse.includes('yes') || cleanedResponse.includes('continue')) {
+      // User approved narration, now generate audio
+      setCurrentState('generating_audio');
+    } else {
+      addAssistantMessage("Please type 'proceed' to continue or 'regenerate' to create a new narration.");
+    }
+  };
+
+  const handleFinalConfirmation = (userResponse: string) => {
+    addUserMessage(userResponse);
+    const cleanedResponse = userResponse.toLowerCase().trim();
+
+    if (cleanedResponse.includes('proceed') || cleanedResponse.includes('yes') || cleanedResponse.includes('continue')) {
+      setGeneratingVideos(true);
+      setCurrentState('scenes_ready');
+    } else {
+      addAssistantMessage("Please type 'proceed' to generate your video.");
+    }
+  };
+
   const resetConversation = () => {
     setMessages([]);
     setCurrentState('greeting');
@@ -138,6 +179,8 @@ export function useChatFlow() {
     setLoading(false);
     setCurrentUserStory(null);
     setGeneratingVideos(false);
+    setNarrationResult(null);
+    setAudioUrl(null);
   };
 
   return {
@@ -146,9 +189,17 @@ export function useChatFlow() {
     loading,
     error,
     generatingVideos,
+    narrationResult,
+    audioUrl,
     processUserStory,
     handleEnhancementConfirmation,
     handleProceedConfirmation,
+    handleNarrationConfirmation,
+    handleFinalConfirmation,
+    setNarrationResult,
+    setAudioUrl,
+    setCurrentState,
+    addAssistantMessage,
     resetConversation
   };
 }

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { MODELS } from '../config/models';
 import { analyzeScenes } from '../services/AIService';
 import { stitchVideosWithLambda } from '../services/LambdaStitchService';
+import { narrationService, type NarrationScript } from '../services/NarrationService';
+import { ttsService } from '../services/TTSService';
 import type { Scene } from '../services/AIService';
 
 export function useVideoGeneration() {
@@ -12,6 +14,13 @@ export function useVideoGeneration() {
     const [status, setStatus] = useState('');
     const [isStitching, setIsStitching] = useState(false);
     const [stitchedVideoUrl, setStitchedVideoUrl] = useState<string | null>(null);
+
+    // New states for narration and audio
+    const [narrationScript, setNarrationScript] = useState<NarrationScript | null>(null);
+    const [narrationAudioUrl, setNarrationAudioUrl] = useState<string | null>(null);
+    const [generatingNarration, setGeneratingNarration] = useState(false);
+    const [generatingAudio, setGeneratingAudio] = useState(false);
+    const [originalScript, setOriginalScript] = useState<string>('');
 
     const analyzePrompt = async (inputText: string) => {
         if (!inputText.trim()) {
@@ -251,6 +260,83 @@ export function useVideoGeneration() {
         });
     };
 
+    /**
+     * Generate narration script from analyzed scenes
+     */
+    const generateNarration = async (scenes: Scene[], script: string) => {
+        setGeneratingNarration(true);
+        setError('');
+
+        try {
+            console.log('🎬 Generating narration script...');
+            const narration = await narrationService.generateNarrationFromScenes(scenes, script);
+            setNarrationScript(narration);
+            setOriginalScript(script);
+            console.log('✅ Narration generated:', narration.fullNarration);
+            return narration;
+        } catch (err) {
+            console.error('❌ Narration generation failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to generate narration');
+            throw err;
+        } finally {
+            setGeneratingNarration(false);
+        }
+    };
+
+    /**
+     * Generate audio from narration script using OpenAI TTS
+     */
+    const generateAudio = async (narration: NarrationScript, sessionId?: string) => {
+        setGeneratingAudio(true);
+        setError('');
+
+        try {
+            console.log('🎙️ Generating audio from narration...');
+            const audioUrl = await ttsService.generateNarrationAudio(
+                narration.fullNarration,
+                sessionId || `session-${Date.now()}`
+            );
+            setNarrationAudioUrl(audioUrl);
+            console.log('✅ Audio generated:', audioUrl);
+            return audioUrl;
+        } catch (err) {
+            console.error('❌ Audio generation failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to generate audio');
+            throw err;
+        } finally {
+            setGeneratingAudio(false);
+        }
+    };
+
+    /**
+     * Regenerate narration with user feedback
+     */
+    const regenerateNarration = async (feedback: string) => {
+        if (!narrationScript) {
+            throw new Error('No narration script to regenerate');
+        }
+
+        setGeneratingNarration(true);
+        setError('');
+
+        try {
+            console.log('🔄 Regenerating narration with feedback...');
+            const updatedNarration = await narrationService.regenerateNarration(
+                narrationScript,
+                feedback
+            );
+            setNarrationScript(updatedNarration);
+            console.log('✅ Narration regenerated');
+            return updatedNarration;
+        } catch (err) {
+            console.error('❌ Narration regeneration failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to regenerate narration');
+            throw err;
+        } finally {
+            setGeneratingNarration(false);
+        }
+    };
+
     return {
         analyzedScenes,
         videoUrls,
@@ -264,6 +350,15 @@ export function useVideoGeneration() {
         stitchVideosWithAWSLambda,
         resetAnalysis,
         updateAnalyzedScene,
-        setAnalyzedScenes
+        setAnalyzedScenes,
+        // New narration and audio exports
+        narrationScript,
+        narrationAudioUrl,
+        generatingNarration,
+        generatingAudio,
+        generateNarration,
+        generateAudio,
+        regenerateNarration,
+        originalScript
     };
 }

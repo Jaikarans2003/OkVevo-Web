@@ -49,13 +49,27 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
         console.log(`Processing URL: ${videoUrl}`);
 
         const url = new URL(videoUrl);
-        const pathMatch = url.pathname.match(/^\/[^\/]+\/(.+)$/);
+        let filePath;
 
-        if (!pathMatch) {
-            throw new Error(`Invalid Firebase URL format: ${videoUrl}`);
+        // Handle different Firebase/GCS URL formats
+        if (url.hostname.includes('firebasestorage.googleapis.com')) {
+            // Format: /v0/b/[bucket]/o/[path]
+            const parts = url.pathname.split('/o/');
+            if (parts.length < 2) {
+                throw new Error(`Invalid Firebase Storage URL format: ${videoUrl}`);
+            }
+            // path is everything after /o/, url-decoded
+            filePath = decodeURIComponent(parts[1]);
+        } else {
+            // Standard GCS format: /[bucket]/[path] or similar
+            // Existing logic: matches /bucket/path/to/file -> path/to/file
+            const pathMatch = url.pathname.match(/^\/[^\/]+\/(.+)$/);
+            if (!pathMatch) {
+                throw new Error(`Invalid GCS URL format: ${videoUrl}`);
+            }
+            filePath = decodeURIComponent(pathMatch[1]);
         }
 
-        let filePath = decodeURIComponent(pathMatch[1]);
         console.log(`Extracted file path: ${filePath}`);
 
         const bucket = admin.storage().bucket();
@@ -133,9 +147,13 @@ function getVideoDuration(videoPath) {
 /**
  * Stitch videos using FFmpeg with smooth crossfade transitions
  * Enhanced with better interpolation and quality settings
- * Now supports dynamic video durations
+ * Now supports dynamic video durations and audio overlay
+ * 
+ * @param {string[]} inputFiles - Array of video file paths
+ * @param {string} outputFile - Output file path
+ * @param {string|null} audioFile - Optional narration audio file path
  */
-async function stitchVideos(inputFiles, outputFile) {
+async function stitchVideos(inputFiles, outputFile, audioFile = null) {
     // Probe all video durations first
     const durations = [];
     for (const file of inputFiles) {
@@ -164,37 +182,69 @@ async function stitchVideos(inputFiles, outputFile) {
         console.log(`  Second xfade: offset=${secondOffset}s (starts at ${secondOffset}s)`);
         console.log(`  Expected total duration: ${durations[0] + durations[1] + durations[2] - (transitionDuration * 2)}s`);
 
-        const filter =
-            // Normalize all inputs: scale, pad, set framerate, and color format
-            `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
-            `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
-            `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
-            // Enhanced crossfade with smoother transitions using actual durations
-            // First transition: fade between v0 and v1
-            `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
-            // Second transition: fade between merged result and v2
-            `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv];` +
-            // Enhanced audio crossfade with proper timing
-            // Trim audio streams to match video durations and add crossfades
-            // First audio stays full duration
-            `[0:a]atrim=0:${durations[0]},asetpts=PTS-STARTPTS[a0];` +
-            // Second audio trimmed to its duration
-            `[1:a]atrim=0:${durations[1]},asetpts=PTS-STARTPTS[a1];` +
-            // Third audio trimmed to its duration
-            `[2:a]atrim=0:${durations[2]},asetpts=PTS-STARTPTS[a2];` +
-            // Crossfade first two audios
-            `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
-            // Crossfade result with third audio
-            `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+        // Build filter based on whether we have narration audio
+        let filter;
+
+        if (audioFile) {
+            // WITH NARRATION AUDIO: Replace video audio completely with narration
+            // Video audio will be muted, only narration will be used
+            console.log('🎙️ Building filter with TTS narration ONLY (video audio muted)...');
+            filter =
+                // Normalize all video inputs
+                `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
+                `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
+                `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
+                // Video crossfade transitions
+                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
+                `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv]`;
+            // Note: No audio filter needed - narration (input 3:a) will be mapped directly
+        } else {
+            // WITHOUT NARRATION: Original audio crossfade logic
+            console.log('🎵 Building filter with video audio only...');
+            filter =
+                // Normalize all inputs
+                `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
+                `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
+                `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
+                // Video crossfade
+                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
+                `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv];` +
+                // Audio crossfade
+                `[0:a]atrim=0:${durations[0]},asetpts=PTS-STARTPTS[a0];` +
+                `[1:a]atrim=0:${durations[1]},asetpts=PTS-STARTPTS[a1];` +
+                `[2:a]atrim=0:${durations[2]},asetpts=PTS-STARTPTS[a2];` +
+                `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
+                `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+        }
 
 
+        // Build FFmpeg arguments
         const args = [
             '-i', inputFiles[0],
             '-i', inputFiles[1],
-            '-i', inputFiles[2],
+            '-i', inputFiles[2]
+        ];
+
+        // Add audio input if provided
+        if (audioFile) {
+            args.push('-i', audioFile);
+        }
+
+        // Add filter and mapping
+        args.push(
             '-filter_complex', filter,
-            '-map', '[outv]',
-            '-map', '[outa]',
+            '-map', '[outv]'  // Map video from filter
+        );
+
+        // Map audio: narration if provided, otherwise filtered video audio
+        if (audioFile) {
+            args.push('-map', '3:a');  // Map narration audio directly (4th input = mute videos)
+        } else {
+            args.push('-map', '[outa]');  // Map filtered video audio
+        }
+
+        // Encoding settings
+        args.push(
             '-c:v', 'libx264',
             '-preset', 'slow',        // Better quality encoding for smoother transitions
             '-crf', '20',             // Higher quality (lower CRF = better quality)
@@ -207,7 +257,7 @@ async function stitchVideos(inputFiles, outputFile) {
             '-movflags', '+faststart', // Enable fast start for web playback
             '-y',                     // Overwrite output file
             outputFile
-        ];
+        );
 
         console.log('Starting FFmpeg...');
         const ffmpeg = spawn('/opt/bin/ffmpeg', args);
@@ -233,11 +283,61 @@ async function stitchVideos(inputFiles, outputFile) {
 }
 
 /**
+ * Download audio file from Firebase Storage
+ */
+async function downloadAudioFromFirebase(audioUrl, filename) {
+    try {
+        console.log(`Downloading audio: ${audioUrl}`);
+
+        const url = new URL(audioUrl);
+        let filePath;
+
+        // Handle different Firebase/GCS URL formats
+        if (url.hostname.includes('firebasestorage.googleapis.com')) {
+            // Format: /v0/b/[bucket]/o/[path]
+            const parts = url.pathname.split('/o/');
+            if (parts.length < 2) {
+                throw new Error(`Invalid Firebase Storage URL format: ${audioUrl}`);
+            }
+            // path is everything after /o/, url-decoded
+            filePath = decodeURIComponent(parts[1]);
+        } else {
+            // Standard GCS format: /[bucket]/[path]
+            const pathMatch = url.pathname.match(/^\/[^\/]+\/(.+)$/);
+            if (!pathMatch) {
+                throw new Error(`Invalid Google Cloud Storage URL format: ${audioUrl}`);
+            }
+            filePath = decodeURIComponent(pathMatch[1]);
+        }
+
+        console.log(`Extracted audio file path: ${filePath}`);
+
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(filePath);
+        const exists = await file.exists();
+
+        if (!exists[0]) {
+            throw new Error(`Audio file not found in Firebase Storage: ${filePath}`);
+        }
+
+        const destPath = `/tmp/${filename}`;
+        await file.download({ destination: destPath });
+        console.log(`✅ Downloaded audio: ${filename}`);
+        return destPath;
+
+    } catch (error) {
+        console.error(`❌ Error downloading audio ${filename}:`, error);
+        throw error;
+    }
+}
+
+/**
  * Core stitching logic (extracted for reuse)
  */
-async function processStitchingJob(videoUrls, sessionId = 'default') {
+async function processStitchingJob(videoUrls, sessionId = 'default', audioUrl = null) {
     console.log(`Processing stitching job: ${sessionId}`);
     console.log(`Video URLs:`, videoUrls);
+    console.log(`Audio URL:`, audioUrl);
 
     // Download videos
     const downloadedVideos = [];
@@ -246,9 +346,15 @@ async function processStitchingJob(videoUrls, sessionId = 'default') {
         downloadedVideos.push(path);
     }
 
-    // Stitch
+    // Download audio if provided
+    let audioPath = null;
+    if (audioUrl) {
+        audioPath = await downloadAudioFromFirebase(audioUrl, 'narration.mp3');
+    }
+
+    // Stitch videos with or without audio
     const stitchedPath = '/tmp/stitched-output.mp4';
-    await stitchVideos(downloadedVideos, stitchedPath);
+    await stitchVideos(downloadedVideos, stitchedPath, audioPath);
 
     // Upload to Firebase
     const timestamp = Date.now();
@@ -294,14 +400,14 @@ exports.handler = async (event) => {
             // Process each SQS message (batch size = 1 recommended)
             for (const record of event.Records) {
                 const body = JSON.parse(record.body);
-                const { jobId, videoUrls } = body;
+                const { jobId, videoUrls, audioUrl } = body;
 
                 if (!videoUrls || videoUrls.length !== 3) {
                     throw new Error('SQS message must contain 3 video URLs');
                 }
 
                 console.log(`Processing SQS job: ${jobId}`);
-                const videoUrl = await processStitchingJob(videoUrls, jobId);
+                const videoUrl = await processStitchingJob(videoUrls, jobId, audioUrl);
 
                 console.log(`✅ SQS job ${jobId} completed: ${videoUrl}`);
                 // Note: For SQS, the final video URL is returned in logs
@@ -316,7 +422,7 @@ exports.handler = async (event) => {
             console.log('🔹 HTTP Trigger detected');
 
             const body = event.body ? JSON.parse(event.body) : event;
-            const { videoUrls, sessionId = 'default' } = body;
+            const { videoUrls, sessionId = 'default', audioUrl } = body;
 
             if (!videoUrls || videoUrls.length !== 3) {
                 return {
@@ -332,7 +438,7 @@ exports.handler = async (event) => {
                 };
             }
 
-            const videoUrl = await processStitchingJob(videoUrls, sessionId);
+            const videoUrl = await processStitchingJob(videoUrls, sessionId, audioUrl);
 
             return {
                 statusCode: 200,

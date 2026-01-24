@@ -8,6 +8,7 @@
 export interface StitchingJobRequest {
     jobId: string;
     videoUrls: string[];
+    audioUrl?: string;  // Optional: TTS narration audio URL from Firebase Storage
 }
 
 export interface StitchingJobResponse {
@@ -30,10 +31,12 @@ export const generateJobId = (): string => {
 /**
  * Dispatch a stitching job to the SQS queue
  * @param videoUrls - Array of 3 video URLs from Firebase Storage
+ * @param audioUrl - Optional TTS narration audio URL from Firebase Storage
  * @returns Promise with job tracking information
  */
 export const dispatchStitchingJob = async (
-    videoUrls: string[]
+    videoUrls: string[],
+    audioUrl?: string
 ): Promise<StitchingJobResponse> => {
     try {
         // Validate input
@@ -44,7 +47,11 @@ export const dispatchStitchingJob = async (
         // Generate unique job ID
         const jobId = generateJobId();
 
-        console.log('🚀 Dispatching stitching job to SQS:', { jobId, videoUrls });
+        console.log('🚀 Dispatching stitching job to SQS:', {
+            jobId,
+            videoCount: videoUrls.length,
+            audioUrl: audioUrl || 'NONE - will use video audio'
+        });
 
         // Call backend API to send message to SQS
         const response = await fetch('/api/sqs/stitch', {
@@ -55,6 +62,7 @@ export const dispatchStitchingJob = async (
             body: JSON.stringify({
                 jobId,
                 videoUrls,
+                audioUrl,  // Include audio URL in SQS message
             }),
         });
 

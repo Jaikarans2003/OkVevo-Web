@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle } from 'lucide-react';
+import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle, Volume2, Play } from 'lucide-react';
 import { useVideoGeneration } from '../hooks/useVideoGeneration';
 import { useChatFlow } from '../hooks/useChatFlow';
 import VideoPlayer from '../components/VideoPlayer';
@@ -15,11 +15,18 @@ export default function Brick2Brick() {
         error: videoError,
         isStitching,
         stitchedVideoUrl,
+        narrationScript,
+        narrationAudioUrl,
+        generatingNarration,
+        generatingAudio,
         setAnalyzedScenes,
         generateVideosFromScenes,
         stitchVideosWithAWSLambda,
         resetAnalysis,
-        updateAnalyzedScene
+        updateAnalyzedScene,
+        generateNarration,
+        generateAudio,
+        regenerateNarration
     } = useVideoGeneration();
 
     const {
@@ -28,9 +35,17 @@ export default function Brick2Brick() {
         loading: chatLoading,
         error: chatError,
         generatingVideos,
+        narrationResult,
+        audioUrl,
         processUserStory,
         handleEnhancementConfirmation,
         handleProceedConfirmation,
+        handleNarrationConfirmation,
+        handleFinalConfirmation,
+        setNarrationResult,
+        setAudioUrl,
+        setCurrentState,
+        addAssistantMessage,
         resetConversation
     } = useChatFlow();
 
@@ -43,6 +58,7 @@ export default function Brick2Brick() {
     const [isStitchingStorage, setIsStitchingStorage] = useState(false);
     const [storageStitchedUrl, setStorageStitchedUrl] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const dispatchedJobRef = useRef<string | null>(null); // Track dispatched jobs to prevent duplicates
 
     // Manual stitch function for storage videos
     const stitchStorageVideos = async () => {
@@ -94,26 +110,178 @@ export default function Brick2Brick() {
         }
     }, [currentState]);
 
+    // Handle audio generation when state changes to generating_audio
+    useEffect(() => {
+        const handleAudioGeneration = async () => {
+            if (currentState === 'generating_audio' && narrationResult) {
+                addAssistantMessage('🎵 Generating audio narration...');
+
+                try {
+                    const { ttsService } = await import('../services/TTSService');
+                    const sessionId = 'session-' + Date.now();
+                    const generatedAudioUrl = await ttsService.generateNarrationAudio(
+                        narrationResult.narration.fullNarration,
+                        sessionId
+                    );
+
+                    setAudioUrl(generatedAudioUrl);
+                    addAssistantMessage(
+                        `🔊 Audio generated! You can listen to the preview below.\n\nType 'proceed' to create your video!`
+                    );
+                    setCurrentState('awaiting_final_confirmation');
+                } catch (error) {
+                    console.error('Audio generation failed:', error);
+                    addAssistantMessage('Failed to generate audio. Please try again.');
+                    setCurrentState('awaiting_narration_confirmation');
+                }
+            }
+        };
+
+        handleAudioGeneration();
+    }, [currentState, narrationResult]);
+
+    // Handle SQS dispatch when videos are loaded and audio is ready
+    useEffect(() => {
+        const dispatchSQS = async () => {
+            // Create unique key for this dispatch
+            const dispatchKey = `${storageVideos.slice(0, 3).join('|')}|${audioUrl}`;
+
+            if (storageVideos.length >= 3 && audioUrl && currentState === 'scenes_ready' && !isStitchingStorage) {
+                // Prevent duplicate dispatches
+                if (dispatchedJobRef.current === dispatchKey) {
+                    console.log('⏭️ Skipping duplicate dispatch');
+                    return;
+                }
+
+                console.log('🚀 Auto-dispatching to SQS with audio:', audioUrl.substring(0, 50) + '...');
+                setIsStitchingStorage(true);
+                dispatchedJobRef.current = dispatchKey;
+
+                try {
+                    const { dispatchStitchingJob } = await import('../services/SQSStitchService');
+
+                    const result = await dispatchStitchingJob(
+                        storageVideos.slice(0, 3),
+                        audioUrl
+                    );
+
+                    if (result.success && result.jobId) {
+                        console.log('✅ Dispatched to SQS with audio:', result.jobId);
+
+                        // Start polling for stitched video
+                        const pollForStitchedVideo = async () => {
+                            const maxAttempts = 24;
+
+                            for (let i = 0; i < maxAttempts; i++) {
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                                try {
+                                    console.log(`🔍 Polling ${i + 1}/${maxAttempts} for jobId: ${result.jobId}...`);
+
+                                    const response = await fetch(
+                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
+                                    );
+
+                                    if (!response.ok) continue;
+
+                                    const data = await response.json();
+
+                                    if (data.videos && data.videos.length > 0) {
+                                        const matchingVideo = data.videos.find((video: { url: string }) =>
+                                            video.url.includes(result.jobId!)
+                                        );
+
+                                        if (matchingVideo) {
+                                            setStorageStitchedUrl(matchingVideo.url);
+                                            setIsStitchingStorage(false);
+                                            console.log('✅ Video with audio ready:', matchingVideo.url);
+                                            return;
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Polling error:', err);
+                                }
+                            }
+
+                            console.log('⏱️ Polling timeout');
+                            setIsStitchingStorage(false);
+                        };
+
+                        pollForStitchedVideo();
+                    } else {
+                        throw new Error(result.error || 'SQS dispatch failed');
+                    }
+                } catch (error) {
+                    console.error('SQS dispatch error:', error);
+                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch');
+                    setIsStitchingStorage(false);
+                    dispatchedJobRef.current = null; // Reset on error
+                }
+            }
+        };
+
+        dispatchSQS();
+    }, [storageVideos, audioUrl, currentState]); // Removed isStitchingStorage from dependencies
+
     const handleSendMessage = async () => {
         if (!inputText.trim() || chatLoading) return;
 
         const userMessage = inputText.trim();
         setInputText('');
 
-        if (currentState === 'awaiting_enhancement_confirmation') {
+        // Handle different conversation states
+        if (currentState === 'awaiting_story') {
+            // User submitted their script - generate narration
+            if (userMessage.toLowerCase().startsWith('@script')) {
+                const storyContent = userMessage.substring('@script'.length).trim();
+
+                addAssistantMessage(`Received your script! Generating AI narration...`);
+                setCurrentState('generating_narration');
+
+                try {
+                    const { narrationService } = await import('../services/NarrationService');
+                    const result = await narrationService.generateDirectNarration(storyContent);
+                    setNarrationResult(result);
+
+                    // Internal scenes are already in Scene format
+                    setAnalyzedScenes(result.internalScenes);
+
+                    // Show the narration text
+                    addAssistantMessage(
+                        `📝 **Generated Narration:**\n\n"${result.narration.fullNarration}"\n\n---\n\nNow review the 3 cinematic scenes below. You can edit them if needed.`
+                    );
+
+                    // Trigger Scene Reviewer to display
+                    addAssistantMessage('Scene Review', 'scene_review');
+
+                    setCurrentState('awaiting_narration_confirmation');
+                } catch (error) {
+                    console.error('Narration generation failed:', error);
+                    addAssistantMessage('Failed to generate narration. Please try again.');
+                    setCurrentState('awaiting_story');
+                }
+            } else {
+                addAssistantMessage("Please use the '@Script' format to submit your story.");
+            }
+        } else if (currentState === 'awaiting_narration_confirmation') {
+            // User reviewed narration
+            handleNarrationConfirmation(userMessage);
+        } else if (currentState === 'awaiting_final_confirmation') {
+            // User reviewed audio - proceed to video generation
+            handleFinalConfirmation(userMessage);
+        } else if (currentState === 'awaiting_enhancement_confirmation') {
             const scenes = await handleEnhancementConfirmation(userMessage);
             if (scenes) {
                 setAnalyzedScenes(scenes);
             }
         } else if (currentState === 'awaiting_proceed_confirmation') {
-            // Check if user said "Proceed"
+            // OLD FLOW - Fetch videos and dispatch with audio
             const cleanedResponse = userMessage.toLowerCase().trim().replace(/[.,!?;:]/g, '');
 
             if (cleanedResponse === 'proceed' || cleanedResponse === 'yes' || cleanedResponse === 'continue') {
                 console.log('✅ User confirmed PROCEED. Dispatching to SQS...');
 
                 try {
-                    // Fetch pre-stored videos from Firebase Storage
                     setLoadingStorageVideos(true);
                     setStorageError(null);
 
@@ -126,17 +294,19 @@ export default function Brick2Brick() {
                     setStorageVideos(urls);
                     console.log('📦 Fetched videos from storage:', urls);
 
-                    // Dispatch to SQS stitching queue
+                    // Dispatch to SQS with audio URL
                     setIsStitchingStorage(true);
                     const { dispatchStitchingJob } = await import('../services/SQSStitchService');
 
-                    console.log('🚀 Dispatching to SQS stitching queue...');
-                    const result = await dispatchStitchingJob(urls.slice(0, 3));
+                    console.log('🚀 Dispatching to SQS with audio:', audioUrl);
+                    const result = await dispatchStitchingJob(
+                        urls.slice(0, 3),
+                        audioUrl || undefined  // Pass audio URL if available
+                    );
 
                     if (result.success) {
                         console.log('✅ Dispatched to SQS:', result);
 
-                        // Capture the jobId for polling
                         const jobId = result.jobId;
 
                         if (!jobId) {
@@ -146,16 +316,15 @@ export default function Brick2Brick() {
                             return;
                         }
 
-                        // Start polling for stitched video (check every 5 seconds for 2 minutes)
+                        // Start polling
                         const pollForStitchedVideo = async () => {
-                            const maxAttempts = 24; // 24 attempts × 5 seconds = 2 minutes
+                            const maxAttempts = 24;
 
                             for (let i = 0; i < maxAttempts; i++) {
-                                // Wait 5 seconds between attempts
                                 await new Promise(resolve => setTimeout(resolve, 5000));
 
                                 try {
-                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for stitched video with jobId: ${jobId}...`);
+                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for jobId: ${jobId}...`);
 
                                     const response = await fetch(
                                         'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
@@ -169,20 +338,18 @@ export default function Brick2Brick() {
                                     const data = await response.json();
 
                                     if (data.videos && data.videos.length > 0) {
-                                        // Look for a video matching our jobId
                                         const matchingVideo = data.videos.find((video: { url: string }) =>
                                             video.url.includes(jobId)
                                         );
 
                                         if (matchingVideo) {
-                                            // Found our specific stitched video!
                                             setStorageStitchedUrl(matchingVideo.url);
                                             setIsStitchingStorage(false);
-                                            console.log('✅ Found stitched video for jobId:', jobId, matchingVideo.url);
-                                            alert('🎉 Video stitched successfully! Playing now...');
-                                            return; // Exit polling
+                                            console.log('✅ Found stitched video:', matchingVideo.url);
+                                            alert('🎉 Video stitched successfully with narration!');
+                                            return;
                                         } else {
-                                            console.log(`⏳ Video with jobId ${jobId} not found yet (attempt ${i + 1}/${maxAttempts})...`);
+                                            console.log(`⏳ Video not found yet (${i + 1}/${maxAttempts})...`);
                                         }
                                     }
                                 } catch (err) {
@@ -190,13 +357,11 @@ export default function Brick2Brick() {
                                 }
                             }
 
-                            // After 2 minutes (24 attempts), show message
-                            console.log('⏱️ Polling timeout. Stitching may still be in progress.');
-                            alert('Stitching is taking longer than expected. Check Firebase Storage videos/ folder in a moment, or refresh the page.');
+                            console.log('⏱️ Polling timeout.');
+                            alert('Stitching is taking longer than expected. Check Firebase Storage later.');
                             setIsStitchingStorage(false);
                         };
 
-                        // Start polling
                         pollForStitchedVideo();
 
                     } else {
@@ -205,14 +370,13 @@ export default function Brick2Brick() {
 
                 } catch (error) {
                     console.error('Error in SQS dispatch flow:', error);
-                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch stitching job');
+                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch');
                     setIsStitchingStorage(false);
                 } finally {
                     setLoadingStorageVideos(false);
                 }
             }
 
-            // Always call handleProceedConfirmation to advance chat state
             await handleProceedConfirmation(userMessage);
         } else {
             await processUserStory(userMessage);
@@ -412,6 +576,36 @@ export default function Brick2Brick() {
                         </div>
                     )}
 
+                    {/* Audio Player */}
+                    {audioUrl && (
+                        <div className="animate-in fade-in zoom-in duration-500 mt-6">
+                            <div className="flex gap-3 justify-start">
+                                <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Volume2 className="w-4 h-4 text-custom-cream" />
+                                </div>
+
+                                <div className="max-w-3xl w-full">
+                                    <div className="bg-gradient-to-r from-custom-orange/10 to-custom-cream/5 border border-custom-orange rounded-2xl p-6">
+                                        <h3 className="text-lg font-bold text-custom-orange mb-4 flex items-center gap-2">
+                                            <Play className="w-5 h-5" />
+                                            Generated Narration Audio
+                                        </h3>
+                                        <audio
+                                            src={audioUrl}
+                                            controls
+                                            className="w-full"
+                                            style={{
+                                                filter: 'sepia(20%) saturate(200%) hue-rotate(350deg)',
+                                            }}
+                                        />
+                                        <p className="text-xs text-custom-cream/60 mt-3">
+                                            Listen to the AI-generated narration. Type 'proceed' to create your video!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Video Player */}
                     {videoUrls.length > 0 && (
@@ -582,7 +776,7 @@ export default function Brick2Brick() {
                                                     'Type your message...'
                                 }
                                 className="w-full h-20 bg-custom-bg text-custom-cream p-4 rounded-xl border-2 border-custom-orange/30 focus:border-custom-orange focus:outline-none resize-none placeholder-custom-cream/30 transition-all duration-300"
-                                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
+                                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_narration_confirmation', 'awaiting_final_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();

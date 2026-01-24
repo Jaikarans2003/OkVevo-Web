@@ -63,3 +63,26 @@ export const fetchVideosFromStorage = async (): Promise<string[]> => {
         throw error;
     }
 };
+
+/**
+ * Fetches a specific count of mock AI-generated videos from Firebase Storage
+ * Used for testing the video stitching pipeline
+ * @param count Number of videos to fetch (default: 3)
+ */
+export const fetchMockAIGeneratedVideos = async (count: number = 3): Promise<string[]> => {
+    try {
+        const allVideos = await fetchVideosFromStorage();
+
+        // Return the requested number of videos
+        const selectedVideos = allVideos.slice(0, count);
+
+        if (selectedVideos.length < count) {
+            console.warn(`Requested ${count} videos but only ${selectedVideos.length} available`);
+        }
+
+        return selectedVideos;
+    } catch (error) {
+        console.error(`Error fetching ${count} mock videos:`, error);
+        throw error;
+    }
+};
