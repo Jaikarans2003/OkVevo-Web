@@ -9,6 +9,7 @@ export default function LandingPage() {
     const heroRef = useRef<HTMLDivElement>(null);
     const featuresRef = useRef<HTMLDivElement>(null);
     const howItWorksRef = useRef<HTMLDivElement>(null);
+    const pricingRef = useRef<HTMLDivElement>(null);
     const ctaRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -20,7 +21,7 @@ export default function LandingPage() {
             setScrollProgress(progress);
 
             // Animate sections on scroll
-            const sections = [heroRef, featuresRef, howItWorksRef, ctaRef];
+            const sections = [heroRef, featuresRef, howItWorksRef, pricingRef, ctaRef];
             sections.forEach((ref) => {
                 if (ref.current) {
                     const rect = ref.current.getBoundingClientRect();
@@ -62,7 +63,10 @@ export default function LandingPage() {
                         >
                             About Us
                         </button>
-                        <button className="hover:text-custom-orange hover:scale-105 transition-all opacity-50 cursor-not-allowed">
+                        <button
+                            onClick={() => pricingRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            className="hover:text-custom-orange hover:scale-105 transition-all"
+                        >
                             Pricing
                         </button>
                     </div>
@@ -235,6 +239,121 @@ export default function LandingPage() {
                                     </p>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Pricing Section */}
+            <section
+                ref={pricingRef}
+                className="relative py-32 px-6 opacity-0 translate-y-10 transition-all duration-1000"
+            >
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center mb-20">
+                        <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
+                            Simple Pricing
+                        </h2>
+                        <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
+                            Choose the plan that fits your creative needs
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-8">
+                        {/* Hobby Plan */}
+                        <div className="relative bg-custom-cream/5 backdrop-blur-sm border border-custom-orange/30 rounded-3xl p-8 hover:border-custom-orange hover:bg-custom-cream/10 transition-all duration-500 flex flex-col">
+                            <h3 className="text-2xl font-bold mb-2 text-custom-cream">Hobby</h3>
+                            <div className="flex items-end gap-1 mb-6">
+                                <span className="text-4xl font-black text-custom-orange">₹5,000</span>
+                                <span className="text-custom-cream/60 mb-1">/mo</span>
+                            </div>
+                            <ul className="space-y-4 mb-8 flex-1">
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>10 Mins Video Generation</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>30 Credits</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>1 Seat</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Max 1 Min per Video</span>
+                                </li>
+                            </ul>
+                            <Link href="/chat" className="block w-full py-3 bg-custom-cream/10 border border-custom-orange/50 hover:bg-custom-orange hover:text-custom-cream text-custom-orange text-center rounded-xl font-bold transition-all duration-300">
+                                Get Started
+                            </Link>
+                        </div>
+
+                        {/* Pro Plan */}
+                        <div className="relative bg-gradient-to-b from-custom-orange/10 to-custom-bg border-2 border-custom-orange rounded-3xl p-8 transform md:-translate-y-4 shadow-2xl shadow-custom-orange/20 flex flex-col">
+                            <div className="absolute top-0 right-0 bg-custom-orange text-custom-cream text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
+                                POPULAR
+                            </div>
+                            <h3 className="text-2xl font-bold mb-2 text-custom-cream">Pro</h3>
+                            <div className="flex items-end gap-1 mb-6">
+                                <span className="text-4xl font-black text-custom-orange">₹15,000</span>
+                                <span className="text-custom-cream/60 mb-1">/mo</span>
+                            </div>
+                            <ul className="space-y-4 mb-8 flex-1">
+                                <li className="flex items-center gap-3 text-custom-cream">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span className="font-bold">30 Mins Video Generation</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span className="font-bold">90 Credits</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>5 Seats</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Max 1 Min per Video</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Priority Support</span>
+                                </li>
+                            </ul>
+                            <Link href="/chat" className="block w-full py-4 bg-custom-orange text-custom-cream text-center rounded-xl font-bold shadow-lg hover:shadow-custom-orange/50 hover:scale-105 transition-all duration-300">
+                                Get Pro Access
+                            </Link>
+                        </div>
+
+                        {/* Enterprise Plan */}
+                        <div className="relative bg-custom-cream/5 backdrop-blur-sm border border-custom-orange/30 rounded-3xl p-8 hover:border-custom-orange hover:bg-custom-cream/10 transition-all duration-500 flex flex-col">
+                            <h3 className="text-2xl font-bold mb-2 text-custom-cream">Enterprise</h3>
+                            <div className="flex items-end gap-1 mb-6">
+                                <span className="text-4xl font-black text-custom-orange">Custom</span>
+                            </div>
+                            <ul className="space-y-4 mb-8 flex-1">
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Unlimited Video Generation</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Unlimited Seats</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Custom Video Duration</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-custom-cream/80">
+                                    <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
+                                    <span>Dedicated Account Manager</span>
+                                </li>
+                            </ul>
+                            <button className="block w-full py-3 bg-custom-cream/10 border border-custom-orange/50 hover:bg-custom-orange hover:text-custom-cream text-custom-cream text-center rounded-xl font-bold transition-all duration-300">
+                                Speak to an Expert
+                            </button>
                         </div>
                     </div>
                 </div>
