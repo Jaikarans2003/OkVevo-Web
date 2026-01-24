@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check } from 'lucide-react';
+import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User } from 'lucide-react';
+import { auth } from '../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function LandingPage() {
     const [scrollProgress, setScrollProgress] = useState(0);
+    const [user, setUser] = useState<any>(null);
     const heroRef = useRef<HTMLDivElement>(null);
     const featuresRef = useRef<HTMLDivElement>(null);
     const howItWorksRef = useRef<HTMLDivElement>(null);
@@ -36,6 +39,13 @@ export default function LandingPage() {
         window.addEventListener('scroll', handleScroll);
         handleScroll(); // Initial check
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+        return () => unsubscribe();
     }, []);
 
     return (
@@ -71,12 +81,22 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    <Link
-                        href="/login"
-                        className="px-6 py-2.5 bg-custom-orange text-custom-cream text-sm font-bold rounded-full hover:bg-orange-600 hover:shadow-lg hover:shadow-custom-orange/20 transition-all duration-300"
-                    >
-                        Sign In
-                    </Link>
+                    {user ? (
+                        <Link
+                            href="/profile"
+                            className="px-6 py-2.5 bg-custom-orange text-custom-cream text-sm font-bold rounded-full hover:bg-orange-600 hover:shadow-lg hover:shadow-custom-orange/20 transition-all duration-300 flex items-center gap-2"
+                        >
+                            <User className="w-4 h-4" />
+                            Profile
+                        </Link>
+                    ) : (
+                        <Link
+                            href="/login"
+                            className="px-6 py-2.5 bg-custom-orange text-custom-cream text-sm font-bold rounded-full hover:bg-orange-600 hover:shadow-lg hover:shadow-custom-orange/20 transition-all duration-300"
+                        >
+                            Sign In
+                        </Link>
+                    )}
                 </div>
             </nav>
 

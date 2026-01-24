@@ -429,7 +429,12 @@ export default function Brick2Brick() {
     return (
         <div className="h-screen bg-custom-bg text-custom-cream flex flex-col">
             {/* Header */}
-            <div className="flex-shrink-0 p-4 bg-custom-bg">
+            <div className="flex-shrink-0 p-4 bg-custom-bg relative">
+                <div className="absolute top-4 right-4 z-10">
+                    <a href="/profile" className="p-2 bg-custom-cream/10 rounded-full text-custom-orange hover:bg-custom-orange hover:text-custom-cream transition-all duration-300 block">
+                        <User className="w-5 h-5" />
+                    </a>
+                </div>
                 <div className="text-center">
                     <div className="flex items-center justify-center mb-2">
                         <div className="p-2 bg-custom-orange rounded-full shadow-lg shadow-custom-orange/50">

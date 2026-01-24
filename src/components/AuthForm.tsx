@@ -31,7 +31,7 @@ export default function AuthForm() {
             } else {
                 await createUserWithEmailAndPassword(auth, email, password);
             }
-            router.push('/chat');
+            router.push('/profile');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -53,7 +53,7 @@ export default function AuthForm() {
         setError('');
         try {
             await signInWithPopup(auth, googleProvider);
-            router.push('/chat');
+            router.push('/profile');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/popup-closed-by-user') {
