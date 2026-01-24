@@ -72,7 +72,7 @@ export default function LandingPage() {
                     </div>
 
                     <Link
-                        href="/chat"
+                        href="/login"
                         className="px-6 py-2.5 bg-custom-orange text-custom-cream text-sm font-bold rounded-full hover:bg-orange-600 hover:shadow-lg hover:shadow-custom-orange/20 transition-all duration-300"
                     >
                         Sign In
@@ -112,7 +112,7 @@ export default function LandingPage() {
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                        <Link href="/chat" className="group px-8 py-4 bg-custom-orange text-custom-cream rounded-full font-bold text-lg shadow-lg shadow-custom-orange/50 hover:shadow-2xl hover:shadow-custom-orange/70 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                        <Link href="/login" className="group px-8 py-4 bg-custom-orange text-custom-cream rounded-full font-bold text-lg shadow-lg shadow-custom-orange/50 hover:shadow-2xl hover:shadow-custom-orange/70 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
                             Get Started
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </Link>
@@ -285,7 +285,7 @@ export default function LandingPage() {
                                     <span>Max 1 Min per Video</span>
                                 </li>
                             </ul>
-                            <Link href="/chat" className="block w-full py-3 bg-custom-cream/10 border border-custom-orange/50 hover:bg-custom-orange hover:text-custom-cream text-custom-orange text-center rounded-xl font-bold transition-all duration-300">
+                            <Link href="/login" className="block w-full py-3 bg-custom-cream/10 border border-custom-orange/50 hover:bg-custom-orange hover:text-custom-cream text-custom-orange text-center rounded-xl font-bold transition-all duration-300">
                                 Get Started
                             </Link>
                         </div>
@@ -322,7 +322,7 @@ export default function LandingPage() {
                                     <span>Priority Support</span>
                                 </li>
                             </ul>
-                            <Link href="/chat" className="block w-full py-4 bg-custom-orange text-custom-cream text-center rounded-xl font-bold shadow-lg hover:shadow-custom-orange/50 hover:scale-105 transition-all duration-300">
+                            <Link href="/login" className="block w-full py-4 bg-custom-orange text-custom-cream text-center rounded-xl font-bold shadow-lg hover:shadow-custom-orange/50 hover:scale-105 transition-all duration-300">
                                 Get Pro Access
                             </Link>
                         </div>
@@ -381,7 +381,7 @@ export default function LandingPage() {
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-                                <Link href="/chat" className="group px-10 py-5 bg-custom-orange text-custom-cream rounded-full font-bold text-xl shadow-2xl shadow-custom-orange/50 hover:shadow-custom-orange/70 transform hover:scale-110 transition-all duration-300 flex items-center gap-3">
+                                <Link href="/login" className="group px-10 py-5 bg-custom-orange text-custom-cream rounded-full font-bold text-xl shadow-2xl shadow-custom-orange/50 hover:shadow-custom-orange/70 transform hover:scale-110 transition-all duration-300 flex items-center gap-3">
                                     Start Creating Now
                                     <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                                 </Link>
