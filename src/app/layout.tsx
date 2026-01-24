@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-    title: "Brick2Brick - Text to Video",
+    title: "AIVOZO - Text to Video",
     description: "Transform your words into motion",
 };
 

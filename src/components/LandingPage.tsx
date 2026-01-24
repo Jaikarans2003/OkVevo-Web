@@ -47,6 +47,35 @@ export default function LandingPage() {
                 />
             </div>
 
+            {/* Navbar */}
+            <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-auto">
+                <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-full pl-6 pr-2 py-2 flex items-center gap-8 shadow-2xl shadow-custom-orange/10">
+                    <Link href="/" className="flex items-center gap-2 group">
+                        <Film className="w-5 h-5 text-custom-orange group-hover:rotate-12 transition-transform" />
+                        <span className="font-bold text-lg text-custom-cream tracking-wide">AIVOZO</span>
+                    </Link>
+
+                    <div className="hidden md:flex items-center gap-7 text-sm font-medium text-custom-cream/70">
+                        <button
+                            onClick={() => featuresRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            className="hover:text-custom-orange hover:scale-105 transition-all"
+                        >
+                            About Us
+                        </button>
+                        <button className="hover:text-custom-orange hover:scale-105 transition-all opacity-50 cursor-not-allowed">
+                            Pricing
+                        </button>
+                    </div>
+
+                    <Link
+                        href="/chat"
+                        className="px-6 py-2.5 bg-custom-orange text-custom-cream text-sm font-bold rounded-full hover:bg-orange-600 hover:shadow-lg hover:shadow-custom-orange/20 transition-all duration-300"
+                    >
+                        Sign In
+                    </Link>
+                </div>
+            </nav>
+
             {/* Hero Section */}
             <section
                 ref={heroRef}
@@ -66,7 +95,7 @@ export default function LandingPage() {
                     </div>
 
                     <h1 className="text-7xl md:text-8xl font-black mb-6 bg-gradient-to-r from-custom-cream via-custom-orange to-custom-cream bg-clip-text text-transparent animate-gradient">
-                        Brick2Brick
+                        AIVOZO
                     </h1>
 
                     <p className="text-2xl md:text-3xl text-custom-cream/80 mb-8 font-light">
@@ -75,7 +104,6 @@ export default function LandingPage() {
                     </p>
 
                     <p className="text-lg md:text-xl text-custom-cream/60 mb-12 max-w-2xl mx-auto leading-relaxed">
-                        Harness the power of AI to turn your stories into stunning cinematic videos.
                         No cameras, no crew—just your imagination.
                     </p>
 
@@ -91,11 +119,6 @@ export default function LandingPage() {
                     </div>
 
                     {/* Scroll Indicator */}
-                    <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
-                        <div className="w-6 h-10 border-2 border-custom-orange/50 rounded-full flex items-start justify-center p-2">
-                            <div className="w-1 h-3 bg-custom-orange rounded-full animate-pulse" />
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -107,7 +130,7 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20">
                         <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
-                            Why Brick2Brick?
+                            Why AIVOZO?
                         </h2>
                         <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
                             Experience the future of video creation with cutting-edge AI technology
@@ -263,10 +286,10 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto text-center">
                     <div className="flex items-center justify-center gap-2 mb-4">
                         <Film className="w-6 h-6 text-custom-orange" />
-                        <span className="text-xl font-bold text-custom-orange">Brick2Brick</span>
+                        <span className="text-xl font-bold text-custom-orange">AIVOZO</span>
                     </div>
                     <p className="text-custom-cream/50 text-sm">
-                        © 2026 Brick2Brick. Transform your words into motion.
+                        © 2026 AIVOZO. Transform your words into motion.
                     </p>
                 </div>
             </footer>

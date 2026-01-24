@@ -44,7 +44,7 @@ export function useChatFlow() {
           // Fallback greeting
           setMessages([{
             role: 'assistant',
-            content: "Welcome to Brick2Brick! I'm here to help bring your visual stories to life. Share your ideas and let's create something amazing together!",
+            content: "Welcome to AIVOZO! I'm here to help bring your visual stories to life. Share your ideas and let's create something amazing together!",
             type: 'greeting'
           }]);
           setCurrentState('awaiting_story');

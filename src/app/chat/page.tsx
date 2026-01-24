@@ -1,7 +1,6 @@
-'use client';
-
+"use client";
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle } from 'lucide-react';
+import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle, Volume2, Play } from 'lucide-react';
 import { useVideoGeneration } from '../../hooks/useVideoGeneration';
 import { useChatFlow } from '../../hooks/useChatFlow';
 import VideoPlayer from '../../components/VideoPlayer';
@@ -9,15 +8,25 @@ import type { Scene, ChatMessage } from '../../services/AIService';
 import { fetchVideosFromStorage } from '../../services/StorageService';
 import { MODELS } from '../../config/models';
 
-export default function ChatPage() {
+export default function Brick2Brick() {
     const {
         analyzedScenes,
         videoUrls,
         error: videoError,
+        isStitching,
+        stitchedVideoUrl,
+        narrationScript,
+        narrationAudioUrl,
+        generatingNarration,
+        generatingAudio,
         setAnalyzedScenes,
         generateVideosFromScenes,
+        stitchVideosWithAWSLambda,
         resetAnalysis,
-        updateAnalyzedScene
+        updateAnalyzedScene,
+        generateNarration,
+        generateAudio,
+        regenerateNarration
     } = useVideoGeneration();
 
     const {
@@ -26,9 +35,17 @@ export default function ChatPage() {
         loading: chatLoading,
         error: chatError,
         generatingVideos,
+        narrationResult,
+        audioUrl,
         processUserStory,
         handleEnhancementConfirmation,
         handleProceedConfirmation,
+        handleNarrationConfirmation,
+        handleFinalConfirmation,
+        setNarrationResult,
+        setAudioUrl,
+        setCurrentState,
+        addAssistantMessage,
         resetConversation
     } = useChatFlow();
 
@@ -38,7 +55,43 @@ export default function ChatPage() {
     const [storageVideos, setStorageVideos] = useState<string[]>([]);
     const [loadingStorageVideos, setLoadingStorageVideos] = useState(false);
     const [storageError, setStorageError] = useState<string | null>(null);
+    const [isStitchingStorage, setIsStitchingStorage] = useState(false);
+    const [storageStitchedUrl, setStorageStitchedUrl] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const dispatchedJobRef = useRef<string | null>(null); // Track dispatched jobs to prevent duplicates
+
+    // Manual stitch function for storage videos
+    const stitchStorageVideos = async () => {
+        if (storageVideos.length < 3) {
+            alert('Need at least 3 videos to stitch!');
+            return;
+        }
+
+        setIsStitchingStorage(true);
+        setStorageStitchedUrl(null);
+
+        try {
+            console.log('🚀 Manually stitching storage videos:', storageVideos);
+
+            const { stitchVideosWithLambda } = await import('../../services/LambdaStitchService');
+            const result = await stitchVideosWithLambda({
+                videoUrls: storageVideos.slice(0, 3), // First 3 videos
+                sessionId: `storage-${Date.now()}`
+            });
+
+            if (result.success && result.videoUrl) {
+                setStorageStitchedUrl(result.videoUrl);
+                alert('✅ Storage videos stitched successfully!');
+            } else {
+                throw new Error(result.error || 'Stitching failed');
+            }
+        } catch (error) {
+            console.error('Storage stitch error:', error);
+            alert(`Stitching failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsStitchingStorage(false);
+        }
+    };
 
     const handleGenerateVideos = useCallback(async () => {
         if (analyzedScenes) {
@@ -57,19 +110,274 @@ export default function ChatPage() {
         }
     }, [currentState]);
 
+    // Handle audio generation when state changes to generating_audio
+    useEffect(() => {
+        const handleAudioGeneration = async () => {
+            if (currentState === 'generating_audio' && narrationResult) {
+                addAssistantMessage('🎵 Generating audio narration...');
+
+                try {
+                    const { ttsService } = await import('../../services/TTSService');
+                    const sessionId = 'session-' + Date.now();
+                    const generatedAudioUrl = await ttsService.generateNarrationAudio(
+                        narrationResult.narration.fullNarration,
+                        sessionId
+                    );
+
+                    setAudioUrl(generatedAudioUrl);
+                    addAssistantMessage(
+                        `🔊 Audio generated! You can listen to the preview below.\n\nType 'proceed' to create your video!`
+                    );
+                    setCurrentState('awaiting_final_confirmation');
+                } catch (error) {
+                    console.error('Audio generation failed:', error);
+                    addAssistantMessage('Failed to generate audio. Please try again.');
+                    setCurrentState('awaiting_narration_confirmation');
+                }
+            }
+        };
+
+        handleAudioGeneration();
+    }, [currentState, narrationResult]);
+
+    // Handle SQS dispatch when videos are loaded and audio is ready
+    useEffect(() => {
+        const dispatchSQS = async () => {
+            // Create unique key for this dispatch
+            const dispatchKey = `${storageVideos.slice(0, 3).join('|')}|${audioUrl}`;
+
+            if (storageVideos.length >= 3 && audioUrl && currentState === 'scenes_ready' && !isStitchingStorage) {
+                // Prevent duplicate dispatches
+                if (dispatchedJobRef.current === dispatchKey) {
+                    console.log('⏭️ Skipping duplicate dispatch');
+                    return;
+                }
+
+                console.log('🚀 Auto-dispatching to SQS with audio:', audioUrl.substring(0, 50) + '...');
+                setIsStitchingStorage(true);
+                dispatchedJobRef.current = dispatchKey;
+
+                try {
+                    const { dispatchStitchingJob } = await import('../../services/SQSStitchService');
+
+                    const result = await dispatchStitchingJob(
+                        storageVideos.slice(0, 3),
+                        audioUrl
+                    );
+
+                    if (result.success && result.jobId) {
+                        console.log('✅ Dispatched to SQS with audio:', result.jobId);
+
+                        // Start polling for stitched video
+                        const pollForStitchedVideo = async () => {
+                            const maxAttempts = 24;
+
+                            for (let i = 0; i < maxAttempts; i++) {
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                                try {
+                                    console.log(`🔍 Polling ${i + 1}/${maxAttempts} for jobId: ${result.jobId}...`);
+
+                                    const response = await fetch(
+                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
+                                    );
+
+                                    if (!response.ok) continue;
+
+                                    const data = await response.json();
+
+                                    if (data.videos && data.videos.length > 0) {
+                                        const matchingVideo = data.videos.find((video: { url: string }) =>
+                                            video.url.includes(result.jobId!)
+                                        );
+
+                                        if (matchingVideo) {
+                                            setStorageStitchedUrl(matchingVideo.url);
+                                            setIsStitchingStorage(false);
+                                            console.log('✅ Video with audio ready:', matchingVideo.url);
+                                            return;
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Polling error:', err);
+                                }
+                            }
+
+                            console.log('⏱️ Polling timeout');
+                            setIsStitchingStorage(false);
+                        };
+
+                        pollForStitchedVideo();
+                    } else {
+                        throw new Error(result.error || 'SQS dispatch failed');
+                    }
+                } catch (error) {
+                    console.error('SQS dispatch error:', error);
+                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch');
+                    setIsStitchingStorage(false);
+                    dispatchedJobRef.current = null; // Reset on error
+                }
+            }
+        };
+
+        dispatchSQS();
+    }, [storageVideos, audioUrl, currentState]); // Removed isStitchingStorage from dependencies
+
     const handleSendMessage = async () => {
         if (!inputText.trim() || chatLoading) return;
 
         const userMessage = inputText.trim();
         setInputText('');
 
-        if (currentState === 'awaiting_enhancement_confirmation') {
+        // Handle different conversation states
+        if (currentState === 'awaiting_story') {
+            // User submitted their script - generate narration
+            if (userMessage.toLowerCase().startsWith('@script')) {
+                const storyContent = userMessage.substring('@script'.length).trim();
+
+                addAssistantMessage(`Received your script! Generating AI narration...`);
+                setCurrentState('generating_narration');
+
+                try {
+                    const { narrationService } = await import('../../services/NarrationService');
+                    const result = await narrationService.generateDirectNarration(storyContent);
+                    setNarrationResult(result);
+
+                    // Internal scenes are already in Scene format
+                    setAnalyzedScenes(result.internalScenes);
+
+                    // Show the narration text
+                    addAssistantMessage(
+                        `📝 **Generated Narration:**\n\n"${result.narration.fullNarration}"\n\n---\n\nNow review the 3 cinematic scenes below. You can edit them if needed.`
+                    );
+
+                    // Trigger Scene Reviewer to display
+                    addAssistantMessage('Scene Review', 'scene_review');
+
+                    setCurrentState('awaiting_narration_confirmation');
+                } catch (error) {
+                    console.error('Narration generation failed:', error);
+                    addAssistantMessage('Failed to generate narration. Please try again.');
+                    setCurrentState('awaiting_story');
+                }
+            } else {
+                addAssistantMessage("Please use the '@Script' format to submit your story.");
+            }
+        } else if (currentState === 'awaiting_narration_confirmation') {
+            // User reviewed narration
+            handleNarrationConfirmation(userMessage);
+        } else if (currentState === 'awaiting_final_confirmation') {
+            // User reviewed audio - proceed to video generation
+            handleFinalConfirmation(userMessage);
+        } else if (currentState === 'awaiting_enhancement_confirmation') {
             const scenes = await handleEnhancementConfirmation(userMessage);
             if (scenes) {
                 setAnalyzedScenes(scenes);
             }
         } else if (currentState === 'awaiting_proceed_confirmation') {
-            handleProceedConfirmation(userMessage);
+            // OLD FLOW - Fetch videos and dispatch with audio
+            const cleanedResponse = userMessage.toLowerCase().trim().replace(/[.,!?;:]/g, '');
+
+            if (cleanedResponse === 'proceed' || cleanedResponse === 'yes' || cleanedResponse === 'continue') {
+                console.log('✅ User confirmed PROCEED. Dispatching to SQS...');
+
+                try {
+                    setLoadingStorageVideos(true);
+                    setStorageError(null);
+
+                    const urls = await fetchVideosFromStorage();
+
+                    if (urls.length < 3) {
+                        throw new Error('Need at least 3 videos in storage');
+                    }
+
+                    setStorageVideos(urls);
+                    console.log('📦 Fetched videos from storage:', urls);
+
+                    // Dispatch to SQS with audio URL
+                    setIsStitchingStorage(true);
+                    const { dispatchStitchingJob } = await import('../../services/SQSStitchService');
+
+                    console.log('🚀 Dispatching to SQS with audio:', audioUrl);
+                    const result = await dispatchStitchingJob(
+                        urls.slice(0, 3),
+                        audioUrl || undefined  // Pass audio URL if available
+                    );
+
+                    if (result.success) {
+                        console.log('✅ Dispatched to SQS:', result);
+
+                        const jobId = result.jobId;
+
+                        if (!jobId) {
+                            console.error('❌ No jobId returned from SQS dispatch');
+                            alert('Error: No job ID received. Cannot track stitching progress.');
+                            setIsStitchingStorage(false);
+                            return;
+                        }
+
+                        // Start polling
+                        const pollForStitchedVideo = async () => {
+                            const maxAttempts = 24;
+
+                            for (let i = 0; i < maxAttempts; i++) {
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                                try {
+                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for jobId: ${jobId}...`);
+
+                                    const response = await fetch(
+                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
+                                    );
+
+                                    if (!response.ok) {
+                                        console.warn('Failed to fetch stitched videos:', response.statusText);
+                                        continue;
+                                    }
+
+                                    const data = await response.json();
+
+                                    if (data.videos && data.videos.length > 0) {
+                                        const matchingVideo = data.videos.find((video: { url: string }) =>
+                                            video.url.includes(jobId)
+                                        );
+
+                                        if (matchingVideo) {
+                                            setStorageStitchedUrl(matchingVideo.url);
+                                            setIsStitchingStorage(false);
+                                            console.log('✅ Found stitched video:', matchingVideo.url);
+                                            alert('🎉 Video stitched successfully with narration!');
+                                            return;
+                                        } else {
+                                            console.log(`⏳ Video not found yet (${i + 1}/${maxAttempts})...`);
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Polling error:', err);
+                                }
+                            }
+
+                            console.log('⏱️ Polling timeout.');
+                            alert('Stitching is taking longer than expected. Check Firebase Storage later.');
+                            setIsStitchingStorage(false);
+                        };
+
+                        pollForStitchedVideo();
+
+                    } else {
+                        throw new Error(result.error || 'SQS dispatch failed');
+                    }
+
+                } catch (error) {
+                    console.error('Error in SQS dispatch flow:', error);
+                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch');
+                    setIsStitchingStorage(false);
+                } finally {
+                    setLoadingStorageVideos(false);
+                }
+            }
+
+            await handleProceedConfirmation(userMessage);
         } else {
             await processUserStory(userMessage);
         }
@@ -129,7 +437,7 @@ export default function ChatPage() {
                         </div>
                     </div>
                     <h1 className="text-2xl font-bold text-custom-orange">
-                        Brick2Brick
+                        AIVOZO
                     </h1>
                     <p className="text-custom-cream/70 text-sm">Transform your words into motion</p>
                 </div>
@@ -268,6 +576,36 @@ export default function ChatPage() {
                         </div>
                     )}
 
+                    {/* Audio Player */}
+                    {audioUrl && (
+                        <div className="animate-in fade-in zoom-in duration-500 mt-6">
+                            <div className="flex gap-3 justify-start">
+                                <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Volume2 className="w-4 h-4 text-custom-cream" />
+                                </div>
+
+                                <div className="max-w-3xl w-full">
+                                    <div className="bg-gradient-to-r from-custom-orange/10 to-custom-cream/5 border border-custom-orange rounded-2xl p-6">
+                                        <h3 className="text-lg font-bold text-custom-orange mb-4 flex items-center gap-2">
+                                            <Play className="w-5 h-5" />
+                                            Generated Narration Audio
+                                        </h3>
+                                        <audio
+                                            src={audioUrl}
+                                            controls
+                                            className="w-full"
+                                            style={{
+                                                filter: 'sepia(20%) saturate(200%) hue-rotate(350deg)',
+                                            }}
+                                        />
+                                        <p className="text-xs text-custom-cream/60 mt-3">
+                                            Listen to the AI-generated narration. Type 'proceed' to create your video!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Video Player */}
                     {videoUrls.length > 0 && (
@@ -291,33 +629,109 @@ export default function ChatPage() {
                                 videoUrls={videoUrls}
                                 currentVideoIndex={currentVideoIndex}
                                 setCurrentVideoIndex={setCurrentVideoIndex}
+                                onStitchVideos={stitchVideosWithAWSLambda}
+                                isStitching={isStitching}
+                                stitchedVideoUrl={stitchedVideoUrl}
                             />
                         </div>
                     )}
 
                     {/* Storage Videos Section */}
-                    {storageVideos.length > 0 && (
+                    {(storageVideos.length > 0 || storageStitchedUrl || isStitchingStorage) && (
                         <div className="animate-in fade-in zoom-in duration-500 space-y-8 mt-8">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 text-custom-orange">
-                                    <CheckCircle className="w-6 h-6" />
-                                    <span className="font-bold text-xl text-custom-orange">
-                                        Storage Videos Loaded
-                                    </span>
+                            {/* Show stitching progress */}
+                            {isStitchingStorage && !storageStitchedUrl && (
+                                <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                                    <Loader2 className="w-16 h-16 text-custom-orange animate-spin" />
+                                    <h2 className="text-2xl font-bold text-custom-cream">Stitching Your Video...</h2>
+                                    <p className="text-custom-cream/70">Please wait while we create your masterpiece (1-2 minutes)</p>
                                 </div>
-                                <button
-                                    onClick={() => setStorageVideos([])}
-                                    className="text-sm text-custom-orange hover:text-orange-400 underline transition-colors"
-                                >
-                                    Clear Storage Videos
-                                </button>
-                            </div>
+                            )}
 
-                            <VideoPlayer
-                                videoUrls={storageVideos}
-                                currentVideoIndex={currentVideoIndex}
-                                setCurrentVideoIndex={setCurrentVideoIndex}
-                            />
+                            {/* Show only stitched video when ready */}
+                            {storageStitchedUrl && (
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-custom-orange">
+                                            <CheckCircle className="w-6 h-6" />
+                                            <span className="font-bold text-xl text-custom-orange">
+                                                ✅ Final Video Ready!
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setStorageVideos([]);
+                                                setStorageStitchedUrl(null);
+                                            }}
+                                            className="text-sm text-custom-orange hover:text-orange-400 underline transition-colors"
+                                        >
+                                            Create New Video
+                                        </button>
+                                    </div>
+
+                                    {/* Stitched Video Player */}
+                                    <div className="relative rounded-lg overflow-hidden bg-black">
+                                        <video
+                                            src={storageStitchedUrl}
+                                            controls
+                                            className="w-full aspect-video"
+                                            autoPlay
+                                        >
+                                            Your browser does not support video playback.
+                                        </video>
+                                    </div>
+
+                                    {/* Download Button */}
+                                    <div className="flex justify-center">
+                                        <a
+                                            href={storageStitchedUrl}
+                                            download="stitched-video.mp4"
+                                            className="px-6 py-3 bg-custom-orange hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                                        >
+                                            <Film className="w-5 h-5" />
+                                            Download Final Video
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Show individual videos only if NOT stitching and NO stitched result */}
+                            {!isStitchingStorage && !storageStitchedUrl && storageVideos.length > 0 && (
+                                <>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-custom-orange">
+                                            <CheckCircle className="w-6 h-6" />
+                                            <span className="font-bold text-xl text-custom-orange">
+                                                Storage Videos Loaded ({storageVideos.length})
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={stitchStorageVideos}
+                                                disabled={storageVideos.length < 3}
+                                                className="px-4 py-2 bg-custom-orange hover:bg-orange-600 disabled:bg-gray-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                                            >
+                                                <Film className="w-4 h-4" />
+                                                Stitch Videos
+                                            </button>
+                                            <button
+                                                onClick={() => setStorageVideos([])}
+                                                className="text-sm text-custom-orange hover:text-orange-400 underline transition-colors"
+                                            >
+                                                Clear Storage Videos
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <VideoPlayer
+                                        videoUrls={storageVideos}
+                                        currentVideoIndex={currentVideoIndex}
+                                        setCurrentVideoIndex={setCurrentVideoIndex}
+                                        isStitching={false}
+                                        stitchedVideoUrl={null}
+                                    />
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -358,11 +772,11 @@ export default function ChatPage() {
                                     currentState === 'greeting' ? 'Loading...' :
                                         currentState === 'awaiting_story' ? 'Click SCRIPT and share your story or video idea...' :
                                             currentState === 'awaiting_enhancement_confirmation' ? 'Your response (yes/no)...' :
-                                                currentState === 'awaiting_proceed_confirmation' ? 'Type "Proceed" to continue or provide feedback to regenerate scenes.' :
+                                                currentState === 'awaiting_proceed_confirmation' ? 'Type "proceed" to dispatch stitching job to queue...' :
                                                     'Type your message...'
                                 }
                                 className="w-full h-20 bg-custom-bg text-custom-cream p-4 rounded-xl border-2 border-custom-orange/30 focus:border-custom-orange focus:outline-none resize-none placeholder-custom-cream/30 transition-all duration-300"
-                                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
+                                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_narration_confirmation', 'awaiting_final_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
