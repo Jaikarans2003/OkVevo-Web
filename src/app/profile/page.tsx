@@ -107,12 +107,12 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        <div className="p-4 bg-custom-bg/50 border border-custom-orange/10 rounded-2xl transition-all hover:border-custom-orange/30">
+                        {/* <div className="p-4 bg-custom-bg/50 border border-custom-orange/10 rounded-2xl transition-all hover:border-custom-orange/30">
                             <label className="block text-xs font-bold text-custom-orange uppercase tracking-wider mb-1">Account ID</label>
                             <div className="text-sm font-mono text-custom-cream/60">
                                 {user.uid}
                             </div>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </main>
