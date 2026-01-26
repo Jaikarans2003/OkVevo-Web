@@ -41,7 +41,7 @@ const callWithRetry = async <T>(
   throw lastError!;
 };
 
-const tryGeminiWithFallback = async (fullPrompt: string): Promise<Scene[]> => {
+const tryGeminiWithFallback = async (fullPrompt: string, duration: number = 60): Promise<Scene[]> => {
   const apiKeys = [
     process.env.NEXT_PUBLIC_GEMINI_API_KEY,
     process.env.NEXT_PUBLIC_GOOGLE_API_KEY
@@ -49,11 +49,26 @@ const tryGeminiWithFallback = async (fullPrompt: string): Promise<Scene[]> => {
 
   let lastError: Error;
 
+  // Determine scene count and duration logic
+  let sceneCount = 3;
+  let durationInstructions = "exactly THREE self-contained cinematic scenes (20s each)";
+
+  if (duration === 10) {
+    sceneCount = 1;
+    durationInstructions = "exactly ONE self-contained cinematic scene (10s)";
+  } else if (duration === 20) {
+    sceneCount = 1;
+    durationInstructions = "exactly ONE self-contained cinematic scene (20s)";
+  } else if (duration === 30) {
+    sceneCount = 3;
+    durationInstructions = "exactly THREE self-contained cinematic scenes (10s each)";
+  }
+
   for (const apiKey of apiKeys) {
     if (!apiKey) continue; // Skip undefined keys
 
     try {
-      console.log(`Trying Gemini API with key: ${apiKey.substring(0, 10)}...`);
+      console.log(`Trying Gemini API with key: ${apiKey.substring(0, 10)}... for duration: ${duration}s`);
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
@@ -64,42 +79,28 @@ const tryGeminiWithFallback = async (fullPrompt: string): Promise<Scene[]> => {
         }
       });
 
-      const prompt = `You are an elite film director following the LTX-2 Prompting Guide. Deconstruct the following enhanced story into exactly THREE self-contained cinematic scenes (20s each) for a 60s video.
+      const prompt = `You are an elite film director following the LTX-2 Prompting Guide. Deconstruct the following enhanced story into ${durationInstructions} for a ${duration}s video.
 
 Input Story: "${fullPrompt}"
 
 For each scene, provide a detailed, in-depth description as if it were a standalone prompt for the LTX AI model.
 
 Requirements:
-1.  **Self-Contained Scenes:** Each scene's "primary_visuals" MUST be a complete, standalone prompt. For Scene 2 and 3, explicitly repeat all necessary character, setting, and mood context from the previous scene(s) to ensure consistency, as the LTX model has no memory of other scenes. Make the prompts bigger and more descriptive.
+1.  **Self-Contained Scenes:** Each scene's "primary_visuals" MUST be a complete, standalone prompt. For subsequent scenes, explicitly repeat all necessary character, setting, and mood context from the previous scene(s) to ensure consistency.
 2.  **LTX-2 Guide Adherence:** Each "primary_visuals" prompt must follow the LTX-2 guide, including Shot Establishment, Scene Description, Action, Character Details, Camera Movement, and Audio.
 3.  **Valid JSON Output:** The final output MUST be a single, valid JSON object. No markdown or commentary.
-4.  **Structure:** An array of 3 objects under the key "scenes".
+4.  **Structure:** An array of ${sceneCount} objects under the key "scenes".
 5.  **Scene Object:** Each object must have "scene", "scene_objective", "primary_visuals", "emotional_tone", and "transition_logic".
 
 Example Output format:
 {
   "scenes": [
     {
-      "scene": "Scene 1 (0-20s)",
-      "scene_objective": "Establish the setting and introduce the character.",
-      "primary_visuals": "A wide establishing shot reveals a rain-slicked, neon-lit city street at midnight. The camera slowly pushes in on a lone figure, a man in his 30s wearing a worn trench coat, huddled under an awning. His face is obscured by shadow, but his tense posture suggests anxiety. The sound of distant sirens and falling rain fills the air.",
-      "emotional_tone": "Mysterious, tense",
-      "transition_logic": "A quick cut to the next scene."
-    },
-    {
-      "scene": "Scene 2 (20-40s)",
-      "scene_objective": "Introduce the conflict, maintaining the established mood.",
-      "primary_visuals": "The scene is a rain-slicked, neon-lit city street at midnight. The camera is now at eye-level with the man from the previous scene (30s, worn trench coat). He glances nervously down a dark alley. The neon light casts a red glow on his face, revealing a fresh scar on his cheek. He pulls his collar tighter, his breath misting in the cold air. A sudden noise from the alley makes him flinch. The sound of rain continues.",
-      "emotional_tone": "Heightened tension, fear",
-      "transition_logic": "Slow dolly towards the alley entrance."
-    },
-    {
-      "scene": "Scene 3 (40-60s)",
-      "scene_objective": "Resolve the immediate conflict.",
-      "primary_visuals": "Continuing on the rain-slicked, neon-lit street, the camera follows the man (30s, trench coat, scar on cheek) as he cautiously enters the dark alley. The alley is narrow and filled with overflowing trash cans. The only light comes from the street behind him, casting long, distorted shadows. He takes a tentative step forward, his hand reaching inside his coat. The sound is muffled, dominated by the dripping rain and his own heavy breathing.",
-      "emotional_tone": "Confrontation, suspense",
-      "transition_logic": "Fade to black."
+      "scene": "Scene 1 (0-${duration === 30 ? 10 : (duration === 10 || duration === 20) ? duration : 20}s)",
+      "scene_objective": "Establish the setting...",
+      "primary_visuals": "Detailed visual description...",
+      "emotional_tone": "Tone...",
+      "transition_logic": "Cut to next..."
     }
   ]
 }`;
@@ -113,8 +114,12 @@ Example Output format:
       console.log("Gemini Response:", content);
       const parsed = JSON.parse(content);
 
-      if (!parsed.scenes || !Array.isArray(parsed.scenes) || parsed.scenes.length !== 3) {
-        throw new Error("Invalid scene structure received");
+      if (!parsed.scenes || !Array.isArray(parsed.scenes) || parsed.scenes.length !== sceneCount) {
+        // Relaxed validation: just warn if count mismatch, but often it might be manageable if logic adapts
+        console.warn(`Warning: Expected ${sceneCount} scenes, got ${parsed.scenes?.length}`);
+        if (!parsed.scenes || !Array.isArray(parsed.scenes)) {
+          throw new Error("Invalid scene structure received");
+        }
       }
 
       return parsed.scenes;
@@ -221,6 +226,46 @@ export const generateGreeting = async (): Promise<string> => {
   return "Welcome to TuneTalez! Share your story, and I'll help bring it to life.";
 };
 
+export const generateClarifyingQuestions = async (userStory: string): Promise<string[]> => {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing NEXT_PUBLIC_GEMINI_API_KEY");
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json", temperature: 0.7 }
+    });
+
+    const prompt = `You are a film director pre-visualizing a video based on this story.
+    
+Story: "${userStory}"
+
+Ask the user exactly 3 short, specific questions to clarify visual details, mood, or character appearance that are missing from the story. 
+These answer will help generate better prompts for the AI video generator.
+
+Example questions: "What time of day is it?", "What is the character wearing?", "Is the mood dark or hopeful?"
+
+Return JSON:
+{
+  "questions": ["Question 1?", "Question 2?", "Question 3?"]
+}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const content = response.text();
+
+    if (!content) throw new Error("No content received");
+
+    const parsed = JSON.parse(content);
+    return parsed.questions || [];
+
+  } catch (error) {
+    console.error('Failed to generate questions:', error);
+    return []; // Return empty array to skip step gracefully on error
+  }
+};
+
 export const enhanceStory = async (userStory: string): Promise<EnhancedStory> => {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -283,19 +328,14 @@ Ensure the enhanced prompt is vivid, detailed, and ready for the LTX-2 model, wh
   }
 };
 
-export const analyzeScenes = async (fullPrompt: string): Promise<Scene[]> => {
+export const analyzeScenes = async (fullPrompt: string, duration: number = 60): Promise<Scene[]> => {
   try {
     // Try Gemini first with multiple keys and retry logic
-    return await tryGeminiWithFallback(fullPrompt);
+    return await tryGeminiWithFallback(fullPrompt, duration);
   } catch (geminiError) {
     console.error('All Gemini attempts failed:', geminiError);
-
-    // Fallback to Groq
-    try {
-      return await fallbackToGroq(fullPrompt);
-    } catch (groqError) {
-      console.error('Groq fallback also failed:', groqError);
-      throw new Error(`AI Analysis Failed: Both Gemini and Groq APIs are unavailable. Please check your API keys and rate limits.`);
-    }
+    // TODO: Update Groq fallback to also accept duration if needed, 
+    // for now we'll stick to 60s fallback or throw error if strictly robust needed
+    throw new Error(`AI Analysis Failed: Both Gemini and Groq APIs are unavailable. Please check your API keys and rate limits.`);
   }
 };

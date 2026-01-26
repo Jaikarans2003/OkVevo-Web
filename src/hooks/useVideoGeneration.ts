@@ -44,7 +44,7 @@ export function useVideoGeneration() {
         }
     };
 
-    const generateVideosFromScenes = async (scenes: Scene[], guidanceScale: number) => {
+    const generateVideosFromScenes = async (scenes: Scene[], guidanceScale: number, duration: number = 20) => {
         setLoading(true);
         setError('');
         setVideoUrls([]);
@@ -119,7 +119,7 @@ export function useVideoGeneration() {
                 const payload = modelConfig.payloadBuilder(richPrompt, {
                     guidanceScale,
                     enhancePrompt: false,
-                    duration: 20,
+                    duration: duration,
                     aspectRatio: '16:9'
                 });
 
@@ -359,6 +359,7 @@ export function useVideoGeneration() {
         generateNarration,
         generateAudio,
         regenerateNarration,
-        originalScript
+        originalScript,
+        setVideoUrls // Expose this
     };
 }

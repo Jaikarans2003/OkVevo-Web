@@ -26,7 +26,8 @@ export default function Brick2Brick() {
         updateAnalyzedScene,
         generateNarration,
         generateAudio,
-        regenerateNarration
+        regenerateNarration,
+        setVideoUrls
     } = useVideoGeneration();
 
     const {
@@ -38,16 +39,19 @@ export default function Brick2Brick() {
         narrationResult,
         audioUrl,
         processUserStory,
-        handleEnhancementConfirmation,
-        handleProceedConfirmation,
-        handleNarrationConfirmation,
-        handleFinalConfirmation,
         setNarrationResult,
         setAudioUrl,
         setCurrentState,
         addAssistantMessage,
-        resetConversation
-    } = useChatFlow();
+        resetConversation,
+        handleDurationSelection,
+        handleProceedToAnalysis,
+        handleSceneConfirmation,
+        targetDuration,
+        followUpQuestions
+    } = useChatFlow({
+        onScenesGenerated: setAnalyzedScenes
+    });
 
     const [inputText, setInputText] = useState('');
     const [guidanceScale,] = useState(MODELS['tunetales'].defaultGuidance);
@@ -71,33 +75,113 @@ export default function Brick2Brick() {
         setStorageStitchedUrl(null);
 
         try {
-            console.log('🚀 Manually stitching storage videos:', storageVideos);
+            console.log('🚀 Manually stitching storage videos (SQS):', storageVideos);
 
-            const { stitchVideosWithLambda } = await import('../../services/LambdaStitchService');
-            const result = await stitchVideosWithLambda({
-                videoUrls: storageVideos.slice(0, 3), // First 3 videos
-                sessionId: `storage-${Date.now()}`
-            });
+            // Use SQS Service instead of direct Lambda
+            const { dispatchStitchingJob } = await import('../../services/SQSStitchService');
 
-            if (result.success && result.videoUrl) {
-                setStorageStitchedUrl(result.videoUrl);
-                alert('✅ Storage videos stitched successfully!');
+            // Pass audioUrl if available, otherwise undefined
+            const result = await dispatchStitchingJob(
+                storageVideos.slice(0, 3),
+                audioUrl || undefined
+            );
+
+            if (result.success && result.jobId) {
+                console.log('✅ Dispatched to SQS:', result.jobId);
+
+                // Polling logic for SQS result
+                const pollForStitchedVideo = async () => {
+                    const maxAttempts = 24; // 2 mins
+
+                    for (let i = 0; i < maxAttempts; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+
+                        try {
+                            // Use client-side storage fetch
+                            const { fetchStitchedVideos } = await import('../../services/StorageService');
+                            const videos = await fetchStitchedVideos();
+
+                            if (videos && videos.length > 0) {
+                                const matchingVideo = videos.find(url => url.includes(result.jobId!));
+
+                                if (matchingVideo) {
+                                    setStorageStitchedUrl(matchingVideo);
+                                    setIsStitchingStorage(false);
+                                    console.log('✅ Video ready:', matchingVideo);
+                                    return;
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Polling error:', err);
+                        }
+                    }
+
+                    console.log('⏱️ Polling timeout');
+                    setIsStitchingStorage(false);
+                    alert("Stitching is taking longer than expected. Check the 'Stitched Videos' section in a few minutes.");
+                };
+
+                pollForStitchedVideo();
+
             } else {
-                throw new Error(result.error || 'Stitching failed');
+                throw new Error(result.error || 'SQS dispatch failed');
             }
         } catch (error) {
             console.error('Storage stitch error:', error);
             alert(`Stitching failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
             setIsStitchingStorage(false);
         }
     };
 
     const handleGenerateVideos = useCallback(async () => {
-        if (analyzedScenes) {
-            await generateVideosFromScenes(analyzedScenes, guidanceScale);
+        if (analyzedScenes && currentState === 'generating_final_assets') {
+            try {
+                addAssistantMessage("⚠️ Using pre-stored videos from storage (Demo Mode)...");
+
+                // 1. Fetch from Storage instead of Replicate
+                const urls = await fetchVideosFromStorage();
+                const selectedUrls = urls.slice(0, 3);
+
+                if (selectedUrls.length < 3) {
+                    addAssistantMessage("Not enough videos in storage! Need at least 3.");
+                    return;
+                }
+
+                setVideoUrls(selectedUrls);
+                setStorageVideos(selectedUrls); // Ensure local state is also set for SQS trigger
+
+                // 2. Generate Narration (if missing)
+                if (!narrationResult) {
+                    try {
+                        const { narrationService } = await import('../../services/NarrationService');
+                        const combinedScript = analyzedScenes.map(s => s.primary_visuals).join('\n');
+                        const result = await narrationService.generateNarrationFromScenes(analyzedScenes, combinedScript);
+                        setNarrationResult({ narration: result, internalScenes: analyzedScenes });
+                    } catch (narrationError) {
+                        console.warn("⚠️ AI Narration generation failed (likely quota). Using fallback.", narrationError);
+                        addAssistantMessage("⚠️ AI Narration limit reached. Using scene descriptions as narration.");
+
+                        // Fallback: Use scene visuals as narration script
+                        const fallbackScript = {
+                            fullNarration: analyzedScenes.map(s => s.primary_visuals).join('. '),
+                            estimatedDuration: targetDuration || 20,
+                            sceneDurations: analyzedScenes.map(() => (targetDuration || 20) / analyzedScenes.length),
+                            segments: [] // Empty segments for fallback
+                        };
+
+                        setNarrationResult({ narration: fallbackScript, internalScenes: analyzedScenes });
+                    }
+                }
+
+                // 3. Move to Audio Generation
+                setCurrentState('generating_audio');
+
+            } catch (e) {
+                console.error("Generation failed:", e);
+                addAssistantMessage("Something went wrong. Please try again.");
+            }
         }
-    }, [analyzedScenes, guidanceScale, generateVideosFromScenes]);
+    }, [analyzedScenes, currentState, narrationResult, setVideoUrls, setCurrentState, setNarrationResult, addAssistantMessage]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -109,6 +193,13 @@ export default function Brick2Brick() {
             handleLoadStorageVideos();
         }
     }, [currentState]);
+
+    useEffect(() => {
+        if (currentState === 'generating_final_assets') {
+            // Trigger video generation
+            handleGenerateVideos();
+        }
+    }, [currentState, handleGenerateVideos]);
 
     // Handle audio generation when state changes to generating_audio
     useEffect(() => {
@@ -144,9 +235,14 @@ export default function Brick2Brick() {
     useEffect(() => {
         const dispatchSQS = async () => {
             // Create unique key for this dispatch
-            const dispatchKey = `${storageVideos.slice(0, 3).join('|')}|${audioUrl}`;
+            const dispatchKey = `${videoUrls.slice(0, 3).join('|')}|${audioUrl}`;
 
-            if (storageVideos.length >= 3 && audioUrl && currentState === 'scenes_ready' && !isStitchingStorage) {
+            // We use videoUrls (from hook) or storageVideos (local). In demo mode we set BOTH.
+            // But let's check videoUrls first as that's what handleGenerateVideos sets.
+            // Actually, let's use the explicit local state for SQS logic if possible, or just check length.
+            const validVideos = videoUrls.length >= 3 ? videoUrls : storageVideos;
+
+            if (validVideos.length >= 3 && audioUrl && currentState === 'awaiting_final_confirmation' && !isStitchingStorage) {
                 // Prevent duplicate dispatches
                 if (dispatchedJobRef.current === dispatchKey) {
                     console.log('⏭️ Skipping duplicate dispatch');
@@ -161,7 +257,7 @@ export default function Brick2Brick() {
                     const { dispatchStitchingJob } = await import('../../services/SQSStitchService');
 
                     const result = await dispatchStitchingJob(
-                        storageVideos.slice(0, 3),
+                        validVideos.slice(0, 3),
                         audioUrl
                     );
 
@@ -178,23 +274,17 @@ export default function Brick2Brick() {
                                 try {
                                     console.log(`🔍 Polling ${i + 1}/${maxAttempts} for jobId: ${result.jobId}...`);
 
-                                    const response = await fetch(
-                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
-                                    );
+                                    // Use client-side storage fetch to avoid CORS/404
+                                    const { fetchStitchedVideos } = await import('../../services/StorageService');
+                                    const videos = await fetchStitchedVideos();
 
-                                    if (!response.ok) continue;
-
-                                    const data = await response.json();
-
-                                    if (data.videos && data.videos.length > 0) {
-                                        const matchingVideo = data.videos.find((video: { url: string }) =>
-                                            video.url.includes(result.jobId!)
-                                        );
+                                    if (videos && videos.length > 0) {
+                                        const matchingVideo = videos.find(url => url.includes(result.jobId!));
 
                                         if (matchingVideo) {
-                                            setStorageStitchedUrl(matchingVideo.url);
+                                            setStorageStitchedUrl(matchingVideo);
                                             setIsStitchingStorage(false);
-                                            console.log('✅ Video with audio ready:', matchingVideo.url);
+                                            console.log('✅ Video with audio ready:', matchingVideo);
                                             return;
                                         }
                                     }
@@ -221,7 +311,7 @@ export default function Brick2Brick() {
         };
 
         dispatchSQS();
-    }, [storageVideos, audioUrl, currentState]); // Removed isStitchingStorage from dependencies
+    }, [videoUrls, storageVideos, audioUrl, currentState, isStitchingStorage]);
 
     const handleSendMessage = async () => {
         if (!inputText.trim() || chatLoading) return;
@@ -231,155 +321,29 @@ export default function Brick2Brick() {
 
         // Handle different conversation states
         if (currentState === 'awaiting_story') {
-            // User submitted their script - generate narration
-            if (userMessage.toLowerCase().startsWith('@script')) {
-                const storyContent = userMessage.substring('@script'.length).trim();
-
-                addAssistantMessage(`Received your script! Generating AI narration...`);
-                setCurrentState('generating_narration');
-
-                try {
-                    const { narrationService } = await import('../../services/NarrationService');
-                    const result = await narrationService.generateDirectNarration(storyContent);
-                    setNarrationResult(result);
-
-                    // Internal scenes are already in Scene format
-                    setAnalyzedScenes(result.internalScenes);
-
-                    // Show the narration text
-                    addAssistantMessage(
-                        `📝 **Generated Narration:**\n\n"${result.narration.fullNarration}"\n\n---\n\nNow review the 3 cinematic scenes below. You can edit them if needed.`
-                    );
-
-                    // Trigger Scene Reviewer to display
-                    addAssistantMessage('Scene Review', 'scene_review');
-
-                    setCurrentState('awaiting_narration_confirmation');
-                } catch (error) {
-                    console.error('Narration generation failed:', error);
-                    addAssistantMessage('Failed to generate narration. Please try again.');
-                    setCurrentState('awaiting_story');
-                }
-            } else {
-                addAssistantMessage("Please use the '@Script' format to submit your story.");
-            }
-        } else if (currentState === 'awaiting_narration_confirmation') {
-            // User reviewed narration
-            handleNarrationConfirmation(userMessage);
-        } else if (currentState === 'awaiting_final_confirmation') {
-            // User reviewed audio - proceed to video generation
-            handleFinalConfirmation(userMessage);
-        } else if (currentState === 'awaiting_enhancement_confirmation') {
-            const scenes = await handleEnhancementConfirmation(userMessage);
-            if (scenes) {
-                setAnalyzedScenes(scenes);
-            }
-        } else if (currentState === 'awaiting_proceed_confirmation') {
-            // OLD FLOW - Fetch videos and dispatch with audio
-            const cleanedResponse = userMessage.toLowerCase().trim().replace(/[.,!?;:]/g, '');
-
-            if (cleanedResponse === 'proceed' || cleanedResponse === 'yes' || cleanedResponse === 'continue') {
-                console.log('✅ User confirmed PROCEED. Dispatching to SQS...');
-
-                try {
-                    setLoadingStorageVideos(true);
-                    setStorageError(null);
-
-                    const urls = await fetchVideosFromStorage();
-
-                    if (urls.length < 3) {
-                        throw new Error('Need at least 3 videos in storage');
-                    }
-
-                    setStorageVideos(urls);
-                    console.log('📦 Fetched videos from storage:', urls);
-
-                    // Dispatch to SQS with audio URL
-                    setIsStitchingStorage(true);
-                    const { dispatchStitchingJob } = await import('../../services/SQSStitchService');
-
-                    console.log('🚀 Dispatching to SQS with audio:', audioUrl);
-                    const result = await dispatchStitchingJob(
-                        urls.slice(0, 3),
-                        audioUrl || undefined  // Pass audio URL if available
-                    );
-
-                    if (result.success) {
-                        console.log('✅ Dispatched to SQS:', result);
-
-                        const jobId = result.jobId;
-
-                        if (!jobId) {
-                            console.error('❌ No jobId returned from SQS dispatch');
-                            alert('Error: No job ID received. Cannot track stitching progress.');
-                            setIsStitchingStorage(false);
-                            return;
-                        }
-
-                        // Start polling
-                        const pollForStitchedVideo = async () => {
-                            const maxAttempts = 24;
-
-                            for (let i = 0; i < maxAttempts; i++) {
-                                await new Promise(resolve => setTimeout(resolve, 5000));
-
-                                try {
-                                    console.log(`🔍 Polling attempt ${i + 1}/${maxAttempts} for jobId: ${jobId}...`);
-
-                                    const response = await fetch(
-                                        'https://us-central1-text2video-16cbf.cloudfunctions.net/replicateProxy/api/videos/fetch-stitched'
-                                    );
-
-                                    if (!response.ok) {
-                                        console.warn('Failed to fetch stitched videos:', response.statusText);
-                                        continue;
-                                    }
-
-                                    const data = await response.json();
-
-                                    if (data.videos && data.videos.length > 0) {
-                                        const matchingVideo = data.videos.find((video: { url: string }) =>
-                                            video.url.includes(jobId)
-                                        );
-
-                                        if (matchingVideo) {
-                                            setStorageStitchedUrl(matchingVideo.url);
-                                            setIsStitchingStorage(false);
-                                            console.log('✅ Found stitched video:', matchingVideo.url);
-                                            alert('🎉 Video stitched successfully with narration!');
-                                            return;
-                                        } else {
-                                            console.log(`⏳ Video not found yet (${i + 1}/${maxAttempts})...`);
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error('Polling error:', err);
-                                }
-                            }
-
-                            console.log('⏱️ Polling timeout.');
-                            alert('Stitching is taking longer than expected. Check Firebase Storage later.');
-                            setIsStitchingStorage(false);
-                        };
-
-                        pollForStitchedVideo();
-
-                    } else {
-                        throw new Error(result.error || 'SQS dispatch failed');
-                    }
-
-                } catch (error) {
-                    console.error('Error in SQS dispatch flow:', error);
-                    setStorageError(error instanceof Error ? error.message : 'Failed to dispatch');
-                    setIsStitchingStorage(false);
-                } finally {
-                    setLoadingStorageVideos(false);
-                }
-            }
-
-            await handleProceedConfirmation(userMessage);
-        } else {
             await processUserStory(userMessage);
+        } else if (currentState === 'awaiting_answers') {
+            await handleProceedToAnalysis(userMessage); // Submit answers
+        } else if (currentState === 'awaiting_duration') {
+            const duration = parseInt(userMessage.replace(/[^0-9]/g, ''));
+            if ([10, 20, 30, 60].includes(duration)) {
+                handleDurationSelection(duration);
+            } else {
+                // addAssistantMessage is from hook, can we use it? 
+                // The hook exposes addAssistantMessage.
+                addAssistantMessage("Please select a valid duration: 10, 20, 30, or 60 seconds.");
+            }
+        } else if (currentState === 'scene_review') {
+            const lowerMsg = userMessage.toLowerCase();
+            if (lowerMsg.includes('proceed') || lowerMsg.includes('yes') || lowerMsg.includes('good') || lowerMsg.includes('confirm')) {
+                handleSceneConfirmation();
+            } else {
+                addAssistantMessage("I've made the scenes editable above! Please make your changes directly in the cards and click 'Looks Good - Generate Video' when you're ready.");
+            }
+        } else {
+            // Fallback: If user types during other states, just add to chat or ignore
+            // For now, if strictly in valid state, maybe add as user message? 
+            // But hooks handle adding messages.
         }
     };
 
@@ -555,6 +519,64 @@ export default function Brick2Brick() {
                         </div>
                     ))}
 
+                    {/* Clarifying Questions UI */}
+                    {currentState === 'awaiting_answers' && followUpQuestions.length > 0 && (
+                        <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-5 duration-500">
+                            <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                                <Bot className="w-4 h-4 text-custom-cream" />
+                            </div>
+                            <div className="max-w-3xl w-full">
+                                <div className="bg-custom-cream/5 border border-custom-orange/30 rounded-2xl p-6 mr-12">
+                                    <h3 className="text-custom-orange font-bold mb-4">Clarifying Questions</h3>
+                                    <ul className="space-y-3 mb-6">
+                                        {followUpQuestions.map((q, i) => (
+                                            <li key={i} className="flex gap-2 text-sm text-custom-cream/90">
+                                                <span className="text-custom-orange font-bold">{i + 1}.</span>
+                                                {q}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={() => handleProceedToAnalysis("SKIP")}
+                                            className="px-4 py-2 bg-custom-orange hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors"
+                                        >
+                                            SKIP
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Duration Selection UI */}
+                    {currentState === 'awaiting_duration' && (
+                        <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-5 duration-500">
+                            <div className="w-8 h-8 bg-custom-orange rounded-full flex items-center justify-center flex-shrink-0">
+                                <Bot className="w-4 h-4 text-custom-cream" />
+                            </div>
+                            <div className="max-w-3xl w-full">
+                                <div className="bg-custom-cream/5 border border-custom-orange/30 rounded-2xl p-6 mr-12">
+                                    <h3 className="text-custom-orange font-bold mb-4">Select Video Duration</h3>
+                                    <div className="flex flex-wrap gap-3">
+                                        {[10, 20, 30, 60].map((duration) => (
+                                            <button
+                                                key={duration}
+                                                onClick={() => handleDurationSelection(duration)}
+                                                className={`px-6 py-3 rounded-xl border-2 font-bold transition-all duration-300 ${targetDuration === duration
+                                                    ? 'bg-custom-orange border-custom-orange text-custom-cream'
+                                                    : 'border-custom-orange/30 text-custom-cream hover:border-custom-orange hover:bg-custom-orange/10'
+                                                    }`}
+                                            >
+                                                {duration} Seconds
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {chatLoading && (
                         <div className="flex items-center justify-center p-8">
                             <Loader2 className="w-6 h-6 animate-spin text-custom-orange" />
@@ -634,9 +656,9 @@ export default function Brick2Brick() {
                                 videoUrls={videoUrls}
                                 currentVideoIndex={currentVideoIndex}
                                 setCurrentVideoIndex={setCurrentVideoIndex}
-                                onStitchVideos={stitchVideosWithAWSLambda}
-                                isStitching={isStitching}
-                                stitchedVideoUrl={stitchedVideoUrl}
+                                onStitchVideos={stitchStorageVideos}
+                                isStitching={isStitching || isStitchingStorage} // Share loading state
+                                stitchedVideoUrl={stitchedVideoUrl || storageStitchedUrl} // Share result
                             />
                         </div>
                     )}
@@ -776,12 +798,12 @@ export default function Brick2Brick() {
                                 placeholder={
                                     currentState === 'greeting' ? 'Loading...' :
                                         currentState === 'awaiting_story' ? 'Click SCRIPT and share your story or video idea...' :
-                                            currentState === 'awaiting_enhancement_confirmation' ? 'Your response (yes/no)...' :
-                                                currentState === 'awaiting_proceed_confirmation' ? 'Type "proceed" to dispatch stitching job to queue...' :
+                                            currentState === 'awaiting_answers' ? 'Type your answers here...' :
+                                                currentState === 'awaiting_duration' ? 'Select duration above or type (10, 20, 30, 60)...' :
                                                     'Type your message...'
                                 }
                                 className="w-full h-20 bg-custom-bg text-custom-cream p-4 rounded-xl border-2 border-custom-orange/30 focus:border-custom-orange focus:outline-none resize-none placeholder-custom-cream/30 transition-all duration-300"
-                                disabled={chatLoading || !['awaiting_story', 'awaiting_enhancement_confirmation', 'awaiting_narration_confirmation', 'awaiting_final_confirmation', 'awaiting_proceed_confirmation'].includes(currentState)}
+                                disabled={chatLoading || !['awaiting_story', 'awaiting_answers', 'awaiting_duration', 'scene_review'].includes(currentState)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
