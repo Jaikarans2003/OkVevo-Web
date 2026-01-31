@@ -26,12 +26,28 @@ export default function AuthForm() {
         setError('');
 
         try {
+            let userCredential;
             if (isLogin) {
-                await signInWithEmailAndPassword(auth, email, password);
+                userCredential = await signInWithEmailAndPassword(auth, email, password);
             } else {
-                await createUserWithEmailAndPassword(auth, email, password);
+                userCredential = await createUserWithEmailAndPassword(auth, email, password);
             }
-            router.push('/profile');
+
+            // Create user profile in Firestore for new users
+            if (!isLogin) {
+                const { createUserProfile } = await import('../services/userService');
+                await createUserProfile(userCredential.user.uid, userCredential.user.email || '');
+            }
+
+            // Check if user has completed onboarding
+            const { getUserProfile } = await import('../services/userService');
+            const userProfile = await getUserProfile(userCredential.user.uid);
+
+            if (userProfile?.onboardingComplete) {
+                router.push('/profile');
+            } else {
+                router.push('/onboarding');
+            }
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -52,8 +68,20 @@ export default function AuthForm() {
         setLoading(true);
         setError('');
         try {
-            await signInWithPopup(auth, googleProvider);
-            router.push('/profile');
+            const result = await signInWithPopup(auth, googleProvider);
+
+            // Create user profile if it doesn't exist
+            const { createUserProfile, getUserProfile } = await import('../services/userService');
+            await createUserProfile(result.user.uid, result.user.email || '');
+
+            // Check if user has completed onboarding
+            const userProfile = await getUserProfile(result.user.uid);
+
+            if (userProfile?.onboardingComplete) {
+                router.push('/profile');
+            } else {
+                router.push('/onboarding');
+            }
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/popup-closed-by-user') {
