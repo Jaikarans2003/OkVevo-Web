@@ -51,7 +51,7 @@ export default function ProfilePage() {
                 <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-full pl-6 pr-2 py-2 flex items-center gap-8 shadow-2xl shadow-custom-orange/10">
                     <Link href="/chat" className="flex items-center gap-2 group">
                         <Film className="w-5 h-5 text-custom-orange group-hover:rotate-12 transition-transform" />
-                        <span className="font-bold text-lg text-custom-cream tracking-wide">AIVOZO</span>
+                        <span className="font-[family-name:var(--font-museo-moderno)] font-boldtext-lg text-custom-cream tracking-wide">OKVEVO</span>
                     </Link>
 
                     <div className="flex items-center gap-4">

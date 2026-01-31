@@ -70,8 +70,8 @@ export default function AuthForm() {
         <div className="w-full max-w-md p-8 bg-custom-bg/80 backdrop-blur-xl border border-custom-orange/20 rounded-3xl shadow-2xl shadow-custom-orange/10 transform transition-all hover:border-custom-orange/40">
             <div className="text-center mb-8">
                 <Link href="/" className="inline-block mb-4 group">
-                    <span className="text-3xl font-black bg-gradient-to-r from-custom-cream via-custom-orange to-custom-cream bg-clip-text text-transparent group-hover:scale-105 transition-transform inline-block">
-                        AIVOZO
+                    <span className="text-3xl font-[family-name:var(--font-museo-moderno)] bg-gradient-to-r from-custom-cream via-custom-orange to-custom-cream bg-clip-text text-transparent group-hover:scale-105 transition-transform inline-block">
+                        OKEVO
                     </span>
                 </Link>
                 <h2 className="text-2xl font-bold text-custom-cream mb-2">

@@ -223,7 +223,7 @@ export interface EnhancedStory {
 }
 
 export const generateGreeting = async (): Promise<string> => {
-  return "Welcome to TuneTalez! Share your story, and I'll help bring it to life.";
+  return "Hi I'm Vevo! Share your story, and I'll help bring it to life.";
 };
 
 export const generateClarifyingQuestions = async (userStory: string): Promise<string[]> => {

@@ -1,12 +1,15 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle, Volume2, Play } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Film, Loader2, Send, RefreshCw, Bot, User, CheckCircle, Volume2, Play, MessageSquare, History } from 'lucide-react';
 import { useVideoGeneration } from '../../hooks/useVideoGeneration';
 import { useChatFlow } from '../../hooks/useChatFlow';
 import VideoPlayer from '../../components/VideoPlayer';
 import type { Scene, ChatMessage } from '../../services/AIService';
 import { fetchVideosFromStorage } from '../../services/StorageService';
 import { MODELS } from '../../config/models';
+
 
 export default function Brick2Brick() {
     const {
@@ -392,25 +395,59 @@ export default function Brick2Brick() {
 
     return (
         <div className="h-screen bg-custom-bg text-custom-cream flex flex-col">
-            {/* Header */}
-            <div className="flex-shrink-0 p-4 bg-custom-bg relative">
-                <div className="absolute top-4 right-4 z-10">
-                    <a href="/profile" className="p-2 bg-custom-cream/10 rounded-full text-custom-orange hover:bg-custom-orange hover:text-custom-cream transition-all duration-300 block">
-                        <User className="w-5 h-5" />
-                    </a>
-                </div>
-                <div className="text-center">
-                    <div className="flex items-center justify-center mb-2">
-                        <div className="p-2 bg-custom-orange rounded-full shadow-lg shadow-custom-orange/50">
-                            <Film className="w-8 h-8 text-custom-cream" />
-                        </div>
+            {/* Left Sidebar - Chats */}
+            <aside className="fixed left-6 top-1/2 transform -translate-y-1/2 z-50">
+                <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-3xl p-4 flex flex-col items-center gap-6 shadow-2xl shadow-custom-orange/10">
+                    {/* Chats Title */}
+                    <div className="flex flex-col items-center gap-2">
+                        {/* Replaced MessageSquare with History */}
+                        <History className="w-6 h-6 text-custom-orange" />
+                        <span className="text-xs font-bold text-custom-orange tracking-wider">GENERATIONS</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-custom-orange">
-                        AIVOZO
-                    </h1>
-                    <p className="text-custom-cream/70 text-sm">Transform your words into motion</p>
+
+                    {/* Divider */}
+                    <div className="w-full h-px bg-custom-orange/20"></div>
+
+                    {/* New Chat Button */}
+                    <button
+                        onClick={resetConversation}
+                        className="p-3 bg-custom-orange/10 rounded-2xl hover:bg-custom-orange/20 transition-all duration-300 group"
+                        title="New Chat"
+                    >
+                        <RefreshCw className="w-5 h-5 text-custom-cream group-hover:scale-110 group-hover:rotate-180 transition-all duration-300" />
+                    </button>
                 </div>
-            </div>
+            </aside>
+
+            {/* Right Sidebar - Profile & Logo */}
+            <aside className="fixed right-6 top-1/2 transform -translate-y-1/2 z-50">
+                <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-3xl p-4 flex flex-col items-center gap-6 shadow-2xl shadow-custom-orange/10">
+                    {/* Logo */}
+                    <Link href="/chat" className="group">
+                        <div className="p-3 bg-custom-orange/10 rounded-2xl hover:bg-custom-orange/20 transition-all duration-300">
+                            <Image
+                                src="/OKVEVO WithOut BackGrounds/White.svg"
+                                alt="OKVEVO Logo"
+                                width={32}
+                                height={32}
+                                className="w-8 h-8 group-hover:scale-110 transition-transform"
+                            />
+                        </div>
+                    </Link>
+
+                    {/* Divider */}
+                    <div className="w-full h-px bg-custom-orange/20"></div>
+
+                    {/* Profile Button */}
+                    <Link
+                        href="/profile"
+                        className="p-3 bg-custom-orange rounded-2xl hover:bg-orange-600 transition-all duration-300 group"
+                        title="Profile"
+                    >
+                        <User className="w-5 h-5 text-custom-cream group-hover:scale-110 transition-transform" />
+                    </Link>
+                </div>
+            </aside>
 
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto p-4">

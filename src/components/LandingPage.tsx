@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User } from 'lucide-react';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -9,11 +10,25 @@ import { onAuthStateChanged } from 'firebase/auth';
 export default function LandingPage() {
     const [scrollProgress, setScrollProgress] = useState(0);
     const [user, setUser] = useState<any>(null);
+    const [isAnnual, setIsAnnual] = useState(true);
     const heroRef = useRef<HTMLDivElement>(null);
     const featuresRef = useRef<HTMLDivElement>(null);
     const howItWorksRef = useRef<HTMLDivElement>(null);
     const pricingRef = useRef<HTMLDivElement>(null);
     const ctaRef = useRef<HTMLDivElement>(null);
+
+    // Pricing calculations
+    const monthlyPrices = {
+        hobby: 4999,
+        pro: 12999,
+    };
+
+    const getPrice = (monthlyPrice: number) => {
+        if (isAnnual) {
+            return Math.round(monthlyPrice * 0.75); // 25% discount
+        }
+        return monthlyPrice;
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -62,8 +77,13 @@ export default function LandingPage() {
             <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-auto">
                 <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-full pl-6 pr-2 py-2 flex items-center gap-8 shadow-2xl shadow-custom-orange/10">
                     <Link href="/" className="flex items-center gap-2 group">
-                        <Film className="w-5 h-5 text-custom-orange group-hover:rotate-12 transition-transform" />
-                        <span className="font-bold text-lg text-custom-cream tracking-wide">AIVOZO</span>
+                        <Image
+                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            alt="OKVEVO Logo"
+                            width={27}
+                            height={27}
+                            className="w-27 h-27 group-hover:scale-110 transition-transform"
+                        />
                     </Link>
 
                     <div className="hidden md:flex items-center gap-7 text-sm font-medium text-custom-cream/70">
@@ -112,17 +132,21 @@ export default function LandingPage() {
                 </div>
 
                 <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
-                    <div className="mb-8 inline-block">
-                        <div className="p-4 bg-gradient-to-br from-custom-orange to-orange-600 rounded-3xl shadow-2xl shadow-custom-orange/50 transform hover:scale-110 transition-transform duration-500">
-                            <Film className="w-16 h-16 text-custom-cream animate-bounce" />
+                    <div className="mb-7 inline-block">
+                        <div className="p-17 bg-gradient-to-br from-custom-White to-orange-300 rounded-3xl transform hover:scale-110 transition-transform duration-500">
+                            <Image
+                                src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                alt="OKVEVO Logo"
+                                width={80}
+                                height={80}
+                                className="w-72 h-72"
+                            />
                         </div>
                     </div>
 
-                    <h1 className="text-7xl md:text-8xl font-black mb-6 bg-gradient-to-r from-custom-cream via-custom-orange to-custom-cream bg-clip-text text-transparent animate-gradient">
-                        AIVOZO
-                    </h1>
 
-                    <p className="text-2xl md:text-3xl text-custom-cream/80 mb-8 font-light">
+
+                    <p className="text-3xl md:text-3xl text-custom-cream/80 mb-7 font-light">
                         Transform Your <span className="text-custom-orange font-bold">Words</span> into{' '}
                         <span className="text-custom-orange font-bold">Motion</span>
                     </p>
@@ -153,9 +177,12 @@ export default function LandingPage() {
             >
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20">
-                        <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
-                            Why AIVOZO?
+                        <h2 className="text-5xl md:text-6xl font-light mb-6 text-custom-orange">
+                            WHY
                         </h2>
+                        <h1 className="text-5xl md:text-7xl font-[family-name:var(--font-museo-moderno)] font-bold mb-7 text-custom-orange">
+                            OK VEVO
+                        </h1>
                         <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
                             Experience the future of video creation with cutting-edge AI technology
                         </p>
@@ -272,11 +299,39 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20">
                         <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
-                            Simple Pricing
+                            PRICING
                         </h2>
-                        <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
+                        <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto mb-8">
                             Choose the plan that fits your creative needs
                         </p>
+
+                        {/* Annual/Monthly Toggle */}
+                        <div className="flex items-center justify-center gap-4 mt-8">
+                            <span className={`text-lg font-medium transition-colors ${!isAnnual ? 'text-custom-cream' : 'text-custom-cream/50'
+                                }`}>
+                                Monthly
+                            </span>
+                            <button
+                                onClick={() => setIsAnnual(!isAnnual)}
+                                className="relative w-16 h-8 bg-custom-cream/20 rounded-full transition-all duration-300 hover:bg-custom-cream/30"
+                            >
+                                <div
+                                    className={`absolute top-1 left-1 w-6 h-6 bg-custom-orange rounded-full transition-transform duration-300 ${isAnnual ? 'translate-x-8' : 'translate-x-0'
+                                        }`}
+                                />
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-lg font-medium transition-colors ${isAnnual ? 'text-custom-cream' : 'text-custom-cream/50'
+                                    }`}>
+                                    Annual
+                                </span>
+                                {isAnnual && (
+                                    <span className="px-2 py-1 bg-custom-orange/20 text-custom-orange text-xs font-bold rounded-full border border-custom-orange/50">
+                                        Save 25%
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
@@ -284,9 +339,16 @@ export default function LandingPage() {
                         <div className="relative bg-custom-cream/5 backdrop-blur-sm border border-custom-orange/30 rounded-3xl p-8 hover:border-custom-orange hover:bg-custom-cream/10 transition-all duration-500 flex flex-col">
                             <h3 className="text-2xl font-bold mb-2 text-custom-cream">Hobby</h3>
                             <div className="flex items-end gap-1 mb-6">
-                                <span className="text-4xl font-black text-custom-orange">₹5,000</span>
+                                <span className="text-4xl font-black text-custom-orange">
+                                    ₹{getPrice(monthlyPrices.hobby).toLocaleString('en-IN')}
+                                </span>
                                 <span className="text-custom-cream/60 mb-1">/mo</span>
                             </div>
+                            {isAnnual && (
+                                <p className="text-sm text-custom-cream/50 -mt-4 mb-4">
+                                    Billed annually
+                                </p>
+                            )}
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-center gap-3 text-custom-cream/80">
                                     <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
@@ -317,9 +379,16 @@ export default function LandingPage() {
                             </div>
                             <h3 className="text-2xl font-bold mb-2 text-custom-cream">Pro</h3>
                             <div className="flex items-end gap-1 mb-6">
-                                <span className="text-4xl font-black text-custom-orange">₹15,000</span>
+                                <span className="text-4xl font-black text-custom-orange">
+                                    ₹{getPrice(monthlyPrices.pro).toLocaleString('en-IN')}
+                                </span>
                                 <span className="text-custom-cream/60 mb-1">/mo</span>
                             </div>
+                            {isAnnual && (
+                                <p className="text-sm text-custom-cream/50 -mt-4 mb-4">
+                                    Billed annually
+                                </p>
+                            )}
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-center gap-3 text-custom-cream">
                                     <Check className="w-5 h-5 text-custom-orange flex-shrink-0" />
@@ -382,7 +451,7 @@ export default function LandingPage() {
             {/* CTA Section */}
             <section
                 ref={ctaRef}
-                className="relative py-32 px-6 opacity-0 translate-y-10 transition-all duration-1000"
+                className="relative py-32 px-7 opacity-0 translate-y-10 transition-all duration-1000"
             >
                 <div className="max-w-4xl mx-auto text-center">
                     <div className="relative bg-gradient-to-br from-custom-orange/20 to-orange-600/20 backdrop-blur-sm border border-custom-orange/50 rounded-3xl p-12 md:p-16 overflow-hidden">
@@ -396,24 +465,15 @@ export default function LandingPage() {
                             <h2 className="text-4xl md:text-5xl font-black mb-6 text-custom-cream">
                                 Ready to Create Magic?
                             </h2>
-                            <p className="text-xl text-custom-cream/80 mb-8 leading-relaxed">
+                            <p className="text-xl text-custom-cream/80 mb-3 leading-relaxed">
                                 Join thousands of creators who are already transforming their stories into stunning videos
                             </p>
 
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-3">
                                 <Link href="/login" className="group px-10 py-5 bg-custom-orange text-custom-cream rounded-full font-bold text-xl shadow-2xl shadow-custom-orange/50 hover:shadow-custom-orange/70 transform hover:scale-110 transition-all duration-300 flex items-center gap-3">
                                     Start Creating Now
                                     <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                                 </Link>
-                            </div>
-
-                            <div className="flex flex-wrap justify-center gap-6 text-sm text-custom-cream/60">
-                                {['No credit card required', 'Free trial available', 'Cancel anytime'].map((item, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <Check className="w-4 h-4 text-custom-orange" />
-                                        <span>{item}</span>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     </div>
@@ -425,10 +485,10 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto text-center">
                     <div className="flex items-center justify-center gap-2 mb-4">
                         <Film className="w-6 h-6 text-custom-orange" />
-                        <span className="text-xl font-bold text-custom-orange">AIVOZO</span>
+                        <span className="text-xl font-[family-name:var(--font-museo-moderno)] font-bold text-custom-orange">OKVEVO</span>
                     </div>
                     <p className="text-custom-cream/50 text-sm">
-                        © 2026 AIVOZO. Transform your words into motion.
+                        © 2026 OKVEVO. Transform your words into motion.
                     </p>
                 </div>
             </footer>
