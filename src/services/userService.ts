@@ -4,7 +4,7 @@ import { db } from '../config/firebase';
 export interface UserProfile {
     uid: string;
     email: string;
-    userType?: 'single' | 'organisation';
+    userType?: 'single' | 'organisation' | 'pro';
     onboardingComplete: boolean;
     createdAt: any;
     updatedAt: any;
@@ -12,6 +12,12 @@ export interface UserProfile {
     organisationId?: string;
     organisationRole?: 'admin' | 'member';
     organisationName?: string;
+    // Pro-specific fields
+    proOrganisationId?: string;
+    proOrganisationRole?: 'admin' | 'member';
+    proOrganisationName?: string;
+    isPro?: boolean;
+    proPromptShown?: boolean;
 }
 
 export interface Organisation {
@@ -25,6 +31,18 @@ export interface Organisation {
     createdAt: any;
     updatedAt: any;
     members: string[]; // Array of user UIDs
+}
+
+export interface ProOrganisation {
+    id: string;
+    name: string;
+    description: string;
+    adminEmail: string;
+    adminUid: string;
+    createdAt: any;
+    updatedAt: any;
+    members: string[]; // Array of user UIDs (max 5)
+    maxMembers: 5;
 }
 
 /**
@@ -236,3 +254,192 @@ export async function removeMemberFromOrganisation(
         updatedAt: serverTimestamp(),
     });
 }
+
+/**
+ * PRO ORGANISATION FUNCTIONS
+ */
+
+/**
+ * Create a new Pro organisation (max 5 members)
+ */
+export async function createProOrganisation(
+    organisationData: Omit<ProOrganisation, 'id' | 'createdAt' | 'updatedAt' | 'members' | 'maxMembers'>
+): Promise<string> {
+    const proOrgId = `pro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const proOrgRef = doc(db, 'proOrganisations', proOrgId);
+
+    await setDoc(proOrgRef, {
+        ...organisationData,
+        id: proOrgId,
+        members: [organisationData.adminUid],
+        maxMembers: 5,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Update user profile with Pro organisation info
+    const userRef = doc(db, 'users', organisationData.adminUid);
+    await updateDoc(userRef, {
+        userType: 'pro',
+        proOrganisationId: proOrgId,
+        proOrganisationRole: 'admin',
+        proOrganisationName: organisationData.name,
+        isPro: true,
+        onboardingComplete: true,
+        updatedAt: serverTimestamp(),
+    });
+
+    return proOrgId;
+}
+
+/**
+ * Join an existing Pro organisation (validates 5-member limit)
+ */
+export async function joinProOrganisation(uid: string, email: string, proOrganisationId: string): Promise<boolean> {
+    const proOrgRef = doc(db, 'proOrganisations', proOrganisationId);
+    const proOrgSnap = await getDoc(proOrgRef);
+
+    if (!proOrgSnap.exists()) {
+        return false;
+    }
+
+    const proOrgData = proOrgSnap.data() as ProOrganisation;
+
+    // Check if organisation has reached member limit
+    if (proOrgData.members.length >= 5) {
+        throw new Error('Pro organisation has reached maximum capacity (5 members)');
+    }
+
+    // Add user to Pro organisation members
+    const updatedMembers = [...(proOrgData.members || []), uid];
+    await updateDoc(proOrgRef, {
+        members: updatedMembers,
+        updatedAt: serverTimestamp(),
+    });
+
+    // Update user profile
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, {
+        userType: 'pro',
+        proOrganisationId,
+        proOrganisationRole: 'member',
+        proOrganisationName: proOrgData.name,
+        isPro: true,
+        onboardingComplete: true,
+        updatedAt: serverTimestamp(),
+    });
+
+    return true;
+}
+
+/**
+ * Get Pro organisation details
+ */
+export async function getProOrganisation(proOrganisationId: string): Promise<ProOrganisation | null> {
+    const proOrgRef = doc(db, 'proOrganisations', proOrganisationId);
+    const proOrgSnap = await getDoc(proOrgRef);
+
+    if (proOrgSnap.exists()) {
+        return proOrgSnap.data() as ProOrganisation;
+    }
+    return null;
+}
+
+/**
+ * Get all members of a Pro organisation with their details
+ */
+export async function getProOrganisationMembers(proOrganisationId: string): Promise<UserProfile[]> {
+    const proOrg = await getProOrganisation(proOrganisationId);
+    if (!proOrg || !proOrg.members) {
+        return [];
+    }
+
+    const memberProfiles: UserProfile[] = [];
+    for (const memberId of proOrg.members) {
+        const profile = await getUserProfile(memberId);
+        if (profile) {
+            memberProfiles.push(profile);
+        }
+    }
+
+    return memberProfiles;
+}
+
+/**
+ * Update a member's role in the Pro organisation
+ */
+export async function updateProMemberRole(
+    uid: string,
+    proOrganisationId: string,
+    newRole: 'admin' | 'member'
+): Promise<void> {
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, {
+        proOrganisationRole: newRole,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+/**
+ * Remove a member from the Pro organisation
+ */
+export async function removeProMemberFromOrganisation(
+    uid: string,
+    proOrganisationId: string
+): Promise<void> {
+    // Get Pro organisation
+    const proOrgRef = doc(db, 'proOrganisations', proOrganisationId);
+    const proOrgSnap = await getDoc(proOrgRef);
+
+    if (!proOrgSnap.exists()) {
+        throw new Error('Pro organisation not found');
+    }
+
+    const proOrgData = proOrgSnap.data() as ProOrganisation;
+
+    // Remove user from Pro organisation members
+    const updatedMembers = proOrgData.members.filter(memberId => memberId !== uid);
+    await updateDoc(proOrgRef, {
+        members: updatedMembers,
+        updatedAt: serverTimestamp(),
+    });
+
+    // Update user profile to remove Pro organisation info
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, {
+        userType: 'single',
+        proOrganisationId: null,
+        proOrganisationRole: null,
+        proOrganisationName: null,
+        isPro: false,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+/**
+ * Check if Pro organisation can accept new members
+ */
+export async function checkProMemberLimit(proOrganisationId: string): Promise<{ canJoin: boolean; currentCount: number; maxCount: number }> {
+    const proOrg = await getProOrganisation(proOrganisationId);
+
+    if (!proOrg) {
+        return { canJoin: false, currentCount: 0, maxCount: 5 };
+    }
+
+    const currentCount = proOrg.members.length;
+    const canJoin = currentCount < 5;
+
+    return { canJoin, currentCount, maxCount: 5 };
+}
+
+/**
+ * Mark Pro prompt as shown for user
+ */
+export async function markProPromptShown(uid: string): Promise<void> {
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, {
+        proPromptShown: true,
+        updatedAt: serverTimestamp(),
+    });
+}
+

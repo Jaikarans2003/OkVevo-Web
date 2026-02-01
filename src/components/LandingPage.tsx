@@ -9,13 +9,12 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 export default function LandingPage() {
     const [scrollProgress, setScrollProgress] = useState(0);
+    const [scrollY, setScrollY] = useState(0);
     const [user, setUser] = useState<any>(null);
     const [isAnnual, setIsAnnual] = useState(true);
     const heroRef = useRef<HTMLDivElement>(null);
-    const featuresRef = useRef<HTMLDivElement>(null);
-    const howItWorksRef = useRef<HTMLDivElement>(null);
-    const pricingRef = useRef<HTMLDivElement>(null);
-    const ctaRef = useRef<HTMLDivElement>(null);
+    const whyAndHowRef = useRef<HTMLDivElement>(null);
+    const pricingAndCtaRef = useRef<HTMLDivElement>(null);
 
     // Pricing calculations
     const monthlyPrices = {
@@ -37,9 +36,10 @@ export default function LandingPage() {
             const documentHeight = document.documentElement.scrollHeight;
             const progress = (scrollPosition / (documentHeight - windowHeight)) * 100;
             setScrollProgress(progress);
+            setScrollY(scrollPosition);
 
             // Animate sections on scroll
-            const sections = [heroRef, featuresRef, howItWorksRef, pricingRef, ctaRef];
+            const sections = [heroRef, whyAndHowRef, pricingAndCtaRef];
             sections.forEach((ref) => {
                 if (ref.current) {
                     const rect = ref.current.getBoundingClientRect();
@@ -88,13 +88,13 @@ export default function LandingPage() {
 
                     <div className="hidden md:flex items-center gap-7 text-sm font-medium text-custom-cream/70">
                         <button
-                            onClick={() => featuresRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            onClick={() => whyAndHowRef.current?.scrollIntoView({ behavior: 'smooth' })}
                             className="hover:text-custom-orange hover:scale-105 transition-all"
                         >
                             About Us
                         </button>
                         <button
-                            onClick={() => pricingRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            onClick={() => pricingAndCtaRef.current?.scrollIntoView({ behavior: 'smooth' })}
                             className="hover:text-custom-orange hover:scale-105 transition-all"
                         >
                             Pricing
@@ -125,10 +125,19 @@ export default function LandingPage() {
                 ref={heroRef}
                 className="relative min-h-screen flex items-center justify-center overflow-hidden opacity-0 translate-y-10 transition-all duration-1000"
             >
-                {/* Animated Background */}
-                <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-custom-orange/20 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+                {/* Background Image */}
+                <div
+                    className="absolute inset-0 z-0 will-change-transform"
+                    style={{ transform: `translateY(${scrollY * 0.5}px)` }}
+                >
+                    <Image
+                        src="/BackGrounds/OKVEVOBackGrounds.jpg"
+                        alt="Hero Background"
+                        fill
+                        className="object-cover opacity-60"
+                        priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-custom-bg/90 via-custom-bg/50 to-custom-bg/90" />
                 </div>
 
                 <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
@@ -170,19 +179,16 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Features Section */}
+            {/* Why OK VEVO & How It Works Section */}
             <section
-                ref={featuresRef}
-                className="relative py-32 px-6 opacity-0 translate-y-10 transition-all duration-1000"
+                ref={whyAndHowRef}
+                className="relative py-32 px-6 bg-custom-bg opacity-0 translate-y-10 transition-all duration-1000"
             >
-                <div className="max-w-6xl mx-auto">
+                <div className="max-w-6xl mx-auto mb-32">
                     <div className="text-center mb-20">
-                        <h2 className="text-5xl md:text-6xl font-light mb-6 text-custom-orange">
-                            WHY
+                        <h2 className="text-5xl md:text-6xl font-[family-name:var(--font-museo-moderno)] mb-6 text-custom-orange">
+                            WHY CHOOSE US
                         </h2>
-                        <h1 className="text-5xl md:text-7xl font-[family-name:var(--font-museo-moderno)] font-bold mb-7 text-custom-orange">
-                            OK VEVO
-                        </h1>
                         <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
                             Experience the future of video creation with cutting-edge AI technology
                         </p>
@@ -211,7 +217,7 @@ export default function LandingPage() {
                         ].map((feature, index) => (
                             <div
                                 key={index}
-                                className="group relative bg-custom-cream/5 backdrop-blur-sm border border-custom-orange/30 rounded-3xl p-8 hover:border-custom-orange hover:bg-custom-cream/10 transition-all duration-500 transform hover:scale-105 hover:-translate-y-2"
+                                className="group relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-500 transform hover:scale-105 hover:-translate-y-2 shadow-xl hover:shadow-2xl"
                                 style={{ animationDelay: `${index * 200}ms` }}
                             >
                                 <div className={`inline-block p-4 bg-gradient-to-br ${feature.color} rounded-2xl mb-6 shadow-lg group-hover:shadow-2xl transition-shadow duration-500`}>
@@ -227,78 +233,39 @@ export default function LandingPage() {
                         ))}
                     </div>
                 </div>
-            </section>
 
-            {/* How It Works Section */}
-            <section
-                ref={howItWorksRef}
-                className="relative py-32 px-6 bg-custom-cream/5 opacity-0 translate-y-10 transition-all duration-1000"
-            >
-                <div className="max-w-6xl mx-auto">
-                    <div className="text-center mb-20">
-                        <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
-                            How It Works
-                        </h2>
-                        <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto">
-                            Three simple steps to bring your story to life
-                        </p>
-                    </div>
+                {/* How It Works Part */}
+                <div className="relative py-32 px-12 bg-custom-cream/5 rounded-3xl">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="flex flex-col md:flex-row items-center gap-12">
+                            <div className="md:w-1/2 text-left">
+                                <h2 className="text-3xl md:text-7xl font-[family-name:var(--font-museo-moderno)] mb-6 text-custom-orange leading-tight">
+                                    Three simple steps to bring <br /> your story to life
+                                </h2>
+                            </div>
 
-                    <div className="relative">
-                        {/* Connection Line */}
-                        <div className="hidden md:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-custom-orange via-orange-500 to-custom-orange transform -translate-y-1/2" />
-
-                        <div className="grid md:grid-cols-3 gap-12 relative z-10">
-                            {[
-                                {
-                                    step: '01',
-                                    title: 'Share Your Story',
-                                    description: 'Type or paste your script, story idea, or concept. Be as detailed or brief as you like.',
-                                },
-                                {
-                                    step: '02',
-                                    title: 'AI Analyzes & Creates',
-                                    description: 'Our AI breaks down your story into scenes, suggests visuals, and generates each video clip.',
-                                },
-                                {
-                                    step: '03',
-                                    title: 'Review & Download',
-                                    description: 'Watch your complete video, make any adjustments, and download your masterpiece.',
-                                },
-                            ].map((item, index) => (
-                                <div
-                                    key={index}
-                                    className="relative text-center"
-                                    style={{ animationDelay: `${index * 300}ms` }}
-                                >
-                                    <div className="inline-block mb-6">
-                                        <div className="w-24 h-24 bg-gradient-to-br from-custom-orange to-orange-600 rounded-full flex items-center justify-center shadow-2xl shadow-custom-orange/50 border-4 border-custom-bg">
-                                            <span className="text-3xl font-black text-custom-cream">
-                                                {item.step}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <h3 className="text-2xl font-bold mb-4 text-custom-orange">
-                                        {item.title}
-                                    </h3>
-                                    <p className="text-custom-cream/70 leading-relaxed">
-                                        {item.description}
-                                    </p>
-                                </div>
-                            ))}
+                            <div className="md:w-1/2 relative flex justify-center w-full">
+                                <Image
+                                    src="/assets/WorkingBackGrounds.svg"
+                                    alt="How It Works Process"
+                                    width={1000}
+                                    height={600}
+                                    className="w-50 max-w-5xl h-auto hover:scale-105 transition-transform duration-500"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Pricing Section */}
+            {/* Pricing & CTA Section */}
             <section
-                ref={pricingRef}
+                ref={pricingAndCtaRef}
                 className="relative py-32 px-6 opacity-0 translate-y-10 transition-all duration-1000"
             >
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20">
-                        <h2 className="text-5xl md:text-6xl font-black mb-6 text-custom-orange">
+                        <h2 className="text-5xl md:text-6xl font-[family-name:var(--font-museo-moderno)] font-bold mb-6 text-custom-orange">
                             PRICING
                         </h2>
                         <p className="text-xl text-custom-cream/70 max-w-2xl mx-auto mb-8">
@@ -446,31 +413,23 @@ export default function LandingPage() {
                         </div>
                     </div>
                 </div>
-            </section>
 
-            {/* CTA Section */}
-            <section
-                ref={ctaRef}
-                className="relative py-32 px-7 opacity-0 translate-y-10 transition-all duration-1000"
-            >
-                <div className="max-w-4xl mx-auto text-center">
+                {/* CTA Part */}
+                <div className="max-w-7xl mx-auto text-center mt-32">
                     <div className="relative bg-gradient-to-br from-custom-orange/20 to-orange-600/20 backdrop-blur-sm border border-custom-orange/50 rounded-3xl p-12 md:p-16 overflow-hidden">
                         {/* Background Animation */}
                         <div className="absolute inset-0 overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-custom-orange/30 rounded-full blur-3xl animate-pulse" />
                             <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-500/30 rounded-full blur-3xl animate-pulse delay-1000" />
                         </div>
-
                         <div className="relative z-10">
-                            <h2 className="text-4xl md:text-5xl font-black mb-6 text-custom-cream">
-                                Ready to Create Magic?
-                            </h2>
-                            <p className="text-xl text-custom-cream/80 mb-3 leading-relaxed">
+
+                            <p className="text-xl text-custom-cream/80 mb-7 leading-relaxed">
                                 Join thousands of creators who are already transforming their stories into stunning videos
                             </p>
 
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-3">
-                                <Link href="/login" className="group px-10 py-5 bg-custom-orange text-custom-cream rounded-full font-bold text-xl shadow-2xl shadow-custom-orange/50 hover:shadow-custom-orange/70 transform hover:scale-110 transition-all duration-300 flex items-center gap-3">
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-7">
+                                <Link href="/login" className="group px-10 py-3 bg-white/10 backdrop-blur-md border border-white/20 text-custom-cream rounded-full font-bold text-xl shadow-2xl hover:bg-white/20 transform hover:scale-110 transition-all duration-300 flex items-center gap-3">
                                     Start Creating Now
                                     <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                                 </Link>

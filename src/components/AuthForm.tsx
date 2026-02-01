@@ -44,7 +44,12 @@ export default function AuthForm() {
             const userProfile = await getUserProfile(userCredential.user.uid);
 
             if (userProfile?.onboardingComplete) {
-                router.push('/profile');
+                // Check if user should see Pro prompt
+                if (!userProfile?.proPromptShown && !userProfile?.isPro) {
+                    router.push('/pro-prompt');
+                } else {
+                    router.push('/profile');
+                }
             } else {
                 router.push('/onboarding');
             }
@@ -78,7 +83,12 @@ export default function AuthForm() {
             const userProfile = await getUserProfile(result.user.uid);
 
             if (userProfile?.onboardingComplete) {
-                router.push('/profile');
+                // Check if user should see Pro prompt
+                if (!userProfile?.proPromptShown && !userProfile?.isPro) {
+                    router.push('/pro-prompt');
+                } else {
+                    router.push('/profile');
+                }
             } else {
                 router.push('/onboarding');
             }

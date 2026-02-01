@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { updateUserType, isCustomDomain } from '../../services/userService';
-import { Users, Building2, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, Building2, ArrowRight, Loader2, Crown } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -49,6 +49,10 @@ export default function OnboardingPage() {
         router.push('/onboarding/organisation');
     };
 
+    const handlePro = () => {
+        router.push('/onboarding/pro');
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-custom-bg flex items-center justify-center">
@@ -65,7 +69,7 @@ export default function OnboardingPage() {
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
             </div>
 
-            <div className="relative z-10 w-full max-w-4xl">
+            <div className="relative z-10 w-full max-w-6xl">
                 {/* Logo */}
                 <div className="text-center mb-12">
                     <Link href="/" className="inline-block mb-6">
@@ -78,15 +82,15 @@ export default function OnboardingPage() {
                         />
                     </Link>
                     <h1 className="text-4xl md:text-5xl font-bold mb-4 text-custom-orange">
-                        Welcome to OKVEVO!
+                        Welcome
                     </h1>
                     <p className="text-xl text-custom-cream/70">
-                        Let's get you set up. How will you be using OKVEVO?
+                        Let's get you set up.
                     </p>
                 </div>
 
                 {/* User Type Selection Cards */}
-                <div className="grid md:grid-cols-2 gap-8">
+                <div className="grid md:grid-cols-3 gap-7">
                     {/* Single User Card */}
                     <button
                         onClick={handleSingleUser}
@@ -155,6 +159,42 @@ export default function OnboardingPage() {
 
                             <div className="flex items-center gap-2 text-custom-orange font-bold group-hover:gap-4 transition-all">
                                 Continue as Organisation
+                                <ArrowRight className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Pro Card */}
+                    <button
+                        onClick={handlePro}
+                        disabled={selecting}
+                        className="group relative bg-custom-cream/5 backdrop-blur-sm border-2 border-custom-orange/30 rounded-3xl p-8 hover:border-custom-orange hover:bg-custom-cream/10 transition-all duration-500 transform hover:scale-105 hover:-translate-y-2 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                    >
+                        <div className="absolute top-4 right-4 bg-gradient-to-r from-custom-orange to-orange-600 text-custom-cream text-xs font-bold px-3 py-1 rounded-full">
+                            Pro
+                        </div>
+
+                        <div className="flex flex-col items-center text-center space-y-6">
+                            <div className="p-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl shadow-lg group-hover:shadow-2xl transition-shadow duration-500">
+                                <Crown className="w-12 h-12 text-custom-cream" />
+                            </div>
+
+                            <div>
+                                <h3 className="text-2xl font-bold mb-3 text-custom-orange">
+                                    Pro (5 Seats)
+                                </h3>
+                                <p className="text-custom-cream/70 leading-relaxed mb-4">
+                                    Small team collaboration with up to 5 members. All features included.
+                                </p>
+                                <ul className="text-sm text-custom-cream/60 space-y-2 text-left">
+                                    <li>• Up to 5 team members</li>
+                                    <li>• All functionalities</li>
+                                    <li>• Works with any email</li>
+                                </ul>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-custom-orange font-bold group-hover:gap-4 transition-all">
+                                Continue as Pro
                                 <ArrowRight className="w-5 h-5" />
                             </div>
                         </div>
