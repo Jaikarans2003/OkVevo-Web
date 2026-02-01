@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User } from 'lucide-react';
+import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User, Twitter, Linkedin, Instagram, Github } from 'lucide-react';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -30,30 +30,59 @@ export default function LandingPage() {
     };
 
     useEffect(() => {
+        // Optimized scroll handler for Parallax and Progress Bar
+        let ticking = false;
+
         const handleScroll = () => {
             const scrollPosition = window.scrollY;
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            const progress = (scrollPosition / (documentHeight - windowHeight)) * 100;
-            setScrollProgress(progress);
-            setScrollY(scrollPosition);
 
-            // Animate sections on scroll
-            const sections = [heroRef, whyAndHowRef, pricingAndCtaRef];
-            sections.forEach((ref) => {
-                if (ref.current) {
-                    const rect = ref.current.getBoundingClientRect();
-                    const isVisible = rect.top < windowHeight * 0.75;
-                    if (isVisible) {
-                        ref.current.classList.add('animate-in');
-                    }
-                }
-            });
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const windowHeight = window.innerHeight;
+                    const documentHeight = document.documentElement.scrollHeight;
+                    const progress = (scrollPosition / (documentHeight - windowHeight)) * 100;
+
+                    setScrollProgress(progress);
+                    setScrollY(scrollPosition);
+                    ticking = false;
+                });
+
+                ticking = true;
+            }
         };
 
-        window.addEventListener('scroll', handleScroll);
-        handleScroll(); // Initial check
-        return () => window.removeEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        // Initial setup
+        handleScroll();
+
+        // Intersection Observer for Section Animations
+        const observerOptions = {
+            threshold: 0.15, // Trigger when 15% of the element is visible
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-in');
+                    observer.unobserve(entry.target); // Only animate once
+                }
+            });
+        }, observerOptions);
+
+        const sections = [heroRef, whyAndHowRef, pricingAndCtaRef];
+        sections.forEach((ref) => {
+            if (ref.current) observer.observe(ref.current);
+        });
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            sections.forEach((ref) => {
+                if (ref.current) observer.unobserve(ref.current);
+            });
+            observer.disconnect();
+        };
     }, []);
 
     useEffect(() => {
@@ -440,15 +469,132 @@ export default function LandingPage() {
             </section>
 
             {/* Footer */}
-            <footer className="relative py-12 px-6 border-t border-custom-orange/30">
-                <div className="max-w-6xl mx-auto text-center">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                        <Film className="w-6 h-6 text-custom-orange" />
-                        <span className="text-xl font-[family-name:var(--font-museo-moderno)] font-bold text-custom-orange">OKVEVO</span>
+            <footer className="relative pt-10 pb-6 px-6 border-t border-white/10 bg-black/40 backdrop-blur-xl">
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-8">
+                        {/* Brand Column */}
+                        <div className="space-y-7">
+                            <div className="flex items-center">
+                                <Link href="/" className="flex items-center gap-2 group">
+                                    <Image
+                                        src="/OKVEVO WithOut BackGrounds/White.svg"
+                                        alt="OKVEVO Logo"
+                                        width={27}
+                                        height={27}
+                                        className="w-32 h-32 transition-transform"
+                                    />
+                                </Link>
+
+
+                                {/* <span className="text-2xl font-[family-name:var(--font-museo-moderno)] font-bold text-custom-cream">OKVEVO</span> */}
+                            </div>
+                            <p className="text-custom-cream/60 leading-relaxed">
+                                Transform your stories into stunning motion videos with the power of advanced AI technology.
+                            </p>
+                            <div className="flex gap-4">
+                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-custom-cream/60 hover:bg-custom-orange hover:text-custom-cream transition-all duration-300">
+                                    <Twitter className="w-5 h-5" />
+                                </a>
+                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-custom-cream/60 hover:bg-custom-orange hover:text-custom-cream transition-all duration-300">
+                                    <Linkedin className="w-5 h-5" />
+                                </a>
+                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-custom-cream/60 hover:bg-custom-orange hover:text-custom-cream transition-all duration-300">
+                                    <Instagram className="w-5 h-5" />
+                                </a>
+                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-custom-cream/60 hover:bg-custom-orange hover:text-custom-cream transition-all duration-300">
+                                    <Github className="w-5 h-5" />
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Product Column */}
+                        <div>
+                            <h4 className="text-lg font-bold text-custom-cream mb-6">Product</h4>
+                            <ul className="space-y-4">
+                                {([
+                                    { name: 'Features', action: () => whyAndHowRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+                                    { name: 'Pricing', action: () => pricingAndCtaRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+                                    // { name: 'Showcase', href: '#' },
+                                    // { name: 'Integrations', href: '#' },
+                                    // { name: 'Updates', href: '#' },
+                                ] as any).map((item: any) => (
+                                    <li key={item.name}>
+                                        {item.action ? (
+                                            <button
+                                                onClick={item.action}
+                                                className="text-custom-cream/60 hover:text-custom-orange transition-colors duration-300 flex items-center gap-2 group"
+                                            >
+                                                <span className="w-1 h-1 rounded-full bg-custom-orange opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                {item.name}
+                                            </button>
+                                        ) : (
+                                            <a href={item.href} className="text-custom-cream/60 hover:text-custom-orange transition-colors duration-300 flex items-center gap-2 group">
+                                                <span className="w-1 h-1 rounded-full bg-custom-orange opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                {item.name}
+                                            </a>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Company Column */}
+                        <div>
+                            <h4 className="text-lg font-bold text-custom-cream mb-6">Company</h4>
+                            <ul className="space-y-4">
+                                {([
+                                    { name: 'About Us', action: () => whyAndHowRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+                                    { name: 'Careers', href: 'mailto:info@tunetalez.com' },
+                                    // { name: 'Blog', href: '#' },
+                                    { name: 'Contact', href: 'mailto:info@tunetalez.com' },
+                                    // { name: 'Press Kit', href: '#' },
+                                ] as any).map((item: any) => (
+                                    <li key={item.name}>
+                                        {item.action ? (
+                                            <button
+                                                onClick={item.action}
+                                                className="text-custom-cream/60 hover:text-custom-orange transition-colors duration-300 flex items-center gap-2 group"
+                                            >
+                                                <span className="w-1 h-1 rounded-full bg-custom-orange opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                {item.name}
+                                            </button>
+                                        ) : (
+                                            <a href={item.href} className="text-custom-cream/60 hover:text-custom-orange transition-colors duration-300 flex items-center gap-2 group">
+                                                <span className="w-1 h-1 rounded-full bg-custom-orange opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                {item.name}
+                                            </a>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Legal Column */}
+                        {/* <div>
+                            <h4 className="text-lg font-bold text-custom-cream mb-6">Legal</h4>
+                            <ul className="space-y-4">
+                                {['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Security'].map((item) => (
+                                    <li key={item}>
+                                        <a href="#" className="text-custom-cream/60 hover:text-custom-orange transition-colors duration-300 flex items-center gap-2 group">
+                                            <span className="w-1 h-1 rounded-full bg-custom-orange opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            {item}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div> */}
                     </div>
-                    <p className="text-custom-cream/50 text-sm">
-                        © 2026 OKVEVO. Transform your words into motion.
-                    </p>
+
+                    <div className="pt-4 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <p className="text-custom-cream/40 text-sm">
+                            © 2026 OKVEVO. All rights reserved.
+                        </p>
+                        <div className="flex gap-8 text-sm text-custom-cream/40">
+                            <a href="#" className="hover:text-custom-orange transition-colors">Privacy</a>
+                            <a href="#" className="hover:text-custom-orange transition-colors">Terms</a>
+                            <a href="#" className="hover:text-custom-orange transition-colors">Cookies</a>
+                        </div>
+                    </div>
                 </div>
             </footer>
 
