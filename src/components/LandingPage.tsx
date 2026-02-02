@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User, Twitter, Linkedin, Instagram, Github, Home, LayoutDashboard, LogIn } from 'lucide-react';
+import { Film, Sparkles, Zap, Rocket, ArrowRight, Play, Check, User, Twitter, Linkedin, Instagram, Github, Home, LayoutDashboard, LogIn, History } from 'lucide-react';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -100,6 +100,11 @@ export default function LandingPage() {
             onClick: () => pricingAndCtaRef.current?.scrollIntoView({ behavior: 'smooth' }),
         },
         {
+            icon: <History size={24} className="text-white" />,
+            label: 'Generations',
+            onClick: () => router.push(user ? '/generations' : '/login'),
+        },
+        {
             icon: <User size={24} className="text-white" />,
             label: 'Profile',
             onClick: () => router.push(user ? '/profile' : '/login'),
@@ -175,7 +180,7 @@ export default function LandingPage() {
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                        <Link href="/waitlist" className="group px-8 py-4 bg-custom-orange text-custom-cream rounded-full font-bold text-lg shadow-lg shadow-custom-orange/50 hover:shadow-2xl hover:shadow-custom-orange/70 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                        <Link href="/login" className="group px-8 py-4 bg-custom-orange text-custom-cream rounded-full font-bold text-lg shadow-lg shadow-custom-orange/50 hover:shadow-2xl hover:shadow-custom-orange/70 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
                             Get Started
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </Link>

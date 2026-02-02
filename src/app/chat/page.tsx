@@ -395,15 +395,14 @@ export default function Brick2Brick() {
 
     return (
         <div className="h-screen bg-custom-bg text-custom-cream flex flex-col">
-            {/* Left Sidebar - Chats */}
+            {/* Left Sidebar - Generations */}
             <aside className="fixed left-6 top-1/2 transform -translate-y-1/2 z-50">
                 <div className="bg-custom-bg/80 backdrop-blur-md border border-custom-orange/20 rounded-3xl p-4 flex flex-col items-center gap-6 shadow-2xl shadow-custom-orange/10">
-                    {/* Chats Title */}
-                    <div className="flex flex-col items-center gap-2">
-                        {/* Replaced MessageSquare with History */}
-                        <History className="w-6 h-6 text-custom-orange" />
-                        <span className="text-xs font-bold text-custom-orange tracking-wider">GENERATIONS</span>
-                    </div>
+                    {/* Generations Link */}
+                    <Link href="/generations" className="flex flex-col items-center gap-2 group">
+                        <History className="w-6 h-6 text-custom-orange group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-bold text-custom-orange tracking-wider group-hover:text-orange-400 transition-colors">GENERATIONS</span>
+                    </Link>
 
                     {/* Divider */}
                     <div className="w-full h-px bg-custom-orange/20"></div>
