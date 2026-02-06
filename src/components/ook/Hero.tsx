@@ -43,8 +43,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     className="text-[12vw] md:text-[10vw] font-black leading-[0.85] tracking-[-0.05em] text-text-main max-w-[12ch] relative"
                 >
-                    Your identity <br />
-                    <span className="text-accent-orange text-cursive text-[1.2em] font-normal inline-block translate-y-2">unleashed.</span>
+                    Zero crew <br />
+                    <span className="text-accent-orange text-cursive text-[1.0em] font-normal inline-block translate-y-2">Infinite vision..</span>
                 </motion.h1>
 
                 <motion.div
@@ -54,8 +54,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     className="mt-12 max-w-2xl"
                 >
                     <p className="text-xl md:text-2xl text-text-dim/80 font-medium leading-tight">
-                        OKVEVO is a digital laboratory focused on high-fidelity AI avatars,
-                        cinematic storytelling, and cutting-edge neural rendering.
+                        OKVEVO is an AI-powered video creation platform that enables creators,
+                        brands, and studios to generate cinematic videos, AI avatars, and multi-scene content from simple ideas.
                     </p>
                 </motion.div>
             </div>

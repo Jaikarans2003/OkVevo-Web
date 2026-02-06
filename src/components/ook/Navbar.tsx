@@ -31,7 +31,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-card' : 'bg-transparent border-transparent'}`}>
-                    <a href="/" className="text-2xl font-black tracking-[-0.05em] text-text-main flex items-center gap-1 group">
+                    <a href="/" className="text-2xl font-black tracking-[-0.05em] text-text-main flex items-center gap-1 group font-[family-name:var(--font-museo-moderno)]">
                         OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
                     </a>
 
@@ -41,14 +41,14 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className={`text-xs font-bold tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-dim hover:text-accent-orange' : 'text-text-main hover:text-accent-orange'}`}
+                                className={`text-xs font-[family-name:var(--font-museo-moderno)] tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main hover:text-accent-orange'}`}
                             >
                                 {link.name}
                             </a>
                         ))}
                         <button
                             onClick={onJoinClick}
-                            className="px-8 py-3 rounded-full bg-text-main text-white text-xs font-bold tracking-[0.1em] uppercase hover:bg-accent-orange hover:shadow-lg transition-all cursor-pointer"
+                            className="px-8 py-3 rounded-full bg-text-main text-white text-xs font-[family-name:var(--font-museo-moderno)] tracking-[0.1em] uppercase hover:bg-accent-orange hover:shadow-lg transition-all cursor-pointer"
                         >
                             {user ? 'Dashboard' : 'Join'}
                         </button>
@@ -77,7 +77,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className="text-2xl font-bold text-text-main hover:text-accent-orange"
+                                className="text-2xl font-[family-name:var(--font-museo-moderno)] text-text-main hover:text-accent-orange"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 {link.name}

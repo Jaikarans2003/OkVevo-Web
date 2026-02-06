@@ -50,7 +50,7 @@ const Features = () => {
                             whileInView={{ opacity: 1 }}
                             className="text-xs font-bold tracking-[0.4em] text-accent-orange uppercase mb-8 block"
                         >
-                            The Capabilities
+                            Capabilities
                         </motion.span>
                         <motion.h2
                             initial={{ opacity: 0, y: 30 }}
