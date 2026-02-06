@@ -8,6 +8,8 @@ import { markProPromptShown } from '../../services/userService';
 import { Crown, Users, Sparkles, ArrowRight, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
+import NoiseOverlay from '../../components/NoiseOverlay';
 
 export default function ProPromptPage() {
     const router = useRouter();
@@ -49,33 +51,48 @@ export default function ProPromptPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-custom-bg flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-custom-orange animate-spin" />
+            <div className="min-h-screen bg-bg-main flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-accent-orange animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-custom-bg text-custom-cream flex flex-col items-center justify-center p-6 relative overflow-hidden">
-            {/* Background Animation */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-custom-orange/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="min-h-screen bg-bg-main text-text-main flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <NoiseOverlay />
+
+            {/* Background Decorative Gradients */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                <motion.div
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2], x: [0, 50, 0] }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange rounded-full blur-[150px]"
+                />
+                <motion.div
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.25, 0.15], x: [0, -40, 0] }}
+                    transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                    className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-accent-orange rounded-full blur-[150px]"
+                />
             </div>
 
-            <div className="relative z-10 w-full max-w-3xl">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 w-full max-w-4xl"
+            >
                 {/* Skip Button */}
                 <button
                     onClick={handleSkip}
                     disabled={processing}
-                    className="absolute top-0 right-0 p-2 text-custom-cream/60 hover:text-custom-cream transition-colors disabled:opacity-50"
+                    className="absolute -top-4 right-0 p-2 text-text-dim hover:text-text-main transition-colors disabled:opacity-50 hover:scale-110 transition-transform"
                 >
                     <X className="w-6 h-6" />
                 </button>
 
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <Link href="/" className="inline-block mb-6">
+                    <Link href="/" className="inline-block mb-6 group">
                         <Image
                             src="/OKVEVO WithOut BackGrounds/White.svg"
                             alt="OKVEVO Logo"
@@ -87,61 +104,88 @@ export default function ProPromptPage() {
                 </div>
 
                 {/* Pro Badge */}
-                <div className="flex justify-center mb-6">
-                    <div className="inline-flex items-center gap-2 bg-gradient-to-r from-custom-orange to-orange-600 px-6 py-2 rounded-full">
-                        <Crown className="w-5 h-5 text-custom-cream" />
-                        <span className="text-custom-cream font-bold text-lg">OKVEVO Pro</span>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex justify-center mb-8"
+                >
+                    <div className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-orange to-orange-600 px-8 py-3 rounded-full shadow-lg">
+                        <Crown className="w-6 h-6 text-white" />
+                        <span className="text-white font-black text-xl tracking-tight">OKVEVO Pro</span>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Main Content */}
-                <div className="bg-custom-cream/5 backdrop-blur-sm border-2 border-custom-orange/30 rounded-3xl p-10">
-                    <h1 className="text-4xl md:text-5xl font-bold mb-4 text-center bg-gradient-to-r from-custom-orange via-orange-400 to-custom-orange bg-clip-text text-transparent">
-                        Unlock Pro Features
-                    </h1>
-                    <p className="text-xl text-custom-cream/70 text-center mb-8">
+                <div className="glass-card p-12 rounded-[48px] border border-text-main/10">
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-5xl md:text-6xl font-bold mb-4 text-center tracking-tight"
+                    >
+                        Unlock <span className="text-accent-orange">Pro</span> Features
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-xl text-text-dim text-center mb-12"
+                    >
                         Collaborate with your team in a Pro organization
-                    </p>
+                    </motion.p>
 
                     {/* Features Grid */}
-                    <div className="grid md:grid-cols-3 gap-6 mb-10">
-                        <div className="text-center p-6 bg-custom-cream/5 rounded-2xl border border-custom-orange/20">
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-custom-orange to-orange-600 rounded-xl mb-4">
-                                <Users className="w-7 h-7 text-custom-cream" />
-                            </div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-2">5-Seat Team</h3>
-                            <p className="text-sm text-custom-cream/60">
-                                Collaborate with up to 5 team members
-                            </p>
-                        </div>
-
-                        <div className="text-center p-6 bg-custom-cream/5 rounded-2xl border border-custom-orange/20">
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-custom-orange to-orange-600 rounded-xl mb-4">
-                                <Sparkles className="w-7 h-7 text-custom-cream" />
-                            </div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-2">Full Features</h3>
-                            <p className="text-sm text-custom-cream/60">
-                                Access all OKVEVO functionalities
-                            </p>
-                        </div>
-
-                        <div className="text-center p-6 bg-custom-cream/5 rounded-2xl border border-custom-orange/20">
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-custom-orange to-orange-600 rounded-xl mb-4">
-                                <Crown className="w-7 h-7 text-custom-cream" />
-                            </div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-2">No Restrictions</h3>
-                            <p className="text-sm text-custom-cream/60">
-                                Works with any email address
-                            </p>
-                        </div>
+                    <div className="grid md:grid-cols-3 gap-6 mb-12">
+                        {[
+                            {
+                                icon: Users,
+                                title: "5-Seat Team",
+                                description: "Collaborate with up to 5 team members",
+                                delay: 0.5
+                            },
+                            {
+                                icon: Sparkles,
+                                title: "Full Features",
+                                description: "Access all OKVEVO functionalities",
+                                delay: 0.6
+                            },
+                            {
+                                icon: Crown,
+                                title: "No Restrictions",
+                                description: "Works with any email address",
+                                delay: 0.7
+                            }
+                        ].map((feature, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: feature.delay }}
+                                className="text-center p-8 bg-white rounded-[32px] border-2 border-text-main/5 hover:border-accent-orange/20 transition-all duration-500 group hover:shadow-lg"
+                            >
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-accent-orange to-orange-600 rounded-2xl mb-5 group-hover:scale-110 transition-transform duration-500">
+                                    <feature.icon className="w-8 h-8 text-white" />
+                                </div>
+                                <h3 className="text-lg font-bold text-text-main mb-3">{feature.title}</h3>
+                                <p className="text-sm text-text-dim leading-relaxed">
+                                    {feature.description}
+                                </p>
+                            </motion.div>
+                        ))}
                     </div>
 
                     {/* CTA Buttons */}
-                    <div className="space-y-4">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        className="space-y-4"
+                    >
                         <button
                             onClick={handleUpgradeToPro}
                             disabled={processing}
-                            className="w-full bg-gradient-to-r from-custom-orange to-orange-600 hover:from-orange-600 hover:to-custom-orange text-custom-cream font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-custom-orange/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-gradient-to-r from-accent-orange to-orange-600 hover:from-orange-600 hover:to-accent-orange text-white font-bold py-5 rounded-2xl transition-all duration-500 transform hover:scale-[1.02] hover:shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                             <Crown className="w-5 h-5" />
                             Upgrade to Pro
@@ -151,7 +195,7 @@ export default function ProPromptPage() {
                         <button
                             onClick={handleSkip}
                             disabled={processing}
-                            className="w-full bg-custom-cream/5 hover:bg-custom-cream/10 border border-custom-orange/20 hover:border-custom-orange/40 text-custom-cream/70 hover:text-custom-cream font-medium py-4 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-white hover:bg-text-main/5 border-2 border-text-main/10 hover:border-accent-orange/30 text-text-dim hover:text-text-main font-medium py-5 rounded-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {processing ? (
                                 <Loader2 className="w-5 h-5 animate-spin mx-auto" />
@@ -159,14 +203,19 @@ export default function ProPromptPage() {
                                 'Continue without Pro'
                             )}
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Info Note */}
-                <div className="mt-6 text-center text-sm text-custom-cream/50">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1 }}
+                    className="mt-8 text-center text-sm text-text-dim"
+                >
                     You can upgrade to Pro anytime from your profile settings
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
         </div>
     );
 }

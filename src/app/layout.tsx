@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
-import { MuseoModerno } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import SmoothScroll from "@/components/SmoothScroll";
 
-const museoModerno = MuseoModerno({
+const plusJakartaSans = Plus_Jakarta_Sans({
     subsets: ["latin"],
-    variable: "--font-museo-moderno",
+    weight: ["400", "500", "700", "800"],
+    variable: "--font-plus-jakarta",
+    display: "swap",
+});
+
+const playfairDisplay = Playfair_Display({
+    subsets: ["latin"],
+    weight: ["400", "700"],
+    style: ["italic"],
+    variable: "--font-playfair",
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -19,7 +30,11 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${museoModerno.variable} antialiased`} suppressHydrationWarning>
+            <head>
+                <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+            </head>
+            <body className={`${plusJakartaSans.variable} ${playfairDisplay.variable} antialiased`} suppressHydrationWarning>
+                <SmoothScroll />
                 {children}
             </body>
         </html>

@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../../../config/firebase';
 import { joinProOrganisation, checkProMemberLimit, getProOrganisation } from '../../../../services/userService';
-import { Users, ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, ArrowLeft, Loader2, CheckCircle, AlertCircle, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ThemeProvider, useTheme } from '../../../../contexts/ThemeContext';
+import { getThemeClasses } from '../../../../utils/themeUtils';
+import NoiseOverlay from '../../../../components/NoiseOverlay';
+import { motion } from 'framer-motion';
 
-export default function JoinProOrganisationPage() {
+function JoinProOrganisationPageContent() {
     const router = useRouter();
+    const { theme, resolvedTheme, setTheme } = useTheme();
+    const tc = getThemeClasses(resolvedTheme);
+
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
@@ -105,8 +112,8 @@ export default function JoinProOrganisationPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-custom-bg flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-custom-orange animate-spin" />
+            <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
+                <Loader2 className="w-12 h-12 text-accent-orange animate-spin" />
             </div>
         );
     }
@@ -114,58 +121,99 @@ export default function JoinProOrganisationPage() {
     // Success state
     if (success) {
         return (
-            <div className="min-h-screen bg-custom-bg text-custom-cream flex flex-col items-center justify-center p-6">
+            <div className={`min-h-screen ${tc.bg} ${tc.text} flex flex-col items-center justify-center p-6 relative overflow-hidden`}>
+                {resolvedTheme === 'light' && <NoiseOverlay />}
+
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-custom-orange/20 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
                 </div>
 
-                <div className="relative z-10 w-full max-w-2xl">
-                    <div className="bg-custom-cream/5 backdrop-blur-sm border-2 border-custom-orange/30 rounded-3xl p-10 text-center">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 w-full max-w-2xl"
+                >
+                    <div className={`${tc.card} rounded-3xl p-10 text-center`}>
                         <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full mb-6">
-                            <CheckCircle className="w-10 h-10 text-custom-cream" />
+                            <CheckCircle className="w-10 h-10 text-white" />
                         </div>
 
-                        <h1 className="text-3xl md:text-4xl font-bold mb-4 text-custom-orange">
+                        <h1 className="text-3xl md:text-4xl font-bold mb-4 text-accent-orange">
                             Successfully Joined!
                         </h1>
-                        <p className="text-custom-cream/70 mb-8">
-                            You are now a member of <span className="text-custom-orange font-bold">{orgName}</span> Pro organisation.
+                        <p className={tc.textDim + " mb-8"}>
+                            You are now a member of <span className="text-accent-orange font-bold">{orgName}</span> Pro organisation.
                         </p>
 
                         <button
                             onClick={handleContinue}
-                            className="w-full bg-gradient-to-r from-custom-orange to-orange-600 hover:from-orange-600 hover:to-custom-orange text-custom-cream font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-custom-orange/30"
+                            className="w-full bg-gradient-to-r from-accent-orange to-orange-600 hover:from-orange-600 hover:to-accent-orange text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
                         >
                             Continue to Profile
                         </button>
                     </div>
-                </div>
+                </motion.div>
             </div>
         );
     }
 
     // Form state
     return (
-        <div className="min-h-screen bg-custom-bg text-custom-cream flex flex-col items-center justify-center p-6">
-            {/* Background Animation */}
+        <div className={`min-h-screen ${tc.bg} ${tc.text} flex flex-col items-center justify-center p-6 relative overflow-hidden`}>
+            {resolvedTheme === 'light' && <NoiseOverlay />}
+
+            {/* Animated Background Orbs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-custom-orange/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
+            </div>
+
+            {/* Theme Toggle */}
+            <div className="absolute top-6 right-6 z-50">
+                <button
+                    onClick={() => {
+                        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+                        setTheme(nextTheme);
+                    }}
+                    className={`p-3 ${tc.sidebar} rounded-2xl hover:scale-110 transition-all duration-300 shadow-lg`}
+                >
+                    {theme === 'light' ? (
+                        <Moon className={`w-5 h-5 ${tc.text}`} />
+                    ) : theme === 'dark' ? (
+                        <svg className={`w-5 h-5 ${tc.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    ) : (
+                        <Sun className={`w-5 h-5 ${tc.text}`} />
+                    )}
+                </button>
             </div>
 
             <div className="relative z-10 w-full max-w-2xl">
                 {/* Back Button */}
-                <Link
-                    href="/onboarding/pro"
-                    className="inline-flex items-center gap-2 text-custom-cream/60 hover:text-custom-cream transition-colors mb-8"
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
                 >
-                    <ArrowLeft className="w-5 h-5" />
-                    Back
-                </Link>
+                    <Link
+                        href="/onboarding/pro"
+                        className={`inline-flex items-center gap-2 ${tc.textDim} hover:text-accent-orange transition-colors mb-8`}
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        Back
+                    </Link>
+                </motion.div>
 
                 {/* Logo */}
-                <div className="text-center mb-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="text-center mb-8"
+                >
                     <Link href="/" className="inline-block mb-4">
                         <Image
                             src="/OKVEVO WithOut BackGrounds/White.svg"
@@ -175,27 +223,33 @@ export default function JoinProOrganisationPage() {
                             className="w-16 h-16 hover:scale-110 transition-transform"
                         />
                     </Link>
-                    <h1 className="text-3xl md:text-4xl font-bold mb-3 text-custom-orange">
+                    <h1 className="text-3xl md:text-4xl font-bold mb-3 text-accent-orange">
                         Join Pro Organisation
                     </h1>
-                    <p className="text-custom-cream/70">
+                    <p className={tc.textDim}>
                         Enter the organisation ID provided by your admin
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="bg-custom-cream/5 backdrop-blur-sm border-2 border-custom-orange/30 rounded-3xl p-8">
+                <motion.form
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    onSubmit={handleSubmit}
+                    className={`${tc.card} rounded-3xl p-8`}
+                >
                     <div className="space-y-6">
                         {/* Organisation Icon */}
                         <div className="flex justify-center mb-6">
-                            <div className="p-6 bg-gradient-to-br from-custom-orange to-orange-600 rounded-2xl shadow-lg">
-                                <Users className="w-10 h-10 text-custom-cream" />
+                            <div className="p-6 bg-gradient-to-br from-accent-orange to-orange-600 rounded-2xl shadow-lg">
+                                <Users className="w-10 h-10 text-white" />
                             </div>
                         </div>
 
                         {/* Organisation ID */}
                         <div>
-                            <label htmlFor="organisationId" className="block text-sm font-medium text-custom-cream/80 mb-2">
+                            <label htmlFor="organisationId" className={`block text-sm font-medium ${tc.text} mb-2`}>
                                 Organisation ID *
                             </label>
                             <div className="flex gap-3">
@@ -209,14 +263,14 @@ export default function JoinProOrganisationPage() {
                                         setError('');
                                     }}
                                     placeholder="pro_1234567890_abcdefghi"
-                                    className="flex-1 bg-custom-cream/5 border border-custom-orange/20 rounded-xl px-4 py-3.5 text-custom-cream placeholder:text-custom-cream/30 focus:outline-none focus:border-custom-orange focus:ring-1 focus:ring-custom-orange/50 transition-all font-mono text-sm"
+                                    className={`flex-1 ${tc.input} px-4 py-3.5 rounded-xl font-mono text-sm`}
                                     required
                                 />
                                 <button
                                     type="button"
                                     onClick={handleValidateOrgId}
                                     disabled={validating || !organisationId.trim()}
-                                    className="px-6 bg-custom-orange/20 hover:bg-custom-orange/30 border border-custom-orange/40 text-custom-orange font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 bg-accent-orange/20 hover:bg-accent-orange/30 border border-accent-orange/40 text-accent-orange font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {validating ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -225,7 +279,7 @@ export default function JoinProOrganisationPage() {
                                     )}
                                 </button>
                             </div>
-                            <p className="text-xs text-custom-cream/50 mt-2">
+                            <p className={`text-xs ${tc.textDim} mt-2`}>
                                 Ask your admin for the organisation ID
                             </p>
                         </div>
@@ -237,10 +291,10 @@ export default function JoinProOrganisationPage() {
                                     <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
                                     <div className="flex-1">
                                         <p className="text-green-400 font-medium mb-1">Organisation Found!</p>
-                                        <p className="text-custom-cream/80 text-sm">
+                                        <p className={`${tc.text} text-sm`}>
                                             <strong>{orgInfo.name}</strong>
                                         </p>
-                                        <p className="text-custom-cream/60 text-xs mt-1">
+                                        <p className={`${tc.textDim} text-xs mt-1`}>
                                             Members: {orgInfo.currentCount}/{orgInfo.maxCount}
                                         </p>
                                     </div>
@@ -262,7 +316,7 @@ export default function JoinProOrganisationPage() {
                         <button
                             type="submit"
                             disabled={joining || !orgInfo}
-                            className="w-full bg-gradient-to-r from-custom-orange to-orange-600 hover:from-orange-600 hover:to-custom-orange text-custom-cream font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-custom-orange/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full bg-gradient-to-r from-accent-orange to-orange-600 hover:from-orange-600 hover:to-accent-orange text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {joining ? (
                                 <>
@@ -278,13 +332,21 @@ export default function JoinProOrganisationPage() {
                         </button>
 
                         {!orgInfo && (
-                            <p className="text-xs text-custom-cream/50 text-center">
+                            <p className={`text-xs ${tc.textDim} text-center`}>
                                 Please validate the organisation ID before joining
                             </p>
                         )}
                     </div>
-                </form>
+                </motion.form>
             </div>
         </div>
+    );
+}
+
+export default function JoinProOrganisationPage() {
+    return (
+        <ThemeProvider>
+            <JoinProOrganisationPageContent />
+        </ThemeProvider>
     );
 }

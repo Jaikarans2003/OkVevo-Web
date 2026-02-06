@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../../../config/firebase';
 import { createOrganisation, isCustomDomain } from '../../../../services/userService';
-import { ArrowLeft, Building, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building, Loader2, CheckCircle, AlertCircle, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ThemeProvider, useTheme } from '../../../../contexts/ThemeContext';
+import { getThemeClasses } from '../../../../utils/themeUtils';
+import NoiseOverlay from '../../../../components/NoiseOverlay';
+import { motion } from 'framer-motion';
 
-export default function FormOrganisationPage() {
+function FormOrganisationPageContent() {
     const router = useRouter();
+    const { theme, resolvedTheme, setTheme } = useTheme();
+    const tc = getThemeClasses(resolvedTheme);
+
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -83,32 +90,66 @@ export default function FormOrganisationPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-custom-bg flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-custom-orange animate-spin" />
+            <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
+                <Loader2 className="w-12 h-12 text-accent-orange animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-custom-bg text-custom-cream flex flex-col items-center justify-center p-6 py-12">
-            {/* Background Animation */}
+        <div className={`min-h-screen ${tc.bg} ${tc.text} flex flex-col items-center justify-center p-6 py-12 relative overflow-hidden`}>
+            {resolvedTheme === 'light' && <NoiseOverlay />}
+
+            {/* Animated Background Orbs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-custom-orange/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
+            </div>
+
+            {/* Theme Toggle */}
+            <div className="absolute top-6 right-6 z-50">
+                <button
+                    onClick={() => {
+                        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+                        setTheme(nextTheme);
+                    }}
+                    className={`p-3 ${tc.sidebar} rounded-2xl hover:scale-110 transition-all duration-300 shadow-lg group relative`}
+                >
+                    {theme === 'light' ? (
+                        <Moon className={`w-5 h-5 ${tc.text}`} />
+                    ) : theme === 'dark' ? (
+                        <svg className={`w-5 h-5 ${tc.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    ) : (
+                        <Sun className={`w-5 h-5 ${tc.text}`} />
+                    )}
+                </button>
             </div>
 
             <div className="relative z-10 w-full max-w-3xl">
                 {/* Back Button */}
-                <Link
-                    href="/onboarding/organisation"
-                    className="inline-flex items-center gap-2 text-custom-cream/70 hover:text-custom-orange transition-colors mb-8"
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
                 >
-                    <ArrowLeft className="w-5 h-5" />
-                    Back to Organisation Options
-                </Link>
+                    <Link
+                        href="/onboarding/organisation"
+                        className={`inline-flex items-center gap-2 ${tc.textDim} hover:text-accent-orange transition-colors mb-8`}
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        Back to Organisation Options
+                    </Link>
+                </motion.div>
 
                 {/* Main Card */}
-                <div className="bg-custom-cream/5 backdrop-blur-xl border border-custom-orange/20 rounded-3xl p-8 md:p-12 shadow-2xl shadow-custom-orange/10">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className={`${tc.card} rounded-3xl p-8 md:p-12 shadow-2xl relative`}
+                >
                     {/* Logo */}
                     <div className="text-center mb-8">
                         <Link href="/" className="inline-block mb-6">
@@ -120,13 +161,13 @@ export default function FormOrganisationPage() {
                                 className="w-15 h-15 hover:scale-110 transition-transform"
                             />
                         </Link>
-                        <div className="inline-block p-4 bg-gradient-to-br from-orange-600 to-custom-orange rounded-2xl mb-6">
-                            <Building className="w-10 h-10 text-custom-cream" />
+                        <div className="inline-block p-4 bg-gradient-to-br from-orange-600 to-accent-orange rounded-2xl mb-6">
+                            <Building className="w-10 h-10 text-white" />
                         </div>
-                        <h1 className="text-3xl md:text-4xl font-bold mb-3 text-custom-orange">
+                        <h1 className="text-3xl md:text-4xl font-bold mb-3 text-accent-orange">
                             Form an Organisation
                         </h1>
-                        <p className="text-custom-cream/70">
+                        <p className={tc.textDim}>
                             Create your organisation and become the admin
                         </p>
                     </div>
@@ -141,19 +182,19 @@ export default function FormOrganisationPage() {
                             </h3>
 
                             {/* Organisation ID Display */}
-                            <div className="bg-custom-orange/10 border border-custom-orange/30 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                                <p className="text-sm text-custom-cream/70 mb-2">Your Organisation ID:</p>
-                                <div className="bg-custom-bg rounded-lg p-3 mb-3">
-                                    <code className="text-custom-orange font-mono text-sm break-all">
+                            <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-orange/10 border border-custom-orange/30'} rounded-xl p-6 mb-6 max-w-md mx-auto`}>
+                                <p className={`text-sm ${tc.textDim} mb-2`}>Your Organisation ID:</p>
+                                <div className={`${resolvedTheme === 'light' ? 'bg-text-main/5' : 'bg-custom-bg'} rounded-lg p-3 mb-3`}>
+                                    <code className="text-accent-orange font-mono text-sm break-all">
                                         {organisationId}
                                     </code>
                                 </div>
-                                <p className="text-xs text-custom-cream/50">
+                                <p className={`text-xs ${tc.textDim}`}>
                                     Share this ID with team members to invite them to your organisation
                                 </p>
                             </div>
 
-                            <p className="text-custom-cream/70">
+                            <p className={tc.textDim}>
                                 Redirecting you to your profile...
                             </p>
                         </div>
@@ -161,7 +202,7 @@ export default function FormOrganisationPage() {
                         <form onSubmit={handleCreateOrganisation} className="space-y-6">
                             {/* Organisation Name */}
                             <div>
-                                <label className="block text-custom-cream font-semibold mb-3">
+                                <label className={`block ${tc.text} font-semibold mb-3`}>
                                     Organisation Name *
                                 </label>
                                 <input
@@ -170,7 +211,7 @@ export default function FormOrganisationPage() {
                                     value={formData.name}
                                     onChange={handleInputChange}
                                     placeholder="e.g., Acme Corporation"
-                                    className="w-full bg-custom-bg border border-custom-orange/30 rounded-xl px-4 py-3.5 text-custom-cream placeholder:text-custom-cream/30 focus:outline-none focus:border-custom-orange focus:ring-1 focus:ring-custom-orange/50 transition-all font-medium"
+                                    className={`w-full ${tc.input} px-4 py-3.5 rounded-xl font-medium`}
                                     required
                                     disabled={creating}
                                 />
@@ -178,7 +219,7 @@ export default function FormOrganisationPage() {
 
                             {/* Description */}
                             <div>
-                                <label className="block text-custom-cream font-semibold mb-3">
+                                <label className={`block ${tc.text} font-semibold mb-3`}>
                                     Description *
                                 </label>
                                 <textarea
@@ -187,7 +228,7 @@ export default function FormOrganisationPage() {
                                     onChange={handleInputChange}
                                     placeholder="Brief description of your organisation..."
                                     rows={4}
-                                    className="w-full bg-custom-bg border border-custom-orange/30 rounded-xl px-4 py-3.5 text-custom-cream placeholder:text-custom-cream/30 focus:outline-none focus:border-custom-orange focus:ring-1 focus:ring-custom-orange/50 transition-all font-medium resize-none"
+                                    className={`w-full ${tc.input} px-4 py-3.5 rounded-xl font-medium resize-none`}
                                     required
                                     disabled={creating}
                                 />
@@ -195,14 +236,14 @@ export default function FormOrganisationPage() {
 
                             {/* Sector/Industry */}
                             <div>
-                                <label className="block text-custom-cream font-semibold mb-3">
+                                <label className={`block ${tc.text} font-semibold mb-3`}>
                                     Sector / Industry *
                                 </label>
                                 <select
                                     name="sector"
                                     value={formData.sector}
                                     onChange={handleInputChange}
-                                    className="w-full bg-custom-bg border border-custom-orange/30 rounded-xl px-4 py-3.5 text-custom-cream focus:outline-none focus:border-custom-orange focus:ring-1 focus:ring-custom-orange/50 transition-all font-medium"
+                                    className={`w-full ${tc.input} px-4 py-3.5 rounded-xl font-medium`}
                                     required
                                     disabled={creating}
                                 >
@@ -223,7 +264,7 @@ export default function FormOrganisationPage() {
 
                             {/* Incorporated Status */}
                             <div>
-                                <label className="block text-custom-cream font-semibold mb-3">
+                                <label className={`block ${tc.text} font-semibold mb-3`}>
                                     Organisation Type *
                                 </label>
                                 <div className="grid grid-cols-2 gap-4">
@@ -232,8 +273,8 @@ export default function FormOrganisationPage() {
                                         onClick={() => setFormData(prev => ({ ...prev, incorporated: true }))}
                                         disabled={creating}
                                         className={`p-4 rounded-xl border-2 transition-all duration-300 ${formData.incorporated
-                                            ? 'bg-custom-orange border-custom-orange text-custom-cream'
-                                            : 'bg-custom-bg border-custom-orange/30 text-custom-cream/70 hover:border-custom-orange'
+                                            ? 'bg-accent-orange border-accent-orange text-white'
+                                            : `${tc.card} border-accent-orange/30 hover:border-accent-orange`
                                             }`}
                                     >
                                         <div className="font-bold mb-1">Incorporated</div>
@@ -244,8 +285,8 @@ export default function FormOrganisationPage() {
                                         onClick={() => setFormData(prev => ({ ...prev, incorporated: false }))}
                                         disabled={creating}
                                         className={`p-4 rounded-xl border-2 transition-all duration-300 ${!formData.incorporated
-                                            ? 'bg-custom-orange border-custom-orange text-custom-cream'
-                                            : 'bg-custom-bg border-custom-orange/30 text-custom-cream/70 hover:border-custom-orange'
+                                            ? 'bg-accent-orange border-accent-orange text-white'
+                                            : `${tc.card} border-accent-orange/30 hover:border-accent-orange`
                                             }`}
                                     >
                                         <div className="font-bold mb-1">Non-Incorporated</div>
@@ -264,7 +305,7 @@ export default function FormOrganisationPage() {
                             <button
                                 type="submit"
                                 disabled={creating}
-                                className="w-full bg-custom-orange hover:bg-orange-600 text-custom-cream font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-custom-orange/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                className="w-full bg-accent-orange hover:bg-orange-600 text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
                                 {creating ? (
                                     <>
@@ -280,11 +321,11 @@ export default function FormOrganisationPage() {
 
                     {/* Info Box */}
                     {!success && (
-                        <div className="mt-8 p-4 bg-custom-orange/10 border border-custom-orange/30 rounded-xl">
-                            <h4 className="text-sm font-bold text-custom-orange mb-2">
+                        <div className={`mt-8 p-4 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-orange/10 border border-custom-orange/30'} rounded-xl`}>
+                            <h4 className="text-sm font-bold text-accent-orange mb-2">
                                 As an admin, you'll be able to:
                             </h4>
-                            <ul className="text-sm text-custom-cream/70 space-y-1">
+                            <ul className={`text-sm ${tc.textDim} space-y-1`}>
                                 <li>• Invite and manage team members</li>
                                 <li>• Access the organisation admin dashboard</li>
                                 <li>• Control organisation settings and permissions</li>
@@ -292,8 +333,16 @@ export default function FormOrganisationPage() {
                             </ul>
                         </div>
                     )}
-                </div>
+                </motion.div>
             </div>
         </div>
+    );
+}
+
+export default function FormOrganisationPage() {
+    return (
+        <ThemeProvider>
+            <FormOrganisationPageContent />
+        </ThemeProvider>
     );
 }

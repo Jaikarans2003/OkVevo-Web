@@ -5,6 +5,8 @@ import { Play, Download, Trash2, Clock, CheckCircle, Loader2, AlertCircle } from
 import type { GenerationMetadata } from '../services/GenerationMetadataService';
 import { deleteGenerationComplete } from '../services/GenerationMetadataService';
 import GenerationDetail from './GenerationDetail';
+import { useTheme } from '../contexts/ThemeContext';
+import { getThemeClasses } from '../utils/themeUtils';
 
 interface GenerationCardProps {
     generation: GenerationMetadata;
@@ -13,6 +15,8 @@ interface GenerationCardProps {
 }
 
 export default function GenerationCard({ generation, viewMode, onDelete }: GenerationCardProps) {
+    const { resolvedTheme } = useTheme();
+    const tc = getThemeClasses(resolvedTheme);
     const [showDetail, setShowDetail] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -114,11 +118,11 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
             <>
                 <div
                     onClick={() => setShowDetail(true)}
-                    className="bg-custom-cream/5 border border-custom-orange/20 rounded-xl p-4 hover:border-custom-orange/40 transition-all duration-300 cursor-pointer group"
+                    className={`${tc.card} rounded-xl p-4 hover:border-accent-orange transition-all duration-300 cursor-pointer group`}
                 >
                     <div className="flex items-center gap-4">
                         {/* Thumbnail */}
-                        <div className="w-32 h-20 bg-custom-bg rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className={`w-32 h-20 ${resolvedTheme === 'light' ? 'bg-text-main/5' : 'bg-custom-bg'} rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden`}>
                             {generation.files.finalVideo ? (
                                 <video
                                     src={generation.files.finalVideo}
@@ -126,19 +130,19 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                                     muted
                                 />
                             ) : (
-                                <Play className="w-8 h-8 text-custom-orange/40" />
+                                <Play className="w-8 h-8 text-accent-orange/40" />
                             )}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-bold text-custom-cream mb-1 truncate group-hover:text-custom-orange transition-colors">
+                            <h3 className={`text-lg font-bold ${tc.text} mb-1 truncate group-hover:text-accent-orange transition-colors`}>
                                 {generation.title}
                             </h3>
-                            <p className="text-sm text-custom-cream/60 mb-2 line-clamp-1">
+                            <p className={`text-sm ${tc.textDim} mb-2 line-clamp-1`}>
                                 {generation.description}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-custom-cream/50">
+                            <div className={`flex items-center gap-4 text-xs ${tc.textDim}`}>
                                 <span className="flex items-center gap-1">
                                     <Clock className="w-3.5 h-3.5" />
                                     {formatDate(generation.createdAt)}
@@ -156,10 +160,10 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                             {generation.status === 'completed' && generation.files.finalVideo && (
                                 <button
                                     onClick={handleDownload}
-                                    className="p-2 bg-custom-orange/10 hover:bg-custom-orange/20 rounded-lg transition-all group/btn"
+                                    className={`p-2 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 hover:bg-accent-orange/20' : 'bg-custom-orange/10 hover:bg-custom-orange/20'} rounded-lg transition-all group/btn`}
                                     title="Download"
                                 >
-                                    <Download className="w-4 h-4 text-custom-orange group-hover/btn:scale-110 transition-transform" />
+                                    <Download className="w-4 h-4 text-accent-orange group-hover/btn:scale-110 transition-transform" />
                                 </button>
                             )}
 
@@ -194,10 +198,10 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
         <>
             <div
                 onClick={() => setShowDetail(true)}
-                className="bg-custom-cream/5 border border-custom-orange/20 rounded-xl overflow-hidden hover:border-custom-orange/40 transition-all duration-300 cursor-pointer group"
+                className={`${tc.card} rounded-xl overflow-hidden hover:border-accent-orange transition-all duration-300 cursor-pointer group`}
             >
                 {/* Thumbnail */}
-                <div className="aspect-video bg-custom-bg flex items-center justify-center relative overflow-hidden">
+                <div className={`aspect-video ${resolvedTheme === 'light' ? 'bg-text-main/5' : 'bg-custom-bg'} flex items-center justify-center relative overflow-hidden`}>
                     {generation.files.finalVideo ? (
                         <>
                             <video
@@ -206,11 +210,11 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                                 muted
                             />
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Play className="w-12 h-12 text-custom-cream" />
+                                <Play className="w-12 h-12 text-white" />
                             </div>
                         </>
                     ) : (
-                        <Play className="w-12 h-12 text-custom-orange/40" />
+                        <Play className="w-12 h-12 text-accent-orange/40" />
                     )}
 
                     {/* Status Badge */}
@@ -221,14 +225,14 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
 
                 {/* Info */}
                 <div className="p-4">
-                    <h3 className="text-lg font-bold text-custom-cream mb-2 truncate group-hover:text-custom-orange transition-colors">
+                    <h3 className={`text-lg font-bold ${tc.text} mb-2 truncate group-hover:text-accent-orange transition-colors`}>
                         {generation.title}
                     </h3>
-                    <p className="text-sm text-custom-cream/60 mb-3 line-clamp-2">
+                    <p className={`text-sm ${tc.textDim} mb-3 line-clamp-2`}>
                         {generation.description}
                     </p>
 
-                    <div className="flex items-center justify-between text-xs text-custom-cream/50 mb-4">
+                    <div className={`flex items-center justify-between text-xs ${tc.textDim} mb-4`}>
                         <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" />
                             {formatDate(generation.createdAt)}
@@ -243,7 +247,7 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                         {generation.status === 'completed' && generation.files.finalVideo && (
                             <button
                                 onClick={handleDownload}
-                                className="flex-1 px-4 py-2 bg-custom-orange hover:bg-orange-600 text-custom-cream rounded-lg font-medium transition-all flex items-center justify-center gap-2"
+                                className={`flex-1 px-4 py-2 bg-accent-orange hover:bg-orange-600 ${resolvedTheme === 'light' ? 'text-white' : 'text-custom-cream'} rounded-lg font-medium transition-all flex items-center justify-center gap-2`}
                             >
                                 <Download className="w-4 h-4" />
                                 Download
