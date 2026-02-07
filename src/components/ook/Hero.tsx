@@ -14,6 +14,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             {/* Background Decorative Gradients */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <motion.div
+                    initial={{ scale: 1, opacity: 0.35, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.2, 1],
                         opacity: [0.35, 0.5, 0.35],
@@ -21,9 +22,10 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         y: [0, -30, 0]
                     }}
                     transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full"
+                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.35]"
                 />
                 <motion.div
+                    initial={{ scale: 1, opacity: 0.25, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.3, 1],
                         opacity: [0.25, 0.4, 0.25],
@@ -31,7 +33,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         y: [0, 60, 0]
                     }}
                     transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full"
+                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-25"
                 />
             </div>
 

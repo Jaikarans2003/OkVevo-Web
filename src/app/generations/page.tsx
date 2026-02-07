@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { User, Loader2, History, Search, Filter, Grid, List, Sun, Moon } from 'lucide-react';
+import { User, Loader2, Wand2, Search, Filter, Grid, List, Sun, Moon, Sparkles, Plus } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserGenerations, getOrganisationGenerations } from '../../services/GenerationMetadataService';
 import type { GenerationMetadata } from '../../services/GenerationMetadataService';
@@ -12,8 +12,9 @@ import GenerationCard from '../../components/GenerationCard';
 import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
 import { getThemeClasses } from '../../utils/themeUtils';
 import NoiseOverlay from '../../components/NoiseOverlay';
+import { motion, AnimatePresence } from 'framer-motion';
 
-function GenerationsPageContent() {
+function AIStudioContent() {
     const router = useRouter();
     const { user, userProfile, loading: authLoading, isAuthenticated } = useAuth();
     const { theme, resolvedTheme, setTheme } = useTheme();
@@ -91,65 +92,71 @@ function GenerationsPageContent() {
             <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
                 <div className="text-center">
                     <Loader2 className="w-12 h-12 animate-spin text-accent-orange mx-auto mb-4" />
-                    <p className={`${tc.text} text-lg`}>Loading your generations...</p>
+                    <p className={`${tc.text} text-lg`}>Loading your studio...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className={`min-h-screen ${tc.bg} ${tc.text} relative`}>
+        <div className={`min-h-screen ${tc.bg} ${tc.text} relative overflow-hidden transition-colors duration-500`}>
             {resolvedTheme === 'light' && <NoiseOverlay />}
 
+            {/* Ambient Background Effects */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-accent-orange/10 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
+            </div>
+
             {/* Header */}
-            <header className={`${tc.sidebar} backdrop-blur-md sticky top-0 z-40 relative`}>
+            <header className={`${tc.sidebar} backdrop-blur-xl sticky top-0 z-40 border-b border-white/5`}>
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         {/* Logo */}
-                        <Link href="/chat" className="flex items-center gap-3 group">
+                        <Link href="/welcome" className="flex items-center gap-3 group">
                             <Image
                                 src="/OKVEVO WithOut BackGrounds/White.svg"
                                 alt="OKVEVO Logo"
                                 width={40}
                                 height={40}
-                                className="group-hover:scale-110 transition-transform"
+                                className="group-hover:scale-110 transition-transform duration-300"
                             />
-                            <span className="text-2xl font-[family-name:var(--font-museo-moderno)] text-accent-orange">
-                                OKVEVO
+                            <span className="text-2xl font-[family-name:var(--font-museo-moderno)] text-accent-orange tracking-wide">
+                                <span className={resolvedTheme === 'light' ? 'text-black' : 'text-white'}>OK</span>VEVO
                             </span>
                         </Link>
 
                         {/* Theme Toggle & Profile */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             {/* Theme Toggle */}
                             <button
                                 onClick={() => {
                                     const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
                                     setTheme(nextTheme);
                                 }}
-                                className={`p-3 ${resolvedTheme === 'light' ? 'bg-white hover:bg-accent-orange/10' : 'bg-custom-orange/10 hover:bg-custom-orange/20'} rounded-2xl transition-all duration-300 group relative`}
-                                title={`Current: ${theme} mode`}
+                                className={`p-3 rounded-full transition-all duration-300 group relative ${resolvedTheme === 'light'
+                                    ? 'bg-black/5 hover:bg-black/10 text-black'
+                                    : 'bg-white/10 hover:bg-white/20 text-white'
+                                    }`}
                             >
                                 {theme === 'light' ? (
-                                    <Moon className={`w-5 h-5 ${tc.text}`} />
+                                    <Moon className="w-5 h-5" />
                                 ) : theme === 'dark' ? (
-                                    <svg className={`w-5 h-5 ${tc.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
+                                    <Sun className="w-5 h-5" />
                                 ) : (
-                                    <Sun className={`w-5 h-5 ${tc.text}`} />
+                                    <div className="relative">
+                                        <Sun className="w-5 h-5 absolute opacity-0 scale-50 transition-all dark:opacity-100 dark:scale-100" />
+                                        <Moon className="w-5 h-5 transition-all dark:opacity-0 dark:scale-50" />
+                                    </div>
                                 )}
-                                <span className={`absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity`}>
-                                    {theme === 'light' ? 'Switch to Dark' : theme === 'dark' ? 'Switch to System' : 'Switch to Light'}
-                                </span>
                             </button>
 
                             {/* Profile */}
                             <Link
                                 href="/profile"
-                                className="p-3 bg-accent-orange rounded-2xl hover:bg-orange-600 transition-all duration-300 group"
+                                className="p-3 bg-gradient-to-r from-accent-orange to-orange-600 rounded-full hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 group"
                             >
-                                <User className={`w-5 h-5 ${resolvedTheme === 'light' ? 'text-white' : 'text-custom-cream'} group-hover:scale-110 transition-transform`} />
+                                <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
                             </Link>
                         </div>
                     </div>
@@ -157,70 +164,77 @@ function GenerationsPageContent() {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-6 py-8 relative z-10">
-                {/* Page Title */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-2">
-                        <History className="w-8 h-8 text-accent-orange" />
-                        <h1 className={`text-4xl font-bold ${tc.text}`}>Your Generations</h1>
+            <main className="max-w-7xl mx-auto px-6 py-12 relative z-10">
+                {/* Page Title & Actions */}
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-12">
+                    <div>
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-accent-orange/10 rounded-2xl">
+                                <Wand2 className="w-8 h-8 text-accent-orange" />
+                            </div>
+                            <h1 className="text-5xl md:text-6xl font-black text-accent-orange leading-tight tracking-tight">
+                                AI Studio
+                            </h1>
+                        </div>
+                        <p className={`${tc.textDim} text-lg ml-2`}>
+                            Your creative space for intelligent generation
+                        </p>
                     </div>
-                    <p className={tc.textDim}>
-                        View and manage all your AI-generated videos
-                    </p>
+
+                    <Link
+                        href="/chat"
+                        className="group flex items-center gap-2 px-8 py-4 bg-text-main text-bg-main rounded-full font-bold text-lg hover:scale-105 hover:shadow-xl transition-all duration-300"
+                    >
+                        <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+                        New Creation
+                    </Link>
                 </div>
 
-                {/* Filters and Search */}
-                <div className="mb-8 space-y-4">
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${tc.textDim}`} />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by title or description..."
-                            className={`w-full ${tc.input} px-12 py-3.5 rounded-xl transition-all`}
-                        />
-                    </div>
-
-                    {/* Filters and View Toggle */}
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                        {/* Status Filter */}
-                        <div className="flex items-center gap-2">
-                            <Filter className="w-5 h-5 text-accent-orange" />
-                            <div className="flex gap-2">
-                                {(['all', 'completed', 'processing', 'failed'] as const).map((status) => (
-                                    <button
-                                        key={status}
-                                        onClick={() => setFilterStatus(status)}
-                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filterStatus === status
-                                            ? 'bg-accent-orange text-white'
-                                            : `${resolvedTheme === 'light' ? 'bg-white border border-text-main/10 text-text-main/60 hover:bg-accent-orange/10' : 'bg-custom-cream/5 text-custom-cream/60 hover:bg-custom-cream/10'}`
-                                            }`}
-                                    >
-                                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                                    </button>
-                                ))}
-                            </div>
+                {/* Filters and Search Bar - Glassmorphism */}
+                <div className={`mb-10 p-2 rounded-[2rem] ${resolvedTheme === 'light' ? 'bg-white/60 shadow-xl shadow-black/5' : 'bg-white/5 shadow-xl shadow-black/20'} backdrop-blur-md border border-white/20`}>
+                    <div className="flex flex-col lg:flex-row items-center gap-4 p-2">
+                        {/* Search */}
+                        <div className="relative w-full lg:flex-1">
+                            <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${tc.textDim}`} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search your masterpieces..."
+                                className={`w-full bg-transparent border-none focus:ring-0 ${tc.text} placeholder:text-text-dim/40 pl-12 pr-4 py-3 font-medium`}
+                            />
                         </div>
 
-                        {/* View Mode Toggle */}
-                        <div className={`flex items-center gap-2 ${resolvedTheme === 'light' ? 'bg-white border border-text-main/10' : 'bg-custom-cream/5'} rounded-lg p-1`}>
+                        {/* Divider */}
+                        <div className="hidden lg:block w-px h-8 bg-current opacity-10" />
+
+                        {/* Filters */}
+                        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-2 lg:pb-0">
+                            {(['all', 'completed', 'processing', 'failed'] as const).map((status) => (
+                                <button
+                                    key={status}
+                                    onClick={() => setFilterStatus(status)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${filterStatus === status
+                                        ? 'bg-accent-orange text-white shadow-lg shadow-accent-orange/30'
+                                        : `${tc.textDim} hover:bg-black/5 dark:hover:bg-white/10`
+                                        }`}
+                                >
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* View Toggle */}
+                        <div className={`hidden md:flex items-center gap-1 p-1 rounded-xl ${resolvedTheme === 'light' ? 'bg-black/5' : 'bg-white/10'}`}>
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid'
-                                    ? 'bg-accent-orange text-white'
-                                    : `${tc.textDim} hover:text-accent-orange`
-                                    }`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-accent-orange' : `${tc.textDim} hover:text-text-main`}`}
                             >
                                 <Grid className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'list'
-                                    ? 'bg-accent-orange text-white'
-                                    : `${tc.textDim} hover:text-accent-orange`
-                                    }`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-accent-orange' : `${tc.textDim} hover:text-text-main`}`}
                             >
                                 <List className="w-5 h-5" />
                             </button>
@@ -229,63 +243,90 @@ function GenerationsPageContent() {
                 </div>
 
                 {/* Error State */}
-                {error && (
-                    <div className={`${resolvedTheme === 'light' ? 'bg-red-50 border-2 border-red-200' : 'bg-red-500/10 border border-red-500/20'} rounded-xl p-4 mb-8`}>
-                        <p className="text-red-400">{error}</p>
-                    </div>
-                )}
+                <AnimatePresence>
+                    {error && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl mb-8 text-center font-medium"
+                        >
+                            {error}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Generations Grid/List */}
                 {filteredGenerations.length === 0 ? (
-                    <div className="text-center py-16">
-                        <History className="w-16 h-16 text-accent-orange/40 mx-auto mb-4" />
-                        <h3 className={`text-xl font-bold ${tc.text} mb-2`}>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="text-center py-20"
+                    >
+                        <div className="relative inline-block mb-6">
+                            <div className="absolute inset-0 bg-accent-orange/20 blur-2xl rounded-full" />
+                            <Sparkles className="w-20 h-20 text-accent-orange relative z-10" />
+                        </div>
+                        <h3 className={`text-3xl font-bold ${tc.text} mb-3`}>
                             {searchQuery || filterStatus !== 'all'
-                                ? 'No generations found'
-                                : 'No generations yet'}
+                                ? 'No creations found'
+                                : 'Start Your First Masterpiece'}
                         </h3>
-                        <p className={`${tc.textDim} mb-6`}>
+                        <p className={`${tc.textDim} mb-8 text-lg max-w-md mx-auto`}>
                             {searchQuery || filterStatus !== 'all'
-                                ? 'Try adjusting your filters or search query'
-                                : 'Start creating your first AI-generated video!'}
+                                ? 'Adjust your filters to see more results.'
+                                : 'The canvas is empty. Let your imagination run wild in the studio.'}
                         </p>
                         {!searchQuery && filterStatus === 'all' && (
                             <Link
                                 href="/chat"
-                                className="inline-block px-6 py-3 bg-accent-orange hover:bg-orange-600 text-white font-bold rounded-xl transition-all duration-300 transform hover:scale-105"
+                                className="inline-flex items-center gap-2 px-8 py-4 bg-accent-orange hover:bg-orange-600 text-white font-bold rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-accent-orange/40"
                             >
-                                Create Your First Video
+                                <Plus className="w-5 h-5" />
+                                Create Video
                             </Link>
                         )}
-                    </div>
+                    </motion.div>
                 ) : (
-                    <div className={
-                        viewMode === 'grid'
-                            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-                            : 'space-y-4'
-                    }>
-                        {filteredGenerations.map((generation) => (
-                            <GenerationCard
-                                key={generation.id}
-                                generation={generation}
-                                viewMode={viewMode}
-                                onDelete={() => {
-                                    // Remove from local state
-                                    setGenerations(prev => prev.filter(g => g.id !== generation.id));
-                                }}
-                            />
-                        ))}
-                    </div>
+                    <motion.div
+                        layout
+                        className={
+                            viewMode === 'grid'
+                                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
+                                : 'space-y-6'
+                        }
+                    >
+                        <AnimatePresence>
+                            {filteredGenerations.map((generation) => (
+                                <motion.div
+                                    key={generation.id}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <GenerationCard
+                                        generation={generation}
+                                        viewMode={viewMode}
+                                        onDelete={() => {
+                                            setGenerations(prev => prev.filter(g => g.id !== generation.id));
+                                        }}
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </motion.div>
                 )}
             </main>
         </div>
     );
 }
 
-export default function GenerationsPage() {
+export default function AIStudioPage() {
     return (
         <ThemeProvider>
-            <GenerationsPageContent />
+            <AIStudioContent />
         </ThemeProvider>
     );
 }

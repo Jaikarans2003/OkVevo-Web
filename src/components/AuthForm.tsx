@@ -52,7 +52,7 @@ export default function AuthForm() {
                     router.push('/profile');
                 }
             } else {
-                router.push('/onboarding');
+                router.push('/welcome');
             }
         } catch (err: any) {
             console.error(err);
@@ -91,7 +91,7 @@ export default function AuthForm() {
                     router.push('/profile');
                 }
             } else {
-                router.push('/onboarding');
+                router.push('/welcome');
             }
         } catch (err: any) {
             console.error(err);

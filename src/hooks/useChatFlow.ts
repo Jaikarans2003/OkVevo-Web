@@ -25,7 +25,7 @@ export interface UseChatFlowProps {
 
 export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentState, setCurrentState] = useState<ChatFlowState>('greeting');
+  const [currentState, setCurrentState] = useState<ChatFlowState>('awaiting_story');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,36 +39,10 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
   const [narrationResult, setNarrationResult] = useState<DirectNarrationResult | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  // Generate greeting on first load
+  // Generate greeting intentionally removed to show Welcome Screen
   useEffect(() => {
-    const initializeGreeting = async () => {
-      if (messages.length === 0) {
-        setLoading(true);
-        try {
-          const greeting = await generateGreeting();
-          setMessages([{
-            role: 'assistant',
-            content: greeting,
-            type: 'greeting'
-          }]);
-          setCurrentState('awaiting_story');
-        } catch (err) {
-          console.error(err);
-          setError('Failed to generate greeting');
-          setMessages([{
-            role: 'assistant',
-            content: "Welcome to AIVOZO! I'm here to help bring your visual stories to life. Share your ideas and let's create something amazing together!",
-            type: 'greeting'
-          }]);
-          setCurrentState('awaiting_story');
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeGreeting();
-  }, [messages.length]);
+    // No-op or custom logic if needed later
+  }, []);
 
   const addUserMessage = useCallback((content: string) => {
     const userMessage: ChatMessage = { role: 'user', content };
@@ -84,16 +58,16 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
 
   // 1. Handle Story Submission
   const processUserStory = useCallback(async (userStory: string) => {
-    if (!userStory.toLowerCase().startsWith('@script')) {
-      addAssistantMessage("Please use the '@Script' format to submit your story.");
-      return;
-    }
-
+    // Relaxed check: allow any input as story, but handle @script prefix if present
     setLoading(true);
     setError(null);
     addUserMessage(userStory);
 
-    const storyContent = userStory.substring('@script'.length).trim();
+    let storyContent = userStory;
+    if (userStory.toLowerCase().startsWith('@script')) {
+      storyContent = userStory.substring('@script'.length).trim();
+    }
+
     setPendingStory(storyContent);
 
     addAssistantMessage("Great story! How long should the final video be?");

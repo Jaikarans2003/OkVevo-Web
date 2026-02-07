@@ -12,6 +12,8 @@ import { MODELS } from '../../config/models';
 import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
 import { getThemeClasses } from '../../utils/themeUtils';
 import NoiseOverlay from '../../components/NoiseOverlay';
+import FloatingSidebar from '../../components/chat/FloatingSidebar';
+import ChatWelcome from '../../components/chat/ChatWelcome';
 
 function ChatPageContent() {
     const { theme, resolvedTheme, setTheme } = useTheme();
@@ -368,85 +370,29 @@ function ChatPageContent() {
         });
     };
 
+    const handleSuggestionClick = (suggestion: string) => {
+        setInputText(suggestion);
+    };
+
     return (
-        <div className={`h-screen ${tc.bg} ${tc.text} flex flex-col relative`}>
+        <div className={`h-screen ${tc.bg} ${tc.text} flex flex-col relative overflow-hidden`}>
+
+
             {resolvedTheme === 'light' && <NoiseOverlay />}
 
-            {/* Theme Toggle Button - Top Right */}
-            <div className="absolute top-6 right-6 z-50">
-                <button
-                    onClick={() => {
-                        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-                        setTheme(nextTheme);
-                    }}
-                    className={`p-3 ${tc.sidebar} rounded-2xl hover:scale-110 transition-all duration-300 shadow-lg relative group`}
-                    title={`Current: ${theme} mode. Click to change.`}
-                >
-                    {theme === 'light' ? (
-                        <Moon className="w-5 h-5 text-text-main" />
-                    ) : theme === 'dark' ? (
-                        <svg className="w-5 h-5 text-custom-cream" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    ) : (
-                        <Sun className="w-5 h-5 text-text-main" />
-                    )}
-                    <span className={`absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity`}>
-                        {theme === 'light' ? 'Switch to Dark' : theme === 'dark' ? 'Switch to System' : 'Switch to Light'}
-                    </span>
-                </button>
-            </div>
-
-            {/* Left Sidebar - Generations */}
-            <aside className="fixed left-6 top-1/2 transform -translate-y-1/2 z-40">
-                <div className={`${tc.sidebar} rounded-3xl p-4 flex flex-col items-center gap-6 shadow-2xl`}>
-                    <Link href="/generations" className="flex flex-col items-center gap-2 group">
-                        <History className="w-6 h-6 text-accent-orange group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-bold text-accent-orange tracking-wider group-hover:text-orange-400 transition-colors">GENERATIONS</span>
-                    </Link>
-
-                    <div className="w-full h-px bg-accent-orange/20"></div>
-
-                    <button
-                        onClick={resetConversation}
-                        className={`p-3 ${theme === 'light' ? 'bg-white hover:bg-accent-orange/10' : 'bg-custom-orange/10 hover:bg-custom-orange/20'} rounded-2xl transition-all duration-300 group`}
-                        title="New Chat"
-                    >
-                        <RefreshCw className={`w-5 h-5 ${tc.text} group-hover:scale-110 group-hover:rotate-180 transition-all duration-300`} />
-                    </button>
-                </div>
-            </aside>
-
-            {/* Right Sidebar - Profile & Logo */}
-            <aside className="fixed right-24 top-1/2 transform -translate-y-1/2 z-40">
-                <div className={`${tc.sidebar} rounded-3xl p-4 flex flex-col items-center gap-6 shadow-2xl`}>
-                    <Link href="/chat" className="group">
-                        <div className={`p-3 ${theme === 'light' ? 'bg-white hover:bg-accent-orange/10' : 'bg-custom-orange/10 hover:bg-custom-orange/20'} rounded-2xl transition-all duration-300`}>
-                            <Image
-                                src="/OKVEVO WithOut BackGrounds/White.svg"
-                                alt="OKVEVO Logo"
-                                width={32}
-                                height={32}
-                                className="w-8 h-8 group-hover:scale-110 transition-transform"
-                            />
-                        </div>
-                    </Link>
-
-                    <div className="w-full h-px bg-accent-orange/20"></div>
-
-                    <Link
-                        href="/profile"
-                        className={`p-3 ${tc.botAvatar} rounded-2xl hover:bg-orange-600 transition-all duration-300 group`}
-                        title="Profile"
-                    >
-                        <User className={`w-5 h-5 ${theme === 'light' ? 'text-white' : 'text-custom-cream'} group-hover:scale-110 transition-transform`} />
-                    </Link>
-                </div>
-            </aside>
+            {/* Floating Sidebar */}
+            <FloatingSidebar resetConversation={resetConversation} />
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-4 relative z-10">
-                <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 relative z-10 pl-24">
+                <div className="max-w-4xl mx-auto space-y-6 min-h-full flex flex-col">
+                    {/* Welcome Screen - Show only when no messages and no input (or just no messages) */}
+                    {messages.length === 0 && !inputText.trim() && (
+                        <div className="flex-1 flex items-center justify-center">
+                            <ChatWelcome onSuggestionClick={handleSuggestionClick} />
+                        </div>
+                    )}
+
                     {messages.map((message: ChatMessage, index: number) => (
                         <div key={index} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {message.role === 'assistant' && (
@@ -822,7 +768,7 @@ function ChatPageContent() {
             )}
 
             {/* Input Area */}
-            <div className={`flex-shrink-0 p-4 ${tc.bg} relative z-10`}>
+            <div className={`flex-shrink-0 p-4 relative z-10`}>
                 <div className="max-w-4xl mx-auto">
                     <div className="flex gap-3">
                         <div className="flex-1 relative">
