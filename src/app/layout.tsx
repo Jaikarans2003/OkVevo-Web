@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Playfair_Display, MuseoModerno } from "next/font/google";
+import { Inter, Playfair_Display, MuseoModerno } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const inter = Inter({
     subsets: ["latin"],
-    weight: ["400", "500", "700", "800"],
-    variable: "--font-plus-jakarta",
+    weight: ["400", "500", "600", "700", "800", "900"],
+    variable: "--font-inter",
     display: "swap",
 });
 
@@ -36,11 +36,11 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
             <head>
                 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
             </head>
-            <body className={`${plusJakartaSans.variable} ${playfairDisplay.variable} ${museoModerno.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${inter.variable} ${playfairDisplay.variable} ${museoModerno.variable} antialiased`} suppressHydrationWarning>
                 <SmoothScroll />
                 {children}
             </body>

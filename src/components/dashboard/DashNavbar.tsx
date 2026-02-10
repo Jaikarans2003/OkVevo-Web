@@ -2,14 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, CreditCard, User } from 'lucide-react';
 
-interface NavbarProps {
-    user?: any;
-    onJoinClick: () => void;
-}
-
-const Navbar = ({ user, onJoinClick }: NavbarProps) => {
+const DashNavbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -22,9 +17,8 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     }, []);
 
     const navLinks = [
-        { name: 'Features', href: '#features' },
-        { name: 'Process', href: '#how-it-works' },
-        { name: 'Pricing', href: '#pricing' },
+        { name: 'Billing', href: '/billing', icon: <CreditCard size={16} /> },
+        { name: 'Profile', href: '/profile', icon: <User size={16} /> },
     ];
 
     return (
@@ -41,17 +35,12 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className={`text-xs tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main/70 hover:text-text-main'}`}
+                                className={`flex items-center gap-2 text-xs font-[family-name:var(--font-museo-moderno)] tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main/70 hover:text-text-main'}`}
                             >
+                                {link.icon}
                                 {link.name}
                             </a>
                         ))}
-                        <button
-                            onClick={onJoinClick}
-                            className={`px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${isScrolled ? 'bg-text-main text-white hover:bg-accent-orange' : 'bg-text-main/10 text-text-main border border-text-main/20 hover:bg-text-main hover:text-white'}`}
-                        >
-                            {user ? 'Dashboard' : 'Join'}
-                        </button>
                     </div>
 
                     {/* Mobile Toggle */}
@@ -77,21 +66,13 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className="text-2xl text-text-main hover:text-accent-orange"
+                                className="flex items-center justify-center gap-3 text-2xl font-[family-name:var(--font-museo-moderno)] text-text-main hover:text-accent-orange"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
+                                {link.icon}
                                 {link.name}
                             </a>
                         ))}
-                        <button
-                            onClick={() => {
-                                setIsMobileMenuOpen(false);
-                                onJoinClick();
-                            }}
-                            className="btn-premium w-full py-5 text-center justify-center !bg-accent-orange cursor-pointer"
-                        >
-                            {user ? 'Go to Dashboard' : 'Join Platform'}
-                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -99,4 +80,4 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     );
 };
 
-export default Navbar;
+export default DashNavbar;

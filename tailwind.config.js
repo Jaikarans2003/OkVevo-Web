@@ -89,7 +89,13 @@ export default {
 					'3': 'hsl(var(--chart-3))',
 					'4': 'hsl(var(--chart-4))',
 					'5': 'hsl(var(--chart-5))'
-				}
+				},
+				'vintage-plum': '#1E1220', // Darker plum
+				'vintage-lavender': '#9F8CB0', // Muted lavender
+				'vintage-gold': '#D4AF37', // Metallic gold
+				'vintage-sepia': '#2a2420', // Dark sepia for backgrounds
+				'vintage-cream': '#EAE5D9', // Muted cream
+				'vintage-dark-purple': '#0D0810', // Almost black purple
 			},
 			backgroundImage: {
 				'orange-gradient': 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
@@ -97,7 +103,22 @@ export default {
 			},
 			animation: {
 				'pulse-orange': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-				'bounce-orange': 'bounce 1s infinite'
+				'bounce-orange': 'bounce 1s infinite',
+				'reel-spin': 'reel-spin 20s linear infinite',
+				'flicker': 'flicker 3s linear infinite',
+			},
+			keyframes: {
+				'reel-spin': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(360deg)' }
+				},
+				'flicker': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.95' },
+					'52%': { opacity: '0.9' },
+					'54%': { opacity: '0.95' },
+					'56%': { opacity: '1' }
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -105,11 +126,11 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				sans: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				sans: ['var(--font-inter)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
 				serif: ['var(--font-playfair)', 'Playfair Display', 'ui-serif', 'Georgia', 'Times New Roman', 'serif'],
 				cursive: ['Dancing Script', 'cursive']
 			}
-		}
+		},
 	},
 	plugins: [require("tailwindcss-animate")],
 }

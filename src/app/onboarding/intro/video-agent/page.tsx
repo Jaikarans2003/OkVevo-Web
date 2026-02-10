@@ -1,0 +1,111 @@
+"use client";
+
+import { motion } from 'framer-motion';
+import { ChevronLeft, ArrowRight, Video, Wand2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+export default function IntroVideoAgentPage() {
+    const router = useRouter();
+
+    const handleBack = () => router.back();
+    const handleNext = () => router.push('/onboarding/intro/ai-images');
+
+    return (
+        <div className="min-h-screen bg-black text-white flex overflow-hidden">
+
+            {/* Left Section - Content */}
+            <div className="w-full lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center relative z-10">
+                <div className="max-w-xl mx-auto lg:mx-0">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-8"
+                    >
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm font-medium mb-6">
+                            <Video className="w-4 h-4 text-custom-orange" />
+                            <span>Video Agent</span>
+                        </div>
+                        <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                            Turn ideas into <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-custom-orange to-red-400">
+                                Fully Edited Videos
+                            </span>
+                        </h1>
+                        <p className="text-gray-400 text-lg leading-relaxed mb-12">
+                            From idea to finished video—script, voiceover, avatar, clips, music, and edits all done for you.
+                        </p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="flex items-center gap-4"
+                    >
+                        <button
+                            onClick={handleBack}
+                            className="px-8 py-3 rounded-lg border border-white/10 hover:bg-white/5 transition-colors font-medium"
+                        >
+                            Back
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            className="px-8 py-3 rounded-lg bg-custom-orange hover:bg-orange-500 transition-colors font-medium flex items-center gap-2"
+                        >
+                            Next <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* Right Section - Visual/Demo Area */}
+            <div className="hidden lg:flex w-1/2 bg-[#0A0500] items-center justify-center relative">
+                <div className="absolute inset-0 bg-gradient-to-l from-orange-900/10 to-transparent" />
+
+                {/* Mock Interface Container */}
+                <motion.div
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="w-[80%] aspect-video bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col"
+                >
+                    {/* Header */}
+                    <div className="h-12 border-b border-white/5 flex items-center px-4 gap-2">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-red-500/20" />
+                            <div className="w-3 h-3 rounded-full bg-yellow-500/20" />
+                            <div className="w-3 h-3 rounded-full bg-green-500/20" />
+                        </div>
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 flex items-center justify-center p-8">
+                        <div className="text-center space-y-4">
+                            <div className="w-16 h-16 bg-custom-orange/20 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                                <Wand2 className="w-8 h-8 text-custom-orange" />
+                            </div>
+                            <p className="text-custom-orange/50 font-mono text-sm">Generating scene 1 of 4...</p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Feature Tags */}
+                <div className="absolute bottom-12 w-full px-12">
+                    <div className="grid grid-cols-2 gap-4">
+                        {['AI Avatars', 'Hyper Personalisation', 'Natural Language Editing', 'Auto B-Roll & Music'].map((tag, i) => (
+                            <motion.div
+                                key={tag}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.6 + (i * 0.1) }}
+                                className="bg-orange-900/20 border border-custom-orange/20 rounded-lg p-3 text-center text-sm text-orange-200 font-medium"
+                            >
+                                {tag}
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    );
+}

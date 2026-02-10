@@ -3,6 +3,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { generateGreeting, analyzeScenes, generateClarifyingQuestions } from '../services/AIService';
 import type { ChatMessage, Scene } from '../services/AIService';
 import type { DirectNarrationResult } from '../services/NarrationService';
+import {
+  createChatSession,
+  addMessage as addFirestoreMessage,
+  updateSessionState,
+  updateSessionMetadata,
+  getSessionMessages,
+  getChatSession
+} from '../services/ChatService';
+import { useAuth } from './useAuth';
 
 export type ChatFlowState =
   | 'greeting'
@@ -21,9 +30,12 @@ export type ChatFlowState =
 
 export interface UseChatFlowProps {
   onScenesGenerated?: (scenes: Scene[]) => void;
+  initialSessionId?: string | null;
 }
 
-export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
+export function useChatFlow({ onScenesGenerated, initialSessionId }: UseChatFlowProps = {}) {
+  const { userProfile } = useAuth();
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentState, setCurrentState] = useState<ChatFlowState>('awaiting_story');
   const [loading, setLoading] = useState(false);
@@ -39,22 +51,85 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
   const [narrationResult, setNarrationResult] = useState<DirectNarrationResult | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  // Generate greeting intentionally removed to show Welcome Screen
+  // Load session if ID provided
   useEffect(() => {
-    // No-op or custom logic if needed later
-  }, []);
+    const loadSession = async () => {
+      if (!initialSessionId) return;
 
-  const addUserMessage = useCallback((content: string) => {
+      setLoading(true);
+      try {
+        const session = await getChatSession(initialSessionId);
+        if (session) {
+          setSessionId(session.id);
+          setCurrentState(session.currentState);
+
+          // Restore metadata
+          if (session.metadata) {
+            if (session.metadata.pendingStory) setPendingStory(session.metadata.pendingStory);
+            if (session.metadata.targetDuration) setTargetDuration(session.metadata.targetDuration);
+            if (session.metadata.narrationResult) setNarrationResult(session.metadata.narrationResult);
+            if (session.metadata.audioUrl) setAudioUrl(session.metadata.audioUrl);
+            // videoUrls should correspond to parent state, might need callback to restore?
+            // For now, we are just restoring internal hook state. Parent (ChatPage) handles videoUrls.
+          }
+
+          const history = await getSessionMessages(initialSessionId);
+          // Convert Firestore messages to UI messages (remove createdAt)
+          const uiMessages: ChatMessage[] = history.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            type: msg.type
+          }));
+          setMessages(uiMessages);
+        }
+      } catch (err) {
+        console.error("Failed to load session:", err);
+        setError("Failed to load chat history");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSession();
+  }, [initialSessionId]);
+
+  // Sync state changes to Firestore
+  useEffect(() => {
+    if (sessionId && currentState) {
+      updateSessionState(sessionId, currentState).catch(console.error);
+    }
+  }, [sessionId, currentState]);
+
+  const addUserMessage = useCallback(async (content: string) => {
     const userMessage: ChatMessage = { role: 'user', content };
     setMessages(prev => [...prev, userMessage]);
-    return userMessage;
-  }, []);
 
-  const addAssistantMessage = useCallback((content: string, type?: ChatMessage['type']) => {
+    try {
+      if (!sessionId && userProfile?.uid) {
+        // Create new session
+        const newId = await createChatSession(userProfile.uid, content);
+        setSessionId(newId);
+        // URL update should happen in parent if needed, or we just keep it internal
+      } else if (sessionId) {
+        await addFirestoreMessage(sessionId, { role: 'user', content });
+      }
+    } catch (err) {
+      console.error("Failed to persist user message:", err);
+    }
+
+    return userMessage;
+  }, [sessionId, userProfile]);
+
+  const addAssistantMessage = useCallback(async (content: string, type?: ChatMessage['type']) => {
     const assistantMessage: ChatMessage = { role: 'assistant', content, type };
     setMessages(prev => [...prev, assistantMessage]);
+
+    if (sessionId) {
+      await addFirestoreMessage(sessionId, { role: 'assistant', content, type });
+    }
+
     return assistantMessage;
-  }, []);
+  }, [sessionId]);
 
   // 1. Handle Story Submission
   const processUserStory = useCallback(async (userStory: string) => {
@@ -64,11 +139,17 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
     addUserMessage(userStory);
 
     let storyContent = userStory;
-    if (userStory.toLowerCase().startsWith('@script')) {
-      storyContent = userStory.substring('@script'.length).trim();
+    // Remove @script prefix if present (case insensitive) and trim
+    const scriptRegex = /^@script\s*/i;
+    if (scriptRegex.test(storyContent)) {
+      storyContent = storyContent.replace(scriptRegex, '').trim();
     }
 
     setPendingStory(storyContent);
+    // Persist pending story
+    if (sessionId) {
+      updateSessionMetadata(sessionId, { pendingStory: storyContent });
+    }
 
     addAssistantMessage("Great story! How long should the final video be?");
     setCurrentState('awaiting_duration');
@@ -78,6 +159,8 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
   // 2. Handle Duration Selection
   const handleDurationSelection = useCallback(async (duration: number) => {
     setTargetDuration(duration);
+    if (sessionId) updateSessionMetadata(sessionId, { targetDuration: duration });
+
     setCurrentState('generating_questions');
     addAssistantMessage(`Selected ${duration} seconds. Analyzing your story for details...`);
 
@@ -173,6 +256,7 @@ export function useChatFlow({ onScenesGenerated }: UseChatFlowProps = {}) {
 
   const resetConversation = useCallback(() => {
     setMessages([]);
+    setSessionId(null);
     setCurrentState('greeting');
     setError(null);
     setLoading(false);

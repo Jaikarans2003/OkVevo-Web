@@ -59,7 +59,7 @@ export default function ProfilePage() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-bg-main text-text-main relative">
+        <div className="min-h-screen bg-[#050505] text-white relative">
             <NoiseOverlay />
 
             {/* Background Gradient */}
@@ -72,7 +72,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Navbar */}
-            <nav className="relative z-20 sticky top-0 bg-bg-main/80 backdrop-blur-xl border-b border-text-main/5">
+            <nav className="relative z-20 sticky top-0 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         <Link href="/chat" className="flex items-center gap-2 group">
@@ -83,7 +83,7 @@ export default function ProfilePage() {
                                 height={32}
                                 className="w-8 h-8 group-hover:scale-110 transition-transform"
                             />
-                            <span className="text-2xl font-black tracking-tighter text-text-main">
+                            <span className="text-2xl font-black tracking-tighter text-white">
                                 OKVEVO<span className="text-accent-orange">.</span>
                             </span>
                         </Link>
@@ -91,14 +91,14 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-4">
                             <Link
                                 href="/chat"
-                                className="px-6 py-2.5 bg-white hover:bg-accent-orange/10 border-2 border-text-main/10 hover:border-accent-orange/30 text-text-main font-bold rounded-full transition-all duration-300 flex items-center gap-2"
+                                className="px-6 py-2.5 bg-white/5 hover:bg-white/10 border-2 border-white/10 hover:border-accent-orange/30 text-white font-bold rounded-full transition-all duration-300 flex items-center gap-2"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 Back to Chat
                             </Link>
                             <button
                                 onClick={handleSignOut}
-                                className="px-6 py-2.5 bg-white hover:bg-red-50 border-2 border-text-main/10 hover:border-red-300 text-text-dim hover:text-red-600 font-bold rounded-full transition-all duration-300 flex items-center gap-2"
+                                className="px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 border-2 border-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-300 font-bold rounded-full transition-all duration-300 flex items-center gap-2"
                             >
                                 <LogOut className="w-4 h-4" />
                                 Sign Out
@@ -118,7 +118,7 @@ export default function ProfilePage() {
                         transition={{ duration: 0.6 }}
                         className="lg:col-span-1"
                     >
-                        <div className="glass-card p-8 rounded-[40px] border border-text-main/10 sticky top-24">
+                        <div className="glass-card bg-white/5 p-8 rounded-[40px] border border-white/10 sticky top-24 backdrop-blur-md">
                             {/* Avatar */}
                             <div className="flex flex-col items-center mb-6">
                                 <div className="w-32 h-32 bg-gradient-to-br from-accent-orange to-orange-600 rounded-full flex items-center justify-center shadow-2xl shadow-accent-orange/20 mb-4 relative group">
@@ -129,14 +129,14 @@ export default function ProfilePage() {
                                             {user.displayName ? user.displayName[0].toUpperCase() : user.email?.[0].toUpperCase()}
                                         </span>
                                     )}
-                                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg">
+                                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#050505] rounded-full flex items-center justify-center shadow-lg border border-white/10">
                                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                                     </div>
                                 </div>
-                                <h2 className="text-2xl font-bold text-text-main mb-1 text-center">
+                                <h2 className="text-2xl font-bold text-white mb-1 text-center">
                                     {user.displayName || 'User'}
                                 </h2>
-                                <p className="text-text-dim text-sm flex items-center gap-2">
+                                <p className="text-white/50 text-sm flex items-center gap-2">
                                     <Mail className="w-4 h-4" />
                                     {user.email}
                                 </p>
@@ -164,18 +164,18 @@ export default function ProfilePage() {
                                     <span className="text-white font-bold">Start Chat</span>
                                 </Link>
 
-                                <div className="flex items-center gap-3 p-4 bg-white border-2 border-text-main/5 rounded-2xl opacity-60 cursor-not-allowed">
-                                    <UserCircle className="w-5 h-5 text-text-dim" />
+                                <div className="flex items-center gap-3 p-4 bg-white/5 border-2 border-white/5 rounded-2xl opacity-60 cursor-not-allowed">
+                                    <UserCircle className="w-5 h-5 text-white/50" />
                                     <div className="flex-1">
-                                        <span className="text-text-dim font-bold text-sm block">Create Avatar</span>
+                                        <span className="text-white/50 font-bold text-sm block">Create Avatar</span>
                                         <span className="text-xs text-accent-orange">Coming Soon</span>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-4 bg-white border-2 border-text-main/5 rounded-2xl opacity-60 cursor-not-allowed">
-                                    <Edit3 className="w-5 h-5 text-text-dim" />
+                                <div className="flex items-center gap-3 p-4 bg-white/5 border-2 border-white/5 rounded-2xl opacity-60 cursor-not-allowed">
+                                    <Edit3 className="w-5 h-5 text-white/50" />
                                     <div className="flex-1">
-                                        <span className="text-text-dim font-bold text-sm block">Video Editing</span>
+                                        <span className="text-white/50 font-bold text-sm block">Video Editing</span>
                                         <span className="text-xs text-accent-orange">Coming Soon</span>
                                     </div>
                                 </div>
@@ -191,27 +191,27 @@ export default function ProfilePage() {
                         className="lg:col-span-2 space-y-6"
                     >
                         {/* Account Information */}
-                        <div className="glass-card p-8 rounded-[40px] border border-text-main/10">
-                            <h3 className="text-2xl font-bold text-text-main mb-6">Account Information</h3>
+                        <div className="glass-card bg-white/5 p-8 rounded-[40px] border border-white/10 backdrop-blur-md">
+                            <h3 className="text-2xl font-bold text-white mb-6">Account Information</h3>
                             <div className="space-y-4">
-                                <div className="p-5 bg-white rounded-2xl border-2 border-text-main/5 hover:border-accent-orange/20 transition-all">
+                                <div className="p-5 bg-black/20 rounded-2xl border-2 border-white/5 hover:border-accent-orange/20 transition-all">
                                     <label className="block text-xs font-black text-accent-orange uppercase tracking-wider mb-2">Full Name</label>
-                                    <div className="text-lg font-semibold text-text-main">
+                                    <div className="text-lg font-semibold text-white">
                                         {user.displayName || 'Not set'}
                                     </div>
                                 </div>
 
-                                <div className="p-5 bg-white rounded-2xl border-2 border-text-main/5 hover:border-accent-orange/20 transition-all">
+                                <div className="p-5 bg-black/20 rounded-2xl border-2 border-white/5 hover:border-accent-orange/20 transition-all">
                                     <label className="block text-xs font-black text-accent-orange uppercase tracking-wider mb-2">Email Address</label>
-                                    <div className="text-lg font-semibold text-text-main">
+                                    <div className="text-lg font-semibold text-white">
                                         {user.email}
                                     </div>
                                 </div>
 
                                 {userProfile?.userType && (
-                                    <div className="p-5 bg-white rounded-2xl border-2 border-text-main/5 hover:border-accent-orange/20 transition-all">
+                                    <div className="p-5 bg-black/20 rounded-2xl border-2 border-white/5 hover:border-accent-orange/20 transition-all">
                                         <label className="block text-xs font-black text-accent-orange uppercase tracking-wider mb-2">Account Type</label>
-                                        <div className="text-lg font-semibold text-text-main capitalize">
+                                        <div className="text-lg font-semibold text-white capitalize">
                                             {userProfile.userType}
                                         </div>
                                     </div>
@@ -221,17 +221,17 @@ export default function ProfilePage() {
 
                         {/* Organisation Info */}
                         {userProfile?.userType === 'organisation' && userProfile.organisationName && (
-                            <div className="glass-card p-8 rounded-[40px] border border-text-main/10">
-                                <h3 className="text-2xl font-bold text-text-main mb-6">Organisation Details</h3>
-                                <div className="p-6 bg-white rounded-2xl border-2 border-text-main/5">
+                            <div className="glass-card bg-white/5 p-8 rounded-[40px] border border-white/10 backdrop-blur-md">
+                                <h3 className="text-2xl font-bold text-white mb-6">Organisation Details</h3>
+                                <div className="p-6 bg-black/20 rounded-2xl border-2 border-white/5">
                                     <div className="flex items-start justify-between mb-4">
                                         <div>
                                             <label className="block text-xs font-black text-accent-orange uppercase tracking-wider mb-2">Organisation Name</label>
-                                            <div className="text-xl font-bold text-text-main mb-2">
+                                            <div className="text-xl font-bold text-white mb-2">
                                                 {userProfile.organisationName}
                                             </div>
-                                            <div className="text-sm text-text-dim capitalize">
-                                                Role: <span className="font-semibold text-text-main">{userProfile.organisationRole}</span>
+                                            <div className="text-sm text-white/50 capitalize">
+                                                Role: <span className="font-semibold text-white">{userProfile.organisationRole}</span>
                                             </div>
                                         </div>
                                         {userProfile.organisationRole === 'admin' && (
@@ -251,17 +251,17 @@ export default function ProfilePage() {
                                 href="/dashboard/organisation"
                                 className="block"
                             >
-                                <div className="glass-card p-8 rounded-[40px] border-2 border-accent-orange/30 hover:border-accent-orange hover:shadow-2xl hover:shadow-accent-orange/10 transition-all duration-500 group">
+                                <div className="glass-card bg-white/5 p-8 rounded-[40px] border-2 border-accent-orange/30 hover:border-accent-orange hover:shadow-2xl hover:shadow-accent-orange/10 transition-all duration-500 group backdrop-blur-md">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-6">
                                             <div className="p-4 bg-gradient-to-br from-accent-orange to-orange-600 rounded-2xl group-hover:scale-110 transition-transform shadow-lg">
                                                 <Building2 className="w-8 h-8 text-white" />
                                             </div>
                                             <div>
-                                                <div className="text-xl font-bold text-text-main mb-2">
+                                                <div className="text-xl font-bold text-white mb-2">
                                                     Organisation Dashboard
                                                 </div>
-                                                <div className="text-sm text-text-dim">
+                                                <div className="text-sm text-white/50">
                                                     Manage your organisation, members, and settings
                                                 </div>
                                             </div>

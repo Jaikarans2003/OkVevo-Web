@@ -105,7 +105,7 @@ function AIStudioContent() {
             {/* Ambient Background Effects */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-accent-orange/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-red-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
             </div>
 
             {/* Header */}
