@@ -35,9 +35,8 @@ const DashNavbar = () => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className={`flex items-center gap-2 text-xs font-[family-name:var(--font-museo-moderno)] tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main/70 hover:text-text-main'}`}
+                                className={`flex items-center gap-2 text-[10px] font-black tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main hover:text-accent-orange'}`}
                             >
-                                {link.icon}
                                 {link.name}
                             </a>
                         ))}

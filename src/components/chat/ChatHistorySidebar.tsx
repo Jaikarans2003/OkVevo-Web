@@ -66,7 +66,7 @@ export default function ChatHistorySidebar({ isOpen, onClose }: { isOpen: boolea
         <div className="fixed inset-y-0 right-0 w-80 bg-black/60 backdrop-blur-2xl border-l border-white/10 shadow-2xl z-50 transform transition-transform duration-300">
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                 <h2 className="text-white font-bold flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-custom-orange" /> History
+                    <Clock className="w-4 h-4 text-accent-orange" /> History
                 </h2>
                 <button
                     onClick={onClose}
@@ -79,7 +79,7 @@ export default function ChatHistorySidebar({ isOpen, onClose }: { isOpen: boolea
             <div className="p-4">
                 <button
                     onClick={handleNewChat}
-                    className="w-full py-3 bg-custom-orange/10 hover:bg-custom-orange/20 text-custom-orange font-bold rounded-xl mb-4 flex items-center justify-center gap-2 transition-colors border border-custom-orange/20"
+                    className="w-full py-3 bg-accent-orange/10 hover:bg-accent-orange/20 text-accent-orange font-bold rounded-xl mb-4 flex items-center justify-center gap-2 transition-colors border border-accent-orange/20"
                 >
                     <Plus className="w-4 h-4" /> New Chat
                 </button>
@@ -95,7 +95,7 @@ export default function ChatHistorySidebar({ isOpen, onClose }: { isOpen: boolea
                                 key={session.id}
                                 onClick={() => handleSelectSession(session.id)}
                                 className={`w-full text-left p-3 rounded-xl transition-all border ${currentSessionId === session.id
-                                    ? 'bg-custom-orange/10 border-custom-orange/30'
+                                    ? 'bg-accent-orange/10 border-accent-orange/30'
                                     : 'bg-white/5 border-transparent hover:bg-white/10'
                                     }`}
                             >

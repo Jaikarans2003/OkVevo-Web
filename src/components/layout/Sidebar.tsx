@@ -93,12 +93,12 @@ export default function Sidebar() {
                             className={`
                                 flex items-center px-3 py-3 rounded-xl transition-all duration-200 group relative
                                 ${isActive
-                                    ? 'bg-custom-orange/10 text-custom-orange'
+                                    ? 'bg-accent-orange/10 text-accent-orange'
                                     : 'text-gray-400 hover:text-white hover:bg-white/5'}
                                 ${collapsed ? 'justify-center' : ''}
                             `}
                         >
-                            <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-custom-orange' : 'group-hover:text-white'} transition-colors`} />
+                            <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-accent-orange' : 'group-hover:text-white'} transition-colors`} />
 
                             <AnimatePresence>
                                 {!collapsed && (
@@ -117,7 +117,7 @@ export default function Sidebar() {
                             {isActive && !collapsed && (
                                 <motion.div
                                     layoutId="activeIndicator"
-                                    className="ml-auto w-1.5 h-1.5 rounded-full bg-custom-orange"
+                                    className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-orange"
                                 />
                             )}
 
@@ -172,7 +172,7 @@ export default function Sidebar() {
             {/* Collapse Toggle */}
             <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="absolute -right-3 top-24 w-6 h-6 bg-custom-orange rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-900/20 hover:scale-110 transition-transform z-50 border border-black"
+                className="absolute -right-3 top-24 w-6 h-6 bg-accent-orange rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-900/20 hover:scale-110 transition-transform z-50 border border-black"
             >
                 <motion.div
                     animate={{ rotate: collapsed ? 0 : 180 }}

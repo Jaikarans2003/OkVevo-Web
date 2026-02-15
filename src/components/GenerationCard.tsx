@@ -75,7 +75,7 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
             case 'completed':
                 return <CheckCircle className="w-5 h-5 text-green-400" />;
             case 'processing':
-                return <Loader2 className="w-5 h-5 text-custom-orange animate-spin" />;
+                return <Loader2 className="w-5 h-5 text-accent-orange animate-spin" />;
             case 'failed':
                 return <AlertCircle className="w-5 h-5 text-red-400" />;
             default:
@@ -96,7 +96,7 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                 );
             case 'processing':
                 return (
-                    <span className={`${baseClasses} bg-custom-orange/20 text-custom-orange border border-custom-orange/30`}>
+                    <span className={`${baseClasses} bg-accent-orange/20 text-accent-orange border border-accent-orange/30`}>
                         {getStatusIcon()}
                         Processing
                     </span>
@@ -160,7 +160,7 @@ export default function GenerationCard({ generation, viewMode, onDelete }: Gener
                             {generation.status === 'completed' && generation.files.finalVideo && (
                                 <button
                                     onClick={handleDownload}
-                                    className={`p-2 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 hover:bg-accent-orange/20' : 'bg-custom-orange/10 hover:bg-custom-orange/20'} rounded-lg transition-all group/btn`}
+                                    className={`p-2 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 hover:bg-accent-orange/20' : 'bg-accent-orange/10 hover:bg-accent-orange/20'} rounded-lg transition-all group/btn`}
                                     title="Download"
                                 >
                                     <Download className="w-4 h-4 text-accent-orange group-hover/btn:scale-110 transition-transform" />

@@ -16,7 +16,7 @@ export default function StudioPage() {
             gradient: 'from-orange-500 to-red-600',
             bg: 'bg-orange-900/10',
             border: 'hover:border-orange-500/50',
-            textColor: 'text-custom-orange',
+            textColor: 'text-accent-orange',
             path: '/chat'
         },
         {
@@ -79,12 +79,12 @@ export default function StudioPage() {
                     transition={{ duration: 0.6 }}
                     className="text-center mb-12"
                 >
-                    <div className="inline-flex items-center gap-2 bg-custom-orange/10 px-4 py-1.5 rounded-full mb-6 border border-custom-orange/20">
-                        <Sparkles className="w-4 h-4 text-custom-orange" />
-                        <span className="text-custom-orange font-bold tracking-wide uppercase text-xs">Creative Suite</span>
+                    <div className="inline-flex items-center gap-2 bg-accent-orange/10 px-4 py-1.5 rounded-full mb-6 border border-accent-orange/20">
+                        <Sparkles className="w-4 h-4 text-accent-orange" />
+                        <span className="text-accent-orange font-bold tracking-wide uppercase text-xs">Creative Suite</span>
                     </div>
                     <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tight text-white">
-                        AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-custom-orange to-red-500">Studio</span>
+                        AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-orange to-red-500">Studio</span>
                     </h1>
                     <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
                         Select a tool to start creating amazing content.

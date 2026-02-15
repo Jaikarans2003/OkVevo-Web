@@ -60,7 +60,7 @@ export default function VideoPlayer({
         return (
             <div className="w-full bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 rounded-3xl shadow-2xl p-8 border border-purple-500/30">
                 <div className="flex flex-col items-center justify-center space-y-6 min-h-[400px]">
-                    <Loader2 className="w-16 h-16 text-custom-orange animate-spin" />
+                    <Loader2 className="w-16 h-16 text-accent-orange animate-spin" />
                     <div className="text-center space-y-2">
                         <h3 className="text-2xl font-bold text-white">Stitching Your Video...</h3>
                         <p className="text-gray-400">AWS Lambda is creating smooth transitions with crossfade effects</p>
@@ -111,7 +111,7 @@ export default function VideoPlayer({
                         {/* Download Button */}
                         <button
                             onClick={handleDownload}
-                            className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-custom-orange to-orange-600 text-white rounded-xl hover:from-orange-500 hover:to-orange-700 transition-all shadow-lg hover:shadow-orange-500/50 hover:scale-105 font-bold"
+                            className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-accent-orange to-orange-600 text-white rounded-xl hover:from-orange-500 hover:to-orange-700 transition-all shadow-lg hover:shadow-orange-500/50 hover:scale-105 font-bold"
                         >
                             <Download className="w-5 h-5" />
                             <span>Download Full Video</span>

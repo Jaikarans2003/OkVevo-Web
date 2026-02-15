@@ -30,9 +30,9 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-custom-bg border border-custom-orange/30 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-custom-bg border border-accent-orange/30 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="sticky top-0 bg-custom-bg border-b border-custom-orange/20 p-6 flex items-center justify-between">
+                <div className="sticky top-0 bg-custom-bg border-b border-accent-orange/20 p-6 flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold text-custom-cream mb-1">
                             {generation.title}
@@ -53,7 +53,7 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                 <div className="p-6 space-y-6">
                     {/* Description */}
                     <div>
-                        <h3 className="text-lg font-bold text-custom-orange mb-2 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-accent-orange mb-2 flex items-center gap-2">
                             <FileText className="w-5 h-5" />
                             Description
                         </h3>
@@ -65,7 +65,7 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                     {/* Final Video */}
                     {generation.files.finalVideo && (
                         <div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-3 flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-accent-orange mb-3 flex items-center gap-2">
                                 <Film className="w-5 h-5" />
                                 Final Video
                             </h3>
@@ -80,7 +80,7 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                             </div>
                             <button
                                 onClick={() => handleDownload(generation.files.finalVideo!, `${generation.title.replace(/\s+/g, '_')}.mp4`)}
-                                className="w-full px-6 py-3 bg-custom-orange hover:bg-orange-600 text-custom-cream font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                                className="w-full px-6 py-3 bg-accent-orange hover:bg-orange-600 text-custom-cream font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                             >
                                 <Download className="w-5 h-5" />
                                 Download Final Video
@@ -91,11 +91,11 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                     {/* Audio */}
                     {generation.files.audio && (
                         <div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-3 flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-accent-orange mb-3 flex items-center gap-2">
                                 <Volume2 className="w-5 h-5" />
                                 Narration Audio
                             </h3>
-                            <div className="bg-custom-cream/5 border border-custom-orange/20 rounded-xl p-4 mb-3">
+                            <div className="bg-custom-cream/5 border border-accent-orange/20 rounded-xl p-4 mb-3">
                                 <audio
                                     src={generation.files.audio}
                                     controls
@@ -118,13 +118,13 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                     {/* Individual Videos */}
                     {generation.files.videos && generation.files.videos.length > 0 && (
                         <div>
-                            <h3 className="text-lg font-bold text-custom-orange mb-3 flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-accent-orange mb-3 flex items-center gap-2">
                                 <Film className="w-5 h-5" />
                                 Individual Scenes ({generation.files.videos.length})
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {generation.files.videos.map((videoUrl, index) => (
-                                    <div key={index} className="bg-custom-cream/5 border border-custom-orange/20 rounded-xl overflow-hidden">
+                                    <div key={index} className="bg-custom-cream/5 border border-accent-orange/20 rounded-xl overflow-hidden">
                                         <video
                                             src={videoUrl}
                                             controls
@@ -151,8 +151,8 @@ export default function GenerationDetail({ generation, onClose }: GenerationDeta
                     )}
 
                     {/* Metadata */}
-                    <div className="bg-custom-cream/5 border border-custom-orange/20 rounded-xl p-4">
-                        <h3 className="text-lg font-bold text-custom-orange mb-3">
+                    <div className="bg-custom-cream/5 border border-accent-orange/20 rounded-xl p-4">
+                        <h3 className="text-lg font-bold text-accent-orange mb-3">
                             Metadata
                         </h3>
                         <div className="grid grid-cols-2 gap-4 text-sm">

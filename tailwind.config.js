@@ -11,9 +11,9 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				'custom-orange': '#FF6D1F',
+				'custom-orange': '#FF5733',
 				'custom-cream': '#FAF3E1',
-				'custom-bg': '#141413',
+				'custom-bg': '#121212',
 				'custom-White': '#FFFFFF',
 				// Ook design system colors
 				'bg-main': '#FAFAFA',

@@ -4,7 +4,16 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { MuseoModerno } from 'next/font/google';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+
+const museoModerno = MuseoModerno({
+    subsets: ["latin"],
+    weight: ["400", "500", "600", "700", "800", "900"],
+    variable: "--font-museo-moderno",
+    display: "swap",
+});
+import { AILoader } from '@/components/ui/ai-loader';
 import {
     Settings,
     Play,
@@ -353,12 +362,13 @@ export default function ProductStudio() {
                 </motion.div>
             </section>
 
-            {/* --- GENERATOR SECTION (Anchored) --- */}
-            <div ref={generatorRef} className="relative z-20 bg-[#050505] border-t border-white/5 shadow-[0_-50px_100px_rgba(0,0,0,1)]">
-                <section className="py-32 px-4 md:px-10 max-w-7xl mx-auto flex flex-col md:flex-row gap-12 min-h-screen">
+
+            {/* --- GENERATOR SECTION --- */}
+            <div ref={generatorRef} className="relative z-20 bg-[#050505] overflow-hidden pt-24 h-screen">
+                <section className="h-full px-4 md:px-10 max-w-7xl mx-auto flex flex-col md:flex-row gap-8 pb-8">
 
                     {/* LEFT: Controls & Input */}
-                    <div className="w-full md:w-1/3 space-y-8 sticky top-32 h-fit">
+                    <div className="w-full md:w-1/3 space-y-6 h-full overflow-y-auto pr-4 custom-scrollbar" data-lenis-prevent>
                         <div className="space-y-4">
                             <h2 className="text-3xl md:text-4xl font-medium tracking-tight text-white">
                                 {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
@@ -486,7 +496,7 @@ export default function ProductStudio() {
                                             <input type="file" id="hero-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                             {productImagePreview ? (
                                                 <div className="space-y-3">
-                                                    <div className="relative w-full h-36 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                    <div className="relative w-full h-32 bg-[#111] rounded-lg overflow-hidden border border-white/5">
                                                         <img src={productImagePreview} alt="Hero product" className="w-full h-full object-contain" />
                                                         <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Hero</div>
                                                     </div>
@@ -518,7 +528,7 @@ export default function ProductStudio() {
                                             <input type="file" id="scene-image" accept="image/*" onChange={handleSceneImageUpload} className="hidden" />
                                             {sceneImagePreview ? (
                                                 <div className="space-y-3">
-                                                    <div className="relative w-full h-36 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                    <div className="relative w-full h-32 bg-[#111] rounded-lg overflow-hidden border border-white/5">
                                                         <img src={sceneImagePreview} alt="Scene preview" className="w-full h-full object-cover" />
                                                         <div className="absolute top-2 left-2 px-2 py-0.5 bg-cyan-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Scene</div>
                                                     </div>
@@ -592,10 +602,10 @@ export default function ProductStudio() {
                     </div>
 
                     {/* RIGHT: Live Preview & Style Selection */}
-                    <div className="w-full md:w-2/3 flex flex-col gap-8">
+                    <div className="w-full md:w-2/3 flex flex-col gap-6 h-full overflow-y-auto pr-2 custom-scrollbar" data-lenis-prevent>
 
                         {/* Preview Window */}
-                        <div className="flex-grow bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative min-h-[500px] flex items-center justify-center group shadow-2xl">
+                        <div className="flex-shrink-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative h-[450px] flex items-center justify-center group shadow-2xl">
 
                             {/* Background Grid */}
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -607,85 +617,12 @@ export default function ProductStudio() {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
-                                        className="relative w-full h-full flex flex-col items-center justify-center z-10 overflow-hidden"
+                                        className="relative w-full h-full flex flex-col items-center justify-center z-10 overflow-hidden bg-black/40 backdrop-blur-sm"
                                     >
-                                        {/* ── Scanning Laser Line ── */}
-                                        <div className="absolute inset-0 pointer-events-none">
-                                            <div
-                                                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-80"
-                                                style={{
-                                                    animation: 'scanLine 2.4s ease-in-out infinite',
-                                                }}
-                                            />
-                                            {/* Glow trail behind the laser */}
-                                            <div
-                                                className="absolute left-0 right-0 h-16 bg-gradient-to-b from-purple-500/20 to-transparent blur-md"
-                                                style={{
-                                                    animation: 'scanLine 2.4s ease-in-out infinite',
-                                                }}
-                                            />
-                                        </div>
-
-                                        {/* ── Neural Network Dot Grid ── */}
-                                        <div className="relative w-40 h-40 mb-8">
-                                            {/* Outer rotating ring */}
-                                            <div className="absolute inset-0 border-2 border-white/5 border-t-purple-500/60 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
-                                            {/* Middle counter-rotating ring */}
-                                            <div className="absolute inset-3 border border-white/5 border-b-cyan-500/40 rounded-full animate-spin" style={{ animationDuration: '5s', animationDirection: 'reverse' }} />
-                                            {/* Inner pulsing core */}
-                                            <div className="absolute inset-8 rounded-full bg-gradient-to-br from-purple-500/10 to-cyan-500/10 backdrop-blur-sm animate-pulse flex items-center justify-center border border-white/5">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 opacity-40 blur-lg animate-pulse" />
-                                            </div>
-                                            {/* Orbiting dots */}
-                                            {[0, 1, 2, 3, 4, 5].map((i) => (
-                                                <div
-                                                    key={i}
-                                                    className="absolute w-1.5 h-1.5 rounded-full bg-purple-400"
-                                                    style={{
-                                                        top: '50%',
-                                                        left: '50%',
-                                                        transform: `rotate(${i * 60}deg) translateX(70px) rotate(-${i * 60}deg)`,
-                                                        animation: `pulse 2s ease-in-out ${i * 0.3}s infinite`,
-                                                        opacity: 0.3 + (i * 0.12),
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-
-                                        {/* ── Animated Status Text ── */}
-                                        <div className="text-center space-y-3">
-                                            <p className="text-sm font-mono text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 animate-pulse font-bold tracking-wider">
-                                                {mode === 'product-placement'
-                                                    ? (placementStatus === 'analyzing' ? 'Analyzing Hero Product & Scene Lighting...'
-                                                        : placementStatus === 'compositing' ? 'Matching Global Illumination...'
-                                                            : placementStatus === 'polling' ? 'Compositing Final Image...'
-                                                                : 'Initializing Neural Render Engine...')
-                                                    : 'Initializing Neural Render Engine...'}
-                                            </p>
-                                            <div className="flex items-center justify-center gap-1">
-                                                {[0, 1, 2, 3, 4].map((i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="w-1 h-4 bg-gradient-to-t from-purple-500/40 to-purple-500 rounded-full"
-                                                        style={{
-                                                            animation: `equalizer 1.2s ease-in-out ${i * 0.15}s infinite alternate`,
-                                                        }}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* ── Inline keyframes ── */}
-                                        <style jsx>{`
-                                            @keyframes scanLine {
-                                                0%, 100% { top: 5%; }
-                                                50% { top: 90%; }
-                                            }
-                                            @keyframes equalizer {
-                                                0% { transform: scaleY(0.3); opacity: 0.3; }
-                                                100% { transform: scaleY(1.5); opacity: 1; }
-                                            }
-                                        `}</style>
+                                        <AILoader text="Generating" />
+                                        <p className="mt-8 text-[10px] uppercase tracking-[0.3em] text-white/30 font-bold animate-pulse">
+                                            Neural Synthesis in Progress
+                                        </p>
                                     </motion.div>
                                 ) : compositeImageUrl && mode === 'product-placement' ? (
                                     <motion.div
@@ -815,21 +752,24 @@ export default function ProductStudio() {
                                 ))}
                             </div>
                         </div>
-                    </div>
+                    </div >
                 </section>
+            </div>
 
-                {/* --- COMMUNITY SHOWCASE SECTION --- */}
-                <section className="py-32 px-4 md:px-10 max-w-7xl mx-auto border-t border-white/5">
-                    <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+            {/* --- COMMUNITY SHOWCASE SECTION --- */}
+            <section className="relative py-32 bg-black overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(173,95,255,0.05),transparent_70%)]"></div>
+
+                <div className="max-w-7xl mx-auto px-10 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
                         <div className="space-y-4">
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-white italic">
-                                Community <span className="text-white/40 not-italic">Showcase</span>
-                            </h2>
-                            <p className="text-white/40 text-sm max-w-md leading-relaxed">
-                                Explore the next generation of marketing visuals created by our users worldwide. Pure synthesis, no cameras.
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+                                <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/40">Marketplace</span>
+                            </div>
+                            <h2 className="text-4xl md:text-5xl font-serif text-white tracking-tight">Community <span className="text-white/40 italic text-3xl md:text-4xl font-light">Showcase</span></h2>
                         </div>
-                        <button className="px-8 py-3 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-[0.2em] hover:bg-white hover:text-black transition-all">
+                        <button className="px-8 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all">
                             View All Generations
                         </button>
                     </div>
@@ -848,41 +788,31 @@ export default function ProductStudio() {
                             className="md:col-span-1 md:row-span-1"
                         />
                         <ShowcaseCard
-                            videoSrc="https://cdn.pixabay.com/video/2021/04/12/70860-537381481_large.mp4"
-                            category="Auto & Motion"
-                            title="Electric Velocity"
+                            videoSrc="https://cdn.pixabay.com/video/2021/09/14/88566-605658091_large.mp4"
+                            category="Cinematic"
+                            title="Neon Rain Noir"
                             className="md:col-span-1 md:row-span-1"
                         />
                         <ShowcaseCard
-                            videoSrc="https://cdn.pixabay.com/video/2025/06/01/283000_large.mp4"
-                            category="Fashion"
-                            title="Neon Couture 2077"
-                            className="md:col-span-2 md:row-span-1"
+                            videoSrc="https://cdn.pixabay.com/video/2021/11/04/96387-648431802_large.mp4"
+                            category="Abstract"
+                            title="Liquid Geometry"
+                            className="md:col-span-1 md:row-span-1"
+                        />
+                        <ShowcaseCard
+                            videoSrc="https://cdn.pixabay.com/video/2022/10/24/136284-763486008_large.mp4"
+                            category="Nature"
+                            title="Arctic Silence"
+                            className="md:col-span-1 md:row-span-1"
                         />
                     </div>
+                </div>
+            </section>
 
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 h-[400px]">
-                        <ShowcaseCard
-                            videoSrc="https://cdn.pixabay.com/video/2023/10/24/186358-877712399_large.mp4"
-                            category="Architecture"
-                            title="Sustainable Vistas"
-                        />
-                        <ShowcaseCard
-                            videoSrc="https://cdn.pixabay.com/video/2024/02/09/199738-911142279_large.mp4"
-                            category="Cosmetics"
-                            title="Luminous Glow"
-                        />
-                        <ShowcaseCard
-                            videoSrc="https://cdn.pixabay.com/video/2021/08/04/83901-584346061_large.mp4"
-                            category="Cinema"
-                            title="Desolation Orbit"
-                        />
-                    </div>
-                </section>
-
-                {/* --- CINEMATIC WORKFLOW SECTION --- */}
-                <section className="py-32 px-4 md:px-10 max-w-7xl mx-auto border-t border-white/5 bg-gradient-to-b from-transparent to-purple-950/5">
-                    <div className="text-center mb-20 space-y-4">
+            {/* --- CINEMATIC WORKFLOW SECTION --- */}
+            <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
+                <div className="max-w-7xl mx-auto px-10 relative z-10">
+                    <div className="text-center space-y-4 mb-24">
                         <h2 className="text-5xl md:text-6xl font-medium tracking-tight text-white italic">
                             Cinematic <span className="text-white/40 not-italic">Workflow</span>
                         </h2>
@@ -898,44 +828,22 @@ export default function ProductStudio() {
                         <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
 
                         {[
-                            {
-                                icon: <Cpu size={32} />,
-                                step: "01",
-                                title: "Neural Synthesis",
-                                desc: "Proprietary models generate base geometry and texture with sub-pixel precision.",
-                                color: "from-purple-500/20 to-transparent"
-                            },
-                            {
-                                icon: <Aperture size={32} />,
-                                step: "02",
-                                title: "Ray-Traced Optics",
-                                desc: "Physically based rendering engine calculates secondary bounces and global illumination.",
-                                color: "from-blue-500/20 to-transparent"
-                            },
-                            {
-                                icon: <Zap size={32} />,
-                                step: "03",
-                                title: "Spectral Grading",
-                                desc: "Final output undergoes deep color calibration and cinematic grain integration.",
-                                color: "from-emerald-500/20 to-transparent"
-                            }
+                            { step: "01", title: "Direct Context", desc: "Upload your hero assets and define the artistic direction. Our neural models analyze lighting, texture, and form." },
+                            { step: "02", title: "Neural Synthesis", desc: "Advanced diffusion models synthesize the background and product interaction, ensuring perfect global illumination." },
+                            { step: "03", title: "Master Export", desc: "Generate campaign-ready videos in multiple aspect ratios. Ready for broadcast, social, or large-format digital displays." }
                         ].map((item, idx) => (
                             <motion.div
                                 key={idx}
                                 initial={{ opacity: 0, y: 20 }}
                                 whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
                                 transition={{ delay: idx * 0.2 }}
-                                className="relative z-10 group"
+                                className="group relative p-10 bg-[#0A0A0A] border border-white/5 rounded-[2rem] hover:border-purple-500/30 transition-all duration-500"
                             >
-                                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-                                <div className="relative p-10 rounded-3xl bg-[#0A0A0A] border border-white/5 backdrop-blur-xl hover:border-white/20 transition-all duration-500 overflow-hidden">
-                                    {/* Background Animated Pulse */}
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:scale-150 transition-transform duration-1000" />
-
-                                    <div className="flex justify-between items-start mb-8">
-                                        <div className="p-4 rounded-2xl bg-white/5 text-white/80 group-hover:text-white group-hover:bg-white/10 transition-all">
-                                            {item.icon}
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem]" />
+                                <div className="relative z-10 space-y-6">
+                                    <div className="flex justify-between items-start">
+                                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                                            {idx === 0 ? <Box size={20} className="text-purple-400" /> : idx === 1 ? <Cpu size={20} className="text-purple-400" /> : <Play size={20} className="text-purple-400" />}
                                         </div>
                                         <span className="text-4xl font-bold text-white/5 group-hover:text-white/10 transition-colors uppercase italic">{item.step}</span>
                                     </div>
@@ -950,86 +858,58 @@ export default function ProductStudio() {
                             </motion.div>
                         ))}
                     </div>
-                </section>
+                </div>
+            </section>
 
-                {/* --- FOOTER SECTION --- */}
-                <footer className="pt-24 pb-12 px-4 md:px-10 border-t border-white/5 bg-[#020202]">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20">
-                            {/* Brand Column */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-                                        <Play size={16} className="text-black fill-black" />
-                                    </div>
-                                    <span className="text-xl font-bold tracking-tighter text-white font-museo">OKVEVO</span>
-                                </div>
-                                <p className="text-white/40 text-sm leading-relaxed max-w-xs">
-                                    Redefining the boundaries of digital production through autonomous synthesis. The future of motion is here.
-                                </p>
-                                <div className="flex gap-4">
-                                    <button className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all">
-                                        <Instagram size={18} />
-                                    </button>
-                                    <button className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all">
-                                        <Twitter size={18} />
-                                    </button>
-                                    <button className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all">
-                                        <Youtube size={18} />
-                                    </button>
-                                    <button className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all">
-                                        <Facebook size={18} />
-                                    </button>
-                                </div>
-                            </div>
+            {/* --- FOOTER SECTION --- */}
+            <footer className="relative bg-black pt-32 pb-12 border-t border-white/5 overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
 
-                            {/* Product Column */}
-                            <div className="space-y-6">
-                                <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-bold">Product</h4>
-                                <ul className="space-y-4">
-                                    {['Director Studio', 'Product Studio', 'Instant Avatar', 'Voice Lab', 'Cloud Render'].map((link) => (
-                                        <li key={link}>
-                                            <Link href="#" className="text-sm text-white/40 hover:text-purple-400 transition-colors">{link}</Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            {/* Resources Column */}
-                            <div className="space-y-6">
-                                <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-bold">Resources</h4>
-                                <ul className="space-y-4">
-                                    {['Documentation', 'API Reference', 'Community Showcases', 'Cinematic Presets', 'Affiliate Program'].map((link) => (
-                                        <li key={link}>
-                                            <Link href="#" className="text-sm text-white/40 hover:text-purple-400 transition-colors">{link}</Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            {/* Newsletter Column */}
-                            <div className="space-y-6">
-                                <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-bold">Legal</h4>
-                                <ul className="space-y-4">
-                                    {['Privacy Policy', 'Terms of Service', 'Cookie Settings', 'Security', 'Enterprise Agreement'].map((link) => (
-                                        <li key={link}>
-                                            <Link href="#" className="text-sm text-white/40 hover:text-purple-400 transition-colors">{link}</Link>
-                                        </li>
-                                    ))}
-                                </ul>
+                <div className="max-w-7xl mx-auto px-10 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
+                        <div className="md:col-span-2 space-y-8">
+                            <h2 className="text-2xl font-bold tracking-tighter text-white">OKVEVO<span className="text-purple-500">.</span></h2>
+                            <p className="text-white/40 text-sm leading-relaxed max-w-sm">
+                                The world's first generative video intelligence platform designed exclusively for
+                                high-end commercial synthesis and luxury campaign production.
+                            </p>
+                            <div className="flex gap-4">
+                                {[Instagram, Youtube, Twitter, Facebook].map((Icon, i) => (
+                                    <Link key={i} href="#" className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/20 hover:text-purple-400 hover:border-purple-400/30 transition-all">
+                                        <Icon size={18} />
+                                    </Link>
+                                ))}
                             </div>
                         </div>
 
-                        <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-white/20">© 2024 OKVEVO Intelligence Systems. All Rights Reserved.</p>
-                            <div className="flex gap-8">
-                                <Link href="#" className="text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white transition-colors">Status: Operational</Link>
-                                <Link href="#" className="text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white transition-colors">v2.4.0-Stable</Link>
-                            </div>
+                        <div>
+                            <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold text-white mb-8">Platform</h4>
+                            <ul className="space-y-4">
+                                {['Showcase', 'Model Library', 'API Access', 'Enterprise'].map((item) => (
+                                    <li key={item}><Link href="#" className="text-xs text-white/30 hover:text-white transition-colors tracking-wide">{item}</Link></li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold text-white mb-8">Resources</h4>
+                            <ul className="space-y-4">
+                                {['Benchmarks', 'Documentation', 'Security', 'Status'].map((item) => (
+                                    <li key={item}><Link href="#" className="text-xs text-white/30 hover:text-white transition-colors tracking-wide">{item}</Link></li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
-                </footer>
-            </div>
+
+                    <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/20">© 2024 OKVEVO Intelligence Systems. All Rights Reserved.</p>
+                        <div className="flex gap-8">
+                            <Link href="#" className="text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white transition-colors">Status: Operational</Link>
+                            <Link href="#" className="text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white transition-colors">v2.4.0-Stable</Link>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 }

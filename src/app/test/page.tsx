@@ -230,7 +230,7 @@ export default function TestPage() {
                         <button
                             onClick={testNarration}
                             disabled={loading === 'narration'}
-                            className="bg-custom-orange hover:bg-orange-700 disabled:bg-gray-600 px-4 py-2 rounded font-medium transition"
+                            className="bg-accent-orange hover:bg-orange-700 disabled:bg-gray-600 px-4 py-2 rounded font-medium transition"
                         >
                             {loading === 'narration' ? '⏳' : '1️⃣'} Narration
                         </button>
@@ -272,7 +272,7 @@ export default function TestPage() {
                     <button
                         onClick={runAllTests}
                         disabled={!!loading}
-                        className="mt-4 w-full bg-gradient-to-r from-custom-orange to-purple-600 hover:from-orange-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 px-6 py-3 rounded-lg font-bold text-lg transition"
+                        className="mt-4 w-full bg-gradient-to-r from-accent-orange to-purple-600 hover:from-orange-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 px-6 py-3 rounded-lg font-bold text-lg transition"
                     >
                         {loading ? '⏳ Running...' : '🚀 Run All Tests'}
                     </button>
@@ -289,7 +289,7 @@ export default function TestPage() {
                                 <div className="mt-4 space-y-1 text-xs">
                                     {narration.narration.segments.map((seg: any, i: number) => (
                                         <div key={i} className="bg-gray-700 p-2 rounded">
-                                            <span className="text-custom-orange">Segment {i + 1}</span>{' '}
+                                            <span className="text-accent-orange">Segment {i + 1}</span>{' '}
                                             ({seg.startTime}s - {seg.endTime}s): {seg.text}
                                         </div>
                                     ))}
