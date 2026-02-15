@@ -48,7 +48,7 @@ import {
     Box,
     Send
 } from 'lucide-react';
-import { runPlacementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
+import { runPlacementPipeline, runRefinementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
 
 // --- Components ---
 function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc: string, title: string, category: string, className?: string }) {
@@ -210,7 +210,8 @@ export default function ProductStudio() {
             (status, detail) => {
                 setPlacementStatus(status);
                 setPlacementStatusDetail(detail || '');
-            }
+            },
+            placementPrompt || undefined
         );
 
         setIsGenerating(false);
@@ -221,24 +222,37 @@ export default function ProductStudio() {
             setIsComposed(true);
             setChatMessages([{ role: 'assistant', content: "Initial composition complete. How would you like to refine the image?" }]);
         }
-    }, [productImage, sceneImage]);
+    }, [productImage, sceneImage, placementPrompt]);
 
     const handleSendChatMessage = async () => {
-        if (!chatInput.trim()) return;
+        if (!chatInput.trim() || !compositeImageUrl) return;
 
         const userMsg = chatInput.trim();
         setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setChatInput('');
 
-        // Simulate backend refinement
-        setPlacementStatus('compositing');
-        setPlacementStatusDetail('Refining composition...');
+        // Show processing state
+        setIsGenerating(true);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: '🔄 Analyzing your request and generating a refined prompt...' }]);
 
-        setTimeout(() => {
-            setPlacementStatus('complete');
-            setPlacementStatusDetail('');
-            setChatMessages(prev => [...prev, { role: 'assistant', content: "I've updated the image based on your request: " + userMsg }]);
-        }, 2000);
+        const result = await runRefinementPipeline(
+            compositeImageUrl,
+            userMsg,
+            (status, detail) => {
+                setPlacementStatus(status);
+                setPlacementStatusDetail(detail || '');
+            }
+        );
+
+        setIsGenerating(false);
+
+        if (result.status === 'complete' && result.compositeImageUrl) {
+            setCompositeImageUrl(result.compositeImageUrl);
+            setMasterPrompt(result.masterPrompt || null);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: '✅ Composition updated based on your request.' }]);
+        } else {
+            setChatMessages(prev => [...prev, { role: 'assistant', content: `❌ Refinement failed: ${result.error || 'Unknown error'}` }]);
+        }
     };
 
     return (
@@ -507,6 +521,8 @@ export default function ProductStudio() {
                                             <span className="text-[9px] uppercase tracking-widest text-purple-400 font-bold leading-none">{placementStatusDetail}</span>
                                         </div>
                                     )}
+
+
                                 </div>
                             )}
 

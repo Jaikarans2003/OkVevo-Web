@@ -7,11 +7,11 @@
  *  3. Polls Firebase Storage (MockAIGeneratedPhotos/) for the result image
  */
 
-import { analyzeProductAndScene } from './VisionOrchestratorService';
+import { analyzeProductAndScene, refineComposition } from './VisionOrchestratorService';
 import { storage } from '../config/firebase';
 import { ref, getDownloadURL, listAll } from 'firebase/storage';
 
-export type PlacementJobStatus = 'idle' | 'analyzing' | 'compositing' | 'polling' | 'complete' | 'error';
+export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'compositing' | 'polling' | 'complete' | 'error';
 
 export interface PlacementJobResult {
     status: PlacementJobStatus;
@@ -37,7 +37,8 @@ const generatePlacementJobId = (): string => {
 export const runPlacementPipeline = async (
     heroFile: File,
     sceneFile: File,
-    onStatusChange: (status: PlacementJobStatus, detail?: string) => void
+    onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
+    userPrompt?: string
 ): Promise<PlacementJobResult> => {
     const jobId = generatePlacementJobId();
 
@@ -45,7 +46,7 @@ export const runPlacementPipeline = async (
         // ── Step 1: Vision Orchestrator ──────────────────────────
         onStatusChange('analyzing', 'Analyzing hero product & scene lighting...');
 
-        const orchestratorResult = await analyzeProductAndScene(heroFile, sceneFile);
+        const orchestratorResult = await analyzeProductAndScene(heroFile, sceneFile, userPrompt);
 
         if (!orchestratorResult.success || !orchestratorResult.masterPrompt) {
             throw new Error(orchestratorResult.error || 'Failed to generate master prompt');
@@ -126,4 +127,68 @@ const pollForCompositeImage = async (_jobId: string): Promise<string> => {
     }
 
     throw new Error('Composite image timed out. Please check your gallery later.');
+};
+
+/**
+ * Run the refinement pipeline.
+ * Takes the current composite image URL + user's change request,
+ * generates a new master prompt, dispatches to SQS, and polls for the result.
+ */
+export const runRefinementPipeline = async (
+    compositeImageUrl: string,
+    refinementPrompt: string,
+    onStatusChange: (status: PlacementJobStatus, detail?: string) => void
+): Promise<PlacementJobResult> => {
+    const jobId = generatePlacementJobId();
+
+    try {
+        // ── Step 1: Vision Orchestrator (Refinement Mode) ────────
+        onStatusChange('refining', 'Analyzing current image & generating refined prompt...');
+
+        const orchestratorResult = await refineComposition(compositeImageUrl, refinementPrompt);
+
+        if (!orchestratorResult.success || !orchestratorResult.masterPrompt) {
+            throw new Error(orchestratorResult.error || 'Failed to generate refined master prompt');
+        }
+
+        const masterPrompt = orchestratorResult.masterPrompt;
+
+        // ── Step 2: Dispatch compositing job to SQS FIFO ─────────
+        onStatusChange('compositing', 'Dispatching refined composite render job...');
+
+        const dispatchRes = await fetch('/api/product-placement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jobId,
+                masterPrompt,
+                userId: 'demo-user',
+            }),
+        });
+
+        const dispatchData = await dispatchRes.json();
+
+        if (!dispatchRes.ok || !dispatchData.success) {
+            throw new Error(dispatchData.error || 'Failed to dispatch refinement job');
+        }
+
+        console.log('📦 Refinement job dispatched:', dispatchData);
+
+        // ── Step 3: Poll Firebase Storage for the result ─────────
+        onStatusChange('polling', 'Waiting for refined composite image...');
+
+        const imageUrl = await pollForCompositeImage(jobId);
+
+        onStatusChange('complete');
+        return {
+            status: 'complete',
+            masterPrompt,
+            compositeImageUrl: imageUrl,
+        };
+
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        onStatusChange('error', msg);
+        return { status: 'error', error: msg };
+    }
 };

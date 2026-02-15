@@ -9,6 +9,7 @@
 export interface VisionOrchestratorRequest {
     heroImageBase64: string;   // base64 data-URL of the hero product
     sceneImageBase64: string;  // base64 data-URL of the scene / ambience
+    userPrompt?: string;       // optional user instructions for placement
 }
 
 export interface VisionOrchestratorResponse {
@@ -35,7 +36,8 @@ export const fileToBase64 = (file: File): Promise<string> => {
  */
 export const analyzeProductAndScene = async (
     heroFile: File,
-    sceneFile: File
+    sceneFile: File,
+    userPrompt?: string
 ): Promise<VisionOrchestratorResponse> => {
     try {
         console.log('🔬 Vision Orchestrator: Converting images to base64...');
@@ -48,7 +50,7 @@ export const analyzeProductAndScene = async (
         const response = await fetch('/api/vision-orchestrator', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ heroImageBase64, sceneImageBase64 }),
+            body: JSON.stringify({ heroImageBase64, sceneImageBase64, userPrompt }),
         });
 
         const data = await response.json();
@@ -62,6 +64,43 @@ export const analyzeProductAndScene = async (
 
     } catch (error) {
         console.error('Vision Orchestrator error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+};
+
+/**
+ * Call the Vision Orchestrator API in refinement mode.
+ * Takes the current composite image URL + user's change request
+ * and returns an updated master prompt.
+ */
+export const refineComposition = async (
+    compositeImageUrl: string,
+    refinementPrompt: string
+): Promise<VisionOrchestratorResponse> => {
+    try {
+        console.log('🔄 Vision Orchestrator: Sending refinement request to API...');
+
+        // Send the image URL to the server — it handles the fetch to avoid CORS issues
+        const response = await fetch('/api/vision-orchestrator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referenceImageUrl: compositeImageUrl, refinementPrompt }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Vision Orchestrator refinement request failed');
+        }
+
+        console.log('✅ Vision Orchestrator: Refined master prompt received');
+        return data;
+
+    } catch (error) {
+        console.error('Vision Orchestrator refinement error:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
