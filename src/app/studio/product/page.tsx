@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -31,8 +31,14 @@ import {
     ArrowDown,
     Aperture,
     Maximize2,
-    Scan
+    Scan,
+    Camera,
+    Focus,
+    Upload,
+    Crosshair,
+    Box
 } from 'lucide-react';
+import { runPlacementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
 
 // --- Components ---
 function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc: string, title: string, category: string, className?: string }) {
@@ -113,6 +119,22 @@ export default function ProductStudio() {
     const [duration, setDuration] = useState('15s');
     const [brandName, setBrandName] = useState('');
 
+    // Mode switching state
+    const [mode, setMode] = useState<'product-ads' | 'product-placement' | 'product-shoots'>('product-ads');
+    const [productImage, setProductImage] = useState<File | null>(null);
+    const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
+    const [placementPrompt, setPlacementPrompt] = useState('');
+
+    // Dual-upload state for Product Placement
+    const [sceneImage, setSceneImage] = useState<File | null>(null);
+    const [sceneImagePreview, setSceneImagePreview] = useState<string | null>(null);
+
+    // Placement pipeline state
+    const [placementStatus, setPlacementStatus] = useState<PlacementJobStatus>('idle');
+    const [placementStatusDetail, setPlacementStatusDetail] = useState('');
+    const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null);
+    const [masterPrompt, setMasterPrompt] = useState<string | null>(null);
+
     const generatorRef = useRef<HTMLDivElement>(null);
     const { scrollY } = useScroll();
     const heroOpacity = useTransform(scrollY, [0, 500], [1, 0]);
@@ -124,14 +146,63 @@ export default function ProductStudio() {
     };
 
     const handleGenerate = () => {
-        if (!prompt) return;
+        if (mode === 'product-ads' && !prompt) return;
+
         setIsGenerating(true);
         // Simulate generation delay
         setTimeout(() => {
             setIsGenerating(false);
-            setGeneratedVideo('video_placeholder'); // In a real app, this would be the URL
+            setGeneratedVideo('video_placeholder');
         }, 3000);
     };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setProductImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProductImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSceneImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSceneImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSceneImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handlePlacementGenerate = useCallback(async () => {
+        if (!productImage || !sceneImage) return;
+
+        setIsGenerating(true);
+        setCompositeImageUrl(null);
+        setMasterPrompt(null);
+
+        const result = await runPlacementPipeline(
+            productImage,
+            sceneImage,
+            (status, detail) => {
+                setPlacementStatus(status);
+                setPlacementStatusDetail(detail || '');
+            }
+        );
+
+        setIsGenerating(false);
+
+        if (result.status === 'complete' && result.compositeImageUrl) {
+            setCompositeImageUrl(result.compositeImageUrl);
+            setMasterPrompt(result.masterPrompt || null);
+        }
+    }, [productImage, sceneImage]);
 
     return (
         <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">
@@ -290,89 +361,234 @@ export default function ProductStudio() {
                     <div className="w-full md:w-1/3 space-y-8 sticky top-32 h-fit">
                         <div className="space-y-4">
                             <h2 className="text-3xl md:text-4xl font-medium tracking-tight text-white">
-                                Campaign <span className="text-white/40">Setup</span>
+                                {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
                             </h2>
                             <p className="text-white/40 text-sm leading-relaxed">
-                                Configure your brand parameters and describe the visual output.
+                                {mode === 'product-ads'
+                                    ? 'Configure your brand parameters and describe the visual output.'
+                                    : 'Upload your product image and describe the environment you want.'}
                             </p>
                         </div>
 
-                        {/* Step 1: Brand & Config */}
-                        <div className="space-y-4 p-6 bg-[#0A0A0A] border border-white/5 rounded-2xl">
-                            <div className="flex gap-4">
-                                <div className="flex-1 space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Brand Name</label>
-                                    <input
-                                        type="text"
-                                        value={brandName}
-                                        onChange={(e) => setBrandName(e.target.value)}
-                                        placeholder="e.g. Vogue"
-                                        className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors placeholder-white/20"
-                                    />
-                                </div>
-                                <div className="w-1/3 space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Duration</label>
-                                    <select
-                                        value={duration}
-                                        onChange={(e) => setDuration(e.target.value)}
-                                        className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors appearance-none"
-                                    >
-                                        <option>15s</option>
-                                        <option>30s</option>
-                                        <option>60s</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Platform</label>
-                                <div className="flex gap-2">
-                                    {['Instagram', 'YouTube', 'TikTok'].map((p) => (
-                                        <button
-                                            key={p}
-                                            onClick={() => setPlatform(p)}
-                                            className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${platform === p ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Step 2: Prompt */}
+                        {/* Mode Switcher */}
                         <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Creative Prompt</label>
-                            <div className="relative group">
-                                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-                                <textarea
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="Describe your ad concept... (e.g. A cinematic slow-motion shot of a luxury perfume bottle shattering into diamonds in a dark void)"
-                                    className="relative w-full h-48 bg-[#0A0A0A] border border-white/10 rounded-xl p-5 text-sm text-white focus:border-white/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
-                                />
-                                <div className="absolute bottom-3 right-3 text-[10px] text-white/20 font-mono">
-                                    {prompt.length}/500
-                                </div>
+                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Mode</label>
+                            <div className="flex gap-2">
+                                {[
+                                    { id: 'product-ads' as const, label: 'Product Ads', icon: <Film size={12} /> },
+                                    { id: 'product-placement' as const, label: 'Product Placement', icon: <Crosshair size={12} /> },
+                                    { id: 'product-shoots' as const, label: 'Product Shoots', icon: <Camera size={12} /> },
+                                ].map((m) => (
+                                    <button
+                                        key={m.id}
+                                        onClick={() => setMode(m.id)}
+                                        className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${mode === m.id ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
+                                    >
+                                        {m.icon} {m.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Generate Button */}
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isGenerating || !prompt}
-                            className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02]'}`}
-                        >
-                            {isGenerating ? (
-                                <>
-                                    <Loader2 size={16} className="animate-spin" /> Rendering...
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles size={16} /> Generate Campaign
-                                </>
-                            )}
-                        </button>
+                        {/* Product Ads Mode Form */}
+                        {mode === 'product-ads' && (
+                            <>
+                                {/* Step 1: Brand & Config */}
+                                <div className="space-y-4 p-6 bg-[#0A0A0A] border border-white/5 rounded-2xl">
+                                    <div className="flex gap-4">
+                                        <div className="flex-1 space-y-2">
+                                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Brand Name</label>
+                                            <input
+                                                type="text"
+                                                value={brandName}
+                                                onChange={(e) => setBrandName(e.target.value)}
+                                                placeholder="e.g. Vogue"
+                                                className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors placeholder-white/20"
+                                            />
+                                        </div>
+                                        <div className="w-1/3 space-y-2">
+                                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Duration</label>
+                                            <select
+                                                value={duration}
+                                                onChange={(e) => setDuration(e.target.value)}
+                                                className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors appearance-none"
+                                            >
+                                                <option>15s</option>
+                                                <option>30s</option>
+                                                <option>60s</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Platform</label>
+                                        <div className="flex gap-2">
+                                            {['Instagram', 'YouTube', 'TikTok'].map((p) => (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setPlatform(p)}
+                                                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${platform === p ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Step 2: Prompt */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Creative Prompt</label>
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+                                        <textarea
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            placeholder="Describe your ad concept... (e.g. A cinematic slow-motion shot of a luxury perfume bottle shattering into diamonds in a dark void)"
+                                            className="relative w-full h-48 bg-[#0A0A0A] border border-white/10 rounded-xl p-5 text-sm text-white focus:border-white/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
+                                        />
+                                        <div className="absolute bottom-3 right-3 text-[10px] text-white/20 font-mono">
+                                            {prompt.length}/500
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Generate Button */}
+                                <button
+                                    onClick={handleGenerate}
+                                    disabled={isGenerating || !prompt}
+                                    className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02]'}`}
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" /> Rendering...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles size={16} /> Generate Campaign
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
+
+                        {/* Product Placement Mode Form — Dual Upload */}
+                        {mode === 'product-placement' && (
+                            <>
+                                {/* Zone A: Hero Product */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-2">
+                                        <Box size={12} className="text-purple-400" /> Zone A — The Hero Product
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+                                        <div className="relative bg-[#0A0A0A] border border-white/10 rounded-xl p-4 hover:border-purple-500/30 transition-colors">
+                                            <input type="file" id="hero-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            {productImagePreview ? (
+                                                <div className="space-y-3">
+                                                    <div className="relative w-full h-36 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                        <img src={productImagePreview} alt="Hero product" className="w-full h-full object-contain" />
+                                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Hero</div>
+                                                    </div>
+                                                    <button onClick={() => document.getElementById('hero-product-image')?.click()} className="w-full py-1.5 text-[10px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change Image</button>
+                                                </div>
+                                            ) : (
+                                                <label htmlFor="hero-product-image" className="cursor-pointer flex flex-col items-center justify-center py-6 space-y-3">
+                                                    <div className="w-14 h-14 bg-[#111] rounded-2xl border border-dashed border-purple-500/20 flex items-center justify-center group-hover:border-purple-500/40 transition-colors">
+                                                        <Upload size={24} className="text-purple-400/40 group-hover:text-purple-400/70 transition-colors" />
+                                                    </div>
+                                                    <div className="text-center space-y-0.5">
+                                                        <p className="text-xs text-white/50">Upload your product</p>
+                                                        <p className="text-[9px] text-white/25">e.g. Coke can, perfume bottle, sneaker</p>
+                                                    </div>
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Zone B: Scene / Ambience */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-2">
+                                        <Focus size={12} className="text-cyan-400" /> Zone B — The Scene / Ambience
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+                                        <div className="relative bg-[#0A0A0A] border border-white/10 rounded-xl p-4 hover:border-cyan-500/30 transition-colors">
+                                            <input type="file" id="scene-image" accept="image/*" onChange={handleSceneImageUpload} className="hidden" />
+                                            {sceneImagePreview ? (
+                                                <div className="space-y-3">
+                                                    <div className="relative w-full h-36 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                        <img src={sceneImagePreview} alt="Scene preview" className="w-full h-full object-cover" />
+                                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-cyan-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Scene</div>
+                                                    </div>
+                                                    <button onClick={() => document.getElementById('scene-image')?.click()} className="w-full py-1.5 text-[10px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change Image</button>
+                                                </div>
+                                            ) : (
+                                                <label htmlFor="scene-image" className="cursor-pointer flex flex-col items-center justify-center py-6 space-y-3">
+                                                    <div className="w-14 h-14 bg-[#111] rounded-2xl border border-dashed border-cyan-500/20 flex items-center justify-center group-hover:border-cyan-500/40 transition-colors">
+                                                        <Upload size={24} className="text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors" />
+                                                    </div>
+                                                    <div className="text-center space-y-0.5">
+                                                        <p className="text-xs text-white/50">Upload scene / environment</p>
+                                                        <p className="text-[9px] text-white/25">e.g. marble counter, movie set, cityscape</p>
+                                                    </div>
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Placement Status Indicator */}
+                                {placementStatus !== 'idle' && placementStatus !== 'complete' && (
+                                    <div className="p-3 bg-[#0A0A0A] border border-white/5 rounded-xl">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                            <span className="text-[10px] uppercase tracking-widest text-purple-400 font-bold">{placementStatusDetail}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Generate Button for Product Placement */}
+                                <button
+                                    onClick={handlePlacementGenerate}
+                                    disabled={isGenerating || !productImage || !sceneImage}
+                                    className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : !productImage || !sceneImage ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02]'}`}
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" /> Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles size={16} /> Composite Image
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
+
+                        {/* Product Shoots Mode (Coming Soon) */}
+                        {mode === 'product-shoots' && (
+                            <div className="space-y-6">
+                                <div className="p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center space-y-6">
+                                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-3xl border border-white/5 flex items-center justify-center">
+                                        <Camera size={36} className="text-white/20" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-lg font-medium text-white/80">Product Shoots</h3>
+                                        <p className="text-white/30 text-xs leading-relaxed max-w-xs mx-auto">
+                                            AI-directed product photography with automated lighting rigs,
+                                            turntable captures, and multi-angle composites.
+                                        </p>
+                                    </div>
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                        <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-amber-400/80">Coming Soon</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* RIGHT: Live Preview & Style Selection */}
@@ -387,21 +603,121 @@ export default function ProductStudio() {
                             <AnimatePresence mode='wait'>
                                 {isGenerating ? (
                                     <motion.div
+                                        key="cool-loader"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
-                                        className="text-center space-y-6 relative z-10"
+                                        className="relative w-full h-full flex flex-col items-center justify-center z-10 overflow-hidden"
                                     >
-                                        <div className="relative">
-                                            <div className="w-20 h-20 border-4 border-white/10 border-t-purple-500 rounded-full animate-spin mx-auto"></div>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="w-12 h-12 bg-white/5 rounded-full blur-xl animate-pulse"></div>
+                                        {/* ── Scanning Laser Line ── */}
+                                        <div className="absolute inset-0 pointer-events-none">
+                                            <div
+                                                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-80"
+                                                style={{
+                                                    animation: 'scanLine 2.4s ease-in-out infinite',
+                                                }}
+                                            />
+                                            {/* Glow trail behind the laser */}
+                                            <div
+                                                className="absolute left-0 right-0 h-16 bg-gradient-to-b from-purple-500/20 to-transparent blur-md"
+                                                style={{
+                                                    animation: 'scanLine 2.4s ease-in-out infinite',
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* ── Neural Network Dot Grid ── */}
+                                        <div className="relative w-40 h-40 mb-8">
+                                            {/* Outer rotating ring */}
+                                            <div className="absolute inset-0 border-2 border-white/5 border-t-purple-500/60 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+                                            {/* Middle counter-rotating ring */}
+                                            <div className="absolute inset-3 border border-white/5 border-b-cyan-500/40 rounded-full animate-spin" style={{ animationDuration: '5s', animationDirection: 'reverse' }} />
+                                            {/* Inner pulsing core */}
+                                            <div className="absolute inset-8 rounded-full bg-gradient-to-br from-purple-500/10 to-cyan-500/10 backdrop-blur-sm animate-pulse flex items-center justify-center border border-white/5">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 opacity-40 blur-lg animate-pulse" />
+                                            </div>
+                                            {/* Orbiting dots */}
+                                            {[0, 1, 2, 3, 4, 5].map((i) => (
+                                                <div
+                                                    key={i}
+                                                    className="absolute w-1.5 h-1.5 rounded-full bg-purple-400"
+                                                    style={{
+                                                        top: '50%',
+                                                        left: '50%',
+                                                        transform: `rotate(${i * 60}deg) translateX(70px) rotate(-${i * 60}deg)`,
+                                                        animation: `pulse 2s ease-in-out ${i * 0.3}s infinite`,
+                                                        opacity: 0.3 + (i * 0.12),
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* ── Animated Status Text ── */}
+                                        <div className="text-center space-y-3">
+                                            <p className="text-sm font-mono text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 animate-pulse font-bold tracking-wider">
+                                                {mode === 'product-placement'
+                                                    ? (placementStatus === 'analyzing' ? 'Analyzing Hero Product & Scene Lighting...'
+                                                        : placementStatus === 'compositing' ? 'Matching Global Illumination...'
+                                                            : placementStatus === 'polling' ? 'Compositing Final Image...'
+                                                                : 'Initializing Neural Render Engine...')
+                                                    : 'Initializing Neural Render Engine...'}
+                                            </p>
+                                            <div className="flex items-center justify-center gap-1">
+                                                {[0, 1, 2, 3, 4].map((i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="w-1 h-4 bg-gradient-to-t from-purple-500/40 to-purple-500 rounded-full"
+                                                        style={{
+                                                            animation: `equalizer 1.2s ease-in-out ${i * 0.15}s infinite alternate`,
+                                                        }}
+                                                    />
+                                                ))}
                                             </div>
                                         </div>
-                                        <p className="text-xs font-mono text-purple-400 animate-pulse">Init_Neural_Render_Engine...</p>
+
+                                        {/* ── Inline keyframes ── */}
+                                        <style jsx>{`
+                                            @keyframes scanLine {
+                                                0%, 100% { top: 5%; }
+                                                50% { top: 90%; }
+                                            }
+                                            @keyframes equalizer {
+                                                0% { transform: scaleY(0.3); opacity: 0.3; }
+                                                100% { transform: scaleY(1.5); opacity: 1; }
+                                            }
+                                        `}</style>
+                                    </motion.div>
+                                ) : compositeImageUrl && mode === 'product-placement' ? (
+                                    <motion.div
+                                        key="composite-result"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="relative w-full h-full flex items-center justify-center bg-black"
+                                    >
+                                        <img src={compositeImageUrl} alt="Composite result" className="w-full h-full object-contain" />
+                                        {/* Overlay info */}
+                                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <CheckCircle2 size={14} className="text-green-400" />
+                                                <span className="text-[10px] uppercase tracking-widest text-green-400 font-bold">Composite Complete</span>
+                                            </div>
+                                            {masterPrompt && (
+                                                <p className="text-[10px] text-white/40 line-clamp-2 max-w-lg">{masterPrompt}</p>
+                                            )}
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="absolute top-6 right-6 flex gap-3">
+                                            <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
+                                                <Download size={18} />
+                                            </button>
+                                            <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
+                                                <Share2 size={18} />
+                                            </button>
+                                        </div>
                                     </motion.div>
                                 ) : generatedVideo ? (
                                     <motion.div
+                                        key="video-result"
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         className="relative w-full h-full flex items-center justify-center bg-black"
@@ -418,7 +734,6 @@ export default function ProductStudio() {
                                                     <p className="text-white/40 text-[10px] uppercase tracking-widest">Campaign Ready • {duration}</p>
                                                 </div>
                                             </div>
-
                                             {/* Actions */}
                                             <div className="absolute bottom-8 right-8 flex gap-3 opacity-0 group-hover/video:opacity-100 transition-opacity translate-y-2 group-hover/video:translate-y-0 duration-300">
                                                 <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
@@ -432,16 +747,29 @@ export default function ProductStudio() {
                                     </motion.div>
                                 ) : (
                                     <motion.div
+                                        key="empty-state"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         className="text-center space-y-6"
                                     >
                                         <div className="w-24 h-24 bg-[#0F0F0F] rounded-2xl border border-dashed border-white/10 flex items-center justify-center mx-auto transform rotate-6 hover:rotate-0 transition-transform duration-500 shadow-xl">
-                                            <MonitorPlay size={40} className="text-white/10" />
+                                            {mode === 'product-ads' ? (
+                                                <MonitorPlay size={40} className="text-white/10" />
+                                            ) : mode === 'product-placement' ? (
+                                                <Crosshair size={40} className="text-white/10" />
+                                            ) : (
+                                                <Camera size={40} className="text-white/10" />
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-medium text-white/80">Workspace Empty</h3>
-                                            <p className="text-white/30 text-xs mt-2">Configure your campaign to see the preview</p>
+                                            <p className="text-white/30 text-xs mt-2">
+                                                {mode === 'product-ads'
+                                                    ? 'Configure your campaign to see the preview'
+                                                    : mode === 'product-placement'
+                                                        ? 'Upload your hero product and scene to start compositing'
+                                                        : 'Product Shoots coming soon'}
+                                            </p>
                                         </div>
                                     </motion.div>
                                 )}
