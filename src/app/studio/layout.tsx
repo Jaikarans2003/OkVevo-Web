@@ -22,9 +22,9 @@ export default function StudioLayout({
 
     return (
         <ThemeProvider>
-            <div className={`flex text-white font-sans relative ${isFixedLayout ? "h-screen overflow-hidden bg-[#050505]" : "min-h-screen bg-black overflow-x-hidden"} ${isChatPage ? "bg-[url('/images/chat-bg.jpg')] bg-cover bg-center" : ""}`}>
+            <div className={`flex text-white font-sans relative ${isFixedLayout ? "h-screen overflow-hidden bg-[#121212]" : "min-h-screen bg-[#121212] overflow-x-hidden"} ${isChatPage ? "bg-[url('/images/chat-bg.jpg')] bg-cover bg-center" : ""}`}>
                 {/* Dark Overlay for Chat Page */}
-                {isChatPage && <div className="absolute inset-0 bg-black/60 pointer-events-none z-0" />}
+                {isChatPage && <div className="absolute inset-0 bg-custom-bg/60 pointer-events-none z-0" />}
 
                 {/* Fixed Sidebar - Hidden on specific pages */}
                 {!shouldHideSidebar && <Sidebar />}

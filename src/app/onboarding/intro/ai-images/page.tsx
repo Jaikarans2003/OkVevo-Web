@@ -22,12 +22,12 @@ export default function IntroAIImagesPage() {
                         className="mb-8"
                     >
                         <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm font-medium mb-6">
-                            <ImageIcon className="w-4 h-4 text-custom-orange" />
+                            <ImageIcon className="w-4 h-4 text-accent-orange" />
                             <span>AI Images</span>
                         </div>
                         <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                             Studio Grade <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-custom-orange to-red-400">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-orange to-red-400">
                                 AI Images
                             </span>
                         </h1>
@@ -50,7 +50,7 @@ export default function IntroAIImagesPage() {
                         </button>
                         <button
                             onClick={handleNext}
-                            className="px-8 py-3 rounded-lg bg-custom-orange hover:bg-orange-500 transition-colors font-medium flex items-center gap-2"
+                            className="px-8 py-3 rounded-lg bg-accent-orange hover:bg-orange-500 transition-colors font-medium flex items-center gap-2"
                         >
                             Enter Studio <ArrowRight className="w-4 h-4" />
                         </button>
@@ -73,9 +73,9 @@ export default function IntroAIImagesPage() {
 
                     <div className="text-center relative z-10">
                         <div className="inline-block p-4 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 mb-4">
-                            <Sparkles className="w-12 h-12 text-custom-orange" />
+                            <Sparkles className="w-12 h-12 text-accent-orange" />
                         </div>
-                        <p className="text-custom-orange/50 font-mono">Generating high-res assets...</p>
+                        <p className="text-accent-orange/50 font-mono">Generating high-res assets...</p>
                     </div>
                 </motion.div>
 
@@ -88,7 +88,7 @@ export default function IntroAIImagesPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.6 + (i * 0.1) }}
-                                className="bg-orange-900/20 border border-custom-orange/20 rounded-lg p-3 text-center text-sm text-orange-200 font-medium"
+                                className="bg-orange-900/20 border border-accent-orange/20 rounded-lg p-3 text-center text-sm text-orange-200 font-medium"
                             >
                                 {tag}
                             </motion.div>

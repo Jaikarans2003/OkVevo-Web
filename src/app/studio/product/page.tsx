@@ -45,7 +45,8 @@ import {
     Focus,
     Upload,
     Crosshair,
-    Box
+    Box,
+    Send
 } from 'lucide-react';
 import { runPlacementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
 
@@ -144,6 +145,13 @@ export default function ProductStudio() {
     const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null);
     const [masterPrompt, setMasterPrompt] = useState<string | null>(null);
 
+    // Chat refinement state
+    const [isComposed, setIsComposed] = useState(false);
+    const [chatInput, setChatInput] = useState('');
+    const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
+        { role: 'assistant', content: "Welcome to Product Studio. Upload your images and describe your vision to get started!" }
+    ]);
+
     const generatorRef = useRef<HTMLDivElement>(null);
     const { scrollY } = useScroll();
     const heroOpacity = useTransform(scrollY, [0, 500], [1, 0]);
@@ -210,8 +218,28 @@ export default function ProductStudio() {
         if (result.status === 'complete' && result.compositeImageUrl) {
             setCompositeImageUrl(result.compositeImageUrl);
             setMasterPrompt(result.masterPrompt || null);
+            setIsComposed(true);
+            setChatMessages([{ role: 'assistant', content: "Initial composition complete. How would you like to refine the image?" }]);
         }
     }, [productImage, sceneImage]);
+
+    const handleSendChatMessage = async () => {
+        if (!chatInput.trim()) return;
+
+        const userMsg = chatInput.trim();
+        setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+        setChatInput('');
+
+        // Simulate backend refinement
+        setPlacementStatus('compositing');
+        setPlacementStatusDetail('Refining composition...');
+
+        setTimeout(() => {
+            setPlacementStatus('complete');
+            setPlacementStatusDetail('');
+            setChatMessages(prev => [...prev, { role: 'assistant', content: "I've updated the image based on your request: " + userMsg }]);
+        }, 2000);
+    };
 
     return (
         <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">
@@ -364,395 +392,242 @@ export default function ProductStudio() {
 
 
             {/* --- GENERATOR SECTION --- */}
-            <div ref={generatorRef} className="relative z-20 bg-[#050505] overflow-hidden pt-24 h-screen">
-                <section className="h-full px-4 md:px-10 max-w-7xl mx-auto flex flex-col md:flex-row gap-8 pb-8">
+            <div ref={generatorRef} className="relative z-20 bg-[#050505] pt-24 h-screen overflow-hidden">
+                <section className="h-full px-4 md:px-10 max-w-[1600px] mx-auto pb-6">
+                    <div className="flex flex-col md:flex-row gap-8 h-full max-h-[calc(100vh-8rem)]">
 
-                    {/* LEFT: Controls & Input */}
-                    <div className="w-full md:w-1/3 space-y-6 h-full overflow-y-auto pr-4 custom-scrollbar" data-lenis-prevent>
-                        <div className="space-y-4">
-                            <h2 className="text-3xl md:text-4xl font-medium tracking-tight text-white">
-                                {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
-                            </h2>
-                            <p className="text-white/40 text-sm leading-relaxed">
-                                {mode === 'product-ads'
-                                    ? 'Configure your brand parameters and describe the visual output.'
-                                    : 'Upload your product image and describe the environment you want.'}
-                            </p>
-                        </div>
-
-                        {/* Mode Switcher */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Mode</label>
-                            <div className="flex gap-2">
-                                {[
-                                    { id: 'product-ads' as const, label: 'Product Ads', icon: <Film size={12} /> },
-                                    { id: 'product-placement' as const, label: 'Product Placement', icon: <Crosshair size={12} /> },
-                                    { id: 'product-shoots' as const, label: 'Product Shoots', icon: <Camera size={12} /> },
-                                ].map((m) => (
-                                    <button
-                                        key={m.id}
-                                        onClick={() => setMode(m.id)}
-                                        className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${mode === m.id ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
-                                    >
-                                        {m.icon} {m.label}
-                                    </button>
-                                ))}
+                        {/* LEFT: Controls & Input (Fixed Width) */}
+                        <div className="w-full md:w-[380px] flex flex-col gap-5 h-full overflow-y-auto pr-4 custom-scrollbar" data-lenis-prevent>
+                            <div className="space-y-3">
+                                <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white">
+                                    {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
+                                </h2>
+                                <p className="text-white/40 text-[11px] leading-relaxed">
+                                    {mode === 'product-ads'
+                                        ? 'Configure brand parameters and visual output.'
+                                        : 'Upload assets and describe the environment.'}
+                                </p>
                             </div>
+
+                            {/* Mode Switcher */}
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest">Mode</label>
+                                <div className="flex gap-1.5">
+                                    {[
+                                        { id: 'product-ads' as const, label: 'Ads', icon: <Film size={10} /> },
+                                        { id: 'product-placement' as const, label: 'Placement', icon: <Crosshair size={10} /> },
+                                        { id: 'product-shoots' as const, label: 'Shoots', icon: <Camera size={10} /> },
+                                    ].map((m) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setMode(m.id)}
+                                            className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1 ${mode === m.id ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
+                                        >
+                                            {m.icon} {m.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Product Placement Mode Form */}
+                            {mode === 'product-placement' && (
+                                <div className="flex flex-col gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Zone A */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                                <Box size={10} className="text-purple-400" /> Zone A
+                                            </label>
+                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-purple-500/30 transition-colors">
+                                                <input type="file" id="hero-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                                {productImagePreview ? (
+                                                    <div className="space-y-2">
+                                                        <div className="relative w-full h-20 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                            <img src={productImagePreview} alt="Hero" className="w-full h-full object-contain" />
+                                                        </div>
+                                                        <button onClick={() => document.getElementById('hero-product-image')?.click()} className="w-full py-0.5 text-[8px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change</button>
+                                                    </div>
+                                                ) : (
+                                                    <label htmlFor="hero-product-image" className="cursor-pointer flex flex-col items-center justify-center py-4 space-y-1.5">
+                                                        <Upload size={14} className="text-purple-400/40" />
+                                                        <p className="text-[9px] text-white/50">Hero Product</p>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Zone B */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                                <Focus size={10} className="text-cyan-400" /> Zone B
+                                            </label>
+                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-cyan-500/30 transition-colors">
+                                                <input type="file" id="scene-image" accept="image/*" onChange={handleSceneImageUpload} className="hidden" />
+                                                {sceneImagePreview ? (
+                                                    <div className="space-y-2">
+                                                        <div className="relative w-full h-20 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                            <img src={sceneImagePreview} alt="Scene" className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <button onClick={() => document.getElementById('scene-image')?.click()} className="w-full py-0.5 text-[8px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change</button>
+                                                    </div>
+                                                ) : (
+                                                    <label htmlFor="scene-image" className="cursor-pointer flex flex-col items-center justify-center py-4 space-y-1.5">
+                                                        <Upload size={14} className="text-cyan-400/40" />
+                                                        <p className="text-[9px] text-white/50">Scene</p>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Initial Instructions Prompt */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest">Initial Instructions</label>
+                                        <textarea
+                                            value={placementPrompt}
+                                            onChange={(e) => setPlacementPrompt(e.target.value)}
+                                            placeholder="e.g. Place bottle on marble with soft light..."
+                                            className="w-full h-20 bg-[#0A0A0A] border border-white/10 rounded-xl p-3 text-[11px] text-white focus:border-white/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
+                                        />
+                                    </div>
+
+                                    {/* Generate Button */}
+                                    <button
+                                        onClick={handlePlacementGenerate}
+                                        disabled={isGenerating || !productImage || !sceneImage}
+                                        className={`w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50' : !productImage || !sceneImage ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-xl hover:scale-[1.01]'}`}
+                                    >
+                                        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                        {isGenerating ? 'Processing...' : 'Composite Image'}
+                                    </button>
+
+                                    {placementStatus !== 'idle' && placementStatus !== 'complete' && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                            <span className="text-[9px] uppercase tracking-widest text-purple-400 font-bold leading-none">{placementStatusDetail}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Product Ads & Shoots Fallbacks */}
+                            {mode === 'product-ads' && (
+                                <div className="p-6 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center space-y-4">
+                                    <p className="text-white/40 text-[10px]">Product Ads interface simplified for placement focus.</p>
+                                    <button onClick={handleGenerate} className="w-full py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest">Generate Campaign</button>
+                                </div>
+                            )}
+
+                            {mode === 'product-shoots' && (
+                                <div className="p-8 bg-[#0A0A0A] border border-white/5 border-dashed rounded-2xl text-center">
+                                    <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Coming Soon</p>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Product Ads Mode Form */}
-                        {mode === 'product-ads' && (
-                            <>
-                                {/* Step 1: Brand & Config */}
-                                <div className="space-y-4 p-6 bg-[#0A0A0A] border border-white/5 rounded-2xl">
-                                    <div className="flex gap-4">
-                                        <div className="flex-1 space-y-2">
-                                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Brand Name</label>
+                        {/* RIGHT: Preview & Chat Area */}
+                        <div className="flex-1 flex flex-col gap-6 h-full min-w-0">
+
+                            {/* Top row: Preview & Chat Side-by-Side if screen is wide enough */}
+                            <div className="flex flex-col md:flex-row gap-6 h-full min-h-0">
+
+                                {/* Preview Window */}
+                                <div className="flex-[1.2] min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl">
+                                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+
+                                    <AnimatePresence mode='wait'>
+                                        {isGenerating ? (
+                                            <motion.div
+                                                key="loader"
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                                className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm"
+                                            >
+                                                <AILoader text="Synthesizing" />
+                                            </motion.div>
+                                        ) : compositeImageUrl ? (
+                                            <motion.div
+                                                key="result"
+                                                initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+                                                className="absolute inset-0 flex items-center justify-center p-4"
+                                            >
+                                                <img src={compositeImageUrl} alt="Composite" className="w-full h-full object-contain rounded-lg" />
+                                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition-all">
+                                                        <Download size={16} />
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key="empty"
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 opacity-20"
+                                            >
+                                                <div className="w-20 h-20 rounded-3xl border border-dashed border-white/40 flex items-center justify-center mb-6">
+                                                    <ImageIcon size={32} />
+                                                </div>
+                                                <h3 className="text-xl font-medium text-white mb-2">Monitor Output</h3>
+                                                <p className="text-xs max-w-[240px]">Neural synthesis stream will appear here after assets are processed.</p>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    <div className="absolute top-4 left-4 flex gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-red-500/30"></div>
+                                        <div className="w-2 h-2 rounded-full bg-yellow-500/30"></div>
+                                        <div className="w-2 h-2 rounded-full bg-green-500/30"></div>
+                                    </div>
+                                </div>
+
+                                {/* Chat Interface Sidebar (The Right Side) */}
+                                <div className="flex-1 min-w-[320px] flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
+                                    <div className="px-5 py-4 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative">
+                                                <Sparkles size={14} className="text-purple-400" />
+                                                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse"></div>
+                                            </div>
+                                            <span className="text-[10px] uppercase font-bold text-white/80 tracking-widest whitespace-nowrap">Neural Chat assistant</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]">
+                                        {chatMessages.map((msg, i) => (
+                                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
+                                                    {msg.content}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="p-4 bg-[#0F0F0F] border-t border-white/5">
+                                        <div className="relative flex items-center">
                                             <input
                                                 type="text"
-                                                value={brandName}
-                                                onChange={(e) => setBrandName(e.target.value)}
-                                                placeholder="e.g. Vogue"
-                                                className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors placeholder-white/20"
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                                                placeholder={isComposed ? "Request changes..." : "Type starting prompt..."}
+                                                className="w-full bg-black/60 border border-white/10 rounded-full py-3 px-5 text-[11px] text-white focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all placeholder-white/20 shadow-inner"
                                             />
-                                        </div>
-                                        <div className="w-1/3 space-y-2">
-                                            <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Duration</label>
-                                            <select
-                                                value={duration}
-                                                onChange={(e) => setDuration(e.target.value)}
-                                                className="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-white/20 outline-none transition-colors appearance-none"
+                                            <button
+                                                onClick={handleSendChatMessage}
+                                                className="absolute right-1.5 p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg group"
                                             >
-                                                <option>15s</option>
-                                                <option>30s</option>
-                                                <option>60s</option>
-                                            </select>
+                                                <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                            </button>
                                         </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Platform</label>
-                                        <div className="flex gap-2">
-                                            {['Instagram', 'YouTube', 'TikTok'].map((p) => (
-                                                <button
-                                                    key={p}
-                                                    onClick={() => setPlatform(p)}
-                                                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${platform === p ? 'bg-white text-black border-white' : 'bg-[#111] text-white/60 border-white/10 hover:border-white/20'}`}
-                                                >
-                                                    {p}
-                                                </button>
-                                            ))}
+                                        <div className="mt-3 flex items-center justify-center gap-2 opacity-10">
+                                            <div className="h-px flex-1 bg-white"></div>
+                                            <span className="text-[8px] uppercase tracking-widest font-black">AI Studio System v2.0</span>
+                                            <div className="h-px flex-1 bg-white"></div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                {/* Step 2: Prompt */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest">Creative Prompt</label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-                                        <textarea
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            placeholder="Describe your ad concept... (e.g. A cinematic slow-motion shot of a luxury perfume bottle shattering into diamonds in a dark void)"
-                                            className="relative w-full h-48 bg-[#0A0A0A] border border-white/10 rounded-xl p-5 text-sm text-white focus:border-white/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
-                                        />
-                                        <div className="absolute bottom-3 right-3 text-[10px] text-white/20 font-mono">
-                                            {prompt.length}/500
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Generate Button */}
-                                <button
-                                    onClick={handleGenerate}
-                                    disabled={isGenerating || !prompt}
-                                    className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02]'}`}
-                                >
-                                    {isGenerating ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" /> Rendering...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles size={16} /> Generate Campaign
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        )}
-
-                        {/* Product Placement Mode Form — Dual Upload */}
-                        {mode === 'product-placement' && (
-                            <>
-                                {/* Zone A: Hero Product */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-2">
-                                        <Box size={12} className="text-purple-400" /> Zone A — The Hero Product
-                                    </label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-                                        <div className="relative bg-[#0A0A0A] border border-white/10 rounded-xl p-4 hover:border-purple-500/30 transition-colors">
-                                            <input type="file" id="hero-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                            {productImagePreview ? (
-                                                <div className="space-y-3">
-                                                    <div className="relative w-full h-32 bg-[#111] rounded-lg overflow-hidden border border-white/5">
-                                                        <img src={productImagePreview} alt="Hero product" className="w-full h-full object-contain" />
-                                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Hero</div>
-                                                    </div>
-                                                    <button onClick={() => document.getElementById('hero-product-image')?.click()} className="w-full py-1.5 text-[10px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change Image</button>
-                                                </div>
-                                            ) : (
-                                                <label htmlFor="hero-product-image" className="cursor-pointer flex flex-col items-center justify-center py-6 space-y-3">
-                                                    <div className="w-14 h-14 bg-[#111] rounded-2xl border border-dashed border-purple-500/20 flex items-center justify-center group-hover:border-purple-500/40 transition-colors">
-                                                        <Upload size={24} className="text-purple-400/40 group-hover:text-purple-400/70 transition-colors" />
-                                                    </div>
-                                                    <div className="text-center space-y-0.5">
-                                                        <p className="text-xs text-white/50">Upload your product</p>
-                                                        <p className="text-[9px] text-white/25">e.g. Coke can, perfume bottle, sneaker</p>
-                                                    </div>
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Zone B: Scene / Ambience */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-2">
-                                        <Focus size={12} className="text-cyan-400" /> Zone B — The Scene / Ambience
-                                    </label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-                                        <div className="relative bg-[#0A0A0A] border border-white/10 rounded-xl p-4 hover:border-cyan-500/30 transition-colors">
-                                            <input type="file" id="scene-image" accept="image/*" onChange={handleSceneImageUpload} className="hidden" />
-                                            {sceneImagePreview ? (
-                                                <div className="space-y-3">
-                                                    <div className="relative w-full h-32 bg-[#111] rounded-lg overflow-hidden border border-white/5">
-                                                        <img src={sceneImagePreview} alt="Scene preview" className="w-full h-full object-cover" />
-                                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-cyan-500/80 rounded text-[8px] font-bold uppercase tracking-wider text-white">Scene</div>
-                                                    </div>
-                                                    <button onClick={() => document.getElementById('scene-image')?.click()} className="w-full py-1.5 text-[10px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change Image</button>
-                                                </div>
-                                            ) : (
-                                                <label htmlFor="scene-image" className="cursor-pointer flex flex-col items-center justify-center py-6 space-y-3">
-                                                    <div className="w-14 h-14 bg-[#111] rounded-2xl border border-dashed border-cyan-500/20 flex items-center justify-center group-hover:border-cyan-500/40 transition-colors">
-                                                        <Upload size={24} className="text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors" />
-                                                    </div>
-                                                    <div className="text-center space-y-0.5">
-                                                        <p className="text-xs text-white/50">Upload scene / environment</p>
-                                                        <p className="text-[9px] text-white/25">e.g. marble counter, movie set, cityscape</p>
-                                                    </div>
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Placement Status Indicator */}
-                                {placementStatus !== 'idle' && placementStatus !== 'complete' && (
-                                    <div className="p-3 bg-[#0A0A0A] border border-white/5 rounded-xl">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                            <span className="text-[10px] uppercase tracking-widest text-purple-400 font-bold">{placementStatusDetail}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Generate Button for Product Placement */}
-                                <button
-                                    onClick={handlePlacementGenerate}
-                                    disabled={isGenerating || !productImage || !sceneImage}
-                                    className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : !productImage || !sceneImage ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02]'}`}
-                                >
-                                    {isGenerating ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" /> Processing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles size={16} /> Composite Image
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        )}
-
-                        {/* Product Shoots Mode (Coming Soon) */}
-                        {mode === 'product-shoots' && (
-                            <div className="space-y-6">
-                                <div className="p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center space-y-6">
-                                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-3xl border border-white/5 flex items-center justify-center">
-                                        <Camera size={36} className="text-white/20" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-lg font-medium text-white/80">Product Shoots</h3>
-                                        <p className="text-white/30 text-xs leading-relaxed max-w-xs mx-auto">
-                                            AI-directed product photography with automated lighting rigs,
-                                            turntable captures, and multi-angle composites.
-                                        </p>
-                                    </div>
-                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                        <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-amber-400/80">Coming Soon</span>
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        </div>
                     </div>
-
-                    {/* RIGHT: Live Preview & Style Selection */}
-                    <div className="w-full md:w-2/3 flex flex-col gap-6 h-full overflow-y-auto pr-2 custom-scrollbar" data-lenis-prevent>
-
-                        {/* Preview Window */}
-                        <div className="flex-shrink-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative h-[450px] flex items-center justify-center group shadow-2xl">
-
-                            {/* Background Grid */}
-                            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-
-                            <AnimatePresence mode='wait'>
-                                {isGenerating ? (
-                                    <motion.div
-                                        key="cool-loader"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="relative w-full h-full flex flex-col items-center justify-center z-10 overflow-hidden bg-black/40 backdrop-blur-sm"
-                                    >
-                                        <AILoader text="Generating" />
-                                        <p className="mt-8 text-[10px] uppercase tracking-[0.3em] text-white/30 font-bold animate-pulse">
-                                            Neural Synthesis in Progress
-                                        </p>
-                                    </motion.div>
-                                ) : compositeImageUrl && mode === 'product-placement' ? (
-                                    <motion.div
-                                        key="composite-result"
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="relative w-full h-full flex items-center justify-center bg-black"
-                                    >
-                                        <img src={compositeImageUrl} alt="Composite result" className="w-full h-full object-contain" />
-                                        {/* Overlay info */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <CheckCircle2 size={14} className="text-green-400" />
-                                                <span className="text-[10px] uppercase tracking-widest text-green-400 font-bold">Composite Complete</span>
-                                            </div>
-                                            {masterPrompt && (
-                                                <p className="text-[10px] text-white/40 line-clamp-2 max-w-lg">{masterPrompt}</p>
-                                            )}
-                                        </div>
-                                        {/* Actions */}
-                                        <div className="absolute top-6 right-6 flex gap-3">
-                                            <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
-                                                <Download size={18} />
-                                            </button>
-                                            <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
-                                                <Share2 size={18} />
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                ) : generatedVideo ? (
-                                    <motion.div
-                                        key="video-result"
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="relative w-full h-full flex items-center justify-center bg-black"
-                                    >
-                                        {/* Simulated Video Result */}
-                                        <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-blue-900/20 flex flex-col items-center justify-center relative overflow-hidden group/video">
-                                            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-60 mix-blend-overlay transition-transform duration-1000 group-hover/video:scale-105"></div>
-                                            <div className="z-10 text-center space-y-4">
-                                                <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 cursor-pointer hover:scale-110 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                                                    <Play size={40} fill="white" className="ml-1 text-white" />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <p className="text-white font-serif text-2xl tracking-wide">{brandName || "Luxury Brand"}</p>
-                                                    <p className="text-white/40 text-[10px] uppercase tracking-widest">Campaign Ready • {duration}</p>
-                                                </div>
-                                            </div>
-                                            {/* Actions */}
-                                            <div className="absolute bottom-8 right-8 flex gap-3 opacity-0 group-hover/video:opacity-100 transition-opacity translate-y-2 group-hover/video:translate-y-0 duration-300">
-                                                <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
-                                                    <Download size={18} />
-                                                </button>
-                                                <button className="p-3 bg-black/50 backdrop-blur-md border border-white/10 rounded-full hover:bg-white hover:text-black transition-all">
-                                                    <Share2 size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="empty-state"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="text-center space-y-6"
-                                    >
-                                        <div className="w-24 h-24 bg-[#0F0F0F] rounded-2xl border border-dashed border-white/10 flex items-center justify-center mx-auto transform rotate-6 hover:rotate-0 transition-transform duration-500 shadow-xl">
-                                            {mode === 'product-ads' ? (
-                                                <MonitorPlay size={40} className="text-white/10" />
-                                            ) : mode === 'product-placement' ? (
-                                                <Crosshair size={40} className="text-white/10" />
-                                            ) : (
-                                                <Camera size={40} className="text-white/10" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-medium text-white/80">Workspace Empty</h3>
-                                            <p className="text-white/30 text-xs mt-2">
-                                                {mode === 'product-ads'
-                                                    ? 'Configure your campaign to see the preview'
-                                                    : mode === 'product-placement'
-                                                        ? 'Upload your hero product and scene to start compositing'
-                                                        : 'Product Shoots coming soon'}
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            {/* Top Bar Decoration */}
-                            <div className="absolute top-6 left-6 flex gap-2 opacity-20">
-                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                            </div>
-                        </div>
-
-                        {/* Style Selectors (Bento Grid) */}
-                        <div>
-                            <div className="flex justify-between items-end mb-6">
-                                <label className="text-[10px] uppercase font-bold text-white/30 tracking-widest block">Select Aesthetic</label>
-                                <span className="text-[10px] text-white/20">4 Presets Available</span>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {[
-                                    { name: 'Cinematic', color: 'from-purple-900 to-blue-900', icon: <Film size={16} /> },
-                                    { name: 'Minimalist', color: 'from-gray-800 to-gray-900', icon: <Type size={16} /> },
-                                    { name: 'Cyberpunk', color: 'from-pink-900 to-cyan-900', icon: <Zap size={16} /> },
-                                    { name: 'Nature', color: 'from-green-900 to-emerald-950', icon: <Sparkles size={16} /> },
-                                ].map((style) => (
-                                    <button
-                                        key={style.name}
-                                        onClick={() => setSelectedStyle(style.name)}
-                                        className={`relative h-28 rounded-xl border overflow-hidden group transition-all text-left p-4 flex flex-col justify-between ${selectedStyle === style.name ? 'border-purple-500/50 ring-1 ring-purple-500/20 bg-[#0F0F0F]' : 'bg-[#0A0A0A] border-white/5 hover:border-white/20'}`}
-                                    >
-                                        <div className={`absolute inset-0 bg-gradient-to-br ${style.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}></div>
-
-                                        <div className={`p-2 w-fit rounded-lg ${selectedStyle === style.name ? 'bg-white text-black' : 'bg-white/5 text-white/40 group-hover:text-white group-hover:bg-white/10'} transition-colors`}>
-                                            {style.icon}
-                                        </div>
-
-                                        <div className="relative z-10 flex justify-between items-center w-full">
-                                            <span className={`text-xs font-medium ${selectedStyle === style.name ? 'text-white' : 'text-white/40 group-hover:text-white'}`}>{style.name}</span>
-                                            {selectedStyle === style.name && <div className="w-1.5 h-1.5 rounded-full bg-purple-500 box-shadow-[0_0_10px_rgb(168,85,247)]"></div>}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div >
                 </section>
             </div>
 

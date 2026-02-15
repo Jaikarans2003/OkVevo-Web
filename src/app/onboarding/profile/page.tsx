@@ -44,7 +44,7 @@ export default function OnboardingProfilePage() {
                     className="text-center mb-12"
                 >
                     <div className="inline-flex items-center gap-2 mb-6 opacity-70">
-                        <div className="w-8 h-8 rounded-lg bg-custom-orange flex items-center justify-center font-bold">O</div>
+                        <div className="w-8 h-8 rounded-lg bg-accent-orange flex items-center justify-center font-bold">O</div>
                         <span className="font-medium">OKVEVO</span>
                     </div>
                     <h1 className="text-4xl font-bold mb-4">What describes you best?</h1>
@@ -60,7 +60,7 @@ export default function OnboardingProfilePage() {
                             transition={{ duration: 0.4, delay: index * 0.05 }}
                             onClick={() => setSelectedId(option.id)}
                             className={`group relative p-4 rounded-xl text-left transition-all duration-300 border ${selectedId === option.id
-                                ? 'bg-custom-orange/20 border-custom-orange shadow-[0_0_20px_rgba(255,109,31,0.3)]'
+                                ? 'bg-accent-orange/20 border-accent-orange shadow-[0_0_20px_rgba(255,109,31,0.3)]'
                                 : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
                                 }`}
                         >
@@ -72,7 +72,7 @@ export default function OnboardingProfilePage() {
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        className="bg-custom-orange rounded-full p-1"
+                                        className="bg-accent-orange rounded-full p-1"
                                     >
                                         <Check className="w-3 h-3 text-white" />
                                     </motion.div>
@@ -93,7 +93,7 @@ export default function OnboardingProfilePage() {
                         className={`
                             px-8 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all duration-300
                             ${selectedId
-                                ? 'bg-custom-orange hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50'
+                                ? 'bg-accent-orange hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50'
                                 : 'bg-gray-800 text-gray-500 cursor-not-allowed'}
                         `}
                     >

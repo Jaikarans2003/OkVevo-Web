@@ -114,7 +114,7 @@ function CreateProOrganisationPageContent() {
                         </p>
 
                         {/* Organisation ID */}
-                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-cream/5 border border-custom-orange/20'} rounded-xl p-6 mb-8`}>
+                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-cream/5 border border-accent-orange/20'} rounded-xl p-6 mb-8`}>
                             <p className={`text-sm ${tc.textDim} mb-2`}>Organisation ID</p>
                             <div className="flex items-center gap-3 justify-center">
                                 <code className={`text-accent-orange font-mono text-lg ${resolvedTheme === 'light' ? 'bg-white' : 'bg-custom-bg/50'} px-4 py-2 rounded-lg`}>
@@ -269,7 +269,7 @@ function CreateProOrganisationPageContent() {
                         </div>
 
                         {/* Info Box */}
-                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-orange/10 border border-custom-orange/30'} rounded-xl p-4`}>
+                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-accent-orange/10 border border-accent-orange/30'} rounded-xl p-4`}>
                             <p className={`text-sm ${tc.text}`}>
                                 <strong className="text-accent-orange">Note:</strong> You can invite up to 4 additional members to your Pro organization (5 total including you).
                             </p>

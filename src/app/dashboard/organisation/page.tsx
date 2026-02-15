@@ -262,7 +262,7 @@ function OrganisationDashboardContent() {
                         <div className={`w-px h-6 bg-accent-orange/20`}></div>
                         <button
                             onClick={handleSignOut}
-                            className={`px-6 py-2.5 ${resolvedTheme === 'light' ? 'bg-accent-orange/10' : 'bg-custom-cream/5'} hover:bg-red-500/10 ${tc.textDim} hover:text-red-400 text-sm font-bold rounded-full border ${resolvedTheme === 'light' ? 'border-accent-orange/20' : 'border-custom-orange/10'} hover:border-red-500/30 transition-all duration-300 flex items-center gap-2`}
+                            className={`px-6 py-2.5 ${resolvedTheme === 'light' ? 'bg-accent-orange/10' : 'bg-custom-cream/5'} hover:bg-red-500/10 ${tc.textDim} hover:text-red-400 text-sm font-bold rounded-full border ${resolvedTheme === 'light' ? 'border-accent-orange/20' : 'border-accent-orange/10'} hover:border-red-500/30 transition-all duration-300 flex items-center gap-2`}
                         >
                             <LogOut className="w-4 h-4" />
                             Sign Out
@@ -311,7 +311,7 @@ function OrganisationDashboardContent() {
                 )}
 
                 {/* Tabs */}
-                <div className={`flex gap-2 mb-8 ${resolvedTheme === 'light' ? 'bg-accent-orange/10' : 'bg-custom-cream/5'} p-2 rounded-2xl border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/20'} w-fit`}>
+                <div className={`flex gap-2 mb-8 ${resolvedTheme === 'light' ? 'bg-accent-orange/10' : 'bg-custom-cream/5'} p-2 rounded-2xl border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/20'} w-fit`}>
                     <button
                         onClick={() => setActiveTab('overview')}
                         className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${activeTab === 'overview'
@@ -398,7 +398,7 @@ function OrganisationDashboardContent() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.4 }}
-                            className={`bg-gradient-to-br ${resolvedTheme === 'light' ? 'from-accent-orange/10 to-orange-600/10 border-2 border-accent-orange/30' : 'from-custom-orange/10 to-orange-600/10 border border-custom-orange/30'} backdrop-blur-sm rounded-2xl p-6`}
+                            className={`bg-gradient-to-br ${resolvedTheme === 'light' ? 'from-accent-orange/10 to-orange-600/10 border-2 border-accent-orange/30' : 'from-accent-orange/10 to-orange-600/10 border border-accent-orange/30'} backdrop-blur-sm rounded-2xl p-6`}
                         >
                             <h3 className="text-lg font-bold text-accent-orange mb-4 flex items-center gap-2">
                                 <UserPlus className="w-5 h-5" />
@@ -408,7 +408,7 @@ function OrganisationDashboardContent() {
                                 Share this organisation ID with your team members so they can join:
                             </p>
                             <div className="flex items-center gap-3">
-                                <div className={`flex-1 ${resolvedTheme === 'light' ? 'bg-white' : 'bg-custom-bg'} rounded-xl p-4 border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/30'}`}>
+                                <div className={`flex-1 ${resolvedTheme === 'light' ? 'bg-white' : 'bg-custom-bg'} rounded-xl p-4 border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/30'}`}>
                                     <code className="text-accent-orange font-mono text-sm break-all">
                                         {organisation.id}
                                     </code>
@@ -447,7 +447,7 @@ function OrganisationDashboardContent() {
                                 {members.map((member) => (
                                     <div
                                         key={member.uid}
-                                        className={`flex items-center justify-between p-4 ${resolvedTheme === 'light' ? 'bg-accent-orange/5 border-2 border-accent-orange/20' : 'bg-custom-bg/50 border border-custom-orange/10'} rounded-xl hover:border-accent-orange transition-all`}
+                                        className={`flex items-center justify-between p-4 ${resolvedTheme === 'light' ? 'bg-accent-orange/5 border-2 border-accent-orange/20' : 'bg-custom-bg/50 border border-accent-orange/10'} rounded-xl hover:border-accent-orange transition-all`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-gradient-to-br from-accent-orange to-orange-600 rounded-full flex items-center justify-center">
@@ -548,7 +548,7 @@ function OrganisationDashboardContent() {
                                     type="text"
                                     value={organisation.name}
                                     disabled
-                                    className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
+                                    className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
                                 />
                             </div>
 
@@ -558,7 +558,7 @@ function OrganisationDashboardContent() {
                                     value={organisation.description}
                                     disabled
                                     rows={3}
-                                    className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed resize-none`}
+                                    className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed resize-none`}
                                 />
                             </div>
 
@@ -569,7 +569,7 @@ function OrganisationDashboardContent() {
                                         type="text"
                                         value={organisation.sector}
                                         disabled
-                                        className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
+                                        className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
                                     />
                                 </div>
 
@@ -579,12 +579,12 @@ function OrganisationDashboardContent() {
                                         type="text"
                                         value={organisation.incorporated ? 'Incorporated' : 'Non-Incorporated'}
                                         disabled
-                                        className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-custom-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
+                                        className={`w-full ${resolvedTheme === 'light' ? 'bg-gray-100' : 'bg-custom-bg/50'} border ${resolvedTheme === 'light' ? 'border-accent-orange/30' : 'border-accent-orange/30'} rounded-xl px-4 py-3 ${tc.text} opacity-60 cursor-not-allowed`}
                                     />
                                 </div>
                             </div>
 
-                            <div className={`pt-4 border-t ${resolvedTheme === 'light' ? 'border-accent-orange/20' : 'border-custom-orange/20'}`}>
+                            <div className={`pt-4 border-t ${resolvedTheme === 'light' ? 'border-accent-orange/20' : 'border-accent-orange/20'}`}>
                                 <p className={`text-sm ${tc.textDim}`}>
                                     Settings editing will be available in a future update.
                                 </p>

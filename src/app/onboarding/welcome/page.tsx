@@ -34,7 +34,7 @@ export default function OnboardingWelcomePage() {
                     className="mb-12"
                 >
                     <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-2 rounded-full">
-                        <Sparkles className="w-5 h-5 text-custom-orange" />
+                        <Sparkles className="w-5 h-5 text-accent-orange" />
                         <span className="font-medium text-orange-100/80">OKVEVO Studio</span>
                     </div>
                 </motion.div>
@@ -57,7 +57,7 @@ export default function OnboardingWelcomePage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleStart}
-                    className="group relative px-10 py-4 bg-custom-orange hover:bg-orange-500 rounded-full font-bold text-lg transition-all shadow-[0_0_40px_-10px_rgba(255,109,31,0.5)] hover:shadow-[0_0_60px_-10px_rgba(255,109,31,0.7)] overflow-hidden"
+                    className="group relative px-10 py-4 bg-accent-orange hover:bg-orange-500 rounded-full font-bold text-lg transition-all shadow-[0_0_40px_-10px_rgba(255,109,31,0.5)] hover:shadow-[0_0_60px_-10px_rgba(255,109,31,0.7)] overflow-hidden"
                 >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     <span className="relative z-10 flex items-center gap-2">

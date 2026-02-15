@@ -182,7 +182,7 @@ function FormOrganisationPageContent() {
                             </h3>
 
                             {/* Organisation ID Display */}
-                            <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-orange/10 border border-custom-orange/30'} rounded-xl p-6 mb-6 max-w-md mx-auto`}>
+                            <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-accent-orange/10 border border-accent-orange/30'} rounded-xl p-6 mb-6 max-w-md mx-auto`}>
                                 <p className={`text-sm ${tc.textDim} mb-2`}>Your Organisation ID:</p>
                                 <div className={`${resolvedTheme === 'light' ? 'bg-text-main/5' : 'bg-custom-bg'} rounded-lg p-3 mb-3`}>
                                     <code className="text-accent-orange font-mono text-sm break-all">
@@ -321,7 +321,7 @@ function FormOrganisationPageContent() {
 
                     {/* Info Box */}
                     {!success && (
-                        <div className={`mt-8 p-4 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-orange/10 border border-custom-orange/30'} rounded-xl`}>
+                        <div className={`mt-8 p-4 ${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-accent-orange/10 border border-accent-orange/30'} rounded-xl`}>
                             <h4 className="text-sm font-bold text-accent-orange mb-2">
                                 As an admin, you'll be able to:
                             </h4>

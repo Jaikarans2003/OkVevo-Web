@@ -2,140 +2,66 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
     Film,
-    LayoutGrid,
-    TrendingUp,
     Play,
     Zap,
     Clock,
     Type,
     CheckCircle2,
     Loader2,
-    Image as ImageIcon,
-    Video,
-    ChevronRight,
     Sparkles,
     Clapperboard,
-    Wand2,
-    History,
-    HelpCircle,
-    Copy,
-    Share2,
-    Download,
+    Send,
+    RotateCcw,
     MonitorPlay,
     Smartphone,
-    Package
+    Square,
+    Tv,
+    Share2,
+    Download,
+    Volume2
 } from 'lucide-react';
-
-// --- Components ---
-function HoverVideoCard({ step, index }: { step: any, index: number }) {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [isHovered, setIsHovered] = useState(false);
-
-    useEffect(() => {
-        if (!videoRef.current) return;
-
-        if (isHovered) {
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Ignore autoplay errors
-                });
-            }
-        } else {
-            videoRef.current.pause();
-            videoRef.current.currentTime = 0;
-        }
-    }, [isHovered]);
-
-    return (
-        <div
-            className="bg-[#121212] border border-[#1A1A1A] p-8 rounded-2xl relative group hover:border-[#333] transition-all cursor-pointer overflow-hidden h-[280px] flex flex-col justify-end"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            {/* Background Video */}
-            <video
-                ref={videoRef}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 pointer-events-none ${isHovered ? 'opacity-40' : 'opacity-0'}`}
-                src={step.video}
-                muted
-                loop
-                playsInline
-            />
-
-            <div className="relative z-10 transition-transform duration-500 group-hover:translate-y-[-10px]">
-                <div className="absolute -top-16 right-0 text-[#2A2A2A] font-bold text-6xl opacity-20">{index + 1}</div>
-                <div className="w-12 h-12 bg-[#1A1A1A] rounded-xl flex items-center justify-center text-white mb-6 group-hover:bg-[#8B5CF6] group-hover:text-white transition-all duration-500 shadow-xl group-hover:shadow-purple-500/20">
-                    {step.icon}
-                </div>
-                <h3 className="text-white font-bold text-lg mb-2 group-hover:text-white transition-colors">{step.title}</h3>
-                <p className="text-[#666] text-sm leading-relaxed group-hover:text-[#AAA] transition-colors">{step.desc}</p>
-            </div>
-
-            {/* Subtle Gradient Overlay on Hover */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
-        </div>
-    );
-}
+import { useDirectorFlow, Message } from '../../../hooks/useDirectorFlow';
 
 export default function DirectorWorkstation() {
-    // --- State ---
+    const { messages, currentState, project, handleNext, resetFlow } = useDirectorFlow();
+    const [inputText, setInputText] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
-    const [activeTab, setActiveTab] = useState<'trailer' | 'movie'>('trailer');
 
-    // Trailer Inputs
-    const [script, setScript] = useState('');
-    const [duration, setDuration] = useState('30s');
-    const [genre, setGenre] = useState('Sci-Fi');
-    const [aspectRatio, setAspectRatio] = useState('16:9');
-
-    // Generation State
-    const [generationStep, setGenerationStep] = useState<'idle' | 'loading' | 'storyboard' | 'video'>('idle');
-    const [selectedStoryboard, setSelectedStoryboard] = useState<number | null>(null);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
-
-    // Mock Data
-    const storyboards = Array.from({ length: 9 }).map((_, i) => i);
-
-    const handleGenerate = () => {
-        if (!script) return;
-        setGenerationStep('loading');
-
-        // Simulate Generation Delay
-        setTimeout(() => {
-            setGenerationStep('storyboard');
-        }, 3000);
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    const handleStoryboardSelect = (index: number) => {
-        setSelectedStoryboard(index);
-        // Simulate Video Generation after selection
-        setGenerationStep('loading');
-        setTimeout(() => {
-            setGenerationStep('video');
-        }, 2000);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            scrollToBottom();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [messages]);
+
+    const onSend = () => {
+        if (!inputText.trim()) return;
+        handleNext(inputText);
+        setInputText('');
     };
 
-    const resetFlow = () => {
-        setGenerationStep('idle');
-        setSelectedStoryboard(null);
-        setScript('');
+    const handleQuickChoice = (choice: string) => {
+        handleNext(choice);
     };
 
     return (
-        <div className="h-screen w-screen bg-[#0A0A0A] text-[#E0E0E0] font-sans flex flex-col overflow-hidden selection:bg-purple-500/30 relative">
-
-            {/* Cinematic Vignette Overlay */}
-            <div className="fixed inset-0 pointer-events-none z-[60] bg-[radial-gradient(circle_at_center,transparent_10%,rgba(0,0,0,0.4)_100%)]" />
-            <div className="fixed inset-0 pointer-events-none z-[60] bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(139,92,246,0.15)_100%)] mix-blend-screen" />
+        <div className="h-screen w-screen bg-[#0A0A0A] text-[#E0E0E0] font-sans flex flex-col overflow-hidden relative">
+            {/* Cinematic Vignette Overlays */}
+            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(139,92,246,0.05)_100%)] mix-blend-screen" />
 
             {/* --- STUDIO NAVIGATION BAR --- */}
-            <nav className="h-16 border-b border-[#2A2A2A] bg-[#121212]/50 backdrop-blur-xl flex items-center justify-between px-6 z-50">
+            <nav className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-2xl flex items-center justify-between px-6 z-50">
                 <Link href="/" className="flex items-center gap-1 group">
                     <Image
                         src="/OKVEVO WithOut BackGrounds/White.svg"
@@ -163,301 +89,211 @@ export default function DirectorWorkstation() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1A] rounded-full border border-[#2A2A2A]">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] uppercase font-bold text-[#666] tracking-widest">System Online</span>
-                    </div>
-                    {/* User Profile Dropdown */}
-                    <div className="relative z-50">
-                        <button
-                            onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className="w-9 h-9 rounded-full bg-gradient-to-br from-[#222] to-[#111] border border-[#333] flex items-center justify-center text-[#888] hover:border-[#8B5CF6] hover:text-white transition-all overflow-hidden relative"
-                        >
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Director" alt="User" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
-                        </button>
-
-                        <AnimatePresence>
-                            {isProfileOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="absolute right-0 top-12 w-56 bg-[#121212] border border-[#2A2A2A] rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl z-50 p-1"
-                                >
-                                    <div className="px-4 py-3 border-b border-[#222]">
-                                        <p className="text-sm font-bold text-white">Aditya Manhas</p>
-                                        <p className="text-xs text-[#666]">Director Account</p>
-                                    </div>
-                                    <div className="py-1">
-                                        <Link href="/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-[#888] hover:text-white hover:bg-[#1A1A1A] transition-colors rounded-lg mx-1">
-                                            <div className="w-2 h-2 rounded-full bg-[#8B5CF6]"></div> Profile
-                                        </Link>
-                                        <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-[#888] hover:text-white hover:bg-[#1A1A1A] transition-colors rounded-lg mx-1">
-                                            <div className="w-2 h-2 rounded-full bg-[#333]"></div> Settings
-                                        </Link>
-                                        <div className="h-px bg-[#222] my-1 mx-2"></div>
-                                        <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors rounded-lg mx-1">
-                                            Sign Out
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Active</span>
                     </div>
                 </div>
             </nav>
 
-            <div className="flex-1 flex overflow-hidden">
-                {/* --- LEFT SIDEBAR (Controls) --- */}
-                <aside className="w-[350px] bg-[#121212] border-r border-[#2A2A2A] flex flex-col z-20 shadow-2xl relative">
-                    {/* Navigation Tabs */}
-                    <div className="p-4 pt-6">
-                        <div className="flex p-1 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A]">
-                            <button
-                                onClick={() => { setActiveTab('trailer'); resetFlow(); }}
-                                className={`flex-1 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'trailer' ? 'bg-[#2A2A2A] text-white shadow-sm' : 'text-[#666] hover:text-white'}`}
+            {/* --- MAIN CHAT AREA --- */}
+            <main className="flex-1 flex flex-col items-center relative z-20 overflow-hidden pt-10">
+                <div className="w-full max-w-4xl flex-1 overflow-y-auto px-6 pb-32 space-y-8 scroll-smooth">
+                    <AnimatePresence>
+                        {messages.map((msg, idx) => (
+                            <motion.div
+                                key={msg.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                Trailer
-                            </button>
-                            <button
-                                onClick={() => { setActiveTab('movie'); resetFlow(); }}
-                                className={`flex-1 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'movie' ? 'bg-[#2A2A2A] text-white shadow-sm' : 'text-[#666] hover:text-white'}`}
-                            >
-                                Movie
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Input Form */}
-                    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-6 custom-scrollbar">
-                        {activeTab === 'trailer' ? (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-300">
-
-                                {/* Prompt Input */}
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-xs font-bold text-[#888] uppercase tracking-wide">Script / Prompt</label>
-                                        <button className="text-[10px] flex items-center gap-1 text-[#8B5CF6] hover:underline">
-                                            <Wand2 size={10} /> Enhance
-                                        </button>
-                                    </div>
-                                    <textarea
-                                        value={script}
-                                        onChange={(e) => setScript(e.target.value)}
-                                        placeholder="Describe your scene in detail... e.g., A cinematic drone shot of a futuristic neon city at night, rain falling, cybernetic pedestrians walking."
-                                        className="w-full h-40 bg-[#1A1A1A] border border-[#333] rounded-xl p-4 text-sm text-white placeholder-[#444] focus:border-[#8B5CF6] outline-none transition-all resize-none leading-relaxed"
-                                    />
-                                </div>
-
-                                {/* Settings Grid */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-[#888] uppercase tracking-wide">Duration</label>
-                                        <select
-                                            value={duration}
-                                            onChange={(e) => setDuration(e.target.value)}
-                                            className="w-full bg-[#1A1A1A] border border-[#333] rounded-lg p-3 text-sm text-white outline-none focus:border-[#8B5CF6] appearance-none cursor-pointer hover:bg-[#222]"
-                                        >
-                                            <option value="5s">5 Seconds</option>
-                                            <option value="10s">10 Seconds</option>
-                                            <option value="30s">30 Seconds</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-[#888] uppercase tracking-wide">Aspect Ratio</label>
-                                        <select
-                                            value={aspectRatio}
-                                            onChange={(e) => setAspectRatio(e.target.value)}
-                                            className="w-full bg-[#1A1A1A] border border-[#333] rounded-lg p-3 text-sm text-white outline-none focus:border-[#8B5CF6] appearance-none cursor-pointer hover:bg-[#222]"
-                                        >
-                                            <option value="16:9">16:9 Landscape</option>
-                                            <option value="9:16">9:16 Portrait</option>
-                                            <option value="1:1">1:1 Square</option>
-                                            <option value="2.39:1">2.39:1 Cinema</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-[#888] uppercase tracking-wide">Style / Genre</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {['Cinematic', 'Anime', '3D Render', 'Realistic', 'Cyberpunk', 'Fantasy'].map((s) => (
-                                            <button
-                                                key={s}
-                                                onClick={() => setGenre(s)}
-                                                className={`py-2 px-1 rounded-md text-[10px] font-medium border transition-all ${genre === s ? 'bg-[#8B5CF6]/10 border-[#8B5CF6] text-[#8B5CF6]' : 'bg-[#1A1A1A] border-[#333] text-[#666] hover:border-[#666]'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                            </div>
-                        ) : (
-                            <div className="h-64 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-                                <Video size={48} className="text-[#333]" />
-                                <p className="text-sm font-medium text-[#666]">Movie Mode Coming Soon</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Sticky Footer Action */}
-                    <div className="p-4 border-t border-[#2A2A2A] bg-[#121212]">
-                        <div className="flex items-center justify-between text-[10px] text-[#666] mb-3 px-1">
-                            <span>Cost: <span className="text-white">10 Credits</span></span>
-                            <span>Balance: <span className="text-white">450</span></span>
-                        </div>
-                        <button
-                            onClick={handleGenerate}
-                            disabled={!script || activeTab === 'movie' || generationStep !== 'idle'}
-                            className={`w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${!script || activeTab === 'movie' || generationStep !== 'idle' ? 'bg-[#2A2A2A] text-[#666] cursor-not-allowed' : 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED] shadow-[0_0_20px_rgba(139,92,246,0.2)]'}`}
-                        >
-                            {generationStep === 'idle' ? 'Generate Video' : 'Processing...'}
-                        </button>
-                    </div>
-                </aside>
-
-                {/* --- MAIN CONTENT AREA --- */}
-                <main className="flex-1 flex flex-col bg-[#0A0A0A] relative overflow-hidden">
-                    {/* Header - Sub Navigation */}
-                    <header className="h-14 border-b border-[#1A1A1A] flex items-center justify-between px-8 bg-[#0A0A0A]">
-                        <nav className="flex gap-6">
-                            <Link href="#" className="text-xs font-bold uppercase tracking-widest text-white border-b-2 border-[#8B5CF6] pb-4 translate-y-2">Workspace</Link>
-                        </nav>
-                        <div className="flex items-center gap-3">
-                            <button className="p-2 rounded-lg hover:bg-[#1A1A1A] text-[#666] hover:text-white transition-colors">
-                                <HelpCircle size={16} />
-                            </button>
-                        </div>
-                    </header>
-
-                    <div className="flex-1 p-8 overflow-y-auto">
-                        <AnimatePresence mode='wait'>
-                            {generationStep === 'idle' ? (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="h-full flex flex-col items-center justify-center max-w-5xl mx-auto"
-                                >
-                                    <div className="text-center space-y-4 mb-16">
-                                        <div className="w-20 h-20 bg-[#1A1A1A] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl border border-[#222]">
-                                            <Clapperboard size={40} className="text-[#8B5CF6]" />
-                                        </div>
-                                        <h1 className="text-5xl font-bold text-white tracking-tight">Director Mode</h1>
-                                        <p className="text-[#666] text-lg max-w-2xl mx-auto">Create broadcast-quality commercials, trailers, and scenes using our advanced cinematic model.</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-8 w-full">
-                                        {[
-                                            {
-                                                icon: <Type size={24} />,
-                                                title: "Describe Scene",
-                                                desc: "Enter a detailed prompt or upload a script.",
-                                                video: "https://cdn.pixabay.com/video/2022/02/09/107240-678130070_large.mp4"
-                                            },
-                                            {
-                                                icon: <LayoutGrid size={24} />,
-                                                title: "Select Visuals",
-                                                desc: "Choose from generated storyboards.",
-                                                video: "https://cdn.pixabay.com/video/2022/05/25/118150-713900143_large.mp4"
-                                            },
-                                            {
-                                                icon: <Film size={24} />,
-                                                title: "Get Video",
-                                                desc: "Render high-quality video output.",
-                                                video: "https://cdn.pixabay.com/video/2025/06/01/283000_large.mp4"
-                                            }
-                                        ].map((step, i) => (
-                                            <HoverVideoCard key={i} step={step} index={i} />
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            ) : generationStep === 'loading' ? (
-                                <motion.div
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    className="h-full flex flex-col items-center justify-center"
-                                >
-                                    <div className="relative">
-                                        <div className="w-24 h-24 border-4 border-[#1A1A1A] border-t-[#8B5CF6] rounded-full animate-spin"></div>
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <Sparkles size={24} className="text-white fill-white animate-pulse" />
-                                        </div>
-                                    </div>
-                                    <h3 className="text-xl font-bold text-white mt-8 animate-pulse">Generating Assets...</h3>
-                                    <p className="text-[#666] text-sm mt-2">Putting pixels together</p>
-                                </motion.div>
-                            ) : generationStep === 'storyboard' ? (
-                                <motion.div
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    className="h-full max-w-7xl mx-auto flex flex-col"
-                                >
-                                    <div className="flex justify-between items-end mb-8">
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-white">Select a Version</h2>
-                                            <p className="text-[#666] text-sm mt-1">Choose the best starting point for your video.</p>
-                                        </div>
-                                        <button onClick={resetFlow} className="text-sm text-[#8B5CF6] hover:underline">Cancel Generation</button>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-6">
-                                        {storyboards.map((idx) => (
-                                            <motion.button
-                                                key={idx}
-                                                onClick={() => handleStoryboardSelect(idx)}
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                className="aspect-video bg-[#121212] border border-[#222] rounded-xl overflow-hidden hover:border-[#8B5CF6] transition-all relative group"
-                                            >
-                                                <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center text-[#333] group-hover:text-white transition-colors">
-                                                    <ImageIcon size={32} />
+                                <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-[#8B5CF6] text-white' : 'bg-white/5 border border-white/10'} p-5 rounded-2xl shadow-2xl`}>
+                                    {msg.type === 'review' ? (
+                                        <div className="space-y-4">
+                                            <p className="font-bold text-[#8B5CF6] uppercase tracking-widest text-xs">Project Summary</p>
+                                            <div className="grid grid-cols-2 gap-4 text-sm bg-black/40 p-4 rounded-xl border border-white/5">
+                                                <div>
+                                                    <p className="text-gray-500 text-[10px] uppercase font-bold">Project Name</p>
+                                                    <p className="text-white font-medium">{project.name}</p>
                                                 </div>
-                                                <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-white/70">
-                                                    V{idx + 1}
+                                                <div>
+                                                    <p className="text-gray-500 text-[10px] uppercase font-bold">Duration</p>
+                                                    <p className="text-white font-medium">{project.duration}</p>
                                                 </div>
-                                            </motion.button>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                    className="h-full flex flex-col items-center justify-center max-w-6xl mx-auto"
-                                >
-                                    <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl relative border border-[#222]">
-                                        <div className="absolute inset-0 flex items-center justify-center bg-[#111]">
-                                            <div className="text-center space-y-4">
-                                                <Play size={48} className="text-white mx-auto opacity-50" />
-                                                <p className="text-[#666]">Preview Render {selectedStoryboard !== null ? selectedStoryboard + 1 : 1}</p>
+                                                <div className="col-span-2">
+                                                    <p className="text-gray-500 text-[10px] uppercase font-bold">Script / Prompt</p>
+                                                    <p className="text-white font-medium line-clamp-3">{project.script}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-gray-500 text-[10px] uppercase font-bold">Style</p>
+                                                    <p className="text-white font-medium">{project.genre}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-gray-500 text-[10px] uppercase font-bold">Aspect Ratio</p>
+                                                    <p className="text-white font-medium">{project.aspectRatio}</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm">Ready to bring this to life? Type <span className="text-[#8B5CF6] font-bold italic">"YES"</span> to proceed.</p>
+                                        </div>
+                                    ) : msg.type === 'result' ? (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-3 text-[#8B5CF6] mb-2">
+                                                <div className="p-1 px-2.5 bg-[#8B5CF6]/20 rounded-full border border-[#8B5CF6]/30">
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Final Cut Ready</span>
+                                                </div>
+                                                <div className="h-px flex-1 bg-gradient-to-r from-[#8B5CF6]/30 to-transparent" />
+                                            </div>
+
+                                            <div className="aspect-video bg-black rounded-3xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] relative border border-white/10 group">
+                                                {/* Interactive Video Player */}
+                                                {project.videoUrl ? (
+                                                    <video
+                                                        src={project.videoUrl}
+                                                        controls
+                                                        autoPlay
+                                                        playsInline
+                                                        className="w-full h-full object-contain bg-[#050505]"
+                                                    />
+                                                ) : (
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-[#121212] to-black flex flex-col items-center justify-center p-8 text-center space-y-4">
+                                                        <Loader2 className="animate-spin text-[#8B5CF6]" size={40} />
+                                                        <p className="text-xs font-bold uppercase tracking-widest text-[#8B5CF6]">Connecting Master Stream...</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-30 translate-y-2 group-hover:translate-y-0">
+                                                    <button className="p-2.5 bg-black/60 backdrop-blur-xl rounded-xl hover:bg-white hover:text-black transition-all border border-white/5 shadow-2xl" title="Share Production">
+                                                        <Share2 size={16} />
+                                                    </button>
+                                                    <button className="p-2.5 bg-black/60 backdrop-blur-xl rounded-xl hover:bg-white hover:text-black transition-all border border-white/5 shadow-2xl" title="Download Master">
+                                                        <Download size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Interactive Audio Player - Enhanced UI */}
+                                            {project.audioUrl && (
+                                                <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-3xl p-6 space-y-5 shadow-2xl">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 bg-[#8B5CF6]/10 rounded-2xl flex items-center justify-center text-[#8B5CF6] border border-[#8B5CF6]/20">
+                                                                <Volume2 size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-white/40 mb-0.5">Master Score</p>
+                                                                <p className="text-xs font-bold text-white/90">Cinematic Ambience Vol. 1</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                                                            <span className="text-[9px] font-black uppercase text-green-500 tracking-widest">Dolby Atmos</span>
+                                                        </div>
+                                                    </div>
+                                                    <audio
+                                                        src={project.audioUrl}
+                                                        controls
+                                                        className="w-full h-10 accent-[#8B5CF6] transition-all opacity-80 hover:opacity-100"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Final Action Hub */}
+                                            <div className="flex gap-4 pt-4">
+                                                <button
+                                                    onClick={resetFlow}
+                                                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-3 text-white/60 hover:text-white"
+                                                >
+                                                    <RotateCcw size={14} /> Reset Console
+                                                </button>
+                                                <button className="flex-2 py-4 bg-[#8B5CF6] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#7C3AED] active:scale-95 transition-all flex items-center justify-center gap-3 shadow-[0_20px_40px_-10px_rgba(139,92,246,0.3)]">
+                                                    <Clapperboard size={14} /> Export Production
+                                                </button>
                                             </div>
                                         </div>
+                                    ) : (
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                    <div ref={messagesEndRef} />
+                </div>
 
-                                        {/* Overlay Actions */}
-                                        <div className="absolute top-6 right-6 flex gap-2">
-                                            <button className="p-2 bg-black/50 backdrop-blur rounded-lg hover:bg-white hover:text-black transition-colors">
-                                                <Share2 size={18} />
-                                            </button>
-                                            <button className="p-2 bg-black/50 backdrop-blur rounded-lg hover:bg-white hover:text-black transition-colors">
-                                                <Download size={18} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-4 mt-8">
-                                        <button onClick={resetFlow} className="px-8 py-3 bg-[#1A1A1A] text-white rounded-lg font-bold text-sm hover:bg-[#222] transition-colors border border-[#333]">
-                                            Create New
+                {/* --- INPUT AREA --- */}
+                <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent pt-10">
+                    <div className="max-w-4xl mx-auto space-y-4">
+                        {/* Quick Choices */}
+                        <AnimatePresence>
+                            {currentState === 'duration' && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 flex-wrap">
+                                    {['5s', '10s', '30s'].map(d => (
+                                        <button key={d} onClick={() => handleQuickChoice(d)} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-[#8B5CF6] hover:border-[#8B5CF6] transition-all flex items-center gap-2">
+                                            <Clock size={14} /> {d}
                                         </button>
-                                        <button className="px-8 py-3 bg-[#8B5CF6] text-white rounded-lg font-bold text-sm hover:bg-[#7C3AED] transition-colors shadow-[0_0_20px_rgba(139,92,246,0.2)]">
-                                            Upscale to 4K
+                                    ))}
+                                </motion.div>
+                            )}
+                            {currentState === 'aspect_ratio' && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 flex-wrap">
+                                    {[
+                                        { label: '16:9 Landscape', icon: <Tv size={14} /> },
+                                        { label: '9:16 Portrait', icon: <Smartphone size={14} /> },
+                                        { label: '1:1 Square', icon: <Square size={14} /> },
+                                        { label: '2.39:1 Cinema', icon: <MonitorPlay size={14} /> }
+                                    ].map(r => (
+                                        <button key={r.label} onClick={() => handleQuickChoice(r.label)} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-[#8B5CF6] hover:border-[#8B5CF6] transition-all flex items-center gap-2">
+                                            {r.icon} {r.label}
                                         </button>
-                                    </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                            {currentState === 'genre' && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 flex-wrap">
+                                    {['Cinematic', 'Anime', 'Cyberpunk', 'Realistic', 'Fantasy'].map(g => (
+                                        <button key={g} onClick={() => handleQuickChoice(g)} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-[#8B5CF6] hover:border-[#8B5CF6] transition-all flex items-center gap-2">
+                                            <Film size={14} /> {g}
+                                        </button>
+                                    ))}
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </div>
-                </main>
 
-            </div>
+                        {/* Text Input */}
+                        <div className="relative group">
+                            <textarea
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        onSend();
+                                    }
+                                }}
+                                disabled={currentState === 'generating' || currentState === 'complete'}
+                                placeholder={
+                                    currentState === 'naming' ? "Enter project name..." :
+                                        currentState === 'scripting' ? "Paste your script or scene description..." :
+                                            currentState === 'review' ? "Type 'YES' to proceed..." :
+                                                "Your response..."
+                                }
+                                className="w-full bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-3xl p-5 pr-16 text-sm outline-none focus:border-[#8B5CF6]/50 transition-all resize-none shadow-2xl h-[70px] placeholder:text-gray-600"
+                            />
+                            <button
+                                onClick={onSend}
+                                disabled={!inputText.trim() || currentState === 'generating' || currentState === 'complete'}
+                                className="absolute right-4 bottom-4 w-9 h-9 bg-[#8B5CF6] text-white rounded-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100 shadow-lg shadow-purple-500/20"
+                            >
+                                <Send size={18} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-center gap-4 text-[10px] uppercase font-black tracking-[0.2em] text-white/20">
+                            <span>Director Console v2.0</span>
+                            <div className="w-1 h-1 rounded-full bg-white/20" />
+                            <span>System Primed</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 }

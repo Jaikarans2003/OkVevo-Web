@@ -200,7 +200,7 @@ function OrganisationOptionsPageContent() {
                                 </div>
                             </Link>
                         ) : (
-                            <div className={`relative ${tc.card} rounded-3xl p-8 opacity-60 cursor-not-allowed text-left border-2 ${resolvedTheme === 'light' ? 'border-text-main/10' : 'border-custom-orange/20'}`}>
+                            <div className={`relative ${tc.card} rounded-3xl p-8 opacity-60 cursor-not-allowed text-left border-2 ${resolvedTheme === 'light' ? 'border-text-main/10' : 'border-accent-orange/20'}`}>
                                 <div className="absolute top-4 right-4 bg-red-500/20 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/50">
                                     Custom Domain Required
                                 </div>

@@ -324,7 +324,7 @@ function ChatPageContent() {
                 return (
                     <div key={index} className="flex items-start gap-2 mb-2">
                         <span className="text-lg">{line.substring(0, 2)}</span>
-                        <span className="font-semibold text-custom-orange">{line.substring(2).split(':')[0]}:</span>
+                        <span className="font-semibold text-accent-orange">{line.substring(2).split(':')[0]}:</span>
                         <span className="text-gray-300">{line.substring(2).split(':')[1]}</span>
                     </div>
                 );
@@ -346,7 +346,7 @@ function ChatPageContent() {
                 {/* Header / Title */}
                 <div className="px-6 py-4 flex items-center justify-between sticky top-0 z-20">
                     {/* <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-custom-orange to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-custom-orange/20">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-orange to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-accent-orange/20">
                             O
                         </div>
                         <div>
@@ -399,7 +399,7 @@ function ChatPageContent() {
                                     className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'} `}
                                 >
                                     {message.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-lg bg-custom-orange flex items-center justify-center shrink-0 mt-1">
+                                        <div className="w-8 h-8 rounded-lg bg-accent-orange flex items-center justify-center shrink-0 mt-1">
                                             <Bot className="w-4 h-4 text-white" />
                                         </div>
                                     )}
@@ -409,13 +409,13 @@ function ChatPageContent() {
                                             // Scene Review Card
                                             <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 shadow-xl">
                                                 <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                                    <Film className="w-5 h-5 text-custom-orange" /> Scene Breakdown
+                                                    <Film className="w-5 h-5 text-accent-orange" /> Scene Breakdown
                                                 </h2>
                                                 <div className="space-y-4">
                                                     {analyzedScenes.map((scene, idx) => (
-                                                        <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-custom-orange/30 transition-colors">
+                                                        <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-accent-orange/30 transition-colors">
                                                             <div className="flex justify-between mb-2">
-                                                                <h3 className="text-custom-orange font-bold text-sm">Scene {idx + 1}</h3>
+                                                                <h3 className="text-accent-orange font-bold text-sm">Scene {idx + 1}</h3>
                                                             </div>
                                                             <div className="space-y-3">
                                                                 <div>
@@ -424,7 +424,7 @@ function ChatPageContent() {
                                                                         value={scene.primary_visuals}
                                                                         onChange={(e) => updateAnalyzedScene(idx, 'primary_visuals', e.target.value)}
                                                                         disabled={isGeneratingVideos}
-                                                                        className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-custom-orange/50 transition-colors resize-none"
+                                                                        className="w-full bg-custom-bg/50 border border-white/10 rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-accent-orange/50 transition-colors resize-none"
                                                                         rows={3}
                                                                     />
                                                                 </div>
@@ -435,7 +435,7 @@ function ChatPageContent() {
                                                                             value={scene.scene_objective}
                                                                             onChange={(e) => updateAnalyzedScene(idx, 'scene_objective', e.target.value)}
                                                                             disabled={isGeneratingVideos}
-                                                                            className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:border-custom-orange/50"
+                                                                            className="w-full bg-custom-bg/50 border border-white/10 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:border-accent-orange/50"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -444,7 +444,7 @@ function ChatPageContent() {
                                                                             value={scene.emotional_tone}
                                                                             onChange={(e) => updateAnalyzedScene(idx, 'emotional_tone', e.target.value)}
                                                                             disabled={isGeneratingVideos}
-                                                                            className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:border-custom-orange/50"
+                                                                            className="w-full bg-custom-bg/50 border border-white/10 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:border-accent-orange/50"
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -456,7 +456,7 @@ function ChatPageContent() {
                                                     <button
                                                         onClick={handleSceneConfirmation}
                                                         disabled={isGeneratingVideos}
-                                                        className="px-6 py-3 bg-custom-orange hover:bg-orange-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className="px-6 py-3 bg-accent-orange hover:bg-orange-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         {isGeneratingVideos ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                                                         {isGeneratingVideos ? 'Generating...' : 'Confirm & Generate'}
@@ -466,7 +466,7 @@ function ChatPageContent() {
                                         ) : (
                                             // Regular Message
                                             <div className={`p-4 rounded-2xl ${message.role === 'user'
-                                                ? 'bg-custom-orange text-white rounded-tr-none'
+                                                ? 'bg-accent-orange text-white rounded-tr-none'
                                                 : 'bg-white/5 border border-white/10 text-gray-200 rounded-tl-none'
                                                 } `}>
                                                 <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
@@ -489,91 +489,103 @@ function ChatPageContent() {
                         </AnimatePresence>
 
                         {/* Loading Indicators */}
-                        {chatLoading && (
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 rounded-lg bg-custom-orange flex items-center justify-center shrink-0">
-                                    <Bot className="w-4 h-4 text-white" />
+                        {
+                            chatLoading && (
+                                <div className="flex gap-4">
+                                    <div className="w-8 h-8 rounded-lg bg-accent-orange flex items-center justify-center shrink-0">
+                                        <Bot className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 rounded-tl-none flex items-center gap-3">
+                                        <Loader2 className="w-4 h-4 animate-spin text-accent-orange" />
+                                        <span className="text-gray-400 text-sm">Thinking...</span>
+                                    </div>
                                 </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 rounded-tl-none flex items-center gap-3">
-                                    <Loader2 className="w-4 h-4 animate-spin text-custom-orange" />
-                                    <span className="text-gray-400 text-sm">Thinking...</span>
-                                </div>
-                            </div>
-                        )}
+                            )
+                        }
 
                         {/* Clarifying Questions */}
-                        {currentState === 'awaiting_answers' && followUpQuestions.length > 0 && (
-                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ml-12 bg-orange-900/10 border border-custom-orange/20 rounded-xl p-5">
-                                <h3 className="text-custom-orange font-bold mb-3 flex items-center gap-2">
-                                    <Bot className="w-4 h-4" /> Questions to refine your video:
-                                </h3>
-                                <ul className="space-y-2 mb-4">
-                                    {followUpQuestions.map((q, i) => (
-                                        <li key={i} className="text-sm text-gray-300 flex gap-2">
-                                            <span className="text-custom-orange font-bold">{i + 1}.</span> {q}
-                                        </li>
-                                    ))}
-                                </ul>
-                                <div className="flex justify-end">
-                                    <button onClick={() => handleProceedToAnalysis("SKIP")} className="text-xs font-bold text-gray-500 hover:text-white transition-colors">
-                                        SKIP QUESTIONS
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
+                        {
+                            currentState === 'awaiting_answers' && followUpQuestions.length > 0 && (
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ml-12 bg-orange-900/10 border border-accent-orange/20 rounded-xl p-5">
+                                    <h3 className="text-accent-orange font-bold mb-3 flex items-center gap-2">
+                                        <Bot className="w-4 h-4" /> Questions to refine your video:
+                                    </h3>
+                                    <ul className="space-y-2 mb-4">
+                                        {followUpQuestions.map((q, i) => (
+                                            <li key={i} className="text-sm text-gray-300 flex gap-2">
+                                                <span className="text-accent-orange font-bold">{i + 1}.</span> {q}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="flex justify-end">
+                                        <button onClick={() => handleProceedToAnalysis("SKIP")} className="text-xs font-bold text-gray-500 hover:text-white transition-colors">
+                                            SKIP QUESTIONS
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )
+                        }
 
                         {/* Duration Selection */}
-                        {currentState === 'awaiting_duration' && (
-                            <div className="ml-12 grid grid-cols-4 gap-3">
-                                {[10, 20, 30, 60].map((duration) => (
-                                    <button
-                                        key={duration}
-                                        onClick={() => handleDurationSelection(duration)}
-                                        className={`py-3 rounded-xl border font-bold transition-all ${targetDuration === duration
-                                            ? 'bg-custom-orange border-custom-orange text-white'
-                                            : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-custom-orange/50 hover:text-white'
-                                            } `}
-                                    >
-                                        {duration}s
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        {
+                            currentState === 'awaiting_duration' && (
+                                <div className="ml-12 grid grid-cols-4 gap-3">
+                                    {[10, 20, 30, 60].map((duration) => (
+                                        <button
+                                            key={duration}
+                                            onClick={() => handleDurationSelection(duration)}
+                                            className={`py-3 rounded-xl border font-bold transition-all ${targetDuration === duration
+                                                ? 'bg-accent-orange border-accent-orange text-white'
+                                                : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-accent-orange/50 hover:text-white'
+                                                } `}
+                                        >
+                                            {duration}s
+                                        </button>
+                                    ))}
+                                </div>
+                            )
+                        }
 
                         {/* Video / Audio Results */}
-                        {audioUrl && (
-                            <div className="ml-12 mt-4 bg-[#0F0F0F] rounded-xl p-4 border border-white/10">
-                                <div className="flex items-center gap-3 mb-3 text-custom-orange font-bold text-sm">
-                                    <Volume2 className="w-4 h-4" /> Generated Narration
+                        {
+                            audioUrl && (
+                                <div className="ml-12 mt-4 bg-[#0F0F0F] rounded-xl p-4 border border-white/10">
+                                    <div className="flex items-center gap-3 mb-3 text-accent-orange font-bold text-sm">
+                                        <Volume2 className="w-4 h-4" /> Generated Narration
+                                    </div>
+                                    <audio src={audioUrl} controls className="w-full h-8" />
                                 </div>
-                                <audio src={audioUrl} controls className="w-full h-8" />
-                            </div>
-                        )}
+                            )
+                        }
 
                         {/* Status Display during generation */}
-                        {videoStatus && (isGeneratingVideos || videoStatus.includes('Success') || videoStatus.includes('Complete')) && (
-                            <div className="ml-12 mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
-                                {isGeneratingVideos ? <Loader2 className="w-4 h-4 animate-spin text-blue-400" /> : <CheckCircle className="w-4 h-4 text-green-400" />}
-                                <span className="text-blue-200 text-sm font-medium">{videoStatus}</span>
-                            </div>
-                        )}
+                        {
+                            videoStatus && (isGeneratingVideos || videoStatus.includes('Success') || videoStatus.includes('Complete')) && (
+                                <div className="ml-12 mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+                                    {isGeneratingVideos ? <Loader2 className="w-4 h-4 animate-spin text-blue-400" /> : <CheckCircle className="w-4 h-4 text-green-400" />}
+                                    <span className="text-blue-200 text-sm font-medium">{videoStatus}</span>
+                                </div>
+                            )
+                        }
 
-                        {(videoUrls.length > 0 || storageVideos.length > 0) && (
-                            <div className="mt-8">
-                                <VideoPlayer
-                                    videoUrls={videoUrls.length > 0 ? videoUrls : storageVideos}
-                                    currentVideoIndex={currentVideoIndex}
-                                    setCurrentVideoIndex={setCurrentVideoIndex}
-                                    onStitchVideos={stitchStorageVideos}
-                                    isStitching={isStitching || isStitchingStorage}
-                                    stitchedVideoUrl={stitchedVideoUrl || storageStitchedUrl}
-                                />
-                            </div>
-                        )}
+                        {
+                            (videoUrls.length > 0 || storageVideos.length > 0) && (
+                                <div className="mt-8">
+                                    <VideoPlayer
+                                        videoUrls={videoUrls.length > 0 ? videoUrls : storageVideos}
+                                        currentVideoIndex={currentVideoIndex}
+                                        setCurrentVideoIndex={setCurrentVideoIndex}
+                                        onStitchVideos={stitchStorageVideos}
+                                        isStitching={isStitching || isStitchingStorage}
+                                        stitchedVideoUrl={stitchedVideoUrl || storageStitchedUrl}
+                                    />
+                                </div>
+                            )
+                        }
 
                         <div ref={messagesEndRef} />
-                    </div>
-                </div>
+                    </div >
+                </div >
 
                 {/* Error Display */}
                 {
@@ -591,7 +603,7 @@ function ChatPageContent() {
 
                 {/* Input Area */}
                 <div className="p-4 bg-transparent">
-                    <div className="max-w-3xl mx-auto relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-2 shadow-2xl">
+                    <div className="max-w-3xl mx-auto relative bg-custom-bg/40 backdrop-blur-xl border border-white/10 rounded-3xl p-2 shadow-2xl">
                         <textarea
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
@@ -612,7 +624,7 @@ function ChatPageContent() {
                         {currentState === 'awaiting_story' && (
                             <button
                                 onClick={() => setInputText('@Script ')}
-                                className="absolute left-3 bottom-3 bg-custom-orange/20 text-custom-orange hover:bg-custom-orange hover:text-white border border-custom-orange/50 px-3 py-1.5 text-xs font-bold rounded-xl transition-all z-10"
+                                className="absolute left-3 bottom-3 bg-accent-orange/20 text-accent-orange hover:bg-accent-orange hover:text-white border border-accent-orange/50 px-3 py-1.5 text-xs font-bold rounded-xl transition-all z-10"
                             >
                                 SCRIPT
                             </button>
@@ -621,7 +633,7 @@ function ChatPageContent() {
                         <button
                             onClick={handleSendMessage}
                             disabled={!inputText.trim() || chatLoading}
-                            className="absolute right-3 bottom-3 p-2 bg-custom-orange rounded-xl text-white hover:bg-orange-500 disabled:bg-white/5 disabled:text-gray-500 transition-all shadow-lg shadow-orange-900/20"
+                            className="absolute right-3 bottom-3 p-2 bg-accent-orange rounded-xl text-white hover:bg-orange-500 disabled:bg-white/5 disabled:text-gray-500 transition-all shadow-lg shadow-orange-900/20"
                         >
                             {chatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                         </button>

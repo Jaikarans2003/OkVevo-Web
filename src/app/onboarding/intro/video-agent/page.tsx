@@ -22,12 +22,12 @@ export default function IntroVideoAgentPage() {
                         className="mb-8"
                     >
                         <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm font-medium mb-6">
-                            <Video className="w-4 h-4 text-custom-orange" />
+                            <Video className="w-4 h-4 text-accent-orange" />
                             <span>Video Agent</span>
                         </div>
                         <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                             Turn ideas into <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-custom-orange to-red-400">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-orange to-red-400">
                                 Fully Edited Videos
                             </span>
                         </h1>
@@ -50,7 +50,7 @@ export default function IntroVideoAgentPage() {
                         </button>
                         <button
                             onClick={handleNext}
-                            className="px-8 py-3 rounded-lg bg-custom-orange hover:bg-orange-500 transition-colors font-medium flex items-center gap-2"
+                            className="px-8 py-3 rounded-lg bg-accent-orange hover:bg-orange-500 transition-colors font-medium flex items-center gap-2"
                         >
                             Next <ArrowRight className="w-4 h-4" />
                         </button>
@@ -80,10 +80,10 @@ export default function IntroVideoAgentPage() {
                     {/* Content */}
                     <div className="flex-1 flex items-center justify-center p-8">
                         <div className="text-center space-y-4">
-                            <div className="w-16 h-16 bg-custom-orange/20 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                                <Wand2 className="w-8 h-8 text-custom-orange" />
+                            <div className="w-16 h-16 bg-accent-orange/20 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                                <Wand2 className="w-8 h-8 text-accent-orange" />
                             </div>
-                            <p className="text-custom-orange/50 font-mono text-sm">Generating scene 1 of 4...</p>
+                            <p className="text-accent-orange/50 font-mono text-sm">Generating scene 1 of 4...</p>
                         </div>
                     </div>
                 </motion.div>
@@ -97,7 +97,7 @@ export default function IntroVideoAgentPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.6 + (i * 0.1) }}
-                                className="bg-orange-900/20 border border-custom-orange/20 rounded-lg p-3 text-center text-sm text-orange-200 font-medium"
+                                className="bg-orange-900/20 border border-accent-orange/20 rounded-lg p-3 text-center text-sm text-orange-200 font-medium"
                             >
                                 {tag}
                             </motion.div>
