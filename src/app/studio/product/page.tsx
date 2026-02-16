@@ -638,10 +638,10 @@ export default function ProductStudio() {
                         <div className="flex-1 flex flex-col gap-6 h-full min-w-0">
 
                             {/* Top row: Preview & Chat Side-by-Side if screen is wide enough */}
-                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : ''} gap-6 h-full min-h-0`}>
+                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : 'md:flex-row'} gap-6 h-full min-h-0`}>
 
                                 {/* Preview Window */}
-                                <div className={`${isComposed ? 'h-fit flex-none' : 'flex-1'} min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl transition-all duration-500`}>
+                                <div className={`${isComposed ? 'h-fit flex-none' : 'flex-1'} min-h-[300px] md:min-h-[400px] bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl transition-all duration-500`}>
                                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
                                     <AnimatePresence mode='wait'>
@@ -649,7 +649,7 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="loader"
                                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm"
+                                                className={`${isComposed ? 'relative py-20' : 'absolute inset-0'} flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm`}
                                             >
                                                 <AILoader text="Synthesizing" />
                                             </motion.div>
@@ -670,7 +670,7 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="empty"
                                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 opacity-20"
+                                                className={`${isComposed ? 'relative py-20' : 'absolute inset-0'} flex flex-col items-center justify-center text-center p-8 opacity-20`}
                                             >
                                                 <div className="w-20 h-20 rounded-3xl border border-dashed border-white/40 flex items-center justify-center mb-6">
                                                     <ImageIcon size={32} />
