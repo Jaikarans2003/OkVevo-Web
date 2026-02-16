@@ -1,32 +1,103 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ArrowUpRight,
+    Plus,
+    ChevronRight,
     Zap,
     TrendingUp,
-    MessageCircle,
-    Eye,
-    Plus,
-    Search,
-    ChevronRight,
-    Globe,
-    Target,
-    LucideIcon
+    Sparkles,
+    Upload,
+    Play,
+    Loader2,
+    X,
+    ImageIcon,
+    CheckCircle2
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AILoader } from '@/components/ui/ai-loader';
 
 const LIME_ACCENT = '#DFFF00';
 
+interface Template {
+    id: string;
+    title: string;
+    description: string;
+    image: string;
+    videoUrl?: string;
+    trendType: string;
+}
+
+const TEMPLATES: Template[] = [
+    {
+        id: 'ai-expansion',
+        title: 'AI Expansion',
+        description: 'Expand your photos into immersive landscapes using neural fill.',
+        image: 'https://i.pinimg.com/736x/8e/4a/0f/8e4a0f4a8eb9a7f33d7b30c4f8d29837.jpg',
+        trendType: 'Expansion'
+    },
+    {
+        id: 'neural-glow',
+        title: 'Neural Glow',
+        description: 'Dynamic lighting shifts and ethereal aura synthesis.',
+        image: 'https://i.pinimg.com/736x/2b/8e/31/2b8e31780447d25e4f48419619198642.jpg',
+        trendType: 'Aesthetic'
+    },
+    {
+        id: 'cyberflow',
+        title: 'CyberFlow',
+        description: 'Transform portraits into high-end cyberpunk cinematics.',
+        image: 'https://i.pinimg.com/736x/7d/d2/c1/7dd2c173e396bc75f34f1ff3acd07730.jpg',
+        trendType: 'Sci-Fi'
+    },
+    {
+        id: 'luxury-motion',
+        title: 'Luxury Motion',
+        description: 'Smooth, high-end transitions for fashion and product trends.',
+        image: 'https://i.pinimg.com/736x/07/77/8e/07778e354a7c06207865239e24838637.jpg',
+        trendType: 'Editorial'
+    }
+];
+
 export default function SocialStudio() {
     const pathname = usePathname();
+    const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const newImages: string[] = [];
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setUploadedImages(prev => [...prev, reader.result as string]);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+
+    const handleGenerate = () => {
+        if (uploadedImages.length === 0) return;
+        setIsGenerating(true);
+        // Simulate generation delay
+        setTimeout(() => {
+            setIsGenerating(false);
+            setGeneratedVideo('https://cdn.pixabay.com/video/2022/02/09/107240-678130070_large.mp4');
+        }, 4000);
+    };
+
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-[#DFFF00]/30 selection:text-black pb-20">
             {/* Header Navigation */}
-            <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5">
+            <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-xl z-50">
                 <div className="flex items-center gap-12">
                     <Link href="/dashboard" className="flex items-center gap-2">
                         <Image
@@ -46,135 +117,300 @@ export default function SocialStudio() {
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`text-xs font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-[#DFFF00]' : 'text-white/40 hover:text-white'}`}
+                                className={`relative text-xs font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-[#DFFF00]' : 'text-white/40 hover:text-white'}`}
                             >
                                 {item.name}
                                 {pathname === item.href && (
-                                    <span className="absolute -bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#DFFF00]/50 to-transparent"></span>
+                                    <motion.span
+                                        layoutId="nav-glow"
+                                        className="absolute -bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#DFFF00]/50 to-transparent"
+                                    ></motion.span>
                                 )}
                             </Link>
                         ))}
                     </div>
                 </div>
-
             </nav>
 
-            <main className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8">
-                {/* Hero Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <div className="lg:col-span-5 h-[600px] rounded-[40px] bg-[#0A0A0A] p-12 flex flex-col justify-between border border-white/5 relative overflow-hidden group">
-                        <div className="space-y-6 relative z-10">
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Vevo Intelligence</span>
-                            <h1 className="text-5xl md:text-6xl font-black leading-[0.9] tracking-tighter">
-                                WE ARE EXPERTS <br />
-                                <span className="text-white/40 italic-serif font-normal">IN VIRAL GROWTH</span>
-                            </h1>
-                        </div>
+            <main className="max-w-[1600px] mx-auto p-4 md:p-12 space-y-16">
+                {/* Hero / Introduction */}
+                <header className="space-y-4 max-w-4xl">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-3"
+                    >
+                        <div className="w-2 h-2 rounded-full bg-[#DFFF00] animate-pulse"></div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#DFFF00]">Social Intelligence v5.0</span>
+                    </motion.div>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-6xl md:text-8xl font-black leading-[0.85] tracking-tighter uppercase"
+                    >
+                        AI trend <br />
+                        <span className="text-white/20 italic-serif font-normal lowercase">Synthesis studio</span>
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-lg text-white/40 max-w-xl font-medium"
+                    >
+                        Select a trending AI template, upload your photos, and let our neural engine synthesize
+                        viral content ready for Instagram Reels and TikTok.
+                    </motion.p>
+                </header>
 
-                        <div className="space-y-8 relative z-10">
-                            <div className="flex gap-4">
-                                <div className="flex -space-x-3">
-                                    {[1, 2, 3].map((i) => (
-                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0A0A0A] bg-white/10 overflow-hidden">
-                                            <Image src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="avatar" width={40} height={40} />
+                {/* Template Library */}
+                <section className="space-y-8">
+                    <div className="flex items-end justify-between">
+                        <h2 className="text-2xl font-black uppercase tracking-tight">Trending Templates</h2>
+                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest tabular-nums">Showing 4 of 48 Models</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {TEMPLATES.map((template, idx) => (
+                            <motion.div
+                                key={template.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                onClick={() => setSelectedTemplate(template)}
+                                className={`group relative h-[500px] rounded-[3rem] overflow-hidden border border-white/5 cursor-pointer bg-[#0A0A0A] transition-all hover:border-[#DFFF00]/30 hover:shadow-[0_0_40px_rgba(223,255,0,0.05)] ${selectedTemplate?.id === template.id ? 'border-[#DFFF00] shadow-[0_0_60px_rgba(223,255,0,0.1)]' : ''}`}
+                            >
+                                <Image
+                                    src={template.image}
+                                    alt={template.title}
+                                    fill
+                                    className="object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-1000"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+
+                                <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                                    <div className="flex justify-between items-start">
+                                        <div className="px-4 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-[9px] font-black uppercase tracking-widest">
+                                            {template.trendType}
                                         </div>
-                                    ))}
+                                        <div className="w-10 h-10 rounded-full bg-[#DFFF00] text-black flex items-center justify-center transform scale-0 group-hover:scale-100 transition-transform duration-500 shadow-xl">
+                                            <Play size={18} fill="currentColor" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <h3 className="text-3xl font-black tracking-tighter uppercase leading-none">{template.title}</h3>
+                                        <p className="text-xs text-white/40 font-medium leading-relaxed max-w-[200px] group-hover:text-white/60 transition-colors">
+                                            {template.description}
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-[10px] font-medium text-white/40 max-w-[150px] leading-tight flex items-center">
-                                    100+ Brands connected to our intelligence networks
+
+                                <div className={`absolute inset-0 border-2 transition-opacity duration-500 ${selectedTemplate?.id === template.id ? 'border-[#DFFF00] opacity-100' : 'border-[#DFFF00]/0 opacity-0'}`} />
+                            </motion.div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Workflow Activation Section */}
+                <AnimatePresence mode='wait'>
+                    {selectedTemplate ? (
+                        <motion.section
+                            initial={{ opacity: 0, y: 40 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 40 }}
+                            className="pt-10 scroll-mt-32"
+                            id="generation-panel"
+                        >
+                            <div className="rounded-[4rem] bg-[#0A0A0A] border border-white/5 p-8 md:p-16 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-8">
+                                    <button
+                                        onClick={() => setSelectedTemplate(null)}
+                                        className="w-12 h-12 rounded-full border border-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 relative z-10">
+                                    {/* Left: Input */}
+                                    <div className="space-y-10">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <TrendingUp size={20} className="text-[#DFFF00]" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Synthesizing Trend</span>
+                                            </div>
+                                            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">{selectedTemplate.title}</h2>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Upload Base Assets</label>
+                                            <div className="flex flex-wrap gap-4">
+                                                {uploadedImages.map((img, i) => (
+                                                    <motion.div
+                                                        key={i}
+                                                        initial={{ scale: 0 }}
+                                                        animate={{ scale: 1 }}
+                                                        className="relative w-24 h-32 rounded-2xl overflow-hidden border border-white/10"
+                                                    >
+                                                        <Image src={img} alt="upload" fill className="object-cover" />
+                                                        <button
+                                                            onClick={() => setUploadedImages(prev => prev.filter((_, idx) => idx !== i))}
+                                                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white/80 hover:bg-red-500 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </motion.div>
+                                                ))}
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-24 h-32 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-[#DFFF00]/30 hover:bg-[#DFFF00]/5 transition-all text-white/20 hover:text-[#DFFF00]"
+                                                >
+                                                    <Plus size={20} />
+                                                    <span className="text-[8px] font-bold uppercase">Add Photo</span>
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                            />
+                                        </div>
+
+                                        <button
+                                            onClick={handleGenerate}
+                                            disabled={uploadedImages.length === 0 || isGenerating}
+                                            className={`w-full h-20 rounded-full flex items-center justify-center gap-4 text-xs font-black uppercase tracking-[0.3em] transition-all ${uploadedImages.length === 0 || isGenerating ? 'bg-white/5 text-white/20 border border-white/5' : 'bg-[#DFFF00] text-black hover:scale-[1.02] shadow-[0_0_40px_rgba(223,255,0,0.2)]'}`}
+                                        >
+                                            {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                                            {isGenerating ? 'Synthesizing...' : 'Generate AI Trend Video'}
+                                        </button>
+                                    </div>
+
+                                    {/* Right: Preview / Result */}
+                                    <div className="relative aspect-[9/16] max-h-[600px] h-full rounded-[3rem] overflow-hidden bg-black border border-white/10 group/preview">
+                                        <AnimatePresence mode='wait'>
+                                            {isGenerating ? (
+                                                <motion.div
+                                                    key="loading"
+                                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-black/90 backdrop-blur-md z-20"
+                                                >
+                                                    <AILoader text="Processing Trend" />
+                                                </motion.div>
+                                            ) : generatedVideo ? (
+                                                <motion.div
+                                                    key="result"
+                                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                                    className="absolute inset-0 z-10"
+                                                >
+                                                    <video
+                                                        src={generatedVideo}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute bottom-8 left-0 right-0 px-8 flex gap-3">
+                                                        <button className="flex-1 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                                                            Download HD
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setGeneratedVideo(null); setUploadedImages([]); }}
+                                                            className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:bg-[#DFFF00] transition-colors"
+                                                        >
+                                                            <Zap size={20} fill="currentColor" />
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            ) : (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 space-y-6 opacity-30 group-hover/preview:opacity-50 transition-opacity">
+                                                    <div className="w-20 h-20 rounded-full border border-dashed border-white/40 flex items-center justify-center">
+                                                        <ImageIcon size={32} />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <h4 className="text-lg font-bold uppercase tracking-tight">Output Monitor</h4>
+                                                        <p className="text-xs max-w-[200px] leading-relaxed">Synthesis pipeline will engage once assets are uploaded.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </AnimatePresence>
+
+                                        {/* Status Strip */}
+                                        <div className="absolute top-8 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full whitespace-nowrap z-30">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${isGenerating ? 'bg-[#DFFF00] animate-pulse' : 'bg-green-500'}`}></div>
+                                                <span className="text-[8px] font-black uppercase tracking-widest text-white/60">System Ready: 9:16 Aspect</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Background Decor */}
+                                <div className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-[#DFFF00]/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-[#DFFF00]/10 transition-colors duration-1000" />
+                            </div>
+                        </motion.section>
+                    ) : (
+                        <motion.section
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="py-20 text-center space-y-8"
+                        >
+                            <div className="space-y-4">
+                                <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-none max-w-4xl mx-auto uppercase">
+                                    Create viral moments <br />
+                                    <span className="text-white/20 italic-serif font-normal lowercase">in seconds, not hours.</span>
+                                </h2>
+                                <p className="text-sm text-white/40 max-w-xl mx-auto font-medium">
+                                    Our experts keep our template library updated with every trending IG/TikTok style.
+                                    Just select, upload, and dominate the feed.
                                 </p>
                             </div>
-
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <input
-                                    type="email"
-                                    placeholder="Enter e-mail"
-                                    className="bg-white/5 border border-white/10 rounded-full px-8 h-14 text-sm focus:outline-none focus:border-[#DFFF00]/50 transition-colors flex-1"
-                                />
-                                <button className="h-14 px-8 rounded-full bg-[#DFFF00] text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center justify-center gap-2 group">
-                                    Leave a request <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Metallic Aura */}
-                        <div className="absolute top-[-20%] right-[-20%] w-[80%] h-[80%] bg-[#DFFF00]/5 blur-[120px] rounded-full pointer-events-none" />
-                    </div>
-
-                    <div className="lg:col-span-7 h-[600px] rounded-[40px] bg-[#0A0A0A] relative overflow-hidden group border border-white/5">
-                        <Image
-                            src="/noir_visual.png"
-                            alt="Abstraction"
-                            fill
-                            className="object-cover opacity-80 group-hover:scale-105 transition-transform duration-1000"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-
-                        <div className="absolute top-8 right-8 flex gap-2">
-                            <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 cursor-pointer hover:bg-white hover:text-black transition-all">
-                                <Globe size={16} />
-                            </div>
-                            <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 cursor-pointer hover:bg-white hover:text-black transition-all">
-                                <Target size={16} />
-                            </div>
-                        </div>
-
-                        <div className="absolute bottom-12 left-12 right-12">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
-                                    <Zap size={20} className="text-[#DFFF00]" />
+                            <div className="flex justify-center gap-6">
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#DFFF00]">
+                                    <CheckCircle2 size={12} /> Fresh Styles Weekly
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-bold opacity-40 uppercase tracking-widest">Story of SUCCESS</h3>
-                                    <p className="text-xl font-black italic">Vevo Intelligence v4.0</p>
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#DFFF00]">
+                                    <CheckCircle2 size={12} /> 4K Neural Export
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
+                        </motion.section>
+                    )}
+                </AnimatePresence>
 
-                {/* Second Section - Call to Action Text */}
-                <div className="py-20 text-center space-y-6">
-                    <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-none max-w-4xl mx-auto uppercase">
-                        Get results <br />
-                        <span className="text-white/20 italic-serif font-normal lowercase">possible already today!</span>
-                    </h2>
-                    <p className="text-sm text-white/40 max-w-xl mx-auto font-medium">
-                        Our experts are ready to develop strategies that lead to results in your business today. Order a free consultation and start reaching goals!
-                    </p>
-                    <button className="px-10 py-4 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all group">
-                        Order a consultation <ChevronRight size={14} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                </div>
-
-                {/* Service Cards / Trends Section */}
-                <div className="space-y-12">
-                    <h2 className="text-4xl font-black tracking-tighter uppercase">Our Services</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <TrendCard Noir label="SEO" title="Search Intelligence" color="#DFFF00" icon={<Zap />} />
-                        <TrendCard label="SMM" title="Viral Growth" color="#DFFF00" icon={<TrendingUp />} />
-                        <TrendCard Noir label="Content" title="Studio Noir" color="#0A0A0A" icon={<MessageCircle />} />
-                        <TrendCard label="Ads" title="Paid Performance" color="#DFFF00" icon={<Eye />} />
-                    </div>
-                </div>
-
-                {/* Events / Campaigns Table Section */}
-                <div className="space-y-12 pt-20">
-                    <div className="flex items-end justify-between">
+                {/* Event Section (Moved to Bottom as Secondary) */}
+                <div className="space-y-12 pt-10 px-4 md:px-0">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <h2 className="text-4xl font-black tracking-tighter uppercase leading-[0.8]">
-                            Events for <br />
-                            <span className="text-white/20 italic-serif font-normal lowercase">creators in 2026</span>
+                            Creator <br />
+                            <span className="text-white/20 italic-serif font-normal lowercase">Insights 2026</span>
                         </h2>
-                        <p className="text-[10px] font-medium text-white/40 max-w-[200px] leading-tight text-right">
-                            We have prepared a series of events specifically for your growth.
-                        </p>
+                        <button className="h-12 px-8 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                            View All Events
+                        </button>
                     </div>
 
-                    <div className="space-y-4">
-                        <EventItem title="Digital Growth" desc="Workshop on scaling your personal brand using AI" date="12/03/26" />
-                        <EventItem title="Success Exhibition" desc="Case study of viral campaigns that broke the internet" date="29/05/26" />
-                        <EventItem title="Business Masterclass" desc="Deep dive into marketing automation and CRM" date="06/06/26" />
-                        <EventItem title="Innovators Forum" desc="Future of content creation and autonomous studios" date="18/08/26" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[
+                            { title: "Viral Scaling", date: "12 Mar", desc: "Workshop on mastering the Instagram algorithm shifts." },
+                            { title: "Neural Content", date: "29 May", desc: "Using AI to maintain consistent visual identity." },
+                            { title: "Growth Forum", date: "06 Jun", desc: "Direct consultation with viral content strategists." }
+                        ].map((event, i) => (
+                            <div key={i} className="group p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/5 hover:border-[#DFFF00]/20 transition-all cursor-pointer">
+                                <div className="flex justify-between items-start mb-6">
+                                    <span className="text-[10px] font-black text-[#DFFF00] tracking-widest uppercase tabular-nums">{event.date}</span>
+                                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 group-hover:bg-[#DFFF00] group-hover:text-black transition-all shadow-lg">
+                                        <ChevronRight size={14} />
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-2">{event.title}</h3>
+                                <p className="text-xs text-white/30 font-medium leading-relaxed group-hover:text-white/50 transition-colors">{event.desc}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </main>
@@ -195,7 +431,7 @@ export default function SocialStudio() {
                             placeholder="Enter e-mail"
                             className="bg-white/5 border border-white/10 rounded-full px-8 h-14 text-sm focus:outline-none focus:border-[#DFFF00]/50 transition-colors flex-1"
                         />
-                        <button className="h-14 px-8 rounded-full bg-[#DFFF00] text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                        <button className="h-14 px-8 rounded-full bg-[#DFFF00] text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all outline-none">
                             Subscribe
                         </button>
                     </div>
@@ -210,63 +446,8 @@ export default function SocialStudio() {
                     </div>
                 </div>
 
-                {/* 3D Visual in Footer */}
-                <div className="absolute bottom-[-10%] left-[20%] w-[30%] h-[50%] bg-[#DFFF00]/2 blur-[100px] rounded-full" />
+                <div className="absolute bottom-[-10%] left-[20%] w-[30%] h-[50%] bg-[#DFFF00]/2 blur-[100px] rounded-full pointer-events-none" />
             </footer>
-        </div>
-    );
-}
-
-function TrendCard({ label, title, color, icon, Noir = false }: { label: string, title: string, color: string, icon: any, Noir?: boolean }) {
-    return (
-        <div
-            className={`h-[450px] rounded-[40px] p-8 flex flex-col justify-between group cursor-pointer transition-all duration-500 overflow-hidden relative border border-white/5 ${Noir ? 'bg-[#0A0A0A]' : 'bg-[#DFFF00] text-black'}`}
-        >
-            <div className="flex justify-between items-start relative z-10">
-                <div className={`text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1.5 rounded-full ${Noir ? 'bg-[#DFFF00] text-black' : 'bg-black/5'}`}>
-                    {label}
-                </div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${Noir ? 'border-white/10 group-hover:bg-[#DFFF00] group-hover:text-black' : 'border-black/10 group-hover:bg-black group-hover:text-[#DFFF00]'}`}>
-                    <ArrowUpRight size={20} />
-                </div>
-            </div>
-
-            <div className="space-y-4 relative z-10 transition-transform group-hover:translate-y-[-10px] duration-500">
-                <div className={`p-4 rounded-[30px] border w-fit ${Noir ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10'}`}>
-                    {icon}
-                </div>
-                <h3 className={`text-4xl font-black leading-none tracking-tightest uppercase`}>
-                    {title}
-                </h3>
-                <button className={`w-full py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${Noir ? 'bg-white text-black' : 'bg-black text-[#DFFF00]'} translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100`}>
-                    Leave a request
-                </button>
-            </div>
-
-            {/* Abstract Background Element */}
-            {Noir && (
-                <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-[#DFFF00]/5 blur-[60px] rounded-full group-hover:bg-[#DFFF00]/10 transition-all duration-500" />
-            )}
-            {!Noir && (
-                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            )}
-        </div>
-    );
-}
-
-function EventItem({ title, desc, date }: { title: string, desc: string, date: string }) {
-    return (
-        <div className="group flex items-center justify-between py-8 border-b border-white/5 hover:px-8 transition-all duration-500 cursor-pointer hover:bg-[#0A0A0A]">
-            <div className="space-y-1">
-                <h3 className="text-2xl font-bold uppercase transition-transform group-hover:translate-x-2 duration-500">{title}</h3>
-                <p className="text-sm text-white/30 font-medium transition-transform group-hover:translate-x-4 duration-500">{desc}</p>
-            </div>
-            <div className="flex items-center gap-12">
-                <span className="text-sm font-bold text-white/40 tabular-nums">{date}</span>
-                <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-[#DFFF00] group-hover:text-black transition-all">
-                    <ArrowUpRight size={24} />
-                </div>
-            </div>
         </div>
     );
 }

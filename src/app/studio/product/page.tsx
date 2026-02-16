@@ -203,6 +203,7 @@ export default function ProductStudio() {
         setIsGenerating(true);
         setCompositeImageUrl(null);
         setMasterPrompt(null);
+        setIsComposed(true); // Trigger resizing immediately
 
         const result = await runPlacementPipeline(
             productImage,
@@ -411,7 +412,7 @@ export default function ProductStudio() {
                     <div className="flex flex-col md:flex-row gap-8 h-full max-h-[calc(100vh-8rem)]">
 
                         {/* LEFT: Controls & Input (Fixed Width) */}
-                        <div className="w-full md:w-[380px] flex flex-col gap-5 h-full overflow-y-auto pr-4 custom-scrollbar" data-lenis-prevent>
+                        <div className={`w-full ${isComposed ? 'md:w-[280px]' : 'md:w-[380px]'} flex-shrink-0 transition-all duration-500 flex flex-col gap-5 h-full overflow-y-auto overflow-x-hidden pr-4 custom-scrollbar`} data-lenis-prevent>
                             <div className="space-y-3">
                                 <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white">
                                     {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
@@ -526,11 +527,103 @@ export default function ProductStudio() {
                                 </div>
                             )}
 
-                            {/* Product Ads & Shoots Fallbacks */}
+                            {/* Product Ads Form */}
                             {mode === 'product-ads' && (
-                                <div className="p-6 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center space-y-4">
-                                    <p className="text-white/40 text-[10px]">Product Ads interface simplified for placement focus.</p>
-                                    <button onClick={handleGenerate} className="w-full py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest">Generate Campaign</button>
+                                <div className="flex flex-col gap-5">
+                                    {/* Brand Name */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Type size={10} className="text-blue-400" /> Brand Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={brandName}
+                                            onChange={(e) => setBrandName(e.target.value)}
+                                            placeholder="Enter your brand name..."
+                                            className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-4 py-3 text-[11px] text-white focus:border-white/30 outline-none transition-all placeholder-white/20"
+                                        />
+                                    </div>
+
+                                    {/* Ad Description */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Sparkles size={10} className="text-purple-400" /> Ad Description
+                                        </label>
+                                        <textarea
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            placeholder="Describe your ad vision (e.g. A luxury perfume bottle floating in a dark, ethereal cloud of gold dust...)"
+                                            className="w-full h-24 bg-[#0A0A0A] border border-white/10 rounded-xl p-4 text-[11px] text-white focus:border-white/30 outline-none transition-all placeholder-white/20 resize-none leading-relaxed"
+                                        />
+                                    </div>
+
+                                    {/* Platform & Duration */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                                <MonitorPlay size={10} className="text-cyan-400" /> Platform
+                                            </label>
+                                            <div className="relative group">
+                                                <select
+                                                    value={platform}
+                                                    onChange={(e) => setPlatform(e.target.value)}
+                                                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] text-white/80 focus:border-white/30 outline-none appearance-none cursor-pointer"
+                                                >
+                                                    <option value="Instagram">Instagram</option>
+                                                    <option value="YouTube">YouTube</option>
+                                                    <option value="TikTok">TikTok</option>
+                                                    <option value="Facebook">Facebook</option>
+                                                </select>
+                                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                                <Zap size={10} className="text-yellow-400" /> Duration
+                                            </label>
+                                            <div className="relative group">
+                                                <select
+                                                    value={duration}
+                                                    onChange={(e) => setDuration(e.target.value)}
+                                                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] text-white/80 focus:border-white/30 outline-none appearance-none cursor-pointer"
+                                                >
+                                                    <option value="15s">15 Seconds</option>
+                                                    <option value="30s">30 Seconds</option>
+                                                    <option value="60s">60 Seconds</option>
+                                                </select>
+                                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Visual Style */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Palette size={10} className="text-pink-400" /> Visual Style
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['Cinematic', 'Minimalist', 'Vibrant', 'Luxury'].map((style) => (
+                                                <button
+                                                    key={style}
+                                                    onClick={() => setSelectedStyle(style)}
+                                                    className={`py-2 rounded-lg text-[10px] font-medium transition-all border ${selectedStyle === style ? 'bg-white/10 border-white/30 text-white' : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10 hover:bg-white/5'}`}
+                                                >
+                                                    {style}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Generate Button */}
+                                    <button
+                                        onClick={handleGenerate}
+                                        disabled={isGenerating || !prompt}
+                                        className={`w-full mt-2 py-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-wait' : !prompt ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-[1.01]'}`}
+                                    >
+                                        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Film size={14} />}
+                                        {isGenerating ? 'Synthesizing...' : 'Generate Campaign'}
+                                    </button>
                                 </div>
                             )}
 
@@ -596,7 +689,7 @@ export default function ProductStudio() {
                                 </div>
 
                                 {/* Chat Interface Sidebar (The Right Side) */}
-                                <div className="flex-1 min-w-[320px] flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
+                                <div className="flex-1 min-w-[320px] min-h-0 flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
                                     <div className="px-5 py-4 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
                                         <div className="flex items-center gap-2">
                                             <div className="relative">
@@ -607,7 +700,7 @@ export default function ProductStudio() {
                                         </div>
                                     </div>
 
-                                    <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]">
+                                    <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]" data-lenis-prevent>
                                         {chatMessages.map((msg, i) => (
                                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                 <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
