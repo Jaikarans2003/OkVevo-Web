@@ -36,7 +36,7 @@ export default function Dashboard() {
                 <DashHeroModular user={user} />
                 <DashGridModular />
                 {/* <DashTrendsModular /> */}
-                <DashSpotlight />
+                {/* <DashSpotlight /> */}
                 <DashFooterModular />
             </main>
         </div>

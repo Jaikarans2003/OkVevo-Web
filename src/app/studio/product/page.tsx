@@ -412,7 +412,7 @@ export default function ProductStudio() {
                     <div className="flex flex-col md:flex-row gap-8 h-full max-h-[calc(100vh-8rem)]">
 
                         {/* LEFT: Controls & Input (Fixed Width) */}
-                        <div className={`w-full ${isComposed ? 'md:w-[280px]' : 'md:w-[380px]'} flex-shrink-0 transition-all duration-500 flex flex-col gap-5 h-full overflow-y-auto overflow-x-hidden pr-4 custom-scrollbar`} data-lenis-prevent>
+                        <div className={`w-full ${isComposed ? 'md:w-[375px]' : 'md:w-[475px]'} flex-shrink-0 transition-all duration-500 flex flex-col gap-5 h-full overflow-y-auto overflow-x-hidden pr-4 custom-scrollbar`} data-lenis-prevent>
                             <div className="space-y-3">
                                 <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white">
                                     {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
@@ -520,6 +520,50 @@ export default function ProductStudio() {
                                         <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/5 border border-purple-500/20 rounded-lg">
                                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
                                             <span className="text-[9px] uppercase tracking-widest text-purple-400 font-bold leading-none">{placementStatusDetail}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Neural Chat assistant - Moved and Resized */}
+                                    {isComposed && (
+                                        <div className="flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-[400px]">
+                                            <div className="px-4 py-3 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <Sparkles size={12} className="text-purple-400" />
+                                                        <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-green-500 rounded-full border border-black animate-pulse"></div>
+                                                    </div>
+                                                    <span className="text-[9px] uppercase font-bold text-white/70 tracking-widest whitespace-nowrap">Neural assistant</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#070707]" data-lenis-prevent>
+                                                {chatMessages.map((msg, i) => (
+                                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[90%] rounded-xl px-3 py-2 text-[10px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
+                                                            {msg.content}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="p-3 bg-[#0F0F0F] border-t border-white/5">
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type="text"
+                                                        value={chatInput}
+                                                        onChange={(e) => setChatInput(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                                                        placeholder="Refine vision..."
+                                                        className="w-full bg-black/60 border border-white/10 rounded-full py-2 px-4 text-[10px] text-white focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all placeholder-white/20 shadow-inner"
+                                                    />
+                                                    <button
+                                                        onClick={handleSendChatMessage}
+                                                        className="absolute right-1 p-1.5 bg-white text-black rounded-full hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg group"
+                                                    >
+                                                        <Send size={12} className="transition-transform" />
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 
@@ -638,7 +682,7 @@ export default function ProductStudio() {
                         <div className="flex-1 flex flex-col gap-6 h-full min-w-0">
 
                             {/* Top row: Preview & Chat Side-by-Side if screen is wide enough */}
-                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : ''} gap-6 h-full min-h-0`}>
+                            <div className="flex flex-col gap-6 h-full min-h-0">
 
                                 {/* Preview Window */}
                                 <div className={`${isComposed ? 'flex-1' : 'flex-1'} min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl`}>
@@ -687,55 +731,6 @@ export default function ProductStudio() {
                                         <div className="w-2 h-2 rounded-full bg-green-500/30"></div>
                                     </div>
                                 </div>
-
-                                {/* Chat Interface Sidebar (The Right Side) */}
-                                {isComposed && (
-                                    <div className="flex-[2] min-w-[320px] min-h-0 flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
-                                        <div className="px-5 py-4 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
-                                            <div className="flex items-center gap-2">
-                                                <div className="relative">
-                                                    <Sparkles size={14} className="text-purple-400" />
-                                                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse"></div>
-                                                </div>
-                                                <span className="text-[10px] uppercase font-bold text-white/80 tracking-widest whitespace-nowrap">Neural Chat assistant</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]" data-lenis-prevent>
-                                            {chatMessages.map((msg, i) => (
-                                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
-                                                        {msg.content}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="p-4 bg-[#0F0F0F] border-t border-white/5">
-                                            <div className="relative flex items-center">
-                                                <input
-                                                    type="text"
-                                                    value={chatInput}
-                                                    onChange={(e) => setChatInput(e.target.value)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                                                    placeholder={isComposed ? "Request changes..." : "Type starting prompt..."}
-                                                    className="w-full bg-black/60 border border-white/10 rounded-full py-3 px-5 text-[11px] text-white focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all placeholder-white/20 shadow-inner"
-                                                />
-                                                <button
-                                                    onClick={handleSendChatMessage}
-                                                    className="absolute right-1.5 p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg group"
-                                                >
-                                                    <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                                </button>
-                                            </div>
-                                            <div className="mt-3 flex items-center justify-center gap-2 opacity-10">
-                                                <div className="h-px flex-1 bg-white"></div>
-                                                <span className="text-[8px] uppercase tracking-widest font-black">AI Studio System v2.0</span>
-                                                <div className="h-px flex-1 bg-white"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -743,7 +738,8 @@ export default function ProductStudio() {
             </div>
 
             {/* --- COMMUNITY SHOWCASE SECTION --- */}
-            <section className="relative py-32 bg-black overflow-hidden">
+            {/* Phase2 */}
+            {/* <section className="relative py-32 bg-black overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(173,95,255,0.05),transparent_70%)]"></div>
 
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
@@ -793,10 +789,11 @@ export default function ProductStudio() {
                         />
                     </div>
                 </div>
-            </section>
+            </section> */}
 
             {/* --- CINEMATIC WORKFLOW SECTION --- */}
-            <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
+            {/* Phase2 */}
+            {/* <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
                     <div className="text-center space-y-4 mb-24">
                         <h2 className="text-5xl md:text-6xl font-medium tracking-tight text-white italic">
@@ -807,11 +804,11 @@ export default function ProductStudio() {
                             <p className="text-[10px] uppercase tracking-[0.3em] text-purple-400 font-bold">The Technical Synthesis</p>
                             <div className="h-px w-12 bg-purple-500/50"></div>
                         </div>
-                    </div>
+                    </div> */}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-                        {/* Connecting Line (Desktop) */}
-                        <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
+            {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative"> */}
+            {/* Connecting Line (Desktop) */}
+            {/* <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
 
                         {[
                             { step: "01", title: "Direct Context", desc: "Upload your hero assets and define the artistic direction. Our neural models analyze lighting, texture, and form." },
@@ -845,10 +842,11 @@ export default function ProductStudio() {
                         ))}
                     </div>
                 </div>
-            </section>
+            </section> */}
 
             {/* --- FOOTER SECTION --- */}
-            <footer className="relative bg-black pt-32 pb-12 border-t border-white/5 overflow-hidden">
+            {/* Phase2 */}
+            {/* <footer className="relative bg-black pt-32 pb-12 border-t border-white/5 overflow-hidden">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
 
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
@@ -895,7 +893,7 @@ export default function ProductStudio() {
                         </div>
                     </div>
                 </div>
-            </footer>
+            </footer> */}
         </div>
     );
 }
