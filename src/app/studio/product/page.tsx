@@ -234,7 +234,7 @@ export default function ProductStudio() {
 
         // Show processing state
         setIsGenerating(true);
-        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Got it! Let me work on those changes for you...' }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: '🔄 Analyzing your request and generating a refined prompt...' }]);
 
         const result = await runRefinementPipeline(
             compositeImageUrl,
@@ -250,9 +250,9 @@ export default function ProductStudio() {
         if (result.status === 'complete' && result.compositeImageUrl) {
             setCompositeImageUrl(result.compositeImageUrl);
             setMasterPrompt(result.masterPrompt || null);
-            setChatMessages(prev => [...prev, { role: 'assistant', content: "Done! I've updated the composition with your changes. Let me know if you'd like any more adjustments." }]);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: '✅ Composition updated based on your request.' }]);
         } else {
-            setChatMessages(prev => [...prev, { role: 'assistant', content: `Something went wrong while refining — ${result.error || 'please try again.'}` }]);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: `❌ Refinement failed: ${result.error || 'Unknown error'}` }]);
         }
     };
 
@@ -638,10 +638,10 @@ export default function ProductStudio() {
                         <div className="flex-1 flex flex-col gap-6 h-full min-w-0">
 
                             {/* Top row: Preview & Chat Side-by-Side if screen is wide enough */}
-                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : 'md:flex-row'} gap-6 h-full min-h-0`}>
+                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : ''} gap-6 h-full min-h-0`}>
 
                                 {/* Preview Window */}
-                                <div className={`${isComposed ? 'h-fit flex-none' : 'flex-1'} min-h-[300px] md:min-h-[400px] bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl transition-all duration-500`}>
+                                <div className={`${isComposed ? 'flex-1' : 'flex-1'} min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl`}>
                                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
                                     <AnimatePresence mode='wait'>
@@ -649,7 +649,7 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="loader"
                                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                                className={`${isComposed ? 'relative py-20' : 'absolute inset-0'} flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm`}
+                                                className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm"
                                             >
                                                 <AILoader text="Synthesizing" />
                                             </motion.div>
@@ -657,9 +657,9 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="result"
                                                 initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-                                                className={`flex items-center justify-center p-4 ${isComposed ? 'relative' : 'absolute inset-0'}`}
+                                                className="absolute inset-0 flex items-center justify-center p-4"
                                             >
-                                                <img src={compositeImageUrl} alt="Composite" className={`${isComposed ? 'max-h-[35vh] w-auto' : 'w-full h-full'} object-contain rounded-lg transition-all duration-500`} />
+                                                <img src={compositeImageUrl} alt="Composite" className="w-full h-full object-contain rounded-lg" />
                                                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition-all">
                                                         <Download size={16} />
@@ -670,7 +670,7 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="empty"
                                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                                className={`${isComposed ? 'relative py-20' : 'absolute inset-0'} flex flex-col items-center justify-center text-center p-8 opacity-20`}
+                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 opacity-20"
                                             >
                                                 <div className="w-20 h-20 rounded-3xl border border-dashed border-white/40 flex items-center justify-center mb-6">
                                                     <ImageIcon size={32} />
@@ -743,8 +743,7 @@ export default function ProductStudio() {
             </div>
 
             {/* --- COMMUNITY SHOWCASE SECTION --- */}
-            {/* Phase 2. */}
-            {/* <section className="relative py-32 bg-black overflow-hidden">
+            <section className="relative py-32 bg-black overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(173,95,255,0.05),transparent_70%)]"></div>
 
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
@@ -794,11 +793,10 @@ export default function ProductStudio() {
                         />
                     </div>
                 </div>
-            </section> */}
+            </section>
 
             {/* --- CINEMATIC WORKFLOW SECTION --- */}
-            {/* Phase 2 */}
-            {/* <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
+            <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
                     <div className="text-center space-y-4 mb-24">
                         <h2 className="text-5xl md:text-6xl font-medium tracking-tight text-white italic">
@@ -811,9 +809,9 @@ export default function ProductStudio() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative"> */}
-            {/* Connecting Line (Desktop) */}
-            {/* <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+                        {/* Connecting Line (Desktop) */}
+                        <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
 
                         {[
                             { step: "01", title: "Direct Context", desc: "Upload your hero assets and define the artistic direction. Our neural models analyze lighting, texture, and form." },
@@ -847,7 +845,7 @@ export default function ProductStudio() {
                         ))}
                     </div>
                 </div>
-            </section> */}
+            </section>
 
             {/* --- FOOTER SECTION --- */}
             <footer className="relative bg-black pt-32 pb-12 border-t border-white/5 overflow-hidden">
