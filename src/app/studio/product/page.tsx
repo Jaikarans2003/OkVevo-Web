@@ -234,7 +234,7 @@ export default function ProductStudio() {
 
         // Show processing state
         setIsGenerating(true);
-        setChatMessages(prev => [...prev, { role: 'assistant', content: '🔄 Analyzing your request and generating a refined prompt...' }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Got it! Let me work on those changes for you...' }]);
 
         const result = await runRefinementPipeline(
             compositeImageUrl,
@@ -250,9 +250,9 @@ export default function ProductStudio() {
         if (result.status === 'complete' && result.compositeImageUrl) {
             setCompositeImageUrl(result.compositeImageUrl);
             setMasterPrompt(result.masterPrompt || null);
-            setChatMessages(prev => [...prev, { role: 'assistant', content: '✅ Composition updated based on your request.' }]);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: "Done! I've updated the composition with your changes. Let me know if you'd like any more adjustments." }]);
         } else {
-            setChatMessages(prev => [...prev, { role: 'assistant', content: `❌ Refinement failed: ${result.error || 'Unknown error'}` }]);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: `Something went wrong while refining — ${result.error || 'please try again.'}` }]);
         }
     };
 
