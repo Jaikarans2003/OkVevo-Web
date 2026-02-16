@@ -10,7 +10,6 @@ import DashHeroModular from './DashHeroModular';
 import DashGridModular from './DashGridModular';
 import DashTrendsModular from './DashTrendsModular';
 import DashSpotlight from './DashSpotlight';
-import DashCTA from './DashCTA';
 import DashFooterModular from './DashFooterModular';
 import DashNavbar from './DashNavbar';
 
@@ -36,7 +35,7 @@ export default function Dashboard() {
             <main>
                 <DashHeroModular user={user} />
                 <DashGridModular />
-                <DashTrendsModular />
+                {/* <DashTrendsModular /> */}
                 <DashSpotlight />
                 <DashFooterModular />
             </main>

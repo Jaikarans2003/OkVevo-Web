@@ -31,12 +31,12 @@ const DashHeroModular = ({ user }: { user?: any }) => {
     const suggestions = [
         {
             icon: FileText,
-            label: 'From a Script',
+            label: 'Personel Director',
             action: '/studio/director',
             iconColor: 'bg-yellow-400/20 text-yellow-500',
             indicator: 'Generate Trailer',
         },
-        
+
         {
             icon: ShoppingBag,
             label: 'Product Studio',
@@ -105,7 +105,7 @@ const DashHeroModular = ({ user }: { user?: any }) => {
                     className="inline-flex items-center gap-2 bg-black px-5 py-2 rounded-full mb-10 shadow-xl"
                 >
                     <div className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
-                    <span className="text-[10px] md:text-xs font-black tracking-widest text-white uppercase">Zero team but the work get done.</span>
+                    <span className="text-[10px] md:text-xs font-black tracking-widest text-white uppercase">Zero Camera, Infinite Vision.</span>
                 </motion.div>
 
                 {/* Typography */}

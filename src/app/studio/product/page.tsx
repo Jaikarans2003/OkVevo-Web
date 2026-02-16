@@ -741,7 +741,8 @@ export default function ProductStudio() {
             </div>
 
             {/* --- COMMUNITY SHOWCASE SECTION --- */}
-            <section className="relative py-32 bg-black overflow-hidden">
+            {/* Phase 2. */}
+            {/* <section className="relative py-32 bg-black overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(173,95,255,0.05),transparent_70%)]"></div>
 
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
@@ -791,10 +792,11 @@ export default function ProductStudio() {
                         />
                     </div>
                 </div>
-            </section>
+            </section> */}
 
             {/* --- CINEMATIC WORKFLOW SECTION --- */}
-            <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
+            {/* Phase 2 */}
+            {/* <section className="relative py-32 bg-[#050505] border-t border-white/5 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-10 relative z-10">
                     <div className="text-center space-y-4 mb-24">
                         <h2 className="text-5xl md:text-6xl font-medium tracking-tight text-white italic">
@@ -807,9 +809,9 @@ export default function ProductStudio() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-                        {/* Connecting Line (Desktop) */}
-                        <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative"> */}
+            {/* Connecting Line (Desktop) */}
+            {/* <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2 z-0" />
 
                         {[
                             { step: "01", title: "Direct Context", desc: "Upload your hero assets and define the artistic direction. Our neural models analyze lighting, texture, and form." },
@@ -843,7 +845,7 @@ export default function ProductStudio() {
                         ))}
                     </div>
                 </div>
-            </section>
+            </section> */}
 
             {/* --- FOOTER SECTION --- */}
             <footer className="relative bg-black pt-32 pb-12 border-t border-white/5 overflow-hidden">
