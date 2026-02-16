@@ -273,9 +273,9 @@ export default function ProductStudio() {
 
                 <nav className="flex items-center gap-8 pointer-events-auto absolute left-1/2 -translate-x-1/2">
                     {[
-                        { name: 'Product Studio', href: '/studio/product' },
-                        { name: 'Social Media', href: '/studio/social' },
-                        { name: 'Director', href: '/studio/director' }
+                        { name: 'Product Studio', href: '/workspace/product' },
+                        { name: 'Social Media', href: '/workspace/social' },
+                        { name: 'Director', href: '/workspace/director' }
                     ].map((item) => (
                         <Link
                             key={item.name}
