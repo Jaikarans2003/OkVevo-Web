@@ -358,7 +358,6 @@ export default function ProductStudio() {
                         className="max-w-xl mx-auto text-base font-light text-white/50 leading-relaxed"
                     >
                         Generative video synthesis for high-end campaigns. <br />
-                        Create broadcast-quality commercials with a simple prompt.
                     </motion.p>
 
                     <motion.div

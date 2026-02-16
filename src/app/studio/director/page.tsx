@@ -98,7 +98,7 @@ export default function DirectorWorkstation() {
 
             {/* --- MAIN CHAT AREA --- */}
             <main className="flex-1 flex flex-col items-center relative z-20 overflow-hidden pt-10">
-                <div className="w-full max-w-4xl flex-1 overflow-y-auto px-6 pb-32 space-y-8 scroll-smooth">
+                <div className="w-full max-w-4xl flex-1 overflow-y-auto px-6 pb-32 space-y-8 scroll-smooth scrollbar-hide" data-lenis-prevent>
                     <AnimatePresence>
                         {messages.map((msg, idx) => (
                             <motion.div

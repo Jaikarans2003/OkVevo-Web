@@ -136,6 +136,18 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
 /* AI Loader Animations */
 @keyframes loader-rotate {
   0% {

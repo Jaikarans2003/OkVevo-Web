@@ -162,7 +162,7 @@ export default function SocialStudio() {
                         transition={{ delay: 0.3 }}
                         className="text-sm md:text-base text-white/40 max-w-lg font-medium"
                     >
-                        Select a template and let our neural engine synthesize
+                        Select a what you like and let our neural engine synthesize
                         viral content ready for Instagram Reels and TikTok.
                     </motion.p>
                 </header>
@@ -170,7 +170,7 @@ export default function SocialStudio() {
                 {/* Template Library */}
                 <section className="space-y-8">
                     <div className="flex items-end justify-between">
-                        <h2 className="text-2xl font-black uppercase tracking-tight">Trending Templates</h2>
+                        <h2 className="text-2xl font-black uppercase tracking-tight">Pick a Trend</h2>
                         <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest tabular-nums">Showing 4 of 48 Models</span>
                     </div>
 

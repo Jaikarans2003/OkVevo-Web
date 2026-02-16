@@ -36,7 +36,7 @@ export function useDirectorFlow() {
         {
             id: '1',
             role: 'assistant',
-            content: "Welcome to Director Mode. Let's create something cinematic. First, what should we name this project?",
+            content: "Hi I'm VEVO your creative assistant. Let's create something cinematic. First, what should we name this project?",
             timestamp: Date.now()
         }
     ]);
