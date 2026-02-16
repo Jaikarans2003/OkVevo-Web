@@ -638,10 +638,10 @@ export default function ProductStudio() {
                         <div className="flex-1 flex flex-col gap-6 h-full min-w-0">
 
                             {/* Top row: Preview & Chat Side-by-Side if screen is wide enough */}
-                            <div className="flex flex-col md:flex-row gap-6 h-full min-h-0">
+                            <div className={`flex flex-col ${isComposed ? 'h-full md:flex-col' : ''} gap-6 h-full min-h-0`}>
 
                                 {/* Preview Window */}
-                                <div className="flex-[1.2] min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl">
+                                <div className={`${isComposed ? 'h-fit flex-none' : 'flex-1'} min-h-[400px] md:min-h-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden relative group shadow-2xl transition-all duration-500`}>
                                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
                                     <AnimatePresence mode='wait'>
@@ -657,9 +657,9 @@ export default function ProductStudio() {
                                             <motion.div
                                                 key="result"
                                                 initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-                                                className="absolute inset-0 flex items-center justify-center p-4"
+                                                className={`flex items-center justify-center p-4 ${isComposed ? 'relative' : 'absolute inset-0'}`}
                                             >
-                                                <img src={compositeImageUrl} alt="Composite" className="w-full h-full object-contain rounded-lg" />
+                                                <img src={compositeImageUrl} alt="Composite" className={`${isComposed ? 'max-h-[35vh] w-auto' : 'w-full h-full'} object-contain rounded-lg transition-all duration-500`} />
                                                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition-all">
                                                         <Download size={16} />
@@ -689,51 +689,53 @@ export default function ProductStudio() {
                                 </div>
 
                                 {/* Chat Interface Sidebar (The Right Side) */}
-                                <div className="flex-1 min-w-[320px] min-h-0 flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
-                                    <div className="px-5 py-4 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative">
-                                                <Sparkles size={14} className="text-purple-400" />
-                                                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse"></div>
-                                            </div>
-                                            <span className="text-[10px] uppercase font-bold text-white/80 tracking-widest whitespace-nowrap">Neural Chat assistant</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]" data-lenis-prevent>
-                                        {chatMessages.map((msg, i) => (
-                                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
-                                                    {msg.content}
+                                {isComposed && (
+                                    <div className="flex-[2] min-w-[320px] min-h-0 flex flex-col bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-full">
+                                        <div className="px-5 py-4 border-b border-white/5 bg-[#0F0F0F]/50 flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative">
+                                                    <Sparkles size={14} className="text-purple-400" />
+                                                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse"></div>
                                                 </div>
+                                                <span className="text-[10px] uppercase font-bold text-white/80 tracking-widest whitespace-nowrap">Neural Chat assistant</span>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
 
-                                    <div className="p-4 bg-[#0F0F0F] border-t border-white/5">
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="text"
-                                                value={chatInput}
-                                                onChange={(e) => setChatInput(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                                                placeholder={isComposed ? "Request changes..." : "Type starting prompt..."}
-                                                className="w-full bg-black/60 border border-white/10 rounded-full py-3 px-5 text-[11px] text-white focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all placeholder-white/20 shadow-inner"
-                                            />
-                                            <button
-                                                onClick={handleSendChatMessage}
-                                                className="absolute right-1.5 p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg group"
-                                            >
-                                                <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                            </button>
+                                        <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-[#070707]" data-lenis-prevent>
+                                            {chatMessages.map((msg, i) => (
+                                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-purple-600 text-white font-medium' : 'bg-[#151515] text-white/80 border border-white/5'}`}>
+                                                        {msg.content}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <div className="mt-3 flex items-center justify-center gap-2 opacity-10">
-                                            <div className="h-px flex-1 bg-white"></div>
-                                            <span className="text-[8px] uppercase tracking-widest font-black">AI Studio System v2.0</span>
-                                            <div className="h-px flex-1 bg-white"></div>
+
+                                        <div className="p-4 bg-[#0F0F0F] border-t border-white/5">
+                                            <div className="relative flex items-center">
+                                                <input
+                                                    type="text"
+                                                    value={chatInput}
+                                                    onChange={(e) => setChatInput(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                                                    placeholder={isComposed ? "Request changes..." : "Type starting prompt..."}
+                                                    className="w-full bg-black/60 border border-white/10 rounded-full py-3 px-5 text-[11px] text-white focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all placeholder-white/20 shadow-inner"
+                                                />
+                                                <button
+                                                    onClick={handleSendChatMessage}
+                                                    className="absolute right-1.5 p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg group"
+                                                >
+                                                    <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                                </button>
+                                            </div>
+                                            <div className="mt-3 flex items-center justify-center gap-2 opacity-10">
+                                                <div className="h-px flex-1 bg-white"></div>
+                                                <span className="text-[8px] uppercase tracking-widest font-black">AI Studio System v2.0</span>
+                                                <div className="h-px flex-1 bg-white"></div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>
