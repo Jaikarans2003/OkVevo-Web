@@ -98,43 +98,47 @@ export default function SocialStudio() {
         <div className="min-h-screen bg-black text-white font-sans selection:bg-[#DFFF00]/30 selection:text-black pb-20">
             {/* Header Navigation */}
             <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-xl z-50">
-                <div className="flex items-center gap-12">
-                    <Link href="/dashboard" className="flex items-center gap-2">
-                        <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
-                            alt="OKVEVO"
-                            width={100}
-                            height={32}
-                            className="opacity-90"
-                        />
-                    </Link>
-                    <div className="hidden lg:flex items-center gap-8">
-                        {[
-                            { name: 'Product Studio', href: '/studio/product' },
-                            { name: 'Social Media', href: '/studio/social' },
-                            { name: 'Director', href: '/studio/director' }
-                        ].map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`relative text-xs font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-[#DFFF00]' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {item.name}
-                                {pathname === item.href && (
-                                    <motion.span
-                                        layoutId="nav-glow"
-                                        className="absolute -bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#DFFF00]/50 to-transparent"
-                                    ></motion.span>
-                                )}
-                            </Link>
-                        ))}
-                    </div>
+                <Link href="/dashboard" className="flex items-center gap-2">
+                    <Image
+                        src="/OKVEVO WithOut BackGrounds/White.svg"
+                        alt="OKVEVO"
+                        width={100}
+                        height={32}
+                        className="opacity-90"
+                    />
+                </Link>
+
+                <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+                    {[
+                        { name: 'Product Studio', href: '/studio/product' },
+                        { name: 'Social Media', href: '/studio/social' },
+                        { name: 'Director', href: '/studio/director' }
+                    ].map((item) => (
+                        <Link
+                            key={item.name}
+                            href={item.href}
+                            className={`relative text-xs font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-[#DFFF00]' : 'text-white/40 hover:text-white'}`}
+                        >
+                            {item.name}
+                            {pathname === item.href && (
+                                <motion.span
+                                    layoutId="nav-glow"
+                                    className="absolute -bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#DFFF00]/50 to-transparent"
+                                ></motion.span>
+                            )}
+                        </Link>
+                    ))}
+                </div>
+
+                <div className="flex items-center gap-4 opacity-0 pointer-events-none">
+                    {/* Placeholder for symmetry */}
+                    <div className="w-[100px]"></div>
                 </div>
             </nav>
 
-            <main className="max-w-[1600px] mx-auto p-4 md:p-12 space-y-16">
+            <main className="max-w-[1600px] mx-auto p-4 md:p-12 space-y-12">
                 {/* Hero / Introduction */}
-                <header className="space-y-4 max-w-4xl">
+                <header className="space-y-3 max-w-3xl">
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -147,7 +151,7 @@ export default function SocialStudio() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-6xl md:text-8xl font-black leading-[0.85] tracking-tighter uppercase"
+                        className="text-4xl md:text-6xl font-black leading-[0.85] tracking-tighter uppercase"
                     >
                         AI trend <br />
                         <span className="text-white/20 italic-serif font-normal lowercase">Synthesis studio</span>
@@ -156,9 +160,9 @@ export default function SocialStudio() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-lg text-white/40 max-w-xl font-medium"
+                        className="text-sm md:text-base text-white/40 max-w-lg font-medium"
                     >
-                        Select a trending AI template, upload your photos, and let our neural engine synthesize
+                        Select a template and let our neural engine synthesize
                         viral content ready for Instagram Reels and TikTok.
                     </motion.p>
                 </header>
@@ -354,36 +358,11 @@ export default function SocialStudio() {
                                 <div className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-[#DFFF00]/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-[#DFFF00]/10 transition-colors duration-1000" />
                             </div>
                         </motion.section>
-                    ) : (
-                        <motion.section
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="py-20 text-center space-y-8"
-                        >
-                            <div className="space-y-4">
-                                <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-none max-w-4xl mx-auto uppercase">
-                                    Create viral moments <br />
-                                    <span className="text-white/20 italic-serif font-normal lowercase">in seconds, not hours.</span>
-                                </h2>
-                                <p className="text-sm text-white/40 max-w-xl mx-auto font-medium">
-                                    Our experts keep our template library updated with every trending IG/TikTok style.
-                                    Just select, upload, and dominate the feed.
-                                </p>
-                            </div>
-                            <div className="flex justify-center gap-6">
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#DFFF00]">
-                                    <CheckCircle2 size={12} /> Fresh Styles Weekly
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#DFFF00]">
-                                    <CheckCircle2 size={12} /> 4K Neural Export
-                                </div>
-                            </div>
-                        </motion.section>
-                    )}
+                    ) : null}
                 </AnimatePresence>
 
                 {/* Event Section (Moved to Bottom as Secondary) */}
-                <div className="space-y-12 pt-10 px-4 md:px-0">
+                {/* <div className="space-y-12 pt-10 px-4 md:px-0">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <h2 className="text-4xl font-black tracking-tighter uppercase leading-[0.8]">
                             Creator <br />
@@ -412,7 +391,7 @@ export default function SocialStudio() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </div> */}
             </main>
 
             {/* Noir Footer */}
@@ -421,8 +400,8 @@ export default function SocialStudio() {
                     <div className="space-y-6">
                         <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#DFFF00]">Stay Connected</h3>
                         <p className="text-2xl md:text-3xl font-black tracking-tighter max-w-sm">
-                            SUBSCRIBE TO LEARN MORE <br />
-                            <span className="text-white/20 italic-serif font-normal lowercase">about our methods</span>
+                            Want to Make your own Trend <br />
+                            <span className="text-white/20 italic-serif font-normal lowercase">Reach Out to Us</span>
                         </p>
                     </div>
                     <div className="flex-1 max-w-md w-full flex flex-col sm:flex-row gap-3">
