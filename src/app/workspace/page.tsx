@@ -6,14 +6,14 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 // Modular Redesign Components (WGMI Style)
-import DashHeroModular from './DashHeroModular';
-import DashGridModular from './DashGridModular';
-import DashTrendsModular from './DashTrendsModular';
-import DashSpotlight from './DashSpotlight';
-import DashFooterModular from './DashFooterModular';
-import DashNavbar from './DashNavbar';
+import DashHeroModular from '../../components/workspace/WorkspaceHeroModular';
+import DashGridModular from '../../components/workspace/WorkspaceGridModular';
+import DashTrendsModular from '../../components/workspace/WorkspaceTrendsModular';
+import DashSpotlight from '../../components/workspace/WorkspaceSpotlight';
+import DashFooterModular from '../../components/workspace/WorkspaceFooterModular';
+import DashNavbar from '../../components/workspace/WorkspaceNavbar';
 
-export default function Dashboard() {
+export default function WorkspacePage() {
     const [user, setUser] = useState<any>(null);
     const router = useRouter();
 

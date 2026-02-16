@@ -50,7 +50,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             onClick={onJoinClick}
                             className={`px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${isScrolled ? 'bg-text-main text-white hover:bg-accent-orange' : 'bg-text-main/10 text-text-main border border-text-main/20 hover:bg-text-main hover:text-white'}`}
                         >
-                            {user ? 'Dashboard' : 'Join'}
+                            {user ? 'Workspace' : 'Join'}
                         </button>
                     </div>
 
@@ -90,7 +90,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             }}
                             className="btn-premium w-full py-5 text-center justify-center !bg-accent-orange cursor-pointer"
                         >
-                            {user ? 'Go to Dashboard' : 'Join Platform'}
+                            {user ? 'Go to Workspace' : 'Join Platform'}
                         </button>
                     </motion.div>
                 )}

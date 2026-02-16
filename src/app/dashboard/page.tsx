@@ -1,5 +1,5 @@
-import Dashboard from '../../components/dashboard/Dashboard';
+import PreDashboard from '../../components/dashboard/PreDashboard';
 
 export default function DashboardPage() {
-    return <Dashboard />;
+    return <PreDashboard />;
 }

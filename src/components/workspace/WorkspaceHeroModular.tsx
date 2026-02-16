@@ -31,8 +31,8 @@ const DashHeroModular = ({ user }: { user?: any }) => {
     const suggestions = [
         {
             icon: FileText,
-            label: 'Personel Director',
-            action: '/studio/director',
+            label: 'Director Mode',
+            action: '/workspace/director',
             iconColor: 'bg-yellow-400/20 text-yellow-500',
             indicator: 'Generate Trailer',
         },
@@ -40,21 +40,21 @@ const DashHeroModular = ({ user }: { user?: any }) => {
         {
             icon: ShoppingBag,
             label: 'Product Studio',
-            action: '/studio/product',
+            action: '/workspace/product',
             iconColor: 'bg-blue-400/20 text-blue-500',
             indicator: 'Brand Boost',
         },
         {
             icon: TrendingUp,
             label: 'Instagram Trends',
-            action: '/studio/social',
+            action: '/workspace/social',
             iconColor: 'bg-pink-400/20 text-pink-500',
             indicator: 'Create Content',
         },
         {
             icon: User,
             label: 'AI Influencer',
-            action: '/studio/ai-avatar',
+            action: '/workspace/ai-avatar',
             iconColor: 'bg-green-400/20 text-green-500',
             indicator: 'Social Sync',
         },

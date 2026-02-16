@@ -27,7 +27,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import type { Scene, ChatMessage } from '../../services/AIService';
 import { fetchVideosFromStorage } from '../../services/StorageService';
 import { MODELS } from '../../config/models';
-import StudioLayout from '../studio/layout';
+import StudioLayout from '../workspace/layout';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function ChatPageContent() {

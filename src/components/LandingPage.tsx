@@ -29,7 +29,7 @@ export default function LandingPage() {
 
     const handleJoinClick = () => {
         if (user) {
-            router.push('/dashboard');
+            router.push('/workspace');
         } else {
             router.push('/login');
         }
