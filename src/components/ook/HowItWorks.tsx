@@ -47,11 +47,11 @@ const HowItWorks = () => {
     ];
 
     return (
-        <section id="how-it-works" ref={sectionRef} className="relative h-[500vh] bg-white">
+        <section id="how-it-works" data-section-theme="light" ref={sectionRef} className="relative h-[500vh] bg-bg-main">
             <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
                 {/* Ambient Background Glows */}
-                <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[150px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-sky/5 blur-[150px] rounded-full pointer-events-none" />
+                <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[80px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-sky/5 blur-[80px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
 
                 {/* Header - Fixed in sticky container with more padding-top to avoid navbar */}
                 <div className="centering-container !items-start pt-20 mb-8 px-[10vw] relative z-10">
@@ -65,7 +65,7 @@ const HowItWorks = () => {
                             The Process
                         </span>
                     </motion.div>
-                    <h2 className="text-6xl md:text-9xl font-black tracking-[-0.04em] leading-none uppercase">
+                    <h2 className="text-6xl md:text-9xl font-black tracking-[-0.04em] leading-none uppercase text-text-main">
                         Evolution <br />
                         <span className="text-accent-orange italic-serif font-normal lowercase tracking-normal">of story.</span>
                     </h2>
@@ -74,13 +74,14 @@ const HowItWorks = () => {
                 {/* Horizontal Scroll Track - Adjusted spacing */}
                 <div className="relative mt-8">
                     <motion.div
-                        style={{ x }}
+                        style={{ x, willChange: "transform" }}
                         className="flex gap-16 px-[10vw]"
                     >
                         {steps.map((step, index) => (
                             <div
                                 key={index}
                                 className="min-w-[85vw] md:min-w-[70vw] lg:min-w-[60vw] h-[50vh] rounded-[48px] overflow-hidden relative group shadow-premium bg-bg-main border border-text-main/5 flex flex-col md:flex-row items-stretch"
+                                style={{ willChange: 'transform' }}
                             >
                                 {/* Visual Side */}
                                 <div className={cn("hidden md:flex flex-1 items-center justify-center relative p-12 bg-gradient-to-br", step.accent)}>
@@ -97,7 +98,7 @@ const HowItWorks = () => {
                                 </div>
 
                                 {/* Content Side */}
-                                <div className="flex-1 p-10 md:p-14 flex flex-col justify-between bg-white relative">
+                                <div className="flex-1 p-10 md:p-14 flex flex-col justify-between glass-card relative">
                                     <div>
                                         <span className="text-xs font-bold tracking-[0.4em] text-accent-orange uppercase mb-6 block">
                                             Step {step.number} — {step.tag}
@@ -112,7 +113,7 @@ const HowItWorks = () => {
 
                                     <div className="flex items-center gap-4">
                                         <div className="h-[2px] w-12 bg-accent-orange" />
-                                        <span className="text-[10px] font-black tracking-widest uppercase">Start Journey</span>
+                                        <span className="text-[10px] font-black tracking-widest uppercase text-white">Start Journey</span>
                                     </div>
                                 </div>
                             </div>

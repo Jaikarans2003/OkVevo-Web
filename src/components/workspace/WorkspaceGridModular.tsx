@@ -6,22 +6,22 @@ import { Video, User, FileText, Zap, ArrowUpRight, Play } from 'lucide-react';
 
 const offerings = [
     {
-        title: "Create Video",
-        subtitle: "Cinematic AI",
+        title: "Product Ads",
+        subtitle: "Create Ads for your brand",
         icon: <Video size={32} className="text-white" />,
         color: "bg-[#FF4D4D]",
         textColor: "text-white",
         className: "col-span-1 md:col-span-2 md:row-span-2",
-        href: "/studio/director"
+        href: "/workspace/product"
     },
     {
-        title: "Product Ads",
-        subtitle: "Create Ads for your brand",
+        title: "Create Video",
+        subtitle: "Cinematic AI",
         icon: <User size={32} className="text-white" />,
         color: "bg-[#4D79FF]",
         textColor: "text-white",
         className: "col-span-1 md:col-span-1 md:row-span-2",
-        href: "/studio/product"
+        href: "/workspace/director"
     },
     {
         title: "Content Repurposing",
@@ -39,13 +39,13 @@ const offerings = [
         color: "bg-[#9B4DFF]",
         textColor: "text-white",
         className: "col-span-1 md:col-span-2 md:row-span-2",
-        href: "/studio/social"
+        href: "/workspace/social"
     }
 ];
 
 const DashGridModular = () => {
     return (
-        <section className="relative h-screen flex flex-col pt-32 pb-4 bg-[#050505] text-white overflow-hidden">
+        <section data-section-theme="dark" className="relative h-screen flex flex-col pt-32 pb-4 bg-[#050505] text-white overflow-hidden">
             {/* Dot Grid Pattern - Dark Mode */}
             <div
                 className="absolute inset-0 opacity-[0.15] pointer-events-none"

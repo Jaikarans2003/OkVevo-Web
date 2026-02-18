@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 const TuneTalez = () => {
     return (
-        <section id="tunetalez" className="section-padding overflow-hidden bg-white relative">
+        <section id="tunetalez" data-section-theme="light" className="section-padding overflow-hidden bg-bg-main relative">
             {/* Background Gradient Blob */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-orange/20 rounded-full blur-[120px] pointer-events-none" />
 

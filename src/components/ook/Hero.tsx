@@ -10,7 +10,7 @@ interface HeroProps {
 
 const Hero = ({ onJoinClick }: HeroProps) => {
     return (
-        <section className="relative min-h-screen bg-white pt-48 pb-20 overflow-hidden flex flex-col items-center">
+        <section data-section-theme="light" className="relative min-h-screen bg-bg-main pt-48 pb-20 overflow-hidden flex flex-col items-center">
             {/* Background Decorative Gradients */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <motion.div
@@ -22,7 +22,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         y: [0, -30, 0]
                     }}
                     transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.35]"
+                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[80px] rounded-full opacity-[0.35]"
+                    style={{ willChange: "transform" }}
                 />
                 <motion.div
                     initial={{ scale: 1, opacity: 0.25, x: 0, y: 0 }}
@@ -33,7 +34,18 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         y: [0, 60, 0]
                     }}
                     transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-25"
+                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[60px] rounded-full opacity-25"
+                    style={{ willChange: "transform" }}
+                />
+                <motion.div
+                    animate={{
+                        x: [0, -30, 0],
+                        y: [0, 50, 0],
+                        scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.2]"
+                    style={{ willChange: "transform" }}
                 />
             </div>
 
@@ -55,7 +67,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                     className="mt-12 max-w-2xl"
                 >
-                    <p className="text-xl md:text-2xl text-text-dim/80 font-medium leading-tight">
+                    <p className="text-xl md:text-2xl text-text-dim font-medium leading-tight">
                         OKVEVO is a digital laboratory focused on high-fidelity AI
                         avatars, cinematic storytelling, and cutting-edge neural
                         rendering.

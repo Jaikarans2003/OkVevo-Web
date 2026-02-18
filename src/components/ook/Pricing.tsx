@@ -25,7 +25,7 @@ const Pricing = () => {
             ],
             highlighted: false,
             cta: 'Get Started',
-            gradient: 'from-gray-100 to-gray-50'
+            gradient: 'from-zinc-900 to-zinc-950'
         },
         {
             name: 'Pro',
@@ -67,12 +67,12 @@ const Pricing = () => {
             notIncluded: [],
             highlighted: false,
             cta: 'Contact Sales',
-            gradient: 'from-purple-100 to-purple-50'
+            gradient: 'from-zinc-900 to-zinc-950'
         }
     ];
 
     return (
-        <section id="pricing" className="relative py-20 overflow-hidden">
+        <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent-orange/5 to-transparent" />
             <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[100px] animate-pulse" />
@@ -143,11 +143,11 @@ const Pricing = () => {
                                 {/* Card */}
                                 <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 ${plan.highlighted
                                     ? 'glass-card border-2 border-accent-orange shadow-2xl shadow-accent-orange/20 md:scale-105'
-                                    : 'glass-card border border-border-subtle hover:border-accent-orange/50 hover:shadow-xl'
+                                    : 'glass-card border border-white/5 hover:border-accent-orange/50 hover:shadow-xl'
                                     }`}>
                                     {/* Icon */}
                                     <div className={`inline-flex p-3 rounded-xl mb-4 bg-gradient-to-br ${plan.gradient}`}>
-                                        <Icon className={plan.highlighted ? 'w-6 h-6 text-white' : 'w-6 h-6 text-text-main'} />
+                                        <Icon className={plan.highlighted ? 'text-white' : 'text-text-main'} />
                                     </div>
 
                                     {/* Plan Name */}
@@ -170,7 +170,7 @@ const Pricing = () => {
                                     {/* CTA Button */}
                                     <button className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
                                         ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
-                                        : 'bg-text-main text-white hover:bg-accent-orange hover:shadow-lg'
+                                        : 'bg-text-main text-bg-main hover:bg-accent-orange hover:text-white hover:shadow-lg'
                                         }`}>
                                         {plan.cta}
                                     </button>
@@ -197,7 +197,7 @@ const Pricing = () => {
 
                                         {/* Not Included (only for Free plan) */}
                                         {plan.notIncluded.length > 0 && (
-                                            <div className="pt-4 mt-4 border-t border-border-subtle space-y-2.5">
+                                            <div className="pt-4 mt-4 border-t border-white/5 space-y-2.5">
                                                 {plan.notIncluded.map((feature, i) => (
                                                     <div key={i} className="flex items-start gap-2 opacity-40">
                                                         <div className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center bg-gray-300 mt-0.5">
@@ -226,12 +226,12 @@ const Pricing = () => {
                     <p className="text-text-dim text-base mb-4">
                         Not sure which plan is right for you?
                     </p>
-                    <button className="px-8 py-3 rounded-full border-2 border-text-main text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-white transition-all duration-300">
+                    <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
                         Compare All Features
                     </button>
                 </motion.div>
             </div>
-        </section>
+        </section >
     );
 };
 

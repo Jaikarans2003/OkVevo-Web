@@ -33,8 +33,8 @@ const Features = () => {
     ];
 
     return (
-        <section id="features" className="bg-white overflow-hidden rounded-[80px]">
-            <div className="bg-text-main py-32 px-6 md:px-20 overflow-hidden relative w-full">
+        <section id="features" data-section-theme="dark" className="bg-[#000000] overflow-hidden rounded-[80px]">
+            <div className="bg-[#000000] py-32 px-6 md:px-20 overflow-hidden relative w-full">
                 {/* Decorative Background Glows */}
                 <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-accent-orange/10 blur-[180px] rounded-full -z-0 pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-accent-sky/5 blur-[180px] rounded-full -z-0 pointer-events-none" />
@@ -81,7 +81,7 @@ const Features = () => {
                                             {feature.tag}
                                         </span>
                                         <h3 className="text-5xl md:text-7xl font-bold mb-10 leading-tight text-white tracking-tighter">{feature.title}</h3>
-                                        <p className="text-xl md:text-2xl text-white/60 leading-relaxed mb-16 max-w-lg font-medium">
+                                        <p className="text-xl md:text-2xl text-zinc-400 leading-relaxed mb-16 max-w-lg font-medium">
                                             {feature.description}
                                         </p>
                                         <a href="#" className="inline-flex items-center gap-4 text-sm font-black uppercase tracking-widest text-white hover:text-accent-orange transition-all group">

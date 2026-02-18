@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 // Force rebuild
 export default {
-	darkMode: ["class"],
+	darkMode: "class",
 	content: [
 		"./index.html",
 		"./src/**/*.{js,ts,jsx,tsx}",
@@ -11,19 +11,19 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				'custom-orange': '#FF5733',
-				'custom-cream': '#FAF3E1',
-				'custom-bg': '#121212',
+				'custom-orange': '#FF6600',
+				'custom-cream': '#1A1A1A',
+				'custom-bg': '#000000',
 				'custom-White': '#FFFFFF',
 				// Ook design system colors
-				'bg-main': '#FAFAFA',
-				'text-main': '#121212',
-				'text-dim': '#666666',
-				'accent-orange': '#FF5733',
-				'accent-peach': '#FFDED6',
-				'accent-lavender': '#E8D9FF',
-				'accent-sky': '#D6F1FF',
-				'accent-mint': '#D6FFF5',
+				'bg-main': 'var(--color-bg-main)',
+				'text-main': 'var(--color-text-main)',
+				'text-dim': 'var(--color-text-dim)',
+				'accent-orange': 'var(--color-accent-orange)',
+				'accent-peach': 'var(--color-accent-peach)',
+				'accent-lavender': 'var(--color-accent-lavender)',
+				'accent-sky': 'var(--color-accent-sky)',
+				'accent-mint': 'var(--color-accent-mint)',
 				'orange-brand': {
 					'50': '#fff7ed',
 					'100': '#ffedd5',

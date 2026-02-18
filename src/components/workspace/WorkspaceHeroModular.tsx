@@ -63,6 +63,7 @@ const DashHeroModular = ({ user }: { user?: any }) => {
     return (
         <section
             onMouseMove={handleMouseMove}
+            data-section-theme="light"
             className="relative min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden"
         >
             {/* Tighter Dotted Grid */}

@@ -3,18 +3,47 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, CreditCard, User } from 'lucide-react';
+import { ThemeToggle } from '../ThemeToggle';
 
 const DashNavbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [currentSectionTheme, setCurrentSectionTheme] = useState<'light' | 'dark'>('light');
 
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 50);
         };
+
+        const observerOptions = {
+            threshold: [0, 0.1, 0.5, 0.9, 1],
+            rootMargin: "-80px 0px -80% 0px"
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const theme = entry.target.getAttribute('data-section-theme') as 'light' | 'dark';
+                    if (theme) {
+                        setCurrentSectionTheme(theme);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        const sections = document.querySelectorAll('[data-section-theme]');
+        sections.forEach((section) => observer.observe(section));
+
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            observer.disconnect();
+        };
     }, []);
+
+    const isNavbarDark = currentSectionTheme === 'dark';
+    const textColor = isNavbarDark ? 'text-white' : 'text-text-main';
+    const textColorDim = isNavbarDark ? 'text-white/70' : 'text-text-main/70';
 
     const navLinks = [
         { name: 'Billing', href: '/billing', icon: <CreditCard size={16} /> },
@@ -25,7 +54,7 @@ const DashNavbar = () => {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-card' : 'bg-transparent border-transparent'}`}>
-                    <a href="/" className="text-2xl font-black tracking-[-0.05em] text-text-main flex items-center gap-1 group font-[family-name:var(--font-museo-moderno)]">
+                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group font-[family-name:var(--font-museo-moderno)] transition-colors duration-500 ${textColor}`}>
                         OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
                     </a>
 
@@ -35,16 +64,17 @@ const DashNavbar = () => {
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className={`flex items-center gap-2 text-[10px] font-black tracking-[0.2em] uppercase transition-colors ${isScrolled ? 'text-text-main hover:text-accent-orange' : 'text-text-main hover:text-accent-orange'}`}
+                                className={`flex items-center gap-2 text-[10px] font-black tracking-[0.2em] uppercase transition-colors duration-500 ${textColor} hover:text-accent-orange`}
                             >
                                 {link.name}
                             </a>
                         ))}
+                        <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} />
                     </div>
 
                     {/* Mobile Toggle */}
                     <button
-                        className="md:hidden p-2 transition-colors text-text-main"
+                        className={`md:hidden p-2 transition-colors duration-500 ${textColor}`}
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
                         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

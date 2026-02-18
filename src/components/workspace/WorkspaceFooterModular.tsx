@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 export default function DashFooterModular() {
     return (
-        <footer className="relative bg-[#050505] text-white overflow-hidden py-32 border-t border-white/5">
+        <footer data-section-theme="dark" className="relative bg-[#050505] text-white overflow-hidden py-32 border-t border-white/5">
             {/* Grid Background with Perspective */}
             <div className="absolute inset-x-0 bottom-0 h-[600px] opacity-40 pointer-events-none overflow-hidden">
                 <div

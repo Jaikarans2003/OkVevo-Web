@@ -8,9 +8,11 @@ interface QuotesProps {
 
 const Quotes = ({ onJoinClick }: QuotesProps) => {
     return (
-        <section id="create" className="section-padding relative overflow-hidden bg-bg-main">
-            {/* Background Gradient Blob */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-orange/20 rounded-full blur-[120px] pointer-events-none" />
+        <section id="create" data-section-theme="light" className="section-padding relative overflow-hidden bg-bg-main">
+            {/* Rich Ambient Background Glows */}
+            <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-orange/15 blur-[120px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-sky/10 blur-[100px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[40vw] bg-accent-orange/5 blur-[150px] rounded-full pointer-events-none mix-blend-soft-light" style={{ willChange: 'transform' }} />
 
             <div className="centering-container text-center relative z-10">
                 <motion.div
