@@ -1,5 +1,8 @@
 
 import { useState, useCallback } from 'react';
+import { narrationService } from '../services/NarrationService';
+import { fetchVideosFromStorage, fetchStitchedVideos } from '../services/StorageService';
+import { dispatchStitchingJob } from '../services/SQSStitchService';
 
 export type DirectorFlowState =
     | 'idle'
@@ -9,7 +12,10 @@ export type DirectorFlowState =
     | 'aspect_ratio'
     | 'genre'
     | 'review'
-    | 'generating'
+    | 'generating_narration'
+    | 'generating_audio'
+    | 'fetching_videos'
+    | 'stitching'
     | 'complete';
 
 export interface DirectorProject {
@@ -18,15 +24,16 @@ export interface DirectorProject {
     duration: string;
     aspectRatio: string;
     genre: string;
-    videoUrl?: string;
+    videoUrls: string[];
     audioUrl?: string;
+    stitchedVideoUrl?: string;
 }
 
 export interface Message {
     id: string;
     role: 'assistant' | 'user';
     content: string;
-    type?: 'text' | 'choice' | 'review' | 'result';
+    type?: 'text' | 'choice' | 'review' | 'progress' | 'result';
     timestamp: number;
 }
 
@@ -45,8 +52,11 @@ export function useDirectorFlow() {
         script: '',
         duration: '',
         aspectRatio: '',
-        genre: ''
+        genre: '',
+        videoUrls: [],
     });
+    const [pipelineError, setPipelineError] = useState<string | null>(null);
+    const [pipelineStep, setPipelineStep] = useState<string>('');
 
     const addMessage = useCallback((content: string, role: 'assistant' | 'user', type: Message['type'] = 'text') => {
         const newMessage: Message = {
@@ -59,8 +69,86 @@ export function useDirectorFlow() {
         setMessages(prev => [...prev, newMessage]);
     }, []);
 
+    const runGenerationPipeline = useCallback(async (currentProject: DirectorProject) => {
+        setPipelineError(null);
+
+        try {
+            // ── Step 1: Narration ──────────────────────────────────────────
+            setPipelineStep('Generating narration script...');
+            setCurrentState('generating_narration');
+
+            const narrationResult = await narrationService.generateDirectNarration(
+                `Project: ${currentProject.name}\nScript: ${currentProject.script}\nStyle: ${currentProject.genre}\nDuration: ${currentProject.duration}\nAspect Ratio: ${currentProject.aspectRatio}`
+            );
+
+            // ── Step 2: Fetch videos ───────────────────────────────────────
+            setPipelineStep('Fetching scene footage...');
+            setCurrentState('fetching_videos');
+
+            const videoUrls = await fetchVideosFromStorage();
+            const selectedUrls = videoUrls.slice(0, 3);
+            if (selectedUrls.length < 3) {
+                throw new Error('Not enough videos in storage. Need at least 3.');
+            }
+            setProject(prev => ({ ...prev, videoUrls: selectedUrls }));
+
+            // ── Step 3: TTS Audio ──────────────────────────────────────────
+            setPipelineStep('Generating audio narration...');
+            setCurrentState('generating_audio');
+
+            const { ttsService } = await import('../services/TTSService');
+            const sessionId = `director-${Date.now()}`;
+            const audioUrl = await ttsService.generateNarrationAudio(
+                narrationResult.narration.fullNarration,
+                sessionId
+            );
+            setProject(prev => ({ ...prev, audioUrl }));
+
+            // ── Step 4: Dispatch SQS stitching job ─────────────────────────
+            setPipelineStep('Stitching your cinematic scene...');
+            setCurrentState('stitching');
+
+            const result = await dispatchStitchingJob(selectedUrls, audioUrl);
+            if (!result.success || !result.jobId) {
+                throw new Error(result.error || 'SQS dispatch failed');
+            }
+
+            // Poll for stitched video
+            const maxAttempts = 24;
+            let stitchedUrl: string | null = null;
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                try {
+                    const stitchedVideos = await fetchStitchedVideos();
+                    const match = stitchedVideos.find(url => url.includes(result.jobId!));
+                    if (match) {
+                        stitchedUrl = match;
+                        break;
+                    }
+                } catch (pollErr) {
+                    console.error('Polling error:', pollErr);
+                }
+            }
+
+            if (!stitchedUrl) {
+                throw new Error('Stitching is taking longer than expected. Please try again.');
+            }
+
+            setProject(prev => ({ ...prev, stitchedVideoUrl: stitchedUrl! }));
+            setPipelineStep('Complete');
+            addMessage("Your cinematic scene is ready! Take a look.", 'assistant', 'result');
+            setCurrentState('complete');
+
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Director pipeline error:', error);
+            setPipelineError(msg);
+            addMessage(`Generation failed: ${msg}`, 'assistant');
+            setCurrentState('review'); // allow retry
+        }
+    }, [addMessage]);
+
     const handleNext = useCallback(async (input: string) => {
-        // Add user message
         addMessage(input, 'user');
 
         switch (currentState) {
@@ -97,29 +185,23 @@ export function useDirectorFlow() {
 
             case 'review':
                 if (input.toLowerCase().includes('yes') || input.toLowerCase().includes('proceed')) {
-                    addMessage("Initializing cinematic engine... Generating your scene.", 'assistant');
-                    setCurrentState('generating');
-
-                    // Simulate API Call with Mock Media
-                    setTimeout(() => {
-                        setProject(prev => ({
-                            ...prev,
-                            videoUrl: "https://cdn.pixabay.com/video/2022/02/09/107240-678130070_large.mp4",
-                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-                        }));
-                        addMessage("Your cinematic scene is ready! Take a look.", 'assistant', 'result');
-                        setCurrentState('complete');
-                    }, 4000);
+                    addMessage("Initializing cinematic engine…", 'assistant', 'progress');
+                    // Run pipeline — capture current project with genre from the previous step
+                    setProject(prev => {
+                        const updated = { ...prev };
+                        // Start pipeline with the fully updated project
+                        runGenerationPipeline(updated);
+                        return updated;
+                    });
                 } else {
-                    addMessage("What would you like to change?", 'assistant');
-                    // Logic to jump back could go here, for now just reset or ask again
+                    addMessage("What would you like to change? You can describe the update and type 'YES' again when ready.", 'assistant');
                 }
                 break;
 
             default:
                 break;
         }
-    }, [currentState, project, addMessage]);
+    }, [currentState, project, addMessage, runGenerationPipeline]);
 
     const resetFlow = useCallback(() => {
         setMessages([
@@ -136,16 +218,20 @@ export function useDirectorFlow() {
             script: '',
             duration: '',
             aspectRatio: '',
-            genre: ''
+            genre: '',
+            videoUrls: [],
         });
+        setPipelineError(null);
+        setPipelineStep('');
     }, []);
 
     return {
         messages,
         currentState,
         project,
+        pipelineStep,
+        pipelineError,
         handleNext,
-        setCurrentState,
-        resetFlow
+        resetFlow,
     };
 }
