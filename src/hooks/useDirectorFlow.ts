@@ -1,6 +1,8 @@
 
 import { useState, useCallback } from 'react';
-import { narrationService } from '../services/NarrationService';
+import { narrationService, DirectNarrationResult } from '../services/NarrationService';
+import { analyzeScenes } from '../services/AIService';
+import type { Scene } from '../services/AIService';
 import { fetchVideosFromStorage, fetchStitchedVideos } from '../services/StorageService';
 import { dispatchStitchingJob } from '../services/SQSStitchService';
 
@@ -11,10 +13,11 @@ export type DirectorFlowState =
     | 'duration'
     | 'aspect_ratio'
     | 'genre'
-    | 'review'
+    | 'generating_scenes'
+    | 'scene_review'
     | 'generating_narration'
-    | 'generating_audio'
     | 'fetching_videos'
+    | 'generating_audio'
     | 'stitching'
     | 'complete';
 
@@ -33,7 +36,7 @@ export interface Message {
     id: string;
     role: 'assistant' | 'user';
     content: string;
-    type?: 'text' | 'choice' | 'review' | 'progress' | 'result';
+    type?: 'text' | 'choice' | 'scene_review' | 'progress' | 'result';
     timestamp: number;
 }
 
@@ -55,6 +58,7 @@ export function useDirectorFlow() {
         genre: '',
         videoUrls: [],
     });
+    const [analyzedScenes, setAnalyzedScenes] = useState<Scene[] | null>(null);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
     const [pipelineStep, setPipelineStep] = useState<string>('');
 
@@ -69,19 +73,31 @@ export function useDirectorFlow() {
         setMessages(prev => [...prev, newMessage]);
     }, []);
 
-    const runGenerationPipeline = useCallback(async (currentProject: DirectorProject) => {
+    // Update a single field in an analyzed scene (for editable cards)
+    const updateScene = useCallback((index: number, field: keyof Scene, value: string) => {
+        setAnalyzedScenes(prev =>
+            prev ? prev.map((scene, i) => i === index ? { ...scene, [field]: value } : scene) : prev
+        );
+    }, []);
+
+    // ── Real generation pipeline ──────────────────────────────────────────────
+    const runGenerationPipeline = useCallback(async (
+        currentProject: DirectorProject,
+        scenes: Scene[]
+    ) => {
         setPipelineError(null);
 
         try {
-            // ── Step 1: Narration ──────────────────────────────────────────
+            // ── Step 1: Narration script from scenes ──────────────────────
             setPipelineStep('Generating narration script...');
             setCurrentState('generating_narration');
 
-            const narrationResult = await narrationService.generateDirectNarration(
-                `Project: ${currentProject.name}\nScript: ${currentProject.script}\nStyle: ${currentProject.genre}\nDuration: ${currentProject.duration}\nAspect Ratio: ${currentProject.aspectRatio}`
+            const combinedScript = scenes.map(s => s.primary_visuals).join('\n');
+            const narrationResult: DirectNarrationResult = await narrationService.generateDirectNarration(
+                `Project: ${currentProject.name}\nScript: ${currentProject.script}\nStyle: ${currentProject.genre}\nDuration: ${currentProject.duration}\nAspect Ratio: ${currentProject.aspectRatio}\nScene Visuals:\n${combinedScript}`
             );
 
-            // ── Step 2: Fetch videos ───────────────────────────────────────
+            // ── Step 2: Fetch footage ─────────────────────────────────────
             setPipelineStep('Fetching scene footage...');
             setCurrentState('fetching_videos');
 
@@ -92,7 +108,7 @@ export function useDirectorFlow() {
             }
             setProject(prev => ({ ...prev, videoUrls: selectedUrls }));
 
-            // ── Step 3: TTS Audio ──────────────────────────────────────────
+            // ── Step 3: TTS audio ─────────────────────────────────────────
             setPipelineStep('Generating audio narration...');
             setCurrentState('generating_audio');
 
@@ -104,7 +120,7 @@ export function useDirectorFlow() {
             );
             setProject(prev => ({ ...prev, audioUrl }));
 
-            // ── Step 4: Dispatch SQS stitching job ─────────────────────────
+            // ── Step 4: SQS stitching + poll ──────────────────────────────
             setPipelineStep('Stitching your cinematic scene...');
             setCurrentState('stitching');
 
@@ -113,7 +129,6 @@ export function useDirectorFlow() {
                 throw new Error(result.error || 'SQS dispatch failed');
             }
 
-            // Poll for stitched video
             const maxAttempts = 24;
             let stitchedUrl: string | null = null;
             for (let i = 0; i < maxAttempts; i++) {
@@ -121,18 +136,13 @@ export function useDirectorFlow() {
                 try {
                     const stitchedVideos = await fetchStitchedVideos();
                     const match = stitchedVideos.find(url => url.includes(result.jobId!));
-                    if (match) {
-                        stitchedUrl = match;
-                        break;
-                    }
+                    if (match) { stitchedUrl = match; break; }
                 } catch (pollErr) {
                     console.error('Polling error:', pollErr);
                 }
             }
 
-            if (!stitchedUrl) {
-                throw new Error('Stitching is taking longer than expected. Please try again.');
-            }
+            if (!stitchedUrl) throw new Error('Stitching timed out. Please try again.');
 
             setProject(prev => ({ ...prev, stitchedVideoUrl: stitchedUrl! }));
             setPipelineStep('Complete');
@@ -144,10 +154,18 @@ export function useDirectorFlow() {
             console.error('Director pipeline error:', error);
             setPipelineError(msg);
             addMessage(`Generation failed: ${msg}`, 'assistant');
-            setCurrentState('review'); // allow retry
+            setCurrentState('scene_review'); // allow retry
         }
     }, [addMessage]);
 
+    // Called when user confirms the scene review (replaces old "review → YES")
+    const handleSceneConfirmation = useCallback(() => {
+        if (!analyzedScenes) return;
+        addMessage("Initializing cinematic engine…", 'assistant', 'progress');
+        runGenerationPipeline(project, analyzedScenes);
+    }, [analyzedScenes, project, addMessage, runGenerationPipeline]);
+
+    // ── Wizard step handler ───────────────────────────────────────────────────
     const handleNext = useCallback(async (input: string) => {
         addMessage(input, 'user');
 
@@ -176,32 +194,41 @@ export function useDirectorFlow() {
                 setCurrentState('genre');
                 break;
 
-            case 'genre':
+            case 'genre': {
                 const finalProject = { ...project, genre: input };
                 setProject(finalProject);
-                addMessage("Excellent choices. Here's a summary of your project:", 'assistant', 'review');
-                setCurrentState('review');
-                break;
+                setCurrentState('generating_scenes');
+                addMessage("Excellent choices. Analyzing your script and generating cinematic scenes…", 'assistant');
 
-            case 'review':
-                if (input.toLowerCase().includes('yes') || input.toLowerCase().includes('proceed')) {
-                    addMessage("Initializing cinematic engine…", 'assistant', 'progress');
-                    // Run pipeline — capture current project with genre from the previous step
-                    setProject(prev => {
-                        const updated = { ...prev };
-                        // Start pipeline with the fully updated project
-                        runGenerationPipeline(updated);
-                        return updated;
-                    });
-                } else {
-                    addMessage("What would you like to change? You can describe the update and type 'YES' again when ready.", 'assistant');
+                try {
+                    const durationSeconds = parseInt(finalProject.duration.replace(/[^0-9]/g, '')) || 30;
+                    const fullPrompt = `${finalProject.script} Style: ${input}. Aspect Ratio: ${finalProject.aspectRatio}.`;
+                    const scenes = await analyzeScenes(fullPrompt, durationSeconds);
+                    setAnalyzedScenes(scenes);
+                    addMessage("Your scenes are ready! Review and edit them below, then click Confirm & Generate.", 'assistant', 'scene_review');
+                    setCurrentState('scene_review');
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : 'Scene generation failed';
+                    addMessage(`Could not generate scenes: ${msg}. Please try again.`, 'assistant');
+                    setCurrentState('genre');
                 }
                 break;
+            }
+
+            case 'scene_review': {
+                const lower = input.toLowerCase();
+                if (lower.includes('yes') || lower.includes('proceed') || lower.includes('confirm')) {
+                    handleSceneConfirmation();
+                } else {
+                    addMessage("Click the \"Confirm & Generate\" button in the scene card above, or type \"proceed\" to continue.", 'assistant');
+                }
+                break;
+            }
 
             default:
                 break;
         }
-    }, [currentState, project, addMessage, runGenerationPipeline]);
+    }, [currentState, project, addMessage, handleSceneConfirmation]);
 
     const resetFlow = useCallback(() => {
         setMessages([
@@ -213,14 +240,8 @@ export function useDirectorFlow() {
             }
         ]);
         setCurrentState('naming');
-        setProject({
-            name: '',
-            script: '',
-            duration: '',
-            aspectRatio: '',
-            genre: '',
-            videoUrls: [],
-        });
+        setProject({ name: '', script: '', duration: '', aspectRatio: '', genre: '', videoUrls: [] });
+        setAnalyzedScenes(null);
         setPipelineError(null);
         setPipelineStep('');
     }, []);
@@ -229,9 +250,12 @@ export function useDirectorFlow() {
         messages,
         currentState,
         project,
+        analyzedScenes,
         pipelineStep,
         pipelineError,
         handleNext,
+        handleSceneConfirmation,
+        updateScene,
         resetFlow,
     };
 }
