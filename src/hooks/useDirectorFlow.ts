@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { narrationService, DirectNarrationResult } from '../services/NarrationService';
 import { analyzeScenes } from '../services/AIService';
 import type { Scene } from '../services/AIService';
-import { fetchVideosFromStorage, fetchStitchedVideos } from '../services/StorageService';
+import { fetchVideosFromStorage, fetchStitchedVideos, uploadCharacterSheets } from '../services/StorageService';
 import { dispatchStitchingJob } from '../services/SQSStitchService';
 
 export type DirectorFlowState =
@@ -13,6 +13,7 @@ export type DirectorFlowState =
     | 'duration'
     | 'aspect_ratio'
     | 'genre'
+    | 'character_sheets'
     | 'generating_scenes'
     | 'scene_review'
     | 'generating_narration'
@@ -21,12 +22,19 @@ export type DirectorFlowState =
     | 'stitching'
     | 'complete';
 
+export interface CharacterSheet {
+    name: string;
+    description: string;
+    imageDataUrl?: string; // base-64 data URL (jpg/jpeg/png)
+}
+
 export interface DirectorProject {
     name: string;
     script: string;
     duration: string;
     aspectRatio: string;
     genre: string;
+    characterSheets: CharacterSheet[];
     videoUrls: string[];
     audioUrl?: string;
     stitchedVideoUrl?: string;
@@ -36,7 +44,7 @@ export interface Message {
     id: string;
     role: 'assistant' | 'user';
     content: string;
-    type?: 'text' | 'choice' | 'scene_review' | 'progress' | 'result';
+    type?: 'text' | 'choice' | 'scene_review' | 'progress' | 'result' | 'character_sheets';
     timestamp: number;
 }
 
@@ -56,9 +64,38 @@ export function useDirectorFlow() {
         duration: '',
         aspectRatio: '',
         genre: '',
+        characterSheets: [],
         videoUrls: [],
     });
     const [analyzedScenes, setAnalyzedScenes] = useState<Scene[] | null>(null);
+
+    // ── Character sheet helpers ───────────────────────────────────────────────
+    const addCharacterSheet = useCallback(() => {
+        setProject(prev => ({
+            ...prev,
+            characterSheets: [...prev.characterSheets, { name: '', description: '' }],
+        }));
+    }, []);
+
+    const removeCharacterSheet = useCallback((index: number) => {
+        setProject(prev => ({
+            ...prev,
+            characterSheets: prev.characterSheets.filter((_, i) => i !== index),
+        }));
+    }, []);
+
+    const updateCharacterSheet = useCallback((index: number, field: keyof CharacterSheet, value: string) => {
+        setProject(prev => ({
+            ...prev,
+            characterSheets: prev.characterSheets.map((sheet, i) =>
+                i === index ? { ...sheet, [field]: value } : sheet
+            ),
+        }));
+    }, []);
+
+    const setCharacterSheets = useCallback((sheets: CharacterSheet[]) => {
+        setProject(prev => ({ ...prev, characterSheets: sheets }));
+    }, []);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
     const [pipelineStep, setPipelineStep] = useState<string>('');
 
@@ -195,25 +232,17 @@ export function useDirectorFlow() {
                 break;
 
             case 'genre': {
-                const finalProject = { ...project, genre: input };
-                setProject(finalProject);
-                setCurrentState('generating_scenes');
-                addMessage("Excellent choices. Analyzing your script and generating cinematic scenes…", 'assistant');
-
-                try {
-                    const durationSeconds = parseInt(finalProject.duration.replace(/[^0-9]/g, '')) || 30;
-                    const fullPrompt = `${finalProject.script} Style: ${input}. Aspect Ratio: ${finalProject.aspectRatio}.`;
-                    const scenes = await analyzeScenes(fullPrompt, durationSeconds);
-                    setAnalyzedScenes(scenes);
-                    addMessage("Your scenes are ready! Review and edit them below, then click Confirm & Generate.", 'assistant', 'scene_review');
-                    setCurrentState('scene_review');
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : 'Scene generation failed';
-                    addMessage(`Could not generate scenes: ${msg}. Please try again.`, 'assistant');
-                    setCurrentState('genre');
-                }
+                setProject(prev => ({ ...prev, genre: input }));
+                addMessage(
+                    "Great choice! Would you like to upload character sheets? You can add images, names, and descriptions for your characters — or skip this step entirely.",
+                    'assistant',
+                    'character_sheets'
+                );
+                setCurrentState('character_sheets');
                 break;
             }
+
+            // character_sheets is handled by submitCharacterSheets below
 
             case 'scene_review': {
                 const lower = input.toLowerCase();
@@ -230,6 +259,56 @@ export function useDirectorFlow() {
         }
     }, [currentState, project, addMessage, handleSceneConfirmation]);
 
+    // Dedicated handler for the character-sheets step.
+    // Receives `sheets` directly to avoid stale-closure issues with `project` state.
+    const submitCharacterSheets = useCallback(async (sheets: CharacterSheet[]) => {
+        addMessage(sheets.length ? `Added ${sheets.length} character sheet(s).` : 'Skipping character sheets.', 'user');
+        setCurrentState('generating_scenes');
+
+        // Upload images to Firebase Storage (only if any sheets have an image)
+        let sheetsWithUrls = sheets;
+        const sheetsWithImages = sheets.filter(s => s.imageDataUrl);
+        if (sheetsWithImages.length > 0) {
+            addMessage(`Uploading ${sheetsWithImages.length} character sheet image(s) to storage…`, 'assistant');
+            const sessionId = `director-${Date.now()}`;
+            try {
+                const uploaded = await uploadCharacterSheets(sheets, sessionId);
+                // Merge download URLs back into sheets
+                sheetsWithUrls = sheets.map((s, i) => ({
+                    ...s,
+                    imageDataUrl: uploaded[i]?.downloadUrl ?? s.imageDataUrl,
+                }));
+            } catch (uploadErr) {
+                console.error('Character sheet upload error (non-fatal):', uploadErr);
+                // Non-fatal — continue with local data URLs
+            }
+        }
+
+        // Persist (possibly enriched) sheets to project state
+        setProject(prev => ({ ...prev, characterSheets: sheetsWithUrls }));
+
+        addMessage("Excellent. Analyzing your script and generating cinematic scenes…", 'assistant');
+
+        try {
+            const durationSeconds = parseInt(project.duration.replace(/[^0-9]/g, '')) || 30;
+            const characterContext = sheetsWithUrls.length
+                ? '\nCharacters:\n' + sheetsWithUrls
+                    .filter(c => c.name)
+                    .map(c => `- ${c.name}: ${c.description}`)
+                    .join('\n')
+                : '';
+            const fullPrompt = `${project.script} Style: ${project.genre}. Aspect Ratio: ${project.aspectRatio}.${characterContext}`;
+            const scenes = await analyzeScenes(fullPrompt, durationSeconds);
+            setAnalyzedScenes(scenes);
+            addMessage("Your scenes are ready! Review and edit them below, then click Confirm & Generate.", 'assistant', 'scene_review');
+            setCurrentState('scene_review');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Scene generation failed';
+            addMessage(`Could not generate scenes: ${msg}. Please try again.`, 'assistant');
+            setCurrentState('character_sheets');
+        }
+    }, [project, addMessage]);
+
     const resetFlow = useCallback(() => {
         setMessages([
             {
@@ -240,7 +319,7 @@ export function useDirectorFlow() {
             }
         ]);
         setCurrentState('naming');
-        setProject({ name: '', script: '', duration: '', aspectRatio: '', genre: '', videoUrls: [] });
+        setProject({ name: '', script: '', duration: '', aspectRatio: '', genre: '', characterSheets: [], videoUrls: [] });
         setAnalyzedScenes(null);
         setPipelineError(null);
         setPipelineStep('');
@@ -257,5 +336,6 @@ export function useDirectorFlow() {
         handleSceneConfirmation,
         updateScene,
         resetFlow,
+        submitCharacterSheets,
     };
 }

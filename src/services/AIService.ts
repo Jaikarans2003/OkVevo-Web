@@ -50,18 +50,21 @@ const tryGeminiWithFallback = async (fullPrompt: string, duration: number = 60):
   let lastError: Error;
 
   // Determine scene count and duration logic
-  let sceneCount = 3;
-  let durationInstructions = "exactly THREE self-contained cinematic scenes (20s each)";
+  let sceneCount = 5;
+  let durationInstructions = "exactly FIVE self-contained cinematic scenes (12s each)";
 
   if (duration === 10) {
     sceneCount = 1;
     durationInstructions = "exactly ONE self-contained cinematic scene (10s)";
   } else if (duration === 20) {
-    sceneCount = 1;
-    durationInstructions = "exactly ONE self-contained cinematic scene (20s)";
+    sceneCount = 2;
+    durationInstructions = "exactly TWO self-contained cinematic scenes (10s each)";
   } else if (duration === 30) {
     sceneCount = 3;
     durationInstructions = "exactly THREE self-contained cinematic scenes (10s each)";
+  } else if (duration === 60) {
+    sceneCount = 5;
+    durationInstructions = "exactly FIVE self-contained cinematic scenes (12s each)";
   }
 
   for (const apiKey of apiKeys) {
@@ -87,18 +90,19 @@ For each scene, provide a detailed, in-depth description as if it were a standal
 
 Requirements:
 1.  **Self-Contained Scenes:** Each scene's "primary_visuals" MUST be a complete, standalone prompt. For subsequent scenes, explicitly repeat all necessary character, setting, and mood context from the previous scene(s) to ensure consistency.
-2.  **LTX-2 Guide Adherence:** Each "primary_visuals" prompt must follow the LTX-2 guide, including Shot Establishment, Scene Description, Action, Character Details, Camera Movement, and Audio.
-3.  **Valid JSON Output:** The final output MUST be a single, valid JSON object. No markdown or commentary.
-4.  **Structure:** An array of ${sceneCount} objects under the key "scenes".
-5.  **Scene Object:** Each object must have "scene", "scene_objective", "primary_visuals", "emotional_tone", and "transition_logic".
+2.  **Two Distinct Shots Per Scene:** In the "primary_visuals" field, describe TWO distinct shots (Shot A, Shot B) that make up the scene.
+3.  **LTX-2 Guide Adherence:** Each "primary_visuals" prompt must follow the LTX-2 guide, including Shot Establishment, Scene Description, Action, Character Details, Camera Movement, and Audio.
+4.  **Valid JSON Output:** The final output MUST be a single, valid JSON object. No markdown or commentary.
+5.  **Structure:** An array of ${sceneCount} objects under the key "scenes".
+6.  **Scene Object:** Each object must have "scene", "scene_objective", "primary_visuals", "emotional_tone", and "transition_logic".
 
 Example Output format:
 {
   "scenes": [
     {
-      "scene": "Scene 1 (0-${duration === 30 ? 10 : (duration === 10 || duration === 20) ? duration : 20}s)",
+      "scene": "Scene 1 (0-${duration === 60 ? 12 : 10}s)",
       "scene_objective": "Establish the setting...",
-      "primary_visuals": "Detailed visual description...",
+      "primary_visuals": "Shot A: Broad establishing shot of the neon city... Shot B: Close up of the protagonist...",
       "emotional_tone": "Tone...",
       "transition_logic": "Cut to next..."
     }

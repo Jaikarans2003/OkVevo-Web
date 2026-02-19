@@ -29,7 +29,63 @@ export interface StorageVideo {
 }
 
 import { storage } from '../config/firebase';
-import { ref, listAll, getDownloadURL, StorageReference } from 'firebase/storage';
+import { ref, listAll, getDownloadURL, StorageReference, uploadBytes } from 'firebase/storage';
+
+export interface UploadedCharacterSheet {
+    name: string;
+    description: string;
+    downloadUrl?: string; // undefined if no image was provided
+}
+
+/**
+ * Uploads character sheet images to Firebase Storage under
+ * `character-sheets/{sessionId}/`. Returns the same sheets enriched
+ * with public download URLs for any that had an image.
+ */
+export const uploadCharacterSheets = async (
+    sheets: Array<{ name: string; description: string; imageDataUrl?: string }>,
+    sessionId: string
+): Promise<UploadedCharacterSheet[]> => {
+    const results: UploadedCharacterSheet[] = [];
+
+    for (let i = 0; i < sheets.length; i++) {
+        const sheet = sheets[i];
+
+        if (!sheet.imageDataUrl) {
+            results.push({ name: sheet.name, description: sheet.description });
+            continue;
+        }
+
+        // Derive extension from data URL (e.g. "data:image/jpeg;base64,...")
+        const mimeMatch = sheet.imageDataUrl.match(/^data:(image\/[a-z]+);base64,/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const ext = mime.split('/')[1]; // jpeg | jpg | png
+
+        // Convert base-64 to Blob
+        const base64Data = sheet.imageDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
+        const byteChars = atob(base64Data);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let j = 0; j < byteChars.length; j++) byteArr[j] = byteChars.charCodeAt(j);
+        const blob = new Blob([byteArr], { type: mime });
+
+        const storagePath = `character-sheets/${sessionId}/${i + 1}_${sheet.name || 'character'}.${ext}`;
+        const fileRef = ref(storage, storagePath);
+
+        try {
+            await uploadBytes(fileRef, blob, { contentType: mime });
+            const downloadUrl = await getDownloadURL(fileRef);
+            results.push({ name: sheet.name, description: sheet.description, downloadUrl });
+            console.log(`Uploaded character sheet ${i + 1} → ${storagePath}`);
+        } catch (err) {
+            console.error(`Failed to upload character sheet ${i + 1}:`, err);
+            results.push({ name: sheet.name, description: sheet.description });
+        }
+    }
+
+    return results;
+};
+
+
 
 /**
  * Fetches video URLs from MockAIGeneratedVideos folder (or 'videos' folder)
