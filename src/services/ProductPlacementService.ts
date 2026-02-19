@@ -2,16 +2,18 @@
  * Product Placement Service
  *
  * Orchestrates the full product-placement pipeline:
- *  1. Calls Vision Orchestrator (Gemini) to generate a master prompt
- *  2. Dispatches a compositing job to SQS FIFO via the backend API
- *  3. Polls Firebase Storage (MockAIGeneratedPhotos/) for the result image
+ *  1. Vision Orchestrator generates a master prompt from hero + scene images
+ *  2. Hero & scene images are uploaded to Firebase Storage
+ *  3. Job is dispatched to SQS FIFO queue via /api/product-placement
+ *  4. Lambda consumes the job, calls NANOBANANA PRO, uploads result
+ *  5. Frontend polls Firebase Storage for the composite image
  */
 
-import { analyzeProductAndScene, refineComposition } from './VisionOrchestratorService';
+import { analyzeProductAndScene, refineComposition, fileToBase64 } from './VisionOrchestratorService';
 import { storage } from '../config/firebase';
-import { ref, getDownloadURL, listAll } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 
-export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'compositing' | 'polling' | 'complete' | 'error';
+export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'uploading' | 'compositing' | 'polling' | 'complete' | 'error';
 
 export interface PlacementJobResult {
     status: PlacementJobStatus;
@@ -30,9 +32,118 @@ const generatePlacementJobId = (): string => {
 };
 
 /**
+ * Upload a base64 data-URL image to Firebase Storage.
+ * Returns the download URL for the uploaded file.
+ */
+const uploadImageToFirebase = async (
+    base64DataUrl: string,
+    storagePath: string
+): Promise<string> => {
+    // Strip the data URL prefix to get raw base64
+    const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, '');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Detect mime type from the data URL
+    const mimeMatch = base64DataUrl.match(/^data:(image\/\w+);base64,/);
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
+
+    const storageRef = ref(storage, storagePath);
+    await uploadBytes(storageRef, bytes, { contentType });
+    return await getDownloadURL(storageRef);
+};
+
+/**
+ * Dispatch a placement job to SQS via the backend API route.
+ */
+const dispatchToSQS = async (
+    jobId: string,
+    masterPrompt: string,
+    heroImageUrl: string,
+    sceneImageUrl: string,
+    userId: string = 'demo-user'
+): Promise<void> => {
+    const res = await fetch('/api/product-placement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            jobId,
+            masterPrompt,
+            heroImageUrl,
+            sceneImageUrl,
+            userId,
+        }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to dispatch compositing job to SQS');
+    }
+
+    console.log('📦 Job dispatched to SQS:', data);
+};
+
+/**
+ * Poll Firebase Storage for the composite image result.
+ * The Lambda uploads to ProductPlacement/{jobId}.png
+ */
+const pollForCompositeImage = async (
+    jobId: string,
+    onStatusChange: (status: PlacementJobStatus, detail?: string) => void
+): Promise<string> => {
+    const MAX_ATTEMPTS = 40;     // 40 × 3s = 2 minutes max
+    const INTERVAL_MS = 3000;    // Poll every 3 seconds
+
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+        await new Promise(r => setTimeout(r, INTERVAL_MS));
+
+        try {
+            // Check for the specific job output file
+            const imageRef = ref(storage, `ProductPlacement/${jobId}.png`);
+            const url = await getDownloadURL(imageRef);
+
+            console.log('✅ Composite image found:', url);
+            return url;
+        } catch {
+            // File doesn't exist yet — keep polling
+        }
+
+        // Also check the folder for any file starting with the jobId
+        // (in case the Lambda uses a different extension)
+        try {
+            const folderRef = ref(storage, 'ProductPlacement/');
+            const result = await listAll(folderRef);
+            const match = result.items.find(item => item.name.startsWith(jobId));
+
+            if (match) {
+                const url = await getDownloadURL(match);
+                console.log('✅ Composite image found (alt):', url);
+                return url;
+            }
+        } catch {
+            // Folder might not exist yet
+        }
+
+        const elapsed = ((i + 1) * INTERVAL_MS / 1000).toFixed(0);
+        onStatusChange('polling', `Waiting for NANOBANANA PRO render... (${elapsed}s)`);
+        console.log(`⏳ Poll attempt ${i + 1}/${MAX_ATTEMPTS}: No result yet...`);
+    }
+
+    throw new Error('Composite image generation timed out. The image may appear in your gallery later.');
+};
+
+/**
  * Run the full placement pipeline.
- * Accepts two image Files, an onStatusChange callback for live UI updates,
- * and returns the final result.
+ *
+ * Steps:
+ *  1. Vision Orchestrator → master prompt
+ *  2. Upload hero + scene to Firebase Storage
+ *  3. Dispatch to SQS
+ *  4. Poll for result
  */
 export const runPlacementPipeline = async (
     heroFile: File,
@@ -54,37 +165,36 @@ export const runPlacementPipeline = async (
 
         const masterPrompt = orchestratorResult.masterPrompt;
 
-        // ── Step 2: Dispatch compositing job to SQS FIFO ─────────
-        onStatusChange('compositing', 'Dispatching composite render job to queue...');
+        // ── Step 2: Upload reference images to Firebase ─────────
+        onStatusChange('uploading', 'Uploading reference images...');
 
-        const dispatchRes = await fetch('/api/product-placement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jobId,
-                masterPrompt,
-                userId: 'demo-user', // In production this would come from auth
-            }),
-        });
+        const [heroBase64, sceneBase64] = await Promise.all([
+            fileToBase64(heroFile),
+            fileToBase64(sceneFile),
+        ]);
 
-        const dispatchData = await dispatchRes.json();
+        const [heroImageUrl, sceneImageUrl] = await Promise.all([
+            uploadImageToFirebase(heroBase64, `ProductPlacement/inputs/${jobId}/hero.png`),
+            uploadImageToFirebase(sceneBase64, `ProductPlacement/inputs/${jobId}/scene.png`),
+        ]);
 
-        if (!dispatchRes.ok || !dispatchData.success) {
-            throw new Error(dispatchData.error || 'Failed to dispatch compositing job');
-        }
+        console.log('📤 Reference images uploaded:', { heroImageUrl, sceneImageUrl });
 
-        console.log('📦 Job dispatched:', dispatchData);
+        // ── Step 3: Dispatch job to SQS ─────────────────────────
+        onStatusChange('compositing', 'Dispatching composite render job...');
 
-        // ── Step 3: Poll Firebase Storage for the result ─────────
-        onStatusChange('polling', 'Waiting for composite image from render pipeline...');
+        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl);
 
-        const imageUrl = await pollForCompositeImage(jobId);
+        // ── Step 4: Poll for the result ─────────────────────────
+        onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
+
+        const compositeImageUrl = await pollForCompositeImage(jobId, onStatusChange);
 
         onStatusChange('complete');
         return {
             status: 'complete',
             masterPrompt,
-            compositeImageUrl: imageUrl,
+            compositeImageUrl,
         };
 
     } catch (error) {
@@ -95,44 +205,12 @@ export const runPlacementPipeline = async (
 };
 
 /**
- * Poll Firebase Storage for the finished composite image.
- *
- * Checks the `MockAIGeneratedPhotos/` folder in Firebase Storage.
- * In production, the Lambda consumer would write the real composite
- * to a dedicated folder; for now we fetch the mock image.
- */
-const pollForCompositeImage = async (_jobId: string): Promise<string> => {
-    const MAX_ATTEMPTS = 20;
-    const INTERVAL_MS = 3000;
-
-    for (let i = 0; i < MAX_ATTEMPTS; i++) {
-        await new Promise(r => setTimeout(r, INTERVAL_MS));
-
-        try {
-            // Poll the MockAIGeneratedPhotos folder
-            const folderRef = ref(storage, 'MockAIGeneratedPhotos/');
-            const res = await listAll(folderRef);
-
-            if (res.items.length > 0) {
-                // Return the first available image (mock flow)
-                const url = await getDownloadURL(res.items[0]);
-                console.log('✅ Composite image found in MockAIGeneratedPhotos:', url);
-                return url;
-            }
-
-            console.log(`⏳ Poll attempt ${i + 1}/${MAX_ATTEMPTS}: No image yet...`);
-        } catch (err) {
-            console.warn('Polling error (non-fatal):', err);
-        }
-    }
-
-    throw new Error('Composite image timed out. Please check your gallery later.');
-};
-
-/**
  * Run the refinement pipeline.
- * Takes the current composite image URL + user's change request,
- * generates a new master prompt, dispatches to SQS, and polls for the result.
+ *
+ * Steps:
+ *  1. Vision Orchestrator (refinement mode) → refined master prompt
+ *  2. Dispatch to SQS (no reference images — prompt-only generation)
+ *  3. Poll for result
  */
 export const runRefinementPipeline = async (
     compositeImageUrl: string,
@@ -153,37 +231,22 @@ export const runRefinementPipeline = async (
 
         const masterPrompt = orchestratorResult.masterPrompt;
 
-        // ── Step 2: Dispatch compositing job to SQS FIFO ─────────
-        onStatusChange('compositing', 'Dispatching refined composite render job...');
+        // ── Step 2: Dispatch to SQS (prompt-only) ───────────────
+        onStatusChange('compositing', 'Dispatching refined render job...');
 
-        const dispatchRes = await fetch('/api/product-placement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jobId,
-                masterPrompt,
-                userId: 'demo-user',
-            }),
-        });
+        // No reference images for refinement — the prompt is self-contained
+        await dispatchToSQS(jobId, masterPrompt, '', '');
 
-        const dispatchData = await dispatchRes.json();
+        // ── Step 3: Poll for the result ─────────────────────────
+        onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
 
-        if (!dispatchRes.ok || !dispatchData.success) {
-            throw new Error(dispatchData.error || 'Failed to dispatch refinement job');
-        }
-
-        console.log('📦 Refinement job dispatched:', dispatchData);
-
-        // ── Step 3: Poll Firebase Storage for the result ─────────
-        onStatusChange('polling', 'Waiting for refined composite image...');
-
-        const imageUrl = await pollForCompositeImage(jobId);
+        const newCompositeUrl = await pollForCompositeImage(jobId, onStatusChange);
 
         onStatusChange('complete');
         return {
             status: 'complete',
             masterPrompt,
-            compositeImageUrl: imageUrl,
+            compositeImageUrl: newCompositeUrl,
         };
 
     } catch (error) {

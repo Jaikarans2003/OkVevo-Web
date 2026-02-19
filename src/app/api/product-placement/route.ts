@@ -2,24 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 
 /**
- * Product Placement API Route
+ * Product Placement API Route — SQS Dispatch
  *
- * Dispatches a compositing job to the SQS FIFO queue, just like
- * the video stitching pipeline. MessageGroupId is set to `userId`
- * to prevent cross-user job interference.
+ * Dispatches a compositing job to the SQS FIFO queue.
+ * The Lambda consumer will:
+ *   1. Download hero + scene images from Firebase Storage
+ *   2. Call NANOBANANA PRO (Gemini) with the master prompt + images
+ *   3. Upload the composite image to ProductPlacement/{jobId}.png
  *
- * In production a Lambda consumer would:
- *   1. Read the message from SQS
- *   2. Call NANOBANANA PRO with the master prompt
- *   3. Upload the composite image to Firebase Storage
- *
- * For the mock flow, the frontend polls `MockAIGeneratedPhotos/`
- * in Firebase Storage for a pre-stored test image.
+ * MessageGroupId = userId for per-user FIFO ordering.
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { jobId, masterPrompt, userId } = body;
+        const { jobId, masterPrompt, userId, heroImageUrl, sceneImageUrl } = body;
 
         if (!jobId || !masterPrompt) {
             return NextResponse.json(
@@ -36,7 +32,6 @@ export async function POST(request: NextRequest) {
 
         if (!queueUrl || !awsAccessKeyId || !awsSecretAccessKey) {
             console.warn('⚠️ SQS not configured — running in mock mode');
-            // Fallback to mock: just acknowledge the job
             return NextResponse.json({
                 success: true,
                 jobId,
@@ -45,7 +40,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // ── Real SQS Dispatch ──────────────────────────────────
+        // ── Dispatch to SQS ────────────────────────────────────
         const sqsClient = new SQSClient({
             region: awsRegion,
             credentials: {
@@ -58,22 +53,24 @@ export async function POST(request: NextRequest) {
             type: 'product-placement',
             jobId,
             masterPrompt,
+            heroImageUrl: heroImageUrl || null,
+            sceneImageUrl: sceneImageUrl || null,
             userId: userId || 'anonymous',
             timestamp: new Date().toISOString(),
         });
 
-        // FIFO queue: MessageGroupId = userId to prevent cross-user interference
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: messageBody,
-            MessageGroupId: userId || 'default-user',     // FIFO ordering per user
-            MessageDeduplicationId: `${jobId}-${Date.now()}`, // Prevent duplicates
+            MessageGroupId: userId || 'default-user',
+            MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
         console.log('📦 Dispatching product-placement job to SQS FIFO:', {
             jobId,
             userId: userId || 'anonymous',
             promptLength: masterPrompt.length,
+            hasImages: !!(heroImageUrl && sceneImageUrl),
             queueUrl,
         });
 
