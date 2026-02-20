@@ -1,0 +1,13 @@
+{
+    "name": "lambda-director-photos",
+    "version": "1.0.0",
+    "description": "Director Mode photo generation using NANOBANANA PRO (Gemini). Isolated Lambda triggered by brick2brick-director-photos.fifo SQS queue.",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "firebase-admin": "^13.0.2",
+        "@google/genai": "^0.7.0"
+    }
+}
