@@ -7,6 +7,14 @@ export interface Scene {
   primary_visuals: string;
   emotional_tone: string;
   transition_logic: string;
+  shots?: Shot[];
+}
+
+export interface Shot {
+  shot_number: number;
+  description: string;
+  duration_seconds?: number;
+  camera_movement?: string;
 }
 
 // Retry logic with exponential backoff
@@ -86,25 +94,53 @@ const tryGeminiWithFallback = async (fullPrompt: string, duration: number = 60):
 
 Input Story: "${fullPrompt}"
 
+IMPORTANT: If character information is provided in the input (marked by "Characters:"), you MUST:
+1. Use the character names explicitly in scene_objective, primary_visuals, and shot descriptions
+2. Reference character descriptions to ensure visual consistency (clothing, appearance, personality)
+3. Incorporate character traits into the emotional_tone and actions
+4. Maintain character consistency across ALL shots - same character should look and behave consistently
+
 For each scene, provide a detailed, in-depth description as if it were a standalone prompt for the LTX AI model.
 
 Requirements:
-1.  **Self-Contained Scenes:** Each scene's "primary_visuals" MUST be a complete, standalone prompt. For subsequent scenes, explicitly repeat all necessary character, setting, and mood context from the previous scene(s) to ensure consistency.
-2.  **Two Distinct Shots Per Scene:** In the "primary_visuals" field, describe TWO distinct shots (Shot A, Shot B) that make up the scene.
-3.  **LTX-2 Guide Adherence:** Each "primary_visuals" prompt must follow the LTX-2 guide, including Shot Establishment, Scene Description, Action, Character Details, Camera Movement, and Audio.
-4.  **Valid JSON Output:** The final output MUST be a single, valid JSON object. No markdown or commentary.
-5.  **Structure:** An array of ${sceneCount} objects under the key "scenes".
-6.  **Scene Object:** Each object must have "scene", "scene_objective", "primary_visuals", "emotional_tone", and "transition_logic".
+1.  **Scene Overview (primary_visuals):** This should be a BRIEF description (2-3 sentences) summarizing what happens across BOTH shots in the scene. Briefly mention the key action/visual in Shot 1 and the key action/visual in Shot 2, as a cohesive summary.
+2.  **Two Distinct Shots Per Scene:** Each scene must include a "shots" array with exactly 2 shot objects containing the detailed visual descriptions.
+3.  **Shot Details in Shots Array:** All specific visual details, camera movements, character actions, and descriptions belong in the individual shot objects, NOT in primary_visuals.
+4.  **Character Integration:** If characters are provided, each shot description MUST include: character name, what they are wearing, their emotional state, and their specific actions.
+5.  **LTX-2 Guide Adherence:** Each shot description must follow the LTX-2 guide, including Shot Establishment, Scene Description, Action, Character Details, Camera Movement, and Audio.
+6.  **Self-Contained Scenes:** For subsequent scenes, explicitly repeat all necessary character, setting, and mood context from previous scenes to ensure consistency.
+7.  **Valid JSON Output:** The final output MUST be a single, valid JSON object. No markdown or commentary.
+8.  **Avoid metaphorical language.
+9.  **Avoid abstract emotional commentary.
+10. **Write visually observable details only.
+11. **No symbolic interpretation.
+12. **Structure:** An array of ${sceneCount} objects under the key "scenes".
+13. **Shots Array:** Each shot object should have: "shot_number" (1 or 2), "description" (detailed visual description including character name and appearance), "duration_seconds" (approximate duration), and "camera_movement" (e.g., "Wide establishing shot", "Close-up", "Tracking shot").
+14. **Scene Object:** Each object must have "scene", "scene_objective", "primary_visuals" (brief overview), "emotional_tone", "transition_logic", and "shots" (detailed).
 
 Example Output format:
 {
   "scenes": [
     {
       "scene": "Scene 1 (0-${duration === 60 ? 12 : 10}s)",
-      "scene_objective": "Establish the setting...",
-      "primary_visuals": "Shot A: Broad establishing shot of the neon city... Shot B: Close up of the protagonist...",
-      "emotional_tone": "Tone...",
-      "transition_logic": "Cut to next..."
+      "scene_objective": "Introduce the main character and establish the mysterious atmosphere.",
+      "primary_visuals": "A lone figure walks through a rain-slicked neon city at midnight, tension building as they sense danger.",
+      "emotional_tone": "Mysterious, tense",
+      "transition_logic": "Cut to next...",
+      "shots": [
+        {
+          "shot_number": 1,
+          "description": "Wide establishing shot of a rain-slicked neon city street at midnight. Steam rises from manhole covers as the protagonist, a man in his 30s wearing a worn trench coat, walks with determined pace. Neon signs reflect off the wet pavement in vibrant blues and pinks.",
+          "duration_seconds": 6,
+          "camera_movement": "Wide establishing shot with slow tracking movement"
+        },
+        {
+          "shot_number": 2,
+          "description": "Medium close-up of the protagonist's face, illuminated by flickering neon. His expression shows apprehension as he glances over his shoulder. Rain droplets glisten on his trench coat collar.",
+          "duration_seconds": 6,
+          "camera_movement": "Medium shot with slight push in"
+        }
+      ]
     }
   ]
 }`;

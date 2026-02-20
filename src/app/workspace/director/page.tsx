@@ -323,6 +323,37 @@ export default function DirectorWorkstation() {
                                                                     />
                                                                 </div>
                                                             </div>
+
+                                                            {/* ── Shots Container ── */}
+                                                            {scene.shots && scene.shots.length > 0 && (
+                                                                <div className="mt-4 space-y-2">
+                                                                    <p className="text-[10px] uppercase font-black text-gray-500 tracking-widest flex items-center gap-2">
+                                                                        <Video size={12} /> Shots ({scene.shots.length})
+                                                                    </p>
+                                                                    <div className="grid gap-2">
+                                                                        {scene.shots.map((shot) => (
+                                                                            <div key={shot.shot_number} className="bg-white/[0.03] border border-white/10 rounded-lg p-3 hover:border-[#ff6d1f]/20 transition-colors">
+                                                                                <div className="flex items-center gap-2 mb-2">
+                                                                                    <span className="text-[10px] font-black bg-[#ff6d1f]/20 text-[#ff6d1f] px-2 py-0.5 rounded">
+                                                                                        Shot {shot.shot_number}
+                                                                                    </span>
+                                                                                    {shot.duration_seconds && (
+                                                                                        <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                                                                                            <Clock size={10} /> {shot.duration_seconds}s
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <p className="text-xs text-gray-300 leading-relaxed">{shot.description}</p>
+                                                                                {shot.camera_movement && (
+                                                                                    <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1">
+                                                                                        <span className="text-[#ff6d1f]">Camera:</span> {shot.camera_movement}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
