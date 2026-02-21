@@ -5,6 +5,13 @@ import { analyzeScenes } from '../services/AIService';
 import type { Scene } from '../services/AIService';
 import { fetchVideosFromStorage, fetchStitchedVideos, uploadCharacterSheets } from '../services/StorageService';
 import { dispatchStitchingJob } from '../services/SQSStitchService';
+import {
+    dispatchAllShotPhotos,
+    dispatchPhotoJob,
+    pollAllPhotos,
+    pollForPhoto,
+    type GeneratedPhoto,
+} from '../services/SQSPhotoService';
 
 export type DirectorFlowState =
     | 'idle'
@@ -16,6 +23,8 @@ export type DirectorFlowState =
     | 'character_sheets'
     | 'generating_scenes'
     | 'scene_review'
+    | 'generating_photos'
+    | 'photo_review'
     | 'generating_narration'
     | 'fetching_videos'
     | 'generating_audio'
@@ -35,6 +44,7 @@ export interface DirectorProject {
     aspectRatio: string;
     genre: string;
     characterSheets: CharacterSheet[];
+    generatedPhotos: GeneratedPhoto[];
     videoUrls: string[];
     audioUrl?: string;
     stitchedVideoUrl?: string;
@@ -44,9 +54,11 @@ export interface Message {
     id: string;
     role: 'assistant' | 'user';
     content: string;
-    type?: 'text' | 'choice' | 'scene_review' | 'progress' | 'result' | 'character_sheets';
+    type?: 'text' | 'choice' | 'scene_review' | 'progress' | 'result' | 'character_sheets' | 'photo_results';
     timestamp: number;
 }
+
+export { type GeneratedPhoto } from '../services/SQSPhotoService';
 
 export function useDirectorFlow() {
     const [currentState, setCurrentState] = useState<DirectorFlowState>('naming');
@@ -65,6 +77,7 @@ export function useDirectorFlow() {
         aspectRatio: '',
         genre: '',
         characterSheets: [],
+        generatedPhotos: [],
         videoUrls: [],
     });
     const [analyzedScenes, setAnalyzedScenes] = useState<Scene[] | null>(null);
@@ -117,7 +130,163 @@ export function useDirectorFlow() {
         );
     }, []);
 
-    // ── Real generation pipeline ──────────────────────────────────────────────
+    // ── Photo generation pipeline ─────────────────────────────────────────────
+    const runPhotoGenerationPipeline = useCallback(async (
+        currentProject: DirectorProject,
+        scenes: Scene[]
+    ) => {
+        setPipelineError(null);
+        setPipelineStep('Dispatching shot photo jobs...');
+        setCurrentState('generating_photos');
+        addMessage('Generating photos for each shot...', 'assistant', 'progress');
+
+        try {
+            // Step 1: Dispatch all shots to SQS
+            const photos = await dispatchAllShotPhotos(
+                scenes,
+                currentProject.genre,
+                (photo) => {
+                    setPipelineStep(`Dispatched: Scene ${photo.sceneIndex + 1}, Shot ${photo.shotNumber}`);
+                }
+            );
+
+            setProject(prev => ({ ...prev, generatedPhotos: photos }));
+            setPipelineStep('Waiting for NanoBanana PRO renders...');
+
+            // Step 2: Poll for all results concurrently
+            const completedPhotos = await pollAllPhotos(photos, (completedPhoto) => {
+                setProject(prev => ({
+                    ...prev,
+                    generatedPhotos: prev.generatedPhotos.map(p =>
+                        p.jobId === completedPhoto.jobId ? completedPhoto : p
+                    ),
+                }));
+                setPipelineStep(
+                    completedPhoto.status === 'complete'
+                        ? `✅ Scene ${completedPhoto.sceneIndex + 1}, Shot ${completedPhoto.shotNumber} ready`
+                        : `❌ Scene ${completedPhoto.sceneIndex + 1}, Shot ${completedPhoto.shotNumber} failed`
+                );
+            });
+
+            setProject(prev => ({ ...prev, generatedPhotos: completedPhotos }));
+            setPipelineStep('All photos generated!');
+
+            const successCount = completedPhotos.filter(p => p.status === 'complete').length;
+            const totalCount = completedPhotos.length;
+
+            addMessage(
+                `Photo generation complete! ${successCount}/${totalCount} shots rendered successfully.`,
+                'assistant',
+                'photo_results'
+            );
+            setCurrentState('photo_review');
+
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Photo generation pipeline error:', error);
+            setPipelineError(msg);
+            addMessage(`Photo generation failed: ${msg}`, 'assistant');
+            setCurrentState('scene_review');
+        }
+    }, [addMessage]);
+
+    // ── Regenerate a single photo ─────────────────────────────────────────────
+    const regeneratePhoto = useCallback(async (
+        sceneIndex: number,
+        shotNumber: number,
+        customPrompt?: string
+    ) => {
+        if (!analyzedScenes) return;
+
+        const scene = analyzedScenes[sceneIndex];
+        if (!scene) return;
+
+        const shot = scene.shots?.find(s => s.shot_number === shotNumber);
+        if (!shot) return;
+
+        const prompt = customPrompt || shot.description;
+
+        // Mark photo as pending
+        setProject(prev => ({
+            ...prev,
+            generatedPhotos: prev.generatedPhotos.map(p =>
+                p.sceneIndex === sceneIndex && p.shotNumber === shotNumber
+                    ? { ...p, status: 'pending' as const, error: undefined, imageUrl: undefined }
+                    : p
+            ),
+        }));
+
+        try {
+            // Dispatch new job
+            const result = await dispatchPhotoJob(
+                prompt,
+                project.genre,
+                `Scene ${sceneIndex + 1}: ${scene.primary_visuals} | Mood: ${scene.emotional_tone}`
+            );
+
+            if (!result.success) {
+                throw new Error(result.error || 'Dispatch failed');
+            }
+
+            // Update with new jobId
+            setProject(prev => ({
+                ...prev,
+                generatedPhotos: prev.generatedPhotos.map(p =>
+                    p.sceneIndex === sceneIndex && p.shotNumber === shotNumber
+                        ? { ...p, jobId: result.jobId, prompt, status: 'dispatched' as const }
+                        : p
+                ),
+            }));
+
+            // Poll for result
+            const imageUrl = await pollForPhoto(result.jobId);
+
+            setProject(prev => ({
+                ...prev,
+                generatedPhotos: prev.generatedPhotos.map(p =>
+                    p.jobId === result.jobId
+                        ? { ...p, imageUrl, status: 'complete' as const }
+                        : p
+                ),
+            }));
+
+            addMessage(
+                `✅ Regenerated photo for Scene ${sceneIndex + 1}, Shot ${shotNumber}.`,
+                'assistant'
+            );
+
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Regeneration failed';
+            setProject(prev => ({
+                ...prev,
+                generatedPhotos: prev.generatedPhotos.map(p =>
+                    p.sceneIndex === sceneIndex && p.shotNumber === shotNumber
+                        ? { ...p, status: 'error' as const, error: msg }
+                        : p
+                ),
+            }));
+            addMessage(`❌ Failed to regenerate Scene ${sceneIndex + 1}, Shot ${shotNumber}: ${msg}`, 'assistant');
+        }
+    }, [analyzedScenes, project.genre, addMessage]);
+
+    // ── Upload a replacement photo for a shot ─────────────────────────────────
+    const uploadShotPhoto = useCallback((
+        sceneIndex: number,
+        shotNumber: number,
+        imageDataUrl: string
+    ) => {
+        setProject(prev => ({
+            ...prev,
+            generatedPhotos: prev.generatedPhotos.map(p =>
+                p.sceneIndex === sceneIndex && p.shotNumber === shotNumber
+                    ? { ...p, imageUrl: imageDataUrl, status: 'complete' as const }
+                    : p
+            ),
+        }));
+        addMessage(`📤 Uploaded replacement photo for Scene ${sceneIndex + 1}, Shot ${shotNumber}.`, 'assistant');
+    }, [addMessage]);
+
+    // ── Real generation pipeline (videos after photos) ────────────────────────
     const runGenerationPipeline = useCallback(async (
         currentProject: DirectorProject,
         scenes: Scene[]
@@ -191,14 +360,21 @@ export function useDirectorFlow() {
             console.error('Director pipeline error:', error);
             setPipelineError(msg);
             addMessage(`Generation failed: ${msg}`, 'assistant');
-            setCurrentState('scene_review'); // allow retry
+            setCurrentState('photo_review'); // allow retry from photo review
         }
     }, [addMessage]);
 
-    // Called when user confirms the scene review (replaces old "review → YES")
+    // Called when user confirms the scene review → first generates photos
     const handleSceneConfirmation = useCallback(() => {
         if (!analyzedScenes) return;
-        addMessage("Initializing cinematic engine…", 'assistant', 'progress');
+        addMessage("Initializing cinematic engine… Generating shot photos first.", 'assistant', 'progress');
+        runPhotoGenerationPipeline(project, analyzedScenes);
+    }, [analyzedScenes, project, addMessage, runPhotoGenerationPipeline]);
+
+    // Called when user confirms photos and proceeds to video generation
+    const handlePhotoConfirmation = useCallback(() => {
+        if (!analyzedScenes) return;
+        addMessage("Photos locked in! Starting video production pipeline…", 'assistant', 'progress');
         runGenerationPipeline(project, analyzedScenes);
     }, [analyzedScenes, project, addMessage, runGenerationPipeline]);
 
@@ -254,10 +430,46 @@ export function useDirectorFlow() {
                 break;
             }
 
+            case 'photo_review': {
+                const lower = input.toLowerCase();
+
+                // Check for regeneration requests
+                const regenMatch = lower.match(/regenerate\s+(?:shot\s+)?(\d+)\s+(?:scene\s+)?(\d+)/);
+                if (regenMatch) {
+                    const shotNum = parseInt(regenMatch[1]);
+                    const sceneIdx = parseInt(regenMatch[2]) - 1;
+                    addMessage(`Regenerating Shot ${shotNum} from Scene ${sceneIdx + 1}...`, 'assistant');
+                    regeneratePhoto(sceneIdx, shotNum);
+                    break;
+                }
+
+                // Check for regeneration with custom prompt
+                const regenCustomMatch = lower.match(/regenerate\s+(?:shot\s+)?(\d+)\s+(?:scene\s+)?(\d+)\s+(?:with|prompt|:)\s*(.*)/);
+                if (regenCustomMatch) {
+                    const shotNum = parseInt(regenCustomMatch[1]);
+                    const sceneIdx = parseInt(regenCustomMatch[2]) - 1;
+                    const customPrompt = regenCustomMatch[3].trim();
+                    addMessage(`Regenerating Shot ${shotNum} from Scene ${sceneIdx + 1} with custom prompt...`, 'assistant');
+                    regeneratePhoto(sceneIdx, shotNum, customPrompt);
+                    break;
+                }
+
+                // Proceed to video pipeline
+                if (lower.includes('proceed') || lower.includes('continue') || lower.includes('confirm') || lower.includes('looks good')) {
+                    handlePhotoConfirmation();
+                } else {
+                    addMessage(
+                        "You can:\n• Type \"regenerate shot X scene Y\" to regenerate a specific photo\n• Type \"regenerate shot X scene Y with [custom prompt]\" for a custom regeneration\n• Click the regenerate or upload buttons on any photo\n• Type \"proceed\" to continue to video generation",
+                        'assistant'
+                    );
+                }
+                break;
+            }
+
             default:
                 break;
         }
-    }, [currentState, project, addMessage, handleSceneConfirmation]);
+    }, [currentState, project, addMessage, handleSceneConfirmation, handlePhotoConfirmation, regeneratePhoto]);
 
     // Dedicated handler for the character-sheets step.
     // Receives `sheets` directly to avoid stale-closure issues with `project` state.
@@ -319,7 +531,7 @@ export function useDirectorFlow() {
             }
         ]);
         setCurrentState('naming');
-        setProject({ name: '', script: '', duration: '', aspectRatio: '', genre: '', characterSheets: [], videoUrls: [] });
+        setProject({ name: '', script: '', duration: '', aspectRatio: '', genre: '', characterSheets: [], generatedPhotos: [], videoUrls: [] });
         setAnalyzedScenes(null);
         setPipelineError(null);
         setPipelineStep('');
@@ -334,8 +546,11 @@ export function useDirectorFlow() {
         pipelineError,
         handleNext,
         handleSceneConfirmation,
+        handlePhotoConfirmation,
         updateScene,
         resetFlow,
         submitCharacterSheets,
+        regeneratePhoto,
+        uploadShotPhoto,
     };
 }

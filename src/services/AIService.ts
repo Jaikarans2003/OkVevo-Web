@@ -49,6 +49,74 @@ const callWithRetry = async <T>(
   throw lastError!;
 };
 
+// Helper to repair truncated or malformed JSON from LLM responses
+const repairJSON = (raw: string): object => {
+  // Step 1: Strip markdown code fences if present
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+  cleaned = cleaned.trim();
+
+  // Step 2: Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Continue to repair attempts
+  }
+
+  // Step 3: Try to close unclosed brackets/braces (truncation fix)
+  let repaired = cleaned;
+  const openBraces = (repaired.match(/{/g) || []).length;
+  const closeBraces = (repaired.match(/}/g) || []).length;
+  const openBrackets = (repaired.match(/\[/g) || []).length;
+  const closeBrackets = (repaired.match(/]/g) || []).length;
+
+  // Remove trailing comma before we add closing chars
+  repaired = repaired.replace(/,\s*$/, '');
+
+  // If we're inside a string value that got cut off, close it
+  // Count unescaped quotes
+  const quotes = repaired.match(/(?<!\\)"/g) || [];
+  if (quotes.length % 2 !== 0) {
+    repaired += '"';
+  }
+
+  // Close unclosed brackets and braces
+  for (let i = 0; i < openBrackets - closeBrackets; i++) {
+    repaired += ']';
+  }
+  for (let i = 0; i < openBraces - closeBraces; i++) {
+    repaired += '}';
+  }
+
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    // Continue to regex extraction
+  }
+
+  // Step 4: Try to extract the outermost JSON object via regex
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch {
+      // Last resort: try repairing the extracted match too
+      let extracted = jsonMatch[0].replace(/,\s*$/, '');
+      const ob = (extracted.match(/{/g) || []).length;
+      const cb = (extracted.match(/}/g) || []).length;
+      const oB = (extracted.match(/\[/g) || []).length;
+      const cB = (extracted.match(/]/g) || []).length;
+      const q = (extracted.match(/(?<!\\)"/g) || []);
+      if (q.length % 2 !== 0) extracted += '"';
+      for (let i = 0; i < oB - cB; i++) extracted += ']';
+      for (let i = 0; i < ob - cb; i++) extracted += '}';
+      return JSON.parse(extracted);
+    }
+  }
+
+  throw new Error(`Could not parse or repair JSON. First 200 chars: ${raw.substring(0, 200)}`);
+};
+
 const tryGeminiWithFallback = async (fullPrompt: string, duration: number = 60): Promise<Scene[]> => {
   const apiKeys = [
     process.env.NEXT_PUBLIC_GEMINI_API_KEY,
@@ -86,7 +154,8 @@ const tryGeminiWithFallback = async (fullPrompt: string, duration: number = 60):
         model: "gemini-2.5-flash",
         generationConfig: {
           responseMimeType: "application/json",
-          temperature: 0.5
+          temperature: 0.5,
+          maxOutputTokens: 8192
         }
       });
 
@@ -152,7 +221,7 @@ Example Output format:
       if (!content) throw new Error("No content received from Gemini");
 
       console.log("Gemini Response:", content);
-      const parsed = JSON.parse(content);
+      const parsed = repairJSON(content) as { scenes?: Scene[] };
 
       if (!parsed.scenes || !Array.isArray(parsed.scenes) || parsed.scenes.length !== sceneCount) {
         // Relaxed validation: just warn if count mismatch, but often it might be manageable if logic adapts

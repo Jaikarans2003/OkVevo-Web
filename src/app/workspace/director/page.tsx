@@ -25,13 +25,17 @@ import {
     Mic,
     Video,
     Scissors,
+    ImageIcon,
+    Upload,
+    RefreshCw,
 } from 'lucide-react';
 import { useDirectorFlow } from '../../../hooks/useDirectorFlow';
-import type { CharacterSheet } from '../../../hooks/useDirectorFlow';
+import type { CharacterSheet, GeneratedPhoto } from '../../../hooks/useDirectorFlow';
 import { UserCircle2, PlusCircle, XCircle, ImagePlus } from 'lucide-react';
 
 // ── Pipeline progress component ────────────────────────────────────────────────
 const PIPELINE_STEPS = [
+    { key: 'generating_photos', label: 'Generating shot photos', icon: ImageIcon },
     { key: 'generating_narration', label: 'Writing narration script', icon: Mic },
     { key: 'fetching_videos', label: 'Fetching scene footage', icon: Video },
     { key: 'generating_audio', label: 'Generating audio', icon: Volume2 },
@@ -72,6 +76,143 @@ function PipelineProgress({ currentState }: { currentState: string }) {
     );
 }
 
+// ── Photo Card Component ───────────────────────────────────────────────────────
+function PhotoCard({
+    photo,
+    onRegenerate,
+    onUpload,
+}: {
+    photo: GeneratedPhoto;
+    onRegenerate: (sceneIndex: number, shotNumber: number, prompt?: string) => void;
+    onUpload: (sceneIndex: number, shotNumber: number, imageDataUrl: string) => void;
+}) {
+    const [showRegenInput, setShowRegenInput] = useState(false);
+    const [regenPrompt, setRegenPrompt] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const dataUrl = ev.target?.result as string;
+            onUpload(photo.sceneIndex, photo.shotNumber, dataUrl);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleRegenSubmit = () => {
+        onRegenerate(photo.sceneIndex, photo.shotNumber, regenPrompt.trim() || undefined);
+        setRegenPrompt('');
+        setShowRegenInput(false);
+    };
+
+    return (
+        <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden hover:border-[#ff6d1f]/30 transition-colors">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black bg-[#ff6d1f]/20 text-[#ff6d1f] px-2 py-0.5 rounded">
+                        Scene {photo.sceneIndex + 1} · Shot {photo.shotNumber}
+                    </span>
+                    {photo.status === 'complete' && (
+                        <span className="text-[9px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                            ✓ Ready
+                        </span>
+                    )}
+                    {photo.status === 'error' && (
+                        <span className="text-[9px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                            ✗ Failed
+                        </span>
+                    )}
+                    {(photo.status === 'dispatched' || photo.status === 'polling' || photo.status === 'pending') && (
+                        <span className="text-[9px] font-bold text-[#ff6d1f] bg-[#ff6d1f]/10 px-2 py-0.5 rounded-full border border-[#ff6d1f]/20 flex items-center gap-1">
+                            <Loader2 size={9} className="animate-spin" /> Generating
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <button
+                        onClick={() => setShowRegenInput(!showRegenInput)}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-[#ff6d1f]/20 hover:text-[#ff6d1f] transition-all"
+                        title="Regenerate this photo"
+                    >
+                        <RefreshCw size={12} />
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-[#ff6d1f]/20 hover:text-[#ff6d1f] transition-all"
+                        title="Upload replacement photo"
+                    >
+                        <Upload size={12} />
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleUpload}
+                    />
+                </div>
+            </div>
+
+            {/* Image / Placeholder */}
+            <div className="aspect-video bg-black/60 relative">
+                {photo.imageUrl ? (
+                    <img
+                        src={photo.imageUrl}
+                        alt={`Scene ${photo.sceneIndex + 1} Shot ${photo.shotNumber}`}
+                        className="w-full h-full object-cover"
+                    />
+                ) : photo.status === 'error' ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-400">
+                        <AlertCircle size={24} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider">Generation Failed</p>
+                        <p className="text-[10px] text-gray-500 px-4 text-center">{photo.error}</p>
+                    </div>
+                ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                        <Loader2 size={24} className="animate-spin text-[#ff6d1f]" />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#ff6d1f]">Rendering...</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Shot Description */}
+            <div className="px-4 py-3">
+                <p className="text-xs text-gray-300 leading-relaxed">{photo.prompt}</p>
+            </div>
+
+            {/* Regeneration Input */}
+            {showRegenInput && (
+                <div className="px-4 pb-3 space-y-2">
+                    <textarea
+                        value={regenPrompt}
+                        onChange={(e) => setRegenPrompt(e.target.value)}
+                        placeholder="Enter custom prompt or leave empty to regenerate with the same prompt..."
+                        rows={2}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#ff6d1f]/50 transition-colors resize-none placeholder:text-gray-600"
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowRegenInput(false)}
+                            className="flex-1 py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleRegenSubmit}
+                            className="flex-1 py-2 bg-[#ff6d1f] hover:bg-[#e05e1a] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                        >
+                            <RefreshCw size={10} /> Regenerate
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function DirectorWorkstation() {
     const {
@@ -83,9 +224,12 @@ export default function DirectorWorkstation() {
         pipelineError,
         handleNext,
         handleSceneConfirmation,
+        handlePhotoConfirmation,
         updateScene,
         resetFlow,
         submitCharacterSheets,
+        regeneratePhoto,
+        uploadShotPhoto,
     } = useDirectorFlow();
 
     const [inputText, setInputText] = useState('');
@@ -94,7 +238,7 @@ export default function DirectorWorkstation() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
 
-    const isPipelineRunning = ['generating_narration', 'fetching_videos', 'generating_audio', 'stitching'].includes(currentState);
+    const isPipelineRunning = ['generating_photos', 'generating_narration', 'fetching_videos', 'generating_audio', 'stitching'].includes(currentState);
     const isGeneratingScenes = currentState === 'generating_scenes';
 
     useEffect(() => {
@@ -102,7 +246,7 @@ export default function DirectorWorkstation() {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
         return () => clearTimeout(timer);
-    }, [messages, currentState]);
+    }, [messages, currentState, project.generatedPhotos]);
 
     const onSend = () => {
         if (!inputText.trim()) return;
@@ -366,9 +510,54 @@ export default function DirectorWorkstation() {
                                                 >
                                                     {isPipelineRunning
                                                         ? <><Loader2 size={13} className="animate-spin" /> Generating...</>
-                                                        : <><CheckCircle size={13} /> Confirm &amp; Generate</>}
+                                                        : <><CheckCircle size={13} /> Composite &amp; Generate</>}
                                                 </button>
                                             </div>
+                                        </div>
+
+                                        /* ── Photo Results Card ── */
+                                    ) : msg.type === 'photo_results' && project.generatedPhotos.length > 0 ? (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <p className="font-bold text-[#ff6d1f] uppercase tracking-widest text-xs flex items-center gap-2">
+                                                    <ImageIcon size={14} /> Generated Shot Photos
+                                                </p>
+                                                <div className="h-px flex-1 bg-gradient-to-r from-[#ff6d1f]/30 to-transparent" />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {project.generatedPhotos.map((photo) => (
+                                                    <PhotoCard
+                                                        key={`${photo.sceneIndex}-${photo.shotNumber}-${photo.jobId}`}
+                                                        photo={photo}
+                                                        onRegenerate={regeneratePhoto}
+                                                        onUpload={uploadShotPhoto}
+                                                    />
+                                                ))}
+                                            </div>
+
+                                            {/* Proceed to video generation */}
+                                            {currentState === 'photo_review' && (
+                                                <div className="flex flex-col gap-3 pt-2">
+                                                    <p className="text-[10px] text-gray-500 text-center">
+                                                        Review your photos above. Regenerate or upload replacements, then proceed to video generation.
+                                                    </p>
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={resetFlow}
+                                                            className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <RotateCcw size={12} /> Start Over
+                                                        </button>
+                                                        <button
+                                                            onClick={handlePhotoConfirmation}
+                                                            className="flex-1 py-3 bg-[#ff6d1f] hover:bg-[#e05e1a] text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95"
+                                                        >
+                                                            <Clapperboard size={13} /> Proceed to Video
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         /* ── Pipeline Progress Card ── */
@@ -532,6 +721,13 @@ export default function DirectorWorkstation() {
                                         ))}
                                     </motion.div>
                                 )}
+                                {currentState === 'photo_review' && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 flex-wrap">
+                                        <button onClick={handlePhotoConfirmation} className="px-5 py-2.5 bg-[#ff6d1f] border border-[#ff6d1f] rounded-xl text-xs font-bold text-white hover:bg-[#e05e1a] transition-all flex items-center gap-2 shadow-lg shadow-orange-500/20">
+                                            <Clapperboard size={14} /> Proceed to Video
+                                        </button>
+                                    </motion.div>
+                                )}
                             </AnimatePresence>
 
                             {/* Text input */}
@@ -545,12 +741,14 @@ export default function DirectorWorkstation() {
                                     disabled={isInputDisabled}
                                     placeholder={
                                         isGeneratingScenes ? 'Generating your scenes…' :
-                                            isPipelineRunning ? 'Generating your film…' :
-                                                currentState === 'naming' ? 'Enter project name…' :
-                                                    currentState === 'scripting' ? 'Paste your script or scene description…' :
-                                                        currentState === 'scene_review' ? 'Type "proceed" or click Confirm & Generate…' :
-                                                            currentState === 'complete' ? 'Your film is ready.' :
-                                                                'Your response…'
+                                            currentState === 'generating_photos' ? 'Generating shot photos…' :
+                                                isPipelineRunning ? 'Generating your film…' :
+                                                    currentState === 'naming' ? 'Enter project name…' :
+                                                        currentState === 'scripting' ? 'Paste your script or scene description…' :
+                                                            currentState === 'scene_review' ? 'Type "proceed" or click Composite & Generate…' :
+                                                                currentState === 'photo_review' ? 'Type "regenerate shot X scene Y" or "proceed" to continue…' :
+                                                                    currentState === 'complete' ? 'Your film is ready.' :
+                                                                        'Your response…'
                                     }
                                     className="w-full bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-3xl p-5 pr-16 text-sm outline-none focus:border-[#ff6d1f]/50 transition-all resize-none shadow-2xl h-[70px] placeholder:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
                                 />
@@ -568,7 +766,7 @@ export default function DirectorWorkstation() {
                             <div className="flex items-center justify-center gap-4 text-[10px] uppercase font-black tracking-[0.2em] text-white/20">
                                 <span>Director Console</span>
                                 <div className="w-1 h-1 rounded-full bg-white/20" />
-                                <span>{isPipelineRunning ? 'Pipeline Active' : isGeneratingScenes ? 'Scene Analysis' : 'System Primed'}</span>
+                                <span>{isPipelineRunning ? 'Pipeline Active' : isGeneratingScenes ? 'Scene Analysis' : currentState === 'photo_review' ? 'Photo Review' : 'System Primed'}</span>
                             </div>
                         </div>
                     </div>
