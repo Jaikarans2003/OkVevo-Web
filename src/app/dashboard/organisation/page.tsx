@@ -229,7 +229,7 @@ function OrganisationDashboardContent() {
                             height={24}
                             className="w-6 h-6 group-hover:scale-110 transition-transform"
                         />
-                        <span className="font-[family-name:var(--font-museo-moderno)] font-bold text-lg tracking-wide">OKVEVO</span>
+                        <span className="font-bold text-lg tracking-wide">OKVEVO</span>
                     </Link>
 
                     <div className="flex items-center gap-4">

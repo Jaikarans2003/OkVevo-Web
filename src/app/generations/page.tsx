@@ -121,7 +121,7 @@ function AIStudioContent() {
                                 height={40}
                                 className="group-hover:scale-110 transition-transform duration-300"
                             />
-                            <span className="text-2xl font-[family-name:var(--font-museo-moderno)] text-accent-orange tracking-wide">
+                            <span className="text-2xl font-bold text-accent-orange tracking-wide">
                                 <span className={resolvedTheme === 'light' ? 'text-black' : 'text-white'}>OK</span>VEVO
                             </span>
                         </Link>

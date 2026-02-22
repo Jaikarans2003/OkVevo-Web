@@ -126,8 +126,8 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				sans: ['var(--font-inter)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-				serif: ['var(--font-playfair)', 'Playfair Display', 'ui-serif', 'Georgia', 'Times New Roman', 'serif'],
+				sans: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				serif: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'ui-serif', 'Georgia', 'Times New Roman', 'serif'],
 				cursive: ['Dancing Script', 'cursive']
 			}
 		},

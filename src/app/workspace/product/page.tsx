@@ -4,15 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { MuseoModerno } from 'next/font/google';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 
-const museoModerno = MuseoModerno({
-    subsets: ["latin"],
-    weight: ["400", "500", "600", "700", "800", "900"],
-    variable: "--font-museo-moderno",
-    display: "swap",
-});
 import { AILoader } from '@/components/ui/ai-loader';
 import {
     Settings,
@@ -346,7 +339,7 @@ export default function ProductStudio() {
                             <h2 className="text-xs md:text-sm font-light tracking-[0.4em] text-white uppercase">The New Standard</h2>
                             <div className="h-px w-12 bg-gradient-to-l from-transparent to-white"></div>
                         </div>
-                        <h1 className="text-6xl md:text-[9vw] leading-[0.85] font-serif font-medium tracking-tight text-white mix-blend-difference drop-shadow-2xl">
+                        <h1 className="text-6xl md:text-[9vw] leading-[0.85] font-sans font-medium tracking-tight text-white mix-blend-difference drop-shadow-2xl">
                             Art of <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-white to-blue-200">Promotion</span>
                         </h1>
                     </motion.div>
@@ -748,7 +741,7 @@ export default function ProductStudio() {
                                 <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
                                 <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/40">Marketplace</span>
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-serif text-white tracking-tight">Community <span className="text-white/40 italic text-3xl md:text-4xl font-light">Showcase</span></h2>
+                            <h2 className="text-4xl md:text-5xl font-sans text-white tracking-tight">Community <span className="text-white/40 italic text-3xl md:text-4xl font-light">Showcase</span></h2>
                         </div>
                         <button className="px-8 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all">
                             View All Generations

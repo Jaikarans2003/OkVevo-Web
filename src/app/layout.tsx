@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display, MuseoModerno } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
@@ -10,18 +10,10 @@ const inter = Inter({
     display: "swap",
 });
 
-const playfairDisplay = Playfair_Display({
+const plusJakarta = Plus_Jakarta_Sans({
     subsets: ["latin"],
-    weight: ["400", "700"],
-    style: ["italic"],
-    variable: "--font-playfair",
-    display: "swap",
-});
-
-const museoModerno = MuseoModerno({
-    subsets: ["latin"],
-    weight: ["400", "500", "600", "700", "800", "900"],
-    variable: "--font-museo-moderno",
+    weight: ["400", "500", "600", "700", "800"],
+    variable: "--font-plus-jakarta",
     display: "swap",
 });
 
@@ -57,7 +49,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${inter.variable} ${playfairDisplay.variable} ${museoModerno.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${plusJakarta.className} ${plusJakarta.variable} antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}

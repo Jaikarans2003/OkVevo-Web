@@ -4,8 +4,6 @@
 
 @layer base {
   :root {
-    --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-    --font-serif: var(--font-playfair), "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
     /* Light Theme (Original) */
     --color-bg-main: #FFFFFF;
@@ -42,9 +40,20 @@
   }
 
   body {
+    --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+    --font-serif: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
     @apply bg-bg-main text-text-main antialiased;
-    font-family: var(--font-sans);
+    font-family: var(--font-sans) !important;
     overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans) !important;
   }
 
   ::selection {
@@ -99,10 +108,6 @@
     @apply relative overflow-hidden rounded-[60px] md:rounded-[100px] bg-bg-main border-8 border-bg-main shadow-2xl;
   }
 
-  .italic-serif {
-    font-family: var(--font-serif);
-    font-style: italic;
-  }
 
   .text-cursive {
     font-family: 'Dancing Script', cursive;

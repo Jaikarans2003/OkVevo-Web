@@ -67,7 +67,7 @@ const HowItWorks = () => {
                     </motion.div>
                     <h2 className="text-6xl md:text-9xl font-black tracking-[-0.04em] leading-none uppercase text-text-main">
                         Evolution <br />
-                        <span className="text-accent-orange italic-serif font-normal lowercase tracking-normal">of story.</span>
+                        <span className="text-accent-orange italic font-normal lowercase tracking-normal">of story.</span>
                     </h2>
                 </div>
 

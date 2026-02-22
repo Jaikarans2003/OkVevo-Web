@@ -72,7 +72,7 @@ const DashMind = () => {
                         className="text-5xl md:text-7xl font-black text-white tracking-tighter leading-none"
                     >
                         What is in your <br />
-                        <span className="text-accent-orange italic-serif font-normal">mind?</span>
+                        <span className="text-accent-orange italic font-normal">mind?</span>
                     </motion.h2>
                     <motion.p
                         initial={{ opacity: 0 }}
