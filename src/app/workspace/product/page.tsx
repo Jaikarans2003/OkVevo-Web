@@ -304,7 +304,7 @@ export default function ProductStudio() {
                 <div className="absolute inset-0 z-0 pointer-events-none">
                     <div className="absolute inset-0 bg-black/60 z-10" />
                     <img
-                        src="https://i.pinimg.com/736x/7d/d2/c1/7dd2c173e396bc75f34f1ff3acd07730.jpg"
+                        src="/images/orange-bg.png"
                         alt="Background"
                         className="w-full h-full object-cover"
                     />
