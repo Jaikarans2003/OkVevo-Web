@@ -42,6 +42,7 @@ import {
     Send
 } from 'lucide-react';
 import { runPlacementPipeline, runRefinementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
+import { runShootsPipeline, ShootPhoto, ShootJobStatus } from '@/services/ProductShootsService';
 
 // --- Components ---
 function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc: string, title: string, category: string, className?: string }) {
@@ -144,6 +145,12 @@ export default function ProductStudio() {
     const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
         { role: 'assistant', content: "Welcome to Product Studio. Upload your images and describe your vision to get started!" }
     ]);
+
+    // Product Shoots state
+    const [shootScenario, setShootScenario] = useState('');
+    const [generatedShots, setGeneratedShots] = useState<ShootPhoto[]>([]);
+    const [shootStatus, setShootStatus] = useState<ShootJobStatus>('idle');
+    const [shootStatusDetail, setShootStatusDetail] = useState('');
 
     const generatorRef = useRef<HTMLDivElement>(null);
     const { scrollY } = useScroll();
@@ -248,6 +255,27 @@ export default function ProductStudio() {
             setChatMessages(prev => [...prev, { role: 'assistant', content: `❌ Refinement failed: ${result.error || 'Unknown error'}` }]);
         }
     };
+
+    const handleShootsGenerate = useCallback(async () => {
+        if (!productImage || !shootScenario.trim()) return;
+
+        setIsGenerating(true);
+        setGeneratedShots([]);
+
+        await runShootsPipeline(
+            productImage,
+            shootScenario,
+            (status, detail) => {
+                setShootStatus(status);
+                setShootStatusDetail(detail || '');
+            },
+            (photos) => {
+                setGeneratedShots([...photos]);
+            }
+        );
+
+        setIsGenerating(false);
+    }, [productImage, shootScenario]);
 
     return (
         <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">
@@ -407,12 +435,14 @@ export default function ProductStudio() {
                         <div className={`w-full ${isComposed ? 'md:w-[375px]' : 'md:w-[475px]'} flex-shrink-0 transition-all duration-500 flex flex-col gap-5 h-full overflow-y-auto overflow-x-hidden pr-4 custom-scrollbar`} data-lenis-prevent>
                             <div className="space-y-3">
                                 <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white">
-                                    {mode === 'product-ads' ? 'Campaign' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : 'Placement'}</span>
+                                    {mode === 'product-ads' ? 'Campaign' : mode === 'product-shoots' ? 'Product' : 'Product'} <span className="text-white/40">{mode === 'product-ads' ? 'Setup' : mode === 'product-shoots' ? 'Shoots' : 'Placement'}</span>
                                 </h2>
                                 <p className="text-white/40 text-[11px] leading-relaxed">
                                     {mode === 'product-ads'
-                                        ? 'Configure brand parameters and visual output.'
-                                        : 'Upload assets and describe the environment.'}
+                                        ? 'AI-powered campaign generation — coming soon.'
+                                        : mode === 'product-shoots'
+                                            ? 'Upload your product and describe the scene for professional AI photography.'
+                                            : 'Upload assets and describe the environment.'}
                                 </p>
                             </div>
 
@@ -563,109 +593,104 @@ export default function ProductStudio() {
                                 </div>
                             )}
 
-                            {/* Product Ads Form */}
+                            {/* Product Ads — Coming Soon */}
                             {mode === 'product-ads' && (
-                                <div className="flex flex-col gap-5">
-                                    {/* Brand Name */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                            <Type size={10} className="text-blue-400" /> Brand Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={brandName}
-                                            onChange={(e) => setBrandName(e.target.value)}
-                                            placeholder="Enter your brand name..."
-                                            className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-4 py-3 text-[11px] text-white focus:border-white/30 outline-none transition-all placeholder-white/20"
-                                        />
+                                <div className="flex flex-col items-center justify-center gap-6 p-10 bg-[#0A0A0A] border border-white/5 border-dashed rounded-2xl">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-white/5 flex items-center justify-center">
+                                        <Film size={24} className="text-purple-400/40" />
                                     </div>
-
-                                    {/* Ad Description */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                            <Sparkles size={10} className="text-purple-400" /> Ad Description
-                                        </label>
-                                        <textarea
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            placeholder="Describe your ad vision (e.g. A luxury perfume bottle floating in a dark, ethereal cloud of gold dust...)"
-                                            className="w-full h-24 bg-[#0A0A0A] border border-white/10 rounded-xl p-4 text-[11px] text-white focus:border-white/30 outline-none transition-all placeholder-white/20 resize-none leading-relaxed"
-                                        />
+                                    <div className="text-center space-y-2">
+                                        <p className="text-white/30 text-[11px] uppercase tracking-[0.3em] font-bold">Coming Soon</p>
+                                        <p className="text-white/15 text-[10px] leading-relaxed max-w-[200px]">AI-powered video ad generation is under development.</p>
                                     </div>
-
-                                    {/* Platform & Duration */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                                <MonitorPlay size={10} className="text-cyan-400" /> Platform
-                                            </label>
-                                            <div className="relative group">
-                                                <select
-                                                    value={platform}
-                                                    onChange={(e) => setPlatform(e.target.value)}
-                                                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] text-white/80 focus:border-white/30 outline-none appearance-none cursor-pointer"
-                                                >
-                                                    <option value="Instagram">Instagram</option>
-                                                    <option value="YouTube">YouTube</option>
-                                                    <option value="TikTok">TikTok</option>
-                                                    <option value="Facebook">Facebook</option>
-                                                </select>
-                                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                                <Zap size={10} className="text-yellow-400" /> Duration
-                                            </label>
-                                            <div className="relative group">
-                                                <select
-                                                    value={duration}
-                                                    onChange={(e) => setDuration(e.target.value)}
-                                                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] text-white/80 focus:border-white/30 outline-none appearance-none cursor-pointer"
-                                                >
-                                                    <option value="15s">15 Seconds</option>
-                                                    <option value="30s">30 Seconds</option>
-                                                    <option value="60s">60 Seconds</option>
-                                                </select>
-                                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
-                                            </div>
-                                        </div>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/5 border border-purple-500/10 rounded-full">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500/40 animate-pulse" />
+                                        <span className="text-[8px] uppercase tracking-widest text-purple-400/50 font-bold">In Development</span>
                                     </div>
-
-                                    {/* Visual Style */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                            <Palette size={10} className="text-pink-400" /> Visual Style
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {['Cinematic', 'Minimalist', 'Vibrant', 'Luxury'].map((style) => (
-                                                <button
-                                                    key={style}
-                                                    onClick={() => setSelectedStyle(style)}
-                                                    className={`py-2 rounded-lg text-[10px] font-medium transition-all border ${selectedStyle === style ? 'bg-white/10 border-white/30 text-white' : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10 hover:bg-white/5'}`}
-                                                >
-                                                    {style}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Generate Button */}
-                                    <button
-                                        onClick={handleGenerate}
-                                        disabled={isGenerating || !prompt}
-                                        className={`w-full mt-2 py-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50 cursor-wait' : !prompt ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-[1.01]'}`}
-                                    >
-                                        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Film size={14} />}
-                                        {isGenerating ? 'Synthesizing...' : 'Generate Campaign'}
-                                    </button>
                                 </div>
                             )}
 
                             {mode === 'product-shoots' && (
-                                <div className="p-8 bg-[#0A0A0A] border border-white/5 border-dashed rounded-2xl text-center">
-                                    <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Coming Soon</p>
+                                <div className="flex flex-col gap-4">
+                                    {/* Product Image Upload */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Camera size={10} className="text-orange-400" /> Product Photo
+                                        </label>
+                                        <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-3 hover:border-orange-500/30 transition-colors">
+                                            <input type="file" id="shoot-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            {productImagePreview ? (
+                                                <div className="space-y-2">
+                                                    <div className="relative w-full h-28 bg-[#111] rounded-lg overflow-hidden border border-white/5">
+                                                        <img src={productImagePreview} alt="Product" className="w-full h-full object-contain" />
+                                                    </div>
+                                                    <button onClick={() => document.getElementById('shoot-product-image')?.click()} className="w-full py-1 text-[8px] uppercase tracking-wider text-white/40 hover:text-white transition-colors">Change Photo</button>
+                                                </div>
+                                            ) : (
+                                                <label htmlFor="shoot-product-image" className="cursor-pointer flex flex-col items-center justify-center py-6 space-y-2">
+                                                    <Upload size={18} className="text-orange-400/40" />
+                                                    <p className="text-[10px] text-white/50">Upload your product</p>
+                                                    <p className="text-[8px] text-white/20">PNG, JPG up to 10MB</p>
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Shoot Scenario */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Sparkles size={10} className="text-orange-400" /> Shoot Scenario
+                                        </label>
+                                        <textarea
+                                            value={shootScenario}
+                                            onChange={(e) => setShootScenario(e.target.value)}
+                                            placeholder="Describe the shoot environment (e.g. outdoor café table at golden hour, minimalist white studio, luxury marble countertop...)"
+                                            className="w-full h-24 bg-[#0A0A0A] border border-white/10 rounded-xl p-3 text-[11px] text-white focus:border-orange-500/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
+                                        />
+                                    </div>
+
+                                    {/* Shot Types Info */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { name: 'Hero Shot', desc: 'Dramatic front-facing' },
+                                            { name: 'Detail Macro', desc: 'Close-up texture' },
+                                            { name: 'Lifestyle', desc: 'In-context scene' },
+                                            { name: 'Artistic', desc: 'Creative editorial' },
+                                        ].map((shot) => (
+                                            <div key={shot.name} className="flex items-center gap-2 px-2.5 py-2 bg-[#0A0A0A] border border-white/5 rounded-lg">
+                                                <div className="w-1 h-1 rounded-full bg-orange-400/60" />
+                                                <div>
+                                                    <p className="text-[8px] font-bold text-white/50 uppercase tracking-wider">{shot.name}</p>
+                                                    <p className="text-[7px] text-white/20">{shot.desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Generate Button */}
+                                    <button
+                                        onClick={handleShootsGenerate}
+                                        disabled={isGenerating || !productImage || !shootScenario.trim()}
+                                        className={`w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50' : !productImage || !shootScenario.trim() ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:from-orange-400 hover:to-amber-400 shadow-xl hover:scale-[1.01]'}`}
+                                    >
+                                        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                        {isGenerating ? 'Generating Shoots...' : 'Generate 4 Shots'}
+                                    </button>
+
+                                    {/* Status Indicator */}
+                                    {shootStatus !== 'idle' && shootStatus !== 'complete' && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                                            <span className="text-[9px] uppercase tracking-widest text-orange-400 font-bold leading-none">{shootStatusDetail}</span>
+                                        </div>
+                                    )}
+
+                                    {shootStatus === 'complete' && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/5 border border-green-500/20 rounded-lg">
+                                            <CheckCircle2 size={12} className="text-green-400" />
+                                            <span className="text-[9px] uppercase tracking-widest text-green-400 font-bold leading-none">All shots generated!</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -681,7 +706,56 @@ export default function ProductStudio() {
                                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
                                     <AnimatePresence mode='wait'>
-                                        {isGenerating ? (
+                                        {/* Product Shoots Gallery */}
+                                        {mode === 'product-shoots' && generatedShots.length > 0 ? (
+                                            <motion.div
+                                                key="shoots-gallery"
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                                className="absolute inset-0 p-4 overflow-y-auto custom-scrollbar" data-lenis-prevent
+                                            >
+                                                <div className="grid grid-cols-2 gap-3 h-full">
+                                                    {generatedShots.map((shot, idx) => (
+                                                        <div key={idx} className="relative bg-[#111] border border-white/5 rounded-xl overflow-hidden flex flex-col">
+                                                            {/* Shot image or loading state */}
+                                                            <div className="flex-1 min-h-[200px] relative">
+                                                                {shot.status === 'complete' && shot.imageUrl ? (
+                                                                    <img src={shot.imageUrl} alt={shot.shotName} className="w-full h-full object-cover" />
+                                                                ) : shot.status === 'error' ? (
+                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                                                                        <p className="text-red-400/60 text-[9px] uppercase tracking-wider font-bold">Failed</p>
+                                                                        <p className="text-white/20 text-[8px] mt-1">{shot.error}</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                                        <Loader2 size={20} className="text-orange-400/40 animate-spin mb-2" />
+                                                                        <p className="text-[8px] text-white/30 uppercase tracking-wider">
+                                                                            {shot.status === 'polling' ? 'Generating...' : shot.status === 'dispatched' ? 'Queued' : 'Pending'}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {/* Shot label */}
+                                                            <div className="px-3 py-2 bg-black/80 border-t border-white/5 flex items-center justify-between">
+                                                                <span className="text-[8px] uppercase tracking-wider font-bold text-white/60">{shot.shotName}</span>
+                                                                {shot.status === 'complete' && (
+                                                                    <a href={shot.imageUrl} target="_blank" rel="noopener noreferrer" className="p-1 hover:bg-white/10 rounded transition-colors">
+                                                                        <Download size={10} className="text-white/40" />
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        ) : isGenerating && mode === 'product-shoots' ? (
+                                            <motion.div
+                                                key="shoots-loader"
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                                className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/60 backdrop-blur-sm"
+                                            >
+                                                <AILoader text="Analyzing Product" />
+                                            </motion.div>
+                                        ) : isGenerating ? (
                                             <motion.div
                                                 key="loader"
                                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -709,10 +783,16 @@ export default function ProductStudio() {
                                                 className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 opacity-20"
                                             >
                                                 <div className="w-20 h-20 rounded-3xl border border-dashed border-white/40 flex items-center justify-center mb-6">
-                                                    <ImageIcon size={32} />
+                                                    {mode === 'product-shoots' ? <Camera size={32} /> : <ImageIcon size={32} />}
                                                 </div>
-                                                <h3 className="text-xl font-medium text-white mb-2">Monitor Output</h3>
-                                                <p className="text-xs max-w-[240px]">Neural synthesis stream will appear here after assets are processed.</p>
+                                                <h3 className="text-xl font-medium text-white mb-2">
+                                                    {mode === 'product-shoots' ? 'Photo Studio' : 'Monitor Output'}
+                                                </h3>
+                                                <p className="text-xs max-w-[240px]">
+                                                    {mode === 'product-shoots'
+                                                        ? 'Upload a product photo and describe your shoot scenario to generate 4 professional shots.'
+                                                        : 'Neural synthesis stream will appear here after assets are processed.'}
+                                                </p>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
