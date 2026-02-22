@@ -302,13 +302,13 @@ export default function ProductStudio() {
             <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
                 {/* Background Atmosphere */}
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                    <div className="absolute inset-0 bg-black/60 z-10" />
+                    <div className="absolute inset-0 bg-black/30 z-10" />
                     <img
                         src="/images/orange-bg.png"
                         alt="Background"
                         className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] bg-purple-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[12s] z-20" />
+                    <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] bg-orange-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[12s] z-20" />
                     <div className="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] bg-blue-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[15s] delay-1000 z-20" />
                     <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.04] mix-blend-overlay z-30"></div>
                 </div>
