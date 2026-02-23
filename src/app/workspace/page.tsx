@@ -24,9 +24,6 @@ export default function WorkspacePage() {
         return () => unsubscribe();
     }, []);
 
-    const handleJoinClick = () => {
-        router.push('/chat');
-    };
 
     return (
         <div className="bg-[#FAFAFA] text-black font-sans selection:bg-[#E2FF4D]/30 overflow-x-hidden min-h-screen">

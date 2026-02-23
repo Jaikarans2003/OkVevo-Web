@@ -113,7 +113,7 @@ function AIStudioContent() {
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         {/* Logo */}
-                        <Link href="/welcome" className="flex items-center gap-3 group">
+                        <Link href="/workspace" className="flex items-center gap-3 group">
                             <Image
                                 src="/OKVEVO WithOut BackGrounds/White.svg"
                                 alt="OKVEVO Logo"
@@ -182,7 +182,7 @@ function AIStudioContent() {
                     </div>
 
                     <Link
-                        href="/chat"
+                        href="/workspace"
                         className="group flex items-center gap-2 px-8 py-4 bg-text-main text-bg-main rounded-full font-bold text-lg hover:scale-105 hover:shadow-xl transition-all duration-300"
                     >
                         <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
@@ -279,7 +279,7 @@ function AIStudioContent() {
                         </p>
                         {!searchQuery && filterStatus === 'all' && (
                             <Link
-                                href="/chat"
+                                href="/workspace"
                                 className="inline-flex items-center gap-2 px-8 py-4 bg-accent-orange hover:bg-orange-600 text-white font-bold rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-accent-orange/40"
                             >
                                 <Plus className="w-5 h-5" />

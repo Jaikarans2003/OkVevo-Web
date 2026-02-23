@@ -75,8 +75,8 @@ const Pricing = () => {
         <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent-orange/5 to-transparent" />
-            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[100px] animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-orange-400/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[60px] animate-pulse transform-gpu" />
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-orange-400/10 rounded-full blur-[60px] animate-pulse transform-gpu" style={{ animationDelay: '1s' }} />
 
             <div className="centering-container relative z-10">
                 {/* Section Header */}
@@ -141,7 +141,7 @@ const Pricing = () => {
                                 )}
 
                                 {/* Card */}
-                                <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 ${plan.highlighted
+                                <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 transform-gpu ${plan.highlighted
                                     ? 'glass-card border-2 border-accent-orange shadow-2xl shadow-accent-orange/20 md:scale-105'
                                     : 'glass-card border border-white/5 hover:border-accent-orange/50 hover:shadow-xl'
                                     }`}>

@@ -68,6 +68,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    // Apply theme to document root
+    useEffect(() => {
+        if (!mounted) return;
+
+        const root = window.document.documentElement;
+        if (resolvedTheme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+    }, [resolvedTheme, mounted]);
+
     // Prevent flash of unstyled content
     if (!mounted) {
         return <div className="h-screen bg-bg-main" />;

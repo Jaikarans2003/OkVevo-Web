@@ -80,11 +80,23 @@
   }
 
   .glass-card {
-    background-color: color-mix(in srgb, var(--color-text-main), transparent 95%);
-    backdrop-filter: blur(12px);
-    border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 90%);
+    background-color: color-mix(in srgb, var(--color-text-main), transparent 92%);
+    border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 85%);
     box-shadow: var(--shadow-glass);
-    will-change: backdrop-filter;
+  }
+
+  .glass-navbar {
+    background-color: color-mix(in srgb, var(--color-text-main), transparent 92%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 85%);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .transform-gpu {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 
   .btn-premium {
@@ -123,11 +135,12 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  opacity: 0.04;
+  opacity: 0.015;
+  /* Reduced for performance and subtler look */
   z-index: 9999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-image: url("https://res.cloudinary.com/dlbvavyun/image/upload/v1711463133/noise_p8xkzm.png");
+  background-repeat: repeat;
   will-change: transform;
-  transform: translateZ(0);
 }
 
 .mask-fade {

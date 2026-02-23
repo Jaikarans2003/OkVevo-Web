@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import StudioNavbar from '@/components/workspace/StudioNavbar';
 
 import { AILoader } from '@/components/ui/ai-loader';
 import {
@@ -280,44 +281,16 @@ export default function ProductStudio() {
     return (
         <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">
 
-            {/* --- NAVBAR --- */}
-            <header className="fixed top-0 left-0 right-0 h-24 flex items-center justify-between px-6 md:px-10 z-50 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                <Link href="/" className="flex items-center gap-3 pointer-events-auto cursor-pointer group">
-                    <Image
-                        src="/OKVEVO WithOut BackGrounds/White.svg"
-                        alt="OKVEVO"
-                        width={120}
-                        height={40}
-                        className="h-8 w-auto object-contain opacity-90 transition-opacity group-hover:opacity-100"
-                    />
-                </Link>
-
-                <nav className="flex items-center gap-8 pointer-events-auto absolute left-1/2 -translate-x-1/2">
-                    {[
-                        { name: 'Product Studio', href: '/workspace/product' },
-                        { name: 'Social Media', href: '/workspace/social' },
-                        { name: 'Director', href: '/workspace/director' }
-                    ].map((item) => (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                        >
-                            {item.name}
-                            {pathname === item.href && (
-                                <span className="absolute -bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"></span>
-                            )}
-                        </Link>
-                    ))}
-                </nav>
-
-                <div className="flex items-center gap-4 pointer-events-auto">
-                    <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 flex items-center gap-2 backdrop-blur-md">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgb(34,197,94)]"></div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-white/60">System Online</span>
+            <StudioNavbar
+                rightContent={
+                    <div className="flex items-center gap-4 pointer-events-auto">
+                        <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 flex items-center gap-2 backdrop-blur-md">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgb(34,197,94)]"></div>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-white/60">System Online</span>
+                        </div>
                     </div>
-                </div>
-            </header>
+                }
+            />
 
             {/* --- LUXURY HERO SECTION --- */}
             <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">

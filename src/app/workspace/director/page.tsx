@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import StudioNavbar from '@/components/workspace/StudioNavbar';
 import {
     Film,
     Clock,
@@ -286,44 +287,34 @@ export default function DirectorWorkstation() {
     };
 
     return (
-        <div className="h-screen w-screen bg-[#2b2b2b] text-[#E0E0E0] font-sans flex flex-col overflow-hidden relative">
-            {/* Cinematic Vignette */}
-            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
-            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(255,109,31,0.05)_100%)] mix-blend-screen" />
+        <div className="h-screen w-screen bg-black text-[#E0E0E0] font-sans flex flex-col overflow-hidden relative">
+            {/* Background Image */}
+            <div className="fixed inset-0 z-0">
+                <Image
+                    src="/images/chat-bg.png"
+                    alt="Cinematic Background"
+                    fill
+                    className="object-cover opacity-80 brightness-[0.8]"
+                    priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60" />
+                <div className="absolute inset-0 backdrop-blur-[2px]" />
+            </div>
 
-            {/* Nav */}
-            <nav className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-2xl flex items-center justify-between px-6 z-50">
-                <Link href="/" className="flex items-center gap-1 group">
-                    <Image
-                        src="/OKVEVO WithOut BackGrounds/White.svg"
-                        alt="OKVEVO Logo"
-                        width={120}
-                        height={40}
-                        className="h-8 w-auto object-contain"
-                    />
-                </Link>
-                <div className="hidden lg:flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2">
-                    {[
-                        { name: 'Product Studio', href: '/workspace/product' },
-                        { name: 'Social Media', href: '/workspace/social' },
-                        { name: 'Director', href: '/workspace/director' },
-                    ].map(item => (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === item.href ? 'text-[#ff6d1f]' : 'text-white/40 hover:text-white'}`}
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isPipelineRunning || isGeneratingScenes ? 'bg-[#ff6d1f]' : 'bg-green-500'}`} />
-                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">
-                        {isPipelineRunning ? 'Generating' : isGeneratingScenes ? 'Analyzing' : 'Active'}
-                    </span>
-                </div>
-            </nav>
+            {/* Cinematic Vignette */}
+            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]" />
+            <div className="fixed inset-0 pointer-events-none z-10 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(255,109,31,0.08)_100%)] mix-blend-screen" />
+
+            <StudioNavbar
+                rightContent={
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isPipelineRunning || isGeneratingScenes ? 'bg-[#ff6d1f]' : 'bg-green-500'}`} />
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">
+                            {isPipelineRunning ? 'Generating' : isGeneratingScenes ? 'Analyzing' : 'Active'}
+                        </span>
+                    </div>
+                }
+            />
 
             {/* Chat */}
             <main className="flex-1 flex flex-col items-center relative z-20 overflow-hidden pt-10">
@@ -675,7 +666,7 @@ export default function DirectorWorkstation() {
                 {/* Input Area */}
                 <div className="fixed bottom-0 left-0 w-full">
                     {/* Gradient backdrop — pointer-events-none so it never blocks clicks on messages */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#2b2b2b] via-[#2b2b2b]/90 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none" />
                     {/* Interactive content layer */}
                     <div className="relative p-6 pt-4">
                         <div className="max-w-4xl mx-auto space-y-4">

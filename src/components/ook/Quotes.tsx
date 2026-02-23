@@ -9,10 +9,33 @@ interface QuotesProps {
 const Quotes = ({ onJoinClick }: QuotesProps) => {
     return (
         <section id="create" data-section-theme="light" className="section-padding relative overflow-hidden bg-bg-main">
-            {/* Rich Ambient Background Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-orange/15 blur-[120px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-sky/10 blur-[100px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[40vw] bg-accent-orange/5 blur-[150px] rounded-full pointer-events-none mix-blend-soft-light" style={{ willChange: 'transform' }} />
+            {/* Premium Orange Gradient Background */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                <div
+                    className="absolute inset-0 opacity-30"
+                    style={{
+                        background: 'radial-gradient(circle at 50% 50%, var(--color-accent-orange) 0%, transparent 70%)',
+                    }}
+                />
+                <motion.div
+                    animate={{
+                        scale: [1, 1.2, 1],
+                        x: [0, 30, 0],
+                        y: [0, 20, 0],
+                    }}
+                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                    className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] bg-accent-orange/20 blur-[100px] rounded-full transform-gpu"
+                />
+                <motion.div
+                    animate={{
+                        scale: [1, 1.3, 1],
+                        x: [0, -40, 0],
+                        y: [0, -30, 0],
+                    }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear", delay: 2 }}
+                    className="absolute -bottom-[20%] -right-[10%] w-[60vw] h-[60vw] bg-accent-orange/15 blur-[80px] rounded-full transform-gpu"
+                />
+            </div>
 
             <div className="centering-container text-center relative z-10">
                 <motion.div

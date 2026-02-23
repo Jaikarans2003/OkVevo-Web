@@ -6,7 +6,7 @@ import { auth } from '../../config/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
-import { LogOut, ArrowLeft, Building2, Shield, MessageSquare, UserCircle, Edit3, Mail, Crown } from 'lucide-react';
+import { LogOut, ArrowLeft, Building2, Shield, MessageSquare, UserCircle, Edit3, Mail, Crown, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -75,7 +75,7 @@ export default function ProfilePage() {
             <nav className="relative z-20 sticky top-0 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
-                        <Link href="/chat" className="flex items-center gap-2 group">
+                        <Link href="/workspace" className="flex items-center gap-2 group">
                             <Image
                                 src="/OKVEVO WithOut BackGrounds/White.svg"
                                 alt="OKVEVO Logo"
@@ -90,11 +90,11 @@ export default function ProfilePage() {
 
                         <div className="flex items-center gap-4">
                             <Link
-                                href="/chat"
+                                href="/workspace"
                                 className="px-6 py-2.5 bg-white/5 hover:bg-white/10 border-2 border-white/10 hover:border-accent-orange/30 text-white font-bold rounded-full transition-all duration-300 flex items-center gap-2"
                             >
                                 <ArrowLeft className="w-4 h-4" />
-                                Back to Chat
+                                Back to Workspace
                             </Link>
                             <button
                                 onClick={handleSignOut}
@@ -157,11 +157,11 @@ export default function ProfilePage() {
                             {/* Quick Actions */}
                             <div className="space-y-3">
                                 <Link
-                                    href="/chat"
+                                    href="/workspace"
                                     className="flex items-center gap-3 p-4 bg-accent-orange hover:bg-orange-600 rounded-2xl transition-all duration-300 group"
                                 >
-                                    <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                                    <span className="text-white font-bold">Start Chat</span>
+                                    <LayoutDashboard className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                    <span className="text-white font-bold">Go to Workspace</span>
                                 </Link>
 
                                 <div className="flex items-center gap-3 p-4 bg-white/5 border-2 border-white/5 rounded-2xl opacity-60 cursor-not-allowed">
@@ -245,32 +245,6 @@ export default function ProfilePage() {
                             </div>
                         )}
 
-                        {/* Organisation Dashboard Link for Admins */}
-                        {userProfile?.userType === 'organisation' && userProfile.organisationRole === 'admin' && (
-                            <Link
-                                href="/dashboard/organisation"
-                                className="block"
-                            >
-                                <div className="glass-card bg-white/5 p-8 rounded-[40px] border-2 border-accent-orange/30 hover:border-accent-orange hover:shadow-2xl hover:shadow-accent-orange/10 transition-all duration-500 group backdrop-blur-md">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-6">
-                                            <div className="p-4 bg-gradient-to-br from-accent-orange to-orange-600 rounded-2xl group-hover:scale-110 transition-transform shadow-lg">
-                                                <Building2 className="w-8 h-8 text-white" />
-                                            </div>
-                                            <div>
-                                                <div className="text-xl font-bold text-white mb-2">
-                                                    Organisation Dashboard
-                                                </div>
-                                                <div className="text-sm text-white/50">
-                                                    Manage your organisation, members, and settings
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <ArrowLeft className="w-6 h-6 text-accent-orange rotate-180 group-hover:translate-x-2 transition-transform" />
-                                    </div>
-                                </div>
-                            </Link>
-                        )}
                     </motion.div>
                 </div>
             </main>

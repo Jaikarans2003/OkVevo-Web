@@ -327,7 +327,7 @@ function FormOrganisationPageContent() {
                             </h4>
                             <ul className={`text-sm ${tc.textDim} space-y-1`}>
                                 <li>• Invite and manage team members</li>
-                                <li>• Access the organisation admin dashboard</li>
+                                <li>• Access the organisation admin console</li>
                                 <li>• Control organisation settings and permissions</li>
                                 <li>• View analytics and usage reports</li>
                             </ul>

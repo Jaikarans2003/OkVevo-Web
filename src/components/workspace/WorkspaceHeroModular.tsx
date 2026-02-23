@@ -5,9 +5,11 @@ import { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, FileText, TrendingUp, ShoppingBag, User } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const DashHeroModular = ({ user }: { user?: any }) => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const { resolvedTheme } = useTheme();
     const displayName = user?.displayName?.split(' ')?.[0] || user?.email?.split('@')?.[0] || 'Aditya';
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -63,14 +65,16 @@ const DashHeroModular = ({ user }: { user?: any }) => {
     return (
         <section
             onMouseMove={handleMouseMove}
-            data-section-theme="light"
-            className="relative min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden"
+            data-section-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+            className="relative min-h-screen bg-[#FAFAFA] dark:bg-black flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden transition-colors duration-500"
         >
             {/* Tighter Dotted Grid */}
             <div
-                className="absolute inset-0 opacity-[0.25] pointer-events-none"
+                className="absolute inset-0 opacity-[0.25] dark:opacity-[0.15] pointer-events-none"
                 style={{
-                    backgroundImage: 'radial-gradient(#000000 1px, transparent 1px)',
+                    backgroundImage: resolvedTheme === 'dark'
+                        ? 'radial-gradient(#ffffff 1px, transparent 1px)'
+                        : 'radial-gradient(#000000 1px, transparent 1px)',
                     backgroundSize: '24px 24px'
                 }}
             />
@@ -80,21 +84,42 @@ const DashHeroModular = ({ user }: { user?: any }) => {
                 animate={floatingVariant(1.2)}
                 className="absolute top-[18%] left-[8%] w-24 h-24 md:w-32 md:h-32 z-30 hidden lg:block"
             >
-                <Image src="/images/redesign/crystal_ball_white_bg.png" alt="Crystal Ball" width={128} height={128} className="object-contain mix-blend-multiply" priority />
+                <Image
+                    src={resolvedTheme === 'dark' ? "/images/redesign/crystal_ball.png" : "/images/redesign/crystal_ball_white_bg.png"}
+                    alt="Crystal Ball"
+                    width={128}
+                    height={128}
+                    className="object-contain transition-all duration-500 mix-blend-multiply dark:mix-blend-normal dark:invert dark:brightness-90"
+                    priority
+                />
             </motion.div>
 
             <motion.div
                 animate={floatingVariant(0.8)}
                 className="absolute top-[22%] right-[10%] w-28 h-28 md:w-36 md:h-36 z-30 hidden lg:block"
             >
-                <Image src="/images/redesign/nft_card_white_bg.png" alt="NFT Card" width={144} height={144} className="object-contain mix-blend-multiply" priority />
+                <Image
+                    src={resolvedTheme === 'dark' ? "/images/redesign/nft_card.png" : "/images/redesign/nft_card_white_bg.png"}
+                    alt="NFT Card"
+                    width={144}
+                    height={144}
+                    className="object-contain transition-all duration-500 mix-blend-multiply dark:mix-blend-normal dark:invert dark:brightness-90"
+                    priority
+                />
             </motion.div>
 
             <motion.div
                 animate={floatingVariant(1.5)}
                 className="absolute bottom-[25%] right-[5%] w-32 h-32 md:w-44 md:h-44 z-30 hidden lg:block"
             >
-                <Image src="/images/redesign/eyes_square_white_bg.png" alt="Eyes" width={176} height={176} className="object-contain mix-blend-multiply" priority />
+                <Image
+                    src={resolvedTheme === 'dark' ? "/images/redesign/eyes_square.png" : "/images/redesign/eyes_square_white_bg.png"}
+                    alt="Eyes"
+                    width={176}
+                    height={176}
+                    className="object-contain transition-all duration-500 mix-blend-multiply dark:mix-blend-normal dark:invert dark:brightness-90"
+                    priority
+                />
             </motion.div>
 
             {/* Central Content */}
@@ -116,11 +141,11 @@ const DashHeroModular = ({ user }: { user?: any }) => {
                     className="mb-16"
                 >
                     <h2 className="text-3xl md:text-5xl font-medium text-gray-400 mb-2">Welcome,</h2>
-                    <h1 className="text-7xl md:text-9xl font-black text-black tracking-tighter leading-[0.85] mb-6 capitalize px-4">
+                    <h1 className="text-7xl md:text-9xl font-black text-black dark:text-white tracking-tighter leading-[0.85] mb-6 capitalize px-4">
                         {displayName}
                     </h1>
                     <div className="text-4xl md:text-6xl font-black tracking-tight text-white flex items-center justify-center">
-                        <span className="text-black mr-3">I am</span>
+                        <span className="text-black dark:text-white mr-3">I am</span>
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#A855F7] via-[#EC4899] to-[#F43F5E]">VEVO</span>
                     </div>
                 </motion.div>
@@ -132,17 +157,17 @@ const DashHeroModular = ({ user }: { user?: any }) => {
                         animate={floatingVariant(0.5)}
                         className="absolute left-[-160px] top-1/2 -translate-y-1/2 hidden xl:flex items-center z-10"
                     >
-                        <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border border-gray-100 w-44 h-44 flex flex-col items-center justify-center -rotate-6">
-                            <span className="text-xs font-bold text-gray-400 mb-1">Floating</span>
-                            <span className="text-xs font-bold text-gray-400">Element</span>
+                        <div className="bg-white dark:bg-white/5 p-6 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/10 w-44 h-44 flex flex-col items-center justify-center -rotate-6">
+                            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-1">Floating</span>
+                            <span className="text-xs font-bold text-gray-400 dark:text-gray-500">Element</span>
                         </div>
-                        <div className="w-12 h-[1px] bg-gray-200 relative ml-2">
-                            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gray-300" />
+                        <div className="w-12 h-[1px] bg-gray-200 dark:bg-white/10 relative ml-2">
+                            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-white/20" />
                         </div>
                     </motion.div>
 
                     {/* Suggestions Grid */}
-                    <div className="bg-white/40 backdrop-blur-md border border-white/60 rounded-[3rem] p-4 md:p-8 shadow-2xl scale-95 md:scale-100 relative z-20">
+                    <div className="bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 rounded-[3rem] p-4 md:p-8 shadow-2xl scale-95 md:scale-100 relative z-20">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {suggestions.map((item, index) => (
                                 <Link key={index} href={item.action} className="relative group">

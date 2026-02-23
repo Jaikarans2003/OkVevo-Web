@@ -21,13 +21,12 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/studio' },
-    { icon: MessageSquare, label: 'Chat with Vevo', href: '/chat' }, // Changed to point to /chat
-    { icon: Users, label: 'AI Avatars', href: '/studio/avatars' },
-    { icon: ShoppingBag, label: 'Product Studio', href: '/studio/product' },
-    { icon: Video, label: 'UGC Factory', href: '/studio/ugc' },
-    { icon: Activity, label: 'AI Influencer', href: '/studio/influencer' },
-    { icon: Clapperboard, label: 'Director Mode', href: '/studio/director' },
+    { icon: LayoutDashboard, label: 'Workspace', href: '/workspace' },
+    { icon: Users, label: 'AI Avatars', href: '/workspace/social' }, // Point to social as a placeholder
+    { icon: ShoppingBag, label: 'Product Studio', href: '/workspace/product' },
+    { icon: Video, label: 'UGC Factory', href: '/workspace/social' }, // Point to social as a placeholder
+    { icon: Activity, label: 'AI Influencer', href: '/workspace/social' }, // Point to social as a placeholder
+    { icon: Clapperboard, label: 'Director Mode', href: '/workspace/director' },
 ];
 
 export default function Sidebar() {

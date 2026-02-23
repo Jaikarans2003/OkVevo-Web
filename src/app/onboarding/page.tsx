@@ -194,7 +194,7 @@ function OnboardingPageContent() {
                                 <ul className={`text-sm ${tc.textDim} space-y-2 text-left`}>
                                     <li>• Team collaboration</li>
                                     <li>• Shared workspace</li>
-                                    <li>• Admin dashboard</li>
+                                    <li>• Admin console</li>
                                     {!canFormOrganisation && (
                                         <li className="text-orange-400">• Custom domain required to form</li>
                                     )}

@@ -30,7 +30,7 @@ const offerings = [
         color: "bg-[#E2FF4D]",
         textColor: "text-black",
         className: "col-span-1 md:col-span-1 md:row-span-2",
-        href: "/chat"
+        href: "/workspace"
     },
     {
         title: "Viral Content",

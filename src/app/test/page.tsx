@@ -220,7 +220,7 @@ export default function TestPage() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-4xl font-bold mb-2">🧪 Backend Testing Dashboard</h1>
+                <h1 className="text-4xl font-bold mb-2">🧪 Backend Testing Console</h1>
                 <p className="text-gray-400 mb-8">Test the complete AI narration + video pipeline</p>
 
                 {/* Control Buttons */}

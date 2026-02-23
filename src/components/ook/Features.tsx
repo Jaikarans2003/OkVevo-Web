@@ -33,14 +33,12 @@ const Features = () => {
     ];
 
     return (
-        <section id="features" data-section-theme="dark" className="bg-[#000000] overflow-hidden rounded-[80px]">
+        <section id="features" data-section-theme="dark" className="bg-[#000000] overflow-hidden rounded-[80px] relative z-10 -mt-20">
             <div className="bg-[#000000] py-32 px-6 md:px-20 overflow-hidden relative w-full">
                 {/* Decorative Background Glows */}
-                <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-accent-orange/10 blur-[180px] rounded-full -z-0 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-accent-sky/5 blur-[180px] rounded-full -z-0 pointer-events-none" />
-
-                {/* Additional Ambient Glow */}
-                <div className="absolute top-1/2 left-1/4 w-[600px] h-[600px] bg-accent-orange/5 rounded-full blur-[150px] -z-0 pointer-events-none mix-blend-screen" />
+                <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-accent-orange/10 blur-[60px] rounded-full -z-0 pointer-events-none transform-gpu" />
+                <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-accent-sky/5 blur-[60px] rounded-full -z-0 pointer-events-none transform-gpu" />
+                <div className="absolute top-1/2 left-1/4 w-[600px] h-[600px] bg-accent-orange/5 rounded-full blur-[60px] -z-0 pointer-events-none mix-blend-screen transform-gpu" />
 
                 <div className="container relative z-10 flex flex-col items-center">
                     {/* Section Header */}
@@ -55,7 +53,7 @@ const Features = () => {
                         <motion.h2
                             initial={{ opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
+                            viewport={{ once: true, margin: "-100px" }}
                             className="text-5xl md:text-[100px] font-black mb-12 leading-[0.85] tracking-tight text-white"
                         >
                             Crafting the <span className="text-cursive text-accent-orange text-[1.4em] leading-none font-normal lowercase tracking-normal inline-block translate-y-4">impossible</span> with ease.
@@ -74,8 +72,9 @@ const Features = () => {
                                     <motion.div
                                         initial={{ opacity: 0, x: feature.align === 'right' ? 50 : -50 }}
                                         whileInView={{ opacity: 1, x: 0 }}
-                                        viewport={{ once: true }}
+                                        viewport={{ once: true, margin: "-100px" }}
                                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                                        className="transform-gpu"
                                     >
                                         <span className="text-xs font-bold tracking-[0.4em] text-accent-orange uppercase mb-8 block">
                                             {feature.tag}
@@ -97,9 +96,9 @@ const Features = () => {
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.9, y: 50 }}
                                         whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                                        viewport={{ once: true }}
+                                        viewport={{ once: true, margin: "-100px" }}
                                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                                        className={`relative aspect-[4/5] md:aspect-[5/6] rounded-[48px] md:rounded-[80px] ${feature.color} overflow-hidden group shadow-2xl border border-white/5`}
+                                        className={`relative aspect-[4/5] md:aspect-[5/6] rounded-[48px] md:rounded-[80px] ${feature.color} overflow-hidden group shadow-2xl border border-white/5 transform-gpu`}
                                     >
                                         <Image
                                             src={feature.visual}

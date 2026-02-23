@@ -50,8 +50,8 @@ const HowItWorks = () => {
         <section id="how-it-works" data-section-theme="light" ref={sectionRef} className="relative h-[500vh] bg-bg-main">
             <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
                 {/* Ambient Background Glows */}
-                <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[80px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-sky/5 blur-[80px] rounded-full pointer-events-none" style={{ willChange: 'transform' }} />
+                <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[40px] rounded-full pointer-events-none transform-gpu" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-sky/5 blur-[40px] rounded-full pointer-events-none transform-gpu" />
 
                 {/* Header - Fixed in sticky container with more padding-top to avoid navbar */}
                 <div className="centering-container !items-start pt-20 mb-8 px-[10vw] relative z-10">
@@ -75,7 +75,7 @@ const HowItWorks = () => {
                 <div className="relative mt-8">
                     <motion.div
                         style={{ x, willChange: "transform" }}
-                        className="flex gap-16 px-[10vw]"
+                        className="flex gap-16 px-[10vw] transform-gpu"
                     >
                         {steps.map((step, index) => (
                             <div
@@ -98,7 +98,7 @@ const HowItWorks = () => {
                                 </div>
 
                                 {/* Content Side */}
-                                <div className="flex-1 p-10 md:p-14 flex flex-col justify-between glass-card relative">
+                                <div className="flex-1 p-10 md:p-14 flex flex-col justify-between bg-white/[0.03] dark:bg-white/[0.03] relative border-l border-white/5">
                                     <div>
                                         <span className="text-xs font-bold tracking-[0.4em] text-accent-orange uppercase mb-6 block">
                                             Step {step.number} — {step.tag}

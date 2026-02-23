@@ -14,38 +14,47 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             {/* Background Decorative Gradients */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <motion.div
-                    initial={{ scale: 1, opacity: 0.35, x: 0, y: 0 }}
+                    initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
                     animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.35, 0.5, 0.35],
-                        x: [0, 50, 0],
-                        y: [0, -30, 0]
+                        scale: [1, 1.1, 1],
+                        opacity: [0.3, 0.4, 0.3],
+                        x: [0, 20, 0],
+                        y: [0, -15, 0]
                     }}
-                    transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[80px] rounded-full opacity-[0.35]"
-                    style={{ willChange: "transform" }}
+                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
                 />
                 <motion.div
-                    initial={{ scale: 1, opacity: 0.25, x: 0, y: 0 }}
+                    initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
                     animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.25, 0.4, 0.25],
-                        x: [0, -40, 0],
-                        y: [0, 60, 0]
+                        scale: [1, 1.15, 1],
+                        opacity: [0.2, 0.3, 0.2],
+                        x: [0, -20, 0],
+                        y: [0, 30, 0]
                     }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[60px] rounded-full opacity-25"
-                    style={{ willChange: "transform" }}
+                    transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
+                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
+                />
+                {/* Symmetrical left-side balance glow */}
+                <motion.div
+                    initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
+                    animate={{
+                        scale: [1, 1.1, 1],
+                        opacity: [0.1, 0.2, 0.1],
+                        x: [0, 15, 0],
+                        y: [0, 20, 0]
+                    }}
+                    transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
+                    className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
                 />
                 <motion.div
                     animate={{
-                        x: [0, -30, 0],
-                        y: [0, 50, 0],
-                        scale: [1, 1.1, 1]
+                        x: [0, -15, 0],
+                        y: [0, 25, 0],
+                        scale: [1, 1.05, 1]
                     }}
-                    transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.2]"
-                    style={{ willChange: "transform" }}
+                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
                 />
             </div>
 
@@ -96,9 +105,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                            className="relative"
+                            className="relative transform-gpu"
                         >
-                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border border-white/30 backdrop-blur-md flex items-center justify-center">
+                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border border-white/30 bg-white/10 flex items-center justify-center">
                                 <Image
                                     src="/avatar.png"
                                     alt="Badge Avatar"

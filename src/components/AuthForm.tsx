@@ -44,16 +44,7 @@ export default function AuthForm() {
             const { getUserProfile } = await import('../services/userService');
             const userProfile = await getUserProfile(userCredential.user.uid);
 
-            if (userProfile?.onboardingComplete) {
-                // Check if user should see Pro prompt
-                if (!userProfile?.proPromptShown && !userProfile?.isPro) {
-                    router.push('/pro-prompt');
-                } else {
-                    router.push('/profile');
-                }
-            } else {
-                router.push('/welcome');
-            }
+            router.push('/workspace');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -83,16 +74,7 @@ export default function AuthForm() {
             // Check if user has completed onboarding
             const userProfile = await getUserProfile(result.user.uid);
 
-            if (userProfile?.onboardingComplete) {
-                // Check if user should see Pro prompt
-                if (!userProfile?.proPromptShown && !userProfile?.isPro) {
-                    router.push('/pro-prompt');
-                } else {
-                    router.push('/profile');
-                }
-            } else {
-                router.push('/welcome');
-            }
+            router.push('/workspace');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/popup-closed-by-user') {
