@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Play, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, ImageIcon, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Trend {
     id: string;
@@ -9,6 +9,7 @@ interface Trend {
     description: string;
     image: string;
     tags: string[];
+    type: 'video' | 'image';
 }
 
 export const TrendCard = ({ trend, index, onClick }: { trend: Trend, index: number, onClick: () => void }) => {
@@ -30,10 +31,10 @@ export const TrendCard = ({ trend, index, onClick }: { trend: Trend, index: numb
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#151518] via-transparent to-transparent opacity-60" />
 
-                {/* Play Button Overlay */}
+                {/* Type Icon Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transform scale-90 group-hover:scale-100 transition-transform duration-500">
-                        <Play fill="currentColor" size={24} />
+                        {trend.type === 'video' ? <Play fill="currentColor" size={24} /> : <ImageIcon size={24} />}
                     </div>
                 </div>
             </div>
@@ -107,56 +108,64 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
             title: 'Neural Glow',
             description: 'Dynamic lighting shifts and ethereal aura synthesis for fashion reels.',
             image: 'https://images.unsplash.com/photo-1649937801620-d31db7fb3ab3?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bmV1cmFsJTIwZ2xvd3xlbnwwfHwwfHx8MA%3D%3D',
-            tags: ['ReelTrend', 'ViralEdit', 'Fashion']
+            tags: ['ReelTrend', 'ViralEdit', 'Fashion'],
+            type: 'video'
         },
         {
             id: '2',
             title: 'CyberFlow',
             description: 'Transform portraits into high-end cyberpunk cinematics.',
             image: 'https://i.pinimg.com/736x/7d/d2/c1/7dd2c173e396bc75f34f1ff3acd07730.jpg',
-            tags: ['Cyberpunk', 'Cinematic', 'AI']
+            tags: ['Cyberpunk', 'Cinematic', 'AI'],
+            type: 'video'
         },
         {
             id: '3',
             title: 'Expansion',
             description: 'Expand your photos into immersive landscapes using neural fill.',
             image: 'https://images.unsplash.com/photo-1634942537040-f7ba41298016?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGluc3RhZ3JhbSUyMHRyZW5kc3xlbnwwfHwwfHx8MA%3D%3D',
-            tags: ['AIExpansion', 'Landscape', 'Viral']
+            tags: ['AIExpansion', 'Landscape', 'Viral'],
+            type: 'image'
         },
         {
             id: '4',
             title: 'Prism Drift',
             description: 'Kaleidoscopic lens flares and dreamlike motion for artistic storytelling.',
             image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&auto=format&fit=crop&q=60',
-            tags: ['Abstract', 'Motion', 'Story']
+            tags: ['Abstract', 'Motion', 'Story'],
+            type: 'video'
         },
         {
             id: '5',
             title: 'Grain Motion',
             description: 'Retro 8mm film aesthetics with intelligent frame synthesis.',
             image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=900&auto=format&fit=crop&q=60',
-            tags: ['Retro', 'Vintage', 'Film']
+            tags: ['Retro', 'Vintage', 'Film'],
+            type: 'image'
         },
         {
             id: '6',
             title: 'Voxel Rush',
             description: 'Turn organic motion into block-based 3D digital artifacts.',
             image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=900&auto=format&fit=crop&q=60',
-            tags: ['3D', 'Digital', 'Voxel']
+            tags: ['3D', 'Digital', 'Voxel'],
+            type: 'image'
         },
         {
             id: '7',
             title: 'Aero Static',
             description: 'Low-gravity character physics with high-altitude atmospheric lighting.',
             image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=900&auto=format&fit=crop&q=60',
-            tags: ['Physics', 'Space', 'Future']
+            tags: ['Physics', 'Space', 'Future'],
+            type: 'video'
         },
         {
             id: '8',
             title: 'Shadow Synth',
             description: 'Project neural shadows that react to virtual light sources in real-time.',
             image: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=900&auto=format&fit=crop&q=60',
-            tags: ['Shadows', 'Lighting', 'Realtime']
+            tags: ['Shadows', 'Lighting', 'Realtime'],
+            type: 'image'
         }
     ];
 
@@ -165,32 +174,31 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
         trend.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
+    const videoTrends = filteredTrends.filter(t => t.type === 'video');
+    const imageTrends = filteredTrends.filter(t => t.type === 'image');
+
+    const videoScrollRef = useRef<HTMLDivElement>(null);
+    const imageScrollRef = useRef<HTMLDivElement>(null);
+
+    const scrollSpecific = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
+        if (!ref.current) return;
+        const scrollAmount = 400;
+        ref.current.scrollBy({
+            left: direction === 'left' ? -scrollAmount : scrollAmount,
+            behavior: 'smooth'
+        });
+    };
+
     return (
         <section id="trends" className="max-w-7xl mx-auto px-6 py-24 overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
                 <div className="space-y-4">
                     <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-white">
-                        Trending <span className="text-white/20">Now</span>
+                        Trending <span className="text-white/20">Studio</span>
                     </h2>
-                    <div className="flex items-center gap-6">
-                        <p className="text-white/40 text-[10px] font-black uppercase tracking-widest shrink-0">
-                            Showing {filteredTrends.length} of {trends.length} Models
-                        </p>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => scroll('left')}
-                                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                            >
-                                <ChevronLeft size={16} />
-                            </button>
-                            <button
-                                onClick={() => scroll('right')}
-                                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                            >
-                                <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    </div>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-widest shrink-0">
+                        Showing {filteredTrends.length} of {trends.length} Presets
+                    </p>
                 </div>
 
                 {/* Search Bar */}
@@ -216,39 +224,104 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
                 </div>
             </div>
 
-            <div
-                ref={scrollRef}
-                onMouseDown={handleMouseDown}
-                onMouseLeave={handleMouseLeave}
-                onMouseUp={handleMouseUp}
-                onMouseMove={handleMouseMove}
-                className={`flex gap-6 md:gap-8 overflow-x-auto scrollbar-hide pb-12 -mx-6 px-6 snap-x snap-mandatory scroll-pl-6 md:scroll-pl-12 scroll-pr-6 md:scroll-pr-12 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
-                style={{ scrollBehavior: isDragging ? 'auto' : 'smooth', WebkitOverflowScrolling: 'touch' }}
-            >
-                {filteredTrends.length > 0 ? (
-                    filteredTrends.map((trend, idx) => (
-                        <div key={trend.id} className="min-w-[240px] md:min-w-[300px] flex-shrink-0 snap-start">
-                            <TrendCard trend={trend} index={idx} onClick={() => onSelect(trend)} />
-                        </div>
-                    ))
-                ) : (
-                    <div className="w-full py-20 text-center space-y-4">
-                        <p className="text-white/20 font-black uppercase tracking-[0.3em] text-sm">No waves found matching "{searchQuery}"</p>
+            {/* Video Trends Row */}
+            <div className="space-y-8 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#FF0080] flex items-center gap-3">
+                        <Play size={14} fill="currentColor" />
+                        Video Trends
+                    </h3>
+                    <div className="flex gap-2">
                         <button
-                            onClick={() => setSearchQuery('')}
-                            className="text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest underline decoration-white/20 underline-offset-8 transition-colors"
+                            onClick={() => scrollSpecific(videoScrollRef, 'left')}
+                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
                         >
-                            Clear Search
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button
+                            onClick={() => scrollSpecific(videoScrollRef, 'right')}
+                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
+                        >
+                            <ChevronRight size={16} />
                         </button>
                     </div>
-                )}
+                </div>
+                <div
+                    ref={videoScrollRef}
+                    className="flex gap-6 md:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-6 px-6 snap-x snap-mandatory touch-pan-x"
+                >
+                    {videoTrends.map((trend, idx) => (
+                        <div key={trend.id} className="min-w-[280px] md:min-w-[340px] flex-shrink-0 snap-start">
+                            <TrendCard trend={trend} index={idx} onClick={() => onSelect(trend)} />
+                        </div>
+                    ))}
+                    {videoTrends.length === 0 && (
+                        <div className="w-full py-12 text-center text-white/20 text-xs font-black uppercase tracking-widest">No video trends found</div>
+                    )}
+                </div>
             </div>
 
-            {/* Scroll Indicator */}
-            <div className="flex justify-center mt-8 gap-2">
-                {[...Array(Math.ceil(filteredTrends.length / 3))].map((_, i) => (
-                    <div key={i} className={`w-12 h-[2px] rounded-full transition-all duration-500 ${i === 0 ? 'bg-white' : 'bg-white/5'}`} />
-                ))}
+            {/* Image Trends Row */}
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-white flex items-center gap-3">
+                        <ImageIcon size={14} />
+                        Image Trends
+                    </h3>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => scrollSpecific(imageScrollRef, 'left')}
+                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button
+                            onClick={() => scrollSpecific(imageScrollRef, 'right')}
+                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+                <div
+                    ref={imageScrollRef}
+                    className="flex gap-6 md:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-6 px-6 snap-x snap-mandatory touch-pan-x"
+                >
+                    {imageTrends.map((trend, idx) => (
+                        <div key={trend.id} className="min-w-[280px] md:min-w-[340px] flex-shrink-0 snap-start">
+                            <TrendCard trend={trend} index={idx} onClick={() => onSelect(trend)} />
+                        </div>
+                    ))}
+                    {imageTrends.length === 0 && (
+                        <div className="w-full py-12 text-center text-white/20 text-xs font-black uppercase tracking-widest">No image trends found</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Scroll Indication Dots (Simplified for 2 rows) */}
+            <div className="flex justify-center mt-12 gap-8">
+                <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-[#FF0080]/60">Videos</span>
+                    <div className="w-12 h-[2px] bg-[#FF0080]/20 rounded-full overflow-hidden">
+                        <motion.div
+                            className="h-full bg-[#FF0080]"
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 2 }}
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Images</span>
+                    <div className="w-12 h-[2px] bg-white/10 rounded-full overflow-hidden">
+                        <motion.div
+                            className="h-full bg-white/40"
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 2, delay: 0.2 }}
+                        />
+                    </div>
+                </div>
             </div>
         </section>
     );

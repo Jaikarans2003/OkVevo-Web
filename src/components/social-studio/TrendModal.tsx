@@ -11,6 +11,7 @@ interface Trend {
     description: string;
     image: string;
     tags: string[];
+    type: 'video' | 'image';
 }
 
 const TrendModal = ({ trend, onClose }: { trend: Trend, onClose: () => void }) => {
@@ -33,10 +34,14 @@ const TrendModal = ({ trend, onClose }: { trend: Trend, onClose: () => void }) =
 
     const runGeneration = async () => {
         setStep('generating');
-        const stages = [
+        const stages = trend.type === 'video' ? [
             { text: "Analyzing trend patterns...", wait: 1500 },
             { text: "Applying motion effects...", wait: 2000 },
             { text: "Rendering final video...", wait: 1500 }
+        ] : [
+            { text: "Analyzing image structures...", wait: 1500 },
+            { text: "Applying stylistic synthesis...", wait: 2000 },
+            { text: "Synthesizing final image...", wait: 1500 }
         ];
 
         for (let i = 0; i < stages.length; i++) {
@@ -89,12 +94,12 @@ const TrendModal = ({ trend, onClose }: { trend: Trend, onClose: () => void }) =
                     </div>
 
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.button
+                        <motion.div
                             whileHover={{ scale: 1.1 }}
                             className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white"
                         >
-                            <Play size={28} fill="currentColor" />
-                        </motion.button>
+                            {trend.type === 'video' ? <Play size={28} fill="currentColor" /> : <ImageIcon size={28} />}
+                        </motion.div>
                     </div>
                 </div>
 
@@ -142,7 +147,7 @@ const TrendModal = ({ trend, onClose }: { trend: Trend, onClose: () => void }) =
                                     className={`w-full h-16 rounded-full flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] transition-all ${uploadedImage ? 'bg-white text-black hover:scale-[1.02]' : 'bg-white/5 text-white/20 border border-white/5'}`}
                                 >
                                     <Sparkles size={16} />
-                                    Synthesize Trend
+                                    {trend.type === 'video' ? 'Synthesize Video' : 'Generate Image'}
                                 </button>
                             </motion.div>
                         )}
@@ -187,26 +192,35 @@ const TrendModal = ({ trend, onClose }: { trend: Trend, onClose: () => void }) =
                                 </div>
 
                                 <div className="aspect-video rounded-[2rem] bg-black overflow-hidden relative group border border-white/10 shadow-2xl">
-                                    <video
-                                        src="https://cdn.pixabay.com/video/2022/02/09/107240-678130070_large.mp4"
-                                        autoPlay loop muted playsInline
-                                        className="w-full h-full object-cover"
-                                    />
+                                    {trend.type === 'video' ? (
+                                        <video
+                                            src="https://cdn.pixabay.com/video/2022/02/09/107240-678130070_large.mp4"
+                                            autoPlay loop muted playsInline
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <Image
+                                            src={trend.image}
+                                            alt="Generated Result"
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    )}
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Play size={32} fill="white" />
+                                        {trend.type === 'video' ? <Play size={32} fill="white" /> : <CheckCircle2 size={32} className="text-white" />}
                                     </div>
                                 </div>
 
                                 <div className="flex gap-4">
-                                    <button className="flex-1 h-14 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-105 transition-transform">
+                                    <button className="flex-1 h-14 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                         <Download size={14} />
-                                        Download MP4
+                                        {trend.type === 'video' ? 'Download MP4' : 'Download Image'}
                                     </button>
                                     <button
                                         onClick={() => { setStep('upload'); setUploadedImage(null); }}
                                         className="h-14 px-8 rounded-full border border-white/10 bg-white/5 text-white/40 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors"
                                     >
-                                        Synthesize Again
+                                        Generate New
                                     </button>
                                 </div>
                             </motion.div>
