@@ -23,7 +23,7 @@ const https = require('https');
  */
 
 const NANOBANANA_MODEL = 'gemini-2.5-flash-image';
-const KLING_API_BASE = 'https://api.klingai.com';
+const AIML_API_BASE = 'https://api.aimlapi.com';
 
 let firebaseInitialized = false;
 
@@ -236,77 +236,130 @@ async function generateTrendImage(masterPrompt, personImage = null) {
 }
 
 // ────────────────────────────────────────────────────
-// Kling 2.5 Turbo (Video Generation)
+// AIML API Helpers (Kling via AIML aggregator)
 // ────────────────────────────────────────────────────
 
 /**
- * Submit a Kling image-to-video generation task.
+ * Make an HTTP request to the AIML API.
  */
-async function submitKlingVideoTask(imageBase64, prompt, duration = 5) {
-    console.log('🎥 Submitting Kling image-to-video task...');
+function aimlRequest(method, path, body = null) {
+    return new Promise((resolve, reject) => {
+        const apiKey = process.env.KLING_API_KEY;
+        if (!apiKey) {
+            return reject(new Error('KLING_API_KEY environment variable not set'));
+        }
+
+        const url = new URL(path, AIML_API_BASE);
+
+        const options = {
+            hostname: url.hostname,
+            path: url.pathname + url.search,
+            method,
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (res.statusCode >= 400) {
+                        reject(new Error(`AIML API error (${res.statusCode}): ${JSON.stringify(parsed)}`));
+                    } else {
+                        resolve(parsed);
+                    }
+                } catch {
+                    reject(new Error(`AIML API invalid response (${res.statusCode}): ${data}`));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.setTimeout(30000, () => {
+            req.destroy();
+            reject(new Error('AIML API request timeout'));
+        });
+
+        if (body) {
+            req.write(JSON.stringify(body));
+        }
+        req.end();
+    });
+}
+
+// ────────────────────────────────────────────────────
+// Kling 2.5 Turbo via AIML API (Video Generation)
+// ────────────────────────────────────────────────────
+
+/**
+ * Submit a Kling image-to-video task via AIML API.
+ */
+async function submitKlingVideoTask(imageUrl, prompt, duration = 5) {
+    console.log('🎥 Submitting Kling image-to-video task via AIML API...');
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
 
-    const response = await klingRequest('POST', '/v1/videos/image2video', {
-        model_name: 'kling-v2-5-turbo',
-        image: imageBase64,
+    const response = await aimlRequest('POST', '/v2/video/generations', {
+        model: 'klingai/v2.5-turbo/pro/image-to-video',
+        image_url: imageUrl,
         prompt: prompt,
         negative_prompt: 'blurry, distorted face, extra limbs, low quality, watermark',
         duration: String(duration),
         cfg_scale: 0.5,
     });
 
-    if (response.code !== 0) {
-        throw new Error(`Kling API error: ${response.message || JSON.stringify(response)}`);
+    const generationId = response.id || response.generation_id;
+    if (!generationId) {
+        throw new Error(`AIML API did not return a generation ID: ${JSON.stringify(response)}`);
     }
 
-    const taskId = response.data?.task_id;
-    if (!taskId) {
-        throw new Error('Kling API did not return a task_id');
-    }
-
-    console.log(`✅ Kling task submitted: ${taskId}`);
-    return taskId;
+    console.log(`✅ AIML video task submitted: ${generationId}`);
+    return generationId;
 }
 
 /**
- * Poll Kling API for video generation completion.
+ * Poll AIML API for video generation completion.
  */
-async function pollKlingTask(taskId, maxAttempts = 60) {
+async function pollKlingTask(generationId, maxAttempts = 60) {
     const INTERVAL_MS = 5000; // 5 seconds
 
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, INTERVAL_MS));
 
-        console.log(`⏳ Kling poll ${i + 1}/${maxAttempts}: task ${taskId}...`);
+        console.log(`⏳ AIML poll ${i + 1}/${maxAttempts}: generation ${generationId}...`);
 
-        const response = await klingRequest('GET', `/v1/videos/image2video/${taskId}`);
+        const response = await aimlRequest('GET', `/v2/video/generations?generation_id=${generationId}`);
 
-        if (response.code !== 0) {
-            throw new Error(`Kling poll error: ${response.message || JSON.stringify(response)}`);
-        }
-
-        const status = response.data?.task_status;
+        const status = response.status;
         console.log(`   Status: ${status}`);
 
-        if (status === 'succeed') {
-            const videoUrl = response.data?.task_result?.videos?.[0]?.url;
+        if (status === 'completed' || status === 'succeed') {
+            // AIML may return video URL in different fields
+            const videoUrl = response.video_url
+                || response.output?.video_url
+                || response.data?.task_result?.videos?.[0]?.url
+                || response.generations?.[0]?.video?.url;
+
             if (!videoUrl) {
-                throw new Error('Kling task succeeded but no video URL found');
+                throw new Error(`Video completed but no URL found: ${JSON.stringify(response)}`);
             }
-            console.log(`✅ Kling video ready: ${videoUrl}`);
+            console.log(`✅ Video ready: ${videoUrl}`);
             return videoUrl;
         }
 
-        if (status === 'failed') {
-            const failReason = response.data?.task_status_msg || 'Unknown failure';
-            throw new Error(`Kling video generation failed: ${failReason}`);
+        if (status === 'failed' || status === 'error') {
+            const failReason = response.error || response.message || 'Unknown failure';
+            throw new Error(`Video generation failed: ${failReason}`);
         }
 
-        // Status is 'submitted' or 'processing' — continue polling
+        // Status is 'pending', 'queued', 'processing', 'generating' — continue polling
     }
 
-    throw new Error(`Kling video generation timed out after ${maxAttempts * INTERVAL_MS / 1000}s`);
+    throw new Error(`Video generation timed out after ${maxAttempts * INTERVAL_MS / 1000}s`);
 }
 
 /**
@@ -366,19 +419,9 @@ async function processTrendVideoJob(jobId, videoPrompt, sourceImageUrl, outputPa
     console.log(`🎥 Processing Trend video: ${jobId}`);
     console.log(`${'═'.repeat(50)}`);
 
-    // Download source image
-    let sourceBuffer;
-    try {
-        sourceBuffer = await downloadFromFirebase(sourceImageUrl);
-    } catch {
-        // If not a Firebase URL, try downloading directly
-        sourceBuffer = await downloadUrl(sourceImageUrl);
-    }
-
-    const imageBase64 = sourceBuffer.toString('base64');
-
-    // Submit Kling task
-    const taskId = await submitKlingVideoTask(imageBase64, videoPrompt, videoDuration);
+    // AIML API accepts image_url directly — no need to download/convert
+    // Submit AIML/Kling task with the source image URL
+    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration);
 
     // Poll for completion
     const videoUrl = await pollKlingTask(taskId);

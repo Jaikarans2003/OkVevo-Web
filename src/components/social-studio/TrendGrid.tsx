@@ -30,18 +30,21 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
                     </div>
                 </div>
 
-                {/* Prompt count badge */}
-                <div className="absolute top-4 right-4 flex gap-2">
+                {/* Type badge */}
+                <div className="absolute top-4 right-4">
                     <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
-                        <ImageIcon size={10} className="text-white/60" />
-                        <span className="text-[9px] font-black text-white/60">{trend.imagePrompts.length}</span>
+                        {trend.type === 'video' ? (
+                            <>
+                                <Play size={10} fill="currentColor" className="text-[#FF0080]/80" />
+                                <span className="text-[9px] font-black text-[#FF0080]/80">Image + Video</span>
+                            </>
+                        ) : (
+                            <>
+                                <ImageIcon size={10} className="text-white/60" />
+                                <span className="text-[9px] font-black text-white/60">Image</span>
+                            </>
+                        )}
                     </div>
-                    {trend.videoPrompts.length > 0 && (
-                        <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
-                            <Play size={10} fill="currentColor" className="text-[#FF0080]/80" />
-                            <span className="text-[9px] font-black text-[#FF0080]/80">{trend.videoPrompts.length}</span>
-                        </div>
-                    )}
                 </div>
             </div>
 
