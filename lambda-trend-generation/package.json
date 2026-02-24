@@ -1,0 +1,10 @@
+{
+    "name": "lambda-trend-generation",
+    "version": "1.0.0",
+    "description": "Lambda function for Instagram Trend photo/video generation using NanoBanana PRO and Kling 2.5 Turbo",
+    "main": "index.js",
+    "dependencies": {
+        "@google/genai": "^1.0.0",
+        "firebase-admin": "^13.0.2"
+    }
+}

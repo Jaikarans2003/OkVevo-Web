@@ -5,22 +5,11 @@ import { AnimatePresence } from 'framer-motion';
 import InstagramHero from '@/components/social-studio/InstagramHero';
 import TrendGrid from '@/components/social-studio/TrendGrid';
 import TrendModal from '@/components/social-studio/TrendModal';
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
-
-interface Trend {
-    id: string;
-    title: string;
-    description: string;
-    image: string;
-    tags: string[];
-}
+import type { TrendDefinition } from '@/data/trendDefinitions';
 
 export default function InstagramTrendsStudio() {
-    const pathname = usePathname();
-    const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
+    const [selectedTrend, setSelectedTrend] = useState<TrendDefinition | null>(null);
 
     return (
         <div className="min-h-screen bg-[#0B0B0D] text-white selection:bg-[#FF0080]/30 font-sans pb-20">

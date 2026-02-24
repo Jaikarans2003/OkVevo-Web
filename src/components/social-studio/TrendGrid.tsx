@@ -1,18 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Play, ImageIcon, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TREND_DEFINITIONS, type TrendDefinition } from '@/data/trendDefinitions';
 
-interface Trend {
-    id: string;
-    title: string;
-    description: string;
-    image: string;
-    tags: string[];
-    type: 'video' | 'image';
-}
-
-export const TrendCard = ({ trend, index, onClick }: { trend: Trend, index: number, onClick: () => void }) => {
+export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, index: number, onClick: () => void }) => {
     return (
         <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -36,6 +28,20 @@ export const TrendCard = ({ trend, index, onClick }: { trend: Trend, index: numb
                     <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transform scale-90 group-hover:scale-100 transition-transform duration-500">
                         {trend.type === 'video' ? <Play fill="currentColor" size={24} /> : <ImageIcon size={24} />}
                     </div>
+                </div>
+
+                {/* Prompt count badge */}
+                <div className="absolute top-4 right-4 flex gap-2">
+                    <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
+                        <ImageIcon size={10} className="text-white/60" />
+                        <span className="text-[9px] font-black text-white/60">{trend.imagePrompts.length}</span>
+                    </div>
+                    {trend.videoPrompts.length > 0 && (
+                        <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
+                            <Play size={10} fill="currentColor" className="text-[#FF0080]/80" />
+                            <span className="text-[9px] font-black text-[#FF0080]/80">{trend.videoPrompts.length}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -63,119 +69,8 @@ export const TrendCard = ({ trend, index, onClick }: { trend: Trend, index: numb
     );
 };
 
-const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
+const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [startX, setStartX] = useState(0);
-    const [scrollLeft, setScrollLeft] = useState(0);
-
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!scrollRef.current) return;
-        setIsDragging(true);
-        setStartX(e.pageX - scrollRef.current.offsetLeft);
-        setScrollLeft(scrollRef.current.scrollLeft);
-    };
-
-    const handleMouseLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging || !scrollRef.current) return;
-        e.preventDefault();
-        const x = e.pageX - scrollRef.current.offsetLeft;
-        const walk = (x - startX) * 2; // Scroll speed
-        scrollRef.current.scrollLeft = scrollLeft - walk;
-    };
-
-    const scroll = (direction: 'left' | 'right') => {
-        if (!scrollRef.current) return;
-        const scrollAmount = 400;
-        scrollRef.current.scrollBy({
-            left: direction === 'left' ? -scrollAmount : scrollAmount,
-            behavior: 'smooth'
-        });
-    };
-
-    const trends: Trend[] = [
-        {
-            id: '1',
-            title: 'Neural Glow',
-            description: 'Dynamic lighting shifts and ethereal aura synthesis for fashion reels.',
-            image: 'https://images.unsplash.com/photo-1649937801620-d31db7fb3ab3?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bmV1cmFsJTIwZ2xvd3xlbnwwfHwwfHx8MA%3D%3D',
-            tags: ['ReelTrend', 'ViralEdit', 'Fashion'],
-            type: 'video'
-        },
-        {
-            id: '2',
-            title: 'CyberFlow',
-            description: 'Transform portraits into high-end cyberpunk cinematics.',
-            image: 'https://i.pinimg.com/736x/7d/d2/c1/7dd2c173e396bc75f34f1ff3acd07730.jpg',
-            tags: ['Cyberpunk', 'Cinematic', 'AI'],
-            type: 'video'
-        },
-        {
-            id: '3',
-            title: 'Expansion',
-            description: 'Expand your photos into immersive landscapes using neural fill.',
-            image: 'https://images.unsplash.com/photo-1634942537040-f7ba41298016?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGluc3RhZ3JhbSUyMHRyZW5kc3xlbnwwfHwwfHx8MA%3D%3D',
-            tags: ['AIExpansion', 'Landscape', 'Viral'],
-            type: 'image'
-        },
-        {
-            id: '4',
-            title: 'Prism Drift',
-            description: 'Kaleidoscopic lens flares and dreamlike motion for artistic storytelling.',
-            image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&auto=format&fit=crop&q=60',
-            tags: ['Abstract', 'Motion', 'Story'],
-            type: 'video'
-        },
-        {
-            id: '5',
-            title: 'Grain Motion',
-            description: 'Retro 8mm film aesthetics with intelligent frame synthesis.',
-            image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=900&auto=format&fit=crop&q=60',
-            tags: ['Retro', 'Vintage', 'Film'],
-            type: 'image'
-        },
-        {
-            id: '6',
-            title: 'Voxel Rush',
-            description: 'Turn organic motion into block-based 3D digital artifacts.',
-            image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=900&auto=format&fit=crop&q=60',
-            tags: ['3D', 'Digital', 'Voxel'],
-            type: 'image'
-        },
-        {
-            id: '7',
-            title: 'Aero Static',
-            description: 'Low-gravity character physics with high-altitude atmospheric lighting.',
-            image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=900&auto=format&fit=crop&q=60',
-            tags: ['Physics', 'Space', 'Future'],
-            type: 'video'
-        },
-        {
-            id: '8',
-            title: 'Shadow Synth',
-            description: 'Project neural shadows that react to virtual light sources in real-time.',
-            image: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=900&auto=format&fit=crop&q=60',
-            tags: ['Shadows', 'Lighting', 'Realtime'],
-            type: 'image'
-        }
-    ];
-
-    const filteredTrends = trends.filter(trend =>
-        trend.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        trend.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-
-    const videoTrends = filteredTrends.filter(t => t.type === 'video');
-    const imageTrends = filteredTrends.filter(t => t.type === 'image');
 
     const videoScrollRef = useRef<HTMLDivElement>(null);
     const imageScrollRef = useRef<HTMLDivElement>(null);
@@ -189,6 +84,14 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
         });
     };
 
+    const filteredTrends = TREND_DEFINITIONS.filter(trend =>
+        trend.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trend.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const videoTrends = filteredTrends.filter(t => t.type === 'video');
+    const imageTrends = filteredTrends.filter(t => t.type === 'image');
+
     return (
         <section id="trends" className="max-w-7xl mx-auto px-6 py-24 overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
@@ -197,7 +100,7 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
                         Trending <span className="text-white/20">Studio</span>
                     </h2>
                     <p className="text-white/40 text-[10px] font-black uppercase tracking-widest shrink-0">
-                        Showing {filteredTrends.length} of {trends.length} Presets
+                        Showing {filteredTrends.length} of {TREND_DEFINITIONS.length} Presets
                     </p>
                 </div>
 
@@ -298,7 +201,7 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: Trend) => void }) => {
                 </div>
             </div>
 
-            {/* Scroll Indication Dots (Simplified for 2 rows) */}
+            {/* Scroll Indication Dots */}
             <div className="flex justify-center mt-12 gap-8">
                 <div className="flex items-center gap-2">
                     <span className="text-[8px] font-black uppercase tracking-widest text-[#FF0080]/60">Videos</span>
