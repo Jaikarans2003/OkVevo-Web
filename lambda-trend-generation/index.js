@@ -61,6 +61,22 @@ function initializeFirebase() {
 }
 
 // ────────────────────────────────────────────────────
+// Firestore Helpers
+// ────────────────────────────────────────────────────
+
+const TREND_COLLECTION = 'trendGenerations';
+
+async function updateTrendDoc(docId, fields) {
+    try {
+        const firestore = admin.firestore();
+        await firestore.collection(TREND_COLLECTION).doc(docId).update(fields);
+        console.log(`📝 Firestore updated: ${docId} →`, Object.keys(fields));
+    } catch (err) {
+        console.warn(`⚠️ Firestore update failed for ${docId}:`, err.message);
+    }
+}
+
+// ────────────────────────────────────────────────────
 // Firebase Storage Helpers
 // ────────────────────────────────────────────────────
 
@@ -352,7 +368,9 @@ async function pollKlingTask(generationId, maxAttempts = 60) {
         }
 
         if (status === 'failed' || status === 'error') {
-            const failReason = response.error || response.message || 'Unknown failure';
+            console.error('❌ AIML video failed — full response:', JSON.stringify(response, null, 2));
+            let failReason = response.error || response.message || 'Unknown failure';
+            if (typeof failReason === 'object') failReason = JSON.stringify(failReason);
             throw new Error(`Video generation failed: ${failReason}`);
         }
 
@@ -407,6 +425,9 @@ async function processTrendImageJob(jobId, masterPrompt, personImageUrl, outputP
     const destinationPath = outputPath || `TrendPhotos/${jobId}.png`;
     const publicUrl = await uploadToFirebase(imageBuffer, destinationPath);
 
+    // Update Firestore with imageUrl
+    await updateTrendDoc(jobId, { imageUrl: publicUrl });
+
     console.log(`\n✅ Image job ${jobId} complete: ${publicUrl}`);
     return publicUrl;
 }
@@ -433,6 +454,10 @@ async function processTrendVideoJob(jobId, videoPrompt, sourceImageUrl, outputPa
     // Upload to Firebase Storage
     const destinationPath = outputPath || `TrendPhotos/${jobId}.mp4`;
     const publicUrl = await uploadToFirebase(videoBuffer, destinationPath, 'video/mp4');
+
+    // Update Firestore — video jobId is "{parentJobId}-vid", update the parent doc
+    const parentDocId = jobId.endsWith('-vid') ? jobId.slice(0, -4) : jobId;
+    await updateTrendDoc(parentDocId, { videoUrl: publicUrl, status: 'complete' });
 
     console.log(`\n✅ Video job ${jobId} complete: ${publicUrl}`);
     return publicUrl;
@@ -462,10 +487,33 @@ exports.handler = async (event) => {
                     continue;
                 }
 
-                if (type === 'trend-video') {
-                    await processTrendVideoJob(jobId, masterPrompt, personImageUrl, outputPath, videoDuration || 5);
-                } else {
-                    await processTrendImageJob(jobId, masterPrompt, personImageUrl, outputPath);
+                try {
+                    if (type === 'trend-video') {
+                        await processTrendVideoJob(jobId, masterPrompt, personImageUrl, outputPath, videoDuration || 5);
+                    } else {
+                        await processTrendImageJob(jobId, masterPrompt, personImageUrl, outputPath);
+                        // Check if this trend also has a video job coming
+                        // If trendType is 'image', mark complete now.
+                        // If trendType is 'video', leave pending — video job will mark complete.
+                        try {
+                            const firestore = admin.firestore();
+                            const docSnap = await firestore.collection(TREND_COLLECTION).doc(jobId).get();
+                            const trendType = docSnap.exists ? docSnap.data()?.trendType : 'image';
+                            if (trendType !== 'video') {
+                                await updateTrendDoc(jobId, { status: 'complete' });
+                            }
+                        } catch {
+                            // If we can't read the doc, just mark complete
+                            await updateTrendDoc(jobId, { status: 'complete' });
+                        }
+                    }
+                } catch (jobError) {
+                    console.error(`❌ Job ${jobId} failed:`, jobError);
+                    const parentDocId = jobId.endsWith('-vid') ? jobId.slice(0, -4) : jobId;
+                    await updateTrendDoc(parentDocId, {
+                        status: 'error',
+                        errorMessage: jobError.message || 'Generation failed',
+                    });
                 }
             }
 

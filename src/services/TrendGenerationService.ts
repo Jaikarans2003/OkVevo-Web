@@ -1,38 +1,52 @@
 /**
- * Trend Generation Service
+ * Trend Generation Service — Fire-and-Forget with Firestore
  *
- * Orchestrates a single-output trend pipeline:
- *  1. Upload user's person photo to Firebase Storage
- *  2. Dispatch ONE image generation job to SQS
- *  3. Poll for the generated image
- *  4. (If video trend) Dispatch ONE video generation job
- *  5. Poll for the generated video
+ * 1. Upload user's photo to Firebase Storage
+ * 2. Create a Firestore doc in `trendGenerations`
+ * 3. Dispatch SQS jobs (image + optional video)
+ * 4. Return immediately — no polling
+ *
+ * The Lambda updates the Firestore doc when done.
  */
 
-import { storage } from '../config/firebase';
+import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+    collection,
+    doc,
+    setDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    Timestamp,
+    type Unsubscribe,
+} from 'firebase/firestore';
 import type { TrendDefinition } from '../data/trendDefinitions';
 
 // ── Types ───────────────────────────────────────────────────────────
 
-export type TrendJobStatus =
-    | 'idle'
-    | 'uploading'
-    | 'generating-image'
-    | 'generating-video'
-    | 'complete'
-    | 'error';
-
-export interface TrendPipelineResult {
-    status: TrendJobStatus;
+export interface TrendGeneration {
+    jobId: string;
+    userId: string;
+    trendId: string;
+    trendTitle: string;
+    trendType: 'image' | 'video';
+    imageOutputPath: string;
+    videoOutputPath?: string;
     imageUrl?: string;
     videoUrl?: string;
-    error?: string;
+    status: 'pending' | 'complete' | 'error';
+    errorMessage?: string;
+    createdAt: Timestamp;
 }
+
+const COLLECTION = 'trendGenerations';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-const generateTrendJobId = (): string => {
+const generateJobId = (): string => {
     const ts = Date.now();
     const rand = Math.random().toString(36).substring(2, 9);
     return `trend-${ts}-${rand}`;
@@ -65,13 +79,8 @@ const uploadImageToFirebase = async (
 
     const storageRef = ref(storage, storagePath);
     await uploadBytes(storageRef, blob);
-    const downloadUrl = await getDownloadURL(storageRef);
-
-    console.log(`✅ Uploaded to Firebase: ${storagePath}`);
-    return downloadUrl;
+    return await getDownloadURL(storageRef);
 };
-
-// ── Dispatch helpers ────────────────────────────────────────────────
 
 const dispatchJob = async (payload: Record<string, unknown>): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -89,87 +98,96 @@ const dispatchJob = async (payload: Record<string, unknown>): Promise<{ success:
     }
 };
 
-// ── Poll Firebase for a result ──────────────────────────────────────
+// ── Submit (fire-and-forget) ────────────────────────────────────────
 
-const pollForResult = async (outputPath: string): Promise<string> => {
-    const MAX_ATTEMPTS = 60;
-    const INTERVAL_MS = 3000;
-
-    for (let i = 0; i < MAX_ATTEMPTS; i++) {
-        await new Promise(r => setTimeout(r, INTERVAL_MS));
-        try {
-            const resultRef = ref(storage, outputPath);
-            return await getDownloadURL(resultRef);
-        } catch {
-            // Not ready yet
-        }
-    }
-    throw new Error(`Generation timed out for ${outputPath}`);
-};
-
-// ── Main Pipeline ───────────────────────────────────────────────────
-
-export const runTrendPipeline = async (
+export const submitTrendJob = async (
     personFile: File,
     trend: TrendDefinition,
-    onStatusChange: (status: TrendJobStatus, detail?: string) => void,
-): Promise<TrendPipelineResult> => {
-    const jobId = generateTrendJobId();
+    userId: string,
+): Promise<{ success: boolean; jobId?: string; error?: string }> => {
+    const jobId = generateJobId();
 
     try {
-        // ── Step 1: Upload person's photo ──
-        onStatusChange('uploading', 'Uploading your photo...');
+        // 1. Upload person photo
         const personBase64 = await fileToBase64(personFile);
         const personImageUrl = await uploadImageToFirebase(
             personBase64,
             `TrendPhotos/uploads/${jobId}.png`
         );
 
-        // ── Step 2: Generate image ──
-        onStatusChange('generating-image', 'Generating your image...');
-        const imgOutputPath = `TrendPhotos/${jobId}.png`;
+        // 2. Prepare paths
+        const imageOutputPath = `TrendPhotos/${jobId}.png`;
+        const videoOutputPath = trend.videoPrompt ? `TrendPhotos/${jobId}-vid.mp4` : undefined;
+
+        // 3. Create Firestore doc
+        const genDoc: TrendGeneration = {
+            jobId,
+            userId,
+            trendId: trend.id,
+            trendTitle: trend.title,
+            trendType: trend.type,
+            imageOutputPath,
+            videoOutputPath,
+            status: 'pending',
+            createdAt: Timestamp.now(),
+        };
+        await setDoc(doc(db, COLLECTION, jobId), genDoc);
+
+        // 4. Dispatch image job
         const imgResult = await dispatchJob({
             jobId,
             masterPrompt: trend.imagePrompt,
             personImageUrl,
-            outputPath: imgOutputPath,
+            outputPath: imageOutputPath,
             shotName: trend.title,
+            userId,
         });
-
         if (!imgResult.success) throw new Error(imgResult.error);
 
-        const imageUrl = await pollForResult(imgOutputPath);
-
-        // ── Step 3: Generate video (if applicable) ──
-        let videoUrl: string | undefined;
-
-        if (trend.videoPrompt) {
-            onStatusChange('generating-video', 'Generating your video...');
-            const vidJobId = `${jobId}-vid`;
-            const vidOutputPath = `TrendPhotos/${vidJobId}.mp4`;
-
-            const vidResult = await dispatchJob({
-                jobId: vidJobId,
+        // 5. Dispatch video job (if applicable)
+        if (trend.videoPrompt && videoOutputPath) {
+            await dispatchJob({
+                jobId: `${jobId}-vid`,
                 masterPrompt: trend.videoPrompt,
-                personImageUrl: imageUrl,
-                outputPath: vidOutputPath,
+                personImageUrl,
+                outputPath: videoOutputPath,
                 shotName: trend.title,
+                userId,
                 jobType: 'video',
                 videoDuration: trend.videoDuration || 5,
             });
-
-            if (vidResult.success) {
-                videoUrl = await pollForResult(vidOutputPath);
-            }
         }
 
-        // ── Done ──
-        onStatusChange('complete', 'Done!');
-        return { status: 'complete', imageUrl, videoUrl };
+        console.log(`✅ Trend job submitted: ${jobId}`);
+        return { success: true, jobId };
 
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
-        onStatusChange('error', msg);
-        return { status: 'error', error: msg };
+        console.error(`❌ Trend job failed: ${msg}`);
+        return { success: false, error: msg };
     }
+};
+
+// ── Real-time listener ──────────────────────────────────────────────
+
+export const subscribeToGenerations = (
+    userId: string,
+    onUpdate: (generations: TrendGeneration[]) => void,
+): Unsubscribe => {
+    const q = query(
+        collection(db, COLLECTION),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        const generations = snapshot.docs.map((d) => d.data() as TrendGeneration);
+        onUpdate(generations);
+    });
+};
+
+// ── Delete a generation ─────────────────────────────────────────────
+
+export const deleteGeneration = async (jobId: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTION, jobId));
 };

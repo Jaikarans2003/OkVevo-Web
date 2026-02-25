@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import InstagramHero from '@/components/social-studio/InstagramHero';
 import TrendGrid from '@/components/social-studio/TrendGrid';
 import TrendModal from '@/components/social-studio/TrendModal';
+import MyGenerations from '@/components/social-studio/MyGenerations';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import type { TrendDefinition } from '@/data/trendDefinitions';
 
@@ -23,6 +24,7 @@ export default function InstagramTrendsStudio() {
             <main>
                 <InstagramHero />
                 <TrendGrid onSelect={(trend) => setSelectedTrend(trend)} />
+                <MyGenerations />
             </main>
 
             {/* Trend Generation Modal */}
