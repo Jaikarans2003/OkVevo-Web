@@ -61,3 +61,6 @@ node_modules
 lambda-stitch-function/ffmpeg-layer/bin/
 
 *.tgz
+
+# Lambda deployment ZIPs
+lambda-*.zip
