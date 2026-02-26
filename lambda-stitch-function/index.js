@@ -145,15 +145,17 @@ function getVideoDuration(videoPath) {
 }
 
 /**
- * Stitch videos using FFmpeg with smooth crossfade transitions
- * Enhanced with better interpolation and quality settings
- * Now supports dynamic video durations and audio overlay
+ * Stitch N videos using FFmpeg with smooth crossfade transitions
+ * Supports dynamic video counts and optional audio overlay
  * 
- * @param {string[]} inputFiles - Array of video file paths
+ * @param {string[]} inputFiles - Array of video file paths (2+)
  * @param {string} outputFile - Output file path
  * @param {string|null} audioFile - Optional narration audio file path
  */
 async function stitchVideos(inputFiles, outputFile, audioFile = null) {
+    const n = inputFiles.length;
+    if (n < 2) throw new Error('Need at least 2 videos to stitch');
+
     // Probe all video durations first
     const durations = [];
     for (const file of inputFiles) {
@@ -164,98 +166,99 @@ async function stitchVideos(inputFiles, outputFile, audioFile = null) {
     console.log('Video durations:', durations);
 
     return new Promise((resolve, reject) => {
-        // Enhanced crossfade with smoother transition using easing curves
-        // Using 'smoothleft' and 'smoothright' for natural feeling transitions
-        // Increased transition duration to 1.5s for more cinematic effect
         const transitionDuration = 1.5;
+        const transitions = ['smoothleft', 'smoothright', 'fade', 'wipeleft'];
 
-        // Calculate dynamic offsets based on actual video durations
-        // First transition: starts when first video is about to end
-        const firstOffset = durations[0] - transitionDuration;
+        // Build filter complex dynamically for N videos
+        let filter = '';
 
-        // Second transition: starts at the end of the merged first two videos
-        // After first xfade: total_duration = duration[0] + duration[1] - transitionDuration
-        const secondOffset = durations[0] + durations[1] - (transitionDuration * 2);
-
-        console.log(`Transition timings:`);
-        console.log(`  First xfade: offset=${firstOffset}s (starts at ${firstOffset}s, ends at ${durations[0]}s)`);
-        console.log(`  Second xfade: offset=${secondOffset}s (starts at ${secondOffset}s)`);
-        console.log(`  Expected total duration: ${durations[0] + durations[1] + durations[2] - (transitionDuration * 2)}s`);
-
-        // Build filter based on whether we have narration audio
-        let filter;
-
-        if (audioFile) {
-            // WITH NARRATION AUDIO: Replace video audio completely with narration
-            // Video audio will be muted, only narration will be used
-            console.log('🎙️ Building filter with TTS narration ONLY (video audio muted)...');
-            filter =
-                // Normalize all video inputs
-                `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
-                `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
-                `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
-                // Video crossfade transitions
-                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
-                `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv]`;
-            // Note: No audio filter needed - narration (input 3:a) will be mapped directly
-        } else {
-            // WITHOUT NARRATION: Original audio crossfade logic
-            console.log('🎵 Building filter with video audio only...');
-            filter =
-                // Normalize all inputs
-                `[0:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v0];` +
-                `[1:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v1];` +
-                `[2:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v2];` +
-                // Video crossfade
-                `[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=${firstOffset}[vt1];` +
-                `[vt1][v2]xfade=transition=smoothright:duration=${transitionDuration}:offset=${secondOffset}[outv];` +
-                // Audio crossfade
-                `[0:a]atrim=0:${durations[0]},asetpts=PTS-STARTPTS[a0];` +
-                `[1:a]atrim=0:${durations[1]},asetpts=PTS-STARTPTS[a1];` +
-                `[2:a]atrim=0:${durations[2]},asetpts=PTS-STARTPTS[a2];` +
-                `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01];` +
-                `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[outa]`;
+        // Normalize all video inputs
+        for (let i = 0; i < n; i++) {
+            filter += `[${i}:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}];`;
         }
 
+        // Chain crossfade transitions
+        let prevLabel = 'v0';
+        let cumulativeOffset = 0;
+
+        for (let i = 1; i < n; i++) {
+            cumulativeOffset += durations[i - 1] - transitionDuration;
+            const transition = transitions[(i - 1) % transitions.length];
+            const outLabel = i === n - 1 ? 'outv' : `vt${i}`;
+            filter += `[${prevLabel}][v${i}]xfade=transition=${transition}:duration=${transitionDuration}:offset=${cumulativeOffset}[${outLabel}];`;
+            prevLabel = outLabel;
+            // After first crossfade, cumulative offset adjusts
+            // offset for next = previous_offset + duration[i] - transitionDuration
+            // But we recalculate from scratch each time
+        }
+
+        // Recalculate offsets correctly from scratch
+        filter = '';
+        for (let i = 0; i < n; i++) {
+            filter += `[${i}:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}];`;
+        }
+
+        prevLabel = 'v0';
+        let runningDuration = durations[0];
+
+        for (let i = 1; i < n; i++) {
+            const offset = runningDuration - transitionDuration;
+            const transition = transitions[(i - 1) % transitions.length];
+            const outLabel = i === n - 1 ? 'outv' : `vt${i}`;
+            filter += `[${prevLabel}][v${i}]xfade=transition=${transition}:duration=${transitionDuration}:offset=${offset}[${outLabel}];`;
+            prevLabel = outLabel;
+            runningDuration = offset + durations[i]; // After crossfade, new running duration
+        }
+
+        // Handle audio
+        if (!audioFile) {
+            // Build audio crossfade chain for N videos
+            for (let i = 0; i < n; i++) {
+                filter += `[${i}:a]atrim=0:${durations[i]},asetpts=PTS-STARTPTS[a${i}];`;
+            }
+            let prevAudio = 'a0';
+            for (let i = 1; i < n; i++) {
+                const outAudio = i === n - 1 ? 'outa' : `at${i}`;
+                filter += `[${prevAudio}][a${i}]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[${outAudio}];`;
+                prevAudio = outAudio;
+            }
+        }
+
+        // Remove trailing semicolon
+        filter = filter.replace(/;$/, '');
+
+        console.log(`Filter complex (${n} videos):`, filter.substring(0, 200) + '...');
 
         // Build FFmpeg arguments
-        const args = [
-            '-i', inputFiles[0],
-            '-i', inputFiles[1],
-            '-i', inputFiles[2]
-        ];
+        const args = [];
+        for (const file of inputFiles) {
+            args.push('-i', file);
+        }
 
-        // Add audio input if provided
         if (audioFile) {
             args.push('-i', audioFile);
         }
 
-        // Add filter and mapping
-        args.push(
-            '-filter_complex', filter,
-            '-map', '[outv]'  // Map video from filter
-        );
+        args.push('-filter_complex', filter, '-map', '[outv]');
 
-        // Map audio: narration if provided, otherwise filtered video audio
         if (audioFile) {
-            args.push('-map', '3:a');  // Map narration audio directly (4th input = mute videos)
+            args.push('-map', `${n}:a`); // Audio is the last input
         } else {
-            args.push('-map', '[outa]');  // Map filtered video audio
+            args.push('-map', '[outa]');
         }
 
-        // Encoding settings
         args.push(
             '-c:v', 'libx264',
-            '-preset', 'slow',        // Better quality encoding for smoother transitions
-            '-crf', '20',             // Higher quality (lower CRF = better quality)
-            '-profile:v', 'high',     // Use high profile for better compression
-            '-level', '4.1',          // Compatibility level
-            '-pix_fmt', 'yuv420p',    // Ensure compatibility
+            '-preset', 'slow',
+            '-crf', '20',
+            '-profile:v', 'high',
+            '-level', '4.1',
+            '-pix_fmt', 'yuv420p',
             '-c:a', 'aac',
-            '-b:a', '256k',           // Higher audio bitrate for better quality
-            '-ar', '48000',           // Standard audio sample rate
-            '-movflags', '+faststart', // Enable fast start for web playback
-            '-y',                     // Overwrite output file
+            '-b:a', '256k',
+            '-ar', '48000',
+            '-movflags', '+faststart',
+            '-y',
             outputFile
         );
 
@@ -334,10 +337,11 @@ async function downloadAudioFromFirebase(audioUrl, filename) {
 /**
  * Core stitching logic (extracted for reuse)
  */
-async function processStitchingJob(videoUrls, sessionId = 'default', audioUrl = null) {
+async function processStitchingJob(videoUrls, sessionId = 'default', audioUrl = null, trendJobId = null) {
     console.log(`Processing stitching job: ${sessionId}`);
-    console.log(`Video URLs:`, videoUrls);
+    console.log(`Video URLs (${videoUrls.length}):`, videoUrls);
     console.log(`Audio URL:`, audioUrl);
+    console.log(`Trend Job ID:`, trendJobId);
 
     // Download videos
     const downloadedVideos = [];
@@ -373,6 +377,20 @@ async function processStitchingJob(videoUrls, sessionId = 'default', audioUrl = 
         expires: Date.now() + 7 * 24 * 60 * 60 * 1000
     });
 
+    // If this was triggered by a trend pipeline, update the trend Firestore doc
+    if (trendJobId) {
+        try {
+            const firestore = admin.firestore();
+            await firestore.collection('trendGenerations').doc(trendJobId).update({
+                finalVideoUrl: url,
+                status: 'complete',
+            });
+            console.log(`📝 Trend Firestore updated: ${trendJobId} → complete`);
+        } catch (err) {
+            console.warn(`⚠️ Failed to update trend Firestore doc ${trendJobId}:`, err.message);
+        }
+    }
+
     // Cleanup
     [...downloadedVideos, stitchedPath].forEach(path => {
         try { fs.unlinkSync(path); } catch (err) { }
@@ -400,14 +418,14 @@ exports.handler = async (event) => {
             // Process each SQS message (batch size = 1 recommended)
             for (const record of event.Records) {
                 const body = JSON.parse(record.body);
-                const { jobId, videoUrls, audioUrl } = body;
+                const { jobId, videoUrls, audioUrl, trendJobId } = body;
 
-                if (!videoUrls || videoUrls.length !== 3) {
-                    throw new Error('SQS message must contain 3 video URLs');
+                if (!videoUrls || videoUrls.length < 2) {
+                    throw new Error('SQS message must contain at least 2 video URLs');
                 }
 
                 console.log(`Processing SQS job: ${jobId}`);
-                const videoUrl = await processStitchingJob(videoUrls, jobId, audioUrl);
+                const videoUrl = await processStitchingJob(videoUrls, jobId, audioUrl, trendJobId);
 
                 console.log(`✅ SQS job ${jobId} completed: ${videoUrl}`);
                 // Note: For SQS, the final video URL is returned in logs
@@ -424,7 +442,7 @@ exports.handler = async (event) => {
             const body = event.body ? JSON.parse(event.body) : event;
             const { videoUrls, sessionId = 'default', audioUrl } = body;
 
-            if (!videoUrls || videoUrls.length !== 3) {
+            if (!videoUrls || videoUrls.length < 2) {
                 return {
                     statusCode: 400,
                     headers: {
@@ -433,7 +451,7 @@ exports.handler = async (event) => {
                     },
                     body: JSON.stringify({
                         success: false,
-                        error: 'Must provide 3 video URLs'
+                        error: 'Must provide at least 2 video URLs'
                     })
                 };
             }

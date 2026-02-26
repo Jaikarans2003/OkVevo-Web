@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (videoUrls.length !== 3) {
+        if (!videoUrls || !Array.isArray(videoUrls) || videoUrls.length < 2) {
             return NextResponse.json(
-                { success: false, error: 'Exactly 3 video URLs required for stitching' },
+                { success: false, error: 'At least 2 video URLs required for stitching' },
                 { status: 400 }
             );
         }

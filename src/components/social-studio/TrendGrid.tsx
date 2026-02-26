@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Play, ImageIcon, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, ImageIcon, Search, X } from 'lucide-react';
 import { TREND_DEFINITIONS, type TrendDefinition } from '@/data/trendDefinitions';
 
 export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, index: number, onClick: () => void }) => {
@@ -26,22 +26,22 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
                 {/* Type Icon Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transform scale-90 group-hover:scale-100 transition-transform duration-500">
-                        {trend.type === 'video' ? <Play fill="currentColor" size={24} /> : <ImageIcon size={24} />}
+                        {trend.videoPrompts.length > 0 ? <Play fill="currentColor" size={24} /> : <ImageIcon size={24} />}
                     </div>
                 </div>
 
                 {/* Type badge */}
                 <div className="absolute top-4 right-4">
                     <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
-                        {trend.type === 'video' ? (
+                        {trend.videoPrompts.length > 0 ? (
                             <>
                                 <Play size={10} fill="currentColor" className="text-[#FF0080]/80" />
-                                <span className="text-[9px] font-black text-[#FF0080]/80">Image + Video</span>
+                                <span className="text-[9px] font-black text-[#FF0080]/80">{trend.imagePrompts.length} Shots + Video</span>
                             </>
                         ) : (
                             <>
                                 <ImageIcon size={10} className="text-white/60" />
-                                <span className="text-[9px] font-black text-white/60">Image</span>
+                                <span className="text-[9px] font-black text-white/60">{trend.imagePrompts.length} Shots</span>
                             </>
                         )}
                     </div>
@@ -75,25 +75,10 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
 const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
-    const videoScrollRef = useRef<HTMLDivElement>(null);
-    const imageScrollRef = useRef<HTMLDivElement>(null);
-
-    const scrollSpecific = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
-        if (!ref.current) return;
-        const scrollAmount = 400;
-        ref.current.scrollBy({
-            left: direction === 'left' ? -scrollAmount : scrollAmount,
-            behavior: 'smooth'
-        });
-    };
-
     const filteredTrends = TREND_DEFINITIONS.filter(trend =>
         trend.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         trend.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-
-    const videoTrends = filteredTrends.filter(t => t.type === 'video');
-    const imageTrends = filteredTrends.filter(t => t.type === 'image');
 
     return (
         <section id="trends" className="max-w-7xl mx-auto px-6 py-24 overflow-hidden">
@@ -130,103 +115,21 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void })
                 </div>
             </div>
 
-            {/* Video Trends Row */}
+            {/* Trends Row */}
             <div className="space-y-8 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#FF0080] flex items-center gap-3">
                         <Play size={14} fill="currentColor" />
-                        Video Trends
+                        Available Trends
                     </h3>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => scrollSpecific(videoScrollRef, 'left')}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                        <button
-                            onClick={() => scrollSpecific(videoScrollRef, 'right')}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
                 </div>
-                <div
-                    ref={videoScrollRef}
-                    className="flex gap-6 md:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-6 px-6 snap-x snap-mandatory touch-pan-x"
-                >
-                    {videoTrends.map((trend, idx) => (
-                        <div key={trend.id} className="min-w-[280px] md:min-w-[340px] flex-shrink-0 snap-start">
-                            <TrendCard trend={trend} index={idx} onClick={() => onSelect(trend)} />
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                    {filteredTrends.map((trend, idx) => (
+                        <TrendCard key={trend.id} trend={trend} index={idx} onClick={() => onSelect(trend)} />
                     ))}
-                    {videoTrends.length === 0 && (
-                        <div className="w-full py-12 text-center text-white/20 text-xs font-black uppercase tracking-widest">No video trends found</div>
+                    {filteredTrends.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-white/20 text-xs font-black uppercase tracking-widest">No trends found</div>
                     )}
-                </div>
-            </div>
-
-            {/* Image Trends Row */}
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-white flex items-center gap-3">
-                        <ImageIcon size={14} />
-                        Image Trends
-                    </h3>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => scrollSpecific(imageScrollRef, 'left')}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                        <button
-                            onClick={() => scrollSpecific(imageScrollRef, 'right')}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all text-white/40 hover:text-white"
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
-                </div>
-                <div
-                    ref={imageScrollRef}
-                    className="flex gap-6 md:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-6 px-6 snap-x snap-mandatory touch-pan-x"
-                >
-                    {imageTrends.map((trend, idx) => (
-                        <div key={trend.id} className="min-w-[280px] md:min-w-[340px] flex-shrink-0 snap-start">
-                            <TrendCard trend={trend} index={idx} onClick={() => onSelect(trend)} />
-                        </div>
-                    ))}
-                    {imageTrends.length === 0 && (
-                        <div className="w-full py-12 text-center text-white/20 text-xs font-black uppercase tracking-widest">No image trends found</div>
-                    )}
-                </div>
-            </div>
-
-            {/* Scroll Indication Dots */}
-            <div className="flex justify-center mt-12 gap-8">
-                <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-[#FF0080]/60">Videos</span>
-                    <div className="w-12 h-[2px] bg-[#FF0080]/20 rounded-full overflow-hidden">
-                        <motion.div
-                            className="h-full bg-[#FF0080]"
-                            initial={{ width: 0 }}
-                            animate={{ width: "100%" }}
-                            transition={{ duration: 2 }}
-                        />
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Images</span>
-                    <div className="w-12 h-[2px] bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                            className="h-full bg-white/40"
-                            initial={{ width: 0 }}
-                            animate={{ width: "100%" }}
-                            transition={{ duration: 2, delay: 0.2 }}
-                        />
-                    </div>
                 </div>
             </div>
         </section>

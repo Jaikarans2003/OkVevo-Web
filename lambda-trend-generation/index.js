@@ -404,63 +404,183 @@ function downloadUrl(url) {
 // ────────────────────────────────────────────────────
 
 /**
- * Process a trend IMAGE generation job.
+ * Generate a single image, upload, return URL.
  */
-async function processTrendImageJob(jobId, masterPrompt, personImageUrl, outputPath) {
-    console.log(`\n${'═'.repeat(50)}`);
-    console.log(`📸 Processing Trend image: ${jobId}`);
-    console.log(`${'═'.repeat(50)}`);
+async function generateAndUploadImage(prompt, personBuffer, outputPath) {
+    const imageBuffer = await generateTrendImage(prompt, personBuffer);
+    const publicUrl = await uploadToFirebase(imageBuffer, outputPath);
+    console.log(`✅ Image uploaded: ${publicUrl}`);
+    return publicUrl;
+}
 
-    // Download person's reference image
+/**
+ * Generate a single video from image URL, upload, return URL.
+ */
+async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration) {
+    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration);
+    const videoUrl = await pollKlingTask(taskId);
+
+    console.log('📥 Downloading generated video...');
+    const videoBuffer = await downloadUrl(videoUrl);
+    const publicUrl = await uploadToFirebase(videoBuffer, outputPath, 'video/mp4');
+    console.log(`✅ Video uploaded: ${publicUrl}`);
+    return publicUrl;
+}
+
+/**
+ * Dispatch a stitching job to the stitch SQS queue.
+ */
+async function dispatchStitchJob(jobId, videoUrls) {
+    const https = require('https');
+    const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+
+    const queueUrl = process.env.SQS_STITCHING_QUEUE_URL;
+    if (!queueUrl) {
+        console.warn('⚠️ SQS_STITCHING_QUEUE_URL not set — skipping stitch dispatch');
+        return;
+    }
+
+    const sqsClient = new SQSClient({
+        region: process.env.AWS_REGION || 'us-east-1',
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+    });
+
+    const messageBody = JSON.stringify({
+        jobId: `stitch-${jobId}`,
+        videoUrls,
+        trendJobId: jobId, // So stitch Lambda can update the trend Firestore doc
+        timestamp: new Date().toISOString(),
+    });
+
+    const command = new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: messageBody,
+        MessageGroupId: jobId,
+        MessageDeduplicationId: `stitch-${jobId}-${Date.now()}`,
+    });
+
+    const result = await sqsClient.send(command);
+    console.log(`✅ Stitch job dispatched: ${result.MessageId}`);
+}
+
+/**
+ * Process a full trend pipeline:
+ *   1. Generate all images sequentially
+ *   2. Generate all videos sequentially
+ *   3. Dispatch stitch job
+ */
+async function processTrendPipeline(body) {
+    const {
+        jobId,
+        personImageUrl,
+        imagePrompts,
+        videoPrompts,
+        imageOutputPaths,
+        videoOutputPaths,
+        videoDuration = 5,
+    } = body;
+
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log(`🎬 PIPELINE: ${jobId}`);
+    console.log(`   ${imagePrompts.length} images + ${videoPrompts.length} videos`);
+    console.log(`${'═'.repeat(60)}`);
+
+    // Download person's reference image once
     let personBuffer = null;
     if (personImageUrl) {
         console.log('📥 Downloading person reference image...');
         personBuffer = await downloadFromFirebase(personImageUrl);
     }
 
-    // Generate image with person reference
-    const imageBuffer = await generateTrendImage(masterPrompt, personBuffer);
+    // ── Phase 1: Generate all images ────────────────────────────
+    await updateTrendDoc(jobId, { status: 'generating-images' });
+    const imageUrls = [];
 
-    // Upload result to Firebase Storage
-    const destinationPath = outputPath || `TrendPhotos/${jobId}.png`;
-    const publicUrl = await uploadToFirebase(imageBuffer, destinationPath);
+    for (let i = 0; i < imagePrompts.length; i++) {
+        console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
+        try {
+            const url = await generateAndUploadImage(
+                imagePrompts[i],
+                personBuffer,
+                imageOutputPaths[i]
+            );
+            imageUrls.push(url);
 
-    // Update Firestore with imageUrl
-    await updateTrendDoc(jobId, { imageUrl: publicUrl });
+            // Update Firestore — set this image slot's url
+            const firestore = admin.firestore();
+            const docRef = firestore.collection(TREND_COLLECTION).doc(jobId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const images = docSnap.data().images || [];
+                if (images[i]) {
+                    images[i].url = url;
+                    await docRef.update({ images });
+                }
+            }
+        } catch (err) {
+            console.error(`❌ Image ${i} failed:`, err.message);
+            imageUrls.push(null);
+        }
+    }
 
-    console.log(`\n✅ Image job ${jobId} complete: ${publicUrl}`);
-    return publicUrl;
-}
+    console.log(`\n✅ Images done: ${imageUrls.filter(Boolean).length}/${imagePrompts.length}`);
 
-/**
- * Process a trend VIDEO generation job.
- */
-async function processTrendVideoJob(jobId, videoPrompt, sourceImageUrl, outputPath, videoDuration) {
-    console.log(`\n${'═'.repeat(50)}`);
-    console.log(`🎥 Processing Trend video: ${jobId}`);
-    console.log(`${'═'.repeat(50)}`);
+    // ── Phase 2: Generate all videos ────────────────────────────
+    await updateTrendDoc(jobId, { status: 'generating-videos' });
+    const videoResultUrls = [];
 
-    // AIML API accepts image_url directly — no need to download/convert
-    // Submit AIML/Kling task with the source image URL
-    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration);
+    for (let i = 0; i < videoPrompts.length; i++) {
+        const { prompt, sourceImageIndex } = videoPrompts[i];
+        const sourceImageUrl = imageUrls[sourceImageIndex];
 
-    // Poll for completion
-    const videoUrl = await pollKlingTask(taskId);
+        if (!sourceImageUrl) {
+            console.warn(`⚠️ Video ${i}: source image ${sourceImageIndex} missing, skipping`);
+            videoResultUrls.push(null);
+            continue;
+        }
 
-    // Download the generated video
-    console.log('📥 Downloading generated video from Kling...');
-    const videoBuffer = await downloadUrl(videoUrl);
+        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex})`);
+        try {
+            const url = await generateAndUploadVideo(
+                prompt,
+                sourceImageUrl,
+                videoOutputPaths[i],
+                videoDuration
+            );
+            videoResultUrls.push(url);
 
-    // Upload to Firebase Storage
-    const destinationPath = outputPath || `TrendPhotos/${jobId}.mp4`;
-    const publicUrl = await uploadToFirebase(videoBuffer, destinationPath, 'video/mp4');
+            // Update Firestore — set this video slot's url
+            const firestore = admin.firestore();
+            const docRef = firestore.collection(TREND_COLLECTION).doc(jobId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const videos = docSnap.data().videos || [];
+                if (videos[i]) {
+                    videos[i].url = url;
+                    await docRef.update({ videos });
+                }
+            }
+        } catch (err) {
+            console.error(`❌ Video ${i} failed:`, err.message);
+            videoResultUrls.push(null);
+        }
+    }
 
-    // Update Firestore — video jobId is "{parentJobId}-vid", update the parent doc
-    const parentDocId = jobId.endsWith('-vid') ? jobId.slice(0, -4) : jobId;
-    await updateTrendDoc(parentDocId, { videoUrl: publicUrl, status: 'complete' });
+    console.log(`\n✅ Videos done: ${videoResultUrls.filter(Boolean).length}/${videoPrompts.length}`);
 
-    console.log(`\n✅ Video job ${jobId} complete: ${publicUrl}`);
-    return publicUrl;
+    // ── Phase 3: Dispatch stitch job ────────────────────────────
+    const validVideoUrls = videoResultUrls.filter(Boolean);
+    if (validVideoUrls.length >= 2) {
+        await updateTrendDoc(jobId, { status: 'stitching' });
+        await dispatchStitchJob(jobId, validVideoUrls);
+    } else {
+        // Not enough videos to stitch — mark complete with what we have
+        console.warn('⚠️ Not enough videos for stitching, marking complete');
+        await updateTrendDoc(jobId, { status: 'complete' });
+    }
 }
 
 // ────────────────────────────────────────────────────
@@ -480,37 +600,22 @@ exports.handler = async (event) => {
 
             for (const record of event.Records) {
                 const body = JSON.parse(record.body);
-                const { type, jobId, masterPrompt, personImageUrl, outputPath, videoDuration } = body;
+                const { type, jobId } = body;
 
-                if (!jobId || !masterPrompt) {
-                    console.error('❌ Invalid SQS message: missing jobId or masterPrompt');
+                if (!jobId) {
+                    console.error('❌ Invalid SQS message: missing jobId');
                     continue;
                 }
 
                 try {
-                    if (type === 'trend-video') {
-                        await processTrendVideoJob(jobId, masterPrompt, personImageUrl, outputPath, videoDuration || 5);
+                    if (type === 'trend-pipeline') {
+                        await processTrendPipeline(body);
                     } else {
-                        await processTrendImageJob(jobId, masterPrompt, personImageUrl, outputPath);
-                        // Check if this trend also has a video job coming
-                        // If trendType is 'image', mark complete now.
-                        // If trendType is 'video', leave pending — video job will mark complete.
-                        try {
-                            const firestore = admin.firestore();
-                            const docSnap = await firestore.collection(TREND_COLLECTION).doc(jobId).get();
-                            const trendType = docSnap.exists ? docSnap.data()?.trendType : 'image';
-                            if (trendType !== 'video') {
-                                await updateTrendDoc(jobId, { status: 'complete' });
-                            }
-                        } catch {
-                            // If we can't read the doc, just mark complete
-                            await updateTrendDoc(jobId, { status: 'complete' });
-                        }
+                        console.warn(`⚠️ Unknown job type: ${type}`);
                     }
                 } catch (jobError) {
                     console.error(`❌ Job ${jobId} failed:`, jobError);
-                    const parentDocId = jobId.endsWith('-vid') ? jobId.slice(0, -4) : jobId;
-                    await updateTrendDoc(parentDocId, {
+                    await updateTrendDoc(jobId, {
                         status: 'error',
                         errorMessage: jobError.message || 'Generation failed',
                     });
@@ -521,30 +626,12 @@ exports.handler = async (event) => {
 
         } else {
             // ═══════ HTTP TRIGGER (Testing) ═══════
-            console.log('🔹 HTTP Trigger');
-
-            const body = event.body ? JSON.parse(event.body) : event;
-            const { type, jobId, masterPrompt, personImageUrl, outputPath, videoDuration } = body;
-
-            if (!jobId || !masterPrompt) {
-                return {
-                    statusCode: 400,
-                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-                    body: JSON.stringify({ success: false, error: 'jobId and masterPrompt are required' }),
-                };
-            }
-
-            let resultUrl;
-            if (type === 'trend-video') {
-                resultUrl = await processTrendVideoJob(jobId, masterPrompt, personImageUrl, outputPath, videoDuration || 5);
-            } else {
-                resultUrl = await processTrendImageJob(jobId, masterPrompt, personImageUrl, outputPath);
-            }
+            console.log('🔹 HTTP Trigger — use SQS for pipeline');
 
             return {
                 statusCode: 200,
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ success: true, jobId, resultUrl, type: type || 'trend-photo' }),
+                body: JSON.stringify({ success: true, message: 'Use SQS trigger for pipeline jobs' }),
             };
         }
     } catch (error) {

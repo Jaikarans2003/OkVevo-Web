@@ -4,30 +4,16 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 /**
  * Trend Photos API Route — SQS Dispatch
  *
- * Dispatches trend photo/video generation jobs to a dedicated SQS FIFO queue.
- * The Lambda consumer will:
- *   1. Download the person's image from Firebase Storage
- *   2. Call NANOBANANA PRO (Gemini) with the trend prompt + person's image
- *   3. Optionally call Kling 2.5 Turbo for video generation
- *   4. Upload results to TrendPhotos/{jobId}.png or .mp4
+ * Supports both legacy single-job and new pipeline dispatch.
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const {
-            jobId,
-            masterPrompt,
-            personImageUrl,
-            outputPath,
-            shotName,
-            userId,
-            jobType,          // 'image' (default) or 'video'
-            videoDuration,    // 5 or 10 seconds
-        } = body;
+        const { type, jobId, userId } = body;
 
-        if (!jobId || !masterPrompt) {
+        if (!jobId) {
             return NextResponse.json(
-                { success: false, error: 'jobId and masterPrompt are required' },
+                { success: false, error: 'jobId is required' },
                 { status: 400 }
             );
         }
@@ -43,7 +29,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 jobId,
-                message: 'Trend photo job acknowledged (SQS not configured, mock mode)',
+                message: 'Trend job acknowledged (SQS not configured, mock mode)',
                 mock: true,
             });
         }
@@ -57,15 +43,9 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Forward the entire body as-is to the Lambda
         const messageBody = JSON.stringify({
-            type: jobType === 'video' ? 'trend-video' : 'trend-photo',
-            jobId,
-            masterPrompt,
-            personImageUrl: personImageUrl || null,
-            outputPath: outputPath || `TrendPhotos/${jobId}.png`,
-            shotName: shotName || 'Unknown Shot',
-            userId: userId || 'anonymous',
-            videoDuration: videoDuration || 5,
+            ...body,
             timestamp: new Date().toISOString(),
         });
 
@@ -78,13 +58,8 @@ export async function POST(request: NextRequest) {
 
         console.log('🎬 Dispatching trend job to SQS FIFO:', {
             jobId,
-            shotName,
-            jobType: jobType || 'image',
+            type: type || 'trend-photo',
             userId: userId || 'anonymous',
-            promptLength: masterPrompt.length,
-            hasPersonImage: !!personImageUrl,
-            outputPath: outputPath || `TrendPhotos/${jobId}.png`,
-            queueUrl,
         });
 
         const result = await sqsClient.send(command);

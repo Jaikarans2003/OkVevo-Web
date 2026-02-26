@@ -13,6 +13,8 @@ import {
     ChevronDown,
     Sparkles,
     AlertCircle,
+    CheckCircle,
+    Film,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +22,26 @@ import {
     subscribeToGenerations,
     deleteGeneration,
     type TrendGeneration,
+    type PipelineStatus,
 } from '@/services/TrendGenerationService';
+
+const STATUS_LABELS: Record<PipelineStatus, string> = {
+    'pending': 'Starting...',
+    'generating-images': 'Generating images',
+    'generating-videos': 'Generating videos',
+    'stitching': 'Stitching final video',
+    'complete': 'Complete',
+    'error': 'Failed',
+};
+
+const STATUS_COLORS: Record<PipelineStatus, string> = {
+    'pending': 'bg-yellow-400 animate-pulse',
+    'generating-images': 'bg-blue-400 animate-pulse',
+    'generating-videos': 'bg-purple-400 animate-pulse',
+    'stitching': 'bg-orange-400 animate-pulse',
+    'complete': 'bg-green-400',
+    'error': 'bg-red-400',
+};
 
 export default function MyGenerations() {
     const { user } = useAuth();
@@ -28,7 +49,6 @@ export default function MyGenerations() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState(false);
 
-    // Real-time Firestore listener
     useEffect(() => {
         if (!user?.uid) return;
         const unsubscribe = subscribeToGenerations(user.uid, setGenerations);
@@ -59,7 +79,7 @@ export default function MyGenerations() {
 
     if (!user?.uid || generations.length === 0) return null;
 
-    const pendingCount = generations.filter(g => g.status === 'pending').length;
+    const activeCount = generations.filter(g => g.status !== 'complete' && g.status !== 'error').length;
 
     return (
         <section className="max-w-7xl mx-auto px-6 py-16">
@@ -72,11 +92,11 @@ export default function MyGenerations() {
                     <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-white">
                         My <span className="text-white/20">Generations</span>
                     </h2>
-                    {pendingCount > 0 && (
+                    {activeCount > 0 && (
                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF0080]/10 border border-[#FF0080]/20">
                             <Loader2 className="w-3 h-3 text-[#FF0080] animate-spin" />
                             <span className="text-[10px] font-black text-[#FF0080] uppercase tracking-wider">
-                                {pendingCount} Processing
+                                {activeCount} Active
                             </span>
                         </div>
                     )}
@@ -89,130 +109,30 @@ export default function MyGenerations() {
             {/* Grid */}
             {!collapsed && (
                 <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                 >
                     <AnimatePresence>
                         {generations.map((gen) => (
-                            <motion.div
+                            <GenerationCard
                                 key={gen.jobId}
-                                layout
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-[#151518] rounded-2xl border border-white/10 overflow-hidden group"
-                            >
-                                {/* Card Header */}
-                                <div className="p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`w-2 h-2 rounded-full shrink-0 ${gen.status === 'pending' ? 'bg-yellow-400 animate-pulse' :
-                                                gen.status === 'complete' ? 'bg-green-400' :
-                                                    'bg-red-400'
-                                            }`} />
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-white truncate">{gen.trendTitle}</p>
-                                            <p className="text-[10px] text-white/30 uppercase tracking-wider">
-                                                {gen.status === 'pending' ? 'Processing...' :
-                                                    gen.status === 'error' ? 'Failed' :
-                                                        gen.trendType === 'video' ? 'Image + Video' : 'Image'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(gen.jobId); }}
-                                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5 text-white/30 hover:text-red-400" />
-                                    </button>
-                                </div>
-
-                                {/* Card Body */}
-                                {gen.status === 'pending' && (
-                                    <div className="aspect-[4/3] bg-gradient-to-br from-white/5 to-white/[0.02] flex flex-col items-center justify-center gap-3">
-                                        <Loader2 className="w-8 h-8 text-[#FF0080]/40 animate-spin" />
-                                        <div className="flex items-center gap-1.5 text-white/20">
-                                            <Clock className="w-3 h-3" />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider">
-                                                Generating...
-                                            </span>
-                                        </div>
-                                        {/* Shimmer */}
-                                        <div className="w-3/4 h-1 rounded-full bg-white/5 overflow-hidden">
-                                            <motion.div
-                                                className="h-full bg-gradient-to-r from-transparent via-[#FF0080]/30 to-transparent"
-                                                animate={{ x: ['-100%', '200%'] }}
-                                                transition={{ duration: 1.5, repeat: Infinity }}
-                                                style={{ width: '50%' }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {gen.status === 'error' && (
-                                    <div className="aspect-[4/3] bg-gradient-to-br from-red-500/5 to-transparent flex flex-col items-center justify-center gap-3 px-6">
-                                        <AlertCircle className="w-8 h-8 text-red-400/40" />
-                                        <p className="text--xs text-red-400/60 text-center line-clamp-2">
-                                            {gen.errorMessage || 'Generation failed'}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {gen.status === 'complete' && gen.imageUrl && (
-                                    <>
-                                        <div
-                                            className="relative aspect-[4/3] cursor-pointer"
-                                            onClick={() => setExpandedId(expandedId === gen.jobId ? null : gen.jobId)}
-                                        >
-                                            <Image
-                                                src={gen.imageUrl}
-                                                alt={gen.trendTitle}
-                                                fill
-                                                className="object-cover"
-                                            />
-                                            {gen.videoUrl && (
-                                                <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center gap-1">
-                                                    <Video className="w-3 h-3 text-[#FF0080]" />
-                                                    <span className="text-[9px] font-bold text-[#FF0080]">VIDEO</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="p-3 flex gap-2">
-                                            <button
-                                                onClick={() => handleDownload(gen.imageUrl!, `${gen.trendId}-image.png`)}
-                                                className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors
-                                                           flex items-center justify-center gap-1.5 text-xs text-white/50 hover:text-white"
-                                            >
-                                                <ImageIcon className="w-3 h-3" />
-                                                <Download className="w-3 h-3" />
-                                            </button>
-                                            {gen.videoUrl && (
-                                                <button
-                                                    onClick={() => handleDownload(gen.videoUrl!, `${gen.trendId}-video.mp4`)}
-                                                    className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors
-                                                               flex items-center justify-center gap-1.5 text-xs text-white/50 hover:text-white"
-                                                >
-                                                    <Video className="w-3 h-3" />
-                                                    <Download className="w-3 h-3" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </motion.div>
+                                gen={gen}
+                                onExpand={() => setExpandedId(gen.jobId)}
+                                onDelete={() => handleDelete(gen.jobId)}
+                                onDownload={handleDownload}
+                            />
                         ))}
                     </AnimatePresence>
                 </motion.div>
             )}
 
-            {/* Expanded Overlay */}
+            {/* Expanded Detail Overlay */}
             <AnimatePresence>
                 {expandedId && (() => {
                     const gen = generations.find(g => g.jobId === expandedId);
-                    if (!gen || gen.status !== 'complete') return null;
+                    if (!gen) return null;
 
                     return (
                         <motion.div
@@ -223,56 +143,70 @@ export default function MyGenerations() {
                         >
                             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setExpandedId(null)} />
                             <motion.div
-                                className="relative w-full max-w-2xl bg-[#111113] border border-white/10 rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                                className="relative w-full max-w-3xl bg-[#111113] border border-white/10 rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
                                 initial={{ scale: 0.9 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.9 }}
                             >
+                                {/* Header */}
                                 <div className="flex items-center justify-between p-4 border-b border-white/10">
                                     <div className="flex items-center gap-2">
                                         <Sparkles className="w-4 h-4 text-[#FF0080]" />
                                         <h3 className="text-sm font-bold text-white">{gen.trendTitle}</h3>
+                                        <span className="text-[10px] text-white/30 uppercase">{STATUS_LABELS[gen.status]}</span>
                                     </div>
                                     <button onClick={() => setExpandedId(null)} className="p-2 rounded-lg hover:bg-white/10">
                                         <X className="w-4 h-4 text-white/50" />
                                     </button>
                                 </div>
 
-                                <div className="p-4 space-y-4">
-                                    {gen.imageUrl && (
+                                <div className="p-4 space-y-6">
+                                    {/* Generated Images Grid */}
+                                    {gen.images?.some(img => img.url) && (
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs text-white/40 flex items-center gap-1.5">
-                                                    <ImageIcon className="w-3 h-3" /> Generated Image
-                                                </span>
-                                                <button
-                                                    onClick={() => handleDownload(gen.imageUrl!, `${gen.trendId}-image.png`)}
-                                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                                                >
-                                                    <Download className="w-3.5 h-3.5 text-white/40" />
-                                                </button>
-                                            </div>
-                                            <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden">
-                                                <Image src={gen.imageUrl} alt="Generated" fill className="object-cover" />
+                                            <span className="text-xs text-white/40 flex items-center gap-1.5">
+                                                <ImageIcon className="w-3 h-3" /> Generated Images ({gen.images.filter(i => i.url).length}/{gen.images.length})
+                                            </span>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {gen.images.map((img, i) => (
+                                                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5">
+                                                        {img.url ? (
+                                                            <>
+                                                                <Image src={img.url} alt={`Shot ${i + 1}`} fill className="object-cover" />
+                                                                <button
+                                                                    onClick={() => handleDownload(img.url!, `skyfall-shot${i + 1}.png`)}
+                                                                    className="absolute bottom-1 right-1 p-1 rounded bg-black/60 hover:bg-black/80 transition-colors"
+                                                                >
+                                                                    <Download className="w-3 h-3 text-white/60" />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-full">
+                                                                <Loader2 className="w-4 h-4 text-white/20 animate-spin" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
 
-                                    {gen.videoUrl && (
+                                    {/* Final Video */}
+                                    {gen.finalVideoUrl && (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs text-white/40 flex items-center gap-1.5">
-                                                    <Video className="w-3 h-3" /> Generated Video
+                                                    <Film className="w-3 h-3" /> Final Stitched Video
                                                 </span>
                                                 <button
-                                                    onClick={() => handleDownload(gen.videoUrl!, `${gen.trendId}-video.mp4`)}
+                                                    onClick={() => handleDownload(gen.finalVideoUrl!, `skyfall-final.mp4`)}
                                                     className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                                                 >
                                                     <Download className="w-3.5 h-3.5 text-white/40" />
                                                 </button>
                                             </div>
                                             <video
-                                                src={gen.videoUrl}
+                                                src={gen.finalVideoUrl}
                                                 controls
                                                 autoPlay
                                                 loop
@@ -287,5 +221,157 @@ export default function MyGenerations() {
                 })()}
             </AnimatePresence>
         </section>
+    );
+}
+
+/* ── Generation Card ─────────────────────────────────────────── */
+
+function GenerationCard({
+    gen,
+    onExpand,
+    onDelete,
+    onDownload,
+}: {
+    gen: TrendGeneration;
+    onExpand: () => void;
+    onDelete: () => void;
+    onDownload: (url: string, filename: string) => void;
+}) {
+    const completedImages = gen.images?.filter(i => i.url).length || 0;
+    const totalImages = gen.images?.length || 0;
+    const completedVideos = gen.videos?.filter(v => v.url).length || 0;
+    const totalVideos = gen.videos?.length || 0;
+    const isProcessing = gen.status !== 'complete' && gen.status !== 'error';
+
+    // Find the first completed image for the thumbnail
+    const thumbnailUrl = gen.images?.find(i => i.url)?.url;
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-[#151518] rounded-2xl border border-white/10 overflow-hidden group"
+        >
+            {/* Card Header */}
+            <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLORS[gen.status]}`} />
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{gen.trendTitle}</p>
+                        <p className="text-[10px] text-white/30 uppercase tracking-wider">
+                            {STATUS_LABELS[gen.status]}
+                            {gen.status === 'generating-images' && ` ${completedImages}/${totalImages}`}
+                            {gen.status === 'generating-videos' && ` ${completedVideos}/${totalVideos}`}
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
+                >
+                    <Trash2 className="w-3.5 h-3.5 text-white/30 hover:text-red-400" />
+                </button>
+            </div>
+
+            {/* Card Body */}
+            {isProcessing && (
+                <div className="aspect-[16/9] bg-gradient-to-br from-white/5 to-white/[0.02] flex flex-col items-center justify-center gap-3 relative">
+                    {/* Show thumbnail if we have one */}
+                    {thumbnailUrl && (
+                        <Image src={thumbnailUrl} alt="Preview" fill className="object-cover opacity-30" />
+                    )}
+                    <div className="relative z-10 flex flex-col items-center gap-3">
+                        <Loader2 className="w-8 h-8 text-[#FF0080]/40 animate-spin" />
+                        <div className="flex items-center gap-1.5 text-white/40">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">
+                                {STATUS_LABELS[gen.status]}
+                                {gen.status === 'generating-images' && ` — ${completedImages}/${totalImages}`}
+                                {gen.status === 'generating-videos' && ` — ${completedVideos}/${totalVideos}`}
+                            </span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-48 h-1 rounded-full bg-white/5 overflow-hidden">
+                            <motion.div
+                                className="h-full bg-gradient-to-r from-[#FF0080]/50 to-[#FF0080]"
+                                initial={{ width: '0%' }}
+                                animate={{
+                                    width: gen.status === 'generating-images' ? `${(completedImages / totalImages) * 50}%`
+                                        : gen.status === 'generating-videos' ? `${50 + (completedVideos / totalVideos) * 40}%`
+                                            : gen.status === 'stitching' ? '90%'
+                                                : '10%'
+                                }}
+                                transition={{ duration: 0.5 }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {gen.status === 'error' && (
+                <div className="aspect-[16/9] bg-gradient-to-br from-red-500/5 to-transparent flex flex-col items-center justify-center gap-3 px-6">
+                    <AlertCircle className="w-8 h-8 text-red-400/40" />
+                    <p className="text-xs text-red-400/60 text-center line-clamp-2">
+                        {gen.errorMessage || 'Generation failed'}
+                    </p>
+                </div>
+            )}
+
+            {gen.status === 'complete' && (
+                <>
+                    <div
+                        className="relative aspect-[16/9] cursor-pointer"
+                        onClick={onExpand}
+                    >
+                        {/* Show first image as thumbnail */}
+                        {thumbnailUrl && (
+                            <Image src={thumbnailUrl} alt={gen.trendTitle} fill className="object-cover" />
+                        )}
+                        {/* Overlay badges */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-3 left-3 flex gap-2">
+                            <div className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center gap-1">
+                                <ImageIcon className="w-3 h-3 text-blue-400" />
+                                <span className="text-[9px] font-bold text-blue-400">{completedImages} Shots</span>
+                            </div>
+                            {gen.finalVideoUrl && (
+                                <div className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center gap-1">
+                                    <Film className="w-3 h-3 text-[#FF0080]" />
+                                    <span className="text-[9px] font-bold text-[#FF0080]">Final Video</span>
+                                </div>
+                            )}
+                        </div>
+                        {/* Checkmark */}
+                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-3 flex gap-2">
+                        <button
+                            onClick={onExpand}
+                            className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors
+                                       flex items-center justify-center gap-1.5 text-xs text-white/50 hover:text-white"
+                        >
+                            <Sparkles className="w-3 h-3" />
+                            View All
+                        </button>
+                        {gen.finalVideoUrl && (
+                            <button
+                                onClick={() => onDownload(gen.finalVideoUrl!, `skyfall-final.mp4`)}
+                                className="flex-1 py-2 rounded-lg bg-[#FF0080]/10 hover:bg-[#FF0080]/20 transition-colors
+                                           flex items-center justify-center gap-1.5 text-xs text-[#FF0080]/70 hover:text-[#FF0080]"
+                            >
+                                <Download className="w-3 h-3" />
+                                Download Video
+                            </button>
+                        )}
+                    </div>
+                </>
+            )}
+        </motion.div>
     );
 }

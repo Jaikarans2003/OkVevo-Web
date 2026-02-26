@@ -1,12 +1,10 @@
 /**
- * Trend Generation Service — Fire-and-Forget with Firestore
+ * Trend Generation Service — Multi-Prompt Pipeline
  *
  * 1. Upload user's photo to Firebase Storage
- * 2. Create a Firestore doc in `trendGenerations`
- * 3. Dispatch SQS jobs (image + optional video)
- * 4. Return immediately — no polling
- *
- * The Lambda updates the Firestore doc when done.
+ * 2. Create a Firestore doc with arrays for images[] and videos[]
+ * 3. Dispatch ONE SQS "pipeline" message with all prompts
+ * 4. Return immediately — Lambda handles everything
  */
 
 import { storage, db } from '../config/firebase';
@@ -27,17 +25,36 @@ import type { TrendDefinition } from '../data/trendDefinitions';
 
 // ── Types ───────────────────────────────────────────────────────────
 
+export interface ImageSlot {
+    index: number;
+    outputPath: string;
+    url?: string;
+}
+
+export interface VideoSlot {
+    index: number;
+    sourceImageIndex: number;
+    outputPath: string;
+    url?: string;
+}
+
+export type PipelineStatus =
+    | 'pending'
+    | 'generating-images'
+    | 'generating-videos'
+    | 'stitching'
+    | 'complete'
+    | 'error';
+
 export interface TrendGeneration {
     jobId: string;
     userId: string;
     trendId: string;
     trendTitle: string;
-    trendType: 'image' | 'video';
-    imageOutputPath: string;
-    videoOutputPath?: string;
-    imageUrl?: string;
-    videoUrl?: string;
-    status: 'pending' | 'complete' | 'error';
+    status: PipelineStatus;
+    images: ImageSlot[];
+    videos: VideoSlot[];
+    finalVideoUrl?: string;
     errorMessage?: string;
     createdAt: Timestamp;
 }
@@ -98,7 +115,7 @@ const dispatchJob = async (payload: Record<string, unknown>): Promise<{ success:
     }
 };
 
-// ── Submit (fire-and-forget) ────────────────────────────────────────
+// ── Submit Pipeline (fire-and-forget) ───────────────────────────────
 
 export const submitTrendJob = async (
     personFile: File,
@@ -115,9 +132,17 @@ export const submitTrendJob = async (
             `TrendPhotos/uploads/${jobId}.png`
         );
 
-        // 2. Prepare paths
-        const imageOutputPath = `TrendPhotos/${jobId}.png`;
-        const videoOutputPath = trend.videoPrompt ? `TrendPhotos/${jobId}-vid.mp4` : undefined;
+        // 2. Build image and video slot arrays
+        const images: ImageSlot[] = trend.imagePrompts.map((_, i) => ({
+            index: i,
+            outputPath: `TrendPhotos/${jobId}-img${i}.png`,
+        }));
+
+        const videos: VideoSlot[] = trend.videoPrompts.map((vp, i) => ({
+            index: i,
+            sourceImageIndex: vp.sourceImageIndex,
+            outputPath: `TrendPhotos/${jobId}-vid${i}.mp4`,
+        }));
 
         // 3. Create Firestore doc
         const genDoc: TrendGeneration = {
@@ -125,45 +150,37 @@ export const submitTrendJob = async (
             userId,
             trendId: trend.id,
             trendTitle: trend.title,
-            trendType: trend.type,
-            imageOutputPath,
-            videoOutputPath,
             status: 'pending',
+            images,
+            videos,
             createdAt: Timestamp.now(),
         };
         await setDoc(doc(db, COLLECTION, jobId), genDoc);
 
-        // 4. Dispatch image job
-        const imgResult = await dispatchJob({
+        // 4. Dispatch single pipeline message to SQS
+        const result = await dispatchJob({
+            type: 'trend-pipeline',
             jobId,
-            masterPrompt: trend.imagePrompt,
-            personImageUrl,
-            outputPath: imageOutputPath,
-            shotName: trend.title,
             userId,
+            personImageUrl,
+            imagePrompts: trend.imagePrompts,
+            videoPrompts: trend.videoPrompts.map(vp => ({
+                prompt: vp.prompt,
+                sourceImageIndex: vp.sourceImageIndex,
+            })),
+            imageOutputPaths: images.map(img => img.outputPath),
+            videoOutputPaths: videos.map(vid => vid.outputPath),
+            videoDuration: trend.videoDuration || 5,
         });
-        if (!imgResult.success) throw new Error(imgResult.error);
 
-        // 5. Dispatch video job (if applicable)
-        if (trend.videoPrompt && videoOutputPath) {
-            await dispatchJob({
-                jobId: `${jobId}-vid`,
-                masterPrompt: trend.videoPrompt,
-                personImageUrl,
-                outputPath: videoOutputPath,
-                shotName: trend.title,
-                userId,
-                jobType: 'video',
-                videoDuration: trend.videoDuration || 5,
-            });
-        }
+        if (!result.success) throw new Error(result.error);
 
-        console.log(`✅ Trend job submitted: ${jobId}`);
+        console.log(`✅ Pipeline job submitted: ${jobId}`);
         return { success: true, jobId };
 
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`❌ Trend job failed: ${msg}`);
+        console.error(`❌ Pipeline job failed: ${msg}`);
         return { success: false, error: msg };
     }
 };
