@@ -242,6 +242,7 @@ exports.handler = async (event) => {
             console.log(`🔹 SQS Trigger: ${event.Records.length} message(s)`);
 
             for (const record of event.Records) {
+                console.log('Raw record body:', record.body);
                 const body = JSON.parse(record.body);
                 const { jobId, masterPrompt, productImageUrl, outputPath, shotName } = body;
 

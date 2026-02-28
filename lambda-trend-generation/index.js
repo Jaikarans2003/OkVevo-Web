@@ -199,7 +199,7 @@ async function generateTrendImage(masterPrompt, personImage = null) {
     if (personImage) {
         contentParts.push(
             { text: masterPrompt },
-            { text: 'Here is the person\'s photo. Generate the scene described above using this exact person. The person must look exactly like in this reference photo. Apply the specified camera angle, lighting, and composition.' },
+            { text: 'Here is the reference image. Generate the scene described above using this exact reference. The person, attire, and environment must perfectly match this reference photo. Apply the specified camera angle, lighting, and composition.' },
             {
                 inlineData: {
                     mimeType: 'image/png',
@@ -410,7 +410,7 @@ async function generateAndUploadImage(prompt, personBuffer, outputPath) {
     const imageBuffer = await generateTrendImage(prompt, personBuffer);
     const publicUrl = await uploadToFirebase(imageBuffer, outputPath);
     console.log(`✅ Image uploaded: ${publicUrl}`);
-    return publicUrl;
+    return { publicUrl, imageBuffer };
 }
 
 /**
@@ -440,12 +440,9 @@ async function dispatchStitchJob(jobId, videoUrls) {
         return;
     }
 
+    // Lambda's execution role provides credentials automatically
     const sqsClient = new SQSClient({
         region: process.env.AWS_REGION || 'us-east-1',
-        credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
     });
 
     const messageBody = JSON.stringify({
@@ -498,15 +495,26 @@ async function processTrendPipeline(body) {
     // ── Phase 1: Generate all images ────────────────────────────
     await updateTrendDoc(jobId, { status: 'generating-images' });
     const imageUrls = [];
+    let firstImageBuffer = null;
 
     for (let i = 0; i < imagePrompts.length; i++) {
         console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
         try {
-            const url = await generateAndUploadImage(
+            // For the 1st photo, use the original uploaded person photo.
+            // For subsequent closeup shots, use the 1st generated photo as reference.
+            const refBuffer = (i > 0 && firstImageBuffer) ? firstImageBuffer : personBuffer;
+
+            const result = await generateAndUploadImage(
                 imagePrompts[i],
-                personBuffer,
+                refBuffer,
                 imageOutputPaths[i]
             );
+
+            if (i === 0) {
+                firstImageBuffer = result.imageBuffer;
+            }
+
+            const url = result.publicUrl;
             imageUrls.push(url);
 
             // Update Firestore — set this image slot's url
