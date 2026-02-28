@@ -358,7 +358,8 @@ async function pollKlingTask(generationId, maxAttempts = 60) {
             const videoUrl = response.video_url
                 || response.output?.video_url
                 || response.data?.task_result?.videos?.[0]?.url
-                || response.generations?.[0]?.video?.url;
+                || response.generations?.[0]?.video?.url
+                || response.video?.url;
 
             if (!videoUrl) {
                 throw new Error(`Video completed but no URL found: ${JSON.stringify(response)}`);
@@ -430,7 +431,7 @@ async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, v
 /**
  * Dispatch a stitching job to the stitch SQS queue.
  */
-async function dispatchStitchJob(jobId, videoUrls) {
+async function dispatchStitchJob(jobId, videoUrls, audioUrl) {
     const https = require('https');
     const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 
@@ -448,6 +449,7 @@ async function dispatchStitchJob(jobId, videoUrls) {
     const messageBody = JSON.stringify({
         jobId: `stitch-${jobId}`,
         videoUrls,
+        audioUrl,
         trendJobId: jobId, // So stitch Lambda can update the trend Firestore doc
         timestamp: new Date().toISOString(),
     });
@@ -495,32 +497,20 @@ async function processTrendPipeline(body) {
     // ── Phase 1: Generate all images ────────────────────────────
     await updateTrendDoc(jobId, { status: 'generating-images' });
     const imageUrls = [];
-    let firstImageBuffer = null;
 
     for (let i = 0; i < imagePrompts.length; i++) {
         console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
         try {
-            // ALL images need the reference image to maintain character uniformity.
-            // 1st image gets the user's uploaded photo.
-            // 2nd, 3rd, 4th, 5th get the 1st generated image to ensure exact 1:1 match of the scene.
-            const refBuffer = (i > 0 && firstImageBuffer) ? firstImageBuffer : personBuffer;
-
-            // For close-up images (i > 0), explicitly tell the AI not to recreate a full body.
-            // This helps maintain the desired framing when a reference image is provided.
-            let currentPrompt = imagePrompts[i];
-            if (i > 0) {
-                currentPrompt += ', no full body, focus on upper body or face';
-            }
+            // ALL images use the ORIGINAL uploaded person photo.
+            // Using the user's uploaded selfie for ALL generations prevents the AI from 
+            // locking into a full-body composition that was hallucinated in photo 1.
+            const refBuffer = personBuffer;
 
             const result = await generateAndUploadImage(
-                currentPrompt,
+                imagePrompts[i],
                 refBuffer,
                 imageOutputPaths[i]
             );
-
-            if (i === 0) {
-                firstImageBuffer = result.imageBuffer;
-            }
 
             const url = result.publicUrl;
             imageUrls.push(url);
@@ -591,7 +581,8 @@ async function processTrendPipeline(body) {
     const validVideoUrls = videoResultUrls.filter(Boolean);
     if (validVideoUrls.length >= 2) {
         await updateTrendDoc(jobId, { status: 'stitching' });
-        await dispatchStitchJob(jobId, validVideoUrls);
+        const audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/TrendsAudio.mpeg';
+        await dispatchStitchJob(jobId, validVideoUrls, audioUrl);
     } else {
         // Not enough videos to stitch — mark complete with what we have
         console.warn('⚠️ Not enough videos for stitching, marking complete');

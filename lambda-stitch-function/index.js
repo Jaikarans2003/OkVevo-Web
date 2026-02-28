@@ -258,6 +258,7 @@ async function stitchVideos(inputFiles, outputFile, audioFile = null) {
             '-b:a', '256k',
             '-ar', '48000',
             '-movflags', '+faststart',
+            '-shortest',
             '-y',
             outputFile
         );
