@@ -199,18 +199,18 @@ async function generateTrendImage(masterPrompt, personImage = null) {
     if (personImage) {
         contentParts.push(
             { text: masterPrompt },
-            { text: 'Here is the reference image. Generate the scene described above using this exact reference. The person, attire, and environment must perfectly match this reference photo. Apply the specified camera angle, lighting, and composition.' },
+            { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST extract ONLY the character identity (face, race, gender), the specific clothing they are wearing, and the lighting/color palette.\n\nDO NOT copy the camera angle or framing of this reference image. The text prompt above is the absolute authority on the camera shot.\nIf the text says "Close-up", you MUST generate a tight close-up and completely exclude the rest of the body.\nFailure to follow the text prompt\'s framing will cause the generation to be rejected.' },
             {
                 inlineData: {
                     mimeType: 'image/png',
                     data: personImage.toString('base64'),
                 },
             },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph based on the master prompt above.' }
+            { text: 'Generate a stunning, photorealistic, cinematic photograph based strictly on the text prompt\'s framing, using the image ONLY for character/clothing reference.' }
         );
     } else {
         contentParts.push({
-            text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph.',
+            text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.',
         });
     }
 
@@ -500,12 +500,20 @@ async function processTrendPipeline(body) {
     for (let i = 0; i < imagePrompts.length; i++) {
         console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
         try {
-            // For the 1st photo, use the original uploaded person photo.
-            // For subsequent closeup shots, use the 1st generated photo as reference.
+            // ALL images need the reference image to maintain character uniformity.
+            // 1st image gets the user's uploaded photo.
+            // 2nd, 3rd, 4th, 5th get the 1st generated image to ensure exact 1:1 match of the scene.
             const refBuffer = (i > 0 && firstImageBuffer) ? firstImageBuffer : personBuffer;
 
+            // For close-up images (i > 0), explicitly tell the AI not to recreate a full body.
+            // This helps maintain the desired framing when a reference image is provided.
+            let currentPrompt = imagePrompts[i];
+            if (i > 0) {
+                currentPrompt += ', no full body, focus on upper body or face';
+            }
+
             const result = await generateAndUploadImage(
-                imagePrompts[i],
+                currentPrompt,
                 refBuffer,
                 imageOutputPaths[i]
             );

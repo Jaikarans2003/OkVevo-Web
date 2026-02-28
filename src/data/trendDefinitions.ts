@@ -37,30 +37,41 @@ export const TREND_DEFINITIONS: TrendDefinition[] = [
         image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=900&auto=format&fit=crop&q=60',
         tags: ['Cinematic', 'Viral', 'Dramatic'],
         imagePrompts: [
-            // Prompt 1: Wide Shot
-            `Generate A Person From the uploaded Photo. The Location Is Very High In The Sky At A Slightly Pinkish Sunset. A Man Is In A Horizontal Position With A Falling Effect. The Frame Is A Wide Shot, Person is Far Away, We See The Full Body and the expansive sky. Movie Shot, Beautiful Color Correction.`,
+            // Prompt 1
+            `Generate A Person From Photo 1.\nThe Location Is Very High In The Sky At A Slightly Pinkish Sunset. A Man Is In A Horizontal Position With A Falling Effect. The Man’s Face Is Calm, He Is Falling Backwards. The Frame Is At Human Eye Level, And We See The Full Body. Movie Shot, Slightly Blurred Background, Beautiful Color Correction. (The Falling Person/Object)`,
 
-            // Prompt 2: Close up 1
-            `Using the provided reference image of the falling person, generate a tight Close-Up Shot of the person's face. The lighting, sky, and clothing must perfectly match the reference.`,
+            // Prompt 2
+            `Generate a similar scene but person is far away, he’s barely visible. Use different sky texture but same sky color`,
 
-            // Prompt 3: Close up 2
-            `Using the provided reference image of the falling person, generate a tight Close-Up Shot of the person's shoes or hands. The lighting, sky, and clothing must perfectly match the reference.`,
+            // Prompt 3
+            `Generate the same scene but a close up shot of the person’s face`,
+
+            // Prompt 4
+            `Generate the same scene but a close up shot of the person’s shoes`,
+
+            // Prompt 5
+            `Generate the same scene but a close up shot of the person’s hand accessories`
         ],
         videoPrompts: [
-            // Video 1: Start Frame Wide Shot -> Medium Shot
+            // Video 1
             {
-                prompt: 'Camera starts with a Wide Shot where the person is far away, and smoothly zooms in to end in a Medium Shot of the falling person.',
+                prompt: 'A person falling down from sky with natural falling motion. Smooth cinematic camera movement downward.',
                 sourceImageIndex: 0,
             },
-            // Video 2: Levitating CloseUp
+            // Video 2
             {
-                prompt: 'Levitating Close-Up Shot of the person.',
+                prompt: 'Levitate',
                 sourceImageIndex: 1,
             },
-            // Video 3: Levitating CloseUp
+            // Video 3
             {
-                prompt: 'Levitating Close-Up Shot of the person.',
+                prompt: 'Levitate',
                 sourceImageIndex: 2,
+            },
+            // Video 4
+            {
+                prompt: 'Levitate',
+                sourceImageIndex: 3,
             },
         ],
         videoDuration: 5,
