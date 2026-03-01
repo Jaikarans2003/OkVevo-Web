@@ -64,3 +64,4 @@ lambda-stitch-function/ffmpeg-layer/bin/
 
 # Lambda deployment ZIPs
 lambda-*.zip
+function*.zip
