@@ -22,7 +22,7 @@ const https = require('https');
  *  5. Upload result to Firebase Storage at TrendPhotos/{jobId}.mp4
  */
 
-const NANOBANANA_MODEL = 'gemini-2.5-flash-image';
+const NANOBANANA_MODEL = 'gemini-3-pro-image-preview';
 const AIML_API_BASE = 'https://api.aimlapi.com';
 
 let firebaseInitialized = false;
