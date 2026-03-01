@@ -51,7 +51,7 @@ const HowItWorks = () => {
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="/OKVEVO With BackGrounds/liana-s-iU7wmIfqHwI-unsplash.jpg"
+                    src="/OKVEVO With BackGrounds/download.png"
                     alt="How It Works Background"
                     fill
                     className="object-cover"
