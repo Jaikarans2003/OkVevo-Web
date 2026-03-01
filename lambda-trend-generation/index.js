@@ -354,15 +354,38 @@ async function pollKlingTask(generationId, maxAttempts = 60) {
         console.log(`   Status: ${status}`);
 
         if (status === 'completed' || status === 'succeed') {
-            // AIML may return video URL in different fields
-            const videoUrl = response.video_url
-                || response.output?.video_url
-                || response.data?.task_result?.videos?.[0]?.url
-                || response.generations?.[0]?.video?.url
-                || response.video?.url;
+            console.log('🔍 Checking for video URL in response...');
+            console.log(`   Full response: ${JSON.stringify(response)}`);
 
-            if (!videoUrl) {
-                throw new Error(`Video completed but no URL found: ${JSON.stringify(response)}`);
+            // Extract video URL from various possible response structures
+            let videoUrl = null;
+
+            if (response.video && typeof response.video === 'object' && response.video.url) {
+                videoUrl = response.video.url;
+                console.log(`   ✓ Found URL in response.video.url: ${videoUrl}`);
+            } else if (response.video && typeof response.video === 'string') {
+                videoUrl = response.video;
+                console.log(`   ✓ Found URL in response.video (string): ${videoUrl}`);
+            } else if (response.video_url) {
+                videoUrl = response.video_url;
+                console.log(`   ✓ Found URL in response.video_url: ${videoUrl}`);
+            } else if (response.output && response.output.video_url) {
+                videoUrl = response.output.video_url;
+                console.log(`   ✓ Found URL in response.output.video_url: ${videoUrl}`);
+            } else if (response.data && response.data.task_result && response.data.task_result.videos && response.data.task_result.videos[0]) {
+                videoUrl = response.data.task_result.videos[0].url;
+                console.log(`   ✓ Found URL in response.data.task_result.videos[0].url: ${videoUrl}`);
+            } else if (response.generations && response.generations[0] && response.generations[0].video) {
+                videoUrl = response.generations[0].video.url || response.generations[0].video;
+                console.log(`   ✓ Found URL in response.generations[0].video: ${videoUrl}`);
+            } else if (response.videos && response.videos[0]) {
+                videoUrl = response.videos[0].url || response.videos[0];
+                console.log(`   ✓ Found URL in response.videos[0]: ${videoUrl}`);
+            }
+
+            if (!videoUrl || typeof videoUrl !== 'string' || !videoUrl.startsWith('http')) {
+                console.error('❌ Video completed but no valid URL found. Full response:', JSON.stringify(response, null, 2));
+                throw new Error(`Video completed but no valid URL found: ${JSON.stringify(response)}`);
             }
             console.log(`✅ Video ready: ${videoUrl}`);
             return videoUrl;
@@ -474,6 +497,7 @@ async function dispatchStitchJob(jobId, videoUrls, audioUrl) {
 async function processTrendPipeline(body) {
     const {
         jobId,
+        trendId,
         personImageUrl,
         imagePrompts,
         videoPrompts,
@@ -484,6 +508,7 @@ async function processTrendPipeline(body) {
 
     console.log(`\n${'═'.repeat(60)}`);
     console.log(`🎬 PIPELINE: ${jobId}`);
+    console.log(`   Trend: ${trendId || 'unknown'}`);
     console.log(`   ${imagePrompts.length} images + ${videoPrompts.length} videos`);
     console.log(`${'═'.repeat(60)}`);
 
@@ -581,7 +606,17 @@ async function processTrendPipeline(body) {
     const validVideoUrls = videoResultUrls.filter(Boolean);
     if (validVideoUrls.length >= 2) {
         await updateTrendDoc(jobId, { status: 'stitching' });
-        const audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/TrendsAudio.mpeg';
+        
+        // Select audio based on trend ID
+        let audioUrl;
+        if (trendId === 'sky-fall') {
+            audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/Skyfall.mp3';
+            console.log(`🎵 Using Skyfall audio for trend: ${trendId}`);
+        } else {
+            audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/TrendsAudio.mpeg';
+            console.log(`🎵 Using generic audio for trend: ${trendId || 'unknown'}`);
+        }
+        
         await dispatchStitchJob(jobId, validVideoUrls, audioUrl);
     } else {
         // Not enough videos to stitch — mark complete with what we have

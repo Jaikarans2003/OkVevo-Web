@@ -162,6 +162,7 @@ export const submitTrendJob = async (
             type: 'trend-pipeline',
             jobId,
             userId,
+            trendId: trend.id,
             personImageUrl,
             imagePrompts: trend.imagePrompts,
             videoPrompts: trend.videoPrompts.map(vp => ({
