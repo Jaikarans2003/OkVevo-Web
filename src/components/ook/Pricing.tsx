@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Check, Zap, Crown, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 const Pricing = () => {
     const plans = [
@@ -73,6 +74,18 @@ const Pricing = () => {
 
     return (
         <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden">
+            {/* Background Image */}
+            <div className="absolute inset-0 z-0">
+                <Image
+                    src="/OKVEVO With BackGrounds/BackGrounds (5).png"
+                    alt="Pricing Background"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                {/* Dark overlay for content readability */}
+            </div>
+            
             {/* Background Elements */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent-orange/5 to-transparent" />
             <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[60px] animate-pulse transform-gpu" />
