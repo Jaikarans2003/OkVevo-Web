@@ -215,7 +215,7 @@ You should now see **two separate resources** in your AWS account:
 │   (separate from brick2brick-placement)                      │
 │                                                              │
 │   1. Parse SQS message (jobId, masterPrompt, outputPath)     │
-│   2. Call NANOBANANA PRO (Gemini gemini-2.5-flash-image)     │
+│   2. Call NANOBANANA PRO (Gemini gemini-3-pro-image-preview) │
 │   3. Upload to Firebase Storage → DirectorPhotos/{jobId}.png │
 └──────────────────────────────────────────────────────────────┘
           │

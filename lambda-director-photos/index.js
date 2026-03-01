@@ -13,7 +13,7 @@ const { GoogleGenAI } = require('@google/genai');
  *  3. Upload result to Firebase Storage at DirectorPhotos/{jobId}.png
  */
 
-const NANOBANANA_MODEL = 'gemini-2.5-flash-image';
+const NANOBANANA_MODEL = 'gemini-3-pro-image-preview';
 
 let firebaseInitialized = false;
 
