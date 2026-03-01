@@ -7,10 +7,10 @@ import Image from 'next/image';
 const Pricing = () => {
     const plans = [
         {
-            name: 'Free',
+            name: 'Hobby',
             icon: Sparkles,
-            price: '$0',
-            period: 'forever',
+            price: '₹4,999',
+            period: 'per month',
             description: 'Perfect for getting started with AI-powered creativity',
             features: [
                 '10 generations per month',
@@ -28,10 +28,11 @@ const Pricing = () => {
             cta: 'Get Started',
             gradient: 'from-zinc-900 to-zinc-950'
         },
+        
         {
             name: 'Pro',
             icon: Zap,
-            price: '$29',
+            price: '₹13,999',
             period: 'per month',
             description: 'For creators who want unlimited possibilities',
             features: [
@@ -77,7 +78,7 @@ const Pricing = () => {
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="/OKVEVO With BackGrounds/BackGrounds (7).png"
+                    src="/OKVEVO With BackGrounds/BackGrounds (14).png"
                     alt="Pricing Background"
                     fill
                     className="object-cover"
@@ -108,21 +109,14 @@ const Pricing = () => {
                         className="inline-block mb-6"
                     >
                         <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-card border-2 border-accent-orange/30">
-                            <Sparkles className="w-4 h-4 text-accent-orange" />
+                            {/* <Sparkles className="w-4 h-4 text-accent-orange" /> */}
                             <span className="text-xs font-bold tracking-[0.2em] uppercase text-text-main">Pricing</span>
                         </div>
                     </motion.div>
 
                     <h2 className="text-4xl md:text-5xl font-black mb-6 text-text-main tracking-tight">
-                        Choose Your
-                        <span className="block bg-gradient-to-r from-accent-orange to-orange-600 bg-clip-text text-transparent">
-                            Creative Power
-                        </span>
+                        Choose Your Creative Power
                     </h2>
-
-                    <p className="text-lg md:text-xl text-text-dim max-w-2xl mx-auto leading-relaxed">
-                        Start free or unlock unlimited potential with Pro. No credit card required.
-                    </p>
                 </motion.div>
 
                 {/* Pricing Cards */}
@@ -236,12 +230,15 @@ const Pricing = () => {
                     transition={{ duration: 0.8, delay: 0.3 }}
                     className="text-center mt-16"
                 >
-                    <p className="text-text-dim text-base mb-4">
+                    <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
+                        Start free.
+                    </button>
+                    {/* <p className="text-text-dim text-base mb-4">
                         Not sure which plan is right for you?
                     </p>
                     <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
                         Compare All Features
-                    </button>
+                    </button> */}
                 </motion.div>
             </div>
         </section >

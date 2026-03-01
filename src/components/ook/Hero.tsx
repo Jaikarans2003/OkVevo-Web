@@ -14,7 +14,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="/OKVEVO With BackGrounds/mohammed-kara-3y66ymL7TC8-unsplash.jpg"
+                    src="/OKVEVO With BackGrounds/HeroBackGround.jpg"
                     alt="OKVEVO Background"
                     fill
                     className="object-cover"
