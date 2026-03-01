@@ -10,7 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 const DashHeroModular = ({ user }: { user?: any }) => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const { resolvedTheme } = useTheme();
-    const displayName = user?.displayName?.split(' ')?.[0] || user?.email?.split('@')?.[0] || 'Aditya';
+    const displayName = user?.displayName?.split(' ')?.[0] || user?.email?.split('@')?.[0] || '';
 
     const handleMouseMove = (e: React.MouseEvent) => {
         const { clientX, clientY } = e;

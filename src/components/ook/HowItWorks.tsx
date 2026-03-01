@@ -48,6 +48,19 @@ const HowItWorks = () => {
 
     return (
         <section id="how-it-works" data-section-theme="light" ref={sectionRef} className="relative h-[500vh] bg-bg-main">
+            {/* Background Image */}
+            <div className="absolute inset-0 z-0">
+                <Image
+                    src="/OKVEVO With BackGrounds/liana-s-iU7wmIfqHwI-unsplash.jpg"
+                    alt="How It Works Background"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                {/* Dark overlay for content readability */}
+                <div className="absolute inset-0 bg-black/50" />
+            </div>
+            
             <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
                 {/* Ambient Background Glows */}
                 <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[40px] rounded-full pointer-events-none transform-gpu" />

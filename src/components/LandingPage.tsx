@@ -41,11 +41,11 @@ export default function LandingPage() {
             <Navbar user={user} onJoinClick={handleJoinClick} />
             <main>
                 <Hero onJoinClick={handleJoinClick} />
-                <Features />
+                {/* <Features /> */}
                 <HowItWorks />
                 <Pricing />
-                <TuneTalez />
-                <Quotes onJoinClick={handleJoinClick} />
+                {/* <TuneTalez /> */}
+                {/* <Quotes onJoinClick={handleJoinClick} /> */}
             </main>
             <Footer />
         </div>

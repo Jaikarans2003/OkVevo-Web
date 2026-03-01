@@ -11,9 +11,22 @@ interface HeroProps {
 const Hero = ({ onJoinClick }: HeroProps) => {
     return (
         <section data-section-theme="light" className="relative min-h-screen bg-bg-main pt-48 pb-20 overflow-hidden flex flex-col items-center">
+            {/* Background Image */}
+            <div className="absolute inset-0 z-0">
+                <Image
+                    src="/OKVEVO With BackGrounds/mohammed-kara-3y66ymL7TC8-unsplash.jpg"
+                    alt="OKVEVO Background"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                {/* Dark overlay for text readability */}
+                <div className="absolute inset-0 bg-black/40" />
+            </div>
+            
             {/* Background Decorative Gradients */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <motion.div
+                {/* <motion.div
                     initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.1, 1],
@@ -23,8 +36,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
                     className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
-                />
-                <motion.div
+                /> */}
+                {/* <motion.div
                     initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.15, 1],
@@ -34,9 +47,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
                     className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
-                />
+                /> */}
                 {/* Symmetrical left-side balance glow */}
-                <motion.div
+                {/* <motion.div
                     initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.1, 1],
@@ -46,8 +59,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
                     className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
-                />
-                <motion.div
+                /> */}
+                {/* <motion.div
                     animate={{
                         x: [0, -15, 0],
                         y: [0, 25, 0],
@@ -55,7 +68,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
                     className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
-                />
+                /> */}
             </div>
 
             {/* Massive Cuberto-style Heading */}
@@ -66,8 +79,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     className="text-[12vw] md:text-[10vw] font-black leading-[0.85] tracking-[-0.06em] text-text-main max-w-[12ch] relative"
                 >
-                    Your identity <br />
-                    <span className="text-accent-orange text-cursive text-[1.0em] font-normal inline-block translate-y-2">unleashed.</span>
+                    Zero Camera, Infinite Vision. <br />
+                    {/* <span className="text-accent-orange text-cursive text-[1.0em] font-normal inline-block translate-y-2">Infinite Vision..</span> */}
                 </motion.h1>
 
                 <motion.div
