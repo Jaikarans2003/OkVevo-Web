@@ -152,7 +152,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     </div>
                 </motion.div>
                 <div className="text-left md:text-right">
-                    <p className="text-text-dim/60 font-medium max-w-sm ml-auto">
+                    <p className="text-text-dim/72 font-medium max-w-sm ml-auto">
                         Our technology allows creators to bypass traditional production
                         bottlenecks and focus purely on the vision.
                     </p>

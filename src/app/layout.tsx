@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Alumni_Sans, Changa_One, Unbounded } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
@@ -14,6 +14,27 @@ const plusJakarta = Plus_Jakarta_Sans({
     subsets: ["latin"],
     weight: ["400", "500", "600", "700", "800"],
     variable: "--font-plus-jakarta",
+    display: "swap",
+});
+
+const alumniSans = Alumni_Sans({
+    subsets: ["latin"],
+    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    variable: "--font-alumni-sans",
+    display: "swap",
+});
+
+const changaOne = Changa_One({
+    subsets: ["latin"],
+    weight: ["400"],
+    variable: "--font-changa-one",
+    display: "swap",
+});
+
+const unbounded = Unbounded({
+    subsets: ["latin"],
+    weight: ["200", "300", "400", "500", "600", "700", "800", "900"],
+    variable: "--font-unbounded",
     display: "swap",
 });
 
@@ -33,6 +54,7 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <head>
                 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+                <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans:ital,wght@0,100..900;1,100..900&family=Changa+One:ital@0;1&family=MuseoModerno:ital,wght@0,100..900;1,100..900&family=Unbounded:wght@200..900&display=swap" rel="stylesheet" />
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `
@@ -49,7 +71,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${plusJakarta.className} ${plusJakarta.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${plusJakarta.className} ${plusJakarta.variable} ${alumniSans.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}

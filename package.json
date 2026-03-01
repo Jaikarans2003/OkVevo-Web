@@ -17,6 +17,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@google/genai": "^1.41.0",
     "@google/generative-ai": "^0.24.1",
+    "@next/font": "^14.2.15",
     "@react-three/fiber": "^9.5.0",
     "@types/three": "^0.182.0",
     "autoprefixer": "^10.4.23",

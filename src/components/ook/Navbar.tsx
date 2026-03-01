@@ -51,7 +51,6 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     const textColorDim = isNavbarDark ? 'text-white/70' : 'text-text-main/70';
 
     const navLinks = [
-        { name: 'Features', href: '#features' },
         { name: 'Process', href: '#how-it-works' },
         { name: 'Pricing', href: '#pricing' },
     ];
@@ -60,7 +59,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-transparent border-transparent'}`}>
-                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 ${textColor}`}>
+                    <a href="/" className={`text-2xl font-black font-family: var(--font-museo-moderno) tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 font-museo-moderno ${textColor}`}>
                         OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
                     </a>
 
@@ -76,7 +75,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             </a>
                         ))}
                         <div className="flex items-center gap-6">
-                            <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} />
+                            {/* <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} /> */}
                             <button
                                 onClick={onJoinClick}
                                 className={`px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${isScrolled ? 'bg-accent-orange text-white hover:bg-text-main hover:text-bg-main' : `bg-text-main/10 ${textColor} border border-text-main/20 hover:bg-text-main hover:text-bg-main`}`}
