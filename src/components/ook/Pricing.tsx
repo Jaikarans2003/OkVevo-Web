@@ -77,7 +77,7 @@ const Pricing = () => {
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="/OKVEVO With BackGrounds/BackGrounds (5).png"
+                    src="/OKVEVO With BackGrounds/BackGrounds (7).png"
                     alt="Pricing Background"
                     fill
                     className="object-cover"
