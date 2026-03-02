@@ -199,14 +199,14 @@ async function generateTrendImage(masterPrompt, personImage = null) {
     if (personImage) {
         contentParts.push(
             { text: masterPrompt },
-            { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST extract ONLY the character identity (face, race, gender), the specific clothing they are wearing, and the lighting/color palette.\n\nDO NOT copy the camera angle or framing of this reference image. The text prompt above is the absolute authority on the camera shot.\nIf the text says "Close-up", you MUST generate a tight close-up and completely exclude the rest of the body.\nFailure to follow the text prompt\'s framing will cause the generation to be rejected.' },
+            { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person\'s appearance.\n\nThe reference image shows the EXACT person you must generate. Keep every detail of their appearance IDENTICAL - same face, same outfit, same physical characteristics.\n\nYou may ONLY change the camera angle, framing, and background as specified in the text prompt. The person themselves must look EXACTLY like the reference image.\n\nIf the text says "Close-up", generate a tight close-up of the EXACT same person from the reference image.' },
             {
                 inlineData: {
                     mimeType: 'image/png',
                     data: personImage.toString('base64'),
                 },
             },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph based strictly on the text prompt\'s framing, using the image ONLY for character/clothing reference.' }
+            { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.' }
         );
     } else {
         contentParts.push({

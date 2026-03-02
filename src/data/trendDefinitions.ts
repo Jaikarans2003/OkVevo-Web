@@ -48,7 +48,11 @@ export const TREND_DEFINITIONS: TrendDefinition[] = [
         tags: ['Cinematic', 'Viral', 'Dramatic'],
         imagePrompts: [
             // Prompt 1
-            `Generate A Person From Photo 1.\nThe Location Is Very High In The Sky At A Slightly Pinkish Sunset. A Man Is In A Horizontal Position With A Falling Effect. The Man's Face Is Calm, He Is Falling Backwards. The Frame Is At Human Eye Level, And We See The Full Body. Movie Shot, Slightly Blurred Background, Beautiful Color Correction. (The Falling Person/Object)`,
+            `CRITICAL: You MUST preserve the EXACT face, facial features, skin tone, hair style, hair color, and outfit from the reference photo. Do not change or modify ANY aspect of the person's appearance.
+
+Generate the person from the reference photo in this exact scene: The location is very high in the sky at a slightly pinkish sunset. The person is in a horizontal position with a falling effect, falling backwards. The person's face is calm. The frame is at human eye level, and we see the full body. Movie shot, slightly blurred background, beautiful color correction.
+
+IMPORTANT: Keep the person's face, body, clothing, and all physical characteristics EXACTLY as shown in the reference photo. Only change the background and scene composition.`,
 
             // Prompt 2
             {
@@ -57,17 +61,23 @@ export const TREND_DEFINITIONS: TrendDefinition[] = [
             },
             // Prompt 3
             {
-                prompt: `Generate the same scene but a close up shot of the person's face`,
+                prompt: `CRITICAL: Use the EXACT same person from the reference image. Keep their face, facial features, skin tone, hair, and outfit Strictly IDENTICAL. Do not change or hallucinate any details.
+
+Generate a close-up shot of the person's face in the same sky scene. The person must look Stritcly EXACTLY like they do in the reference image - same face, same expression, same features. Only change the camera framing to focus on the face.`,
                 sourceImageIndex: 0
             },
             // Prompt 4
             {
-                prompt: `Generate the same scene but a close up shot of the person's shoes`,
+                prompt: `CRITICAL: Use the EXACT same person from the reference image. Keep their outfit, clothing, and shoes IDENTICAL. Do not change or hallucinate any details.
+
+Generate a close-up shot of the person's shoes/feet in the same sky scene. The footwear and clothing must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the shoes.`,
                 sourceImageIndex: 0
             },
             // Prompt 5
             {
-                prompt: `Generate the same scene but a close up shot of the person's hand accessories`,
+                prompt: `CRITICAL: Use the EXACT same person from the reference image. Keep their hands, accessories, and clothing IDENTICAL. Do not change or hallucinate any details.
+
+Generate a close-up shot of the person's hands/accessories in the same sky scene. The hands and any accessories if Present must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the hands.`,
                 sourceImageIndex: 0
             }
         ],
