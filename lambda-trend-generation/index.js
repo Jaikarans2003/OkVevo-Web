@@ -313,42 +313,53 @@ function aimlRequest(method, path, body = null) {
 
 /**
  * Submit a Kling image-to-video task via AIML API.
+ * Supports optional end frame for start-to-end transitions.
  */
-async function submitKlingVideoTask(imageUrl, prompt, duration = 5) {
-    console.log('🎥 Submitting Kling image-to-video task via AIML API...');
+async function submitKlingVideoTask(imageUrl, prompt, duration = 5, endFrameUrl = null) {
+    console.log('🎥 Submitting Kling v1 Standard image-to-video task via AIML API...');
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
-
-    const response = await aimlRequest('POST', '/v2/video/generations', {
-        model: 'klingai/v2.5-turbo/pro/image-to-video',
-        image_url: imageUrl,
-        prompt: prompt,
-        negative_prompt: 'blurry, distorted face, extra limbs, low quality, watermark',
-        duration: String(duration),
-        cfg_scale: 0.5,
-    });
-
-    const generationId = response.id || response.generation_id;
-    if (!generationId) {
-        throw new Error(`AIML API did not return a generation ID: ${JSON.stringify(response)}`);
+    console.log(`🖼️ Start frame: ${imageUrl}`);
+    if (endFrameUrl) {
+        console.log(`🖼️ End frame: ${endFrameUrl}`);
     }
 
-    console.log(`✅ AIML video task submitted: ${generationId}`);
-    return generationId;
+    const requestBody = {
+        image: imageUrl,
+        prompt: prompt,
+        negative_prompt: 'blurry, distorted face, extra limbs, low quality, watermark',
+        duration: duration,
+        cfg_scale: 0.5,
+    };
+
+    // Add end frame if provided
+    if (endFrameUrl) {
+        requestBody.image_tail = endFrameUrl;
+    }
+
+    const response = await aimlRequest('POST', '/kling-video/v1/standard/image-to-video', requestBody);
+
+    const taskId = response.data?.task_id;
+    if (!taskId) {
+        throw new Error(`Kling API did not return a task_id: ${JSON.stringify(response)}`);
+    }
+
+    console.log(`✅ Kling video task submitted: ${taskId}`);
+    return taskId;
 }
 
 /**
- * Poll AIML API for video generation completion.
+ * Poll AIML API for video generation completion (Kling v1 Standard).
  */
-async function pollKlingTask(generationId, maxAttempts = 60) {
+async function pollKlingTask(taskId, maxAttempts = 60) {
     const INTERVAL_MS = 5000; // 5 seconds
 
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, INTERVAL_MS));
 
-        console.log(`⏳ AIML poll ${i + 1}/${maxAttempts}: generation ${generationId}...`);
+        console.log(`⏳ Kling poll ${i + 1}/${maxAttempts}: task ${taskId}...`);
 
-        const response = await aimlRequest('GET', `/v2/video/generations?generation_id=${generationId}`);
+        const response = await aimlRequest('GET', `/kling-video/v1/standard/image-to-video/${taskId}`);
 
         const status = response.status;
         console.log(`   Status: ${status}`);
@@ -439,9 +450,10 @@ async function generateAndUploadImage(prompt, personBuffer, outputPath) {
 
 /**
  * Generate a single video from image URL, upload, return URL.
+ * Supports optional end frame for start-to-end transitions.
  */
-async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration) {
-    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration);
+async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration, endImageUrl = null) {
+    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration, endImageUrl);
     const videoUrl = await pollKlingTask(taskId);
 
     console.log('📥 Downloading generated video...');
@@ -526,13 +538,27 @@ async function processTrendPipeline(body) {
     for (let i = 0; i < imagePrompts.length; i++) {
         console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
         try {
-            // ALL images use the ORIGINAL uploaded person photo.
-            // Using the user's uploaded selfie for ALL generations prevents the AI from 
-            // locking into a full-body composition that was hallucinated in photo 1.
-            const refBuffer = personBuffer;
+            // Determine reference image based on sourceImageIndex
+            let refBuffer = personBuffer; // Default to user's photo
+            const promptConfig = imagePrompts[i];
+            
+            if (typeof promptConfig === 'object' && promptConfig.sourceImageIndex !== undefined) {
+                const refIndex = promptConfig.sourceImageIndex;
+                if (imageUrls[refIndex]) {
+                    // Download the previously generated image from Firebase Storage
+                    console.log(`   Downloading generated image ${refIndex} from Firebase as reference`);
+                    refBuffer = await downloadFromFirebase(imageUrls[refIndex]);
+                    console.log(`   Using generated image ${refIndex} as reference`);
+                } else {
+                    console.log(`   Reference image ${refIndex} not yet generated, using user photo`);
+                }
+            } else {
+                console.log(`   Using user's uploaded photo as reference`);
+            }
 
+            const promptText = typeof promptConfig === 'string' ? promptConfig : promptConfig.prompt;
             const result = await generateAndUploadImage(
-                imagePrompts[i],
+                promptText,
                 refBuffer,
                 imageOutputPaths[i]
             );
@@ -564,8 +590,10 @@ async function processTrendPipeline(body) {
     const videoResultUrls = [];
 
     for (let i = 0; i < videoPrompts.length; i++) {
-        const { prompt, sourceImageIndex } = videoPrompts[i];
+        const { prompt, sourceImageIndex, endImageIndex, duration } = videoPrompts[i];
         const sourceImageUrl = imageUrls[sourceImageIndex];
+        const endImageUrl = endImageIndex !== undefined ? imageUrls[endImageIndex] : null;
+        const videoLength = duration || videoDuration; // Use per-video duration or trend default
 
         if (!sourceImageUrl) {
             console.warn(`⚠️ Video ${i}: source image ${sourceImageIndex} missing, skipping`);
@@ -573,13 +601,14 @@ async function processTrendPipeline(body) {
             continue;
         }
 
-        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex})`);
+        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex}${endImageUrl ? ` to ${endImageIndex}` : ''}, ${videoLength}s)`);
         try {
             const url = await generateAndUploadVideo(
                 prompt,
                 sourceImageUrl,
                 videoOutputPaths[i],
-                videoDuration
+                videoLength,
+                endImageUrl
             );
             videoResultUrls.push(url);
 
@@ -613,7 +642,7 @@ async function processTrendPipeline(body) {
             audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/Skyfall.mp3';
             console.log(`🎵 Using Skyfall audio for trend: ${trendId}`);
         } else {
-            audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/TrendsAudio.mpeg';
+            audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/Skyfall.mp3';
             console.log(`🎵 Using generic audio for trend: ${trendId || 'unknown'}`);
         }
         

@@ -10,8 +10,18 @@
 
 export interface VideoPromptDef {
     prompt: string;
-    /** Which generated image (0-indexed) to use as source frame */
+    /** Which generated image (0-indexed) to use as start frame */
     sourceImageIndex: number;
+    /** Optional: Which generated image (0-indexed) to use as end frame */
+    endImageIndex?: number;
+    /** Optional: Video duration in seconds (overrides trend default) */
+    duration?: 3 | 5 | 10;
+}
+
+export interface ImagePromptDef {
+    prompt: string;
+    /** Optional: Which previously generated image (0-indexed) to use as reference */
+    sourceImageIndex?: number;
 }
 
 export interface TrendDefinition {
@@ -21,7 +31,7 @@ export interface TrendDefinition {
     image: string;
     tags: string[];
     /** Array of image generation prompts */
-    imagePrompts: string[];
+    imagePrompts: (string | ImagePromptDef)[];
     /** Array of video prompts, each referencing a source image */
     videoPrompts: VideoPromptDef[];
     videoDuration?: 5 | 10;
@@ -38,40 +48,54 @@ export const TREND_DEFINITIONS: TrendDefinition[] = [
         tags: ['Cinematic', 'Viral', 'Dramatic'],
         imagePrompts: [
             // Prompt 1
-            `Generate A Person From Photo 1.\nThe Location Is Very High In The Sky At A Slightly Pinkish Sunset. A Man Is In A Horizontal Position With A Falling Effect. The Man’s Face Is Calm, He Is Falling Backwards. The Frame Is At Human Eye Level, And We See The Full Body. Movie Shot, Slightly Blurred Background, Beautiful Color Correction. (The Falling Person/Object)`,
+            `Generate A Person From Photo 1.\nThe Location Is Very High In The Sky At A Slightly Pinkish Sunset. A Man Is In A Horizontal Position With A Falling Effect. The Man's Face Is Calm, He Is Falling Backwards. The Frame Is At Human Eye Level, And We See The Full Body. Movie Shot, Slightly Blurred Background, Beautiful Color Correction. (The Falling Person/Object)`,
 
             // Prompt 2
-            `Generate a similar scene but person is far away, he’s barely visible. Use different sky texture but same sky color`,
-
+            {
+                prompt: `Generate a similar scene but person is far away, he's barely visible. Use different sky texture but same sky color`,
+                sourceImageIndex: 0
+            },
             // Prompt 3
-            `Generate the same scene but a close up shot of the person’s face`,
-
+            {
+                prompt: `Generate the same scene but a close up shot of the person's face`,
+                sourceImageIndex: 0
+            },
             // Prompt 4
-            `Generate the same scene but a close up shot of the person’s shoes`,
-
+            {
+                prompt: `Generate the same scene but a close up shot of the person's shoes`,
+                sourceImageIndex: 0
+            },
             // Prompt 5
-            `Generate the same scene but a close up shot of the person’s hand accessories`
+            {
+                prompt: `Generate the same scene but a close up shot of the person's hand accessories`,
+                sourceImageIndex: 0
+            }
         ],
         videoPrompts: [
-            // Video 1
+            // Video 1 - Transition from wide shot to full body (5 seconds)
             {
                 prompt: 'A person falling down from sky with natural falling motion. Smooth cinematic camera movement downward.',
-                sourceImageIndex: 0,
-            },
-            // Video 2
-            {
-                prompt: 'Levitate',
                 sourceImageIndex: 1,
+                endImageIndex: 0,
+                duration: 5,
             },
-            // Video 3
+            // Video 2 (3 seconds)
             {
                 prompt: 'Levitate',
                 sourceImageIndex: 2,
+                duration: 3,
             },
-            // Video 4
+            // Video 3 (3 seconds)
             {
                 prompt: 'Levitate',
                 sourceImageIndex: 3,
+                duration: 3,
+            },
+            // Video 4 (3 seconds)
+            {
+                prompt: 'Levitate',
+                sourceImageIndex: 4,
+                duration: 3,
             },
         ],
         videoDuration: 5,

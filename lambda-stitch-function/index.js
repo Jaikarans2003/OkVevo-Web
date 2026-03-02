@@ -156,72 +156,38 @@ async function stitchVideos(inputFiles, outputFile, audioFile = null) {
     const n = inputFiles.length;
     if (n < 2) throw new Error('Need at least 2 videos to stitch');
 
-    // Probe all video durations first
-    const durations = [];
-    for (const file of inputFiles) {
-        const duration = await getVideoDuration(file);
-        durations.push(duration);
-    }
-
-    console.log('Video durations:', durations);
+    console.log(`Stitching ${n} videos with simple concatenation (no transitions)`);
 
     return new Promise((resolve, reject) => {
-        const transitionDuration = 1.5;
-        const transitions = ['smoothleft', 'smoothright', 'fade', 'wipeleft'];
-
-        // Build filter complex dynamically for N videos
+        // Build filter complex for simple concatenation
         let filter = '';
 
-        // Normalize all video inputs
+        // Normalize all video inputs to same format
         for (let i = 0; i < n; i++) {
             filter += `[${i}:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}];`;
         }
 
-        // Chain crossfade transitions
-        let prevLabel = 'v0';
-        let cumulativeOffset = 0;
-
-        for (let i = 1; i < n; i++) {
-            cumulativeOffset += durations[i - 1] - transitionDuration;
-            const transition = transitions[(i - 1) % transitions.length];
-            const outLabel = i === n - 1 ? 'outv' : `vt${i}`;
-            filter += `[${prevLabel}][v${i}]xfade=transition=${transition}:duration=${transitionDuration}:offset=${cumulativeOffset}[${outLabel}];`;
-            prevLabel = outLabel;
-            // After first crossfade, cumulative offset adjusts
-            // offset for next = previous_offset + duration[i] - transitionDuration
-            // But we recalculate from scratch each time
-        }
-
-        // Recalculate offsets correctly from scratch
-        filter = '';
-        for (let i = 0; i < n; i++) {
-            filter += `[${i}:v]scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}];`;
-        }
-
-        prevLabel = 'v0';
-        let runningDuration = durations[0];
-
-        for (let i = 1; i < n; i++) {
-            const offset = runningDuration - transitionDuration;
-            const transition = transitions[(i - 1) % transitions.length];
-            const outLabel = i === n - 1 ? 'outv' : `vt${i}`;
-            filter += `[${prevLabel}][v${i}]xfade=transition=${transition}:duration=${transitionDuration}:offset=${offset}[${outLabel}];`;
-            prevLabel = outLabel;
-            runningDuration = offset + durations[i]; // After crossfade, new running duration
-        }
-
-        // Handle audio
+        // Normalize all audio inputs to same format
         if (!audioFile) {
-            // Build audio crossfade chain for N videos
             for (let i = 0; i < n; i++) {
-                filter += `[${i}:a]atrim=0:${durations[i]},asetpts=PTS-STARTPTS[a${i}];`;
+                filter += `[${i}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[a${i}];`;
             }
-            let prevAudio = 'a0';
-            for (let i = 1; i < n; i++) {
-                const outAudio = i === n - 1 ? 'outa' : `at${i}`;
-                filter += `[${prevAudio}][a${i}]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[${outAudio}];`;
-                prevAudio = outAudio;
+        }
+
+        // Concatenate all videos
+        let videoInputs = '';
+        for (let i = 0; i < n; i++) {
+            videoInputs += `[v${i}]`;
+        }
+        filter += `${videoInputs}concat=n=${n}:v=1:a=0[outv];`;
+
+        // Concatenate all audio (if not using external audio)
+        if (!audioFile) {
+            let audioInputs = '';
+            for (let i = 0; i < n; i++) {
+                audioInputs += `[a${i}]`;
             }
+            filter += `${audioInputs}concat=n=${n}:v=0:a=1[outa];`;
         }
 
         // Remove trailing semicolon
@@ -257,11 +223,15 @@ async function stitchVideos(inputFiles, outputFile, audioFile = null) {
             '-c:a', 'aac',
             '-b:a', '256k',
             '-ar', '48000',
-            '-movflags', '+faststart',
-            '-shortest',
-            '-y',
-            outputFile
+            '-movflags', '+faststart'
         );
+
+        // Only use -shortest if NOT using external audio (to avoid cutting audio)
+        if (!audioFile) {
+            args.push('-shortest');
+        }
+
+        args.push('-y', outputFile);
 
         console.log('Starting FFmpeg...');
         const ffmpeg = spawn('/opt/bin/ffmpeg', args);
