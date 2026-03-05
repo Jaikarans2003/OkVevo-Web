@@ -1,45 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getStorage } from 'firebase-admin/storage';
 
 /**
  * AI Influencer TTS Generation API Route
- * 
- * Generates TTS audio using OpenAI API and uploads to Firebase Storage.
- * 
+ *
+ * Generates TTS audio using OpenAI API.
+ * Returns a signed URL if Firebase Admin is configured,
+ * OR falls back to returning a data URL so the frontend can play/use it directly.
+ *
  * POST /api/ai-influencer/generate-tts
  */
 
-let firebaseInitialized = false;
-
-function initializeFirebase() {
-    if (firebaseInitialized || getApps().length > 0) {
-        firebaseInitialized = true;
-        return;
-    }
-
+function tryInitFirebase() {
     try {
         const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountBase64) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not set');
+        if (!serviceAccountBase64) return null;
+
+        const { initializeApp, getApps, cert } = require('firebase-admin/app');
+        const { getStorage } = require('firebase-admin/storage');
+
+        if (getApps().length === 0) {
+            const serviceAccount = JSON.parse(
+                Buffer.from(serviceAccountBase64.trim(), 'base64').toString('utf-8')
+            );
+            const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
+            initializeApp({ credential: cert(serviceAccount), storageBucket: bucketName });
         }
 
-        const serviceAccount = JSON.parse(
-            Buffer.from(serviceAccountBase64.trim(), 'base64').toString('utf-8')
-        );
-
-        const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
-
-        initializeApp({
-            credential: cert(serviceAccount),
-            storageBucket: bucketName,
-        });
-
-        firebaseInitialized = true;
-        console.log('✅ Firebase Admin SDK initialized');
-    } catch (error: any) {
-        console.error('❌ Firebase initialization error:', error);
-        throw error;
+        return getStorage();
+    } catch {
+        return null;
     }
 }
 
@@ -62,28 +51,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const openaiApiKey = process.env.OPENAI_API_KEY;
+        const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
         if (!openaiApiKey) {
-            console.error('OPENAI_API_KEY not configured');
-            return NextResponse.json(
-                { error: 'Server configuration error' },
-                { status: 500 }
-            );
+            return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
         }
 
-        // Voice mapping based on gender
-        const voiceMap: { [key: string]: string } = {
-            male: 'onyx',
-            female: 'nova'
-        };
+        // Voice mapping
+        const voiceMap: Record<string, string> = { male: 'onyx', female: 'nova' };
         const voice = voiceMap[gender];
 
         console.log('🎙️ Generating TTS with OpenAI...');
-        console.log(`   Job ID: ${jobId}`);
-        console.log(`   Gender: ${gender} → Voice: ${voice}`);
-        console.log(`   Script length: ${script.length} chars`);
+        console.log(`   Job ID: ${jobId} | Voice: ${voice} | Chars: ${script.length}`);
 
-        // Call OpenAI TTS API
+        // Call OpenAI TTS
         const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: {
@@ -91,60 +71,64 @@ export async function POST(request: NextRequest) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'gpt-4o-mini-tts',
+                model: 'tts-1',
                 input: script,
-                voice: voice,
+                voice,
                 response_format: 'mp3',
-                speed: 1.0
+                speed: 1.0,
             }),
         });
 
         if (!ttsResponse.ok) {
-            const errorText = await ttsResponse.text();
-            console.error('❌ OpenAI TTS API error:', errorText);
-            throw new Error(`OpenAI TTS failed: ${ttsResponse.status} ${errorText}`);
+            const errText = await ttsResponse.text();
+            console.error('❌ OpenAI TTS error:', errText);
+            throw new Error(`OpenAI TTS failed: ${ttsResponse.status} ${errText}`);
         }
 
         const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer());
-        console.log(`✅ TTS generated: ${audioBuffer.length} bytes`);
+        console.log(`✅ TTS audio generated: ${audioBuffer.length} bytes`);
 
-        // Initialize Firebase and upload
-        initializeFirebase();
-        const bucket = getStorage().bucket();
-        const audioPath = `AIInfluencer/${jobId}/audio.mp3`;
-        const file = bucket.file(audioPath);
+        // Try Firebase upload (optional — only if FIREBASE_SERVICE_ACCOUNT_KEY is set)
+        const firebaseStorage = tryInitFirebase();
 
-        await file.save(audioBuffer, {
-            metadata: {
-                contentType: 'audio/mpeg',
-                metadata: {
-                    jobId,
-                    gender,
-                    voice,
-                    generatedAt: new Date().toISOString()
-                }
+        if (firebaseStorage) {
+            try {
+                const bucket = firebaseStorage.bucket();
+                const audioPath = `AIInfluencer/${jobId}/audio.mp3`;
+                const file = bucket.file(audioPath);
+
+                await file.save(audioBuffer, {
+                    metadata: { contentType: 'audio/mpeg' },
+                });
+                await file.makePublic();
+
+                const audioUrl = `https://storage.googleapis.com/${bucket.name}/${audioPath}`;
+                console.log(`✅ Audio uploaded to Firebase: ${audioUrl}`);
+
+                return NextResponse.json({ success: true, audioUrl, voice, audioSize: audioBuffer.length });
+            } catch (fbErr) {
+                console.warn('⚠️ Firebase upload failed, falling back to data URL:', fbErr);
             }
-        });
+        }
 
-        await file.makePublic();
-        const audioUrl = `https://storage.googleapis.com/${bucket.name}/${audioPath}`;
+        // Fallback: return Base64 data URL so the browser can play it directly
+        const base64Audio = audioBuffer.toString('base64');
+        const dataUrl = `data:audio/mpeg;base64,${base64Audio}`;
 
-        console.log(`✅ Audio uploaded to Firebase: ${audioUrl}`);
+        console.log('✅ Returning audio as data URL (no Firebase configured)');
 
         return NextResponse.json({
             success: true,
-            audioUrl,
+            audioUrl: dataUrl,
             voice,
-            audioSize: audioBuffer.length
+            audioSize: audioBuffer.length,
+            storageMode: 'dataurl',
         });
 
     } catch (error: any) {
         console.error('❌ TTS generation error:', error);
         return NextResponse.json(
-            { 
-                error: 'Failed to generate TTS',
-                details: error.message 
-            },
+            { error: 'Failed to generate TTS', details: error.message },
             { status: 500 }
         );
     }
