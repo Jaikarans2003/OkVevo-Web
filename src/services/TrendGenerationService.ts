@@ -119,18 +119,28 @@ const dispatchJob = async (payload: Record<string, unknown>): Promise<{ success:
 
 export const submitTrendJob = async (
     personFile: File,
+    faceFile: File | null,
     trend: TrendDefinition,
     userId: string,
 ): Promise<{ success: boolean; jobId?: string; error?: string }> => {
     const jobId = generateJobId();
 
     try {
-        // 1. Upload person photo
+        // 1. Upload person photos (full body + optional face)
         const personBase64 = await fileToBase64(personFile);
         const personImageUrl = await uploadImageToFirebase(
             personBase64,
-            `TrendPhotos/uploads/${jobId}.png`
+            `TrendPhotos/uploads/${jobId}-body.png`
         );
+
+        let faceImageUrl: string | undefined;
+        if (faceFile) {
+            const faceBase64 = await fileToBase64(faceFile);
+            faceImageUrl = await uploadImageToFirebase(
+                faceBase64,
+                `TrendPhotos/uploads/${jobId}-face.png`
+            );
+        }
 
         // 2. Build image and video slot arrays
         const images: ImageSlot[] = trend.imagePrompts.map((_, i) => ({
@@ -164,10 +174,13 @@ export const submitTrendJob = async (
             userId,
             trendId: trend.id,
             personImageUrl,
+            faceImageUrl,
             imagePrompts: trend.imagePrompts,
             videoPrompts: trend.videoPrompts.map(vp => ({
                 prompt: vp.prompt,
                 sourceImageIndex: vp.sourceImageIndex,
+                endImageIndex: vp.endImageIndex,
+                duration: vp.duration,
             })),
             imageOutputPaths: images.map(img => img.outputPath),
             videoOutputPaths: videos.map(vid => vid.outputPath),

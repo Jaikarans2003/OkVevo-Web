@@ -60,6 +60,10 @@ async function downloadVideoFromFirebase(videoUrl, filename) {
             }
             // path is everything after /o/, url-decoded
             filePath = decodeURIComponent(parts[1]);
+        } else if (url.hostname.includes('firebasestorage.app')) {
+            // Firebase .app domain format: gs://bucket.firebasestorage.app/path/to/file
+            // pathname is /path/to/file, remove leading slash
+            filePath = url.pathname.substring(1);
         } else {
             // Standard GCS format: /[bucket]/[path] or similar
             // Existing logic: matches /bucket/path/to/file -> path/to/file
@@ -275,6 +279,10 @@ async function downloadAudioFromFirebase(audioUrl, filename) {
             }
             // path is everything after /o/, url-decoded
             filePath = decodeURIComponent(parts[1]);
+        } else if (url.hostname.includes('firebasestorage.app')) {
+            // Firebase .app domain format: gs://bucket.firebasestorage.app/path/to/file
+            // pathname is /path/to/file, remove leading slash
+            filePath = url.pathname.substring(1);
         } else {
             // Standard GCS format: /[bucket]/[path]
             const pathMatch = url.pathname.match(/^\/[^\/]+\/(.+)$/);

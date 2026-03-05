@@ -23,7 +23,8 @@ const https = require('https');
  */
 
 const NANOBANANA_MODEL = 'gemini-3-pro-image-preview';
-const AIML_API_BASE = 'https://api.aimlapi.com';
+const FAL_API_BASE = 'https://queue.fal.run';
+const FAL_STATUS_BASE = 'https://queue.fal.run';
 
 let firebaseInitialized = false;
 
@@ -186,7 +187,7 @@ function klingRequest(method, path, body = null) {
 // NANOBANANA PRO (Image Generation)
 // ────────────────────────────────────────────────────
 
-async function generateTrendImage(masterPrompt, personImage = null) {
+async function generateTrendImage(masterPrompt, personImage = null, faceReferenceImage = null) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY environment variable not set');
@@ -196,7 +197,28 @@ async function generateTrendImage(masterPrompt, personImage = null) {
 
     const contentParts = [];
 
-    if (personImage) {
+    if (personImage && faceReferenceImage) {
+        // Dual reference mode: Use personImage for scene/pose/outfit, faceReferenceImage for facial features
+        contentParts.push(
+            { text: masterPrompt },
+            { text: 'CRITICAL INSTRUCTION: You will receive TWO reference images.\n\nREFERENCE IMAGE 1 (Scene/Pose/Outfit): Use this for the overall scene composition, body pose, outfit, clothing, and background context.' },
+            {
+                inlineData: {
+                    mimeType: 'image/png',
+                    data: personImage.toString('base64'),
+                },
+            },
+            { text: 'REFERENCE IMAGE 2 (Facial Features): Use this ONLY for the person\'s EXACT facial features, face shape, skin tone, eyes, nose, mouth, hair style, and hair color. DO NOT copy the pose, outfit, or background from this image.' },
+            {
+                inlineData: {
+                    mimeType: 'image/png',
+                    data: faceReferenceImage.toString('base64'),
+                },
+            },
+            { text: 'Generate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person\'s face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.' }
+        );
+    } else if (personImage) {
+        // Single reference mode: Use for everything
         contentParts.push(
             { text: masterPrompt },
             { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person\'s appearance.\n\nThe reference image shows the EXACT person you must generate. Keep every detail of their appearance IDENTICAL - same face, same outfit, same physical characteristics.\n\nYou may ONLY change the camera angle, framing, and background as specified in the text prompt. The person themselves must look EXACTLY like the reference image.\n\nIf the text says "Close-up", generate a tight close-up of the EXACT same person from the reference image.' },
@@ -252,27 +274,27 @@ async function generateTrendImage(masterPrompt, personImage = null) {
 }
 
 // ────────────────────────────────────────────────────
-// AIML API Helpers (Kling via AIML aggregator)
+// Fal AI API Helpers (Kling via Fal)
 // ────────────────────────────────────────────────────
 
 /**
- * Make an HTTP request to the AIML API.
+ * Make an HTTP request to the Fal AI API.
  */
-function aimlRequest(method, path, body = null) {
+function falRequest(method, path, body = null) {
     return new Promise((resolve, reject) => {
-        const apiKey = process.env.KLING_API_KEY;
+        const apiKey = process.env.FAL_API_KEY;
         if (!apiKey) {
-            return reject(new Error('KLING_API_KEY environment variable not set'));
+            return reject(new Error('FAL_API_KEY environment variable not set'));
         }
 
-        const url = new URL(path, AIML_API_BASE);
+        const url = new URL(path, FAL_API_BASE);
 
         const options = {
             hostname: url.hostname,
             path: url.pathname + url.search,
             method,
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
+                'Authorization': `Key ${apiKey}`,
                 'Content-Type': 'application/json',
             },
         };
@@ -284,12 +306,12 @@ function aimlRequest(method, path, body = null) {
                 try {
                     const parsed = JSON.parse(data);
                     if (res.statusCode >= 400) {
-                        reject(new Error(`AIML API error (${res.statusCode}): ${JSON.stringify(parsed)}`));
+                        reject(new Error(`Fal API error (${res.statusCode}): ${JSON.stringify(parsed)}`));
                     } else {
                         resolve(parsed);
                     }
                 } catch {
-                    reject(new Error(`AIML API invalid response (${res.statusCode}): ${data}`));
+                    reject(new Error(`Fal API invalid response (${res.statusCode}): ${data}`));
                 }
             });
         });
@@ -297,7 +319,7 @@ function aimlRequest(method, path, body = null) {
         req.on('error', reject);
         req.setTimeout(30000, () => {
             req.destroy();
-            reject(new Error('AIML API request timeout'));
+            reject(new Error('Fal API request timeout'));
         });
 
         if (body) {
@@ -308,108 +330,115 @@ function aimlRequest(method, path, body = null) {
 }
 
 // ────────────────────────────────────────────────────
-// Kling 2.5 Turbo via AIML API (Video Generation)
+// Kling via Fal AI (Video Generation)
 // ────────────────────────────────────────────────────
 
 /**
- * Submit a Kling image-to-video task via AIML API.
+ * Submit a Kling v2.5 Turbo Pro image-to-video task via Fal AI queue.
  * Supports optional end frame for start-to-end transitions.
  */
 async function submitKlingVideoTask(imageUrl, prompt, duration = 5, endFrameUrl = null) {
-    console.log('🎥 Submitting Kling v1 Standard image-to-video task via AIML API...');
+    console.log('🎥 Submitting Kling v2.5 Turbo Pro image-to-video task via Fal AI...');
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
     console.log(`🖼️ Start frame: ${imageUrl}`);
     if (endFrameUrl) {
-        console.log(`🖼️ End frame: ${endFrameUrl}`);
+        console.log(`🖼️ End frame (tail): ${endFrameUrl}`);
     }
 
     const requestBody = {
-        image: imageUrl,
         prompt: prompt,
-        negative_prompt: 'blurry, distorted face, extra limbs, low quality, watermark',
-        duration: duration,
+        image_url: imageUrl,
+        duration: duration === 10 ? '10' : '5',
+        negative_prompt: 'blur, distort, and low quality',
         cfg_scale: 0.5,
     };
 
-    // Add end frame if provided
+    // Add end frame if provided (v2.5 uses tail_image_url)
     if (endFrameUrl) {
-        requestBody.image_tail = endFrameUrl;
+        requestBody.tail_image_url = endFrameUrl;
     }
 
-    const response = await aimlRequest('POST', '/kling-video/v1/standard/image-to-video', requestBody);
+    const response = await falRequest('POST', '/fal-ai/kling-video/v2.5-turbo/pro/image-to-video', requestBody);
 
-    const taskId = response.data?.task_id;
-    if (!taskId) {
-        throw new Error(`Kling API did not return a task_id: ${JSON.stringify(response)}`);
+    const requestId = response.request_id;
+    if (!requestId) {
+        throw new Error(`Fal API did not return a request_id: ${JSON.stringify(response)}`);
     }
 
-    console.log(`✅ Kling video task submitted: ${taskId}`);
-    return taskId;
+    console.log(`✅ Kling v2.5 Turbo Pro video task submitted to Fal queue: ${requestId}`);
+    return requestId;
 }
 
 /**
- * Poll AIML API for video generation completion (Kling v1 Standard).
+ * Poll Fal AI queue for video generation completion (Kling v2.5 Turbo Pro).
  */
-async function pollKlingTask(taskId, maxAttempts = 60) {
+async function pollKlingTask(requestId, maxAttempts = 60) {
     const INTERVAL_MS = 5000; // 5 seconds
 
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, INTERVAL_MS));
 
-        console.log(`⏳ Kling poll ${i + 1}/${maxAttempts}: task ${taskId}...`);
+        console.log(`⏳ Fal queue poll ${i + 1}/${maxAttempts}: request ${requestId}...`);
 
-        const response = await aimlRequest('GET', `/kling-video/v1/standard/image-to-video/${taskId}`);
+        // Note: Status endpoint uses the model ID without subpath
+        const response = await falRequest('GET', `/fal-ai/kling-video/requests/${requestId}/status`);
 
         const status = response.status;
         console.log(`   Status: ${status}`);
 
-        if (status === 'completed' || status === 'succeed') {
-            console.log('🔍 Checking for video URL in response...');
-            console.log(`   Full response: ${JSON.stringify(response)}`);
-
-            // Extract video URL from various possible response structures
+        if (status === 'COMPLETED') {
+            console.log('🔍 Video generation completed!');
+            
+            // If we have response_url, fetch the actual result
+            if (response.response_url) {
+                console.log(`   Fetching result from: ${response.response_url}`);
+                const resultResponse = await falRequest('GET', `/fal-ai/kling-video/requests/${requestId}`);
+                console.log(`   Result response: ${JSON.stringify(resultResponse)}`);
+                
+                // Extract video URL from result
+                let videoUrl = null;
+                if (resultResponse.video && resultResponse.video.url) {
+                    videoUrl = resultResponse.video.url;
+                } else if (resultResponse.data && resultResponse.data.video && resultResponse.data.video.url) {
+                    videoUrl = resultResponse.data.video.url;
+                } else if (resultResponse.output && resultResponse.output.video && resultResponse.output.video.url) {
+                    videoUrl = resultResponse.output.video.url;
+                }
+                
+                if (videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http')) {
+                    console.log(`✅ Video ready: ${videoUrl}`);
+                    return videoUrl;
+                }
+            }
+            
+            // Otherwise try to extract from status response directly
             let videoUrl = null;
-
-            if (response.video && typeof response.video === 'object' && response.video.url) {
+            if (response.video && response.video.url) {
                 videoUrl = response.video.url;
-                console.log(`   ✓ Found URL in response.video.url: ${videoUrl}`);
-            } else if (response.video && typeof response.video === 'string') {
-                videoUrl = response.video;
-                console.log(`   ✓ Found URL in response.video (string): ${videoUrl}`);
-            } else if (response.video_url) {
-                videoUrl = response.video_url;
-                console.log(`   ✓ Found URL in response.video_url: ${videoUrl}`);
-            } else if (response.output && response.output.video_url) {
-                videoUrl = response.output.video_url;
-                console.log(`   ✓ Found URL in response.output.video_url: ${videoUrl}`);
-            } else if (response.data && response.data.task_result && response.data.task_result.videos && response.data.task_result.videos[0]) {
-                videoUrl = response.data.task_result.videos[0].url;
-                console.log(`   ✓ Found URL in response.data.task_result.videos[0].url: ${videoUrl}`);
-            } else if (response.generations && response.generations[0] && response.generations[0].video) {
-                videoUrl = response.generations[0].video.url || response.generations[0].video;
-                console.log(`   ✓ Found URL in response.generations[0].video: ${videoUrl}`);
-            } else if (response.videos && response.videos[0]) {
-                videoUrl = response.videos[0].url || response.videos[0];
-                console.log(`   ✓ Found URL in response.videos[0]: ${videoUrl}`);
+            } else if (response.data && response.data.video && response.data.video.url) {
+                videoUrl = response.data.video.url;
+            } else if (response.output && response.output.video && response.output.video.url) {
+                videoUrl = response.output.video.url;
+            }
+            
+            if (videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http')) {
+                console.log(`✅ Video ready: ${videoUrl}`);
+                return videoUrl;
             }
 
-            if (!videoUrl || typeof videoUrl !== 'string' || !videoUrl.startsWith('http')) {
-                console.error('❌ Video completed but no valid URL found. Full response:', JSON.stringify(response, null, 2));
-                throw new Error(`Video completed but no valid URL found: ${JSON.stringify(response)}`);
-            }
-            console.log(`✅ Video ready: ${videoUrl}`);
-            return videoUrl;
+            console.error('❌ Video completed but no valid URL found. Full response:', JSON.stringify(response, null, 2));
+            throw new Error(`Video completed but no valid URL found: ${JSON.stringify(response)}`);
         }
 
-        if (status === 'failed' || status === 'error') {
-            console.error('❌ AIML video failed — full response:', JSON.stringify(response, null, 2));
+        if (status === 'FAILED' || status === 'ERROR') {
+            console.error('❌ Fal video generation failed — full response:', JSON.stringify(response, null, 2));
             let failReason = response.error || response.message || 'Unknown failure';
             if (typeof failReason === 'object') failReason = JSON.stringify(failReason);
             throw new Error(`Video generation failed: ${failReason}`);
         }
 
-        // Status is 'pending', 'queued', 'processing', 'generating' — continue polling
+        // Status is 'IN_QUEUE', 'IN_PROGRESS' — continue polling
     }
 
     throw new Error(`Video generation timed out after ${maxAttempts * INTERVAL_MS / 1000}s`);
@@ -441,8 +470,8 @@ function downloadUrl(url) {
 /**
  * Generate a single image, upload, return URL.
  */
-async function generateAndUploadImage(prompt, personBuffer, outputPath) {
-    const imageBuffer = await generateTrendImage(prompt, personBuffer);
+async function generateAndUploadImage(prompt, personBuffer, outputPath, faceBuffer = null) {
+    const imageBuffer = await generateTrendImage(prompt, personBuffer, faceBuffer);
     const publicUrl = await uploadToFirebase(imageBuffer, outputPath);
     console.log(`✅ Image uploaded: ${publicUrl}`);
     return { publicUrl, imageBuffer };
@@ -511,6 +540,7 @@ async function processTrendPipeline(body) {
         jobId,
         trendId,
         personImageUrl,
+        faceImageUrl,
         imagePrompts,
         videoPrompts,
         imageOutputPaths,
@@ -524,11 +554,18 @@ async function processTrendPipeline(body) {
     console.log(`   ${imagePrompts.length} images + ${videoPrompts.length} videos`);
     console.log(`${'═'.repeat(60)}`);
 
-    // Download person's reference image once
+    // Download person's reference images
     let personBuffer = null;
+    let faceBuffer = null;
+    
     if (personImageUrl) {
-        console.log('📥 Downloading person reference image...');
+        console.log('📥 Downloading full body reference image...');
         personBuffer = await downloadFromFirebase(personImageUrl);
+    }
+    
+    if (faceImageUrl) {
+        console.log('📥 Downloading face reference image...');
+        faceBuffer = await downloadFromFirebase(faceImageUrl);
     }
 
     // ── Phase 1: Generate all images ────────────────────────────
@@ -536,11 +573,19 @@ async function processTrendPipeline(body) {
     const imageUrls = [];
 
     for (let i = 0; i < imagePrompts.length; i++) {
-        console.log(`\n📸 Image ${i + 1}/${imagePrompts.length}`);
+        console.log(`\n📸 Image ${i + 1}/${imagePrompts.length} (index ${i})`);
+        console.log(`   Output path: ${imageOutputPaths[i]}`);
         try {
-            // Determine reference image based on sourceImageIndex
-            let refBuffer = personBuffer; // Default to user's photo
+            // Determine reference image based on sourceImageIndex and useFaceReference
+            let refBuffer = personBuffer; // Default to user's full body photo
+            let faceRefBuffer = null; // Optional face reference for dual-reference mode
             const promptConfig = imagePrompts[i];
+            
+            console.log(`   Prompt type: ${typeof promptConfig}`);
+            if (typeof promptConfig === 'object') {
+                console.log(`   Has sourceImageIndex: ${promptConfig.sourceImageIndex !== undefined}`);
+                console.log(`   Has useFaceReference: ${promptConfig.useFaceReference === true}`);
+            }
             
             if (typeof promptConfig === 'object' && promptConfig.sourceImageIndex !== undefined) {
                 const refIndex = promptConfig.sourceImageIndex;
@@ -548,23 +593,33 @@ async function processTrendPipeline(body) {
                     // Download the previously generated image from Firebase Storage
                     console.log(`   Downloading generated image ${refIndex} from Firebase as reference`);
                     refBuffer = await downloadFromFirebase(imageUrls[refIndex]);
-                    console.log(`   Using generated image ${refIndex} as reference`);
+                    console.log(`   Using generated image ${refIndex} as primary reference`);
                 } else {
                     console.log(`   Reference image ${refIndex} not yet generated, using user photo`);
                 }
+                
+                // If useFaceReference is true and we have a face photo, use it as secondary reference
+                if (promptConfig.useFaceReference && faceBuffer) {
+                    console.log(`   ✨ Using face reference photo as secondary reference for facial features only`);
+                    faceRefBuffer = faceBuffer;
+                }
             } else {
-                console.log(`   Using user's uploaded photo as reference`);
+                console.log(`   Using user's uploaded full body photo as reference`);
             }
 
             const promptText = typeof promptConfig === 'string' ? promptConfig : promptConfig.prompt;
+            console.log(`   Prompt length: ${promptText.length} chars`);
+            
             const result = await generateAndUploadImage(
                 promptText,
                 refBuffer,
-                imageOutputPaths[i]
+                imageOutputPaths[i],
+                faceRefBuffer
             );
 
             const url = result.publicUrl;
             imageUrls.push(url);
+            console.log(`   ✅ Stored at imageUrls[${imageUrls.length - 1}]: ${url}`);
 
             // Update Firestore — set this image slot's url
             const firestore = admin.firestore();
@@ -578,10 +633,19 @@ async function processTrendPipeline(body) {
                 }
             }
         } catch (err) {
-            console.error(`❌ Image ${i} failed:`, err.message);
+            console.error(`❌ Image ${i} (index ${i}) FAILED`);
+            console.error(`   Error message: ${err.message}`);
+            console.error(`   Error stack: ${err.stack}`);
+            console.error(`   Full error:`, err);
             imageUrls.push(null);
+            console.log(`   ⚠️ Pushed null to imageUrls[${imageUrls.length - 1}]`);
         }
     }
+    
+    console.log(`\n📊 Image Generation Summary:`);
+    imageUrls.forEach((url, idx) => {
+        console.log(`   imageUrls[${idx}]: ${url ? 'SUCCESS' : 'FAILED/NULL'}`);
+    });
 
     console.log(`\n✅ Images done: ${imageUrls.filter(Boolean).length}/${imagePrompts.length}`);
 
@@ -595,13 +659,17 @@ async function processTrendPipeline(body) {
         const endImageUrl = endImageIndex !== undefined ? imageUrls[endImageIndex] : null;
         const videoLength = duration || videoDuration; // Use per-video duration or trend default
 
+        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex}${endImageIndex !== undefined ? ` to ${endImageIndex}` : ''}, ${videoLength}s)`);
+        console.log(`   Source image URL: ${sourceImageUrl ? 'available' : 'MISSING'}`);
+        if (endImageIndex !== undefined) {
+            console.log(`   End image URL: ${endImageUrl ? 'available' : 'MISSING'}`);
+        }
+
         if (!sourceImageUrl) {
             console.warn(`⚠️ Video ${i}: source image ${sourceImageIndex} missing, skipping`);
             videoResultUrls.push(null);
             continue;
         }
-
-        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex}${endImageUrl ? ` to ${endImageIndex}` : ''}, ${videoLength}s)`);
         try {
             const url = await generateAndUploadVideo(
                 prompt,

@@ -22,6 +22,8 @@ export interface ImagePromptDef {
     prompt: string;
     /** Optional: Which previously generated image (0-indexed) to use as reference */
     sourceImageIndex?: number;
+    /** Optional: Use the user's face reference photo instead of full body photo */
+    useFaceReference?: boolean;
 }
 
 export interface TrendDefinition {
@@ -61,10 +63,11 @@ IMPORTANT: Keep the person's face, body, clothing, and all physical characterist
             },
             // Prompt 3
             {
-                prompt: `CRITICAL: Use the EXACT same person from the reference image. Keep their face, facial features, skin tone, hair, and outfit Strictly IDENTICAL. Do not change or hallucinate any details.
+                prompt: `Generate a close-up shot of the person's face in the same sky scene. Keep the exact scene composition, lighting, and atmosphere from the primary reference image (Image 0), but use the facial features, face shape, skin tone, eyes, nose, mouth, and hair style from the face reference image.
 
-Generate a close-up shot of the person's face in the same sky scene. The person must look Stritcly EXACTLY like they do in the reference image - same face, same expression, same features. Only change the camera framing to focus on the face.`,
-                sourceImageIndex: 0
+IMPORTANT: The face must be IDENTICAL to the face reference image - same facial features, same expression, same skin tone, same hair. Everything else (scene, lighting, composition) must match the primary reference image. Only change the camera framing to focus on the face.`,
+                sourceImageIndex: 0,
+                useFaceReference: true
             },
             // Prompt 4
             {
@@ -75,9 +78,9 @@ Generate a close-up shot of the person's shoes/feet in the same sky scene. The f
             },
             // Prompt 5
             {
-                prompt: `CRITICAL: Use the EXACT same person from the reference image. Keep their hands, accessories, and clothing IDENTICAL. Do not change or hallucinate any details.
+                prompt: `CRITICAL: Use the EXACT same person and Objects from the reference image. Keep their hands, accessories, and clothing IDENTICAL. Do not change or hallucinate any details.
 
-Generate a close-up shot of the person's hands/accessories in the same sky scene. The hands and any accessories if Present must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the hands.`,
+Generate a close-up shot of the person's hands in the same sky scene. The hands and any accessories if Present must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the hands.`,
                 sourceImageIndex: 0
             }
         ],

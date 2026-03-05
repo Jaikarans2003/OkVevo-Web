@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.971.0",
+    "@fal-ai/client": "^1.9.4",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@google/genai": "^1.41.0",

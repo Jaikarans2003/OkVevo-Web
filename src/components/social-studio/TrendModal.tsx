@@ -17,26 +17,38 @@ interface TrendModalProps {
 export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalProps) {
     const { user } = useAuth();
     const [step, setStep] = useState<'upload' | 'submitting' | 'submitted'>('upload');
-    const [preview, setPreview] = useState<string | null>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [bodyPreview, setBodyPreview] = useState<string | null>(null);
+    const [facePreview, setFacePreview] = useState<string | null>(null);
+    const [bodyFile, setBodyFile] = useState<File | null>(null);
+    const [faceFile, setFaceFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const bodyInputRef = useRef<HTMLInputElement>(null);
+    const faceInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleBodyFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        setSelectedFile(file);
+        setBodyFile(file);
         const reader = new FileReader();
-        reader.onloadend = () => setPreview(reader.result as string);
+        reader.onloadend = () => setBodyPreview(reader.result as string);
+        reader.readAsDataURL(file);
+    };
+
+    const handleFaceFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFaceFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setFacePreview(reader.result as string);
         reader.readAsDataURL(file);
     };
 
     const handleGenerate = async () => {
-        if (!selectedFile || !user?.uid) return;
+        if (!bodyFile || !user?.uid) return;
         setStep('submitting');
         setError(null);
 
-        const result = await submitTrendJob(selectedFile, trend, user.uid);
+        const result = await submitTrendJob(bodyFile, faceFile, trend, user.uid);
 
         if (result.success) {
             setStep('submitted');
@@ -86,31 +98,68 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
                                 </div>
                             )}
 
-                            <div
-                                className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
-                                           flex flex-col items-center justify-center cursor-pointer
-                                           hover:border-[#FF0080]/50 transition-colors overflow-hidden"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                {preview ? (
-                                    <Image src={preview} alt="Preview" fill className="object-cover" />
-                                ) : (
-                                    <>
-                                        <Upload className="w-8 h-8 text-white/30 mb-2" />
-                                        <p className="text-sm text-white/40">Upload your photo</p>
-                                    </>
-                                )}
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                />
+                            {/* Full Body Photo Upload */}
+                            <div>
+                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                    Full Body Photo <span className="text-red-400">*</span>
+                                </label>
+                                <div
+                                    className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
+                                               flex flex-col items-center justify-center cursor-pointer
+                                               hover:border-[#FF0080]/50 transition-colors overflow-hidden"
+                                    onClick={() => bodyInputRef.current?.click()}
+                                >
+                                    {bodyPreview ? (
+                                        <Image src={bodyPreview} alt="Body Preview" fill className="object-cover" />
+                                    ) : (
+                                        <>
+                                            <Upload className="w-8 h-8 text-white/30 mb-2" />
+                                            <p className="text-sm text-white/40">Upload full body photo</p>
+                                            <p className="text-xs text-white/30 mt-1">Required for outfit reference</p>
+                                        </>
+                                    )}
+                                    <input
+                                        ref={bodyInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleBodyFileSelect}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Face Photo Upload */}
+                            <div>
+                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                    Face Close-up Photo <span className="text-white/40">(Optional)</span>
+                                </label>
+                                <div
+                                    className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
+                                               flex flex-col items-center justify-center cursor-pointer
+                                               hover:border-[#7928CA]/50 transition-colors overflow-hidden"
+                                    onClick={() => faceInputRef.current?.click()}
+                                >
+                                    {facePreview ? (
+                                        <Image src={facePreview} alt="Face Preview" fill className="object-cover" />
+                                    ) : (
+                                        <>
+                                            <Upload className="w-8 h-8 text-white/30 mb-2" />
+                                            <p className="text-sm text-white/40">Upload face close-up</p>
+                                            <p className="text-xs text-white/30 mt-1">For better facial accuracy</p>
+                                        </>
+                                    )}
+                                    <input
+                                        ref={faceInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleFaceFileSelect}
+                                    />
+                                </div>
                             </div>
 
                             <button
-                                disabled={!selectedFile || !user?.uid}
+                                disabled={!bodyFile || !user?.uid}
                                 onClick={handleGenerate}
                                 className="w-full py-3 rounded-xl font-medium text-sm transition-all
                                            bg-gradient-to-r from-[#FF0080] to-[#7928CA] text-white
