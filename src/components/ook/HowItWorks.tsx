@@ -22,25 +22,25 @@ const HowItWorks = () => {
     const steps = [
         {
             number: "01",
-            tag: "IDENTITY",
-            title: "Digital Essence",
-            description: "Upload your portrait. Our neural engine decodes your facial geometry to create a high-fidelity 3D match.",
+            tag: "",
+            title: "AI Influencer",
+            description: "Create talking avatar videos in seconds, Upload your avatar, generate a script and produce Social Media ready videos instantly.",
             img: "/avatar.png",
             accent: "from-accent-orange/20 to-transparent"
         },
         {
             number: "02",
-            tag: "DIRECTION",
-            title: "The Script",
-            description: "Direct your character with plain language. Watch as scenes are built, lit, and blocked automatically by our AI.",
+            tag: "",
+            title: "Product Studio",
+            description: "Create stunning product photos without a studio. Upload your product and generate lifestyle images and marketing visuals instantly.",
             img: "/movie-scene.png",
             accent: "from-accent-sky/20 to-transparent"
         },
         {
             number: "03",
-            tag: "PRODUCTION",
-            title: "Cinematic Output",
-            description: "Render high-fidelity experiences at the touch of a button. Professional storytelling, scaled for everyone.",
+            tag: "",
+            title: "Social Media",
+            description: "Generate viral short-form videos optimized for Instagram Reels, TikTok, and YouTube Shorts.",
             img: "/ai-engine.png",
             accent: "from-accent-lavender/20 to-transparent"
         }
@@ -79,8 +79,8 @@ const HowItWorks = () => {
                         </span>
                     </motion.div>
                     <h2 className="text-6xl md:text-9xl font-black tracking-[-0.04em] leading-none uppercase text-text-main">
-                        Evolution <br />
-                        <span className="text-accent-orange italic font-normal lowercase tracking-normal">of story.</span>
+                        The Story <br />
+                        <span className="text-accent-orange italic font-normal lowercase tracking-normal">Engine.</span>
                     </h2>
                 </div>
 
