@@ -13,9 +13,10 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     const pathname = usePathname();
 
     const navLinks = [
+        { name: 'Director', href: '/workspace/director' },
         { name: 'Product Studio', href: '/workspace/product' },
         { name: 'Social Media', href: '/workspace/social' },
-        { name: 'Director', href: '/workspace/director' }
+        { name: 'AI Influencer', href: '/workspace/ai-influencer' }
     ];
 
     return (

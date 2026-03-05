@@ -1,0 +1,9 @@
+{
+  "name": "lambda-ai-influencer",
+  "version": "1.0.0",
+  "description": "AWS Lambda for AI Influencer LipSync video generation",
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

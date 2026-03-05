@@ -56,7 +56,7 @@ const DashHeroModular = ({ user }: { user?: any }) => {
         {
             icon: User,
             label: 'AI Influencer',
-            action: '/workspace/ai-avatar',
+            action: '/workspace/ai-influencer',
             iconColor: 'bg-green-400/20 text-green-500',
             indicator: 'Social Sync',
         },
