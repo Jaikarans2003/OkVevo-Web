@@ -13,6 +13,7 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     const pathname = usePathname();
 
     const navLinks = [
+        { name: 'AI Influencer', href: '/workspace/ai-influencer' },
         { name: 'Product Studio', href: '/workspace/product' },
         { name: 'Social Media', href: '/workspace/social' },
         { name: 'Director', href: '/workspace/director' }
@@ -30,7 +31,7 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                 />
             </Link>
 
-            <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+            <div className="flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
                 {navLinks.map((item) => (
                     <Link
                         key={item.name}

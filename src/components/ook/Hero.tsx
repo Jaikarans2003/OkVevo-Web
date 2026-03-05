@@ -11,22 +11,16 @@ interface HeroProps {
 const Hero = ({ onJoinClick }: HeroProps) => {
     return (
         <section data-section-theme="light" className="relative min-h-screen bg-bg-main pt-48 pb-20 overflow-hidden flex flex-col items-center">
-            {/* Background Image */}
-            <div className="absolute inset-0 z-0">
-                <Image
-                    src="/OKVEVO With BackGrounds/HeroBackGround.jpg"
-                    alt="OKVEVO Background"
-                    fill
-                    className="object-cover"
-                    priority
-                />
-                {/* Dark overlay for text readability */}
-                <div className="absolute inset-0 bg-black/40" />
+            {/* Background Orange Glow */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+                <div className="absolute -top-[20%] -left-[10%] w-[80%] h-[80%] bg-accent-orange/15 blur-[160px] rounded-full" />
             </div>
-            
+
+            {/* Background elements removed to restore clean white look */}
+
             {/* Background Decorative Gradients */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                {/* <motion.div
+                <motion.div
                     initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.1, 1],
@@ -36,8 +30,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
                     className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
-                /> */}
-                {/* <motion.div
+                />
+                <motion.div
                     initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.15, 1],
@@ -47,9 +41,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
                     className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
-                /> */}
+                />
                 {/* Symmetrical left-side balance glow */}
-                {/* <motion.div
+                <motion.div
                     initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
                     animate={{
                         scale: [1, 1.1, 1],
@@ -59,8 +53,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
                     className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
-                /> */}
-                {/* <motion.div
+                />
+                <motion.div
                     animate={{
                         x: [0, -15, 0],
                         y: [0, 25, 0],
@@ -68,7 +62,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     }}
                     transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
                     className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
-                /> */}
+                />
             </div>
 
             {/* Massive Cuberto-style Heading */}
@@ -79,8 +73,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     className="text-[12vw] md:text-[10vw] font-black leading-[0.85] tracking-[-0.06em] text-text-main max-w-[12ch] relative"
                 >
-                    Zero Camera, Infinite Vision. <br />
-                    {/* <span className="text-accent-orange text-cursive text-[1.0em] font-normal inline-block translate-y-2">Infinite Vision..</span> */}
+                    Zero <span className="font-cursive text-accent-orange">Canvas</span>,<br></br> Infinite <span className="font-cursive text-accent-orange">Vision</span>. <br />
                 </motion.h1>
 
                 <motion.div
@@ -141,7 +134,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     onClick={onJoinClick}
                     className="flex items-center gap-6 cursor-pointer group"
                 >
-                    <div className="w-16 h-16 rounded-full border border-text-main flex items-center justify-center group-hover:bg-accent-orange group-hover:border-accent-orange group-hover:text-white transition-all duration-500">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center group-hover:bg-accent-orange group-hover:border-accent-orange group-hover:text-white transition-all duration-500">
                         <ArrowRight size={24} />
                     </div>
                     <div>

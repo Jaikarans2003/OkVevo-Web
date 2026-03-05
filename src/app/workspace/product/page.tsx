@@ -286,7 +286,7 @@ export default function ProductStudio() {
                     <div className="flex items-center gap-4 pointer-events-auto">
                         <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 flex items-center gap-2 backdrop-blur-md">
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgb(34,197,94)]"></div>
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-white/60">System Online</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-white/60">LINK TEST</span>
                         </div>
                     </div>
                 }

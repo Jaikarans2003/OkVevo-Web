@@ -77,13 +77,13 @@ const Pricing = () => {
         <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden">
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
-                <Image
+                {/* <Image
                     src="/OKVEVO With BackGrounds/BackGrounds (14).png"
                     alt="Pricing Background"
                     fill
                     className="object-cover"
                     priority
-                />
+                /> */}
                 {/* Dark overlay for content readability */}
             </div>
             
