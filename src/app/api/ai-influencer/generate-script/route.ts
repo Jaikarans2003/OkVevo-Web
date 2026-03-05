@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
         if (!apiKey) {
             console.error('GEMINI_API_KEY not configured');
             return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const targetWordCount = Math.floor(duration * 2.5);
         const isRawScript = Boolean(script?.trim());

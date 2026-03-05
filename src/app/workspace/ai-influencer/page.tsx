@@ -242,7 +242,21 @@ export default function AIInfluencerPage() {
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'TTS generation failed');
 
-            setAudioUrl(data.audioUrl);
+            let finalAudioUrl: string = data.audioUrl;
+
+            // If the API returned a base64 data URL (no Firebase Admin on server),
+            // upload the audio using the client-side Firebase SDK so Lambda can access it.
+            if (data.audioUrl?.startsWith('data:')) {
+                addAssistant('Uploading audio to storage…');
+                const base64Data = data.audioUrl.split(',')[1];
+                const audioBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+                const audioRef = ref(storage, `AIInfluencer/${newJobId}/audio.mp3`);
+                await uploadBytes(audioRef, audioBlob);
+                finalAudioUrl = await getDownloadURL(audioRef);
+            }
+
+            setAudioUrl(finalAudioUrl);
             addAssistant('🎙️ Voice-over generated! Listen to the preview below. When you\'re happy, click "Generate Lip-Synced Video".');
             setChatStep('preview-audio');
         } catch (err: any) {
@@ -255,6 +269,14 @@ export default function AIInfluencerPage() {
     // ── Step 7: LipSync ───────────────────────────────────
     const handleGenerateLipSync = async () => {
         if (!jobId || !avatarVideoUrl || !audioUrl) return;
+
+        // Guard: data URLs can't be fetched by the Lambda — should never reach here now
+        if (audioUrl.startsWith('data:')) {
+            addAssistant('❌ Audio URL is not a remote URL. Please re-generate the voice-over.');
+            setChatStep('generating-tts');
+            return;
+        }
+
         setIsGenerating(true);
         setChatStep('generating-lipsync');
         addAssistant('🎬 Generating lip-synced video with Fal AI… This can take 2–5 minutes. Sit tight!');
@@ -275,7 +297,7 @@ export default function AIInfluencerPage() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to dispatch job');
-            addAssistant('Job dispatched! Monitoring progress…');
+            addAssistant('Job dispatched! Monitoring progress… (usually 2–5 min)');
         } catch (err: any) {
             addAssistant(`❌ Error: ${err.message}`);
             setChatStep('preview-audio');
@@ -329,8 +351,8 @@ export default function AIInfluencerPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-1.5 py-2 px-5 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${activeTab === tab.id
-                                    ? 'bg-white dark:bg-white text-black border-white'
-                                    : 'bg-[#111] dark:bg-[#111] text-white/50 border-white/10 hover:border-white/20'
+                                ? 'bg-white dark:bg-white text-black border-white'
+                                : 'bg-[#111] dark:bg-[#111] text-white/50 border-white/10 hover:border-white/20'
                                 }`}
                         >
                             <tab.icon size={10} /> {tab.label}
@@ -354,10 +376,10 @@ export default function AIInfluencerPage() {
                                         <div key={step.id} className="flex items-center flex-shrink-0">
                                             <div className={`flex flex-col items-center gap-0.5 ${active ? 'opacity-100' : done ? 'opacity-70' : 'opacity-25'}`}>
                                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${done
-                                                        ? 'bg-purple-600 border-purple-600 text-white'
-                                                        : active
-                                                            ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                                                            : 'bg-transparent border-gray-300 dark:border-white/20 text-gray-400'
+                                                    ? 'bg-purple-600 border-purple-600 text-white'
+                                                    : active
+                                                        ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                                                        : 'bg-transparent border-gray-300 dark:border-white/20 text-gray-400'
                                                     }`}>
                                                     {done
                                                         ? <CheckCircle2 size={11} />
@@ -538,8 +560,8 @@ export default function AIInfluencerPage() {
                                                         onClick={() => handleGenderSelect(g)}
                                                         disabled={isGenerating}
                                                         className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${selectedGender === g
-                                                                ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-600/20'
-                                                                : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-purple-400/40'
+                                                            ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-600/20'
+                                                            : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-purple-400/40'
                                                             }`}
                                                     >
                                                         <Volume2 size={10} />
@@ -639,8 +661,8 @@ export default function AIInfluencerPage() {
                                     {chatMessages.map((msg, i) => (
                                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[88%] rounded-xl px-3 py-2 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user'
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-gray-100 dark:bg-[#151515] text-black/80 dark:text-white/80 border border-gray-200 dark:border-white/5'
+                                                ? 'bg-purple-600 text-white'
+                                                : 'bg-gray-100 dark:bg-[#151515] text-black/80 dark:text-white/80 border border-gray-200 dark:border-white/5'
                                                 }`}>
                                                 {msg.content}
                                             </div>
