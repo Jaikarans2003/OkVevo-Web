@@ -25,7 +25,7 @@ const menuItems = [
     { icon: Users, label: 'AI Avatars', href: '/workspace/social' }, // Point to social as a placeholder
     { icon: ShoppingBag, label: 'Product Studio', href: '/workspace/product' },
     { icon: Video, label: 'UGC Factory', href: '/workspace/social' }, // Point to social as a placeholder
-    { icon: Activity, label: 'AI Influencer', href: '/workspace/social' }, // Point to social as a placeholder
+    { icon: Activity, label: 'AI Influencer', href: '/workspace/ai-influencer' },
     { icon: Clapperboard, label: 'Director Mode', href: '/workspace/director' },
 ];
 
