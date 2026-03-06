@@ -157,10 +157,27 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
         if (status.status === 'COMPLETED') {
             console.log('✅ Fal AI lipsync completed!');
-            const videoUrl = status.video?.url || status.output?.video?.url;
+            // Log full response so we can see the exact structure
+            console.log('📦 Fal AI COMPLETED response:', JSON.stringify(status, null, 2));
+
+            // Fal AI queue API can return the result in several locations depending on version:
+            // status.response.video.url  (most common for queue.fal.run)
+            // status.output.video.url
+            // status.video.url
+            // status.response.url        (some models return direct URL)
+            // status.response itself     (if it is a string URL)
+            const videoUrl =
+                status.response?.video?.url ||
+                status.output?.video?.url ||
+                status.video?.url ||
+                status.response?.url ||
+                (typeof status.response === 'string' ? status.response : null);
+
             if (!videoUrl) {
+                console.error('❌ Could not find video URL. Full status:', JSON.stringify(status));
                 throw new Error('No video URL in Fal AI response');
             }
+            console.log('🎥 Video URL extracted: ' + videoUrl);
             return videoUrl;
         }
 
