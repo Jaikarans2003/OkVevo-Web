@@ -40,8 +40,8 @@
   }
 
   body {
-    --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-    --font-serif: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+    --font-sans: var(--font-museo-moderno), ui-sans-serif, system-ui, sans-serif;
+    --font-serif: var(--font-museo-moderno), ui-sans-serif, system-ui, sans-serif;
     @apply bg-bg-main text-text-main antialiased;
     font-family: var(--font-sans) !important;
     overflow-x: hidden;
