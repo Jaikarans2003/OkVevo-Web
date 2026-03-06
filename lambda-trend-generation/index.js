@@ -22,7 +22,7 @@ const https = require('https');
  *  5. Upload result to Firebase Storage at TrendPhotos/{jobId}.mp4
  */
 
-const NANOBANANA_MODEL = 'gemini-3-pro-image-preview';
+const NANOBANANA_MODEL = 'gemini-3.1-flash-image-preview';
 const FAL_API_BASE = 'https://queue.fal.run';
 const FAL_STATUS_BASE = 'https://queue.fal.run';
 
