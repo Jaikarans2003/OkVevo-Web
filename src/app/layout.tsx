@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Alumni_Sans, Changa_One, Unbounded } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Alumni_Sans, Changa_One, Unbounded, MuseoModerno } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
@@ -38,6 +38,13 @@ const unbounded = Unbounded({
     display: "swap",
 });
 
+const museoModerno = MuseoModerno({
+    subsets: ["latin"],
+    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    variable: "--font-museo-moderno",
+    display: "swap",
+});
+
 export const metadata: Metadata = {
     title: "OKVEVO - Text to Video",
     description: "Transform your words into motion",
@@ -71,7 +78,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${plusJakarta.className} ${plusJakarta.variable} ${alumniSans.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${museoModerno.className} ${museoModerno.variable} ${alumniSans.variable} ${plusJakarta.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}

@@ -78,7 +78,7 @@ const HowItWorks = () => {
                             The Process
                         </span>
                     </motion.div>
-                    <h2 className="text-6xl md:text-9xl font-black tracking-[-0.04em] leading-none uppercase text-text-main">
+                    <h2 className="text-6xl md:text-9xl font-main tracking-[-0.04em] leading-none uppercase text-white">
                         The Story <br />
                         <span className="text-accent-orange italic font-normal lowercase tracking-normal">Engine.</span>
                     </h2>

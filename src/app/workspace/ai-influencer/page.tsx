@@ -347,6 +347,10 @@ export default function AIInfluencerPage() {
                 p => p.imageUrl && !p.imageUrl.startsWith('data:')
             );
 
+            console.log('🖼️ DEBUG: imageTimeline length:', imageTimeline.length);
+            console.log('🖼️ DEBUG: validTimeline length:', validTimeline.length);
+            console.log('🖼️ DEBUG: validTimeline:', validTimeline);
+
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -358,7 +362,7 @@ export default function AIInfluencerPage() {
                     script: editableScript,
                     duration: selectedDuration,
                     gender: selectedGender,
-                    imageTimeline: validTimeline.length > 0 ? validTimeline : undefined,
+                    imageTimeline: validTimeline,
                 }),
             });
             const data = await res.json();

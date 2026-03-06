@@ -71,9 +71,10 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     initial={{ opacity: 0, y: 100 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="text-[12vw] md:text-[10vw] font-black leading-[0.85] tracking-[-0.06em] text-text-main max-w-[12ch] relative"
+                    className="text-[12vw] md:text-[10vw] leading-[0.85] tracking-[-0.06em] text-text-main max-w-[12ch] relative"
+                    style={{ fontFamily: '"MuseoModerno"', fontOpticalSizing: 'auto', fontWeight: 700 }}
                 >
-                    Zero <span className="font-cursive text-accent-orange">Canvas</span>,<br></br> Infinite <span className="font-cursive text-accent-orange">Vision</span>. <br />
+                    Zero Canvas, Infinite Vision
                 </motion.h1>
 
                 <motion.div

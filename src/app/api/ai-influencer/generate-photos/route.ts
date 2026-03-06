@@ -56,23 +56,40 @@ async function generateImageFromGemini(prompt: string, apiKey: string): Promise<
 function tryInitFirebase() {
     try {
         const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountBase64) return null;
+        console.log('🔑 FIREBASE_SERVICE_ACCOUNT_KEY exists:', !!serviceAccountBase64);
+        console.log('🔑 Key length:', serviceAccountBase64?.length);
+        
+        if (!serviceAccountBase64) {
+            console.warn('❌ FIREBASE_SERVICE_ACCOUNT_KEY not found in environment');
+            return null;
+        }
+        
         const { initializeApp, getApps, cert } = require('firebase-admin/app');
         const { getStorage } = require('firebase-admin/storage');
+        
         if (getApps().length === 0) {
+            console.log('🔥 Initializing Firebase Admin SDK...');
             const serviceAccount = JSON.parse(
                 Buffer.from(serviceAccountBase64.trim(), 'base64').toString('utf-8')
             );
             const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
             initializeApp({ credential: cert(serviceAccount), storageBucket: bucket });
+            console.log('✅ Firebase Admin SDK initialized');
+        } else {
+            console.log('✅ Firebase Admin SDK already initialized');
         }
+        
         return getStorage();
-    } catch {
+    } catch (err) {
+        console.error('❌ Firebase Admin SDK initialization failed:', err);
         return null;
     }
 }
 
 export async function POST(request: NextRequest) {
+    console.log('🔍 ENV CHECK: FIREBASE_SERVICE_ACCOUNT_KEY exists:', !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    console.log('🔍 ENV CHECK: Key length:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.length);
+    
     try {
         const body = await request.json();
         const { jobId, moments } = body as { jobId: string; moments: InputMoment[] };

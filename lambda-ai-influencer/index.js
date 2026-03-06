@@ -97,10 +97,23 @@ function httpsRequest(url, options = {}, body = null) {
 }
 
 // ────────────────────────────────────────────────────
+// TEST MODE - Set to true to skip Fal AI and use hardcoded video
+// ────────────────────────────────────────────────────
+const TEST_MODE = true;
+const TEST_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62';
+
+// ────────────────────────────────────────────────────
 // Fal AI veed/lipsync Integration
 // ────────────────────────────────────────────────────
 
 async function generateLipSyncVideo(videoUrl, audioUrl) {
+    // TEST MODE: Skip Fal AI and return hardcoded video URL
+    if (TEST_MODE) {
+        console.log('🧪 TEST MODE: Skipping Fal AI, using hardcoded video URL');
+        console.log(`   Test Video: ${TEST_VIDEO_URL}`);
+        return TEST_VIDEO_URL;
+    }
+
     const apiKey = process.env.FAL_API_KEY;
     if (!apiKey) {
         throw new Error('FAL_API_KEY not set');
@@ -177,16 +190,30 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
             const result = resultResponse.body;
             console.log('📦 Fal AI result data:', JSON.stringify(result, null, 2));
 
-            // Extract video URL from result
-            const videoUrl =
-                result.video?.url ||
-                result.data?.video?.url ||
-                result.output?.video?.url ||
-                result.url ||
-                (typeof result === 'string' ? result : null);
+            // Extract video URL from result - try multiple paths
+            let videoUrl = null;
+            
+            // Check if result itself is the video data
+            if (result.video?.url) {
+                videoUrl = result.video.url;
+                console.log('✓ Found video URL at result.video.url');
+            } else if (result.data?.video?.url) {
+                videoUrl = result.data.video.url;
+                console.log('✓ Found video URL at result.data.video.url');
+            } else if (result.output?.video?.url) {
+                videoUrl = result.output.video.url;
+                console.log('✓ Found video URL at result.output.video.url');
+            } else if (result.url && typeof result.url === 'string') {
+                videoUrl = result.url;
+                console.log('✓ Found video URL at result.url');
+            } else if (typeof result === 'string' && result.startsWith('http')) {
+                videoUrl = result;
+                console.log('✓ Result is a direct URL string');
+            }
 
             if (!videoUrl) {
-                console.error('❌ Could not find video URL in result. Full result:', JSON.stringify(result));
+                console.error('❌ Could not find video URL. Full result:', JSON.stringify(result, null, 2));
+                console.error('Available keys in result:', Object.keys(result));
                 throw new Error('No video URL in Fal AI result');
             }
             

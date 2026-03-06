@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
             script,
             duration,
             gender,
+            imageTimeline,
         } = body;
 
         // ── Validation ─────────────────────────────────────────
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
             script: script || null,
             duration: duration || null,
             gender: gender || null,
+            imageTimeline: imageTimeline || [],
             timestamp: new Date().toISOString(),
         });
 

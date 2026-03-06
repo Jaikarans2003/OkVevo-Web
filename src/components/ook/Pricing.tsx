@@ -1,10 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Zap, Crown, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
+import { useRouter } from 'next/navigation';
 
 const Pricing = () => {
+    const [showPayment, setShowPayment] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState<'hobby' | null>(null);
+    const router = useRouter();
     const plans = [
         {
             name: 'Hobby',
@@ -74,23 +80,57 @@ const Pricing = () => {
     ];
 
     return (
-        <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden">
-            {/* Background Image */}
-            <div className="absolute inset-0 z-0">
-                <Image
-                    src="/OKVEVO With BackGrounds/PricingBackGrounds.png"
-                    alt="Pricing Background"
-                    fill
-                    className="object-cover"
-                    priority
-                />
-                {/* Dark overlay for content readability */}
+        <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden bg-bg-main">
+            {/* Background Orange Glow - BuiltForCreators Style */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+                <div className="absolute -top-[20%] -left-[10%] w-[80%] h-[80%] bg-accent-orange/15 blur-[160px] rounded-full" />
             </div>
-            
-            {/* Background Elements */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent-orange/5 to-transparent" />
-            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[60px] animate-pulse transform-gpu" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-orange-400/10 rounded-full blur-[60px] animate-pulse transform-gpu" style={{ animationDelay: '1s' }} />
+
+            {/* Background Decorative Gradients - BuiltForCreators Style */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <motion.div
+                    initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
+                    animate={{
+                        scale: [1, 1.1, 1],
+                        opacity: [0.3, 0.4, 0.3],
+                        x: [0, 20, 0],
+                        y: [0, -15, 0]
+                    }}
+                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                    className="absolute -top-[25%] -right-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
+                />
+                {/* <motion.div
+                    initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
+                    animate={{
+                        scale: [1, 1.15, 1],
+                        opacity: [0.2, 0.3, 0.2],
+                        x: [0, -20, 0],
+                        y: [0, 30, 0]
+                    }}
+                    transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
+                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
+                /> */}
+                <motion.div
+                    initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
+                    animate={{
+                        scale: [1, 1.1, 1],
+                        opacity: [0.1, 0.2, 0.1],
+                        x: [0, 15, 0],
+                        y: [0, 20, 0]
+                    }}
+                    transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
+                    className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
+                />
+                <motion.div
+                    animate={{
+                        x: [0, -15, 0],
+                        y: [0, 25, 0],
+                        scale: [1, 1.05, 1]
+                    }}
+                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
+                />
+            </div>
 
             <div className="centering-container relative z-10">
                 {/* Section Header */}
@@ -175,12 +215,44 @@ const Pricing = () => {
                                     </div>
 
                                     {/* CTA Button */}
-                                    <button className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
-                                        ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
-                                        : 'bg-text-main text-bg-main hover:bg-accent-orange hover:text-white hover:shadow-lg'
-                                        }`}>
-                                        {plan.cta}
-                                    </button>
+                                    {plan.name === 'Hobby' ? (
+                                        <div className="mb-6">
+                                            <RazorpayCheckout
+                                                planType="hobby"
+                                                onSuccess={(subscriptionId) => {
+                                                    console.log('Payment successful:', subscriptionId);
+                                                    alert('Subscription successful! Welcome to OKVEVO Hobby Plan.');
+                                                    router.push('/workspace');
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Payment error:', error);
+                                                    alert(`Payment failed: ${error}`);
+                                                }}
+                                            />
+                                        </div>
+                                    ) : plan.name === 'Pro' ? (
+                                        <div className="mb-6">
+                                            <RazorpayCheckout
+                                                planType="pro"
+                                                onSuccess={(subscriptionId) => {
+                                                    console.log('Payment successful:', subscriptionId);
+                                                    alert('Subscription successful! Welcome to OKVEVO Pro Plan.');
+                                                    router.push('/workspace');
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Payment error:', error);
+                                                    alert(`Payment failed: ${error}`);
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <button className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
+                                            ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
+                                            : 'bg-text-main text-bg-main hover:bg-accent-orange hover:text-white hover:shadow-lg'
+                                            }`}>
+                                            {plan.cta}
+                                        </button>
+                                    )}
 
                                     {/* Features List */}
                                     <div className="space-y-3">

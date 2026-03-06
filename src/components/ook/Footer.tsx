@@ -8,7 +8,7 @@ const Footer = () => {
     };
 
     return (
-        <footer data-section-theme="light" className="bg-black overflow-hidden">
+        <footer data-section-theme="light" className="bg-main overflow-hidden">
             <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-40 pb-20 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
                 {/* Decorative Pattern / Glow */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10" />
