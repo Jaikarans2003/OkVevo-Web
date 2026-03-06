@@ -225,29 +225,187 @@ async function uploadToFirebase(buffer, storagePath, contentType) {
 // Main Pipeline
 // ────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────
+// ffmpeg Image Overlay Compositor
+// ────────────────────────────────────────────────────
+
+const { spawn } = require('child_process');
+const FFMPEG = '/opt/bin/ffmpeg';
+
+/**
+ * Composite images over a video using ffmpeg.
+ * Layout A (split): image top half, avatar video bottom half
+ * Layout B (fullscreen): image covers full frame for duration
+ *
+ * @param {string} videoPath  - Local path to lip-synced video
+ * @param {Array}  images     - [{ localPath, start, end, layout }]
+ * @param {string} outputPath - Where to write composited video
+ */
+function compositeImagesOnVideo(videoPath, images, outputPath) {
+    return new Promise((resolve, reject) => {
+        if (!images || images.length === 0) {
+            // Nothing to composite — just return
+            fs.copyFileSync(videoPath, outputPath);
+            return resolve();
+        }
+
+        console.log(`🖼️ Compositing ${images.length} images onto video...`);
+
+        // Build filter_complex
+        // Video resolution: 360×640 (portrait)
+        // Split: top 320px = image, bottom 320px = video
+        // Full: entire 360×640 = image (overlay)
+
+        const args = ['-i', videoPath];
+        images.forEach((img) => args.push('-i', img.localPath));
+
+        let filterComplex = '[0:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[base];';
+
+        images.forEach((img, idx) => {
+            const inputIdx = idx + 1;
+            const timeEnable = `between(t,${img.start},${img.end})`;
+
+            if (img.layout === 'fullscreen') {
+                // Scale image to full 360×640 with fade in/out
+                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p,fade=t=in:st=${img.start}:d=0.3:alpha=1,fade=t=out:st=${img.end - 0.3}:d=0.3:alpha=1[img${idx}];`;
+            } else {
+                // Split screen: image scaled to top 320px
+                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p,fade=t=in:st=${img.start}:d=0.3:alpha=1,fade=t=out:st=${img.end - 0.3}:d=0.3:alpha=1[img${idx}];`;
+            }
+        });
+
+        // Chain overlays
+        let prevLabel = 'base';
+        images.forEach((img, idx) => {
+            const timeEnable = `between(t,${img.start},${img.end})`;
+            const outLabel = idx === images.length - 1 ? 'outv' : `tmp${idx}`;
+            const yPos = img.layout === 'fullscreen' ? '0' : '0'; // image always starts at top
+
+            filterComplex += `[${prevLabel}][img${idx}]overlay=0:${yPos}:enable='${timeEnable}'[${outLabel}];`;
+            prevLabel = outLabel;
+        });
+
+        // Remove trailing semicolon
+        filterComplex = filterComplex.replace(/;$/, '');
+
+        const ffmpegArgs = [
+            ...args,
+            '-filter_complex', filterComplex,
+            '-map', '[outv]',
+            '-map', '0:a',
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', '22',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-movflags', '+faststart',
+            '-y',
+            outputPath
+        ];
+
+        console.log('🎬 Running ffmpeg compositor...');
+        const ffmpeg = spawn(FFMPEG, ffmpegArgs);
+
+        let stderr = '';
+        ffmpeg.stderr.on('data', (d) => { stderr += d.toString(); });
+        ffmpeg.on('close', (code) => {
+            if (code === 0) {
+                console.log('✅ ffmpeg compositing complete');
+                resolve();
+            } else {
+                console.error('❌ ffmpeg compositor failed. Last stderr:', stderr.slice(-500));
+                reject(new Error(`ffmpeg compositor exited with code ${code}`));
+            }
+        });
+        ffmpeg.on('error', reject);
+    });
+}
+
+// ────────────────────────────────────────────────────
+// Main Pipeline (4 phases)
+// ────────────────────────────────────────────────────
+
 async function processLipSyncPipeline(body) {
-    const { jobId, avatarVideoUrl, audioUrl } = body;
+    const { jobId, avatarVideoUrl, audioUrl, imageTimeline } = body;
 
     console.log(`\n${'═'.repeat(60)}`);
     console.log(`🎬 LIPSYNC PIPELINE: ${jobId}`);
     console.log(`   Avatar Video: ${avatarVideoUrl}`);
     console.log(`   Audio: ${audioUrl}`);
+    console.log(`   Image Timeline: ${imageTimeline?.length || 0} images`);
     console.log(`${'═'.repeat(60)}`);
 
     // Phase 1: Generate LipSync Video with Fal AI
     await updateJobDoc(jobId, { status: 'generating-lipsync' });
     const lipSyncVideoUrl = await generateLipSyncVideo(avatarVideoUrl, audioUrl);
 
-    // Phase 2: Download and Upload to Firebase
-    await updateJobDoc(jobId, { status: 'uploading' });
+    // Phase 2: Download lip-synced video
+    await updateJobDoc(jobId, { status: 'downloading' });
     const videoBuffer = await downloadFromUrl(lipSyncVideoUrl);
-    const finalVideoPath = `AIInfluencer/${jobId}/final.mp4`;
-    const finalVideoUrl = await uploadToFirebase(videoBuffer, finalVideoPath, 'video/mp4');
+    const lipSyncPath = `/tmp/${jobId}-lipsync.mp4`;
+    fs.writeFileSync(lipSyncPath, videoBuffer);
+    console.log(`✅ LipSync video saved: ${lipSyncPath}`);
 
-    // Phase 3: Mark Complete
+    let finalPath = lipSyncPath;
+
+    // Phase 3 (optional): Download images and composite
+    if (imageTimeline && imageTimeline.length > 0) {
+        await updateJobDoc(jobId, { status: 'compositing' });
+
+        const validImages = imageTimeline.filter(img => img.imageUrl);
+        const downloadedImages = [];
+
+        for (let i = 0; i < validImages.length; i++) {
+            const img = validImages[i];
+            try {
+                const imgBuffer = await downloadFromUrl(img.imageUrl);
+                const imgPath = `/tmp/${jobId}-img-${i}.jpg`;
+                fs.writeFileSync(imgPath, imgBuffer);
+                downloadedImages.push({
+                    localPath: imgPath,
+                    start: img.start,
+                    end: img.end,
+                    layout: img.layout || 'split',
+                });
+                console.log(`✅ Image ${i + 1}/${validImages.length} downloaded: ${img.topic}`);
+            } catch (err) {
+                console.warn(`⚠️ Skipping image ${i} (${img.topic}): ${err.message}`);
+            }
+        }
+
+        if (downloadedImages.length > 0) {
+            finalPath = `/tmp/${jobId}-composited.mp4`;
+            try {
+                await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalPath);
+            } catch (err) {
+                console.warn(`⚠️ Compositing failed, using raw lipsync: ${err.message}`);
+                finalPath = lipSyncPath;
+            }
+
+            // Cleanup image files
+            downloadedImages.forEach(img => {
+                try { fs.unlinkSync(img.localPath); } catch (_) { }
+            });
+        }
+    }
+
+    // Phase 4: Upload to Firebase
+    await updateJobDoc(jobId, { status: 'uploading' });
+    const finalBuffer = fs.readFileSync(finalPath);
+    const finalVideoPath = `AIInfluencer/${jobId}/final.mp4`;
+    const finalVideoUrl = await uploadToFirebase(finalBuffer, finalVideoPath, 'video/mp4');
+
+    // Cleanup temp files
+    [lipSyncPath, `/tmp/${jobId}-composited.mp4`].forEach(p => {
+        try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
+    });
+
+    // Phase 5: Mark Complete
     await updateJobDoc(jobId, {
         status: 'complete',
         finalVideoUrl,
+        imageCount: imageTimeline?.length || 0,
     });
 
     console.log(`\n✅ PIPELINE COMPLETE: ${jobId}`);

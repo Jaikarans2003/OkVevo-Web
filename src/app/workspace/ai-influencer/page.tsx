@@ -30,6 +30,16 @@ type ChatStep =
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
+interface ImageMoment {
+    time: string;
+    start: number;
+    end: number;
+    topic: string;
+    prompt?: string;
+    imageUrl: string | null;
+    layout: 'split' | 'fullscreen';
+}
+
 // ─── Step Metadata ─────────────────────────────────────────
 const STEPS = [
     { id: 'upload-script', label: 'Script', icon: FileText },
@@ -78,6 +88,9 @@ export default function AIInfluencerPage() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
+    // Photo asset state
+    const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
+    const [isGeneratingPhotos, setIsGeneratingPhotos] = useState(false);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +151,48 @@ export default function AIInfluencerPage() {
         setFinalVideoUrl(null);
         setJobId(null);
         setIsGenerating(false);
+        setImageTimeline([]);
+        setIsGeneratingPhotos(false);
+    };
+
+    // ── Background: Extract moments + generate photos ─────
+    const generatePhotoAssets = async (script: string, duration: number) => {
+        setIsGeneratingPhotos(true);
+        try {
+            // Step A: Extract visual moments
+            const momentsRes = await fetch('/api/ai-influencer/extract-moments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ script, duration }),
+            });
+            const momentsData = await momentsRes.json();
+            if (!momentsData.success || !momentsData.moments?.length) {
+                console.warn('Could not extract visual moments:', momentsData.error);
+                return;
+            }
+
+            // Optimistically show placeholders
+            const placeholders: ImageMoment[] = momentsData.moments.map((m: any) => ({
+                ...m, imageUrl: null,
+            }));
+            setImageTimeline(placeholders);
+
+            // Step B: Generate images
+            const tempJobId = `photos-${Date.now()}`;
+            const photosRes = await fetch('/api/ai-influencer/generate-photos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId: tempJobId, moments: momentsData.moments }),
+            });
+            const photosData = await photosRes.json();
+            if (photosData.success && photosData.photos?.length) {
+                setImageTimeline(photosData.photos);
+            }
+        } catch (err) {
+            console.warn('generatePhotoAssets failed (non-blocking):', err);
+        } finally {
+            setIsGeneratingPhotos(false);
+        }
     };
 
     // ── Step 1: Script file upload ────────────────────────
@@ -198,6 +253,11 @@ export default function AIInfluencerPage() {
     const handleConfirmScript = () => {
         addUser('[Script confirmed]');
         addAssistant('Perfect! Now upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
+        // Kick off photo asset generation in background (non-blocking)
+        if (editableScript && selectedDuration) {
+            addAssistant('🖼️ Generating visual asset images in the background…');
+            generatePhotoAssets(editableScript, selectedDuration);
+        }
         setChatStep('avatar-video');
     };
 
@@ -282,6 +342,11 @@ export default function AIInfluencerPage() {
         addAssistant('🎬 Generating lip-synced video with Fal AI… This can take 2–5 minutes. Sit tight!');
 
         try {
+            // Only pass image timeline entries that have real (non-data-URL) image URLs
+            const validTimeline = imageTimeline.filter(
+                p => p.imageUrl && !p.imageUrl.startsWith('data:')
+            );
+
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -293,11 +358,12 @@ export default function AIInfluencerPage() {
                     script: editableScript,
                     duration: selectedDuration,
                     gender: selectedGender,
+                    imageTimeline: validTimeline.length > 0 ? validTimeline : undefined,
                 }),
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to dispatch job');
-            addAssistant('Job dispatched! Monitoring progress… (usually 2–5 min)');
+            addAssistant(`Job dispatched! ${validTimeline.length > 0 ? `${validTimeline.length} photo overlays included. ` : ''}Monitoring progress… (usually 2–5 min)`);
         } catch (err: any) {
             addAssistant(`❌ Error: ${err.message}`);
             setChatStep('preview-audio');
@@ -765,6 +831,62 @@ export default function AIInfluencerPage() {
                                     <p className="text-[10px] text-black/60 dark:text-white/50 leading-relaxed line-clamp-5">
                                         {editableScript}
                                     </p>
+                                </motion.div>
+                            )}
+
+                            {/* ── Photo Assets Panel ── */}
+                            {(imageTimeline.length > 0 || isGeneratingPhotos) && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="w-[380px] bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
+                                            <Sparkles size={8} /> Visual Assets
+                                            {isGeneratingPhotos && (
+                                                <span className="ml-1 text-purple-400 flex items-center gap-1">
+                                                    <Loader2 size={7} className="animate-spin" /> Generating…
+                                                </span>
+                                            )}
+                                        </p>
+                                        <span className="text-[8px] text-gray-400">
+                                            {imageTimeline.filter(p => p.imageUrl).length}/{imageTimeline.length} ready
+                                        </span>
+                                    </div>
+
+                                    {/* Skeleton placeholders while generating */}
+                                    {isGeneratingPhotos && imageTimeline.length === 0 && (
+                                        <div className="flex gap-2 overflow-x-auto pb-1">
+                                            {Array.from({ length: selectedDuration === 15 ? 3 : 6 }).map((_, i) => (
+                                                <div key={i} className="flex-shrink-0 w-[90px] h-[64px] rounded-lg bg-gray-200/60 dark:bg-white/5 animate-pulse" />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Image strip */}
+                                    {imageTimeline.length > 0 && (
+                                        <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+                                            {imageTimeline.map((item, i) => (
+                                                <div key={i} className="flex-shrink-0 snap-start w-[100px] space-y-1">
+                                                    <div className="relative w-full h-[70px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">
+                                                        {item.imageUrl ? (
+                                                            <img src={item.imageUrl} alt={item.topic} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <Loader2 size={14} className="text-purple-400 animate-spin" />
+                                                            </div>
+                                                        )}
+                                                        <div className={`absolute top-1 right-1 px-1 py-0.5 rounded text-[6px] font-bold uppercase ${item.layout === 'fullscreen' ? 'bg-orange-500 text-white' : 'bg-black/60 text-white/80'}`}>
+                                                            {item.layout === 'fullscreen' ? 'Full' : 'Split'}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[7px] text-black/50 dark:text-white/40 truncate">{item.time}s</p>
+                                                    <p className="text-[7px] text-black/70 dark:text-white/60 truncate font-medium">{item.topic}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </div>
