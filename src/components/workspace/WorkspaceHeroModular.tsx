@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, FileText, TrendingUp, ShoppingBag, User } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const DashHeroModular = ({ user }: { user?: any }) => {
@@ -32,32 +32,31 @@ const DashHeroModular = ({ user }: { user?: any }) => {
 
     const suggestions = [
         {
-            icon: FileText,
+            image: '/WorkSpacePhotos/1.png',
             label: 'Director Mode',
             action: '/workspace/director',
-            iconColor: 'bg-yellow-400/20 text-yellow-500',
+            // iconColor: 'bg-yellow-400/20',
             indicator: 'Generate Trailer',
         },
-
         {
-            icon: ShoppingBag,
+            image: '/WorkSpacePhotos/2.png',
             label: 'Product Studio',
             action: '/workspace/product',
-            iconColor: 'bg-blue-400/20 text-blue-500',
+            // iconColor: 'bg-blue-400/20',
             indicator: 'Brand Boost',
         },
         {
-            icon: TrendingUp,
+            image: '/WorkSpacePhotos/3.png',
             label: 'Instagram Trends',
             action: '/workspace/social',
-            iconColor: 'bg-pink-400/20 text-pink-500',
+            // iconColor: 'bg-pink-400/20',
             indicator: 'Create Content',
         },
         {
-            icon: User,
+            image: '/WorkSpacePhotos/4.png',
             label: 'AI Influencer',
             action: '/workspace/ai-influencer',
-            iconColor: 'bg-green-400/20 text-green-500',
+            // iconColor: 'bg-green-400/20',
             indicator: 'Social Sync',
         },
     ];
@@ -181,8 +180,14 @@ const DashHeroModular = ({ user }: { user?: any }) => {
                                     </div>
 
                                     <div className="w-full aspect-square flex flex-col items-center justify-center p-6 bg-[#121212] rounded-[2.5rem] transition-all duration-300 hover:scale-[1.05] group-hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] cursor-pointer">
-                                        <div className={`p-4 rounded-2xl mb-4 transition-colors ${item.iconColor}`}>
-                                            <item.icon className="w-6 h-6" />
+                                        <div className={`p-3 rounded-2xl mb-4 transition-colors`}>
+                                            <Image
+                                                src={item.image}
+                                                alt={item.label}
+                                                width={87}
+                                                height={87}
+                                                className="w-12 h-12 md:w-16 md:h-16 object-contain"
+                                            />
                                         </div>
                                         <span className="text-[10px] md:text-[11px] font-black text-white/50 tracking-[0.1em] uppercase group-hover:text-white transition-colors text-center leading-tight">
                                             {item.label}

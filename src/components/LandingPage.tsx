@@ -10,6 +10,7 @@ import Navbar from './ook/Navbar';
 import Hero from './ook/Hero';
 import Features from './ook/Features';
 import HowItWorks from './ook/HowItWorks';
+import BuiltForCreators from './ook/BuiltForCreators';
 import Pricing from './ook/Pricing';
 import TuneTalez from './ook/TuneTalez';
 import Quotes from './ook/Quotes';
@@ -43,6 +44,7 @@ export default function LandingPage() {
                 <Hero onJoinClick={handleJoinClick} />
                 {/* <Features /> */}
                 <HowItWorks />
+                <BuiltForCreators />
                 <Pricing />
                 {/* <TuneTalez /> */}
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}

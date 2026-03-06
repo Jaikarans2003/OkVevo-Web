@@ -83,9 +83,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     className="mt-12 max-w-2xl"
                 >
                     <p className="text-xl md:text-2xl text-text-dim font-medium leading-tight">
-                        OKVEVO is a digital laboratory focused on high-fidelity AI
-                        avatars, cinematic storytelling, and cutting-edge neural
-                        rendering.
+                        Turn ideas into stories that move.
                     </p>
                 </motion.div>
             </div>
