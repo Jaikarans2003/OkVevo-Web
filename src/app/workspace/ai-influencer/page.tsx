@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { auth, storage, db } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -282,6 +282,15 @@ export default function AIInfluencerPage() {
         addAssistant('🎬 Generating lip-synced video with Fal AI… This can take 2–5 minutes. Sit tight!');
 
         try {
+            // Create Firestore document so Lambda can update it
+            await setDoc(doc(db, 'aiInfluencerJobs', jobId), {
+                jobId,
+                userId: user?.uid,
+                status: 'queued',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
