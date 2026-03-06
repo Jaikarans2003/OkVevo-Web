@@ -58,10 +58,10 @@ function initializeFirebase() {
 async function updateJobDoc(jobId, fields) {
     try {
         const firestore = admin.firestore();
-        await firestore.collection(JOBS_COLLECTION).doc(jobId).update({
+        await firestore.collection(JOBS_COLLECTION).doc(jobId).set({
             ...fields,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        }, { merge: true });
         console.log(`📝 Firestore updated: ${jobId} →`, Object.keys(fields));
     } catch (err) {
         console.warn(`⚠️ Firestore update failed for ${jobId}:`, err.message);
@@ -157,26 +157,39 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
         if (status.status === 'COMPLETED') {
             console.log('✅ Fal AI lipsync completed!');
-            // Log full response so we can see the exact structure
             console.log('📦 Fal AI COMPLETED response:', JSON.stringify(status, null, 2));
 
-            // Fal AI queue API can return the result in several locations depending on version:
-            // status.response.video.url  (most common for queue.fal.run)
-            // status.output.video.url
-            // status.video.url
-            // status.response.url        (some models return direct URL)
-            // status.response itself     (if it is a string URL)
+            // When status is COMPLETED, we need to fetch the actual result from response_url
+            console.log('📥 Fetching result from response_url:', status.response_url);
+            
+            const resultResponse = await httpsRequest(status.response_url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Key ${apiKey}`,
+                }
+            });
+
+            if (resultResponse.statusCode !== 200) {
+                console.error('❌ Failed to fetch result:', resultResponse.body);
+                throw new Error('Failed to fetch Fal AI result');
+            }
+
+            const result = resultResponse.body;
+            console.log('📦 Fal AI result data:', JSON.stringify(result, null, 2));
+
+            // Extract video URL from result
             const videoUrl =
-                status.response?.video?.url ||
-                status.output?.video?.url ||
-                status.video?.url ||
-                status.response?.url ||
-                (typeof status.response === 'string' ? status.response : null);
+                result.video?.url ||
+                result.data?.video?.url ||
+                result.output?.video?.url ||
+                result.url ||
+                (typeof result === 'string' ? result : null);
 
             if (!videoUrl) {
-                console.error('❌ Could not find video URL. Full status:', JSON.stringify(status));
-                throw new Error('No video URL in Fal AI response');
+                console.error('❌ Could not find video URL in result. Full result:', JSON.stringify(result));
+                throw new Error('No video URL in Fal AI result');
             }
+            
             console.log('🎥 Video URL extracted: ' + videoUrl);
             return videoUrl;
         }
