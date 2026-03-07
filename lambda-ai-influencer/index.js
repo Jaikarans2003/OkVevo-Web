@@ -291,8 +291,15 @@ const FFMPEG = '/opt/bin/ffmpeg';
 
 /**
  * Composite images over a video using ffmpeg.
- * Layout A (split): image top half, avatar video bottom half
- * Layout B (fullscreen): image covers full frame for duration
+ *
+ * Layout SPLIT:
+ *   Top 320px  → image
+ *   Bottom 320px → presenter video (head+shoulders, cropped from top of original)
+ *
+ * Layout FULLSCREEN:
+ *   Full 360×640 → image covers entire frame
+ *
+ * Outside image windows → original full-size presenter video plays normally.
  *
  * @param {string} videoPath  - Local path to lip-synced video
  * @param {Array}  images     - [{ localPath, start, end, layout }]
@@ -307,50 +314,83 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
 
         console.log(`🖼️ Compositing ${images.length} images onto video...`);
 
-        // Video resolution: 360×640 (portrait)
-        // Split: image overlaid on top half (320px), avatar video underneath
-        // Full: image covers entire 360×640 frame
-        //
-        // KEY FIX: Static PNG images must be input with -loop 1 -framerate 30 -t <duration>
-        // so ffmpeg creates a looped video stream of the correct length.
-        // Without this the image stream has ~0 duration and the overlay never renders.
-        //
-        // Fade st values must be relative to the IMAGE STREAM timeline (0-based),
-        // NOT the output video timeline.
-
-        // Build input args: video first, then each image with loop/duration flags
+        // ── Input args ────────────────────────────────────────────────────────
+        // Video first. Each static image is looped with -loop 1 for its display
+        // duration (-t), otherwise the image stream has ~0 frames and never renders.
         const args = ['-i', videoPath];
         images.forEach((img) => {
             const imgDuration = img.end - img.start;
-            // -loop 1 makes the still image cycle; -t caps it at the required duration
             args.push('-loop', '1', '-framerate', '30', '-t', String(imgDuration), '-i', img.localPath);
         });
 
-        // Base: scale/normalise the lipsync video
-        let filterComplex = '[0:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[base];';
+        const hasSplit = images.some(img => img.layout === 'split');
 
+        let filterComplex = '';
+
+        // ── Step 1: Normalise the base video to 360×640 ───────────────────────
+        filterComplex += '[0:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[base_raw];';
+
+        // ── Step 2: Build the "split base" stream ─────────────────────────────
+        // During split image windows we want:
+        //   • Bottom 320px = presenter's head/shoulders (top 320px of original video)
+        //   • Top 320px    = black (will be covered by the image overlay)
+        //
+        // During non-image periods the full 360×640 video plays as normal.
+        //
+        // Strategy:
+        //   a. Duplicate base_raw via split=2 → [base] and [basecopy]
+        //   b. Crop top 320px of [basecopy] → [vsmall_top]  (head + shoulders)
+        //   c. Pad [vsmall_top] to 360×640, placed at y=320 → [vbottom]
+        //      (result: black at top 320px, head-shot at bottom 320px)
+        //   d. Overlay [vbottom] on [base] only during split windows → [splitbase]
+        //      (outside split windows, overlay is disabled → full video passes through)
+        let currentBase;
+        if (hasSplit) {
+            filterComplex += '[base_raw]split=2[base][basecopy];';
+            // Top 320px of the normalised video (preserves head + shoulders)
+            filterComplex += '[basecopy]crop=360:320:0:0[vsmall_top];';
+            // Pad to full frame: video sits at y=320, black fills the top 320px
+            filterComplex += '[vsmall_top]pad=360:640:0:320:black[vbottom];';
+
+            // Combine all split-image time windows into a single enable expression
+            const splitEnables = images
+                .filter(img => img.layout === 'split')
+                .map(img => `between(t,${img.start},${img.end})`)
+                .join('+');
+
+            // [vbottom] has opaque black pixels at the top, so overlaying it on [base]
+            // effectively blacks out the top portion during split times only.
+            filterComplex += `[base][vbottom]overlay=0:0:enable='${splitEnables}'[splitbase];`;
+            currentBase = 'splitbase';
+        } else {
+            // No split images — use normalised video directly
+            currentBase = 'base_raw';
+        }
+
+        // ── Step 3: Prepare each image stream ────────────────────────────────
         images.forEach((img, idx) => {
             const inputIdx = idx + 1; // input 0 = video, inputs 1..N = images
             const imgDuration = img.end - img.start;
-            // Fade durations: cap at 20% of img duration, max 0.3s
             const fadeDur = Math.min(0.3, imgDuration * 0.2);
-            // Fade-out starts at (imgDuration - fadeDur) seconds on the IMAGE stream
             const fadeOutSt = Math.max(0, imgDuration - fadeDur);
 
             if (img.layout === 'fullscreen') {
+                // Full 360×640 — covers the entire frame
                 filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
             } else {
-                // Split: image fills top 320px of the 640px frame
+                // Split — image fills the TOP 320px; presenter fills BOTTOM 320px via splitbase
                 filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
             }
         });
 
-        // Chain overlays — each image is enabled only during its [start,end] window
-        let prevLabel = 'base';
+        // ── Step 4: Chain overlays ────────────────────────────────────────────
+        let prevLabel = currentBase;
         images.forEach((img, idx) => {
             const timeEnable = `between(t,${img.start},${img.end})`;
             const outLabel = idx === images.length - 1 ? 'outv' : `tmp${idx}`;
-            // Both layouts place the image at the top (y=0)
+            // Image always placed at y=0 (top of frame)
+            // For split: top 320px = image, bottom 320px = presenter (splitbase already set up)
+            // For fullscreen: full 360×640 image covers everything
             filterComplex += `[${prevLabel}][img${idx}]overlay=0:0:enable='${timeEnable}'[${outLabel}];`;
             prevLabel = outLabel;
         });
