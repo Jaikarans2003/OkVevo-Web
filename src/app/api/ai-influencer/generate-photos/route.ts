@@ -25,7 +25,7 @@ async function generateImageFromGemini(prompt: string, apiKey: string): Promise<
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`;
 
     const requestBody = {
-        contents: [{ parts: [{ text: `${prompt}. Generate this image specifically in a vertical 9:16 aspect ratio.` }] }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             responseModalities: ['IMAGE', 'TEXT'],
         }
@@ -116,7 +116,14 @@ export async function POST(request: NextRequest) {
             console.log(`🖼️ Generating image ${i + 1}/${moments.length}: ${moment.topic}`);
 
             try {
-                const imageBuffer = await generateImageFromGemini(moment.prompt, apiKey);
+                // Apply specific aspect ratio instructions based on the image index
+                const aspectRatioInstruction = i === 0
+                    ? "Generate this image specifically in a vertical 9:16 aspect ratio."
+                    : "Generate this image specifically in a standard horizontal 16:9 aspect ratio.";
+
+                const finalPrompt = `${moment.prompt}. ${aspectRatioInstruction}`;
+
+                const imageBuffer = await generateImageFromGemini(finalPrompt, apiKey);
 
                 let imageUrl: string;
 
