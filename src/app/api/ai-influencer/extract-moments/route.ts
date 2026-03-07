@@ -37,9 +37,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
         }
 
-        const momentCount = duration === 15 ? 3 : 6;
-        // Build time windows (distribute evenly across duration)
-        const segmentLength = Math.floor(duration / momentCount);
+        // Number of images: 3 for 15s, 5 for 30s (one per ~5s segment)
+        const momentCount = duration === 15 ? 3 : 5;
+        const segmentLength = duration / momentCount;  // e.g. 5s per segment
+
+        // Each image shows for MAX 2 seconds, centred in its speech segment
+        const MAX_IMG_DURATION = 2;
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
@@ -47,46 +50,48 @@ export async function POST(request: NextRequest) {
             generationConfig: { responseMimeType: 'application/json' }
         });
 
-        const timeWindows = Array.from({ length: momentCount }, (_, i) => {
-            const start = i * segmentLength;
-            const end = i === momentCount - 1 ? duration : (i + 1) * segmentLength;
-            return `${start}-${end}s`;
-        }).join(', ');
+        // Build segment descriptions so Gemini knows the speech windows
+        const segmentDescriptions = Array.from({ length: momentCount }, (_, i) => {
+            const segStart = +(i * segmentLength).toFixed(2);
+            const segEnd = +(Math.min((i + 1) * segmentLength, duration)).toFixed(2);
+            return `Segment ${i + 1}: ${segStart}s–${segEnd}s`;
+        }).join('\n');
 
         const prompt = `You are a visual content director for a short explainer video.
 
-Analyze this ${duration}-second script and extract exactly ${momentCount} key visual moments.
+Analyze this ${duration}-second script and extract exactly ${momentCount} key visual moments — one per speech segment below.
 
 Script:
 """
 ${script}
 """
 
-For each moment, identify the most visually compelling concept being described, and write a cinematic image generation prompt.
+Speech segments:
+${segmentDescriptions}
 
-Time windows to use: ${timeWindows}
+For each segment, pick the SINGLE most visually impactful moment and write a cinematic image prompt.
+The image should appear for exactly 1.5 seconds, starting at the point within the segment where the speech most closely matches the visual.
 
 Rules:
-- Assign one moment per time window
-- Mark 1 moment as "fullscreen" (the most dramatic/important visual moment)
-- All others are "split"
-- Make prompts highly cinematic, descriptive, and specific
-- Do NOT include people or faces in prompts — focus on environments, objects, data visualizations, technology
-- Each prompt should be 15-25 words
+- One moment per segment — use the segment boundaries above, do NOT overlap segments
+- "start" and "end" must be within the segment's range, and end - start = 1.5 (exactly)
+- Mark 1 moment as "fullscreen" (the most dramatic/important visual); all others are "split"
+- Prompts must be 15-25 words, highly cinematic and specific
+- Do NOT include people or faces — focus on environments, objects, data visualisations, technology
 
-Return JSON array ONLY:
+Return a JSON array ONLY (no markdown fences):
 [
   {
-    "time": "0-${segmentLength}",
-    "start": 0,
-    "end": ${segmentLength},
-    "topic": "short topic label (3-5 words)",
+    "time": "<start>-<end>s",
+    "start": <number>,
+    "end": <number>,
+    "topic": "<3-5 word label>",
     "prompt": "Cinematic [subject], [visual details], ultra-realistic, dramatic lighting, 8K",
     "layout": "split"
   }
 ]`;
 
-        console.log(`🎬 Extracting ${momentCount} visual moments from ${duration}s script...`);
+        console.log(`🎬 Extracting ${momentCount} visual moments (max ${MAX_IMG_DURATION}s each) from ${duration}s script...`);
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();
@@ -95,7 +100,6 @@ Return JSON array ONLY:
         try {
             moments = JSON.parse(text);
         } catch {
-            // Try to extract JSON array from response if wrapped in markdown
             const match = text.match(/\[[\s\S]*\]/);
             if (!match) throw new Error('Failed to parse visual moments from Gemini response');
             moments = JSON.parse(match[0]);
@@ -105,13 +109,36 @@ Return JSON array ONLY:
             throw new Error('Invalid moments response from Gemini');
         }
 
+        // Post-process: clamp each moment to MAX_IMG_DURATION seconds, centred in its segment
+        moments = moments.map((m, i) => {
+            const segStart = i * segmentLength;
+            const segEnd = Math.min((i + 1) * segmentLength, duration);
+            const segMid = (segStart + segEnd) / 2;
+
+            // Use model's start if it's within segment, otherwise use segment midpoint
+            let start = (typeof m.start === 'number' && m.start >= segStart && m.start < segEnd)
+                ? m.start : segMid - MAX_IMG_DURATION / 2;
+
+            // Ensure the window fits within the segment and within video duration
+            start = Math.max(segStart, Math.min(start, segEnd - MAX_IMG_DURATION));
+            start = Math.max(0, start);
+            const end = Math.min(start + MAX_IMG_DURATION, duration);
+
+            return {
+                ...m,
+                start: +start.toFixed(2),
+                end: +end.toFixed(2),
+                time: `${start.toFixed(2)}-${end.toFixed(2)}s`,
+            };
+        });
+
         // Ensure exactly one fullscreen
         const hasFullscreen = moments.some(m => m.layout === 'fullscreen');
         if (!hasFullscreen) {
             moments[Math.floor(moments.length / 2)].layout = 'fullscreen';
         }
 
-        console.log(`✅ Extracted ${moments.length} visual moments:`, moments.map(m => m.topic));
+        console.log(`✅ Extracted ${moments.length} visual moments:`, moments.map(m => `${m.topic} [${m.start}s-${m.end}s]`));
 
         return NextResponse.json({ success: true, moments });
 

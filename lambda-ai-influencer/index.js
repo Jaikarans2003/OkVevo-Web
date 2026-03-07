@@ -74,7 +74,24 @@ async function updateJobDoc(jobId, fields) {
 
 function httpsRequest(url, options = {}, body = null) {
     return new Promise((resolve, reject) => {
-        const req = https.request(url, options, (res) => {
+        const parsedUrl = new URL(url);
+        const reqOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: options.method || 'GET',
+            headers: options.headers || {},
+        };
+
+        const req = https.request(reqOptions, (res) => {
+            // Follow redirects (301, 302, 303, 307, 308)
+            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+                console.log(`↩️ Redirect ${res.statusCode} -> ${res.headers.location}`);
+                return httpsRequest(res.headers.location, { method: 'GET' }, null)
+                    .then(resolve)
+                    .catch(reject);
+            }
+
             const chunks = [];
             res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
@@ -174,7 +191,7 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
             // When status is COMPLETED, we need to fetch the actual result from response_url
             console.log('📥 Fetching result from response_url:', status.response_url);
-            
+
             const resultResponse = await httpsRequest(status.response_url, {
                 method: 'GET',
                 headers: {
@@ -192,7 +209,7 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
             // Extract video URL from result - try multiple paths
             let videoUrl = null;
-            
+
             // Check if result itself is the video data
             if (result.video?.url) {
                 videoUrl = result.video.url;
@@ -216,7 +233,7 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
                 console.error('Available keys in result:', Object.keys(result));
                 throw new Error('No video URL in Fal AI result');
             }
-            
+
             console.log('🎥 Video URL extracted: ' + videoUrl);
             return videoUrl;
         }
@@ -284,48 +301,61 @@ const FFMPEG = '/opt/bin/ffmpeg';
 function compositeImagesOnVideo(videoPath, images, outputPath) {
     return new Promise((resolve, reject) => {
         if (!images || images.length === 0) {
-            // Nothing to composite — just return
             fs.copyFileSync(videoPath, outputPath);
             return resolve();
         }
 
         console.log(`🖼️ Compositing ${images.length} images onto video...`);
 
-        // Build filter_complex
         // Video resolution: 360×640 (portrait)
-        // Split: top 320px = image, bottom 320px = video
-        // Full: entire 360×640 = image (overlay)
+        // Split: image overlaid on top half (320px), avatar video underneath
+        // Full: image covers entire 360×640 frame
+        //
+        // KEY FIX: Static PNG images must be input with -loop 1 -framerate 30 -t <duration>
+        // so ffmpeg creates a looped video stream of the correct length.
+        // Without this the image stream has ~0 duration and the overlay never renders.
+        //
+        // Fade st values must be relative to the IMAGE STREAM timeline (0-based),
+        // NOT the output video timeline.
 
+        // Build input args: video first, then each image with loop/duration flags
         const args = ['-i', videoPath];
-        images.forEach((img) => args.push('-i', img.localPath));
+        images.forEach((img) => {
+            const imgDuration = img.end - img.start;
+            // -loop 1 makes the still image cycle; -t caps it at the required duration
+            args.push('-loop', '1', '-framerate', '30', '-t', String(imgDuration), '-i', img.localPath);
+        });
 
+        // Base: scale/normalise the lipsync video
         let filterComplex = '[0:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[base];';
 
         images.forEach((img, idx) => {
-            const inputIdx = idx + 1;
-            const timeEnable = `between(t,${img.start},${img.end})`;
+            const inputIdx = idx + 1; // input 0 = video, inputs 1..N = images
+            const imgDuration = img.end - img.start;
+            // Fade durations: cap at 20% of img duration, max 0.3s
+            const fadeDur = Math.min(0.3, imgDuration * 0.2);
+            // Fade-out starts at (imgDuration - fadeDur) seconds on the IMAGE stream
+            const fadeOutSt = Math.max(0, imgDuration - fadeDur);
 
             if (img.layout === 'fullscreen') {
-                // Scale image to full 360×640 with fade in/out
-                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p,fade=t=in:st=${img.start}:d=0.3:alpha=1,fade=t=out:st=${img.end - 0.3}:d=0.3:alpha=1[img${idx}];`;
+                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
             } else {
-                // Split screen: image scaled to top 320px
-                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p,fade=t=in:st=${img.start}:d=0.3:alpha=1,fade=t=out:st=${img.end - 0.3}:d=0.3:alpha=1[img${idx}];`;
+                // Split: image fills top 320px of the 640px frame
+                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
             }
         });
 
-        // Chain overlays
+        // Chain overlays — each image is enabled only during its [start,end] window
         let prevLabel = 'base';
         images.forEach((img, idx) => {
             const timeEnable = `between(t,${img.start},${img.end})`;
             const outLabel = idx === images.length - 1 ? 'outv' : `tmp${idx}`;
-            const yPos = img.layout === 'fullscreen' ? '0' : '0'; // image always starts at top
-
-            filterComplex += `[${prevLabel}][img${idx}]overlay=0:${yPos}:enable='${timeEnable}'[${outLabel}];`;
+            // Both layouts place the image at the top (y=0)
+            filterComplex += `[${prevLabel}][img${idx}]overlay=0:0:enable='${timeEnable}'[${outLabel}];`;
             prevLabel = outLabel;
         });
 
-        // Remove trailing semicolon
+        // Strip trailing semicolon
         filterComplex = filterComplex.replace(/;$/, '');
 
         const ffmpegArgs = [
@@ -345,6 +375,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
         ];
 
         console.log('🎬 Running ffmpeg compositor...');
+        console.log('🔍 Filter complex:', filterComplex);
         const ffmpeg = spawn(FFMPEG, ffmpegArgs);
 
         let stderr = '';
@@ -354,7 +385,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
                 console.log('✅ ffmpeg compositing complete');
                 resolve();
             } else {
-                console.error('❌ ffmpeg compositor failed. Last stderr:', stderr.slice(-500));
+                console.error('❌ ffmpeg compositor failed. Last stderr:', stderr.slice(-1000));
                 reject(new Error(`ffmpeg compositor exited with code ${code}`));
             }
         });
@@ -374,6 +405,11 @@ async function processLipSyncPipeline(body) {
     console.log(`   Avatar Video: ${avatarVideoUrl}`);
     console.log(`   Audio: ${audioUrl}`);
     console.log(`   Image Timeline: ${imageTimeline?.length || 0} images`);
+    if (imageTimeline?.length > 0) {
+        imageTimeline.forEach((img, i) => {
+            console.log(`   Image ${i + 1}: [${img.start}s-${img.end}s] ${img.topic} layout=${img.layout} url=${img.imageUrl?.substring(0, 80)}`);
+        });
+    }
     console.log(`${'═'.repeat(60)}`);
 
     // Phase 1: Generate LipSync Video with Fal AI
