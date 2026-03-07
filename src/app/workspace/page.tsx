@@ -26,15 +26,15 @@ export default function WorkspacePage() {
 
 
     return (
-        <div className="bg-[#FAFAFA] text-black font-sans selection:bg-[#E2FF4D]/30 overflow-x-hidden min-h-screen">
+        <div className="bg-black text-white font-sans selection:bg-[#E2FF4D]/30 overflow-x-hidden min-h-screen">
             <DashNavbar />
 
             <main>
                 <DashHeroModular user={user} />
-                <DashGridModular />
+                {/* <DashGridModular /> */}
                 {/* <DashTrendsModular /> */}
                 {/* <DashSpotlight /> */}
-                <DashFooterModular />
+                {/* <DashFooterModular /> */}
             </main>
         </div>
     );

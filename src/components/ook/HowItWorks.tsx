@@ -47,7 +47,7 @@ const HowItWorks = () => {
     ];
 
     return (
-        <section id="how-it-works" data-section-theme="light" ref={sectionRef} className="relative h-[500vh] bg-bg-main">
+        <section id="how-it-works" data-section-theme="dark" ref={sectionRef} className="relative h-[500vh] bg-black">
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <Image
@@ -78,7 +78,7 @@ const HowItWorks = () => {
                             The Process
                         </span>
                     </motion.div>
-                    <h2 className="text-6xl md:text-9xl font-main tracking-[-0.04em] leading-none uppercase text-white">
+                    <h2 className="text-6xl md:text-9xl font-main tracking-[-0.04em] leading-none uppercase text-white" style={{ fontFamily: '"MuseoModerno"' }}>
                         The Story <br />
                         <span className="text-accent-orange italic font-normal lowercase tracking-normal">Engine.</span>
                     </h2>

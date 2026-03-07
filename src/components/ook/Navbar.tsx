@@ -58,7 +58,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     return (
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
-                <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-transparent border-transparent'}`}>
+                <div className="flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10">
                     <a href="/" className={`text-2xl font-black font-family: var(--font-museo-moderno) tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 font-museo-moderno ${textColor}`}>
                         OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
                     </a>

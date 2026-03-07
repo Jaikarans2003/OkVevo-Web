@@ -56,7 +56,7 @@ const Quotes = ({ onJoinClick }: QuotesProps) => {
                     }}
                     className="max-w-5xl mx-auto"
                 >
-                    <h2 className="text-5xl md:text-8xl font-bold leading-[1.1] tracking-tight">
+                    <h2 className="text-5xl md:text-8xl font-bold leading-[1.1] tracking-tight" style={{ fontFamily: '"MuseoModerno"' }}>
                         "Everyone has a story. <br />
                         We just give it <span className="text-cursive text-accent-orange md:text-[1.2em] leading-none lowercase tracking-normal font-normal inline-block translate-y-2">a face, a voice, and a world."</span>
                     </h2>

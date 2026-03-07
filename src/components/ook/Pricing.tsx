@@ -6,11 +6,25 @@ import { Check, Zap, Crown, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
 import { useRouter } from 'next/navigation';
+import Squares from '@/components/SquaresBackground';
 
-const Pricing = () => {
+interface PricingProps {
+    user?: any;
+}
+
+const Pricing = ({ user }: PricingProps) => {
     const [showPayment, setShowPayment] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<'hobby' | null>(null);
     const router = useRouter();
+
+    const handlePlanClick = (planName: string) => {
+        if (!user) {
+            // Store the intended plan in sessionStorage to redirect after login
+            sessionStorage.setItem('returnToPlan', planName.toLowerCase());
+            router.push('/login');
+        }
+        // If user is logged in, the payment component will handle it
+    };
     const plans = [
         {
             name: 'Hobby',
@@ -80,55 +94,16 @@ const Pricing = () => {
     ];
 
     return (
-        <section id="pricing" data-section-theme="light" className="relative py-20 overflow-hidden bg-bg-main">
-            {/* Background Orange Glow - BuiltForCreators Style */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-                <div className="absolute -top-[20%] -left-[10%] w-[80%] h-[80%] bg-accent-orange/15 blur-[160px] rounded-full" />
-            </div>
-
-            {/* Background Decorative Gradients - BuiltForCreators Style */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <motion.div
-                    initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        opacity: [0.3, 0.4, 0.3],
-                        x: [0, 20, 0],
-                        y: [0, -15, 0]
-                    }}
-                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[25%] -right-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
-                />
-                {/* <motion.div
-                    initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.15, 1],
-                        opacity: [0.2, 0.3, 0.2],
-                        x: [0, -20, 0],
-                        y: [0, 30, 0]
-                    }}
-                    transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
-                    className="absolute -bottom-[20%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
-                /> */}
-                <motion.div
-                    initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        opacity: [0.1, 0.2, 0.1],
-                        x: [0, 15, 0],
-                        y: [0, 20, 0]
-                    }}
-                    transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
-                    className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
-                />
-                <motion.div
-                    animate={{
-                        x: [0, -15, 0],
-                        y: [0, 25, 0],
-                        scale: [1, 1.05, 1]
-                    }}
-                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
+        <section id="pricing" data-section-theme="dark" className="relative py-20 overflow-hidden bg-black">
+            {/* Background Image */}
+            <div className="absolute inset-0 z-0">
+                <Image 
+                    src="/OKVEVO With BackGrounds/PricingBackGrounds.png"
+                    alt="Pricing Background"
+                    fill
+                    className="object-cover opacity-100"
+                    priority
+                    unoptimized
                 />
             </div>
 
@@ -150,11 +125,11 @@ const Pricing = () => {
                     >
                         <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-card border-2 border-accent-orange/30">
                             {/* <Sparkles className="w-4 h-4 text-accent-orange" /> */}
-                            <span className="text-xs font-bold tracking-[0.2em] uppercase text-text-main">Pricing</span>
+                            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white">Pricing</span>
                         </div>
                     </motion.div>
 
-                    <h2 className="text-4xl md:text-5xl font-black mb-6 text-text-main tracking-tight">
+                    <h2 className="text-4xl md:text-5xl font-black mb-6 text-white tracking-tight" style={{ fontFamily: '"MuseoModerno"' }}>
                         Choose Your Creative Power
                     </h2>
                 </motion.div>
@@ -188,75 +163,96 @@ const Pricing = () => {
                                 )}
 
                                 {/* Card */}
-                                <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 transform-gpu ${plan.highlighted
-                                    ? 'glass-card border-2 border-accent-orange shadow-2xl shadow-accent-orange/20 md:scale-105'
-                                    : 'glass-card border border-white/5 hover:border-accent-orange/50 hover:shadow-xl'
+                                <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 transform-gpu backdrop-blur-xl ${plan.highlighted
+                                    ? 'bg-white/10 border-2 border-accent-orange shadow-2xl shadow-accent-orange/20 md:scale-105'
+                                    : 'bg-white/5 border border-white/10 hover:border-accent-orange/50 hover:shadow-xl hover:bg-white/10'
                                     }`}>
                                     {/* Icon */}
                                     <div className={`inline-flex p-3 rounded-xl mb-4 bg-gradient-to-br ${plan.gradient}`}>
-                                        <Icon className={plan.highlighted ? 'text-white' : 'text-text-main'} />
+                                        <Icon className={plan.highlighted ? 'text-white' : 'text-white'} />
                                     </div>
 
                                     {/* Plan Name */}
-                                    <h3 className="text-2xl font-black mb-2 text-text-main">{plan.name}</h3>
+                                    <h3 className="text-2xl font-black mb-2 text-white">{plan.name}</h3>
 
                                     {/* Description */}
-                                    <p className="text-text-dim mb-6 text-xs leading-relaxed">{plan.description}</p>
+                                    <p className="text-white/70 mb-6 text-xs leading-relaxed">{plan.description}</p>
 
                                     {/* Price */}
                                     <div className="mb-6">
                                         <div className="flex items-baseline gap-2 mb-1">
-                                            <span className="text-4xl font-black text-text-main">{plan.price}</span>
+                                            <span className="text-4xl font-black text-white">{plan.price}</span>
                                             {plan.period !== 'contact sales' && (
-                                                <span className="text-text-dim text-base">/{plan.period.split(' ')[1] || plan.period}</span>
+                                                <span className="text-white/70 text-base">/{plan.period.split(' ')[1] || plan.period}</span>
                                             )}
                                         </div>
-                                        <p className="text-text-dim text-xs">{plan.period}</p>
+                                        <p className="text-white/70 text-xs">{plan.period}</p>
                                     </div>
 
                                     {/* CTA Button */}
                                     {plan.name === 'Hobby' ? (
                                         <div className="mb-6">
-                                            <RazorpayCheckout
-                                                planType="hobby"
-                                                onSuccess={(subscriptionId) => {
-                                                    console.log('Payment successful:', subscriptionId);
-                                                    alert('Subscription successful! Welcome to OKVEVO Hobby Plan.');
-                                                    router.push('/workspace');
-                                                }}
-                                                onError={(error) => {
-                                                    console.error('Payment error:', error);
-                                                    alert(`Payment failed: ${error}`);
-                                                }}
-                                            />
+                                            {user ? (
+                                                <RazorpayCheckout
+                                                    planType="hobby"
+                                                    onSuccess={(subscriptionId) => {
+                                                        console.log('Payment successful:', subscriptionId);
+                                                        alert('Subscription successful! Welcome to OKVEVO Hobby Plan.');
+                                                        router.push('/workspace');
+                                                    }}
+                                                    onError={(error) => {
+                                                        console.error('Payment error:', error);
+                                                        alert(`Payment failed: ${error}`);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <button 
+                                                    onClick={() => handlePlanClick('Hobby')}
+                                                    className="w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105"
+                                                >
+                                                    Get Started
+                                                </button>
+                                            )}
                                         </div>
                                     ) : plan.name === 'Pro' ? (
                                         <div className="mb-6">
-                                            <RazorpayCheckout
-                                                planType="pro"
-                                                onSuccess={(subscriptionId) => {
-                                                    console.log('Payment successful:', subscriptionId);
-                                                    alert('Subscription successful! Welcome to OKVEVO Pro Plan.');
-                                                    router.push('/workspace');
-                                                }}
-                                                onError={(error) => {
-                                                    console.error('Payment error:', error);
-                                                    alert(`Payment failed: ${error}`);
-                                                }}
-                                            />
+                                            {user ? (
+                                                <RazorpayCheckout
+                                                    planType="pro"
+                                                    onSuccess={(subscriptionId) => {
+                                                        console.log('Payment successful:', subscriptionId);
+                                                        alert('Subscription successful! Welcome to OKVEVO Pro Plan.');
+                                                        router.push('/workspace');
+                                                    }}
+                                                    onError={(error) => {
+                                                        console.error('Payment error:', error);
+                                                        alert(`Payment failed: ${error}`);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <button 
+                                                    onClick={() => handlePlanClick('Pro')}
+                                                    className="w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105"
+                                                >
+                                                    Get Started
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
-                                        <button className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
-                                            ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
-                                            : 'bg-text-main text-bg-main hover:bg-accent-orange hover:text-white hover:shadow-lg'
-                                            }`}>
+                                        <button 
+                                            onClick={() => handlePlanClick('Enterprise')}
+                                            className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
+                                                ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
+                                                : 'bg-white text-black hover:bg-accent-orange hover:text-white hover:shadow-lg'
+                                            }`}
+                                        >
                                             {plan.cta}
                                         </button>
                                     )}
 
                                     {/* Features List */}
                                     <div className="space-y-3">
-                                        <p className="text-xs font-bold tracking-[0.15em] uppercase text-text-dim mb-3">What's Included</p>
+                                        <p className="text-xs font-bold tracking-[0.15em] uppercase text-white/70 mb-3">What's Included</p>
                                         {plan.features.map((feature, i) => (
                                             <motion.div
                                                 key={i}
@@ -266,11 +262,11 @@ const Pricing = () => {
                                                 transition={{ delay: 0.05 * i }}
                                                 className="flex items-start gap-2"
                                             >
-                                                <div className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 ${plan.highlighted ? 'bg-accent-orange' : 'bg-text-main'
+                                                <div className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 ${plan.highlighted ? 'bg-accent-orange' : 'bg-white'
                                                     }`}>
-                                                    <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                                                    <Check className={`w-2.5 h-2.5 ${plan.highlighted ? 'text-white' : 'text-black'}`} strokeWidth={3} />
                                                 </div>
-                                                <span className="text-text-main text-xs leading-relaxed">{feature}</span>
+                                                <span className="text-white text-xs leading-relaxed">{feature}</span>
                                             </motion.div>
                                         ))}
 
@@ -282,7 +278,7 @@ const Pricing = () => {
                                                         <div className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center bg-gray-300 mt-0.5">
                                                             <div className="w-1.5 h-0.5 bg-white" />
                                                         </div>
-                                                        <span className="text-text-dim text-xs leading-relaxed line-through">{feature}</span>
+                                                        <span className="text-white/50 text-xs leading-relaxed line-through">{feature}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -302,7 +298,7 @@ const Pricing = () => {
                     transition={{ duration: 0.8, delay: 0.3 }}
                     className="text-center mt-16"
                 >
-                    <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
+                    <button className="px-8 py-3 rounded-full border-2 border-white/10 text-white font-bold text-xs tracking-wider uppercase hover:bg-white hover:text-black transition-all duration-300">
                         Start free.
                     </button>
                     {/* <p className="text-text-dim text-base mb-4">

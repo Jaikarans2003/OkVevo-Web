@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import DigitalWallet from '@/components/DigitalWallet';
 
 function cn(...inputs: any[]) {
     return twMerge(clsx(inputs));
@@ -189,76 +190,25 @@ const BuiltForCreators = () => {
     }, [nextSlide, prevSlide]);
 
     return (
-        <section id="built-for-creators" className="relative min-h-screen flex flex-col justify-center bg-black overflow-hidden py-24">
-            {/* Background Orange Glow - Hero Style */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-                <div className="absolute -top-[20%] -left-[10%] w-[80%] h-[80%] bg-accent-orange/15 blur-[160px] rounded-full" />
-            </div>
-
-            {/* Background Decorative Gradients - Hero Style */}
-            {/* <div className="absolute inset-0 z-0 pointer-events-none">
-                <motion.div
-                    initial={{ scale: 1, opacity: 0.3, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        opacity: [0.3, 0.4, 0.3],
-                        x: [0, 20, 0],
-                        y: [0, -15, 0]
-                    }}
-                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-accent-orange blur-[140px] rounded-full opacity-[0.3] transform-gpu"
-                />
-                <motion.div
-                    initial={{ scale: 1, opacity: 0.2, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.15, 1],
-                        opacity: [0.2, 0.3, 0.2],
-                        x: [0, -20, 0],
-                        y: [0, 30, 0]
-                    }}
-                    transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
-                    className="absolute -bottom-[10%] -right-[10%] w-[50vw] h-[50vw] bg-accent-orange blur-[120px] rounded-full opacity-20 transform-gpu"
-                />
-                <motion.div
-                    initial={{ scale: 1, opacity: 0.1, x: 0, y: 0 }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        opacity: [0.1, 0.2, 0.1],
-                        x: [0, 15, 0],
-                        y: [0, 20, 0]
-                    }}
-                    transition={{ duration: 16, repeat: Infinity, ease: "linear", delay: 1 }}
-                    className="absolute -bottom-[15%] -left-[5%] w-[45vw] h-[45vw] bg-accent-orange/40 blur-[100px] rounded-full opacity-15 transform-gpu"
-                />
-                <motion.div
-                    animate={{
-                        x: [0, -15, 0],
-                        y: [0, 25, 0],
-                        scale: [1, 1.05, 1]
-                    }}
-                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                    className="absolute top-1/4 left-1/3 w-[40vw] h-[40vw] bg-accent-orange/10 blur-[120px] rounded-full opacity-[0.15] transform-gpu"
-                />
-            </div> */}
-
+        <section id="built-for-creators" className="relative h-[700px] md:h-[700px] flex flex-col justify-end bg-black overflow-hidden pt-12 pb-20">
             {/* Header */}
-            <div className="container mx-auto px-4 relative z-20 mb-12 text-center md:text-left">
-                <div className="flex items-center gap-4 mb-4 justify-center md:justify-start">
-                    <div className="w-12 h-[1px] bg-accent-orange" />
-                    <span className="text-accent-orange text-sm tracking-widest uppercase">For Everyone</span>
-                </div>
-                <h2 className="text-4xl md:text-6xl lg:text-7xl font-medium tracking-tight leading-none text-white font-black">
-                    Built for Modern <span className="text-accent-orange italic">Creators</span>
+            <div className="absolute top-12 left-4 md:left-8 z-30">
+                <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-none text-white" style={{ fontFamily: '"MuseoModerno"' }}>
+                    Who is it <span className="text-accent-orange italic">For?</span>
                 </h2>
             </div>
 
+            {/* Digital Wallet Interactive Background */}
+            <div className="absolute inset-0 z-20">
+                <DigitalWallet balance="Built for Creators" cards={creators} />
+            </div>
             <div
                 ref={containerRef}
-                className="relative w-full h-[600px] flex items-center justify-center perspective-1000"
+                className="relative w-full h-[600px] flex items-center justify-center perspective-1000 hidden"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                {/* Cards Layer */}
+                {/* Cards Layer - Hidden, now displayed in wallet */}
                 <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
                     {creators.map((creator, i) => (
                         <div

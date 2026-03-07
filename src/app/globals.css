@@ -40,10 +40,10 @@
   }
 
   body {
-    --font-sans: var(--font-museo-moderno), ui-sans-serif, system-ui, sans-serif;
-    --font-serif: var(--font-museo-moderno), ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Geom', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Geom', ui-serif, Georgia, serif;
     @apply bg-bg-main text-text-main antialiased;
-    font-family: var(--font-sans) !important;
+    font-family: 'Geom', sans-serif !important;
     overflow-x: hidden;
   }
 
@@ -53,7 +53,7 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-sans) !important;
+    font-family: 'MuseoModerno', sans-serif !important;
   }
 
   ::selection {
