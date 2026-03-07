@@ -261,6 +261,19 @@ async function downloadFromUrl(url) {
 }
 
 // ────────────────────────────────────────────────────
+// Download from Firebase Storage Directly
+// ────────────────────────────────────────────────────
+
+async function downloadFromFirebaseStorage(storagePath) {
+    console.log(`📥 Downloading from Firebase Storage: ${storagePath}`);
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(storagePath);
+    const [buffer] = await file.download();
+    console.log(`✅ Downloaded ${buffer.length} bytes from Firebase`);
+    return buffer;
+}
+
+// ────────────────────────────────────────────────────
 // Upload to Firebase Storage
 // ────────────────────────────────────────────────────
 
@@ -383,7 +396,31 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
             }
         });
 
-        // ── Step 4: Chain overlays ────────────────────────────────────────────
+        // ── Step 4: Add SFX inputs and mix audio ──────────────────────────────
+        // We will push each sfxPath to `args` as a new input.
+        // We track the input index (video is 0, images are 1..N, SFX are N+1..)
+        let sfxCount = 0;
+        let audioFilterComplex = '';
+        const audioInputLabels = ['[0:a]']; // We will amix base audio with all SFX
+
+        images.forEach((img) => {
+            if (img.sfxPath) {
+                args.push('-i', img.sfxPath);
+                // Input index: 1 (base video) + images.length (image loops) + sfxCount
+                const sfxInputIdx = 1 + images.length + sfxCount;
+
+                // Delay the SFX by img.start seconds (ffmpeg adelay uses milliseconds)
+                const delayMs = Math.floor(img.start * 1000);
+                const sfxLabel = `sfx${sfxCount}`;
+
+                // [sfxIdx:a]adelay=delay|delay[sfx_out]
+                audioFilterComplex += `[${sfxInputIdx}:a]adelay=${delayMs}|${delayMs}[${sfxLabel}];`;
+                audioInputLabels.push(`[${sfxLabel}]`);
+                sfxCount++;
+            }
+        });
+
+        // ── Step 5: Chain overlays ────────────────────────────────────────────
         let prevLabel = currentBase;
         images.forEach((img, idx) => {
             const timeEnable = `between(t,${img.start},${img.end})`;
@@ -395,14 +432,24 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
             prevLabel = outLabel;
         });
 
-        // Strip trailing semicolon
-        filterComplex = filterComplex.replace(/;$/, '');
+        if (sfxCount > 0) {
+            // Mix base audio and all delayed SFX
+            // e.g. [0:a][sfx0][sfx1]amix=inputs=3:duration=first:dropout_transition=2[outa]
+            const mixInputs = audioInputLabels.join('');
+            audioFilterComplex += `${mixInputs}amix=inputs=${audioInputLabels.length}:duration=first:dropout_transition=2[outa];`;
+        }
+
+        // Combine video and audio filters
+        let finalFilterComplex = filterComplex.replace(/;$/, '');
+        if (audioFilterComplex) {
+            finalFilterComplex += ';' + audioFilterComplex.replace(/;$/, '');
+        }
 
         const ffmpegArgs = [
             ...args,
-            '-filter_complex', filterComplex,
+            '-filter_complex', finalFilterComplex,
             '-map', '[outv]',
-            '-map', '0:a',
+            '-map', sfxCount > 0 ? '[outa]' : '0:a',
             '-c:v', 'libx264',
             '-preset', 'fast',
             '-crf', '22',
@@ -415,7 +462,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
         ];
 
         console.log('🎬 Running ffmpeg compositor...');
-        console.log('🔍 Filter complex:', filterComplex);
+        console.log('🔍 Filter complex:\n', finalFilterComplex.replace(/;/g, ';\n'));
         const ffmpeg = spawn(FFMPEG, ffmpegArgs);
 
         let stderr = '';
@@ -472,19 +519,42 @@ async function processLipSyncPipeline(body) {
         const validImages = imageTimeline.filter(img => img.imageUrl);
         const downloadedImages = [];
 
+        // Pre-download the two SFX files
+        let sfxPaths = [];
+        try {
+            const sfx1Buffer = await downloadFromFirebaseStorage('InfluencerAudio/Audio1.mpeg');
+            const sfx2Buffer = await downloadFromFirebaseStorage('InfluencerAudio/Audio2.mpeg');
+
+            const sfx1Path = `/tmp/${jobId}-sfx1.mpeg`;
+            const sfx2Path = `/tmp/${jobId}-sfx2.mpeg`;
+
+            fs.writeFileSync(sfx1Path, sfx1Buffer);
+            fs.writeFileSync(sfx2Path, sfx2Buffer);
+
+            sfxPaths = [sfx1Path, sfx2Path];
+            console.log(`✅ Downloaded 2 SFX files for overlay sounds`);
+        } catch (err) {
+            console.warn(`⚠️ Failed to download SFX files, overlays will be silent: ${err.message}`);
+        }
+
         for (let i = 0; i < validImages.length; i++) {
             const img = validImages[i];
             try {
                 const imgBuffer = await downloadFromUrl(img.imageUrl);
                 const imgPath = `/tmp/${jobId}-img-${i}.jpg`;
                 fs.writeFileSync(imgPath, imgBuffer);
+
+                // Randomly pick one of the SFX paths (if available)
+                const sfxPath = sfxPaths.length > 0 ? sfxPaths[Math.floor(Math.random() * sfxPaths.length)] : null;
+
                 downloadedImages.push({
                     localPath: imgPath,
                     start: img.start,
                     end: img.end,
                     layout: img.layout || 'split',
+                    sfxPath: sfxPath,
                 });
-                console.log(`✅ Image ${i + 1}/${validImages.length} downloaded: ${img.topic}`);
+                console.log(`✅ Image ${i + 1}/${validImages.length} downloaded: ${img.topic} (SFX: ${sfxPath ? 'Yes' : 'No'})`);
             } catch (err) {
                 console.warn(`⚠️ Skipping image ${i} (${img.topic}): ${err.message}`);
             }
@@ -504,6 +574,11 @@ async function processLipSyncPipeline(body) {
                 try { fs.unlinkSync(img.localPath); } catch (_) { }
             });
         }
+
+        // Cleanup SFX files
+        sfxPaths.forEach(p => {
+            try { fs.unlinkSync(p); } catch (_) { }
+        });
     }
 
     // Phase 4: Upload to Firebase
