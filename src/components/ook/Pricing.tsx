@@ -291,23 +291,23 @@ const Pricing = ({ user }: PricingProps) => {
                 </div>
 
                 {/* Bottom CTA */}
-                <motion.div
+                {/* <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.8, delay: 0.3 }}
                     className="text-center mt-16"
-                >
-                    <button className="px-8 py-3 rounded-full border-2 border-white/10 text-white font-bold text-xs tracking-wider uppercase hover:bg-white hover:text-black transition-all duration-300">
+                > */}
+                    {/* <button className="px-8 py-3 rounded-full border-2 border-white/10 text-white font-bold text-xs tracking-wider uppercase hover:bg-white hover:text-black transition-all duration-300">
                         Start free.
-                    </button>
+                    </button> */}
                     {/* <p className="text-text-dim text-base mb-4">
                         Not sure which plan is right for you?
                     </p>
                     <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
                         Compare All Features
                     </button> */}
-                </motion.div>
+                {/* </motion.div> */}
             </div>
         </section >
     );

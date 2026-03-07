@@ -8,12 +8,9 @@ import { useRouter } from 'next/navigation';
 import NoiseOverlay from './NoiseOverlay';
 import Navbar from './ook/Navbar';
 import Hero from './ook/Hero';
-import Features from './ook/Features';
-import HowItWorks from './ook/HowItWorks';
+import HowItWorks from './ook/Features';
 import BuiltForCreators from './ook/BuiltForCreators';
 import Pricing from './ook/Pricing';
-import TuneTalez from './ook/TuneTalez';
-import Quotes from './ook/Quotes';
 import Footer from './ook/Footer';
 
 export default function LandingPage() {
@@ -44,7 +41,7 @@ export default function LandingPage() {
                 <Hero onJoinClick={handleJoinClick} />
                 {/* <Features /> */}
                 <HowItWorks />
-                <BuiltForCreators />
+                {/* <BuiltForCreators /> */}
                 <Pricing user={user} />
                 {/* <TuneTalez /> */}
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}
