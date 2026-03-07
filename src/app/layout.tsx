@@ -80,7 +80,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${museoModerno.className} ${museoModerno.variable} ${alumniSans.variable} ${plusJakarta.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${plusJakarta.className} ${plusJakarta.variable} ${museoModerno.variable} ${alumniSans.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}

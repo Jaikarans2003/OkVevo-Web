@@ -40,10 +40,9 @@
   }
 
   body {
-    --font-sans: 'Geom', ui-sans-serif, system-ui, sans-serif;
-    --font-serif: 'Geom', ui-serif, Georgia, serif;
-    @apply bg-bg-main text-text-main antialiased;
-    font-family: 'Geom', sans-serif !important;
+    --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+    --font-serif: ui-serif, Georgia, serif;
+    @apply bg-bg-main text-text-main antialiased font-sans;
     overflow-x: hidden;
   }
 
@@ -125,6 +124,10 @@
     font-family: 'Dancing Script', cursive;
     font-weight: 700;
     @apply text-accent-orange;
+  }
+
+  .font-changa {
+    font-family: var(--font-changa-one), sans-serif !important;
   }
 }
 

@@ -16,7 +16,7 @@ const Footer = () => {
                 <div className="container relative z-10 flex flex-col pt-10">
                     <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-32">
                         <div className="max-w-sm">
-                            <a href="/" className="text-4xl font-black tracking-tighter text-white mb-8 block transition-transform hover:scale-105 origin-left">
+                            <a href="/" className="text-4xl font-black tracking-tighter text-white mb-8 block transition-transform hover:scale-105 origin-left font-museo-moderno">
                                 OKVEVO<span className="text-text-main">.</span>
                             </a>
                             <p className="text-xl text-white font-medium leading-relaxed">
