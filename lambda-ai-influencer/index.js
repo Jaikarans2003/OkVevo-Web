@@ -380,28 +380,27 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
             currentBase = 'base_raw';
         }
 
-        // ── Step 3: Prepare each image stream ────────────────────────────────
+        // ── Step 3: Prepare each image stream (no fades, preserve quality) ────
         images.forEach((img, idx) => {
             const inputIdx = idx + 1; // input 0 = video, inputs 1..N = images
-            const imgDuration = img.end - img.start;
-            const fadeDur = Math.min(0.3, imgDuration * 0.2);
-            const fadeOutSt = Math.max(0, imgDuration - fadeDur);
 
             if (img.layout === 'fullscreen') {
                 // Full 360×640 — covers the entire frame
-                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
+                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[img${idx}];`;
             } else {
                 // Split — image fills the TOP 320px; presenter fills BOTTOM 320px via splitbase
-                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p,fade=t=in:st=0:d=${fadeDur},fade=t=out:st=${fadeOutSt}:d=${fadeDur}[img${idx}];`;
+                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p[img${idx}];`;
             }
         });
 
         // ── Step 4: Add SFX inputs and mix audio ──────────────────────────────
-        // We will push each sfxPath to `args` as a new input.
         // We track the input index (video is 0, images are 1..N, SFX are N+1..)
         let sfxCount = 0;
         let audioFilterComplex = '';
-        const audioInputLabels = ['[0:a]']; // We will amix base audio with all SFX
+
+        // Boost base video speech volume by 20%
+        audioFilterComplex += `[0:a]volume=1.2[base_vocal];`;
+        const audioInputLabels = ['[base_vocal]'];
 
         images.forEach((img) => {
             if (img.sfxPath) {
