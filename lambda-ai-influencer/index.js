@@ -398,8 +398,8 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
         let sfxCount = 0;
         let audioFilterComplex = '';
 
-        // Boost base video speech volume by 20%
-        audioFilterComplex += `[0:a]volume=1.2[base_vocal];`;
+        // Boost base video speech volume by 50%
+        audioFilterComplex += `[0:a]volume=1.5[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
         images.forEach((img) => {
