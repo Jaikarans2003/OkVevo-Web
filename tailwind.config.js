@@ -126,11 +126,9 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				sans: ['var(--font-museo-moderno)', 'MuseoModerno', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-				serif: ['var(--font-alumni-sans)', 'Alumni Sans', 'ui-serif', 'Georgia', 'serif'],
+				sans: ['var(--font-ubuntu)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				serif: ['ui-serif', 'Georgia', 'serif'],
 				cursive: ['Dancing Script', 'cursive'],
-				main: ['var(--font-museo-moderno)', 'MuseoModerno', 'sans-serif'],
-				alumni: ['var(--font-alumni-sans)', 'Alumni Sans', 'sans-serif']
 			}
 		},
 	},

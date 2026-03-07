@@ -1,146 +1,146 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 
-function cn(...inputs: any[]) {
-    return twMerge(clsx(inputs));
-}
-
 const HowItWorks = () => {
-    const sectionRef = useRef(null);
-    const { scrollYProgress } = useScroll({
-        target: sectionRef,
-    });
-
-    // Horizontal scroll for the container - extended to show all 3 cards
-    const x = useTransform(scrollYProgress, [0, 1], ["0%", "-100%"]);
+    const [activeIndex, setActiveIndex] = useState(0);
 
     const steps = [
         {
-            number: "01",
-            tag: "",
-            title: "AI Influencer",
-            description: "Create talking avatar videos in seconds, Upload your avatar, generate a script and produce Social Media ready videos instantly.",
+            shortTitle: "AI Influencers",
+            fullText: "Create talking avatar videos in seconds — upload your avatar, generate a script and produce social media ready videos instantly.",
             img: "/avatar.png",
-            accent: "from-accent-orange/20 to-transparent"
         },
         {
-            number: "02",
-            tag: "",
-            title: "Product Studio",
-            description: "Create stunning product photos without a studio. Upload your product and generate lifestyle images and marketing visuals instantly.",
+            shortTitle: "Product Studio",
+            fullText: "Create stunning product photos without a studio — upload your product and generate lifestyle images and marketing visuals instantly.",
             img: "/movie-scene.png",
-            accent: "from-accent-orange/20 to-transparent"
         },
         {
-            number: "03",
-            tag: "",
-            title: "Social Media",
-            description: "Generate viral short-form videos optimized for Instagram Reels, TikTok, and YouTube Shorts.",
+            shortTitle: "Social Media",
+            fullText: "Generate viral short-form videos — effortlessly optimized for Instagram Reels, TikTok, and YouTube Shorts.",
             img: "/ai-engine.png",
-            accent: "from-accent-orange/20 to-transparent"
         }
     ];
 
     return (
-        <section id="how-it-works" data-section-theme="dark" ref={sectionRef} className="relative h-[500vh] bg-black">
-            {/* Background Image */}
-            <div className="absolute inset-0 z-0">
-                <Image
-                    src="/OKVEVO With BackGrounds/EvolutionBackGrounds.png"
-                    alt="How It Works Background"
-                    fill
-                    className="object-cover"
-                    priority
-                />
-                {/* Dark overlay for content readability */}
-                <div className="absolute inset-0 bg-black/50" />
-            </div>
-            
-            <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
-                {/* Ambient Background Glows */}
-                <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-accent-orange/5 blur-[40px] rounded-full pointer-events-none transform-gpu" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent-sky/5 blur-[40px] rounded-full pointer-events-none transform-gpu" />
+        <section id="features" data-section-theme="dark" className="relative py-32 bg-[#020202] text-white selection:bg-orange-500/30 overflow-hidden">
+            {/* Background Glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] max-w-4xl h-[400px] rounded-full bg-[#FF6600]/15 blur-[120px] -z-10 pointer-events-none" />
 
-                {/* Header - Fixed in sticky container with more padding-top to avoid navbar */}
-                <div className="centering-container !items-start pt-20 mb-8 px-[10vw] relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-4 mb-4"
-                    >
-                        <div className="w-12 h-[1px] bg-accent-orange" />
-                        <span className="text-[10px] font-bold tracking-[0.5em] text-accent-orange uppercase">
-                            The Process
+            <div className="max-w-[1300px] mx-auto px-6 md:px-12 relative z-10">
+                
+                {/* Header Section */}
+                <div className="mb-24">
+                    <div className="text-5xl md:text-[80px] font-bold leading-[1.1] tracking-[-0.03em] text-white">
+                        Everything{' '}
+                        <span className="inline-flex items-center justify-between border border-white/20 rounded-xl px-5 py-2 md:px-6 md:py-3 mb-2 md:mb-0 align-middle">
+                            <span>creators</span>
+                            
                         </span>
-                    </motion.div>
-                    <h2 className="text-6xl md:text-9xl font-main tracking-[-0.04em] leading-none uppercase text-white" style={{ fontFamily: '"MuseoModerno"' }}>
-                        The Story <br />
-                        <span className="text-accent-orange italic font-normal lowercase tracking-normal">Engine.</span>
-                    </h2>
+                        <br />
+                        love about OKVEVO
+                    </div>
                 </div>
 
-                {/* Horizontal Scroll Track - Adjusted spacing */}
-                <div className="relative mt-8">
-                    <motion.div
-                        style={{ x, willChange: "transform" }}
-                        className="flex gap-16 px-[10vw] transform-gpu"
-                    >
-                        {steps.map((step, index) => (
-                            <div
-                                key={index}
-                                className="min-w-[85vw] md:min-w-[70vw] lg:min-w-[60vw] h-[50vh] rounded-[48px] overflow-hidden relative group shadow-premium bg-accent-orange flex flex-col md:flex-row items-stretch"
-                                style={{ willChange: 'transform' }}
+                {/* Content Grid */}
+                <div className="flex flex-col lg:flex-row gap-16 lg:gap-32">
+                    
+                    {/* Left side: Category and List */}
+                    <div className="w-full lg:w-[45%] flex flex-col md:flex-row gap-8 lg:gap-16 pt-2">
+                        
+                        {/* Category Label */}
+                        <div className="w-full md:w-[140px] flex-shrink-0">
+                           <span className="text-[#a1a1aa] text-lg font-medium">
+                               Creative freedom
+                           </span>
+                        </div>
+                        
+                        {/* Feature List */}
+                        <div className="flex-1 flex flex-col">
+                           {steps.map((step, index) => {
+                               const isActive = activeIndex === index;
+                               return (
+                                  <div 
+                                     key={index} 
+                                     onMouseEnter={() => setActiveIndex(index)}
+                                     className={`cursor-pointer flex items-start justify-between group border-[#222] transition-all duration-500 ease-out border-b
+                                        ${index === 0 ? 'border-t-0' : ''} 
+                                        ${isActive ? 'py-10' : 'py-6 hover:border-[#444]'}
+                                     `}
+                                  >
+                                     <div className="pr-8 h-full flex flex-col justify-center">
+                                       <AnimatePresence mode="wait">
+                                           {isActive ? (
+                                               <motion.div 
+                                                   key="active"
+                                                   initial={{ opacity: 0, y: 5 }}
+                                                   animate={{ opacity: 1, y: 0 }}
+                                                   exit={{ opacity: 0, y: -5 }}
+                                                   transition={{ duration: 0.3 }}
+                                                   className="text-white text-xl md:text-[22px] leading-[1.4] font-medium"
+                                               >
+                                                   {step.fullText}
+                                               </motion.div>
+                                           ) : (
+                                               <motion.div 
+                                                   key="inactive"
+                                                   initial={{ opacity: 0 }}
+                                                   animate={{ opacity: 1 }}
+                                                   exit={{ opacity: 0 }}
+                                                   className="text-[#a1a1aa] text-base md:text-[17px] font-medium group-hover:text-[#e1e1e1] transition-colors"
+                                               >
+                                                   {step.shortTitle}
+                                               </motion.div>
+                                           )}
+                                       </AnimatePresence>
+                                     </div>
+                                     
+                                     {/* Arrow icon shown if inactive */}
+                                     {isActive ? null : (
+                                        <div className="mt-0 flex-shrink-0">
+                                            <ArrowRight className="w-[18px] h-[18px] text-[#555] group-hover:text-white transition-colors duration-300" strokeWidth={2} />
+                                        </div>
+                                     )}
+                                  </div>
+                               )
+                           })}
+                        </div>
+                    </div>
+
+                    {/* Right side: Image Display */}
+                    <div className="w-full lg:w-[55%] h-[400px] md:h-[600px] relative rounded-[24px] overflow-hidden bg-[#080808] border border-[#1a1a1a]">
+                        <AnimatePresence mode="wait">
+                            <motion.div 
+                                key={activeIndex}
+                                initial={{ opacity: 0, scale: 1.02 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent flex items-center justify-center p-8 md:p-16"
                             >
-                                {/* Visual Side */}
-                                <div className={cn("hidden md:flex flex-1 items-center justify-center relative p-12 bg-gradient-to-br", step.accent)}>
-                                    <Image
-                                        src={step.img}
-                                        alt={step.title}
+                                <div className="relative w-full h-full">
+                                    <Image 
+                                        src={steps[activeIndex].img} 
+                                        alt={steps[activeIndex].shortTitle}
                                         fill
-                                        className="object-contain group-hover:scale-105 transition-transform duration-700 !relative !w-full !h-full"
+                                        className="object-contain drop-shadow-2xl"
+                                        priority
                                     />
-                                    {/* Number Overlay */}
-                                    <span className="absolute top-8 left-8 text-[120px] font-black text-text-main/5 pointer-events-none select-none">
-                                        {step.number}
-                                    </span>
                                 </div>
-
-                                {/* Content Side */}
-                                <div className="flex-1 p-10 md:p-14 flex flex-col justify-between relative">
-                                    <div>
-                                        <span className="text-xs font-bold tracking-[0.4em] text-white uppercase mb-6 block">
-                                            Step {step.number} — {step.tag}
-                                        </span>
-                                        <h3 className="text-4xl md:text-5xl font-black mb-6 leading-tight tracking-tight text-white">
-                                            {step.title}
-                                        </h3>
-                                        <p className="text-lg md:text-xl text-white/90 leading-relaxed font-medium">
-                                            {step.description}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-[2px] w-12 bg-white" />
-                                        <span className="text-[10px] font-black tracking-widest uppercase text-white">Start Journey</span>
-                                    </div>
-                                </div>
+                            </motion.div>
+                        </AnimatePresence>
+                        
+                        {/* Made in OKVEVO Badge */}
+                        <div className="absolute bottom-6 right-6 px-4 py-2 rounded-full bg-[#111]/80 backdrop-blur-md border border-white/10 flex items-center gap-2">
+                            <div className="w-[18px] h-[18px] rounded-full bg-black flex items-center justify-center border border-[#333]">
+                                <div className="w-[10px] h-[10px] rounded-full bg-orange-500" />
                             </div>
-                        ))}
-                    </motion.div>
-                </div>
-
-                {/* Dynamic Progress indicator - Adjusted positioning */}
-                <div className="centering-container mt-16 px-[10vw]">
-                    <div className="w-full lg:w-3/4 h-[2px] bg-text-main/10 relative overflow-hidden rounded-full">
-                        <motion.div
-                            style={{ scaleX: scrollYProgress }}
-                            className="absolute inset-0 bg-accent-orange origin-left"
-                        />
+                            <span className="text-xs font-semibold tracking-wide text-white/90">Made in OKVEVO</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -193,7 +193,7 @@ const BuiltForCreators = () => {
         <section id="built-for-creators" className="relative h-[700px] md:h-[700px] flex flex-col justify-end bg-black overflow-hidden pt-12 pb-20">
             {/* Header */}
             <div className="absolute top-12 left-4 md:left-8 z-30">
-                <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-none text-white" style={{ fontFamily: '"MuseoModerno"' }}>
+                <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-none text-white">
                     Who is it <span className="text-accent-orange italic">For?</span>
                 </h2>
             </div>

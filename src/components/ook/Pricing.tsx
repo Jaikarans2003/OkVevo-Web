@@ -2,19 +2,16 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Zap, Crown, Sparkles } from 'lucide-react';
-import Image from 'next/image';
+import { Check, Sparkles, Zap, Crown } from 'lucide-react';
 import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
 import { useRouter } from 'next/navigation';
-import Squares from '@/components/SquaresBackground';
 
 interface PricingProps {
     user?: any;
 }
 
 const Pricing = ({ user }: PricingProps) => {
-    const [showPayment, setShowPayment] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<'hobby' | null>(null);
+    const [isAnnual, setIsAnnual] = useState(true);
     const router = useRouter();
 
     const handlePlanClick = (planName: string) => {
@@ -25,6 +22,7 @@ const Pricing = ({ user }: PricingProps) => {
         }
         // If user is logged in, the payment component will handle it
     };
+
     const plans = [
         {
             name: 'Hobby',
@@ -46,9 +44,7 @@ const Pricing = ({ user }: PricingProps) => {
             ],
             highlighted: false,
             cta: 'Get Started',
-            gradient: 'from-zinc-900 to-zinc-950'
         },
-        
         {
             name: 'Pro',
             icon: Zap,
@@ -68,7 +64,6 @@ const Pricing = ({ user }: PricingProps) => {
             notIncluded: [],
             highlighted: true,
             cta: 'Start Pro Trial',
-            gradient: 'from-accent-orange to-orange-600'
         },
         {
             name: 'Enterprise',
@@ -89,115 +84,113 @@ const Pricing = ({ user }: PricingProps) => {
             notIncluded: [],
             highlighted: false,
             cta: 'Contact Sales',
-            gradient: 'from-zinc-900 to-zinc-950'
         }
     ];
 
     return (
-        <section id="pricing" data-section-theme="dark" className="relative py-20 overflow-hidden bg-black">
-            {/* Background Image */}
-            <div className="absolute inset-0 z-0">
-                <Image 
-                    src="/OKVEVO With BackGrounds/PricingBackGrounds.png"
-                    alt="Pricing Background"
-                    fill
-                    className="object-cover opacity-100"
-                    priority
-                    unoptimized
-                />
-            </div>
-
-            <div className="centering-container relative z-10">
+        <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30">
+            <div className="max-w-7xl mx-auto px-6 relative z-10">
                 {/* Section Header */}
                 <motion.div
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-100px' }}
+                    viewport={{ once: true }}
                     transition={{ duration: 0.8 }}
                     className="text-center mb-16"
                 >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                        className="inline-block mb-6"
-                    >
-                        <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-card border-2 border-accent-orange/30">
-                            {/* <Sparkles className="w-4 h-4 text-accent-orange" /> */}
-                            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white">Pricing</span>
-                        </div>
-                    </motion.div>
-
-                    <h2 className="text-4xl md:text-5xl font-black mb-6 text-white tracking-tight" style={{ fontFamily: '"MuseoModerno"' }}>
-                        Choose Your Creative Power
+                    <h2 className="text-5xl md:text-6xl font-semibold mb-6 text-white tracking-tight">
+                        Pricing
                     </h2>
+                    <p className="text-[#a1a1aa] text-xl max-w-2xl mx-auto font-light leading-relaxed">
+                        Design for free. Upgrade to unlock more.
+                    </p>
                 </motion.div>
 
                 {/* Pricing Cards */}
-                <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <div className="grid md:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
                     {plans.map((plan, index) => {
-                        const Icon = plan.icon;
                         return (
                             <motion.div
                                 key={plan.name}
                                 initial={{ opacity: 0, y: 40 }}
                                 whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, margin: '-50px' }}
+                                viewport={{ once: true }}
                                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                                className="relative group"
+                                className={`relative h-full rounded-2xl p-8 flex flex-col transition-all duration-300 ${
+                                    plan.highlighted
+                                        ? 'bg-[#120a05] border border-orange-500/20 shadow-2xl shadow-orange-500/5'
+                                        : 'bg-[#0a0a0a] border border-[#1f1f1f] hover:border-[#333]'
+                                }`}
                             >
-                                {/* Highlighted Badge */}
-                                {plan.highlighted && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{ delay: 0.3 }}
-                                        className="absolute -top-4 left-1/2 -translate-x-1/2 z-10"
-                                    >
-                                        <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-accent-orange to-orange-600 text-white text-xs font-bold tracking-wider uppercase shadow-lg">
-                                            Most Popular
-                                        </div>
-                                    </motion.div>
-                                )}
-
-                                {/* Card */}
-                                <div className={`relative h-full rounded-3xl p-6 transition-all duration-700 transform-gpu backdrop-blur-xl ${plan.highlighted
-                                    ? 'bg-white/10 border-2 border-accent-orange shadow-2xl shadow-accent-orange/20 md:scale-105'
-                                    : 'bg-white/5 border border-white/10 hover:border-accent-orange/50 hover:shadow-xl hover:bg-white/10'
-                                    }`}>
-                                    {/* Icon */}
-                                    <div className={`inline-flex p-3 rounded-xl mb-4 bg-gradient-to-br ${plan.gradient}`}>
-                                        <Icon className={plan.highlighted ? 'text-white' : 'text-white'} />
+                                {/* Header Section */}
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="pr-4">
+                                        <h3 className="text-2xl font-medium text-white mb-1">{plan.name}</h3>
+                                        <p className="text-[#888] text-sm leading-relaxed">{plan.description}</p>
                                     </div>
-
-                                    {/* Plan Name */}
-                                    <h3 className="text-2xl font-black mb-2 text-white">{plan.name}</h3>
-
-                                    {/* Description */}
-                                    <p className="text-white/70 mb-6 text-xs leading-relaxed">{plan.description}</p>
-
-                                    {/* Price */}
-                                    <div className="mb-6">
-                                        <div className="flex items-baseline gap-2 mb-1">
-                                            <span className="text-4xl font-black text-white">{plan.price}</span>
-                                            {plan.period !== 'contact sales' && (
-                                                <span className="text-white/70 text-base">/{plan.period.split(' ')[1] || plan.period}</span>
-                                            )}
-                                        </div>
-                                        <p className="text-white/70 text-xs">{plan.period}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[9px] text-[#666] font-bold tracking-widest uppercase">
+                                            {plan.name === 'Enterprise' ? 'Annual Only' : 'Annual'}
+                                        </span>
+                                        {plan.name !== 'Enterprise' && (
+                                            <div 
+                                                className={`w-8 h-4 rounded-full flex items-center px-[2px] cursor-pointer transition-colors ${plan.highlighted ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-gradient-to-r from-orange-500 to-orange-400'}`}
+                                                onClick={() => setIsAnnual(!isAnnual)}
+                                            >
+                                                <div className={`w-3 h-3 rounded-full bg-white shadow-sm transform transition-transform ${isAnnual ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                            </div>
+                                        )}
                                     </div>
+                                </div>
 
-                                    {/* CTA Button */}
+                                <div className="h-px w-full bg-[#1f1f1f] mb-6"></div>
+
+                                {/* Price Section */}
+                                <div className="mb-6 flex items-baseline gap-2">
+                                    <span className="text-3xl font-bold text-white tracking-tight">{plan.price}</span>
+                                    {plan.period !== 'contact sales' && (
+                                        <span className="text-[#888] text-sm font-medium">{plan.period}</span>
+                                    )}
+                                </div>
+
+                                <div className="h-px w-full bg-[#1f1f1f] mb-6"></div>
+
+                                {/* Features Section */}
+                                <div className="flex-1 space-y-4 mb-8">
+                                    {plan.name === 'Pro' && (
+                                        <p className="text-[#a1a1aa] text-sm mb-4">Everything from Hobby, plus:</p>
+                                    )}
+                                    {plan.name === 'Enterprise' && (
+                                        <p className="text-[#a1a1aa] text-sm mb-4">Everything from Pro, plus:</p>
+                                    )}
+                                    
+                                    {plan.features.map((feature, i) => (
+                                        <div key={i} className="flex items-start gap-3">
+                                            <div className="mt-1 flex-shrink-0">
+                                                <Check className="w-[14px] h-[14px] text-white" strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[#a1a1aa] text-sm leading-snug">{feature}</span>
+                                        </div>
+                                    ))}
+                                    {plan.notIncluded.length > 0 && plan.notIncluded.map((feature, i) => (
+                                        <div key={i} className="flex items-start gap-3 opacity-40">
+                                            <div className="mt-1 w-[14px] h-[14px] flex items-center justify-center flex-shrink-0">
+                                                <div className="w-2.5 h-[2px] bg-[#a1a1aa] rounded-full" />
+                                            </div>
+                                            <span className="text-[#a1a1aa] text-sm leading-snug line-through">{feature}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Button Section */}
+                                <div className="w-full mt-auto">
                                     {plan.name === 'Hobby' ? (
-                                        <div className="mb-6">
+                                        <div className="w-full text-center">
                                             {user ? (
                                                 <RazorpayCheckout
                                                     planType="hobby"
                                                     onSuccess={(subscriptionId) => {
                                                         console.log('Payment successful:', subscriptionId);
-                                                        alert('Subscription successful! Welcome to OKVEVO Hobby Plan.');
                                                         router.push('/workspace');
                                                     }}
                                                     onError={(error) => {
@@ -208,20 +201,19 @@ const Pricing = ({ user }: PricingProps) => {
                                             ) : (
                                                 <button 
                                                     onClick={() => handlePlanClick('Hobby')}
-                                                    className="w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105"
+                                                    className="w-full py-[14px] rounded-[14px] font-medium text-[15px] transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a]"
                                                 >
-                                                    Get Started
+                                                    {plan.cta}
                                                 </button>
                                             )}
                                         </div>
                                     ) : plan.name === 'Pro' ? (
-                                        <div className="mb-6">
+                                        <div className="w-full text-center">
                                             {user ? (
                                                 <RazorpayCheckout
                                                     planType="pro"
                                                     onSuccess={(subscriptionId) => {
                                                         console.log('Payment successful:', subscriptionId);
-                                                        alert('Subscription successful! Welcome to OKVEVO Pro Plan.');
                                                         router.push('/workspace');
                                                     }}
                                                     onError={(error) => {
@@ -232,84 +224,27 @@ const Pricing = ({ user }: PricingProps) => {
                                             ) : (
                                                 <button 
                                                     onClick={() => handlePlanClick('Pro')}
-                                                    className="w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105"
+                                                    className="w-full py-[14px] rounded-[14px] font-semibold text-[15px] transition-all duration-300 bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_20px_rgba(255,107,0,0.3)] border border-orange-500/50"
                                                 >
-                                                    Get Started
+                                                    {plan.cta}
                                                 </button>
                                             )}
                                         </div>
                                     ) : (
                                         <button 
                                             onClick={() => handlePlanClick('Enterprise')}
-                                            className={`w-full py-3.5 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-300 mb-6 ${plan.highlighted
-                                                ? 'bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:shadow-xl hover:shadow-accent-orange/40 hover:scale-105'
-                                                : 'bg-white text-black hover:bg-accent-orange hover:text-white hover:shadow-lg'
-                                            }`}
+                                            className="w-full py-[14px] rounded-[14px] font-medium text-[15px] transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a]"
                                         >
                                             {plan.cta}
                                         </button>
                                     )}
-
-                                    {/* Features List */}
-                                    <div className="space-y-3">
-                                        <p className="text-xs font-bold tracking-[0.15em] uppercase text-white/70 mb-3">What's Included</p>
-                                        {plan.features.map((feature, i) => (
-                                            <motion.div
-                                                key={i}
-                                                initial={{ opacity: 0, x: -20 }}
-                                                whileInView={{ opacity: 1, x: 0 }}
-                                                viewport={{ once: true }}
-                                                transition={{ delay: 0.05 * i }}
-                                                className="flex items-start gap-2"
-                                            >
-                                                <div className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 ${plan.highlighted ? 'bg-accent-orange' : 'bg-white'
-                                                    }`}>
-                                                    <Check className={`w-2.5 h-2.5 ${plan.highlighted ? 'text-white' : 'text-black'}`} strokeWidth={3} />
-                                                </div>
-                                                <span className="text-white text-xs leading-relaxed">{feature}</span>
-                                            </motion.div>
-                                        ))}
-
-                                        {/* Not Included (only for Free plan) */}
-                                        {plan.notIncluded.length > 0 && (
-                                            <div className="pt-4 mt-4 border-t border-white/5 space-y-2.5">
-                                                {plan.notIncluded.map((feature, i) => (
-                                                    <div key={i} className="flex items-start gap-2 opacity-40">
-                                                        <div className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center bg-gray-300 mt-0.5">
-                                                            <div className="w-1.5 h-0.5 bg-white" />
-                                                        </div>
-                                                        <span className="text-white/50 text-xs leading-relaxed line-through">{feature}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
                                 </div>
                             </motion.div>
                         );
                     })}
                 </div>
-
-                {/* Bottom CTA */}
-                {/* <motion.div
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
-                    className="text-center mt-16"
-                > */}
-                    {/* <button className="px-8 py-3 rounded-full border-2 border-white/10 text-white font-bold text-xs tracking-wider uppercase hover:bg-white hover:text-black transition-all duration-300">
-                        Start free.
-                    </button> */}
-                    {/* <p className="text-text-dim text-base mb-4">
-                        Not sure which plan is right for you?
-                    </p>
-                    <button className="px-8 py-3 rounded-full border-2 border-text-main/10 text-text-main font-bold text-xs tracking-wider uppercase hover:bg-text-main hover:text-bg-main transition-all duration-300">
-                        Compare All Features
-                    </button> */}
-                {/* </motion.div> */}
             </div>
-        </section >
+        </section>
     );
 };
 

@@ -1,47 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Alumni_Sans, Changa_One, Unbounded, MuseoModerno } from "next/font/google";
+import { Ubuntu } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
-const inter = Inter({
+const ubuntu = Ubuntu({
     subsets: ["latin"],
-    weight: ["400", "500", "600", "700", "800", "900"],
-    variable: "--font-inter",
-    display: "swap",
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-    subsets: ["latin"],
-    weight: ["400", "500", "600", "700", "800"],
-    variable: "--font-plus-jakarta",
-    display: "swap",
-});
-
-const alumniSans = Alumni_Sans({
-    subsets: ["latin"],
-    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-    variable: "--font-alumni-sans",
-    display: "swap",
-});
-
-const changaOne = Changa_One({
-    subsets: ["latin"],
-    weight: ["400"],
-    variable: "--font-changa-one",
-    display: "swap",
-});
-
-const unbounded = Unbounded({
-    subsets: ["latin"],
-    weight: ["200", "300", "400", "500", "600", "700", "800", "900"],
-    variable: "--font-unbounded",
-    display: "swap",
-});
-
-const museoModerno = MuseoModerno({
-    subsets: ["latin"],
-    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-    variable: "--font-museo-moderno",
+    weight: ["300", "400", "500", "700"],
+    variable: "--font-ubuntu",
     display: "swap",
 });
 
@@ -63,7 +28,6 @@ export default function RootLayout({
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
-                <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans:ital,wght@0,100..900;1,100..900&family=Changa+One:ital@0;1&family=Geom:ital,wght@0,300..900;1,300..900&family=MuseoModerno:ital,wght@0,100..900;1,100..900&family=Unbounded:wght@200..900&display=swap" rel="stylesheet" />
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `
@@ -80,7 +44,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${plusJakarta.className} ${plusJakarta.variable} ${museoModerno.variable} ${alumniSans.variable} ${changaOne.variable} ${unbounded.variable} antialiased`} suppressHydrationWarning>
+            <body className={`${ubuntu.className} ${ubuntu.variable} font-sans antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}

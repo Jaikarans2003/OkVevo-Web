@@ -49,9 +49,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                         className="w-full flex flex-col items-center relative"
                     >
-                        <h1 className="text-[5rem] md:text-[11.5rem] tracking-normal flex flex-col items-center leading-[0.8] font-changa pb-12 md:pb-24 relative z-10">
-                            <span className="text-white relative z-20 px-6">Zero Camera,</span>
-                            <span className="text-cursive italic text-accent-orange text-[6.5rem] md:text-[14rem] -mt-2 md:-mt-4 lowercase relative z-10">Infinite Vision.</span>
+                        <h1 className="mt-6 text-[5rem] md:text-[10rem] tracking-tight flex flex-col items-center leading-[0.9] pb-12 md:pb-24 relative z-10 font-bold">
+                            <span className="text-white relative z-20 px-8">Zero Camera,</span>
+                            <span className="text-cursive italic text-accent-orange text-[6.5rem] md:text-[13rem] -mt-2 md:-mt-4 lowercase relative z-10 font-medium">Infinite Vision.</span>
                         </h1>
 
 
