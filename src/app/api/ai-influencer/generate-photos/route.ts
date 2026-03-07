@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
                     end: moment.end,
                     topic: moment.topic,
                     imageUrl,
-                    layout: moment.layout,
+                    layout: i === 0 ? 'fullscreen' : 'split',
                 });
             } catch (imgErr: any) {
                 console.warn(`⚠️ Failed to generate image ${i + 1} (${moment.topic}):`, imgErr.message);
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
                     end: moment.end,
                     topic: moment.topic,
                     imageUrl: null,
-                    layout: moment.layout,
+                    layout: i === 0 ? 'fullscreen' : 'split',
                 });
             }
         }
