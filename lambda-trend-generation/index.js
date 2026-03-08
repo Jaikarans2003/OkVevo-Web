@@ -368,7 +368,7 @@ async function generateGrokVideo(imageUrl, prompt) {
     const input = {
         prompt: prompt,
         duration: 3,
-        aspect_ratio: '16:9',
+        aspect_ratio: '9:16',
         resolution: '720p',
         image_url: imageUrl,
     };
