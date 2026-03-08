@@ -47,7 +47,7 @@ const Showcase = () => {
             scrollTrigger: {
                 trigger: sectionRef.current,
                 start: "top center", // Start when section reaches center
-                end: "+=150%", // Extend scroll duration far past the section
+                end: "+=120%", // End as you scroll past the text into the image
                 scrub: 0.5,
             }
         });
@@ -87,9 +87,9 @@ const Showcase = () => {
 
     return (
         <section ref={sectionRef} id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
-            {/* Background SVG for Paper Plane Path (Bleeds into next section) */}
+            {/* Background SVG for Paper Plane Path */}
             <div className="absolute inset-0 z-[50] pointer-events-none">
-                <svg className="w-full h-[2000px] absolute top-[-50px] left-0 overflow-visible" viewBox="0 0 1000 2000" preserveAspectRatio="xMidYMin slice">
+                <svg className="w-full h-[800px] absolute top-[-50px] left-0 overflow-visible" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMin slice">
                     <defs>
                         <linearGradient id="showcasePathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stopColor="#FF6600" stopOpacity="0" />
@@ -102,10 +102,10 @@ const Showcase = () => {
                             <stop offset="1" stopColor="#FF00FF" />
                         </linearGradient>
                     </defs>
-                    {/* A curvy path that loops through the text section and plummets straight down to the next section */}
+                    {/* A curvy path that loops through the text section and points directly at the image box */}
                     <path
                         ref={pathRef}
-                        d="M -100,50 C 300,10 500,150 200,200 C -100,250 800,250 600,450 C 400,650 300,550 400,550 C 600,550 800,700 800,900 C 800,1100 600,1200 600,1400 C 600,1600 500,1600 500,1850"
+                        d="M -100,50 C 400,-100 800,150 400,200 C 0,250 -100,450 300,550 C 350,560 380,520 350,480 C 300,430 150,450 200,600 C 220,650 280,680 320,700"
                         fill="none"
                         stroke="url(#showcasePathGradient)"
                         strokeWidth="4"
