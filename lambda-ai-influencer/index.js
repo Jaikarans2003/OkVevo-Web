@@ -114,6 +114,65 @@ function httpsRequest(url, options = {}, body = null) {
 }
 
 // ────────────────────────────────────────────────────
+// Subtitle Generation (Gemini 1.5 Flash)
+// ────────────────────────────────────────────────────
+
+async function generateSubtitlesFromAudio(audioUrl, jobId) {
+    console.log(`🎬 Generating subtitles from audio using Gemini: ${audioUrl}`);
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+        console.warn('⚠️ GEMINI_API_KEY not set. Skipping subtitles.');
+        return null;
+    }
+
+    try {
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // Download the audio buffer directly
+        const audioBuffer = await downloadFromUrl(audioUrl);
+
+        const prompt = `You are an expert transcriber. Listen to this audio and generate perfectly synced, highly accurate subtitles.
+        
+CRITICAL RULES:
+1. Output ONLY the raw SRT file content.
+2. Do NOT wrap the output in markdown code blocks like \`\`\`srt \`\`\` or \`\`\`.
+3. Format exactly as a standard SRT file (Sequence Number, Timecodes, Text separated by blank lines).
+4. Timecodes must use a comma, e.g., 00:00:01,000 --> 00:00:03,500.
+5. Keep captions short and punchy (max 4-5 words per line). Provide exact word-level or phrase-level pacing.`;
+
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    mimeType: "audio/mp3",
+                    data: audioBuffer.toString("base64")
+                }
+            }
+        ]);
+
+        let srtText = result.response.text().trim();
+
+        // Strip markdown if Gemini ignores instructions
+        if (srtText.startsWith('```')) {
+            const lines = srtText.split('\n');
+            if (lines.length > 2) {
+                srtText = lines.slice(1, -1).join('\n').trim();
+            }
+        }
+
+        const srtPath = `/tmp/${jobId}-captions.srt`;
+        fs.writeFileSync(srtPath, srtText);
+        console.log(`✅ Subtitles written to ${srtPath} (${srtText.split('\n').length} lines)`);
+        return srtPath;
+    } catch (err) {
+        console.error('❌ Subtitle generation failed:', err.message);
+        return null; // Fail gracefully
+    }
+}
+
+// ────────────────────────────────────────────────────
 // TEST MODE - Set to true to skip Fal AI and use hardcoded video
 // ────────────────────────────────────────────────────
 const TEST_MODE = false;
@@ -127,7 +186,7 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
     // TEST MODE: Skip Fal AI and return hardcoded video URL
     if (TEST_MODE) {
         console.log('🧪 TEST MODE: Skipping Fal AI, using hardcoded video URL');
-        console.log(`   Test Video: ${TEST_VIDEO_URL}`);
+        console.log(`   Test Video: ${TEST_VIDEO_URL} `);
         return TEST_VIDEO_URL;
     }
 
@@ -137,15 +196,15 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
     }
 
     console.log('🎬 Calling Fal AI veed/lipsync...');
-    console.log(`   Video URL: ${videoUrl}`);
-    console.log(`   Audio URL: ${audioUrl}`);
+    console.log(`   Video URL: ${videoUrl} `);
+    console.log(`   Audio URL: ${audioUrl} `);
 
     // Submit job to Fal AI queue
-    const submitUrl = `${FAL_API_BASE}/veed/lipsync`;
+    const submitUrl = `${FAL_API_BASE} /veed/lipsync`;
     const submitResponse = await httpsRequest(submitUrl, {
         method: 'POST',
         headers: {
-            'Authorization': `Key ${apiKey}`,
+            'Authorization': `Key ${apiKey} `,
             'Content-Type': 'application/json',
         }
     }, {
@@ -155,14 +214,14 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
     if (submitResponse.statusCode !== 200) {
         console.error('❌ Fal AI submit failed:', submitResponse.body);
-        throw new Error(`Fal AI submit failed: ${submitResponse.statusCode}`);
+        throw new Error(`Fal AI submit failed: ${submitResponse.statusCode} `);
     }
 
     const { request_id } = submitResponse.body;
-    console.log(`✅ Fal AI job submitted: ${request_id}`);
+    console.log(`✅ Fal AI job submitted: ${request_id} `);
 
     // Poll for completion
-    const statusUrl = `${FAL_API_BASE}/veed/lipsync/requests/${request_id}/status`;
+    const statusUrl = `${FAL_API_BASE} /veed/lipsync / requests / ${request_id}/status`;
     let attempts = 0;
     const maxAttempts = 180; // 15 minutes max (5s intervals)
 
@@ -318,25 +377,27 @@ const FFMPEG = '/opt/bin/ffmpeg';
  * @param {Array}  images     - [{ localPath, start, end, layout }]
  * @param {string} outputPath - Where to write composited video
  */
-function compositeImagesOnVideo(videoPath, images, outputPath) {
+function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
     return new Promise((resolve, reject) => {
-        if (!images || images.length === 0) {
+        const hasImages = images && images.length > 0;
+
+        if (!hasImages && !srtPath) {
             fs.copyFileSync(videoPath, outputPath);
             return resolve();
         }
 
-        console.log(`🖼️ Compositing ${images.length} images onto video...`);
+        console.log(`🖼️ Compositing ${hasImages ? images.length : 0} images and ${srtPath ? 'subtitles' : 'no subtitles'} onto video...`);
 
         // ── Input args ────────────────────────────────────────────────────────
-        // Video first. Each static image is looped with -loop 1 for its display
-        // duration (-t), otherwise the image stream has ~0 frames and never renders.
         const args = ['-i', videoPath];
-        images.forEach((img) => {
-            const imgDuration = img.end - img.start;
-            args.push('-loop', '1', '-framerate', '30', '-t', String(imgDuration), '-i', img.localPath);
-        });
+        if (hasImages) {
+            images.forEach((img) => {
+                const imgDuration = img.end - img.start;
+                args.push('-loop', '1', '-framerate', '30', '-t', String(imgDuration), '-i', img.localPath);
+            });
+        }
 
-        const hasSplit = images.some(img => img.layout === 'split');
+        const hasSplit = hasImages && images.some(img => img.layout === 'split');
 
         let filterComplex = '';
 
@@ -381,17 +442,17 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
         }
 
         // ── Step 3: Prepare each image stream (no fades, preserve quality) ────
-        images.forEach((img, idx) => {
-            const inputIdx = idx + 1; // input 0 = video, inputs 1..N = images
+        if (hasImages) {
+            images.forEach((img, idx) => {
+                const inputIdx = idx + 1; // input 0 = video, inputs 1..N = images
 
-            if (img.layout === 'fullscreen') {
-                // Full 360×640 — covers the entire frame
-                filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[img${idx}];`;
-            } else {
-                // Split — image fills the TOP 320px; presenter fills BOTTOM 320px via splitbase
-                filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p[img${idx}];`;
-            }
-        });
+                if (img.layout === 'fullscreen') {
+                    filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[img${idx}];`;
+                } else {
+                    filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p[img${idx}];`;
+                }
+            });
+        }
 
         // ── Step 4: Add SFX inputs and mix audio ──────────────────────────────
         // We track the input index (video is 0, images are 1..N, SFX are N+1..)
@@ -402,34 +463,35 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
         audioFilterComplex += `[0:a]volume=1.5[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
-        images.forEach((img) => {
-            if (img.sfxPath) {
-                args.push('-i', img.sfxPath);
-                // Input index: 1 (base video) + images.length (image loops) + sfxCount
-                const sfxInputIdx = 1 + images.length + sfxCount;
+        if (hasImages) {
+            images.forEach((img) => {
+                if (img.sfxPath) {
+                    args.push('-i', img.sfxPath);
+                    const sfxInputIdx = 1 + images.length + sfxCount;
 
-                // Delay the SFX by img.start seconds (ffmpeg adelay uses milliseconds)
-                const delayMs = Math.floor(img.start * 1000);
-                const sfxLabel = `sfx${sfxCount}`;
+                    const delayMs = Math.floor(img.start * 1000);
+                    const sfxLabel = `sfx${sfxCount}`;
 
-                // [sfxIdx:a]adelay=delay|delay[sfx_out]
-                audioFilterComplex += `[${sfxInputIdx}:a]adelay=${delayMs}|${delayMs}[${sfxLabel}];`;
-                audioInputLabels.push(`[${sfxLabel}]`);
-                sfxCount++;
-            }
-        });
+                    audioFilterComplex += `[${sfxInputIdx}:a]adelay=${delayMs}|${delayMs}[${sfxLabel}];`;
+                    audioInputLabels.push(`[${sfxLabel}]`);
+                    sfxCount++;
+                }
+            });
+        }
 
         // ── Step 5: Chain overlays ────────────────────────────────────────────
         let prevLabel = currentBase;
-        images.forEach((img, idx) => {
-            const timeEnable = `between(t,${img.start},${img.end})`;
-            const outLabel = idx === images.length - 1 ? 'outv' : `tmp${idx}`;
-            // Image always placed at y=0 (top of frame)
-            // For split: top 320px = image, bottom 320px = presenter (splitbase already set up)
-            // For fullscreen: full 360×640 image covers everything
-            filterComplex += `[${prevLabel}][img${idx}]overlay=0:0:enable='${timeEnable}'[${outLabel}];`;
-            prevLabel = outLabel;
-        });
+        if (hasImages) {
+            images.forEach((img, idx) => {
+                const timeEnable = `between(t,${img.start},${img.end})`;
+                const outLabel = idx === images.length - 1 ? 'outv' : `tmp${idx}`;
+                filterComplex += `[${prevLabel}][img${idx}]overlay=0:0:enable='${timeEnable}'[${outLabel}];`;
+                prevLabel = outLabel;
+            });
+        } else {
+            // Null-op map to [outv] if no images were processed
+            filterComplex += `[${prevLabel}]copy[outv];`;
+        }
 
         if (sfxCount > 0) {
             // Mix base audio and all delayed SFX
@@ -444,10 +506,20 @@ function compositeImagesOnVideo(videoPath, images, outputPath) {
             finalFilterComplex += ';' + audioFilterComplex.replace(/;$/, '');
         }
 
+        // ── Step 6: Burn Subtitles (Optional) ─────────────────────────────────
+        if (srtPath) {
+            // Escape path for ffmpeg filter: C:/foo.srt -> C\:/foo.srt
+            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+            // We append a new chain from [outv] -> [outv_subs] using the subtitles filter
+            finalFilterComplex += `[outv]subtitles='${escapedSrtPath}':force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs];`;
+        }
+
+        const videoMap = srtPath ? '[outv_subs]' : '[outv]';
+
         const ffmpegArgs = [
             ...args,
             '-filter_complex', finalFilterComplex,
-            '-map', '[outv]',
+            '-map', videoMap,
             '-map', sfxCount > 0 ? '[outa]' : '0:a',
             '-c:v', 'libx264',
             '-preset', 'medium',
@@ -511,6 +583,10 @@ async function processLipSyncPipeline(body) {
 
     let finalPath = lipSyncPath;
 
+    // Phase 2.5: Generate Subtitles (SRT) from the audio
+    await updateJobDoc(jobId, { status: 'generating-subtitles' });
+    const srtPath = await generateSubtitlesFromAudio(audioUrl, jobId);
+
     // Phase 3 (optional): Download images and composite
     if (imageTimeline && imageTimeline.length > 0) {
         await updateJobDoc(jobId, { status: 'compositing' });
@@ -562,7 +638,7 @@ async function processLipSyncPipeline(body) {
         if (downloadedImages.length > 0) {
             finalPath = `/tmp/${jobId}-composited.mp4`;
             try {
-                await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalPath);
+                await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalPath, srtPath);
             } catch (err) {
                 console.warn(`⚠️ Compositing failed, using raw lipsync: ${err.message}`);
                 finalPath = lipSyncPath;
@@ -587,8 +663,8 @@ async function processLipSyncPipeline(body) {
     const finalVideoUrl = await uploadToFirebase(finalBuffer, finalVideoPath, 'video/mp4');
 
     // Cleanup temp files
-    [lipSyncPath, `/tmp/${jobId}-composited.mp4`].forEach(p => {
-        try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
+    [lipSyncPath, `/tmp/${jobId}-composited.mp4`, srtPath].forEach(p => {
+        try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
     });
 
     // Phase 5: Mark Complete
