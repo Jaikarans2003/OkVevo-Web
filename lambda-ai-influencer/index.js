@@ -388,8 +388,20 @@ const FFMPEG = '/opt/bin/ffmpeg';
  * @param {Array}  images     - [{ localPath, start, end, layout }]
  * @param {string} outputPath - Where to write composited video
  */
+// Helper to convert SRT time (00:00:01,500) to seconds (1.5)
+function parseSrtTime(timeStr) {
+    const parts = timeStr.replace(',', '.').split(':');
+    let secs = 0;
+    if (parts.length === 3) {
+        secs += parseInt(parts[0], 10) * 3600;
+        secs += parseInt(parts[1], 10) * 60;
+        secs += parseFloat(parts[2]);
+    }
+    return secs;
+}
+
 function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const hasImages = images && images.length > 0;
 
         if (!hasImages && !srtPath) {
@@ -518,10 +530,49 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
         }
 
         // ── Step 6: Burn Subtitles (Optional) ─────────────────────────────────
-        if (srtPath) {
-            // We use a relative filename since we'll spawn ffmpeg in /tmp to avoid slash-escaping bugs in libass
-            const filenameOnly = srtPath.split('/').pop();
-            finalFilterComplex += `;[outv]subtitles='${filenameOnly}':force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs]`;
+        if (srtPath && fs.existsSync(srtPath)) {
+            try {
+                const fontPath = '/tmp/Roboto-Bold.ttf';
+                if (!fs.existsSync(fontPath)) {
+                    console.log('📥 Downloading Roboto font for subtitles...');
+                    const fontBuf = await downloadFromUrl('https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf');
+                    fs.writeFileSync(fontPath, fontBuf);
+                }
+
+                const srtText = fs.readFileSync(srtPath, 'utf8');
+                const blocks = srtText.split(/\r?\n\r?\n/).filter(b => b.trim());
+
+                let currentIn = '[outv]';
+                blocks.forEach((block, idx) => {
+                    const lines = block.split(/\r?\n/);
+                    if (lines.length >= 3) {
+                        const timeParts = lines[1].split(' --> ');
+                        if (timeParts.length === 2) {
+                            const start = parseSrtTime(timeParts[0]);
+                            const end = parseSrtTime(timeParts[1]);
+
+                            // Unify to 1 line, replace single quotes with typographic quotes to avoid ffmpeg escaping hell
+                            const textLine = lines.slice(2).join(' ')
+                                .replace(/'/g, "\u2019")
+                                .replace(/:/g, '\\\\:');
+
+                            const outLabel = `[subs${idx}]`;
+                            // drawtext filter per block
+                            filterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':text='${textLine}':enable='between(t,${start},${end})':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80:borderw=3:bordercolor=black@0.8${outLabel}`;
+                            currentIn = outLabel;
+                        }
+                    }
+                });
+
+                if (currentIn !== '[outv]') {
+                    filterComplex += `;${currentIn}copy[outv_subs]`;
+                } else {
+                    srtPath = null; // No valid subtitles parsed
+                }
+            } catch (err) {
+                console.error('⚠️ Failed to generate drawtext subtitles graph:', err.message);
+                srtPath = null; // silently fallback to raw video
+            }
         }
 
         const videoMap = srtPath ? '[outv_subs]' : '[outv]';
