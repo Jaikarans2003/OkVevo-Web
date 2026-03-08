@@ -389,15 +389,34 @@ const FFMPEG = '/opt/bin/ffmpeg';
  * @param {string} outputPath - Where to write composited video
  */
 // Helper to convert SRT time (00:00:01,500) to seconds (1.5)
+// Helper to convert SRT time (00:00:01,500 or 00:00:231) to seconds (1.5)
 function parseSrtTime(timeStr) {
-    const parts = timeStr.replace(',', '.').split(':');
+    // Replace commas with dots, and if the last separator is a colon, make it a dot for the miliseconds
+    let normalized = timeStr.trim().replace(',', '.');
+    const lastColon = normalized.lastIndexOf(':');
+    if (lastColon > 0 && normalized.substring(lastColon + 1).length === 3) {
+        // e.g. 00:00:231 -> 00:00.231
+        normalized = normalized.substring(0, lastColon) + '.' + normalized.substring(lastColon + 1);
+    }
+
+    const parts = normalized.split(':');
     let secs = 0;
+
     if (parts.length === 3) {
+        // HH:MM:SS.ms
         secs += parseInt(parts[0], 10) * 3600;
         secs += parseInt(parts[1], 10) * 60;
         secs += parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+        // MM:SS.ms
+        secs += parseInt(parts[0], 10) * 60;
+        secs += parseFloat(parts[1]);
+    } else if (parts.length === 1) {
+        // SS.ms
+        secs += parseFloat(parts[0]);
     }
-    return secs;
+
+    return secs || 0;
 }
 
 function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
