@@ -170,6 +170,9 @@ CRITICAL RULES:
             return null; // Fail gracefully
         }
 
+        // Force Windows-style CRLF newlines and ending blanks for libass stability
+        srtText = srtText.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n') + '\r\n\r\n';
+
         const srtPath = `/tmp/${jobId}-captions.srt`;
         fs.writeFileSync(srtPath, srtText);
         console.log(`✅ Subtitles written to ${srtPath} (${srtText.split('\n').length} lines)`);
@@ -467,8 +470,8 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
         let sfxCount = 0;
         let audioFilterComplex = '';
 
-        // Boost base video speech volume by 50%
-        audioFilterComplex += `[0:a]volume=1.5[base_vocal];`;
+        // Boost base video speech volume by 100% (2.0)
+        audioFilterComplex += `[0:a]volume=2.0[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
         if (hasImages) {
@@ -516,19 +519,19 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
         // ── Step 6: Burn Subtitles (Optional) ─────────────────────────────────
         if (srtPath) {
-            // Escape path for ffmpeg filter: C:/foo.srt -> C\:/foo.srt
-            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-            // We append a new chain from [outv] -> [outv_subs] using the subtitles filter
-            finalFilterComplex += `;[outv]subtitles=${escapedSrtPath}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs]`;
+            // We use a relative filename since we'll spawn ffmpeg in /tmp to avoid slash-escaping bugs in libass
+            const filenameOnly = srtPath.split('/').pop();
+            finalFilterComplex += `;[outv]subtitles='${filenameOnly}':force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs]`;
         }
 
         const videoMap = srtPath ? '[outv_subs]' : '[outv]';
+        const audioMap = sfxCount > 0 ? '[outa]' : '[base_vocal]';
 
         const ffmpegArgs = [
             ...args,
             '-filter_complex', finalFilterComplex,
             '-map', videoMap,
-            '-map', sfxCount > 0 ? '[outa]' : '0:a',
+            '-map', audioMap,
             '-c:v', 'libx264',
             '-preset', 'medium',
             '-crf', '18',
@@ -542,7 +545,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
         console.log('🎬 Running ffmpeg compositor...');
         console.log('🔍 Filter complex:\n', finalFilterComplex.replace(/;/g, ';\n'));
-        const ffmpeg = spawn(FFMPEG, ffmpegArgs);
+        const ffmpeg = spawn(FFMPEG, ffmpegArgs, { cwd: '/tmp' });
 
         let stderr = '';
         ffmpeg.stderr.on('data', (d) => { stderr += d.toString(); });
