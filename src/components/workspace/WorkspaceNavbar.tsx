@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, CreditCard, User } from 'lucide-react';
+import { Menu, X, CreditCard, User, History } from 'lucide-react';
 import { ThemeToggle } from '../ThemeToggle';
 
 const DashNavbar = () => {
@@ -46,6 +46,7 @@ const DashNavbar = () => {
     const textColorDim = isNavbarDark ? 'text-white/70' : 'text-text-main/70';
 
     const navLinks = [
+        { name: 'History', href: '/history', icon: <History size={16} /> },
         { name: 'Billing', href: '/billing', icon: <CreditCard size={16} /> },
         { name: 'Profile', href: '/profile', icon: <User size={16} /> },
     ];

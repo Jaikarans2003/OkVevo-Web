@@ -159,21 +159,21 @@ function HistoryContent() {
                 </div>
 
                 {/* Filters */}
-                <div className={`mb-10 p-2 rounded-[2rem] ${resolvedTheme === 'light' ? 'bg-white/60 shadow-xl shadow-black/5' : 'bg-white/5 shadow-xl shadow-black/20'} backdrop-blur-md border border-white/20`}>
+                <div className="mb-10 p-2 rounded-[2rem] bg-black/5 dark:bg-white/5 shadow-xl shadow-black/20 backdrop-blur-md border border-black/10 dark:border-white/10">
                     <div className="flex flex-col lg:flex-row items-center gap-4 p-2">
                         {/* Search */}
                         <div className="relative w-full lg:flex-1">
-                            <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${tc.textDim}`} />
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-main/50 dark:text-white/50" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search by title..."
-                                className={`w-full bg-transparent border-none focus:ring-0 ${tc.text} placeholder:text-text-dim/40 pl-12 pr-4 py-3 font-medium`}
+                                className="w-full bg-transparent border-none focus:ring-0 text-text-main dark:text-white placeholder:text-text-main/50 dark:placeholder:text-white/50 pl-12 pr-4 py-3 font-medium cursor-text"
                             />
                         </div>
 
-                        <div className="hidden lg:block w-px h-8 bg-current opacity-10" />
+                        <div className="hidden lg:block w-px h-8 bg-black/10 dark:bg-white/10" />
 
                         {/* Tabs */}
                         <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-2 lg:pb-0">
@@ -183,7 +183,7 @@ function HistoryContent() {
                                     onClick={() => setFilterType(tab.id)}
                                     className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${filterType === tab.id
                                         ? 'bg-accent-orange text-white shadow-lg shadow-accent-orange/30'
-                                        : `${tc.textDim} hover:bg-black/5 dark:hover:bg-white/10`
+                                        : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
                                         }`}
                                 >
                                     {tab.label}
@@ -192,16 +192,16 @@ function HistoryContent() {
                         </div>
 
                         {/* View Toggle */}
-                        <div className={`hidden md:flex items-center gap-1 p-1 rounded-xl ${resolvedTheme === 'light' ? 'bg-black/5' : 'bg-white/10'}`}>
+                        <div className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/10">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-accent-orange' : `${tc.textDim} hover:text-text-main`}`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/20 shadow-sm text-accent-orange' : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white'}`}
                             >
                                 <Grid className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-accent-orange' : `${tc.textDim} hover:text-text-main`}`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/20 shadow-sm text-accent-orange' : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white'}`}
                             >
                                 <List className="w-5 h-5" />
                             </button>
