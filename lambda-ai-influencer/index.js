@@ -570,14 +570,27 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
                             const start = parseSrtTime(timeParts[0]);
                             const end = parseSrtTime(timeParts[1]);
 
-                            // Unify to 1 line, replace single quotes with typographic quotes to avoid ffmpeg escaping hell
-                            const textLine = lines.slice(2).join(' ')
-                                .replace(/'/g, "\u2019")
-                                .replace(/:/g, '\\\\:');
+                            // Word wrap text to 20 chars max per line for 360px video width
+                            const words = lines.slice(2).join(' ').split(/\s+/);
+                            let wrappedText = '';
+                            let currentLine = '';
+                            for (const word of words) {
+                                if (currentLine.length + word.length > 20) {
+                                    wrappedText += (currentLine ? currentLine.trim() + '\n' : '');
+                                    currentLine = word + ' ';
+                                } else {
+                                    currentLine += word + ' ';
+                                }
+                            }
+                            wrappedText += currentLine.trim();
+
+                            // Write to individual text file to naturally support multi-line and avoid any FFmpeg escaping
+                            const textFilePath = `/tmp/sub_${Date.now()}_${idx}.txt`;
+                            fs.writeFileSync(textFilePath, wrappedText);
 
                             const outLabel = `[subs${idx}]`;
-                            // drawtext filter per block
-                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':text='${textLine}':enable='between(t,${start},${end})':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80:borderw=3:bordercolor=black@0.8${outLabel}`;
+                            // drawtext filter using textfile, dynamic (h-text_h) bounding box, and 24pt legible font size
+                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':textfile='${textFilePath}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)-40:borderw=2:bordercolor=black@0.9:line_spacing=5${outLabel}`;
                             currentIn = outLabel;
                         }
                     }
