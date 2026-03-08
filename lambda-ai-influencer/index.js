@@ -154,12 +154,20 @@ CRITICAL RULES:
 
         let srtText = result.response.text().trim();
 
+        console.log(`💬 Gemini raw subtitle output (first 100 chars):`, srtText.substring(0, 100));
+
         // Strip markdown if Gemini ignores instructions
         if (srtText.startsWith('```')) {
             const lines = srtText.split('\n');
             if (lines.length > 2) {
                 srtText = lines.slice(1, -1).join('\n').trim();
             }
+        }
+
+        // Validate it looks like an SRT file (must have timecode arrows)
+        if (!srtText.includes('-->')) {
+            console.warn('⚠️ Subtitle generation returned invalid SRT format (missing "-->"). Skipping subtitles.');
+            return null; // Fail gracefully
         }
 
         const srtPath = `/tmp/${jobId}-captions.srt`;
@@ -511,7 +519,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
             // Escape path for ffmpeg filter: C:/foo.srt -> C\:/foo.srt
             const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
             // We append a new chain from [outv] -> [outv_subs] using the subtitles filter
-            finalFilterComplex += `;[outv]subtitles='${escapedSrtPath}':force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs]`;
+            finalFilterComplex += `;[outv]subtitles=${escapedSrtPath}:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H40000000,BorderStyle=3,MarginV=30'[outv_subs]`;
         }
 
         const videoMap = srtPath ? '[outv_subs]' : '[outv]';
