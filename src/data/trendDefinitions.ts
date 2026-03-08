@@ -94,19 +94,19 @@ Generate a close-up shot of the person's hands in the same sky scene. The hands 
             },
             // Video 2 (3 seconds)
             {
-                prompt: 'Levitate gently in place. No horizontal movement, no camera movement, no zoom. Static camera angle. Only vertical floating motion.',
+                prompt: 'Levitate gently in place, Slowly. No horizontal movement, no camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
                 sourceImageIndex: 2,
                 duration: 3,
             },
             // Video 3 (3 seconds)
             {
-                prompt: 'Levitate gently in place. No horizontal movement, no camera movement, no zoom. Static camera angle. Only vertical floating motion.',
+                prompt: 'Levitate gently in place, Slowly. No horizontal movement, Smooth Handheld camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
                 sourceImageIndex: 3,
                 duration: 3,
             },
             // Video 4 (3 seconds)
             {
-                prompt: 'Levitate gently in place. No horizontal movement, no camera movement, no zoom. Static camera angle. Only vertical floating motion.',
+                prompt: 'Levitate gently in place, Slowly. No horizontal movement, no camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
                 sourceImageIndex: 4,
                 duration: 3,
             },

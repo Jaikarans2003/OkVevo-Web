@@ -21,7 +21,7 @@ const COLLECTIONS = [
     { name: 'aiInfluencerJobs', type: 'AI_INFLUENCER' as GenerationType },
     { name: 'directorPhotosJobs', type: 'DIRECTOR_PHOTOS' as GenerationType },
     { name: 'productShootsJobs', type: 'PRODUCT_SHOOTS' as GenerationType },
-    { name: 'trendGenerationJobs', type: 'TRENDS' as GenerationType },
+    { name: 'trendGenerations', type: 'TRENDS' as GenerationType },
     { name: 'placementJobs', type: 'PRODUCT_PLACEMENT' as GenerationType }
 ];
 
@@ -81,9 +81,9 @@ export async function getUserHistory(userId: string, maxResults: number = 50): P
                     imageUrl = data.outputUrl || '';
                     thumbnailUrl = data.productImageUrl || data.outputUrl || '';
                 } else if (type === 'TRENDS') {
-                    title = data.title || data.concept || 'Trend Generation';
+                    title = data.trendTitle || data.title || 'Trend Generation';
                     videoUrl = data.finalVideoUrl || '';
-                    thumbnailUrl = data.referenceImages?.[0] || '';
+                    thumbnailUrl = data.images?.[0]?.url || '';
                 } else if (type === 'PRODUCT_PLACEMENT') {
                     title = data.masterPrompt?.substring(0, 40) + '...' || 'Product Placement';
                     imageUrl = data.outputUrl || '';
