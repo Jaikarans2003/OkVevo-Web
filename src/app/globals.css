@@ -77,8 +77,8 @@
 
   .glass-navbar {
     background-color: color-mix(in srgb, var(--color-text-main), transparent 92%);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 85%);
     box-shadow: var(--shadow-glass);
   }
@@ -130,15 +130,16 @@
   height: 100%;
   pointer-events: none;
   opacity: 0.015;
-  /* Reduced for performance and subtler look */
   z-index: 9999;
   background-image: url("https://res.cloudinary.com/dlbvavyun/image/upload/v1711463133/noise_p8xkzm.png");
   background-repeat: repeat;
   will-change: transform;
+  transform: translateZ(0); /* Add hardware acceleration */
 }
 
 .mask-fade {
   mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
 }
 
 .section-padding {
@@ -160,6 +161,55 @@
 
   .animate-float {
     animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes morphing-blob {
+    0% {
+      border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+      border-color: var(--color-accent-orange);
+      box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+      color: var(--color-accent-orange);
+    }
+    25% {
+      border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+      border-color: #FF00AA;
+      box-shadow: 0 0 15px rgba(255, 0, 170, 0.5);
+      color: #FF00AA;
+    }
+    50% {
+      border-radius: 70% 30% 50% 50% / 30% 30% 60% 60%;
+      border-color: #00DDFF;
+      box-shadow: 0 0 15px rgba(0, 221, 255, 0.5);
+      color: #00DDFF;
+    }
+    75% {
+      border-radius: 40% 60% 30% 70% / 60% 50% 30% 50%;
+      border-color: #FFDD00;
+      box-shadow: 0 0 15px rgba(255, 221, 0, 0.5);
+      color: #FFDD00;
+    }
+    100% {
+      border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+      border-color: var(--color-accent-orange);
+      box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+      color: var(--color-accent-orange);
+    }
+  }
+
+  .animate-morphing-blob {
+    animation: morphing-blob 6s ease-in-out infinite;
+    border-width: 2px;
+    border-style: solid;
+    transition: all 0.5s ease-in-out;
+  }
+
+  @keyframes write-text {
+    0% {
+      clip-path: polygon(0 0, 0 0, 0 100%, 0% 100%);
+    }
+    100% {
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
   }
 }
 

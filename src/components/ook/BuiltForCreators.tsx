@@ -76,20 +76,19 @@ const BuiltForCreators = () => {
                 scale: 1,
                 opacity: 1,
                 zIndex: 10,
-                filter: "brightness(1)",
             };
 
             if (offset === 0) {
-                props = { x: 0, y: 0, scale: 1, opacity: 1, zIndex: 10, filter: "brightness(1)" };
+                props = { x: 0, y: 0, scale: 1, opacity: 1, zIndex: 10 };
             } else if (offset === -1) {
                 const xOffset = isMobile ? -50 : -600;
-                props = { x: xOffset, y: 0, scale: 0.8, opacity: 0.8, zIndex: 9, filter: "brightness(0.7)" };
+                props = { x: xOffset, y: 0, scale: 0.8, opacity: 0.8, zIndex: 9 };
             } else if (offset === 1) {
                 const xOffset = isMobile ? 50 : 600;
-                props = { x: xOffset, y: 0, scale: 0.8, opacity: 0.8, zIndex: 9, filter: "brightness(0.7)" };
+                props = { x: xOffset, y: 0, scale: 0.8, opacity: 0.8, zIndex: 9 };
             } else if (offset === -2 || offset === 2) {
                 const xOffset = offset === -2 ? (isMobile ? -100 : -1000) : (isMobile ? 100 : 1000);
-                props = { x: xOffset, y: 0, scale: 0.6, opacity: 0, zIndex: 4, filter: "brightness(0.5)" };
+                props = { x: xOffset, y: 0, scale: 0.6, opacity: 0, zIndex: 4 };
             }
 
             const duration = immediate ? 0 : 0.8;
@@ -100,6 +99,7 @@ const BuiltForCreators = () => {
                 duration: duration,
                 ease: ease,
                 overwrite: "auto",
+                force3D: true,
             });
         });
     }, []);

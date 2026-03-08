@@ -24,7 +24,7 @@ const Quotes = ({ onJoinClick }: QuotesProps) => {
                         y: [0, 20, 0],
                     }}
                     transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] bg-accent-orange/20 blur-[100px] rounded-full transform-gpu"
+                    className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] bg-accent-orange/20 blur-[40px] rounded-full transform-gpu will-change-transform"
                 />
                 <motion.div
                     animate={{
@@ -33,7 +33,7 @@ const Quotes = ({ onJoinClick }: QuotesProps) => {
                         y: [0, -30, 0],
                     }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear", delay: 2 }}
-                    className="absolute -bottom-[20%] -right-[10%] w-[60vw] h-[60vw] bg-accent-orange/15 blur-[80px] rounded-full transform-gpu"
+                    className="absolute -bottom-[20%] -right-[10%] w-[60vw] h-[60vw] bg-accent-orange/15 blur-[30px] rounded-full transform-gpu will-change-transform"
                 />
             </div>
 

@@ -29,17 +29,16 @@ const HowItWorks = () => {
     return (
         <section id="features" data-section-theme="dark" className="relative py-32 bg-[#020202] text-white selection:bg-orange-500/30 overflow-hidden">
             {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] max-w-4xl h-[400px] rounded-full bg-[#FF6600]/15 blur-[120px] -z-10 pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] max-w-4xl h-[400px] rounded-full bg-[#FF6600]/15 blur-[60px] -z-10 pointer-events-none transform-gpu" />
 
-            <div className="max-w-[1300px] mx-auto px-6 md:px-12 relative z-10">
+            <div className="max-w-[1300px] mx-auto px-6 md:px-12 relative z-10 transform-gpu">
                 
                 {/* Header Section */}
                 <div className="mb-24">
                     <div className="text-5xl md:text-[80px] font-bold leading-[1.1] tracking-[-0.03em] text-white">
                         Everything{' '}
-                        <span className="inline-flex items-center justify-between border border-white/20 rounded-xl px-5 py-2 md:px-6 md:py-3 mb-2 md:mb-0 align-middle">
+                        <span className="inline-flex items-center justify-center animate-morphing-blob px-6 py-2 md:px-8 md:py-3 mx-2 mb-2 md:mb-0 align-middle transform-gpu">
                             <span>creators</span>
-                            
                         </span>
                         <br />
                         love about OKVEVO
@@ -64,10 +63,11 @@ const HowItWorks = () => {
                            {steps.map((step, index) => {
                                const isActive = activeIndex === index;
                                return (
-                                  <div 
+                                  <motion.div 
+                                     layout
                                      key={index} 
                                      onMouseEnter={() => setActiveIndex(index)}
-                                     className={`cursor-pointer flex items-start justify-between group border-[#222] transition-all duration-500 ease-out border-b
+                                     className={`cursor-pointer flex items-start justify-between group border-[#222] transition-colors duration-300 border-b
                                         ${index === 0 ? 'border-t-0' : ''} 
                                         ${isActive ? 'py-10' : 'py-6 hover:border-[#444]'}
                                      `}
@@ -77,10 +77,11 @@ const HowItWorks = () => {
                                            {isActive ? (
                                                <motion.div 
                                                    key="active"
+                                                   layout
                                                    initial={{ opacity: 0, y: 5 }}
                                                    animate={{ opacity: 1, y: 0 }}
                                                    exit={{ opacity: 0, y: -5 }}
-                                                   transition={{ duration: 0.3 }}
+                                                   transition={{ duration: 0.2 }}
                                                    className="text-white text-xl md:text-[22px] leading-[1.4] font-medium"
                                                >
                                                    {step.fullText}
@@ -88,9 +89,11 @@ const HowItWorks = () => {
                                            ) : (
                                                <motion.div 
                                                    key="inactive"
+                                                   layout
                                                    initial={{ opacity: 0 }}
                                                    animate={{ opacity: 1 }}
                                                    exit={{ opacity: 0 }}
+                                                   transition={{ duration: 0.2 }}
                                                    className="text-[#a1a1aa] text-base md:text-[17px] font-medium group-hover:text-[#e1e1e1] transition-colors"
                                                >
                                                    {step.shortTitle}
@@ -105,22 +108,22 @@ const HowItWorks = () => {
                                             <ArrowRight className="w-[18px] h-[18px] text-[#555] group-hover:text-white transition-colors duration-300" strokeWidth={2} />
                                         </div>
                                      )}
-                                  </div>
+                                  </motion.div>
                                )
                            })}
                         </div>
                     </div>
 
                     {/* Right side: Image Display */}
-                    <div className="w-full lg:w-[55%] h-[400px] md:h-[600px] relative rounded-[24px] overflow-hidden bg-[#080808] border border-[#1a1a1a]">
+                    <div className="w-full lg:w-[55%] h-[400px] md:h-[600px] relative rounded-[24px] overflow-hidden bg-[#080808] border border-[#1a1a1a] transform-gpu">
                         <AnimatePresence mode="wait">
                             <motion.div 
                                 key={activeIndex}
-                                initial={{ opacity: 0, scale: 1.02 }}
+                                initial={{ opacity: 0, scale: 1.05 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0 }}
-                                transition={{ duration: 0.4, ease: "easeOut" }}
-                                className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent flex items-center justify-center p-8 md:p-16"
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent flex items-center justify-center p-8 md:p-16 will-change-transform"
                             >
                                 <div className="relative w-full h-full">
                                     <Image 
@@ -134,13 +137,7 @@ const HowItWorks = () => {
                             </motion.div>
                         </AnimatePresence>
                         
-                        {/* Made in OKVEVO Badge */}
-                        <div className="absolute bottom-6 right-6 px-4 py-2 rounded-full bg-[#111]/80 backdrop-blur-md border border-white/10 flex items-center gap-2">
-                            <div className="w-[18px] h-[18px] rounded-full bg-black flex items-center justify-center border border-[#333]">
-                                <div className="w-[10px] h-[10px] rounded-full bg-orange-500" />
-                            </div>
-                            <span className="text-xs font-semibold tracking-wide text-white/90">Made in OKVEVO</span>
-                        </div>
+                        
                     </div>
                 </div>
             </div>
