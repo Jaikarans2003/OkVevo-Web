@@ -572,17 +572,28 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
                             // Word wrap text to 20 chars max per line for 360px video width
                             const words = lines.slice(2).join(' ').split(/\s+/);
-                            let wrappedText = '';
+                            let wrappedLines = [];
                             let currentLine = '';
+
                             for (const word of words) {
                                 if (currentLine.length + word.length > 20) {
-                                    wrappedText += (currentLine ? currentLine.trim() + '\n' : '');
+                                    if (currentLine) wrappedLines.push(currentLine.trim());
                                     currentLine = word + ' ';
                                 } else {
                                     currentLine += word + ' ';
                                 }
                             }
-                            wrappedText += currentLine.trim();
+                            if (currentLine.trim()) wrappedLines.push(currentLine.trim());
+
+                            // Emulate text_align=C by left-padding shorter lines with spaces
+                            // We need wide phonetic spaces since Roboto is a proportional font, not monospace. 
+                            // Using a mix of En Spaces (\u2002) for padding helps simulate centering.
+                            const maxLen = Math.max(...wrappedLines.map(l => l.length));
+                            let wrappedText = wrappedLines.map(line => {
+                                const padCount = Math.floor((maxLen - line.length) / 2);
+                                // \u2002 is an EN SPACE, which is roughly the width of a standard character
+                                return '\u2002'.repeat(padCount) + line;
+                            }).join('\n');
 
                             // Write to individual text file to naturally support multi-line and avoid any FFmpeg escaping
                             const textFilePath = `/tmp/sub_${Date.now()}_${idx}.txt`;
