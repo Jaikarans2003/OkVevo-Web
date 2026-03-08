@@ -186,7 +186,7 @@ CRITICAL RULES:
 // ────────────────────────────────────────────────────
 // TEST MODE - Set to true to skip Fal AI and use hardcoded video
 // ────────────────────────────────────────────────────
-const TEST_MODE = false;
+const TEST_MODE = true;
 const TEST_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62';
 
 // ────────────────────────────────────────────────────
@@ -389,15 +389,34 @@ const FFMPEG = '/opt/bin/ffmpeg';
  * @param {string} outputPath - Where to write composited video
  */
 // Helper to convert SRT time (00:00:01,500) to seconds (1.5)
+// Helper to convert SRT time (00:00:01,500 or 00:00:231) to seconds (1.5)
 function parseSrtTime(timeStr) {
-    const parts = timeStr.replace(',', '.').split(':');
+    // Replace commas with dots, and if the last separator is a colon, make it a dot for the miliseconds
+    let normalized = timeStr.trim().replace(',', '.');
+    const lastColon = normalized.lastIndexOf(':');
+    if (lastColon > 0 && normalized.substring(lastColon + 1).length === 3) {
+        // e.g. 00:00:231 -> 00:00.231
+        normalized = normalized.substring(0, lastColon) + '.' + normalized.substring(lastColon + 1);
+    }
+
+    const parts = normalized.split(':');
     let secs = 0;
+
     if (parts.length === 3) {
+        // HH:MM:SS.ms
         secs += parseInt(parts[0], 10) * 3600;
         secs += parseInt(parts[1], 10) * 60;
         secs += parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+        // MM:SS.ms
+        secs += parseInt(parts[0], 10) * 60;
+        secs += parseFloat(parts[1]);
+    } else if (parts.length === 1) {
+        // SS.ms
+        secs += parseFloat(parts[0]);
     }
-    return secs;
+
+    return secs || 0;
 }
 
 function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
@@ -551,14 +570,27 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
                             const start = parseSrtTime(timeParts[0]);
                             const end = parseSrtTime(timeParts[1]);
 
-                            // Unify to 1 line, replace single quotes with typographic quotes to avoid ffmpeg escaping hell
-                            const textLine = lines.slice(2).join(' ')
-                                .replace(/'/g, "\u2019")
-                                .replace(/:/g, '\\\\:');
+                            // Word wrap text to 20 chars max per line for 360px video width
+                            const words = lines.slice(2).join(' ').split(/\s+/);
+                            let wrappedText = '';
+                            let currentLine = '';
+                            for (const word of words) {
+                                if (currentLine.length + word.length > 20) {
+                                    wrappedText += (currentLine ? currentLine.trim() + '\n' : '');
+                                    currentLine = word + ' ';
+                                } else {
+                                    currentLine += word + ' ';
+                                }
+                            }
+                            wrappedText += currentLine.trim();
+
+                            // Write to individual text file to naturally support multi-line and avoid any FFmpeg escaping
+                            const textFilePath = `/tmp/sub_${Date.now()}_${idx}.txt`;
+                            fs.writeFileSync(textFilePath, wrappedText);
 
                             const outLabel = `[subs${idx}]`;
-                            // drawtext filter per block
-                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':text='${textLine}':enable='between(t,${start},${end})':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80:borderw=3:bordercolor=black@0.8${outLabel}`;
+                            // drawtext filter using textfile, dynamic (h-text_h) bounding box, and 24pt legible font size
+                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':textfile='${textFilePath}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)-40:borderw=2:bordercolor=black@0.9:line_spacing=5${outLabel}`;
                             currentIn = outLabel;
                         }
                     }
