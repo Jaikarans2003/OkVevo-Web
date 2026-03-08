@@ -6,11 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 // Modular Redesign Components (WGMI Style)
-import DashHeroModular from '../../components/workspace/WorkspaceHeroModular';
-import DashGridModular from '../../components/workspace/WorkspaceGridModular';
-import DashTrendsModular from '../../components/workspace/WorkspaceTrendsModular';
-import DashSpotlight from '../../components/workspace/WorkspaceSpotlight';
-import DashFooterModular from '../../components/workspace/WorkspaceFooterModular';
+import WorkspaceBento from '../../components/workspace/WorkspaceBento';
 import DashNavbar from '../../components/workspace/WorkspaceNavbar';
 
 export default function WorkspacePage() {
@@ -26,15 +22,11 @@ export default function WorkspacePage() {
 
 
     return (
-        <div className="bg-black text-white font-sans selection:bg-[#E2FF4D]/30 overflow-x-hidden min-h-screen">
+        <div className="bg-black text-white font-sans selection:bg-accent-orange/30 overflow-x-hidden min-h-screen">
             <DashNavbar />
 
             <main>
-                <DashHeroModular user={user} />
-                {/* <DashGridModular /> */}
-                {/* <DashTrendsModular /> */}
-                {/* <DashSpotlight /> */}
-                {/* <DashFooterModular /> */}
+                <WorkspaceBento user={user} />
             </main>
         </div>
     );

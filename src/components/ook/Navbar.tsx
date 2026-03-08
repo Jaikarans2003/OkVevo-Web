@@ -46,9 +46,8 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         };
     }, []);
 
-    const isNavbarDark = currentSectionTheme === 'dark';
-    const textColor = isNavbarDark ? 'text-white' : 'text-text-main';
-    const textColorDim = isNavbarDark ? 'text-white/70' : 'text-text-main/70';
+    const textColor = 'text-white';
+    const textColorDim = 'text-white/70';
 
     const navLinks = [
         { name: 'Process', href: '#features' },

@@ -4,6 +4,7 @@ import { db } from '../config/firebase';
 export interface UserProfile {
     uid: string;
     email: string;
+    photoURL?: string;
     userType?: 'single' | 'organisation' | 'pro';
     onboardingComplete: boolean;
     createdAt: any;

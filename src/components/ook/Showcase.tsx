@@ -1,12 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
 
 const Showcase = () => {
     const [activeTab, setActiveTab] = useState(0);
@@ -26,100 +23,8 @@ const Showcase = () => {
         }
     ];
 
-    const sectionRef = useRef<HTMLElement>(null);
-    const planeRef = useRef<HTMLDivElement>(null);
-    const pathRef = useRef<SVGPathElement>(null);
-
-    useEffect(() => {
-        if (!sectionRef.current || !planeRef.current || !pathRef.current) return;
-
-        gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
-
-        const pathLength = pathRef.current.getTotalLength();
-        const tailLength = 800; // Visual length of the trail
-        
-        gsap.set(pathRef.current, { 
-            strokeDasharray: `${tailLength} ${pathLength + tailLength}`, 
-            strokeDashoffset: tailLength 
-        });
-
-        const tl = gsap.timeline({
-            scrollTrigger: {
-                trigger: sectionRef.current,
-                start: "top center", // Start when section reaches center
-                end: "+=120%", // End as you scroll past the text into the image
-                scrub: 0.5,
-            }
-        });
-
-        // The trail moves behind the plane and vanishes
-        tl.to(pathRef.current, {
-            strokeDashoffset: tailLength - pathLength,
-            duration: 1,
-            ease: "none"
-        }, 0);
-
-        tl.to(planeRef.current, {
-            motionPath: {
-                path: pathRef.current,
-                align: pathRef.current,
-                alignOrigin: [0.5, 0.5],
-                autoRotate: true,
-            },
-            duration: 1,
-            ease: "none",
-            immediateRender: true
-        }, 0);
-
-        // Continuous color changing animation for the plane
-        gsap.to(planeRef.current, {
-            filter: "hue-rotate(360deg)",
-            duration: 3,
-            repeat: -1,
-            ease: "linear"
-        });
-
-        return () => {
-            tl.scrollTrigger?.kill();
-            tl.kill();
-        };
-    }, []);
-
     return (
-        <section ref={sectionRef} id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
-            {/* Background SVG for Paper Plane Path */}
-            <div className="absolute inset-0 z-[50] pointer-events-none">
-                <svg className="w-full h-[800px] absolute top-[-50px] left-0 overflow-visible" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMin slice">
-                    <defs>
-                        <linearGradient id="showcasePathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#FF6600" stopOpacity="0" />
-                            <stop offset="20%" stopColor="#FF6600" stopOpacity="0.8" />
-                            <stop offset="80%" stopColor="#FF00FF" stopOpacity="0.8" />
-                            <stop offset="100%" stopColor="#FF00FF" stopOpacity="0" />
-                        </linearGradient>
-                        <linearGradient id="showcasePlaneGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="#FF6600" />
-                            <stop offset="1" stopColor="#FF00FF" />
-                        </linearGradient>
-                    </defs>
-                    {/* A curvy path that loops through the text section and points directly at the image box */}
-                    <path
-                        ref={pathRef}
-                        d="M -100,50 C 400,-100 800,150 400,200 C 0,250 -100,450 300,550 C 350,560 380,520 350,480 C 300,430 150,450 200,600 C 220,650 280,680 320,700"
-                        fill="none"
-                        stroke="url(#showcasePathGradient)"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                    />
-                </svg>
-
-                <div ref={planeRef} className="absolute top-[-50px] left-0 w-24 h-24 opacity-100 drop-shadow-[0_0_25px_rgba(255,102,0,0.8)] z-10 transform-gpu overflow-visible">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full rotate-90 overflow-visible">
-                        <path d="M22.0003 2L12.0003 22L10.0003 14L2.00032 12L22.0003 2Z" fill="url(#showcasePlaneGradient)" />
-                    </svg>
-                </div>
-            </div>
-
+        <section id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
             <div className="max-w-[1300px] mx-auto px-6 md:px-12 relative z-10">
                 
                 {/* Header Grid */}

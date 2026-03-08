@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Sparkles, Zap, Crown } from 'lucide-react';
 import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
@@ -12,7 +12,12 @@ interface PricingProps {
 
 const Pricing = ({ user }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handlePlanClick = (planName: string) => {
         if (!user) {
@@ -88,7 +93,70 @@ const Pricing = ({ user }: PricingProps) => {
     ];
 
     return (
-        <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30">
+        <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
+            {/* Premium Background Layer */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                {/* Massive Glow Blobs for "Fill" */}
+                <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[120px] animate-pulse-slow-reverse" />
+                
+                {/* Mesh Gradients */}
+                <svg className="absolute inset-0 w-full h-full opacity-40" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                        <radialGradient id="price-mesh-1" cx="20%" cy="30%" r="50%">
+                            <stop offset="0%" stopColor="#FF6600" stopOpacity="0.5" />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                        <radialGradient id="price-mesh-2" cx="80%" cy="70%" r="50%">
+                            <stop offset="0%" stopColor="#8F00FF" stopOpacity="0.4" />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                        <radialGradient id="price-mesh-3" cx="50%" cy="50%" r="60%">
+                            <stop offset="0%" stopColor="#FF00D6" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                        
+                        {/* Technical Grid Pattern with larger spacing */}
+                        <pattern id="pricing-grid" width="80" height="80" patternUnits="userSpaceOnUse">
+                            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="white" strokeOpacity="0.05" strokeWidth="0.5"/>
+                            <circle cx="0" cy="0" r="1.5" fill="white" fillOpacity="0.1" />
+                        </pattern>
+                    </defs>
+                    
+                    <rect width="100%" height="100%" fill="url(#price-mesh-1)" />
+                    <rect width="100%" height="100%" fill="url(#price-mesh-2)" />
+                    <rect width="100%" height="100%" fill="url(#price-mesh-3)" />
+                    <rect width="100%" height="100%" fill="url(#pricing-grid)" />
+                </svg>
+
+                {/* Animated Floating Embers (Only if mounted to avoid hydration error) */}
+                {mounted && [...Array(25)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        className="absolute w-[2px] h-[2px] bg-orange-400 rounded-full blur-[1px]"
+                        initial={{ 
+                            x: Math.random() * 100 + '%', 
+                            y: Math.random() * 100 + '%',
+                            opacity: 0,
+                            scale: 0
+                        }}
+                        animate={{ 
+                            y: [null, '-30%'],
+                            opacity: [0, 0.8, 0],
+                            scale: [0, 1.5, 0],
+                            x: [null, (Math.random() - 0.5) * 60 + 'px']
+                        }}
+                        transition={{ 
+                            duration: Math.random() * 15 + 10,
+                            repeat: Infinity,
+                            delay: Math.random() * 5,
+                            ease: "easeInOut"
+                        }}
+                    />
+                ))}
+                
+            </div>
+
             <div className="max-w-7xl mx-auto px-6 relative z-10">
                 {/* Section Header */}
                 <motion.div
@@ -98,16 +166,16 @@ const Pricing = ({ user }: PricingProps) => {
                     transition={{ duration: 0.8 }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-5xl md:text-6xl font-semibold mb-6 text-white tracking-tight">
+                    <h2 className="text-5xl md:text-[80px] font-bold mb-6 text-white tracking-tight leading-none">
                         Pricing
                     </h2>
-                    <p className="text-[#a1a1aa] text-xl max-w-2xl mx-auto font-light leading-relaxed">
+                    <p className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed">
                         Design for free. Upgrade to unlock more.
                     </p>
                 </motion.div>
 
                 {/* Pricing Cards */}
-                <div className="grid md:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
+                <div className="grid md:grid-cols-3 gap-8 max-w-[1100px] mx-auto">
                     {plans.map((plan, index) => {
                         return (
                             <motion.div
@@ -116,16 +184,21 @@ const Pricing = ({ user }: PricingProps) => {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                                className={`relative h-full rounded-2xl p-8 flex flex-col transition-all duration-300 ${
+                                className={`relative h-full rounded-none p-8 flex flex-col transition-all duration-500 backdrop-blur-3xl group transform-gpu ${
                                     plan.highlighted
-                                        ? 'bg-[#120a05] border border-orange-500/20 shadow-2xl shadow-orange-500/5'
-                                        : 'bg-[#0a0a0a] border border-[#1f1f1f] hover:border-[#333]'
+                                        ? 'bg-[#120a05]/70 border border-orange-500/40 shadow-[0_0_50px_rgba(255,107,0,0.15)] ring-1 ring-orange-500/20'
+                                        : 'bg-[#0a0a0a]/50 border border-[#1f1f1f] hover:border-[#333] hover:bg-[#0a0a0a]/70 hover:shadow-2xl hover:shadow-white/5'
                                 }`}
                             >
+                                {/* Inner Glow for Pro Card */}
+                                {plan.highlighted && (
+                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent rounded-none pointer-events-none" />
+                                )}
+
                                 {/* Header Section */}
-                                <div className="flex justify-between items-start mb-6">
+                                <div className="flex justify-between items-start mb-6 relative z-10">
                                     <div className="pr-4">
-                                        <h3 className="text-2xl font-medium text-white mb-1">{plan.name}</h3>
+                                        <h3 className="text-2xl font-bold text-white mb-1 group-hover:text-orange-400 transition-colors uppercase tracking-tight">{plan.name}</h3>
                                         <p className="text-[#888] text-sm leading-relaxed">{plan.description}</p>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
@@ -134,7 +207,7 @@ const Pricing = ({ user }: PricingProps) => {
                                         </span>
                                         {plan.name !== 'Enterprise' && (
                                             <div 
-                                                className={`w-8 h-4 rounded-full flex items-center px-[2px] cursor-pointer transition-colors ${plan.highlighted ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-gradient-to-r from-orange-500 to-orange-400'}`}
+                                                className={`w-8 h-4 rounded-full flex items-center px-[2px] cursor-pointer transition-colors ${plan.highlighted ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-[#222] border border-[#333]'}`}
                                                 onClick={() => setIsAnnual(!isAnnual)}
                                             >
                                                 <div className={`w-3 h-3 rounded-full bg-white shadow-sm transform transition-transform ${isAnnual ? 'translate-x-4' : 'translate-x-0'}`}></div>
@@ -143,47 +216,47 @@ const Pricing = ({ user }: PricingProps) => {
                                     </div>
                                 </div>
 
-                                <div className="h-px w-full bg-[#1f1f1f] mb-6"></div>
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#333] to-transparent mb-6 relative z-10"></div>
 
                                 {/* Price Section */}
-                                <div className="mb-6 flex items-baseline gap-2">
-                                    <span className="text-3xl font-bold text-white tracking-tight">{plan.price}</span>
+                                <div className="mb-6 flex items-baseline gap-2 relative z-10">
+                                    <span className="text-5xl font-black text-white tracking-tighter">{plan.price}</span>
                                     {plan.period !== 'contact sales' && (
-                                        <span className="text-[#888] text-sm font-medium">{plan.period}</span>
+                                        <span className="text-[#888] text-sm font-medium tracking-tight uppercase">{plan.period}</span>
                                     )}
                                 </div>
 
-                                <div className="h-px w-full bg-[#1f1f1f] mb-6"></div>
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#333] to-transparent mb-6 relative z-10"></div>
 
                                 {/* Features Section */}
-                                <div className="flex-1 space-y-4 mb-8">
+                                <div className="flex-1 space-y-4 mb-10 relative z-10">
                                     {plan.name === 'Pro' && (
-                                        <p className="text-[#a1a1aa] text-sm mb-4">Everything from Hobby, plus:</p>
+                                        <p className="text-orange-500/80 text-xs mb-4 font-bold uppercase tracking-widest">Everything from Hobby, plus:</p>
                                     )}
                                     {plan.name === 'Enterprise' && (
-                                        <p className="text-[#a1a1aa] text-sm mb-4">Everything from Pro, plus:</p>
+                                        <p className="text-orange-500/80 text-xs mb-4 font-bold uppercase tracking-widest">Everything from Pro, plus:</p>
                                     )}
                                     
                                     {plan.features.map((feature, i) => (
-                                        <div key={i} className="flex items-start gap-3">
-                                            <div className="mt-1 flex-shrink-0">
-                                                <Check className="w-[14px] h-[14px] text-white" strokeWidth={3} />
+                                        <div key={i} className="flex items-start gap-4 group/item">
+                                            <div className="mt-1 flex-shrink-0 transition-transform group-hover/item:rotate-12">
+                                                <Check className={`w-4 h-4 ${plan.highlighted ? 'text-orange-500' : 'text-white/80'}`} strokeWidth={3} />
                                             </div>
-                                            <span className="text-[#a1a1aa] text-sm leading-snug">{feature}</span>
+                                            <span className="text-[#a1a1aa] text-[15px] leading-snug group-hover/item:text-white transition-colors">{feature}</span>
                                         </div>
                                     ))}
                                     {plan.notIncluded.length > 0 && plan.notIncluded.map((feature, i) => (
-                                        <div key={i} className="flex items-start gap-3 opacity-40">
-                                            <div className="mt-1 w-[14px] h-[14px] flex items-center justify-center flex-shrink-0">
+                                        <div key={i} className="flex items-start gap-4 opacity-30">
+                                            <div className="mt-1 w-4 h-4 flex items-center justify-center flex-shrink-0">
                                                 <div className="w-2.5 h-[2px] bg-[#a1a1aa] rounded-full" />
                                             </div>
-                                            <span className="text-[#a1a1aa] text-sm leading-snug line-through">{feature}</span>
+                                            <span className="text-[#a1a1aa] text-[15px] leading-snug line-through">{feature}</span>
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* Button Section */}
-                                <div className="w-full mt-auto">
+                                <div className="w-full mt-auto relative z-10">
                                     {plan.name === 'Hobby' ? (
                                         <div className="w-full text-center">
                                             {user ? (
@@ -201,7 +274,7 @@ const Pricing = ({ user }: PricingProps) => {
                                             ) : (
                                                 <button 
                                                     onClick={() => handlePlanClick('Hobby')}
-                                                    className="w-full py-[14px] rounded-[14px] font-medium text-[15px] transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a]"
+                                                    className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444] uppercase tracking-widest"
                                                 >
                                                     {plan.cta}
                                                 </button>
@@ -224,7 +297,7 @@ const Pricing = ({ user }: PricingProps) => {
                                             ) : (
                                                 <button 
                                                     onClick={() => handlePlanClick('Pro')}
-                                                    className="w-full py-[14px] rounded-[14px] font-semibold text-[15px] transition-all duration-300 bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_20px_rgba(255,107,0,0.3)] border border-orange-500/50"
+                                                    className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50 transform group-hover:scale-[1.05] uppercase tracking-widest"
                                                 >
                                                     {plan.cta}
                                                 </button>
@@ -233,7 +306,7 @@ const Pricing = ({ user }: PricingProps) => {
                                     ) : (
                                         <button 
                                             onClick={() => handlePlanClick('Enterprise')}
-                                            className="w-full py-[14px] rounded-[14px] font-medium text-[15px] transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a]"
+                                            className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444] uppercase tracking-widest"
                                         >
                                             {plan.cta}
                                         </button>

@@ -197,7 +197,6 @@ const BuiltForCreators = () => {
                     Who is it <span className="text-accent-orange italic">For?</span>
                 </h2>
             </div>
-
             {/* Digital Wallet Interactive Background */}
             <div className="absolute inset-0 z-20">
                 <DigitalWallet balance="Built for Creators" cards={creators} />

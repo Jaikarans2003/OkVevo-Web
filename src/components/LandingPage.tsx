@@ -12,6 +12,7 @@ import Showcase from './ook/Showcase';
 import HowItWorks from './ook/Features';
 import BuiltForCreators from './ook/BuiltForCreators';
 import Pricing from './ook/Pricing';
+import FeaturesGrid from './ook/FeaturesGrid';
 import Footer from './ook/Footer';
 
 export default function LandingPage() {
@@ -45,6 +46,7 @@ export default function LandingPage() {
                 <HowItWorks />
                 {/* <BuiltForCreators /> */}
                 <Pricing user={user} />
+                <FeaturesGrid />
                 {/* <TuneTalez /> */}
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}
             </main>

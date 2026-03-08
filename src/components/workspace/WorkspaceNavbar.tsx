@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, CreditCard, User, History } from 'lucide-react';
-import { ThemeToggle } from '../ThemeToggle';
 
 const DashNavbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -41,9 +40,8 @@ const DashNavbar = () => {
         };
     }, []);
 
-    const isNavbarDark = currentSectionTheme === 'dark';
-    const textColor = isNavbarDark ? 'text-white' : 'text-text-main';
-    const textColorDim = isNavbarDark ? 'text-white/70' : 'text-text-main/70';
+    const textColor = 'text-white';
+    const textColorDim = 'text-white/70';
 
     const navLinks = [
         { name: 'History', href: '/history', icon: <History size={16} /> },
@@ -70,7 +68,6 @@ const DashNavbar = () => {
                                 {link.name}
                             </a>
                         ))}
-                        <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} />
                     </div>
 
                     {/* Mobile Toggle */}
