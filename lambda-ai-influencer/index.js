@@ -196,15 +196,15 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
     }
 
     console.log('🎬 Calling Fal AI veed/lipsync...');
-    console.log(`   Video URL: ${videoUrl} `);
-    console.log(`   Audio URL: ${audioUrl} `);
+    console.log(`   Video URL: ${videoUrl}`);
+    console.log(`   Audio URL: ${audioUrl}`);
 
     // Submit job to Fal AI queue
-    const submitUrl = `${FAL_API_BASE} /veed/lipsync`;
+    const submitUrl = `${FAL_API_BASE}/veed/lipsync`;
     const submitResponse = await httpsRequest(submitUrl, {
         method: 'POST',
         headers: {
-            'Authorization': `Key ${apiKey} `,
+            'Authorization': `Key ${apiKey}`,
             'Content-Type': 'application/json',
         }
     }, {
@@ -214,14 +214,14 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
 
     if (submitResponse.statusCode !== 200) {
         console.error('❌ Fal AI submit failed:', submitResponse.body);
-        throw new Error(`Fal AI submit failed: ${submitResponse.statusCode} `);
+        throw new Error(`Fal AI submit failed: ${submitResponse.statusCode}`);
     }
 
     const { request_id } = submitResponse.body;
-    console.log(`✅ Fal AI job submitted: ${request_id} `);
+    console.log(`✅ Fal AI job submitted: ${request_id}`);
 
     // Poll for completion
-    const statusUrl = `${FAL_API_BASE} /veed/lipsync / requests / ${request_id}/status`;
+    const statusUrl = `${FAL_API_BASE}/veed/lipsync/requests/${request_id}/status`;
     let attempts = 0;
     const maxAttempts = 180; // 15 minutes max (5s intervals)
 
