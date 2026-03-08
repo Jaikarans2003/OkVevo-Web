@@ -58,39 +58,44 @@ const Hero = ({ onJoinClick }: HeroProps) => {
 
     return (
         <section ref={containerRef} className="relative min-h-[140vh] bg-black overflow-hidden flex flex-col items-center">
-            
+
             {/* --- Background Elements --- */}
 
             {/* Background Image Layer */}
             <div className="absolute inset-0 z-0 pointer-events-none opacity-70">
-                <img 
-                    src="/images/herobg.png" 
-                    alt="" 
+                <img
+                    src="/images/herobg.png"
+                    alt=""
                     className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
             </div>
-            
+
             {/* Technical Grid Overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
-                 style={{ 
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
+                style={{
                     backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
                     backgroundSize: '60px 60px'
-                 }} 
+                }}
             />
 
             {/* The Arc Glow */}
-            <div className="absolute top-[-450px] left-1/2 -translate-x-1/2 w-[1600px] h-[800px] flex items-center justify-center pointer-events-none">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 2, delay: 1 }}
+                className="absolute top-[-450px] left-1/2 -translate-x-1/2 w-[1600px] h-[800px] flex items-center justify-center pointer-events-none"
+            >
                 {/* Thin Arc Line */}
-                <div className="absolute bottom-0 w-[1400px] h-[1400px] border-[1px] border-accent-orange/30 rounded-full mask-arc" />
+                <div className="absolute bottom-0 w-[1400px] h-[1400px] border-[1px] border-accent-orange/10 rounded-full mask-arc" />
                 {/* Glow Spread */}
-                <div className="absolute bottom-0 w-[800px] h-[400px] bg-accent-orange/15 blur-[120px] rounded-full translate-y-20" />
-            </div>
+                <div className="absolute bottom-0 w-[800px] h-[400px] bg-accent-orange/5 blur-[120px] rounded-full translate-y-20" />
+            </motion.div>
 
             {/* --- Content Section --- */}
-            
+
             <div className="relative z-10 pt-32 px-6 flex flex-col items-center text-center max-w-5xl mx-auto">
-                
+
                 {/* Feature Badge/Pill */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -101,7 +106,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     <div className="px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md flex items-center gap-2 border border-white/5">
                         <span className="px-2 py-0.5 rounded-full bg-accent-orange text-[10px] font-bold text-white uppercase tracking-wider">New</span>
                         <span className="text-sm text-white/80 font-medium flex items-center gap-1">
-                            Cinematic Script-to-Video is here 
+                            Cinematic Script-to-Video is here
                             <ChevronRight className="w-4 h-4 text-accent-orange" />
                         </span>
                     </div>
@@ -109,9 +114,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
 
                 {/* Main Headline */}
                 <motion.h1
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
+                    initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                     className="text-5xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
                 >
                     Zero Camera, <br />
@@ -120,9 +125,9 @@ const Hero = ({ onJoinClick }: HeroProps) => {
 
                 {/* Subtitle */}
                 <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
+                    initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
                     className="text-lg md:text-xl text-white/50 max-w-2xl mb-12 font-medium"
                 >
                     Powerful AI-driven cinema tools for modern creators. Supercharge your visual storytelling and reach global audiences instantly.
@@ -173,7 +178,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             </div>
 
             {/* --- Bottom Video Section --- */}
-            
+
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 100 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -182,7 +187,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             >
                 {/* Visual Accent Glow behind container */}
                 <div className="absolute -inset-4 bg-accent-orange/20 blur-[100px] rounded-[4rem] group-hover:bg-accent-orange/30 transition-all duration-700 pointer-events-none" />
-                
+
                 <div className="relative rounded-[3rem] md:rounded-[4rem] overflow-hidden border border-white/10 bg-black/60 backdrop-blur-3xl shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
                     <div className="aspect-[16/9] w-full">
                         <AnimatePresence mode="wait">
@@ -214,9 +219,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                             <button
                                 key={s.id}
                                 onClick={() => setActiveService(s)}
-                                className={`h-1.5 rounded-full transition-all duration-500 ${
-                                    activeService.id === s.id ? 'w-8 bg-accent-orange' : 'w-2 bg-white/20 hover:bg-white/40'
-                                }`}
+                                className={`h-1.5 rounded-full transition-all duration-500 ${activeService.id === s.id ? 'w-8 bg-accent-orange' : 'w-2 bg-white/20 hover:bg-white/40'
+                                    }`}
                             />
                         ))}
                     </div>

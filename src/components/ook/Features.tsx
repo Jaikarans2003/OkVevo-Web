@@ -37,14 +37,20 @@ const HowItWorks = () => {
                 
                 {/* Header Section */}
                 <div className="mb-12">
-                    <div className="text-5xl md:text-[80px] font-bold leading-[1.1] tracking-[-0.03em] text-white">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="text-5xl md:text-[80px] font-bold leading-[1.1] tracking-[-0.03em] text-white"
+                    >
                         Everything{' '}
                         <span className="inline-flex items-center justify-center animate-morphing-blob px-6 py-2 md:px-8 md:py-3 mx-2 mb-2 md:mb-0 align-middle transform-gpu">
                             <span>creators</span>
                         </span>
                         <br />
                         love about OKVEVO
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Content Grid */}

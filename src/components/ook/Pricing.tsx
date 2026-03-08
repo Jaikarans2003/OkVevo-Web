@@ -159,20 +159,26 @@ const Pricing = ({ user }: PricingProps) => {
 
             <div className="max-w-7xl mx-auto px-6 relative z-10">
                 {/* Section Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8 }}
-                    className="text-center mb-16"
-                >
-                    <h2 className="text-5xl md:text-[80px] font-bold mb-6 text-white tracking-tight leading-none">
+                <div className="text-center mb-16">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                        className="text-5xl md:text-[80px] font-bold mb-6 text-white tracking-tight leading-none"
+                    >
                         Pricing
-                    </h2>
-                    <p className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed">
+                    </motion.h2>
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed"
+                    >
                         Design for free. Upgrade to unlock more.
-                    </p>
-                </motion.div>
+                    </motion.p>
+                </div>
 
                 {/* Pricing Cards */}
                 <div className="grid md:grid-cols-3 gap-8 max-w-[1100px] mx-auto">

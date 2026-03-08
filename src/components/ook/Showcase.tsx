@@ -31,18 +31,30 @@ const Showcase = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
                     {/* Left Typography */}
                     <div className="lg:col-span-7">
-                        <h2 className="text-5xl md:text-[70px] font-bold leading-[1.05] tracking-[-0.03em] text-white mb-6">
+                        <motion.h2 
+                            initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+                            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                            className="text-5xl md:text-[70px] font-bold leading-[1.05] tracking-[-0.03em] text-white mb-6"
+                        >
                              <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">Go from</span> script to <span className="bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">video </span>
                             
                             faster with AI
-                        </h2>
+                        </motion.h2>
                     </div>
                     
                     {/* Right Typography */}
                     <div className="lg:col-span-5 flex flex-col justify-center">
-                        <p className="text-lg md:text-[22px] text-[#a1a1aa] leading-[1.4] mb-6 font-medium max-w-lg">
+                        <motion.p 
+                            initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="text-lg md:text-[22px] text-[#a1a1aa] leading-[1.4] mb-6 font-medium max-w-lg"
+                        >
                             Streamline your video creation pipeline by turning text into high-quality social media content, bringing your digital avatars to life without a camera, and optimizing content for every platform.
-                        </p>
+                        </motion.p>
                         <div>
                             <a href="/workspace" className="inline-flex items-center gap-2 text-white font-medium hover:text-orange-400 transition-colors border-b border-white hover:border-orange-400 pb-1 w-max">
                                 Discover OKVEVO AI 
