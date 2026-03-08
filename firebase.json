@@ -10,18 +10,12 @@
     ]
   },
   "hosting": {
+    "site": "text2video-16cbf",
     "source": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "cleanUrls": true
+    ]
   }
 }

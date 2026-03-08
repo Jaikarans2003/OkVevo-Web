@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 function tryInitFirebase() {
     try {
-        const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        const serviceAccountBase64 = process.env.FB_SERVICE_ACCOUNT_KEY;
         if (!serviceAccountBase64) return null;
 
         const { initializeApp, getApps, cert } = require('firebase-admin/app');
@@ -22,7 +22,7 @@ function tryInitFirebase() {
             const serviceAccount = JSON.parse(
                 Buffer.from(serviceAccountBase64.trim(), 'base64').toString('utf-8')
             );
-            const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
+            const bucketName = process.env.FB_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
             initializeApp({ credential: cert(serviceAccount), storageBucket: bucketName });
         }
 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer());
         console.log(`✅ TTS audio generated: ${audioBuffer.length} bytes`);
 
-        // Try Firebase upload (optional — only if FIREBASE_SERVICE_ACCOUNT_KEY is set)
+        // Try Firebase upload (optional — only if FB_SERVICE_ACCOUNT_KEY is set)
         const firebaseStorage = tryInitFirebase();
 
         if (firebaseStorage) {
