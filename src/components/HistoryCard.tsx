@@ -134,7 +134,7 @@ function TrendGenerationCard({ generation }: { generation: UserGeneration }) {
             {isProcessing && (
                 <div className="aspect-[16/9] bg-gradient-to-br from-white/5 to-white/[0.02] flex flex-col items-center justify-center gap-3 relative">
                     {thumbnailUrl && (
-                        <Image src={thumbnailUrl} alt="Preview" fill className="object-cover opacity-30" />
+                        <img src={thumbnailUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     )}
                     <div className="relative z-10 flex flex-col items-center gap-3">
                         <Loader2 className="w-8 h-8 text-[#FF0080]/40 animate-spin" />
@@ -176,7 +176,7 @@ function TrendGenerationCard({ generation }: { generation: UserGeneration }) {
                 <>
                     <div className="relative aspect-[16/9] cursor-pointer" onClick={() => setExpandedId(generation.id)}>
                         {thumbnailUrl && (
-                            <Image src={thumbnailUrl} alt={trendGen.trendTitle} fill className="object-cover" />
+                            <img src={thumbnailUrl} alt={trendGen.trendTitle} className="w-full h-full object-cover" />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-3 left-3 flex gap-2">
@@ -272,7 +272,7 @@ function TrendGenerationCard({ generation }: { generation: UserGeneration }) {
                                                             <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5">
                                                                 {img.url ? (
                                                                     <>
-                                                                        <Image src={img.url} alt={`Shot ${i + 1}`} fill className="object-cover" />
+                                                                        <img src={img.url} alt={`Shot ${i + 1}`} className="w-full h-full object-cover" />
                                                                         <button
                                                                             onClick={() => handleDownload(img.url!, `skyfall-shot${i + 1}.png`)}
                                                                             className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/60 hover:bg-black/80 transition-colors"
@@ -397,11 +397,10 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                 {/* Thumbnail */}
                 <div className="w-full sm:w-48 aspect-video sm:aspect-square relative rounded-xl overflow-hidden bg-black/20 flex-shrink-0">
                     {generation.thumbnailUrl ? (
-                        <Image
+                        <img
                             src={generation.thumbnailUrl}
                             alt={generation.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-text-dim">
@@ -470,11 +469,10 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
             {/* Thumbnail */}
             <div className="relative aspect-video w-full bg-black/20 overflow-hidden">
                 {generation.thumbnailUrl ? (
-                    <Image
+                    <img
                         src={generation.thumbnailUrl}
                         alt={generation.title}
-                        fill
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-text-dim">

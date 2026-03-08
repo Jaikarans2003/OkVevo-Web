@@ -16,7 +16,6 @@ import {
     CheckCircle,
     Film,
 } from 'lucide-react';
-import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import {
     subscribeToGenerations,
@@ -219,7 +218,7 @@ export default function MyGenerations() {
                                                             <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5">
                                                                 {img.url ? (
                                                                     <>
-                                                                        <Image src={img.url} alt={`Shot ${i + 1}`} fill className="object-cover" />
+                                                                        <img src={img.url} alt={`Shot ${i + 1}`} className="w-full h-full object-cover" />
                                                                         <button
                                                                             onClick={() => handleDownload(img.url!, `skyfall-shot${i + 1}.png`)}
                                                                             className="absolute bottom-1 right-1 p-1 rounded bg-black/60 hover:bg-black/80 transition-colors"
@@ -329,7 +328,7 @@ function GenerationCard({
                 <div className="aspect-[16/9] bg-gradient-to-br from-white/5 to-white/[0.02] flex flex-col items-center justify-center gap-3 relative">
                     {/* Show thumbnail if we have one */}
                     {thumbnailUrl && (
-                        <Image src={thumbnailUrl} alt="Preview" fill className="object-cover opacity-30" />
+                        <img src={thumbnailUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     )}
                     <div className="relative z-10 flex flex-col items-center gap-3">
                         <Loader2 className="w-8 h-8 text-[#FF0080]/40 animate-spin" />
@@ -376,7 +375,7 @@ function GenerationCard({
                     >
                         {/* Show first image as thumbnail */}
                         {thumbnailUrl && (
-                            <Image src={thumbnailUrl} alt={gen.trendTitle} fill className="object-cover" />
+                            <img src={thumbnailUrl} alt={gen.trendTitle} className="w-full h-full object-cover" />
                         )}
                         {/* Overlay badges */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
