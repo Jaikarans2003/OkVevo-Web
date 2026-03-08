@@ -558,14 +558,14 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
                             const outLabel = `[subs${idx}]`;
                             // drawtext filter per block
-                            filterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':text='${textLine}':enable='between(t,${start},${end})':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80:borderw=3:bordercolor=black@0.8${outLabel}`;
+                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':text='${textLine}':enable='between(t,${start},${end})':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80:borderw=3:bordercolor=black@0.8${outLabel}`;
                             currentIn = outLabel;
                         }
                     }
                 });
 
                 if (currentIn !== '[outv]') {
-                    filterComplex += `;${currentIn}copy[outv_subs]`;
+                    finalFilterComplex += `;${currentIn}copy[outv_subs]`;
                 } else {
                     srtPath = null; // No valid subtitles parsed
                 }
