@@ -589,8 +589,8 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
                             fs.writeFileSync(textFilePath, wrappedText);
 
                             const outLabel = `[subs${idx}]`;
-                            // drawtext filter using textfile, centered text alignment, higher vertical offset, and 24pt legible font size
-                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':textfile='${textFilePath}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:text_align=C:x=(w-text_w)/2:y=(h-text_h)-160:borderw=2:bordercolor=black@0.9:line_spacing=5${outLabel}`;
+                            // drawtext filter using textfile, higher vertical offset, and 24pt legible font size
+                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':textfile='${textFilePath}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)-160:borderw=2:bordercolor=black@0.9:line_spacing=5${outLabel}`;
                             currentIn = outLabel;
                         }
                     }
