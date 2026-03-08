@@ -186,7 +186,7 @@ CRITICAL RULES:
 // ────────────────────────────────────────────────────
 // TEST MODE - Set to true to skip Fal AI and use hardcoded video
 // ────────────────────────────────────────────────────
-const TEST_MODE = false;
+const TEST_MODE = true;
 const TEST_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62';
 
 // ────────────────────────────────────────────────────
