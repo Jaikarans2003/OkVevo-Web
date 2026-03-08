@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const { GoogleGenAI } = require('@google/genai');
+const { fal } = require('@fal-ai/client');
 const https = require('https');
 
 /**
@@ -23,8 +24,6 @@ const https = require('https');
  */
 
 const NANOBANANA_MODEL = 'gemini-3.1-flash-image-preview';
-const FAL_API_BASE = 'https://queue.fal.run';
-const FAL_STATUS_BASE = 'https://queue.fal.run';
 
 let firebaseInitialized = false;
 
@@ -277,56 +276,13 @@ async function generateTrendImage(masterPrompt, personImage = null, faceReferenc
 // Fal AI API Helpers (Kling via Fal)
 // ────────────────────────────────────────────────────
 
-/**
- * Make an HTTP request to the Fal AI API.
- */
-function falRequest(method, path, body = null) {
-    return new Promise((resolve, reject) => {
-        const apiKey = process.env.FAL_API_KEY;
-        if (!apiKey) {
-            return reject(new Error('FAL_API_KEY environment variable not set'));
-        }
-
-        const url = new URL(path, FAL_API_BASE);
-
-        const options = {
-            hostname: url.hostname,
-            path: url.pathname + url.search,
-            method,
-            headers: {
-                'Authorization': `Key ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-        };
-
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => {
-                try {
-                    const parsed = JSON.parse(data);
-                    if (res.statusCode >= 400) {
-                        reject(new Error(`Fal API error (${res.statusCode}): ${JSON.stringify(parsed)}`));
-                    } else {
-                        resolve(parsed);
-                    }
-                } catch {
-                    reject(new Error(`Fal API invalid response (${res.statusCode}): ${data}`));
-                }
-            });
-        });
-
-        req.on('error', reject);
-        req.setTimeout(30000, () => {
-            req.destroy();
-            reject(new Error('Fal API request timeout'));
-        });
-
-        if (body) {
-            req.write(JSON.stringify(body));
-        }
-        req.end();
-    });
+// Initialize Fal AI client
+function initializeFalClient() {
+    const apiKey = process.env.FAL_API_KEY;
+    if (!apiKey) {
+        throw new Error('FAL_API_KEY environment variable not set');
+    }
+    fal.config({ credentials: apiKey });
 }
 
 // ────────────────────────────────────────────────────
@@ -334,115 +290,123 @@ function falRequest(method, path, body = null) {
 // ────────────────────────────────────────────────────
 
 /**
- * Submit a Kling v2.5 Turbo Pro image-to-video task via Fal AI queue.
+ * Submit a Kling v2.6 Pro image-to-video task via Fal AI SDK.
  * Supports optional end frame for start-to-end transitions.
+ * Used for Video 1 (transition video).
  */
-async function submitKlingVideoTask(imageUrl, prompt, duration = 5, endFrameUrl = null) {
-    console.log('🎥 Submitting Kling v2.5 Turbo Pro image-to-video task via Fal AI...');
+async function generateKlingVideo(imageUrl, prompt, duration = 5, endFrameUrl = null) {
+    console.log('\n🎥 Generating Kling v2.6 Pro video via Fal AI SDK...');
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
     console.log(`🖼️ Start frame: ${imageUrl}`);
     if (endFrameUrl) {
-        console.log(`🖼️ End frame (tail): ${endFrameUrl}`);
+        console.log(`🖼️ End frame: ${endFrameUrl}`);
     }
 
-    const requestBody = {
+    const input = {
         prompt: prompt,
-        image_url: imageUrl,
+        start_image_url: imageUrl,
         duration: duration === 10 ? '10' : '5',
         negative_prompt: 'blur, distort, and low quality',
-        cfg_scale: 0.5,
+        generate_audio: false,
     };
 
-    // Add end frame if provided (v2.5 uses tail_image_url)
+    // Add end frame if provided
     if (endFrameUrl) {
-        requestBody.tail_image_url = endFrameUrl;
+        input.end_image_url = endFrameUrl;
     }
 
-    const response = await falRequest('POST', '/fal-ai/kling-video/v2.5-turbo/pro/image-to-video', requestBody);
+    // Log the complete API request payload
+    console.log('\n📦 KLING API REQUEST PAYLOAD:');
+    console.log('   Model: fal-ai/kling-video/v2.6/pro/image-to-video');
+    console.log('   Input Object:');
+    console.log(`   ├─ prompt: "${input.prompt}"`);
+    console.log(`   ├─ start_image_url: ${input.start_image_url ? '✅ SET' : '❌ NOT SET'}`);
+    if (input.start_image_url) {
+        console.log(`   │  └─ ${input.start_image_url.substring(0, 100)}...`);
+    }
+    console.log(`   ├─ end_image_url: ${input.end_image_url ? '✅ SET' : '⚪ NOT SET (optional)'}`);
+    if (input.end_image_url) {
+        console.log(`   │  └─ ${input.end_image_url.substring(0, 100)}...`);
+    }
+    console.log(`   ├─ duration: "${input.duration}"`);
+    console.log(`   ├─ negative_prompt: "${input.negative_prompt}"`);
+    console.log(`   └─ generate_audio: ${input.generate_audio}`);
+    console.log('\n🚀 Sending request to Fal AI...\n');
 
-    const requestId = response.request_id;
-    if (!requestId) {
-        throw new Error(`Fal API did not return a request_id: ${JSON.stringify(response)}`);
+    const result = await fal.subscribe('fal-ai/kling-video/v2.6/pro/image-to-video', {
+        input,
+        logs: true,
+        onQueueUpdate: (update) => {
+            if (update.status === 'IN_PROGRESS') {
+                update.logs?.map((log) => log.message).forEach(console.log);
+            }
+        },
+    });
+
+    const videoUrl = result.data?.video?.url;
+    if (!videoUrl) {
+        throw new Error(`Kling video generation failed: ${JSON.stringify(result)}`);
     }
 
-    console.log(`✅ Kling v2.5 Turbo Pro video task submitted to Fal queue: ${requestId}`);
-    return requestId;
+    console.log(`✅ Kling v2.6 Pro video ready: ${videoUrl}`);
+    console.log(`📊 Request ID: ${result.requestId}`);
+    return videoUrl;
 }
 
 /**
- * Poll Fal AI queue for video generation completion (Kling v2.5 Turbo Pro).
+ * Generate video using Grok Imagine Video (xai) via Fal AI SDK.
+ * Used for Videos 2-4 (levitation videos).
+ * Strictly 3 seconds duration.
  */
-async function pollKlingTask(requestId, maxAttempts = 60) {
-    const INTERVAL_MS = 5000; // 5 seconds
+async function generateGrokVideo(imageUrl, prompt) {
+    console.log('\n🎥 Generating Grok Imagine Video (xai) via Fal AI SDK...');
+    console.log(`📝 Video prompt: ${prompt}`);
+    console.log(`⏱️ Duration: 3s (strict)`);
+    console.log(`🖼️ Source image: ${imageUrl}`);
 
-    for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, INTERVAL_MS));
+    const input = {
+        prompt: prompt,
+        duration: 3,
+        aspect_ratio: '16:9',
+        resolution: '720p',
+        image_url: imageUrl,
+    };
 
-        console.log(`⏳ Fal queue poll ${i + 1}/${maxAttempts}: request ${requestId}...`);
+    // Log the complete API request payload
+    console.log('\n📦 GROK API REQUEST PAYLOAD:');
+    console.log('   Model: xai/grok-imagine-video/image-to-video');
+    console.log('   Input Object:');
+    console.log(`   ├─ prompt: "${input.prompt}"`);
+    console.log(`   ├─ image_url: ${input.image_url ? '✅ SET' : '❌ NOT SET'}`);
+    if (input.image_url) {
+        console.log(`   │  └─ ${input.image_url.substring(0, 100)}...`);
+    }
+    console.log(`   ├─ duration: ${input.duration}`);
+    console.log(`   ├─ aspect_ratio: "${input.aspect_ratio}"`);
+    console.log(`   └─ resolution: "${input.resolution}"`);
+    console.log('\n🚀 Sending request to Fal AI...\n');
 
-        // Note: Status endpoint uses the model ID without subpath
-        const response = await falRequest('GET', `/fal-ai/kling-video/requests/${requestId}/status`);
-
-        const status = response.status;
-        console.log(`   Status: ${status}`);
-
-        if (status === 'COMPLETED') {
-            console.log('🔍 Video generation completed!');
-            
-            // If we have response_url, fetch the actual result
-            if (response.response_url) {
-                console.log(`   Fetching result from: ${response.response_url}`);
-                const resultResponse = await falRequest('GET', `/fal-ai/kling-video/requests/${requestId}`);
-                console.log(`   Result response: ${JSON.stringify(resultResponse)}`);
-                
-                // Extract video URL from result
-                let videoUrl = null;
-                if (resultResponse.video && resultResponse.video.url) {
-                    videoUrl = resultResponse.video.url;
-                } else if (resultResponse.data && resultResponse.data.video && resultResponse.data.video.url) {
-                    videoUrl = resultResponse.data.video.url;
-                } else if (resultResponse.output && resultResponse.output.video && resultResponse.output.video.url) {
-                    videoUrl = resultResponse.output.video.url;
-                }
-                
-                if (videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http')) {
-                    console.log(`✅ Video ready: ${videoUrl}`);
-                    return videoUrl;
-                }
+    const result = await fal.subscribe('xai/grok-imagine-video/image-to-video', {
+        input,
+        logs: true,
+        onQueueUpdate: (update) => {
+            if (update.status === 'IN_PROGRESS') {
+                update.logs?.map((log) => log.message).forEach(console.log);
             }
-            
-            // Otherwise try to extract from status response directly
-            let videoUrl = null;
-            if (response.video && response.video.url) {
-                videoUrl = response.video.url;
-            } else if (response.data && response.data.video && response.data.video.url) {
-                videoUrl = response.data.video.url;
-            } else if (response.output && response.output.video && response.output.video.url) {
-                videoUrl = response.output.video.url;
-            }
-            
-            if (videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http')) {
-                console.log(`✅ Video ready: ${videoUrl}`);
-                return videoUrl;
-            }
+        },
+    });
 
-            console.error('❌ Video completed but no valid URL found. Full response:', JSON.stringify(response, null, 2));
-            throw new Error(`Video completed but no valid URL found: ${JSON.stringify(response)}`);
-        }
-
-        if (status === 'FAILED' || status === 'ERROR') {
-            console.error('❌ Fal video generation failed — full response:', JSON.stringify(response, null, 2));
-            let failReason = response.error || response.message || 'Unknown failure';
-            if (typeof failReason === 'object') failReason = JSON.stringify(failReason);
-            throw new Error(`Video generation failed: ${failReason}`);
-        }
-
-        // Status is 'IN_QUEUE', 'IN_PROGRESS' — continue polling
+    const videoUrl = result.data?.video?.url;
+    if (!videoUrl) {
+        throw new Error(`Grok video generation failed: ${JSON.stringify(result)}`);
     }
 
-    throw new Error(`Video generation timed out after ${maxAttempts * INTERVAL_MS / 1000}s`);
+    console.log(`✅ Grok Imagine Video ready: ${videoUrl}`);
+    console.log(`📊 Request ID: ${result.requestId}`);
+    return videoUrl;
 }
+
 
 /**
  * Download video from URL and return as Buffer.
@@ -479,11 +443,20 @@ async function generateAndUploadImage(prompt, personBuffer, outputPath, faceBuff
 
 /**
  * Generate a single video from image URL, upload, return URL.
- * Supports optional end frame for start-to-end transitions.
+ * Video 1: Uses Kling v2.6 Pro (supports transitions)
+ * Videos 2-4: Uses Grok Imagine Video (3s levitation)
  */
-async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration, endImageUrl = null) {
-    const taskId = await submitKlingVideoTask(sourceImageUrl, videoPrompt, videoDuration, endImageUrl);
-    const videoUrl = await pollKlingTask(taskId);
+async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration, endImageUrl = null, videoIndex = 0) {
+    let videoUrl;
+    
+    // Video 1 (index 0): Use Kling for transition effect
+    if (videoIndex === 0) {
+        videoUrl = await generateKlingVideo(sourceImageUrl, videoPrompt, videoDuration, endImageUrl);
+    } 
+    // Videos 2-4 (index 1-3): Use Grok for 3-second levitation
+    else {
+        videoUrl = await generateGrokVideo(sourceImageUrl, videoPrompt);
+    }
 
     console.log('📥 Downloading generated video...');
     const videoBuffer = await downloadUrl(videoUrl);
@@ -659,16 +632,51 @@ async function processTrendPipeline(body) {
         const endImageUrl = endImageIndex !== undefined ? imageUrls[endImageIndex] : null;
         const videoLength = duration || videoDuration; // Use per-video duration or trend default
 
-        console.log(`\n🎥 Video ${i + 1}/${videoPrompts.length} (from image ${sourceImageIndex}${endImageIndex !== undefined ? ` to ${endImageIndex}` : ''}, ${videoLength}s)`);
-        console.log(`   Source image URL: ${sourceImageUrl ? 'available' : 'MISSING'}`);
+        console.log(`\n${'─'.repeat(60)}`);
+        console.log(`🎥 Video ${i + 1}/${videoPrompts.length}`);
+        console.log(`   Prompt: "${prompt}"`);
+        console.log(`   Duration: ${videoLength}s`);
+        console.log(`   Source Image Index: ${sourceImageIndex}`);
+        console.log(`   End Image Index: ${endImageIndex !== undefined ? endImageIndex : 'N/A'}`);
+        console.log(`   Source Image URL: ${sourceImageUrl ? '✅ AVAILABLE' : '❌ MISSING'}`);
+        if (sourceImageUrl) {
+            console.log(`   Source URL: ${sourceImageUrl.substring(0, 80)}...`);
+        }
         if (endImageIndex !== undefined) {
-            console.log(`   End image URL: ${endImageUrl ? 'available' : 'MISSING'}`);
+            console.log(`   End Image URL: ${endImageUrl ? '✅ AVAILABLE' : '❌ MISSING'}`);
+            if (endImageUrl) {
+                console.log(`   End URL: ${endImageUrl.substring(0, 80)}...`);
+            }
         }
 
-        if (!sourceImageUrl) {
-            console.warn(`⚠️ Video ${i}: source image ${sourceImageIndex} missing, skipping`);
-            videoResultUrls.push(null);
-            continue;
+        // Validation: First video (Video 1) MUST have both start and end images
+        if (i === 0) {
+            console.log(`\n🔍 VIDEO 1 VALIDATION CHECK:`);
+            console.log(`   ├─ Checking start_image_url (imageUrls[${sourceImageIndex}]): ${sourceImageUrl ? '✅ PASS' : '❌ FAIL'}`);
+            console.log(`   ├─ Checking end_image_url (imageUrls[${endImageIndex}]): ${endImageUrl ? '✅ PASS' : '❌ FAIL'}`);
+            console.log(`   └─ endImageIndex defined: ${endImageIndex !== undefined ? '✅ YES' : '❌ NO'}`);
+            
+            if (!sourceImageUrl || !endImageUrl) {
+                console.error(`\n❌ VIDEO 1 VALIDATION FAILED - Missing required images`);
+                console.error(`   ├─ start_image_url (image ${sourceImageIndex}): ${sourceImageUrl ? 'AVAILABLE ✅' : 'MISSING ❌'}`);
+                console.error(`   ├─ end_image_url (image ${endImageIndex}): ${endImageUrl ? 'AVAILABLE ✅' : 'MISSING ❌'}`);
+                console.error(`   └─ Video 1 REQUIRES both images for transition effect`);
+                console.error(`\n⚠️ Skipping Video 1 generation due to missing images\n`);
+                videoResultUrls.push(null);
+                continue;
+            }
+            console.log(`   ✅ Video 1 validation PASSED - Both images available\n`);
+        } else {
+            // Other videos only need start image
+            console.log(`\n🔍 VIDEO ${i + 1} VALIDATION CHECK:`);
+            console.log(`   └─ Checking start_image_url (imageUrls[${sourceImageIndex}]): ${sourceImageUrl ? '✅ PASS' : '❌ FAIL'}`);
+            
+            if (!sourceImageUrl) {
+                console.warn(`\n⚠️ Video ${i + 1}: source image ${sourceImageIndex} missing, skipping\n`);
+                videoResultUrls.push(null);
+                continue;
+            }
+            console.log(`   ✅ Video ${i + 1} validation PASSED\n`);
         }
         try {
             const url = await generateAndUploadVideo(
@@ -676,7 +684,8 @@ async function processTrendPipeline(body) {
                 sourceImageUrl,
                 videoOutputPaths[i],
                 videoLength,
-                endImageUrl
+                endImageUrl,
+                i  // Pass video index to determine which model to use
             );
             videoResultUrls.push(url);
 
@@ -732,6 +741,7 @@ exports.handler = async (event) => {
 
     try {
         initializeFirebase();
+        initializeFalClient();
 
         if (event.Records && event.Records.length > 0) {
             // ═══════ SQS TRIGGER ═══════

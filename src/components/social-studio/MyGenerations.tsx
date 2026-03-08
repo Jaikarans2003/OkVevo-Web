@@ -55,17 +55,62 @@ export default function MyGenerations() {
         return () => unsubscribe();
     }, [user?.uid]);
 
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (expandedId) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [expandedId]);
+
     const handleDownload = async (url: string, filename: string) => {
         try {
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(a.href);
-        } catch {
-            console.error('Download failed');
+            // Create a temporary image and canvas to force download
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                
+                ctx.drawImage(img, 0, 0);
+                
+                // Convert to blob and download
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                }, 'image/png');
+            };
+            
+            img.onerror = () => {
+                // Fallback: try direct link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+            
+            img.src = url;
+        } catch (err) {
+            console.error('Download failed:', err);
+            window.open(url, '_blank');
         }
     };
 
@@ -143,13 +188,13 @@ export default function MyGenerations() {
                         >
                             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setExpandedId(null)} />
                             <motion.div
-                                className="relative w-full max-w-3xl bg-[#111113] border border-white/10 rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                                className="relative w-full max-w-3xl bg-[#111113] border border-white/10 rounded-2xl overflow-hidden flex flex-col max-h-[90vh]"
                                 initial={{ scale: 0.9 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.9 }}
                             >
                                 {/* Header */}
-                                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                                <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                                     <div className="flex items-center gap-2">
                                         <Sparkles className="w-4 h-4 text-[#FF0080]" />
                                         <h3 className="text-sm font-bold text-white">{gen.trendTitle}</h3>
@@ -160,60 +205,64 @@ export default function MyGenerations() {
                                     </button>
                                 </div>
 
-                                <div className="p-4 space-y-6">
-                                    {/* Generated Images Grid */}
-                                    {gen.images?.some(img => img.url) && (
-                                        <div className="space-y-2">
-                                            <span className="text-xs text-white/40 flex items-center gap-1.5">
-                                                <ImageIcon className="w-3 h-3" /> Generated Images ({gen.images.filter(i => i.url).length}/{gen.images.length})
-                                            </span>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {gen.images.map((img, i) => (
-                                                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5">
-                                                        {img.url ? (
-                                                            <>
-                                                                <Image src={img.url} alt={`Shot ${i + 1}`} fill className="object-cover" />
-                                                                <button
-                                                                    onClick={() => handleDownload(img.url!, `skyfall-shot${i + 1}.png`)}
-                                                                    className="absolute bottom-1 right-1 p-1 rounded bg-black/60 hover:bg-black/80 transition-colors"
-                                                                >
-                                                                    <Download className="w-3 h-3 text-white/60" />
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <div className="flex items-center justify-center h-full">
-                                                                <Loader2 className="w-4 h-4 text-white/20 animate-spin" />
+                                <div className="flex-1 min-h-0 overflow-hidden">
+                                    <div className="flex flex-col lg:flex-row gap-6 h-full">
+                                        {/* Left: Generated Photos */}
+                                        <div className="flex-1 lg:flex-[2] overflow-y-auto p-4 space-y-4">
+                                            {gen.images?.some(img => img.url) && (
+                                                <div className="space-y-3">
+                                                    <span className="text-xs text-white/40 flex items-center gap-1.5">
+                                                        <ImageIcon className="w-3 h-3" /> Generated Images ({gen.images.filter(i => i.url).length}/{gen.images.length})
+                                                    </span>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {gen.images.map((img, i) => (
+                                                            <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5">
+                                                                {img.url ? (
+                                                                    <>
+                                                                        <Image src={img.url} alt={`Shot ${i + 1}`} fill className="object-cover" />
+                                                                        <button
+                                                                            onClick={() => handleDownload(img.url!, `skyfall-shot${i + 1}.png`)}
+                                                                            className="absolute bottom-1 right-1 p-1 rounded bg-black/60 hover:bg-black/80 transition-colors"
+                                                                        >
+                                                                            <Download className="w-3 h-3 text-white/60" />
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-center h-full">
+                                                                        <Loader2 className="w-4 h-4 text-white/20 animate-spin" />
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
 
-                                    {/* Final Video */}
-                                    {gen.finalVideoUrl && (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs text-white/40 flex items-center gap-1.5">
-                                                    <Film className="w-3 h-3" /> Final Stitched Video
-                                                </span>
-                                                <button
-                                                    onClick={() => handleDownload(gen.finalVideoUrl!, `skyfall-final.mp4`)}
-                                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                                                >
-                                                    <Download className="w-3.5 h-3.5 text-white/40" />
-                                                </button>
+                                        {/* Right: Final Video */}
+                                        {gen.finalVideoUrl && (
+                                            <div className="lg:flex-1 overflow-y-auto p-4 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-white/40 flex items-center gap-1.5">
+                                                        <Film className="w-3 h-3" /> Final Stitched Video
+                                                    </span>
+                                                    <button
+                                                        onClick={() => handleDownload(gen.finalVideoUrl!, `skyfall-final.mp4`)}
+                                                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                                    >
+                                                        <Download className="w-3.5 h-3.5 text-white/40" />
+                                                    </button>
+                                                </div>
+                                                <video
+                                                    src={gen.finalVideoUrl}
+                                                    controls
+                                                    autoPlay
+                                                    loop
+                                                    className="w-full rounded-xl"
+                                                />
                                             </div>
-                                            <video
-                                                src={gen.finalVideoUrl}
-                                                controls
-                                                autoPlay
-                                                loop
-                                                className="w-full rounded-xl"
-                                            />
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             </motion.div>
                         </motion.div>

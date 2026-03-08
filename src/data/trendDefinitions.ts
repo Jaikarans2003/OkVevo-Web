@@ -46,7 +46,7 @@ export const TREND_DEFINITIONS: TrendDefinition[] = [
         id: 'sky-fall',
         title: 'Sky Fall',
         description: 'Cinematic falling-from-the-sky sequence — 5 stunning shots stitched into one epic video.',
-        image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=900&auto=format&fit=crop&q=60',
+        image: '/TrendsThumbnails/SkyFall.webp',
         tags: ['Cinematic', 'Viral', 'Dramatic'],
         imagePrompts: [
             // Prompt 1

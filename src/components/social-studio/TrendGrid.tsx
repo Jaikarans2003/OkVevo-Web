@@ -85,10 +85,10 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void })
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
                 <div className="space-y-4">
                     <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-white">
-                        Trending <span className="text-white/20">Studio</span>
+                        Trend <span className="text-white/20">Studio</span>
                     </h2>
                     <p className="text-white/40 text-[10px] font-black uppercase tracking-widest shrink-0">
-                        Showing {filteredTrends.length} of {TREND_DEFINITIONS.length} Presets
+                        Showing {filteredTrends.length} of {TREND_DEFINITIONS.length}
                     </p>
                 </div>
 
@@ -118,7 +118,7 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void })
             {/* Trends Row */}
             <div className="space-y-8 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#FF0080] flex items-center gap-3">
+                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-orange-500 flex items-center gap-3">
                         <Play size={14} fill="currentColor" />
                         Available Trends
                     </h3>
