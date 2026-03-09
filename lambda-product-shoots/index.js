@@ -202,7 +202,7 @@ async function generateProductShoot(masterPrompt, productImage = null) {
 /**
  * Process a single Product Shoot photo generation job.
  */
-async function processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName) {
+async function processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution, aspectRatio) {
     console.log(`\n${'═'.repeat(50)}`);
     console.log(`📸 Processing Product Shoot: ${jobId}`);
     console.log(`🎯 Shot: ${shotName || 'Unknown'}`);
@@ -256,7 +256,7 @@ exports.handler = async (event) => {
                     continue;
                 }
 
-                await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName);
+                await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution, aspectRatio);
             }
 
             return { statusCode: 200, body: 'Product shoots SQS processing complete' };

@@ -214,7 +214,7 @@ async function generateWithNanoBanana(masterPrompt, heroImage = null, sceneImage
 /**
  * Process a single placement job.
  */
-async function processPlacementJob(jobId, masterPrompt, heroImageUrl = null, sceneImageUrl = null) {
+async function processPlacementJob(jobId, masterPrompt, heroImageUrl = null, sceneImageUrl = null, resolution, aspectRatio) {
     console.log(`\n${'═'.repeat(50)}`);
     console.log(`Processing placement job: ${jobId}`);
     console.log(`${'═'.repeat(50)}`);
@@ -273,7 +273,7 @@ exports.handler = async (event) => {
                     continue;
                 }
 
-                await processPlacementJob(jobId, masterPrompt, heroImageUrl, sceneImageUrl);
+                await processPlacementJob(jobId, masterPrompt, heroImageUrl, sceneImageUrl, resolution, aspectRatio);
             }
 
             return { statusCode: 200, body: 'SQS processing complete' };
