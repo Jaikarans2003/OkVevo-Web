@@ -10,8 +10,9 @@
  */
 
 import { analyzeProductAndScene, refineComposition, fileToBase64 } from './VisionOrchestratorService';
-import { storage } from '../config/firebase';
+import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'uploading' | 'compositing' | 'polling' | 'complete' | 'error';
 
@@ -21,6 +22,22 @@ export interface PlacementJobResult {
     compositeImageUrl?: string;
     error?: string;
 }
+
+export interface PlacementJob {
+    jobId: string;
+    userId: string;
+    status: PlacementJobStatus;
+    masterPrompt: string;
+    heroImageUrl?: string;
+    sceneImageUrl?: string;
+    outputUrl?: string;
+    resolution?: string;
+    aspectRatio?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+const COLLECTION = 'placementJobs';
 
 /**
  * Generate a unique placement job ID
@@ -68,6 +85,22 @@ const dispatchToSQS = async (
     resolution?: string,
     aspectRatio?: string
 ): Promise<void> => {
+    // Create Firestore document for history tracking
+    const jobDoc: PlacementJob = {
+        jobId,
+        userId,
+        status: 'compositing',
+        masterPrompt,
+        heroImageUrl: heroImageUrl || undefined,
+        sceneImageUrl: sceneImageUrl || undefined,
+        resolution,
+        aspectRatio,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+    };
+    await setDoc(doc(db, COLLECTION, jobId), jobDoc);
+    console.log(`📝 Firestore doc created: ${COLLECTION}/${jobId}`);
+
     const res = await fetch('/api/product-placement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +188,8 @@ export const runPlacementPipeline = async (
     onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
     userPrompt?: string,
     resolution?: string,
-    aspectRatio?: string
+    aspectRatio?: string,
+    userId?: string
 ): Promise<PlacementJobResult> => {
     const jobId = generatePlacementJobId();
 
@@ -189,12 +223,23 @@ export const runPlacementPipeline = async (
         // ── Step 3: Dispatch job to SQS ─────────────────────────
         onStatusChange('compositing', 'Dispatching composite render job...');
 
-        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, 'demo-user', resolution, aspectRatio);
+        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, userId || 'demo-user', resolution, aspectRatio);
 
         // ── Step 4: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
 
         const compositeImageUrl = await pollForCompositeImage(jobId, onStatusChange);
+
+        // Update Firestore document with result
+        try {
+            await setDoc(doc(db, COLLECTION, jobId), {
+                status: 'complete',
+                outputUrl: compositeImageUrl,
+                updatedAt: Timestamp.now(),
+            }, { merge: true });
+        } catch (e) {
+            console.warn('Failed to update Firestore doc:', e);
+        }
 
         onStatusChange('complete');
         return {
@@ -206,6 +251,18 @@ export const runPlacementPipeline = async (
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         onStatusChange('error', msg);
+        
+        // Update Firestore document with error
+        try {
+            await setDoc(doc(db, COLLECTION, jobId), {
+                status: 'error',
+                error: msg,
+                updatedAt: Timestamp.now(),
+            }, { merge: true });
+        } catch (e) {
+            console.warn('Failed to update Firestore doc:', e);
+        }
+        
         return { status: 'error', error: msg };
     }
 };

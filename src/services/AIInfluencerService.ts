@@ -4,6 +4,9 @@
  * Client-side service for dispatching AI Influencer jobs and polling for results.
  */
 
+import { db } from '../config/firebase';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+
 export interface AIInfluencerJobRequest {
     jobId: string;
     userId?: string;
@@ -39,6 +42,24 @@ export interface AIInfluencerJobStatus {
     updatedAt?: Date;
 }
 
+export interface AIInfluencerJob {
+    jobId: string;
+    userId: string;
+    status: 'pending' | 'generating-script' | 'generating-audio' | 'generating-lipsync' | 'complete' | 'error';
+    topic: string;
+    duration: number;
+    gender: 'male' | 'female';
+    script?: string;
+    avatarUrl: string;
+    photoUrl?: string;
+    finalVideoUrl?: string;
+    errorMessage?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+const COLLECTION = 'aiInfluencerJobs';
+
 /**
  * Generate a unique job ID
  */
@@ -59,6 +80,23 @@ export const dispatchAIInfluencerJob = async (
         if (!request.jobId || !request.topic || !request.duration || !request.gender || !request.avatarUrl) {
             throw new Error('Missing required fields: jobId, topic, duration, gender, avatarUrl');
         }
+
+        // Create Firestore document for history tracking
+        const jobDoc: AIInfluencerJob = {
+            jobId: request.jobId,
+            userId: request.userId || 'anonymous',
+            status: 'pending',
+            topic: request.topic,
+            duration: request.duration,
+            gender: request.gender,
+            script: request.script,
+            avatarUrl: request.avatarUrl,
+            photoUrl: request.photoUrl,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        };
+        await setDoc(doc(db, COLLECTION, request.jobId), jobDoc);
+        console.log(`📝 Firestore doc created: ${COLLECTION}/${request.jobId}`);
 
         console.log('🎬 Dispatching AI Influencer job:', {
             jobId: request.jobId,

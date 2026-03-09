@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import SubscriptionGuard from '@/components/SubscriptionGuard';
+import { useAuth } from '@/hooks/useAuth';
 
 import { AILoader } from '@/components/ui/ai-loader';
 import {
@@ -117,6 +118,7 @@ function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc:
 
 function ProductStudio() {
     const pathname = usePathname();
+    const { userProfile } = useAuth();
     const [prompt, setPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
@@ -220,7 +222,8 @@ function ProductStudio() {
             },
             placementPrompt || undefined,
             resolution,
-            aspectRatio
+            aspectRatio,
+            userProfile?.uid
         );
 
         setIsGenerating(false);
@@ -231,7 +234,7 @@ function ProductStudio() {
             setIsComposed(true);
             setChatMessages([{ role: 'assistant', content: "Initial composition complete. How would you like to refine the image?" }]);
         }
-    }, [productImage, sceneImage, placementPrompt]);
+    }, [productImage, sceneImage, placementPrompt, resolution, aspectRatio, userProfile]);
 
     const handleSendChatMessage = async () => {
         if (!chatInput.trim() || !compositeImageUrl) return;
@@ -281,11 +284,12 @@ function ProductStudio() {
                 setGeneratedShots([...photos]);
             },
             resolution,
-            aspectRatio
+            aspectRatio,
+            userProfile?.uid
         );
 
         setIsGenerating(false);
-    }, [productImage, shootScenario]);
+    }, [productImage, shootScenario, resolution, aspectRatio, userProfile]);
 
     return (
         <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">

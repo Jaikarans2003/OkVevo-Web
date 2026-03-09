@@ -8,8 +8,9 @@
  *  4. Poll Firebase Storage for generated shot results
  */
 
-import { storage } from '../config/firebase';
+import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -30,6 +31,23 @@ export interface ShootPipelineResult {
     photos: ShootPhoto[];
     error?: string;
 }
+
+export interface ProductShootsJob {
+    jobId: string;
+    userId: string;
+    status: ShootJobStatus;
+    masterPrompt: string;
+    productImageUrl: string;
+    outputUrl?: string;
+    outputPath: string;
+    shotName: string;
+    resolution?: string;
+    aspectRatio?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+const COLLECTION = 'productShootsJobs';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -114,9 +132,27 @@ const dispatchShootJob = async (
     outputPath: string,
     shotName: string,
     resolution?: string,
-    aspectRatio?: string
+    aspectRatio?: string,
+    userId?: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
+        // Create Firestore document for history tracking
+        const jobDoc: ProductShootsJob = {
+            jobId,
+            userId: userId || 'anonymous',
+            status: 'dispatching',
+            masterPrompt,
+            productImageUrl,
+            outputPath,
+            shotName,
+            resolution,
+            aspectRatio,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        };
+        await setDoc(doc(db, COLLECTION, jobId), jobDoc);
+        console.log(`📝 Firestore doc created: ${COLLECTION}/${jobId}`);
+
         const res = await fetch('/api/sqs/product-shoots', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -127,7 +163,8 @@ const dispatchShootJob = async (
                 outputPath,
                 shotName,
                 resolution,
-                aspectRatio
+                aspectRatio,
+                userId
             }),
         });
 
@@ -184,7 +221,8 @@ export const runShootsPipeline = async (
     onStatusChange: (status: ShootJobStatus, detail?: string) => void,
     onPhotoUpdate: (photos: ShootPhoto[]) => void,
     resolution?: string,
-    aspectRatio?: string
+    aspectRatio?: string,
+    userId?: string
 ): Promise<ShootPipelineResult> => {
     const baseJobId = generateShootJobId();
 
@@ -222,7 +260,8 @@ export const runShootsPipeline = async (
                 outputPath,
                 photo.shotName,
                 resolution,
-                aspectRatio
+                aspectRatio,
+                userId
             );
 
             photo.status = result.success ? 'dispatched' : 'error';
@@ -246,10 +285,32 @@ export const runShootsPipeline = async (
                     photo.imageUrl = imageUrl;
                     photo.status = 'complete';
                     onPhotoUpdate([...photos]);
+
+                    // Update Firestore document with result
+                    try {
+                        await setDoc(doc(db, COLLECTION, photo.jobId), {
+                            status: 'complete',
+                            outputUrl: imageUrl,
+                            updatedAt: Timestamp.now(),
+                        }, { merge: true });
+                    } catch (e) {
+                        console.warn('Failed to update Firestore doc:', e);
+                    }
                 } catch (error) {
                     photo.status = 'error';
                     photo.error = error instanceof Error ? error.message : 'Polling failed';
                     onPhotoUpdate([...photos]);
+
+                    // Update Firestore document with error
+                    try {
+                        await setDoc(doc(db, COLLECTION, photo.jobId), {
+                            status: 'error',
+                            error: photo.error,
+                            updatedAt: Timestamp.now(),
+                        }, { merge: true });
+                    } catch (e) {
+                        console.warn('Failed to update Firestore doc:', e);
+                    }
                 }
             })
         );
