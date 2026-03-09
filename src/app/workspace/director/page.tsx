@@ -29,10 +29,14 @@ import {
     ImageIcon,
     Upload,
     RefreshCw,
+    UserCircle2,
+    PlusCircle,
+    XCircle,
+    ImagePlus,
 } from 'lucide-react';
 import { useDirectorFlow } from '../../../hooks/useDirectorFlow';
 import type { CharacterSheet, GeneratedPhoto } from '../../../hooks/useDirectorFlow';
-import { UserCircle2, PlusCircle, XCircle, ImagePlus } from 'lucide-react';
+import SubscriptionGuard from '@/components/SubscriptionGuard';
 
 // ── Pipeline progress component ────────────────────────────────────────────────
 const PIPELINE_STEPS = [
@@ -215,7 +219,7 @@ function PhotoCard({
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export default function DirectorWorkstation() {
+function DirectorWorkstation() {
     const {
         messages,
         currentState,
@@ -764,5 +768,14 @@ export default function DirectorWorkstation() {
                 </div>
             </main>
         </div>
+    );
+}
+
+// Export wrapped with SubscriptionGuard
+export default function DirectorPage() {
+    return (
+        <SubscriptionGuard>
+            <DirectorWorkstation />
+        </SubscriptionGuard>
     );
 }

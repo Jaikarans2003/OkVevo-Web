@@ -144,7 +144,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         onClick={onJoinClick}
                         className="btn-premium px-10 py-5"
                     >
-                        Get started for free
+                        Get started
                     </button>
                     <button
                         className="btn-outline-pro px-10 py-5 flex items-center gap-2 group text-white border-white/20 hover:border-accent-orange"

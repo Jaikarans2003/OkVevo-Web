@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
+import SubscriptionGuard from '@/components/SubscriptionGuard';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
@@ -63,7 +64,7 @@ function getStepIndex(step: ChatStep) {
 }
 
 // ─── Component ─────────────────────────────────────────────
-export default function AIInfluencerPage() {
+function AIInfluencerWorkstation() {
     const [user, setUser] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'explainers' | 'motion-control'>('explainers');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -931,5 +932,14 @@ export default function AIInfluencerPage() {
                 )}
             </main>
         </section>
+    );
+}
+
+// Export wrapped with SubscriptionGuard
+export default function AIInfluencerPage() {
+    return (
+        <SubscriptionGuard>
+            <AIInfluencerWorkstation />
+        </SubscriptionGuard>
     );
 }

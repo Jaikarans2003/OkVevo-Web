@@ -12,7 +12,7 @@ export const SUBSCRIPTION_PLANS = {
     hobby: {
         planId: 'plan_SNpxmbrt70Tq44',
         name: 'Hobby Plan',
-        price: 4999, // in paise (₹49.99)
+        price: 499900, // in paise (₹49.99)
         currency: 'INR',
         period: 'monthly',
         interval: 1,
@@ -20,7 +20,7 @@ export const SUBSCRIPTION_PLANS = {
     pro: {
         planId: 'plan_SO0vfKLWrlc5Wh',
         name: 'Pro Plan',
-        price: 13999, // in paise (₹139.99) - managed by Razorpay
+        price: 139900, // in paise (₹1399) - managed by Razorpay
         currency: 'INR',
         period: 'monthly',
         interval: 1,

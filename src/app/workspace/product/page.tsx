@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
+import SubscriptionGuard from '@/components/SubscriptionGuard';
 
 import { AILoader } from '@/components/ui/ai-loader';
 import {
@@ -114,7 +115,7 @@ function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc:
     );
 }
 
-export default function ProductStudio() {
+function ProductStudio() {
     const pathname = usePathname();
     const [prompt, setPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -940,5 +941,14 @@ export default function ProductStudio() {
                 </div>
             </footer> */}
         </div>
+    );
+}
+
+// Export wrapped with SubscriptionGuard
+export default function ProductPage() {
+    return (
+        <SubscriptionGuard>
+            <ProductStudio />
+        </SubscriptionGuard>
     );
 }
