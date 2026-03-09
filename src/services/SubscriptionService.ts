@@ -33,49 +33,72 @@ export interface SubscriptionWithPlanDetails extends SubscriptionData {
 
 /**
  * Fetch user's subscription from Firestore
+ * 
+ * ⚠️ TESTING MODE: Bypassing payment checks - all users have active premium subscription
  */
 export async function getUserSubscription(userId: string): Promise<SubscriptionWithPlanDetails | null> {
     if (!userId) return null;
 
-    try {
-        const docRef = doc(db, 'subscriptions', userId);
-        const docSnap = await getDoc(docRef);
+    // 🔓 BYPASS FOR TESTING: Return mock active subscription for all users
+    const mockSubscription: SubscriptionWithPlanDetails = {
+        userId,
+        planType: 'pro',
+        subscriptionId: 'test_subscription_bypass',
+        status: 'active',
+        planDetails: {
+            name: SUBSCRIPTION_PLANS.pro.name,
+            price: SUBSCRIPTION_PLANS.pro.price,
+            currency: SUBSCRIPTION_PLANS.pro.currency,
+            period: SUBSCRIPTION_PLANS.pro.period,
+            interval: SUBSCRIPTION_PLANS.pro.interval,
+        },
+        nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+    };
+    
+    console.log('🔓 TESTING MODE: Bypassing subscription check for user:', userId);
+    return mockSubscription;
 
-        if (!docSnap.exists()) {
-            return null;
-        }
+    // /* ORIGINAL CODE - COMMENTED OUT FOR TESTING
+    // try {
+    //     const docRef = doc(db, 'subscriptions', userId);
+    //     const docSnap = await getDoc(docRef);
 
-        const data = docSnap.data() as SubscriptionData;
-        const planDetails = SUBSCRIPTION_PLANS[data.planType];
+    //     if (!docSnap.exists()) {
+    //         return null;
+    //     }
+
+    //     const data = docSnap.data() as SubscriptionData;
+    //     const planDetails = SUBSCRIPTION_PLANS[data.planType];
 
         // Calculate next billing date (approximate - 1 month from last payment or creation)
-        let nextBillingDate: Date | undefined;
-        if (data.lastPaymentDate) {
-            nextBillingDate = new Date(data.lastPaymentDate.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        } else if (data.activatedAt) {
-            nextBillingDate = new Date(data.activatedAt.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        } else if (data.createdAt) {
-            nextBillingDate = new Date(data.createdAt.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        }
+    //     let nextBillingDate: Date | undefined;
+    //     if (data.lastPaymentDate) {
+    //         nextBillingDate = new Date(data.lastPaymentDate.toDate());
+    //         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+    //     } else if (data.activatedAt) {
+    //         nextBillingDate = new Date(data.activatedAt.toDate());
+    //         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+    //     } else if (data.createdAt) {
+    //         nextBillingDate = new Date(data.createdAt.toDate());
+    //         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+    //     }
 
-        return {
-            ...data,
-            planDetails: {
-                name: planDetails.name,
-                price: planDetails.price,
-                currency: planDetails.currency,
-                period: planDetails.period,
-                interval: planDetails.interval,
-            },
-            nextBillingDate,
-        };
-    } catch (error) {
-        console.error('Failed to fetch subscription:', error);
-        throw error;
-    }
+    //     return {
+    //         ...data,
+    //         planDetails: {
+    //             name: planDetails.name,
+    //             price: planDetails.price,
+    //             currency: planDetails.currency,
+    //             period: planDetails.period,
+    //             interval: planDetails.interval,
+    //         },
+    //         nextBillingDate,
+    //     };
+    // } catch (error) {
+    //     console.error('Failed to fetch subscription:', error);
+    //     throw error;
+    // }
+    
 }
 
 /**

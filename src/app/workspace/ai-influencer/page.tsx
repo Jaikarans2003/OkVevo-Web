@@ -123,10 +123,10 @@ function AIInfluencerWorkstation() {
     // Auto-save messages & step whenever they change
     useEffect(() => {
         if (!sessionId || chatMessages.length === 0) return;
-        saveSession(
-            { chatStep, finalVideoUrl, audioUrl: audioUrl ?? undefined },
-            chatMessages,
-        );
+        const state: Record<string, any> = { chatStep };
+        if (finalVideoUrl) state.finalVideoUrl = finalVideoUrl;
+        if (audioUrl) state.audioUrl = audioUrl;
+        saveSession(state, chatMessages);
     }, [chatMessages, chatStep]);
 
     // ── Auto-scroll chat ─────────────────────────────────

@@ -47,6 +47,7 @@ export async function getUserHistory(userId: string, maxResults: number = 50): P
             );
 
             const snapshot = await getDocs(q);
+            console.log(`📊 Fetched ${snapshot.size} documents from ${name} (${type})`);
             const gens: UserGeneration[] = [];
 
             snapshot.forEach(doc => {
@@ -72,6 +73,13 @@ export async function getUserHistory(userId: string, maxResults: number = 50): P
                     title = data.topic || 'AI Influencer Video';
                     videoUrl = data.finalVideoUrl || '';
                     thumbnailUrl = data.avatarUrl || '';
+                    console.log(`📹 AI Influencer found: ${doc.id}`, {
+                        topic: data.topic,
+                        status: data.status,
+                        finalVideoUrl: data.finalVideoUrl,
+                        avatarUrl: data.avatarUrl,
+                        createdAt: createdAtDate
+                    });
                 } else if (type === 'DIRECTOR_PHOTOS') {
                     title = data.masterPrompt?.substring(0, 40) + '...' || 'Director Photo';
                     imageUrl = data.outputUrl || '';

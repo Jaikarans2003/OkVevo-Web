@@ -127,7 +127,18 @@ export async function updateWorkspaceSession(
     };
     if (patch.title !== undefined) updateData.title = patch.title.substring(0, 80);
     if (patch.preview !== undefined) updateData.preview = patch.preview.substring(0, 120);
-    if (patch.state !== undefined) updateData.state = patch.state;
+    
+    // Filter out undefined values from state to prevent Firestore errors
+    if (patch.state !== undefined) {
+        const cleanedState: Record<string, any> = {};
+        Object.entries(patch.state).forEach(([key, value]) => {
+            if (value !== undefined) {
+                cleanedState[key] = value;
+            }
+        });
+        updateData.state = cleanedState;
+    }
+    
     if (patch.messages !== undefined) updateData.messages = patch.messages;
 
     await updateDoc(ref, updateData);
