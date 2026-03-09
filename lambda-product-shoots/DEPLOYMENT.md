@@ -256,7 +256,7 @@ You should now see **three separate resources** in your AWS account:
 │                                                              │
 │   1. Parse SQS message (jobId, masterPrompt, productImageUrl)│
 │   2. Download product image from Firebase Storage            │
-│   3. Call NANOBANANA PRO (Gemini gemini-3-pro-image-preview) │
+│   3. Call NANOBANANA PRO (Gemini gemini-3.1-flash-image-preview) │
 │      with master prompt + product image attached             │
 │   4. Upload result → ProductShoots/{jobId}-shot-{n}.png      │
 └──────────────────────────────────────────────────────────────┘

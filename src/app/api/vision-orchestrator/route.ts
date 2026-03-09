@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
         // ── Determine mode: initial composition vs. refinement ──
         const isRefinement = (!!referenceImageBase64 || !!referenceImageUrl) && !!refinementPrompt;
 
-        if (!isRefinement && (!heroImageBase64 || !sceneImageBase64)) {
+        if (!isRefinement && (!heroImageBase64 || !sceneImageBase64 || !userPrompt)) {
             return NextResponse.json(
-                { success: false, error: 'Provide hero+scene images for initial composition, or referenceImage+refinementPrompt for refinement' },
+                { success: false, error: 'Provide hero+scene images AND userPrompt for initial composition, or referenceImage+refinementPrompt for refinement' },
                 { status: 400 }
             );
         }
@@ -145,7 +145,7 @@ async function callGroq(apiKey: string, heroUrl: string, sceneUrl: string, userP
                         {
                             role: 'user',
                             content: [
-                                ...(userPrompt ? [{ type: 'text' as const, text: `The user has provided these placement instructions: "${userPrompt}". Incorporate these instructions into the Master Prompt.` }] : []),
+                                { type: 'text' as const, text: `The user has provided these placement instructions: "${userPrompt}". Incorporate these instructions into the Master Prompt.` },
                                 { type: 'text', text: 'Image 1 — The Hero Product:' },
                                 { type: 'image_url', image_url: { url: heroUrl } },
                                 { type: 'text', text: 'Image 2 — The Scene / Ambience:' },
@@ -181,7 +181,7 @@ async function callGroq(apiKey: string, heroUrl: string, sceneUrl: string, userP
 }
 
 // ── Gemini Fallback ─────────────────────────────────────────────
-async function callGemini(apiKey: string, heroB64: string, sceneB64: string, userPrompt?: string): Promise<string> {
+async function callGemini(apiKey: string, heroB64: string, sceneB64: string, userPrompt: string): Promise<string> {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
@@ -208,7 +208,7 @@ async function callGemini(apiKey: string, heroB64: string, sceneB64: string, use
 
             const result = await model.generateContent([
                 { text: VISION_ORCHESTRATOR_SYSTEM_PROMPT },
-                ...(userPrompt ? [{ text: `The user has provided these placement instructions: "${userPrompt}". Incorporate these instructions into the Master Prompt.` }] : []),
+                { text: `The user has provided these placement instructions: "${userPrompt}". Incorporate these instructions into the Master Prompt.` },
                 { text: 'Image 1 — The Hero Product:' },
                 { inlineData: { mimeType: hero.mimeType, data: hero.data } },
                 { text: 'Image 2 — The Scene / Ambience:' },

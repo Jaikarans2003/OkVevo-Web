@@ -491,22 +491,28 @@ function ProductStudio() {
                                         </div>
                                     </div>
 
-                                    {/* Initial Instructions Prompt */}
+                                    {/* Initial Instructions Prompt - REQUIRED */}
                                     <div className="space-y-1.5">
-                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest">Initial Instructions</label>
+                                        <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
+                                            Initial Instructions <span className="text-red-400">*</span>
+                                        </label>
                                         <textarea
                                             value={placementPrompt}
                                             onChange={(e) => setPlacementPrompt(e.target.value)}
                                             placeholder="e.g. Place bottle on marble with soft light..."
                                             className="w-full h-20 bg-[#0A0A0A] border border-white/10 rounded-xl p-3 text-[11px] text-white focus:border-white/30 outline-none transition-colors placeholder-white/20 resize-none leading-relaxed"
+                                            required
                                         />
+                                        {!placementPrompt.trim() && (
+                                            <p className="text-[8px] text-red-400/70">Required: Describe how you want the product placed</p>
+                                        )}
                                     </div>
 
                                     {/* Generate Button */}
                                     <button
                                         onClick={handlePlacementGenerate}
-                                        disabled={isGenerating || !productImage || !sceneImage}
-                                        className={`w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50' : !productImage || !sceneImage ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-xl hover:scale-[1.01]'}`}
+                                        disabled={isGenerating || !productImage || !sceneImage || !placementPrompt.trim()}
+                                        className={`w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isGenerating ? 'bg-white/10 text-white/50' : !productImage || !sceneImage || !placementPrompt.trim() ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-[#e0e0e0] shadow-xl hover:scale-[1.01]'}`}
                                     >
                                         {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                                         {isGenerating ? 'Processing...' : 'Composite Image'}
