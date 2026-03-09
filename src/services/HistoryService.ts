@@ -21,7 +21,7 @@ const COLLECTIONS: Array<{ name: string; type: GenerationType; isSubcollection?:
     { name: 'aiInfluencerJobs', type: 'AI_INFLUENCER', isSubcollection: true },
     { name: 'directorPhotosJobs', type: 'DIRECTOR_PHOTOS' },
     { name: 'productShootsJobs', type: 'PRODUCT_SHOOTS' },
-    { name: 'trendGenerations', type: 'TRENDS', isSubcollection: true },
+    { name: 'trendGenerations', type: 'TRENDS' },
     { name: 'placementJobs', type: 'PRODUCT_PLACEMENT' },
 ];
 

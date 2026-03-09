@@ -66,20 +66,11 @@ function initializeFirebase() {
 
 const TREND_COLLECTION = 'trendGenerations';
 
-async function updateTrendDoc(docId, userId, fields) {
+async function updateTrendDoc(docId, fields) {
     try {
         const firestore = admin.firestore();
-        // Store in user-specific subcollection: users/{userId}/trendGenerations/{docId}
-        await firestore
-            .collection('users')
-            .doc(userId)
-            .collection(TREND_COLLECTION)
-            .doc(docId)
-            .set({
-                ...fields,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
-        console.log(`📝 Firestore updated: users/${userId}/${TREND_COLLECTION}/${docId} →`, Object.keys(fields));
+        await firestore.collection(TREND_COLLECTION).doc(docId).update(fields);
+        console.log(`📝 Firestore updated: ${docId} →`, Object.keys(fields));
     } catch (err) {
         console.warn(`⚠️ Firestore update failed for ${docId}:`, err.message);
     }
@@ -195,7 +186,7 @@ function klingRequest(method, path, body = null) {
 // NANOBANANA PRO (Image Generation)
 // ────────────────────────────────────────────────────
 
-async function generateTrendImage(masterPrompt, personImage = null, faceReferenceImage = null) {
+async function generateTrendImageCore(masterPrompt, personImage = null, faceReferenceImage = null) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY environment variable not set');
@@ -281,6 +272,9 @@ async function generateTrendImage(masterPrompt, personImage = null, faceReferenc
     return Buffer.from(imageBase64, 'base64');
 }
 
+// Alias for backward compatibility
+const generateTrendImage = generateTrendImageCore;
+
 // ────────────────────────────────────────────────────
 // Fal AI API Helpers (Kling via Fal)
 // ────────────────────────────────────────────────────
@@ -303,7 +297,7 @@ function initializeFalClient() {
  * Supports optional end frame for start-to-end transitions.
  * Used for Video 1 (transition video).
  */
-async function generateKlingVideo(imageUrl, prompt, duration = 5, endFrameUrl = null) {
+async function generateKlingVideoCore(imageUrl, prompt, duration = 5, endFrameUrl = null) {
     console.log('\n🎥 Generating Kling v2.6 Pro video via Fal AI SDK...');
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
@@ -315,7 +309,7 @@ async function generateKlingVideo(imageUrl, prompt, duration = 5, endFrameUrl = 
     const input = {
         prompt: prompt,
         start_image_url: imageUrl,
-        duration: duration === 10 ? '10' : '5',
+        duration: duration === 10 ? '10' : duration === 5 ? '5' : '3', // Map 2s to 3s (Kling minimum)
         negative_prompt: 'blur, distort, and low quality',
         generate_audio: false,
     };
@@ -363,20 +357,23 @@ async function generateKlingVideo(imageUrl, prompt, duration = 5, endFrameUrl = 
     return videoUrl;
 }
 
+// Alias for backward compatibility
+const generateKlingVideo = generateKlingVideoCore;
+
 /**
  * Generate video using Grok Imagine Video (xai) via Fal AI SDK.
  * Used for Videos 2-4 (levitation videos).
  * Strictly 3 seconds duration.
  */
-async function generateGrokVideo(imageUrl, prompt) {
+async function generateGrokVideoCore(imageUrl, prompt, duration = 3) {
     console.log('\n🎥 Generating Grok Imagine Video (xai) via Fal AI SDK...');
     console.log(`📝 Video prompt: ${prompt}`);
-    console.log(`⏱️ Duration: 3s (strict)`);
+    console.log(`⏱️ Duration: ${duration}s`);
     console.log(`🖼️ Source image: ${imageUrl}`);
 
     const input = {
         prompt: prompt,
-        duration: 3,
+        duration: duration,
         aspect_ratio: '9:16',
         resolution: '720p',
         image_url: imageUrl,
@@ -416,6 +413,8 @@ async function generateGrokVideo(imageUrl, prompt) {
     return videoUrl;
 }
 
+// Alias for backward compatibility
+const generateGrokVideo = (imageUrl, prompt, duration = 3) => generateGrokVideoCore(imageUrl, prompt, duration);
 
 /**
  * Download video from URL and return as Buffer.
@@ -462,9 +461,9 @@ async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, v
     if (videoIndex === 0) {
         videoUrl = await generateKlingVideo(sourceImageUrl, videoPrompt, videoDuration, endImageUrl);
     }
-    // Videos 2-4 (index 1-3): Use Grok for 3-second levitation
+    // Videos 2-4 (index 1-3): Use Grok for levitation with specified duration
     else {
-        videoUrl = await generateGrokVideo(sourceImageUrl, videoPrompt);
+        videoUrl = await generateGrokVideo(sourceImageUrl, videoPrompt, videoDuration);
     }
 
     console.log('📥 Downloading generated video...');
@@ -520,7 +519,6 @@ async function dispatchStitchJob(jobId, videoUrls, audioUrl) {
 async function processTrendPipeline(body) {
     const {
         jobId,
-        userId,
         trendId,
         personImageUrl,
         faceImageUrl,
@@ -552,12 +550,15 @@ async function processTrendPipeline(body) {
     }
 
     // ── Phase 1: Generate all images ────────────────────────────
-    await updateTrendDoc(jobId, userId, { status: 'generating-images' });
-    const imageUrls = [];
+    await updateTrendDoc(jobId, { status: 'generating-images' });
+    const imageUrls = new Array(imagePrompts.length).fill(null);
 
-    for (let i = 0; i < imagePrompts.length; i++) {
-        console.log(`\n📸 Image ${i + 1}/${imagePrompts.length} (index ${i})`);
+    // Helper function to generate a single image with retry
+    const generateSingleImage = async (i, retryCount = 0, maxRetries = 2) => {
+        const retryPrefix = retryCount > 0 ? `🔄 RETRY ${retryCount}/${maxRetries} - ` : '';
+        console.log(`\n${retryPrefix}📸 Image ${i + 1}/${imagePrompts.length} (index ${i})`);
         console.log(`   Output path: ${imageOutputPaths[i]}`);
+        
         try {
             // Determine reference image based on sourceImageIndex and useFaceReference
             let refBuffer = personBuffer; // Default to user's full body photo
@@ -601,8 +602,8 @@ async function processTrendPipeline(body) {
             );
 
             const url = result.publicUrl;
-            imageUrls.push(url);
-            console.log(`   ✅ Stored at imageUrls[${imageUrls.length - 1}]: ${url}`);
+            imageUrls[i] = url;
+            console.log(`   ✅ SUCCESS - Stored at imageUrls[${i}]: ${url}`);
 
             // Update Firestore — set this image slot's url
             const firestore = admin.firestore();
@@ -615,14 +616,29 @@ async function processTrendPipeline(body) {
                     await docRef.update({ images });
                 }
             }
+            return true;
         } catch (err) {
-            console.error(`❌ Image ${i} (index ${i}) FAILED`);
+            console.error(`❌ Image ${i + 1} (index ${i}) FAILED - Attempt ${retryCount + 1}/${maxRetries + 1}`);
+            console.error(`   Error type: ${err.name}`);
             console.error(`   Error message: ${err.message}`);
             console.error(`   Error stack: ${err.stack}`);
-            console.error(`   Full error:`, err);
-            imageUrls.push(null);
-            console.log(`   ⚠️ Pushed null to imageUrls[${imageUrls.length - 1}]`);
+            
+            if (retryCount < maxRetries) {
+                const waitTime = 3000 * (retryCount + 1); // 3s, 6s
+                console.log(`   ⏳ Retrying image ${i + 1} in ${waitTime / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                return await generateSingleImage(i, retryCount + 1, maxRetries);
+            } else {
+                console.error(`   ❌ FINAL FAILURE - All ${maxRetries + 1} attempts exhausted for image ${i + 1}`);
+                imageUrls[i] = null;
+                return false;
+            }
         }
+    };
+
+    // Generate all images sequentially with individual retry
+    for (let i = 0; i < imagePrompts.length; i++) {
+        await generateSingleImage(i);
     }
 
     console.log(`\n📊 Image Generation Summary:`);
@@ -633,7 +649,7 @@ async function processTrendPipeline(body) {
     console.log(`\n✅ Images done: ${imageUrls.filter(Boolean).length}/${imagePrompts.length}`);
 
     // ── Phase 2: Generate all videos ────────────────────────────
-    await updateTrendDoc(jobId, userId, { status: 'generating-videos' });
+    await updateTrendDoc(jobId, { status: 'generating-videos' });
     const videoResultUrls = [];
 
     for (let i = 0; i < videoPrompts.length; i++) {
@@ -688,32 +704,55 @@ async function processTrendPipeline(body) {
             }
             console.log(`   ✅ Video ${i + 1} validation PASSED\n`);
         }
-        try {
-            const url = await generateAndUploadVideo(
-                prompt,
-                sourceImageUrl,
-                videoOutputPaths[i],
-                videoLength,
-                endImageUrl,
-                i  // Pass video index to determine which model to use
-            );
-            videoResultUrls.push(url);
+        // Helper function to generate a single video with retry
+        const generateSingleVideo = async (retryCount = 0, maxRetries = 2) => {
+            const retryPrefix = retryCount > 0 ? `🔄 RETRY ${retryCount}/${maxRetries} - ` : '';
+            console.log(`${retryPrefix}🎬 Generating video ${i + 1}...`);
+            
+            try {
+                const url = await generateAndUploadVideo(
+                    prompt,
+                    sourceImageUrl,
+                    videoOutputPaths[i],
+                    videoLength,
+                    endImageUrl,
+                    i  // Pass video index to determine which model to use
+                );
+                videoResultUrls.push(url);
+                console.log(`   ✅ SUCCESS - Video ${i + 1} generated: ${url}`);
 
-            // Update Firestore — set this video slot's url
-            const firestore = admin.firestore();
-            const docRef = firestore.collection(TREND_COLLECTION).doc(jobId);
-            const docSnap = await docRef.get();
-            if (docSnap.exists) {
-                const videos = docSnap.data().videos || [];
-                if (videos[i]) {
-                    videos[i].url = url;
-                    await docRef.update({ videos });
+                // Update Firestore — set this video slot's url
+                const firestore = admin.firestore();
+                const docRef = firestore.collection(TREND_COLLECTION).doc(jobId);
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    const videos = docSnap.data().videos || [];
+                    if (videos[i]) {
+                        videos[i].url = url;
+                        await docRef.update({ videos });
+                    }
+                }
+                return true;
+            } catch (err) {
+                console.error(`❌ Video ${i + 1} FAILED - Attempt ${retryCount + 1}/${maxRetries + 1}`);
+                console.error(`   Error type: ${err.name}`);
+                console.error(`   Error message: ${err.message}`);
+                console.error(`   Error stack: ${err.stack}`);
+                
+                if (retryCount < maxRetries) {
+                    const waitTime = 5000 * (retryCount + 1); // 5s, 10s
+                    console.log(`   ⏳ Retrying video ${i + 1} in ${waitTime / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    return await generateSingleVideo(retryCount + 1, maxRetries);
+                } else {
+                    console.error(`   ❌ FINAL FAILURE - All ${maxRetries + 1} attempts exhausted for video ${i + 1}`);
+                    videoResultUrls.push(null);
+                    return false;
                 }
             }
-        } catch (err) {
-            console.error(`❌ Video ${i} failed:`, err.message);
-            videoResultUrls.push(null);
-        }
+        };
+
+        await generateSingleVideo();
     }
 
     console.log(`\n✅ Videos done: ${videoResultUrls.filter(Boolean).length}/${videoPrompts.length}`);
@@ -721,7 +760,7 @@ async function processTrendPipeline(body) {
     // ── Phase 3: Dispatch stitch job ────────────────────────────
     const validVideoUrls = videoResultUrls.filter(Boolean);
     if (validVideoUrls.length >= 2) {
-        await updateTrendDoc(jobId, userId, { status: 'stitching' });
+        await updateTrendDoc(jobId, { status: 'stitching' });
 
         // Select audio based on trend ID
         let audioUrl;
@@ -737,7 +776,7 @@ async function processTrendPipeline(body) {
     } else {
         // Not enough videos to stitch — mark complete with what we have
         console.warn('⚠️ Not enough videos for stitching, marking complete');
-        await updateTrendDoc(jobId, userId, { status: 'complete' });
+        await updateTrendDoc(jobId, { status: 'complete' });
     }
 }
 
@@ -774,13 +813,10 @@ exports.handler = async (event) => {
                     }
                 } catch (jobError) {
                     console.error(`❌ Job ${jobId} failed:`, jobError);
-                    const { userId } = body;
-                    if (userId) {
-                        await updateTrendDoc(jobId, userId, {
-                            status: 'error',
-                            errorMessage: jobError.message || 'Generation failed',
-                        });
-                    }
+                    await updateTrendDoc(jobId, {
+                        status: 'error',
+                        errorMessage: jobError.message || 'Generation failed',
+                    });
                 }
             }
 

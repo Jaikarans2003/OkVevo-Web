@@ -15,7 +15,7 @@ export interface VideoPromptDef {
     /** Optional: Which generated image (0-indexed) to use as end frame */
     endImageIndex?: number;
     /** Optional: Video duration in seconds (overrides trend default) */
-    duration?: 3 | 5 | 10;
+    duration?: 2 | 3 | 5 | 10;
 }
 
 export interface ImagePromptDef {
@@ -80,7 +80,7 @@ Generate a close-up shot of the person's shoes/feet in the same sky scene. The f
             {
                 prompt: `CRITICAL: Use the EXACT same person and Objects from the reference image. Keep their hands, accessories, and clothing IDENTICAL. Do not change or hallucinate any details.
 
-Generate a close-up shot of the person's hands in the same sky scene. The hands and any accessories if Present must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the hands.`,
+Generate a close-up shot of the person's hand in the same sky scene. The hands and any accessories if Present must look EXACTLY like they do in the reference image. Only change the camera framing to focus on the hands.`,
                 sourceImageIndex: 0
             }
         ],
@@ -92,23 +92,23 @@ Generate a close-up shot of the person's hands in the same sky scene. The hands 
                 endImageIndex: 0,
                 duration: 5,
             },
-            // Video 2 (3 seconds)
+            // Video 2 (3 seconds) - Face close-up
             {
-                prompt: 'Levitate gently in place, Slowly. No horizontal movement, no camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
+                prompt: 'Levitating in the sky with gentle wind blowing through hair. Maintain the EXACT same facial expression and features. Hair flowing softly in the breeze. Subtle vertical floating motion. Smooth handheld camera, no sudden movements.',
                 sourceImageIndex: 2,
                 duration: 3,
             },
-            // Video 3 (3 seconds)
+            // Video 3 (3 seconds) - Legs/feet close-up
             {
-                prompt: 'Levitate gently in place, Slowly. No horizontal movement, Smooth Handheld camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
+                prompt: 'Close-up of person\'s legs and feet slowly moving while levitating in the sky. Gentle wind flowing around clothing and fabric. Legs moving subtly with natural floating motion. Smooth cinematic handheld camera movement, no zoom.',
                 sourceImageIndex: 3,
-                duration: 3,
+                duration: 2,
             },
-            // Video 4 (3 seconds)
+            // Video 4 (3 seconds) - Hand close-up
             {
-                prompt: 'Levitate gently in place, Slowly. No horizontal movement, no camera movement with No Sudden and Drastic Movements, no zoom. Handheld camera angle. Only vertical floating motion.',
+                prompt: 'Close-up of person\'s hand slowly moving while floating in the sky. Gentle wind blowing around fingers and accessories. Hand moving subtly with natural levitation motion. Handheld camera angle, no sudden movements.',
                 sourceImageIndex: 4,
-                duration: 3,
+                duration: 2,
             },
         ],
         videoDuration: 5,
