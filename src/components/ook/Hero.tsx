@@ -33,10 +33,10 @@ const services = [
 ];
 
 const offerings = [
-    { name: 'Script-to-Video', icon: '📝' },
+    { name: 'Script-to-Cinema', icon: '📝' },
     { name: 'Digital Avatars', icon: '👤' },
     { name: 'Product Studio', icon: '🛍️' },
-    { name: 'Scene Generation', icon: '🎬' },
+    { name: 'Social Trends', icon: '🎬' },
 ];
 
 const Hero = ({ onJoinClick }: HeroProps) => {
