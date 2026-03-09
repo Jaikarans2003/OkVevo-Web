@@ -202,9 +202,9 @@ export default function SessionHistorySidebar({
                                     exit={{ opacity: 0, x: -10 }}
                                     transition={{ duration: 0.15 }}
                                 >
-                                    <button
+                                    <div
                                         onClick={() => onSelectSession(session)}
-                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 group relative transition-colors ${isActive
+                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 group relative transition-colors cursor-pointer ${isActive
                                             ? `${accent.bg} border-r-2 ${accent.border.replace('border', 'border-r')}`
                                             : 'hover:bg-white/5 border-r-2 border-r-transparent'
                                             }`}
@@ -237,7 +237,7 @@ export default function SessionHistorySidebar({
                                                 <Trash2 size={10} />
                                             )}
                                         </button>
-                                    </button>
+                                    </div>
                                 </motion.div>
                             );
                         })}
