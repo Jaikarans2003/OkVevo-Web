@@ -17,12 +17,12 @@ export interface UserGeneration {
 }
 
 // Map each collection to its GenerationType and extract a helpful title
-const COLLECTIONS = [
-    { name: 'aiInfluencerJobs', type: 'AI_INFLUENCER' as GenerationType },
-    { name: 'directorPhotosJobs', type: 'DIRECTOR_PHOTOS' as GenerationType },
-    { name: 'productShootsJobs', type: 'PRODUCT_SHOOTS' as GenerationType },
-    { name: 'trendGenerations', type: 'TRENDS' as GenerationType },
-    { name: 'placementJobs', type: 'PRODUCT_PLACEMENT' as GenerationType }
+const COLLECTIONS: Array<{ name: string; type: GenerationType; isSubcollection?: boolean }> = [
+    { name: 'aiInfluencerJobs', type: 'AI_INFLUENCER', isSubcollection: true },
+    { name: 'directorPhotosJobs', type: 'DIRECTOR_PHOTOS' },
+    { name: 'productShootsJobs', type: 'PRODUCT_SHOOTS' },
+    { name: 'trendGenerations', type: 'TRENDS' },
+    { name: 'placementJobs', type: 'PRODUCT_PLACEMENT' },
 ];
 
 /**
@@ -34,20 +34,24 @@ export async function getUserHistory(userId: string, maxResults: number = 50): P
     let allGenerations: UserGeneration[] = [];
 
     // Run queries in parallel for performance
-    const queries = COLLECTIONS.map(async ({ name, type }) => {
+    const queries = COLLECTIONS.map(async ({ name, type, isSubcollection }) => {
         try {
-            const colRef = collection(db, name);
+            // For subcollections, query from users/{userId}/{collectionName}
+            // For regular collections, query from {collectionName} with userId filter
+            const colRef = isSubcollection 
+                ? collection(db, 'users', userId, name)
+                : collection(db, name);
+            
             // We'll limit per collection to ensure we get something from all if they exist,
             // then we sort/limit the merged result. 
             // NOTE: orderBy createdAt requires composite indexes if combined with where(). 
             // In many cases, it's safer to just fetch & sort client-side (or here) to avoid index errors on new collections.
-            const q = query(
-                colRef,
-                where('userId', '==', userId)
-            );
+            const q = isSubcollection
+                ? query(colRef) // No userId filter needed for subcollections
+                : query(colRef, where('userId', '==', userId));
 
             const snapshot = await getDocs(q);
-            console.log(`📊 Fetched ${snapshot.size} documents from ${name} (${type})`);
+            console.log(`📊 Fetched ${snapshot.size} documents from ${isSubcollection ? `users/${userId}/${name}` : name} (${type})`);
             const gens: UserGeneration[] = [];
 
             snapshot.forEach(doc => {
