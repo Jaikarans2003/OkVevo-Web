@@ -55,14 +55,20 @@ function initializeFirebase() {
 // Firestore Helpers
 // ────────────────────────────────────────────────────
 
-async function updateJobDoc(jobId, fields) {
+async function updateJobDoc(jobId, userId, fields) {
     try {
         const firestore = admin.firestore();
-        await firestore.collection(JOBS_COLLECTION).doc(jobId).set({
-            ...fields,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-        console.log(`📝 Firestore updated: ${jobId} →`, Object.keys(fields));
+        // Store in user-specific subcollection: users/{userId}/aiInfluencerJobs/{jobId}
+        await firestore
+            .collection('users')
+            .doc(userId)
+            .collection(JOBS_COLLECTION)
+            .doc(jobId)
+            .set({
+                ...fields,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        console.log(`📝 Firestore updated: users/${userId}/${JOBS_COLLECTION}/${jobId} →`, Object.keys(fields));
     } catch (err) {
         console.warn(`⚠️ Firestore update failed for ${jobId}:`, err.message);
     }
@@ -661,7 +667,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 // ────────────────────────────────────────────────────
 
 async function processLipSyncPipeline(body) {
-    const { jobId, avatarVideoUrl, audioUrl, imageTimeline } = body;
+    const { jobId, userId, avatarVideoUrl, audioUrl, imageTimeline } = body;
 
     console.log(`\n${'═'.repeat(60)}`);
     console.log(`🎬 LIPSYNC PIPELINE: ${jobId}`);
@@ -676,11 +682,11 @@ async function processLipSyncPipeline(body) {
     console.log(`${'═'.repeat(60)}`);
 
     // Phase 1: Generate LipSync Video with Fal AI
-    await updateJobDoc(jobId, { status: 'generating-lipsync' });
+    await updateJobDoc(jobId, userId, { status: 'generating-lipsync' });
     const lipSyncVideoUrl = await generateLipSyncVideo(avatarVideoUrl, audioUrl);
 
     // Phase 2: Download lip-synced video
-    await updateJobDoc(jobId, { status: 'downloading' });
+    await updateJobDoc(jobId, userId, { status: 'downloading' });
     const videoBuffer = await downloadFromUrl(lipSyncVideoUrl);
     const lipSyncPath = `/tmp/${jobId}-lipsync.mp4`;
     fs.writeFileSync(lipSyncPath, videoBuffer);
@@ -689,12 +695,12 @@ async function processLipSyncPipeline(body) {
     let finalPath = lipSyncPath;
 
     // Phase 2.5: Generate Subtitles (SRT) from the audio
-    await updateJobDoc(jobId, { status: 'generating-subtitles' });
+    await updateJobDoc(jobId, userId, { status: 'generating-subtitles' });
     const srtPath = await generateSubtitlesFromAudio(audioUrl, jobId);
 
     // Phase 3 (optional): Download images and composite
     if (imageTimeline && imageTimeline.length > 0) {
-        await updateJobDoc(jobId, { status: 'compositing' });
+        await updateJobDoc(jobId, userId, { status: 'compositing' });
 
         const validImages = imageTimeline.filter(img => img.imageUrl);
         const downloadedImages = [];
@@ -762,7 +768,7 @@ async function processLipSyncPipeline(body) {
     }
 
     // Phase 4: Upload to Firebase
-    await updateJobDoc(jobId, { status: 'uploading' });
+    await updateJobDoc(jobId, userId, { status: 'uploading' });
     const finalBuffer = fs.readFileSync(finalPath);
     const finalVideoPath = `AIInfluencer/${jobId}/final.mp4`;
     const finalVideoUrl = await uploadToFirebase(finalBuffer, finalVideoPath, 'video/mp4');
@@ -773,7 +779,7 @@ async function processLipSyncPipeline(body) {
     });
 
     // Phase 5: Mark Complete
-    await updateJobDoc(jobId, {
+    await updateJobDoc(jobId, userId, {
         status: 'complete',
         finalVideoUrl,
         imageCount: imageTimeline?.length || 0,
@@ -803,8 +809,8 @@ exports.handler = async (event) => {
         } catch (error) {
             console.error('❌ Pipeline error:', error);
             const body = JSON.parse(record.body);
-            if (body.jobId) {
-                await updateJobDoc(body.jobId, {
+            if (body.jobId && body.userId) {
+                await updateJobDoc(body.jobId, body.userId, {
                     status: 'error',
                     errorMessage: error.message,
                 });

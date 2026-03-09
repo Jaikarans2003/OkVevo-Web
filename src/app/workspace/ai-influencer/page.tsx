@@ -136,8 +136,9 @@ function AIInfluencerWorkstation() {
 
     // ── Firestore polling ────────────────────────────────
     useEffect(() => {
-        if (!jobId) return;
-        const unsub = onSnapshot(doc(db, 'aiInfluencerJobs', jobId), (snap) => {
+        if (!jobId || !user?.uid) return;
+        // Poll from user-specific subcollection: users/{userId}/aiInfluencerJobs/{jobId}
+        const unsub = onSnapshot(doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId), (snap) => {
             const data = snap.data();
             if (data?.status === 'complete' && data?.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
@@ -151,7 +152,7 @@ function AIInfluencerWorkstation() {
             }
         });
         return () => unsub();
-    }, [jobId]);
+    }, [jobId, user?.uid]);
 
     // ── Helpers ───────────────────────────────────────────
     const addAssistant = (content: string) =>
@@ -263,19 +264,33 @@ function AIInfluencerWorkstation() {
     const handleDurationSelect = async (duration: 15 | 30) => {
         setSelectedDuration(duration);
         addUser(`${duration} seconds`);
+        
+        // Debug: Check if rawScript is available
+        console.log('🔍 Debug - rawScript before generateScript:', rawScript ? `${rawScript.substring(0, 50)}...` : 'EMPTY');
+        console.log('🔍 Debug - rawScript length:', rawScript?.length || 0);
+        
+        if (!rawScript?.trim()) {
+            addAssistant('❌ Error: No script available. Please upload or paste your script first.');
+            setChatStep('upload-script');
+            return;
+        }
+        
         setIsGenerating(true);
         setChatStep('generating-script');
         addAssistant(`Analysing your script and generating a ${duration}-second narrative explainer…`);
-        await generateScript(duration);
+        await generateScript(duration, rawScript);
     };
 
     // ── Step 3: Generate script ──────────────────────────
-    const generateScript = async (duration: number) => {
+    const generateScript = async (duration: number, scriptToSend: string) => {
         try {
+            console.log('📝 Sending script to API:', scriptToSend ? `${scriptToSend.substring(0, 50)}...` : 'EMPTY');
+            console.log('📝 Duration:', duration);
+            
             const response = await fetch('/api/ai-influencer/generate-script', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ script: rawScript, duration }),
+                body: JSON.stringify({ script: scriptToSend, duration }),
             });
             const data = await response.json();
             if (!data.success) throw new Error(data.error || 'Script generation failed');
