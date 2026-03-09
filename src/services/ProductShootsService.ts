@@ -112,7 +112,9 @@ const dispatchShootJob = async (
     masterPrompt: string,
     productImageUrl: string,
     outputPath: string,
-    shotName: string
+    shotName: string,
+    resolution?: string,
+    aspectRatio?: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
         const res = await fetch('/api/sqs/product-shoots', {
@@ -124,6 +126,8 @@ const dispatchShootJob = async (
                 productImageUrl,
                 outputPath,
                 shotName,
+                resolution,
+                aspectRatio
             }),
         });
 
@@ -178,7 +182,9 @@ export const runShootsPipeline = async (
     productFile: File,
     shootScenario: string,
     onStatusChange: (status: ShootJobStatus, detail?: string) => void,
-    onPhotoUpdate: (photos: ShootPhoto[]) => void
+    onPhotoUpdate: (photos: ShootPhoto[]) => void,
+    resolution?: string,
+    aspectRatio?: string
 ): Promise<ShootPipelineResult> => {
     const baseJobId = generateShootJobId();
 
@@ -214,7 +220,9 @@ export const runShootsPipeline = async (
                 photo.masterPrompt,
                 productImageUrl,
                 outputPath,
-                photo.shotName
+                photo.shotName,
+                resolution,
+                aspectRatio
             );
 
             photo.status = result.success ? 'dispatched' : 'error';

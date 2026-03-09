@@ -13,7 +13,7 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { jobId, masterPrompt, userId, productImageUrl, outputPath, shotName } = body;
+        const { jobId, masterPrompt, userId, productImageUrl, outputPath, shotName, resolution, aspectRatio } = body;
 
         if (!jobId || !masterPrompt) {
             return NextResponse.json(
@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
             outputPath: outputPath || `ProductShoots/${jobId}.png`,
             shotName: shotName || 'Unknown Shot',
             userId: userId || 'anonymous',
+            resolution: resolution || '4K',
+            aspectRatio: aspectRatio || '16:9',
             timestamp: new Date().toISOString(),
         });
 

@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
             try {
                 // Apply specific aspect ratio instructions based on the image index
                 const aspectRatioInstruction = i === 0
-                    ? "Generate this image specifically in a vertical 9:16 aspect ratio."
-                    : "Generate this image specifically in a standard horizontal 16:9 aspect ratio.";
+                    ? "Generate this image specifically in 2K resolution with a vertical 9:16 aspect ratio."
+                    : "Generate this image specifically in 2K resolution with a standard horizontal 16:9 aspect ratio.";
 
                 const finalPrompt = `${moment.prompt}. ${aspectRatioInstruction}`;
 

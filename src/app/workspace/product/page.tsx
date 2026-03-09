@@ -141,6 +141,10 @@ function ProductStudio() {
     const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null);
     const [masterPrompt, setMasterPrompt] = useState<string | null>(null);
 
+    // Resolution and Aspect Ratio Selectors
+    const [resolution, setResolution] = useState('4K');
+    const [aspectRatio, setAspectRatio] = useState('16:9');
+
     // Chat refinement state
     const [isComposed, setIsComposed] = useState(false);
     const [chatInput, setChatInput] = useState('');
@@ -214,7 +218,9 @@ function ProductStudio() {
                 setPlacementStatus(status);
                 setPlacementStatusDetail(detail || '');
             },
-            placementPrompt || undefined
+            placementPrompt || undefined,
+            resolution,
+            aspectRatio
         );
 
         setIsGenerating(false);
@@ -273,7 +279,9 @@ function ProductStudio() {
             },
             (photos) => {
                 setGeneratedShots([...photos]);
-            }
+            },
+            resolution,
+            aspectRatio
         );
 
         setIsGenerating(false);
@@ -418,6 +426,45 @@ function ProductStudio() {
                                             ? 'Upload your product and describe the scene for professional AI photography.'
                                             : 'Upload assets and describe the environment.'}
                                 </p>
+                            </div>
+
+                            {/* Configuration Selectors */}
+                            <div className="grid grid-cols-2 gap-3 pb-2 border-b border-white/5">
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center justify-between">
+                                        <span>Resolution</span>
+                                    </label>
+                                    <div className="relative group">
+                                        <select
+                                            value={resolution}
+                                            onChange={(e) => setResolution(e.target.value)}
+                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-purple-500/50 outline-none transition-colors cursor-pointer"
+                                        >
+                                            <option value="1080p">1080p (FHD)</option>
+                                            <option value="2K">2K (QHD)</option>
+                                            <option value="4K">4K (UHD)</option>
+                                        </select>
+                                        <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none group-hover:text-white/80 transition-colors" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center justify-between">
+                                        <span>Ratio</span>
+                                    </label>
+                                    <div className="relative group">
+                                        <select
+                                            value={aspectRatio}
+                                            onChange={(e) => setAspectRatio(e.target.value)}
+                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-purple-500/50 outline-none transition-colors cursor-pointer"
+                                        >
+                                            <option value="1:1">1:1 (Square)</option>
+                                            <option value="16:9">16:9 (Landscape)</option>
+                                            <option value="9:16">9:16 (Portrait)</option>
+                                            <option value="4:3">4:3 (Classic)</option>
+                                        </select>
+                                        <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none group-hover:text-white/80 transition-colors" />
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Mode Switcher */}

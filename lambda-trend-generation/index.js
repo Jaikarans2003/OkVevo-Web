@@ -214,7 +214,7 @@ async function generateTrendImage(masterPrompt, personImage = null, faceReferenc
                     data: faceReferenceImage.toString('base64'),
                 },
             },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person\'s face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.' }
+            { text: 'Generate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person\'s face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
         );
     } else if (personImage) {
         // Single reference mode: Use for everything
@@ -227,11 +227,11 @@ async function generateTrendImage(masterPrompt, personImage = null, faceReferenc
                     data: personImage.toString('base64'),
                 },
             },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.' }
+            { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
         );
     } else {
         contentParts.push({
-            text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.',
+            text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.',
         });
     }
 
@@ -448,11 +448,11 @@ async function generateAndUploadImage(prompt, personBuffer, outputPath, faceBuff
  */
 async function generateAndUploadVideo(videoPrompt, sourceImageUrl, outputPath, videoDuration, endImageUrl = null, videoIndex = 0) {
     let videoUrl;
-    
+
     // Video 1 (index 0): Use Kling for transition effect
     if (videoIndex === 0) {
         videoUrl = await generateKlingVideo(sourceImageUrl, videoPrompt, videoDuration, endImageUrl);
-    } 
+    }
     // Videos 2-4 (index 1-3): Use Grok for 3-second levitation
     else {
         videoUrl = await generateGrokVideo(sourceImageUrl, videoPrompt);
@@ -530,12 +530,12 @@ async function processTrendPipeline(body) {
     // Download person's reference images
     let personBuffer = null;
     let faceBuffer = null;
-    
+
     if (personImageUrl) {
         console.log('📥 Downloading full body reference image...');
         personBuffer = await downloadFromFirebase(personImageUrl);
     }
-    
+
     if (faceImageUrl) {
         console.log('📥 Downloading face reference image...');
         faceBuffer = await downloadFromFirebase(faceImageUrl);
@@ -553,13 +553,13 @@ async function processTrendPipeline(body) {
             let refBuffer = personBuffer; // Default to user's full body photo
             let faceRefBuffer = null; // Optional face reference for dual-reference mode
             const promptConfig = imagePrompts[i];
-            
+
             console.log(`   Prompt type: ${typeof promptConfig}`);
             if (typeof promptConfig === 'object') {
                 console.log(`   Has sourceImageIndex: ${promptConfig.sourceImageIndex !== undefined}`);
                 console.log(`   Has useFaceReference: ${promptConfig.useFaceReference === true}`);
             }
-            
+
             if (typeof promptConfig === 'object' && promptConfig.sourceImageIndex !== undefined) {
                 const refIndex = promptConfig.sourceImageIndex;
                 if (imageUrls[refIndex]) {
@@ -570,7 +570,7 @@ async function processTrendPipeline(body) {
                 } else {
                     console.log(`   Reference image ${refIndex} not yet generated, using user photo`);
                 }
-                
+
                 // If useFaceReference is true and we have a face photo, use it as secondary reference
                 if (promptConfig.useFaceReference && faceBuffer) {
                     console.log(`   ✨ Using face reference photo as secondary reference for facial features only`);
@@ -582,7 +582,7 @@ async function processTrendPipeline(body) {
 
             const promptText = typeof promptConfig === 'string' ? promptConfig : promptConfig.prompt;
             console.log(`   Prompt length: ${promptText.length} chars`);
-            
+
             const result = await generateAndUploadImage(
                 promptText,
                 refBuffer,
@@ -614,7 +614,7 @@ async function processTrendPipeline(body) {
             console.log(`   ⚠️ Pushed null to imageUrls[${imageUrls.length - 1}]`);
         }
     }
-    
+
     console.log(`\n📊 Image Generation Summary:`);
     imageUrls.forEach((url, idx) => {
         console.log(`   imageUrls[${idx}]: ${url ? 'SUCCESS' : 'FAILED/NULL'}`);
@@ -655,7 +655,7 @@ async function processTrendPipeline(body) {
             console.log(`   ├─ Checking start_image_url (imageUrls[${sourceImageIndex}]): ${sourceImageUrl ? '✅ PASS' : '❌ FAIL'}`);
             console.log(`   ├─ Checking end_image_url (imageUrls[${endImageIndex}]): ${endImageUrl ? '✅ PASS' : '❌ FAIL'}`);
             console.log(`   └─ endImageIndex defined: ${endImageIndex !== undefined ? '✅ YES' : '❌ NO'}`);
-            
+
             if (!sourceImageUrl || !endImageUrl) {
                 console.error(`\n❌ VIDEO 1 VALIDATION FAILED - Missing required images`);
                 console.error(`   ├─ start_image_url (image ${sourceImageIndex}): ${sourceImageUrl ? 'AVAILABLE ✅' : 'MISSING ❌'}`);
@@ -670,7 +670,7 @@ async function processTrendPipeline(body) {
             // Other videos only need start image
             console.log(`\n🔍 VIDEO ${i + 1} VALIDATION CHECK:`);
             console.log(`   └─ Checking start_image_url (imageUrls[${sourceImageIndex}]): ${sourceImageUrl ? '✅ PASS' : '❌ FAIL'}`);
-            
+
             if (!sourceImageUrl) {
                 console.warn(`\n⚠️ Video ${i + 1}: source image ${sourceImageIndex} missing, skipping\n`);
                 videoResultUrls.push(null);
@@ -712,7 +712,7 @@ async function processTrendPipeline(body) {
     const validVideoUrls = videoResultUrls.filter(Boolean);
     if (validVideoUrls.length >= 2) {
         await updateTrendDoc(jobId, { status: 'stitching' });
-        
+
         // Select audio based on trend ID
         let audioUrl;
         if (trendId === 'sky-fall') {
@@ -722,7 +722,7 @@ async function processTrendPipeline(body) {
             audioUrl = 'gs://text2video-16cbf.firebasestorage.app/TrendsAudio/Skyfall.mp3';
             console.log(`🎵 Using generic audio for trend: ${trendId || 'unknown'}`);
         }
-        
+
         await dispatchStitchJob(jobId, validVideoUrls, audioUrl);
     } else {
         // Not enough videos to stitch — mark complete with what we have

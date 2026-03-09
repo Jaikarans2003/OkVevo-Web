@@ -215,8 +215,11 @@ async function processShootJob(jobId, masterPrompt, productImageUrl, outputPath,
         productBuffer = await downloadFromFirebase(productImageUrl);
     }
 
-    // Generate photo with product reference
-    const imageBuffer = await generateProductShoot(masterPrompt, productBuffer);
+    // Inject the aspect ratio and resolution into the prompt
+    const finalPrompt = `${masterPrompt}\n\nCRITICAL INSTRUCTION: Generate this image specifically in ${resolution} resolution with a ${aspectRatio} aspect ratio.`;
+
+    // Generate product photo
+    const imageBuffer = await generateProductShoot(finalPrompt, productBuffer);
 
     // Upload result to Firebase Storage
     const destinationPath = outputPath || `ProductShoots/${jobId}.png`;
@@ -244,8 +247,10 @@ exports.handler = async (event) => {
             for (const record of event.Records) {
                 console.log('Raw record body:', record.body);
                 const body = JSON.parse(record.body);
-                const { jobId, masterPrompt, productImageUrl, outputPath, shotName } = body;
+                const { jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution = '4K', aspectRatio = '16:9' } = body;
 
+                console.log(`[Job ${jobId}] Starting shoot process for: ${shotName}`);
+                console.log(`[Job ${jobId}] Resolution: ${resolution}, Aspect Ratio: ${aspectRatio}`);
                 if (!jobId || !masterPrompt) {
                     console.error('❌ Invalid SQS message: missing jobId or masterPrompt');
                     continue;

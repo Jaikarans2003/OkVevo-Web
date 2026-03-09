@@ -231,8 +231,11 @@ async function processPlacementJob(jobId, masterPrompt, heroImageUrl = null, sce
         ]);
     }
 
+    // Inject the aspect ratio and resolution into the prompt
+    const finalPrompt = `${masterPrompt}\n\nCRITICAL INSTRUCTION: Generate this image specifically in ${resolution} resolution with a ${aspectRatio} aspect ratio.`;
+
     // Generate composite image
-    const imageBuffer = await generateWithNanoBanana(masterPrompt, heroBuffer, sceneBuffer);
+    const imageBuffer = await generateWithNanoBanana(finalPrompt, heroBuffer, sceneBuffer);
 
     // Upload result to Firebase Storage
     const destinationPath = `ProductPlacement/${jobId}.png`;
@@ -260,8 +263,11 @@ exports.handler = async (event) => {
             for (const record of event.Records) {
                 console.log('Raw record body:', record.body);
                 const body = JSON.parse(record.body);
-                const { jobId, masterPrompt, heroImageUrl, sceneImageUrl } = body;
+                const { jobId, masterPrompt, heroImageUrl, sceneImageUrl, resolution = '4K', aspectRatio = '16:9' } = body;
 
+                console.log(`[Job ${jobId}] Starting compositing process`);
+                console.log(`[Job ${jobId}] Prompt: ${masterPrompt.substring(0, 100)}...`);
+                console.log(`[Job ${jobId}] Resolution: ${resolution}, Aspect Ratio: ${aspectRatio}`);
                 if (!jobId || !masterPrompt) {
                     console.error('❌ Invalid SQS message: missing jobId or masterPrompt');
                     continue;

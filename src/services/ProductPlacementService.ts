@@ -64,7 +64,9 @@ const dispatchToSQS = async (
     masterPrompt: string,
     heroImageUrl: string,
     sceneImageUrl: string,
-    userId: string = 'demo-user'
+    userId: string = 'demo-user',
+    resolution?: string,
+    aspectRatio?: string
 ): Promise<void> => {
     const res = await fetch('/api/product-placement', {
         method: 'POST',
@@ -75,6 +77,8 @@ const dispatchToSQS = async (
             heroImageUrl,
             sceneImageUrl,
             userId,
+            resolution,
+            aspectRatio
         }),
     });
 
@@ -149,7 +153,9 @@ export const runPlacementPipeline = async (
     heroFile: File,
     sceneFile: File,
     onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
-    userPrompt?: string
+    userPrompt?: string,
+    resolution?: string,
+    aspectRatio?: string
 ): Promise<PlacementJobResult> => {
     const jobId = generatePlacementJobId();
 
@@ -183,7 +189,7 @@ export const runPlacementPipeline = async (
         // ── Step 3: Dispatch job to SQS ─────────────────────────
         onStatusChange('compositing', 'Dispatching composite render job...');
 
-        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl);
+        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, 'demo-user', resolution, aspectRatio);
 
         // ── Step 4: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
