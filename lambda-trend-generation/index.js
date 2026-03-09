@@ -66,11 +66,20 @@ function initializeFirebase() {
 
 const TREND_COLLECTION = 'trendGenerations';
 
-async function updateTrendDoc(docId, fields) {
+async function updateTrendDoc(docId, userId, fields) {
     try {
         const firestore = admin.firestore();
-        await firestore.collection(TREND_COLLECTION).doc(docId).update(fields);
-        console.log(`📝 Firestore updated: ${docId} →`, Object.keys(fields));
+        // Store in user-specific subcollection: users/{userId}/trendGenerations/{docId}
+        await firestore
+            .collection('users')
+            .doc(userId)
+            .collection(TREND_COLLECTION)
+            .doc(docId)
+            .set({
+                ...fields,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        console.log(`📝 Firestore updated: users/${userId}/${TREND_COLLECTION}/${docId} →`, Object.keys(fields));
     } catch (err) {
         console.warn(`⚠️ Firestore update failed for ${docId}:`, err.message);
     }
@@ -511,6 +520,7 @@ async function dispatchStitchJob(jobId, videoUrls, audioUrl) {
 async function processTrendPipeline(body) {
     const {
         jobId,
+        userId,
         trendId,
         personImageUrl,
         faceImageUrl,
@@ -542,7 +552,7 @@ async function processTrendPipeline(body) {
     }
 
     // ── Phase 1: Generate all images ────────────────────────────
-    await updateTrendDoc(jobId, { status: 'generating-images' });
+    await updateTrendDoc(jobId, userId, { status: 'generating-images' });
     const imageUrls = [];
 
     for (let i = 0; i < imagePrompts.length; i++) {
@@ -623,7 +633,7 @@ async function processTrendPipeline(body) {
     console.log(`\n✅ Images done: ${imageUrls.filter(Boolean).length}/${imagePrompts.length}`);
 
     // ── Phase 2: Generate all videos ────────────────────────────
-    await updateTrendDoc(jobId, { status: 'generating-videos' });
+    await updateTrendDoc(jobId, userId, { status: 'generating-videos' });
     const videoResultUrls = [];
 
     for (let i = 0; i < videoPrompts.length; i++) {
@@ -711,7 +721,7 @@ async function processTrendPipeline(body) {
     // ── Phase 3: Dispatch stitch job ────────────────────────────
     const validVideoUrls = videoResultUrls.filter(Boolean);
     if (validVideoUrls.length >= 2) {
-        await updateTrendDoc(jobId, { status: 'stitching' });
+        await updateTrendDoc(jobId, userId, { status: 'stitching' });
 
         // Select audio based on trend ID
         let audioUrl;
@@ -727,7 +737,7 @@ async function processTrendPipeline(body) {
     } else {
         // Not enough videos to stitch — mark complete with what we have
         console.warn('⚠️ Not enough videos for stitching, marking complete');
-        await updateTrendDoc(jobId, { status: 'complete' });
+        await updateTrendDoc(jobId, userId, { status: 'complete' });
     }
 }
 
@@ -764,10 +774,13 @@ exports.handler = async (event) => {
                     }
                 } catch (jobError) {
                     console.error(`❌ Job ${jobId} failed:`, jobError);
-                    await updateTrendDoc(jobId, {
-                        status: 'error',
-                        errorMessage: jobError.message || 'Generation failed',
-                    });
+                    const { userId } = body;
+                    if (userId) {
+                        await updateTrendDoc(jobId, userId, {
+                            status: 'error',
+                            errorMessage: jobError.message || 'Generation failed',
+                        });
+                    }
                 }
             }
 
