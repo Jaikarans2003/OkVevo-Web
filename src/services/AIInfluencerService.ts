@@ -6,6 +6,7 @@
 
 import { db } from '../config/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { checkRateLimit } from './RateLimitService';
 
 export interface AIInfluencerJobRequest {
     jobId: string;
@@ -84,6 +85,16 @@ export const dispatchAIInfluencerJob = async (
         // Require authentication
         if (!request.userId) {
             throw new Error('Authentication required. Please sign in to generate AI influencer videos.');
+        }
+
+        // Check rate limit
+        const rateLimitResult = await checkRateLimit(request.userId, 'AI_INFLUENCER');
+        if (!rateLimitResult.allowed) {
+            return {
+                success: false,
+                jobId: request.jobId,
+                error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.',
+            };
         }
 
         // Create Firestore document for history tracking

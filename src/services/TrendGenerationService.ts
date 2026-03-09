@@ -22,6 +22,7 @@ import {
     type Unsubscribe,
 } from 'firebase/firestore';
 import type { TrendDefinition } from '../data/trendDefinitions';
+import { checkRateLimit } from './RateLimitService';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -123,6 +124,15 @@ export const submitTrendJob = async (
     trend: TrendDefinition,
     userId: string,
 ): Promise<{ success: boolean; jobId?: string; error?: string }> => {
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(userId, 'TREND_GENERATION');
+    if (!rateLimitResult.allowed) {
+        return {
+            success: false,
+            error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.',
+        };
+    }
+
     const jobId = generateJobId();
 
     try {

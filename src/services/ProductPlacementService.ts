@@ -13,6 +13,7 @@ import { analyzeProductAndScene, refineComposition, fileToBase64 } from './Visio
 import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { checkRateLimit } from './RateLimitService';
 
 export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'uploading' | 'compositing' | 'polling' | 'complete' | 'error';
 
@@ -199,6 +200,15 @@ export const runPlacementPipeline = async (
     // Require authentication
     if (!userId) {
         return { status: 'error', error: 'Authentication required. Please sign in to generate product placements.' };
+    }
+
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_PLACEMENT');
+    if (!rateLimitResult.allowed) {
+        return { 
+            status: 'error', 
+            error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+        };
     }
 
     const jobId = generatePlacementJobId();

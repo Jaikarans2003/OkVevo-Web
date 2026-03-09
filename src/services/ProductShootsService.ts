@@ -11,6 +11,7 @@
 import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { checkRateLimit } from './RateLimitService';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -232,6 +233,16 @@ export const runShootsPipeline = async (
     // Require authentication
     if (!userId) {
         return { status: 'error', photos: [], error: 'Authentication required. Please sign in to generate product shoots.' };
+    }
+
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_SHOOTS');
+    if (!rateLimitResult.allowed) {
+        return { 
+            status: 'error', 
+            photos: [], 
+            error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+        };
     }
 
     const baseJobId = generateShootJobId();
