@@ -9,7 +9,7 @@ import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 export interface AIInfluencerJobRequest {
     jobId: string;
-    userId?: string;
+    userId: string;
     topic: string;
     script?: string;
     duration: 15 | 30;
@@ -81,10 +81,15 @@ export const dispatchAIInfluencerJob = async (
             throw new Error('Missing required fields: jobId, topic, duration, gender, avatarUrl');
         }
 
+        // Require authentication
+        if (!request.userId) {
+            throw new Error('Authentication required. Please sign in to generate AI influencer videos.');
+        }
+
         // Create Firestore document for history tracking
         const jobDoc: AIInfluencerJob = {
             jobId: request.jobId,
-            userId: request.userId || 'anonymous',
+            userId: request.userId,
             status: 'pending',
             topic: request.topic,
             duration: request.duration,

@@ -81,10 +81,15 @@ const dispatchToSQS = async (
     masterPrompt: string,
     heroImageUrl: string,
     sceneImageUrl: string,
-    userId: string = 'demo-user',
-    resolution?: string,
-    aspectRatio?: string
+    userId: string,
+    resolution: string | undefined,
+    aspectRatio: string | undefined
 ): Promise<void> => {
+    // Require authentication
+    if (!userId) {
+        throw new Error('Authentication required. Please sign in to generate product placements.');
+    }
+
     // Create Firestore document for history tracking
     const jobDoc: PlacementJob = {
         jobId,
@@ -186,11 +191,16 @@ export const runPlacementPipeline = async (
     heroFile: File,
     sceneFile: File,
     onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
-    userPrompt?: string,
-    resolution?: string,
-    aspectRatio?: string,
-    userId?: string
+    userPrompt: string | undefined,
+    resolution: string | undefined,
+    aspectRatio: string | undefined,
+    userId: string
 ): Promise<PlacementJobResult> => {
+    // Require authentication
+    if (!userId) {
+        return { status: 'error', error: 'Authentication required. Please sign in to generate product placements.' };
+    }
+
     const jobId = generatePlacementJobId();
 
     try {
@@ -223,7 +233,7 @@ export const runPlacementPipeline = async (
         // ── Step 3: Dispatch job to SQS ─────────────────────────
         onStatusChange('compositing', 'Dispatching composite render job...');
 
-        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, userId || 'demo-user', resolution, aspectRatio);
+        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, userId, resolution, aspectRatio);
 
         // ── Step 4: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
@@ -278,8 +288,14 @@ export const runPlacementPipeline = async (
 export const runRefinementPipeline = async (
     compositeImageUrl: string,
     refinementPrompt: string,
-    onStatusChange: (status: PlacementJobStatus, detail?: string) => void
+    onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
+    userId: string
 ): Promise<PlacementJobResult> => {
+    // Require authentication
+    if (!userId) {
+        return { status: 'error', error: 'Authentication required. Please sign in to refine compositions.' };
+    }
+
     const jobId = generatePlacementJobId();
 
     try {
@@ -298,7 +314,7 @@ export const runRefinementPipeline = async (
         onStatusChange('compositing', 'Dispatching refined render job...');
 
         // No reference images for refinement — the prompt is self-contained
-        await dispatchToSQS(jobId, masterPrompt, '', '');
+        await dispatchToSQS(jobId, masterPrompt, '', '', userId, undefined, undefined);
 
         // ── Step 3: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');

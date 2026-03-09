@@ -207,6 +207,12 @@ function ProductStudio() {
 
     const handlePlacementGenerate = useCallback(async () => {
         if (!productImage || !sceneImage) return;
+        
+        // Require authentication
+        if (!userProfile?.uid) {
+            alert('Please sign in to generate product placements.');
+            return;
+        }
 
         setIsGenerating(true);
         setCompositeImageUrl(null);
@@ -223,7 +229,7 @@ function ProductStudio() {
             placementPrompt || undefined,
             resolution,
             aspectRatio,
-            userProfile?.uid
+            userProfile.uid
         );
 
         setIsGenerating(false);
@@ -253,7 +259,8 @@ function ProductStudio() {
             (status, detail) => {
                 setPlacementStatus(status);
                 setPlacementStatusDetail(detail || '');
-            }
+            },
+            userProfile?.uid || ''
         );
 
         setIsGenerating(false);
@@ -269,6 +276,12 @@ function ProductStudio() {
 
     const handleShootsGenerate = useCallback(async () => {
         if (!productImage || !shootScenario.trim()) return;
+        
+        // Require authentication
+        if (!userProfile?.uid) {
+            alert('Please sign in to generate product shoots.');
+            return;
+        }
 
         setIsGenerating(true);
         setGeneratedShots([]);
@@ -285,7 +298,7 @@ function ProductStudio() {
             },
             resolution,
             aspectRatio,
-            userProfile?.uid
+            userProfile.uid
         );
 
         setIsGenerating(false);

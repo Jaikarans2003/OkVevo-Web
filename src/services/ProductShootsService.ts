@@ -131,15 +131,20 @@ const dispatchShootJob = async (
     productImageUrl: string,
     outputPath: string,
     shotName: string,
-    resolution?: string,
-    aspectRatio?: string,
-    userId?: string
+    resolution: string | undefined,
+    aspectRatio: string | undefined,
+    userId: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
+        // Require authentication
+        if (!userId) {
+            throw new Error('Authentication required. Please sign in to generate product shoots.');
+        }
+
         // Create Firestore document for history tracking
         const jobDoc: ProductShootsJob = {
             jobId,
-            userId: userId || 'anonymous',
+            userId,
             status: 'dispatching',
             masterPrompt,
             productImageUrl,
@@ -220,10 +225,15 @@ export const runShootsPipeline = async (
     shootScenario: string,
     onStatusChange: (status: ShootJobStatus, detail?: string) => void,
     onPhotoUpdate: (photos: ShootPhoto[]) => void,
-    resolution?: string,
-    aspectRatio?: string,
-    userId?: string
+    resolution: string | undefined,
+    aspectRatio: string | undefined,
+    userId: string
 ): Promise<ShootPipelineResult> => {
+    // Require authentication
+    if (!userId) {
+        return { status: 'error', photos: [], error: 'Authentication required. Please sign in to generate product shoots.' };
+    }
+
     const baseJobId = generateShootJobId();
 
     try {

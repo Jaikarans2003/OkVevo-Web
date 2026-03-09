@@ -338,6 +338,12 @@ function AIInfluencerWorkstation() {
             return;
         }
 
+        // Require authentication
+        if (!user?.uid) {
+            addAssistant('❌ Authentication required. Please sign in to generate AI influencer videos.');
+            return;
+        }
+
         setIsGenerating(true);
         setChatStep('generating-lipsync');
         addAssistant('🎬 Generating lip-synced video with Fal AI… This can take 2–5 minutes. Sit tight!');
@@ -357,7 +363,7 @@ function AIInfluencerWorkstation() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     jobId,
-                    userId: user?.uid,
+                    userId: user.uid,
                     avatarVideoUrl,
                     audioUrl,
                     script: editableScript,

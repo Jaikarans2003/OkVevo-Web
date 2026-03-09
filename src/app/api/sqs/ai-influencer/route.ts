@@ -38,6 +38,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Require authentication - reject anonymous requests
+        if (!userId) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Authentication required. Please sign in to generate AI influencer videos.',
+                },
+                { status: 401 }
+            );
+        }
+
 
         // ── SQS Configuration ──────────────────────────────────
         const queueUrl = process.env.SQS_AI_INFLUENCER_QUEUE_URL;
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest) {
         const messageBody = JSON.stringify({
             type: 'ai-influencer-lipsync',
             jobId,
-            userId: userId || 'anonymous',
+            userId,
             avatarVideoUrl,
             audioUrl,
             script: script || null,
@@ -80,13 +91,13 @@ export async function POST(request: NextRequest) {
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: messageBody,
-            MessageGroupId: userId || 'ai-influencer-default',
+            MessageGroupId: userId,
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
         console.log('🎬 Dispatching AI Influencer LipSync job to SQS FIFO:', {
             jobId,
-            userId: userId || 'anonymous',
+            userId,
             avatarVideoUrl,
             audioUrl,
             queueUrl,
