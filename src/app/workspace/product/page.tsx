@@ -46,6 +46,9 @@ import {
 } from 'lucide-react';
 import { runPlacementPipeline, runRefinementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
 import { runShootsPipeline, ShootPhoto, ShootJobStatus } from '@/services/ProductShootsService';
+import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
+import { useWorkspaceSession } from '@/hooks/useWorkspaceSession';
+import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 
 // --- Components ---
 function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc: string, title: string, category: string, className?: string }) {
@@ -166,6 +169,49 @@ function ProductStudio() {
     const heroY = useTransform(scrollY, [0, 500], [0, 200]);
     const glassY = useTransform(scrollY, [0, 500], [0, -100]);
 
+    // ── Session history ─────────────────────────────────────────────────────────
+    const { sessionId, initSession, saveSession, resetSession } = useWorkspaceSession('product-studio', userProfile?.uid ?? null);
+
+    // Auto-create session when placement generation starts
+    useEffect(() => {
+        if (sessionId || !userProfile?.uid || chatMessages.length <= 1) return;
+        const title = placementPrompt || shootScenario || mode;
+        initSession(title.substring(0, 80) || 'Product Studio Session', { mode }, chatMessages);
+    }, [chatMessages.length]);
+
+    // Auto-save chat messages (debounced)
+    useEffect(() => {
+        if (!sessionId) return;
+        saveSession(
+            { mode, compositeImageUrl, masterPrompt },
+            chatMessages,
+        );
+    }, [chatMessages, compositeImageUrl]);
+
+    const handleRestoreProductSession = useCallback((session: WorkspaceSession) => {
+        resetSession();
+        setMode(session.state?.mode ?? 'product-placement');
+        setCompositeImageUrl(session.state?.compositeImageUrl ?? null);
+        setMasterPrompt(session.state?.masterPrompt ?? null);
+        if (session.messages?.length) setChatMessages(session.messages);
+        if (session.state?.compositeImageUrl) setIsComposed(true);
+    }, [resetSession]);
+
+    const handleNewProductSession = useCallback(() => {
+        resetSession();
+        setCompositeImageUrl(null);
+        setMasterPrompt(null);
+        setIsComposed(false);
+        setPlacementStatus('idle');
+        setShootStatus('idle');
+        setGeneratedShots([]);
+        setProductImage(null);
+        setProductImagePreview(null);
+        setSceneImage(null);
+        setSceneImagePreview(null);
+        setChatMessages([{ role: 'assistant', content: 'Welcome to Product Studio. Upload your images and describe your vision to get started!' }]);
+    }, [resetSession]);
+
     const scrollToGenerator = () => {
         generatorRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -207,7 +253,7 @@ function ProductStudio() {
 
     const handlePlacementGenerate = useCallback(async () => {
         if (!productImage || !sceneImage) return;
-        
+
         // Require authentication
         if (!userProfile?.uid) {
             alert('Please sign in to generate product placements.');
@@ -276,7 +322,7 @@ function ProductStudio() {
 
     const handleShootsGenerate = useCallback(async () => {
         if (!productImage || !shootScenario.trim()) return;
-        
+
         // Require authentication
         if (!userProfile?.uid) {
             alert('Please sign in to generate product shoots.');
@@ -317,6 +363,20 @@ function ProductStudio() {
                     </div>
                 }
             />
+
+            {/* Session History Sidebar — fixed on left */}
+            {userProfile?.uid && (
+                <div className="fixed top-0 left-0 h-full z-40 pt-16">
+                    <SessionHistorySidebar
+                        userId={userProfile.uid}
+                        feature="product-studio"
+                        currentSessionId={sessionId}
+                        onSelectSession={handleRestoreProductSession}
+                        onNewSession={handleNewProductSession}
+                        accentColor="orange"
+                    />
+                </div>
+            )}
 
             {/* --- LUXURY HERO SECTION --- */}
             <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
