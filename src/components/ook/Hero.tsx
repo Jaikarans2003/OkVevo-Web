@@ -99,14 +99,14 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                 {/* Feature Badge/Pill */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: 1, y: 13 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                     className="mb-8 p-[1px] rounded-full bg-gradient-to-r from-white/10 via-accent-orange/50 to-white/10"
                 >
                     <div className="px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md flex items-center gap-2 border border-white/5">
                         <span className="px-2 py-0.5 rounded-full bg-accent-orange text-[10px] font-bold text-white uppercase tracking-wider">New</span>
                         <span className="text-sm text-white/80 font-medium flex items-center gap-1">
-                            Cinematic Script-to-Video is here
+                            Social Media Trends is here
                             <ChevronRight className="w-4 h-4 text-accent-orange" />
                         </span>
                     </div>

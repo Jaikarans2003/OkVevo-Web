@@ -46,7 +46,7 @@ export default function LandingPage() {
                 <HowItWorks />
                 {/* <BuiltForCreators /> */}
                 <Pricing user={user} />
-                <FeaturesGrid />
+                {/* <FeaturesGrid /> */}
                 {/* <TuneTalez /> */}
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}
             </main>

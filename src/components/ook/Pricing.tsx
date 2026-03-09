@@ -176,7 +176,7 @@ const Pricing = ({ user }: PricingProps) => {
                         transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed"
                     >
-                        Design for free. Upgrade to unlock more.
+                        Choose your Creative Power
                     </motion.p>
                 </div>
 
