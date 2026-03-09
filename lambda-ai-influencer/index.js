@@ -146,7 +146,7 @@ CRITICAL RULES:
 2. Do NOT wrap the output in markdown code blocks like \`\`\`srt \`\`\` or \`\`\`.
 3. Format exactly as a standard SRT file (Sequence Number, Timecodes, Text separated by blank lines).
 4. Timecodes must use a comma, e.g., 00:00:01,000 --> 00:00:03,500.
-5. Keep captions short and punchy (max 4-5 words per line). Provide exact word-level or phrase-level pacing.`;
+5. Keep captions very short and punchy (MAXIMUM 3 to 4 words per block). Provide exact phrase-level pacing.`;
 
         const result = await model.generateContent([
             prompt,
