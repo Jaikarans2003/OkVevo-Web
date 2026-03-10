@@ -13,9 +13,22 @@ const { GoogleGenAI } = require('@google/genai');
  *  4. Upload result to Firebase Storage at ProductPlacement/{jobId}.png
  */
 
+const { fal } = require('@fal-ai/client');
 const NANOBANANA_MODEL = 'gemini-3.1-flash-image-preview';
 
 let firebaseInitialized = false;
+
+// ────────────────────────────────────────────────────
+// Fal AI Initialization Helper
+// ────────────────────────────────────────────────────
+
+function initializeFalClient() {
+    const apiKey = process.env.FAL_API_IMAGE;
+    if (!apiKey) {
+        throw new Error('FAL_API_IMAGE environment variable not set');
+    }
+    fal.config({ credentials: apiKey });
+}
 
 function initializeFirebase() {
     if (firebaseInitialized) return;
@@ -120,91 +133,138 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
 }
 
 // ────────────────────────────────────────────────────
-// NANOBANANA PRO (Gemini Image Generation)
+// Image Generation via Fal AI (Main) or Gemini (Fallback)
 // ────────────────────────────────────────────────────
 
 /**
- * Generate composite image using NANOBANANA PRO.
- *
- * @param {string} masterPrompt   - The master prompt from Vision Orchestrator
- * @param {Buffer|null} heroImage - Hero product image (optional)
- * @param {Buffer|null} sceneImage - Scene environment image (optional)
- * @returns {Buffer}              - Generated image data
+ * Generate composite image using Fal AI (Flux Pro) with Gemini Fallback.
+ * Note: product/scene images require public URLs for Fal AI.
  */
-async function generateWithNanoBanana(masterPrompt, heroImage = null, sceneImage = null) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY environment variable not set');
-    }
+async function generateWithNanoBanana(masterPrompt, heroImageBuffer = null, sceneImageBuffer = null, heroImageUrl = null, sceneImageUrl = null) {
+    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
 
-    const ai = new GoogleGenAI({ apiKey });
+    try {
+        initializeFalClient();
 
-    // Build content parts
-    const contentParts = [];
+        let falPrompt = masterPrompt + '\\n\\nGenerate the image described above.';
+        const falInput = {
+            prompt: falPrompt,
+            image_size: "landscape_16_9",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: true,
+            sync_mode: true
+        };
 
-    if (heroImage && sceneImage) {
-        // Initial composition: send hero + scene images alongside prompt
-        contentParts.push(
-            { text: masterPrompt },
-            { text: 'Hero Product image (place this product into the scene):' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: heroImage.toString('base64'),
-                },
+        if (heroImageUrl && sceneImageUrl) {
+            falInput.prompt = `${masterPrompt}\\n\\nHero Product image url: ${heroImageUrl}\\nScene / Environment image url: ${sceneImageUrl}\\nGenerate the final photorealistic composite image based on the master prompt above, placing the hero product naturally into the scene environment. You must strictly incorporate the structure and context of the provided images.`;
+        }
+
+        const result = await fal.subscribe("fal-ai/flux-pro", {
+            input: falInput,
+            logs: true,
+            onQueueUpdate: (update) => {
+                if (update.status === "IN_PROGRESS") {
+                    update.logs.map((log) => log.message).forEach(console.log);
+                }
             },
-            { text: 'Scene / Environment image (use this as the background):' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: sceneImage.toString('base64'),
-                },
-            },
-            { text: 'Generate the final photorealistic composite image based on the master prompt above, placing the hero product naturally into the scene environment.' }
-        );
-    } else {
-        // Refinement mode — only the prompt
-        contentParts.push({
-            text: masterPrompt + '\n\nGenerate the image described above.',
         });
-    }
 
-    console.log('🔬 Calling NANOBANANA PRO...');
-    console.log(`📝 Prompt length: ${masterPrompt.length}`);
-    console.log(`🖼️ Reference images: ${heroImage ? 'hero + scene' : 'none'}`);
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) {
+            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+        }
 
-    const response = await ai.models.generateContent({
-        model: NANOBANANA_MODEL,
-        contents: contentParts,
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
-    });
+        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
 
-    // Extract image from response
-    let imageBase64 = null;
-    let responseText = '';
+        // Download result buffer from Fal AI to maintain existing return contract
+        const https = require('https');
+        const buffer = await new Promise((resolve, reject) => {
+            https.get(imageUrl, (res) => {
+                const chunks = [];
+                res.on('data', (c) => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', reject);
+            }).on('error', reject);
+        });
 
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.text) {
-                responseText += part.text;
-            } else if (part.inlineData) {
-                imageBase64 = part.inlineData.data;
+        return buffer;
+
+    } catch (falError) {
+        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+
+        // --- FALLBACK TO GEMINI ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY environment variable not set (needed for fallback)');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Build content parts for Gemini
+        const contentParts = [];
+
+        if (heroImageBuffer && sceneImageBuffer) {
+            // Initial composition: send hero + scene images alongside prompt
+            contentParts.push(
+                { text: masterPrompt },
+                { text: 'Hero Product image (place this product into the scene):' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: heroImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Scene / Environment image (use this as the background):' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: sceneImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Generate the final photorealistic composite image based on the master prompt above, placing the hero product naturally into the scene environment.' }
+            );
+        } else {
+            // Refinement mode — only the prompt
+            contentParts.push({
+                text: masterPrompt + '\n\nGenerate the image described above.',
+            });
+        }
+
+        console.log('🔬 Calling NANOBANANA PRO (Gemini) Fallback...');
+
+        const response = await ai.models.generateContent({
+            model: NANOBANANA_MODEL,
+            contents: contentParts,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+
+        // Extract image from response
+        let imageBase64 = null;
+        let responseText = '';
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.text) {
+                    responseText += part.text;
+                } else if (part.inlineData) {
+                    imageBase64 = part.inlineData.data;
+                }
             }
         }
+
+        if (!imageBase64) {
+            throw new Error(
+                `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
+            );
+        }
+
+        console.log('✅ Fallback: Image generated successfully by Gemini');
+        return Buffer.from(imageBase64, 'base64');
     }
-
-    if (!imageBase64) {
-        throw new Error(
-            `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
-        );
-    }
-
-    console.log('✅ Image generated successfully');
-    if (responseText) console.log('📝 Model response:', responseText);
-
-    return Buffer.from(imageBase64, 'base64');
 }
 
 // ────────────────────────────────────────────────────

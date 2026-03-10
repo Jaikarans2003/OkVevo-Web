@@ -14,9 +14,23 @@ const { GoogleGenAI } = require('@google/genai');
  *  4. Upload result to Firebase Storage at ProductShoots/{jobId}.png
  */
 
+const { fal } = require('@fal-ai/client');
 const NANOBANANA_MODEL = 'gemini-3.1-flash-image-preview';
 
 let firebaseInitialized = false;
+
+// ────────────────────────────────────────────────────
+// Fal AI Initialization Helper
+// ────────────────────────────────────────────────────
+
+function initializeFalClient() {
+    const apiKey = process.env.FAL_API_IMAGE;
+    if (!apiKey) {
+        throw new Error('FAL_API_IMAGE environment variable not set');
+    }
+    fal.config({ credentials: apiKey });
+}
+
 
 function initializeFirebase() {
     if (firebaseInitialized) return;
@@ -118,81 +132,132 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
 }
 
 // ────────────────────────────────────────────────────
-// NANOBANANA PRO (Gemini Image Generation)
+// Image Generation via Fal AI (Main) or Gemini (Fallback)
 // ────────────────────────────────────────────────────
 
 /**
- * Generate a product photo using NANOBANANA PRO with the product image attached.
+ * Generate a product photo using Fal AI (qwen_image2) with Gemini Fallback.
+ * Reference images for Fal AI need to be valid URLs.
  *
  * @param {string} masterPrompt     - Photography master prompt with full technical details
- * @param {Buffer|null} productImage - Product image buffer (attached for reference)
+ * @param {Buffer|null} productBuffer - Product image buffer (for Gemini fallback)
+ * @param {string|null} productImageUrl - Product image public URL (for Fal AI)
  * @returns {Buffer}                 - Generated image data
  */
-async function generateProductShoot(masterPrompt, productImage = null) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY environment variable not set');
-    }
+async function generateProductShoot(masterPrompt, productBuffer = null, productImageUrl = null) {
+    console.log('🔬 Attempting image generation with Fal AI (qwen_image2) first...');
 
-    const ai = new GoogleGenAI({ apiKey });
+    try {
+        initializeFalClient();
 
-    // Build content parts — include product image if available
-    const contentParts = [];
+        const falInput = {
+            prompt: masterPrompt + '\\n\\nGenerate a stunning, photorealistic professional product photograph based on the description. Make sure to apply the specified camera angle, lighting setup, and composition.',
+            image_size: "landscape_16_9",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: true,
+            sync_mode: true
+        };
 
-    if (productImage) {
-        contentParts.push(
-            { text: masterPrompt },
-            { text: 'Here is the product to photograph. Use this exact product in the generated shot:' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: productImage.toString('base64'),
-                },
+        if (productImageUrl) {
+            // Include reference url in prompt - though depending on Fal model specs, image-to-image parameters might differ
+            falInput.prompt = `${masterPrompt}\\n\\nHere is the exact product to photograph (image URL): ${productImageUrl}\\nGenerate a stunning, photorealistic professional product photograph based on the master prompt above. The product must look exactly like the reference image provided. Apply the specified camera angle, lighting setup, and composition.`;
+        }
+
+        const result = await fal.subscribe("fal-ai/qwen-image2", {
+            input: falInput,
+            logs: true,
+            onQueueUpdate: (update) => {
+                if (update.status === "IN_PROGRESS") {
+                    update.logs.map((log) => log.message).forEach(console.log);
+                }
             },
-            { text: 'Generate a stunning, photorealistic professional product photograph based on the master prompt above. The product must look exactly like the reference image provided. Apply the specified camera angle, lighting setup, and composition.' }
-        );
-    } else {
-        contentParts.push({
-            text: masterPrompt + '\n\nGenerate a stunning, photorealistic professional product photograph based on the description above.',
         });
-    }
 
-    console.log('📸 Calling NANOBANANA PRO for Product Shoot...');
-    console.log(`📝 Prompt length: ${masterPrompt.length}`);
-    console.log(`🖼️ Product reference image: ${productImage ? 'attached' : 'none'}`);
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) {
+            throw new Error(`Fal AI qwen_image2 failed: ${JSON.stringify(result)}`);
+        }
 
-    const response = await ai.models.generateContent({
-        model: NANOBANANA_MODEL,
-        contents: contentParts,
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
-    });
+        console.log(`✅ Fal AI qwen_image2 image ready: ${imageUrl}`);
 
-    // Extract image from response
-    let imageBase64 = null;
-    let responseText = '';
+        // Download result buffer from Fal AI
+        const https = require('https');
+        const buffer = await new Promise((resolve, reject) => {
+            https.get(imageUrl, (res) => {
+                const chunks = [];
+                res.on('data', (c) => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', reject);
+            }).on('error', reject);
+        });
 
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.text) {
-                responseText += part.text;
-            } else if (part.inlineData) {
-                imageBase64 = part.inlineData.data;
+        return buffer;
+
+    } catch (falError) {
+        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+
+        // --- FALLBACK TO GEMINI ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY environment variable not set (needed for fallback)');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        const contentParts = [];
+
+        if (productBuffer) {
+            contentParts.push(
+                { text: masterPrompt },
+                { text: 'Here is the product to photograph. Use this exact product in the generated shot:' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: productBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Generate a stunning, photorealistic professional product photograph based on the master prompt above. The product must look exactly like the reference image provided. Apply the specified camera angle, lighting setup, and composition.' }
+            );
+        } else {
+            contentParts.push({
+                text: masterPrompt + '\n\nGenerate a stunning, photorealistic professional product photograph based on the description above.',
+            });
+        }
+
+        console.log('📸 Calling NANOBANANA PRO (Gemini) Fallback for Product Shoot...');
+
+        const response = await ai.models.generateContent({
+            model: NANOBANANA_MODEL,
+            contents: contentParts,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+
+        let imageBase64 = null;
+        let responseText = '';
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.text) {
+                    responseText += part.text;
+                } else if (part.inlineData) {
+                    imageBase64 = part.inlineData.data;
+                }
             }
         }
+
+        if (!imageBase64) {
+            throw new Error(
+                `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
+            );
+        }
+
+        console.log('✅ Fallback: Product shoot photo generated successfully by Gemini');
+        return Buffer.from(imageBase64, 'base64');
     }
-
-    if (!imageBase64) {
-        throw new Error(
-            `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
-        );
-    }
-
-    console.log('✅ Product shoot photo generated successfully');
-    if (responseText) console.log('📝 Model response:', responseText);
-
-    return Buffer.from(imageBase64, 'base64');
 }
 
 // ────────────────────────────────────────────────────

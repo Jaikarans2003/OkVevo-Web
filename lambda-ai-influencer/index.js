@@ -207,9 +207,9 @@ async function generateLipSyncVideo(videoUrl, audioUrl) {
         return TEST_VIDEO_URL;
     }
 
-    const apiKey = process.env.FAL_API_KEY;
+    const apiKey = process.env.FAL_API_VIDEO;
     if (!apiKey) {
-        throw new Error('FAL_API_KEY not set');
+        throw new Error('FAL_API_VIDEO not set');
     }
 
     console.log('🎬 Calling Fal AI veed/lipsync...');

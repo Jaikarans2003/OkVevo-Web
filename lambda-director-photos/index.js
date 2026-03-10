@@ -13,9 +13,22 @@ const { GoogleGenAI } = require('@google/genai');
  *  3. Upload result to Firebase Storage at DirectorPhotos/{jobId}.png
  */
 
+const { fal } = require('@fal-ai/client');
 const NANOBANANA_MODEL = 'gemini-3.1-flash-image-preview';
 
 let firebaseInitialized = false;
+
+// ────────────────────────────────────────────────────
+// Fal AI Initialization Helper
+// ────────────────────────────────────────────────────
+
+function initializeFalClient() {
+    const apiKey = process.env.FAL_API_IMAGE;
+    if (!apiKey) {
+        throw new Error('FAL_API_IMAGE environment variable not set');
+    }
+    fal.config({ credentials: apiKey });
+}
 
 function initializeFirebase() {
     if (firebaseInitialized) return;
@@ -74,65 +87,112 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
 }
 
 // ────────────────────────────────────────────────────
-// NANOBANANA PRO (Gemini Image Generation)
+// Image Generation via Fal AI (Main) or Gemini (Fallback)
 // ────────────────────────────────────────────────────
 
 /**
- * Generate a photo from a shot prompt using NANOBANANA PRO.
+ * Generate a photo from a shot prompt using Fal AI (Flux Pro) with Gemini Fallback.
  *
  * @param {string} masterPrompt - The full shot prompt with scene context
  * @returns {Buffer} - Generated image data
  */
 async function generateDirectorPhoto(masterPrompt) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY environment variable not set');
-    }
+    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
 
-    const ai = new GoogleGenAI({ apiKey });
+    try {
+        initializeFalClient();
 
-    // Director photos are prompt-only (no reference images needed)
-    const contentParts = [
-        {
-            text: masterPrompt + '\n\nGenerate the image described above. Make it cinematic, photorealistic, and visually stunning.',
-        },
-    ];
+        const falInput = {
+            prompt: masterPrompt + '\\n\\nGenerate the image described above. Make it cinematic, photorealistic, and visually stunning.',
+            image_size: "landscape_16_9",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: true,
+            sync_mode: true
+        };
 
-    console.log('🔬 Calling NANOBANANA PRO for Director photo...');
-    console.log(`📝 Prompt length: ${masterPrompt.length}`);
+        const result = await fal.subscribe("fal-ai/flux-pro", {
+            input: falInput,
+            logs: true,
+            onQueueUpdate: (update) => {
+                if (update.status === "IN_PROGRESS") {
+                    update.logs.map((log) => log.message).forEach(console.log);
+                }
+            },
+        });
 
-    const response = await ai.models.generateContent({
-        model: NANOBANANA_MODEL,
-        contents: contentParts,
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
-    });
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) {
+            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+        }
 
-    // Extract image from response
-    let imageBase64 = null;
-    let responseText = '';
+        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
 
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.text) {
-                responseText += part.text;
-            } else if (part.inlineData) {
-                imageBase64 = part.inlineData.data;
+        // Download result buffer from Fal AI
+        const https = require('https');
+        const buffer = await new Promise((resolve, reject) => {
+            https.get(imageUrl, (res) => {
+                const chunks = [];
+                res.on('data', (c) => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', reject);
+            }).on('error', reject);
+        });
+
+        return buffer;
+
+    } catch (falError) {
+        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+
+        // --- FALLBACK TO GEMINI ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY environment variable not set (needed for fallback)');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Director photos are prompt-only (no reference images needed)
+        const contentParts = [
+            {
+                text: masterPrompt + '\n\nGenerate the image described above. Make it cinematic, photorealistic, and visually stunning.',
+            },
+        ];
+
+        console.log('🔬 Calling NANOBANANA PRO (Gemini) Fallback for Director photo...');
+
+        const response = await ai.models.generateContent({
+            model: NANOBANANA_MODEL,
+            contents: contentParts,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+
+        // Extract image from response
+        let imageBase64 = null;
+        let responseText = '';
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.text) {
+                    responseText += part.text;
+                } else if (part.inlineData) {
+                    imageBase64 = part.inlineData.data;
+                }
             }
         }
+
+        if (!imageBase64) {
+            throw new Error(
+                `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
+            );
+        }
+
+        console.log('✅ Fallback: Director photo generated successfully by Gemini');
+        return Buffer.from(imageBase64, 'base64');
     }
-
-    if (!imageBase64) {
-        throw new Error(
-            `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
-        );
-    }
-
-    console.log('✅ Director photo generated successfully');
-    if (responseText) console.log('📝 Model response:', responseText);
-
-    return Buffer.from(imageBase64, 'base64');
 }
 
 // ────────────────────────────────────────────────────

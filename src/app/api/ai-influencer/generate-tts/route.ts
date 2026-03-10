@@ -35,58 +35,114 @@ function tryInitFirebase() {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { jobId, script, gender } = body;
+        const { jobId, script, gender, audioSampleUrl } = body;
 
-        if (!jobId || !script || !gender) {
+        if (!jobId || !script || (!gender && !audioSampleUrl)) {
             return NextResponse.json(
-                { error: 'Missing required fields: jobId, script, gender' },
+                { error: 'Missing required fields: jobId, script, and either gender or audioSampleUrl' },
                 { status: 400 }
             );
         }
 
-        if (!['male', 'female'].includes(gender)) {
-            return NextResponse.json(
-                { error: 'Gender must be "male" or "female"' },
-                { status: 400 }
-            );
+        const falApiKey = process.env.FAL_API_AUDIO;
+        if (!falApiKey) {
+            return NextResponse.json({ error: 'FAL_API_AUDIO key not configured' }, { status: 500 });
         }
 
-        const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-        if (!openaiApiKey) {
-            return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+        // Resemble AI Chatterbox Voice mapping 
+        // Available: Aurora, Blade, Britney, Carl, Cliff, Richard, Rico, Siobhan, Vicky
+        const voiceMap: Record<string, string> = { male: 'Richard', female: 'Aurora' };
+
+        let payload: any = {
+            text: script,
+            exaggeration: 0.5,
+            cfg: 0.5,
+            temperature: 0.8
+        };
+
+        if (audioSampleUrl) {
+            console.log('🎙️ Generating cloned TTS with Fal AI (Resemble Chatterbox)...');
+            console.log(`   Job ID: ${jobId} | Clone Source: ${audioSampleUrl} | Chars: ${script.length}`);
+            payload.audio_url = audioSampleUrl;
+        } else {
+            const voice = voiceMap[gender];
+            console.log(`🎙️ Generating preset TTS with Fal AI (Resemble Chatterbox)...`);
+            console.log(`   Job ID: ${jobId} | Voice: ${voice} | Chars: ${script.length}`);
+            payload.voice = voice;
         }
 
-        // Voice mapping
-        const voiceMap: Record<string, string> = { male: 'onyx', female: 'nova' };
-        const voice = voiceMap[gender];
+        // Call Fal AI Queue API for Resemble Chatterbox
+        const submitUrl = 'https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech';
 
-        console.log('🎙️ Generating TTS with OpenAI...');
-        console.log(`   Job ID: ${jobId} | Voice: ${voice} | Chars: ${script.length}`);
-
-        // Call OpenAI TTS
-        const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+        const submitResponse = await fetch(submitUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${openaiApiKey}`,
+                'Authorization': `Key ${falApiKey}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                model: 'tts-1',
-                input: script,
-                voice,
-                response_format: 'mp3',
-                speed: 1.0,
-            }),
+            body: JSON.stringify(payload),
         });
 
-        if (!ttsResponse.ok) {
-            const errText = await ttsResponse.text();
-            console.error('❌ OpenAI TTS error:', errText);
-            throw new Error(`OpenAI TTS failed: ${ttsResponse.status} ${errText}`);
+        if (!submitResponse.ok) {
+            const errText = await submitResponse.text();
+            console.error('❌ Fal AI TTS submit error:', errText);
+            throw new Error(`Fal AI TTS submit failed: ${submitResponse.status} ${errText}`);
         }
 
-        const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer());
-        console.log(`✅ TTS audio generated: ${audioBuffer.length} bytes`);
+        const { request_id } = await submitResponse.json();
+        console.log(`✅ Fal AI TTS job submitted: ${request_id}`);
+
+        // Poll for completion
+        const statusUrl = `https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech/requests/${request_id}/status`;
+        let resultUrl = '';
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes max at 5s intervals
+
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            attempts++;
+
+            const statusRes = await fetch(statusUrl, {
+                headers: { 'Authorization': `Key ${falApiKey}` }
+            });
+
+            if (!statusRes.ok) {
+                console.error(`❌ Fal AI status error: ${statusRes.status}`);
+                continue; // keep trying
+            }
+
+            const statusData = await statusRes.json();
+
+            if (statusData.status === 'COMPLETED') {
+                console.log('✅ Fal AI TTS rendering complete.');
+                // Fetch the final result
+                const resultRes = await fetch(`https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech/requests/${request_id}`, {
+                    headers: { 'Authorization': `Key ${falApiKey}` }
+                });
+
+                if (resultRes.ok) {
+                    const finalData = await resultRes.json();
+                    resultUrl = finalData.audio?.url || finalData.audio_url; // Fallbacks for fal output shape
+                }
+                break;
+            } else if (statusData.status === 'FAILED') {
+                throw new Error(`Fal AI TTS failed: ${JSON.stringify(statusData)}`);
+            } else if (attempts % 3 === 0) {
+                console.log(`   ⏳ TTS generation in progress (attempt ${attempts}/${maxAttempts})...`);
+            }
+        }
+
+        if (!resultUrl) {
+            throw new Error('Fal AI TTS completed but returned no audio URL.');
+        }
+
+        // We have the remote audio URL. Fetch the buffer so we can upload it to Firebase or return inline.
+        console.log(`⏳ Downloading generated audio from Fal AI: ${resultUrl.substring(0, 60)}...`);
+        const audioFetchResponse = await fetch(resultUrl);
+        if (!audioFetchResponse.ok) throw new Error('Failed to download audio from Fal AI');
+        const audioBuffer = Buffer.from(await audioFetchResponse.arrayBuffer());
+
+        console.log(`✅ TTS audio downloaded: ${audioBuffer.length} bytes`);
 
         // Try Firebase upload (optional — only if FB_SERVICE_ACCOUNT_KEY is set)
         const firebaseStorage = tryInitFirebase();
@@ -94,18 +150,19 @@ export async function POST(request: NextRequest) {
         if (firebaseStorage) {
             try {
                 const bucket = firebaseStorage.bucket();
-                const audioPath = `AIInfluencer/${jobId}/audio.mp3`;
+                // Store as WAV since Chatterbox defaults to high quality WAV usually, or fallback mp3
+                const audioPath = `AIInfluencer/${jobId}/audio.wav`;
                 const file = bucket.file(audioPath);
 
                 await file.save(audioBuffer, {
-                    metadata: { contentType: 'audio/mpeg' },
+                    metadata: { contentType: 'audio/wav' },
                 });
                 await file.makePublic();
 
-                const audioUrl = `https://storage.googleapis.com/${bucket.name}/${audioPath}`;
-                console.log(`✅ Audio uploaded to Firebase: ${audioUrl}`);
+                const finalUrl = `https://storage.googleapis.com/${bucket.name}/${audioPath}`;
+                console.log(`✅ Audio uploaded to Firebase: ${finalUrl}`);
 
-                return NextResponse.json({ success: true, audioUrl, voice, audioSize: audioBuffer.length });
+                return NextResponse.json({ success: true, audioUrl: finalUrl, audioSize: audioBuffer.length });
             } catch (fbErr) {
                 console.warn('⚠️ Firebase upload failed, falling back to data URL:', fbErr);
             }
@@ -113,14 +170,13 @@ export async function POST(request: NextRequest) {
 
         // Fallback: return Base64 data URL so the browser can play it directly
         const base64Audio = audioBuffer.toString('base64');
-        const dataUrl = `data:audio/mpeg;base64,${base64Audio}`;
+        const dataUrl = `data:audio/wav;base64,${base64Audio}`;
 
         console.log('✅ Returning audio as data URL (no Firebase configured)');
 
         return NextResponse.json({
             success: true,
             audioUrl: dataUrl,
-            voice,
             audioSize: audioBuffer.length,
             storageMode: 'dataurl',
         });

@@ -4,7 +4,8 @@
     "description": "Lambda for Product Shoots — generates professional product photos using NANOBANANA PRO with product image attachment",
     "main": "index.js",
     "dependencies": {
-        "firebase-admin": "^13.0.2",
-        "@google/genai": "^0.14.0"
+        "@fal-ai/client": "^1.9.4",
+        "@google/genai": "^0.14.0",
+        "firebase-admin": "^13.0.2"
     }
 }

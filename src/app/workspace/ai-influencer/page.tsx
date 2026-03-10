@@ -89,6 +89,7 @@ function AIInfluencerWorkstation() {
     const [avatarVideo, setAvatarVideo] = useState<File | null>(null);
     const [avatarVideoUrl, setAvatarVideoUrl] = useState<string | null>(null);
     const [selectedGender, setSelectedGender] = useState<'male' | 'female' | ''>('');
+    const [audioSampleFile, setAudioSampleFile] = useState<File | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
@@ -264,17 +265,17 @@ function AIInfluencerWorkstation() {
     const handleDurationSelect = async (duration: 15 | 30) => {
         setSelectedDuration(duration);
         addUser(`${duration} seconds`);
-        
+
         // Debug: Check if rawScript is available
         console.log('🔍 Debug - rawScript before generateScript:', rawScript ? `${rawScript.substring(0, 50)}...` : 'EMPTY');
         console.log('🔍 Debug - rawScript length:', rawScript?.length || 0);
-        
+
         if (!rawScript?.trim()) {
             addAssistant('❌ Error: No script available. Please upload or paste your script first.');
             setChatStep('upload-script');
             return;
         }
-        
+
         setIsGenerating(true);
         setChatStep('generating-script');
         addAssistant(`Analysing your script and generating a ${duration}-second narrative explainer…`);
@@ -286,7 +287,7 @@ function AIInfluencerWorkstation() {
         try {
             console.log('📝 Sending script to API:', scriptToSend ? `${scriptToSend.substring(0, 50)}...` : 'EMPTY');
             console.log('📝 Duration:', duration);
-            
+
             const response = await fetch('/api/ai-influencer/generate-script', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -338,7 +339,7 @@ function AIInfluencerWorkstation() {
     };
 
     const handleGenerateTTS = async () => {
-        if (!editableScript || !selectedGender || !avatarVideo) return;
+        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo) return;
         setIsGenerating(true);
 
         const newJobId = generateJobId();
@@ -352,12 +353,26 @@ function AIInfluencerWorkstation() {
             const videoUrl = await getDownloadURL(videoRef);
             setAvatarVideoUrl(videoUrl);
 
+            // Upload audio sample to Firebase if provided
+            let audioSampleUrl;
+            if (audioSampleFile) {
+                addAssistant('Uploading reference audio sample to storage…');
+                const sampleRef = ref(storage, `AIInfluencer/${newJobId}/sample_audio${audioSampleFile.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
+                await uploadBytes(sampleRef, audioSampleFile);
+                audioSampleUrl = await getDownloadURL(sampleRef);
+            }
+
             // Generate TTS
-            addAssistant('Generating voice-over with OpenAI TTS…');
+            addAssistant(audioSampleUrl ? 'Generating voice-over with Fal AI Voice Cloning…' : 'Generating voice-over with Fal AI preset voice…');
             const res = await fetch('/api/ai-influencer/generate-tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jobId: newJobId, script: editableScript, gender: selectedGender }),
+                body: JSON.stringify({
+                    jobId: newJobId,
+                    script: editableScript,
+                    gender: selectedGender,
+                    audioSampleUrl: audioSampleUrl
+                }),
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'TTS generation failed');
@@ -703,27 +718,66 @@ function AIInfluencerWorkstation() {
                                                 className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
                                             >
                                                 <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Users size={9} /> Step 6 — Select Voice & Generate Audio
+                                                    <Users size={9} /> Step 6 — Voice Cloning & Audio
                                                 </p>
-                                                <div className="flex gap-2 mb-1">
+
+                                                <div className="mb-3 space-y-2">
+                                                    <p className="text-[10px] text-gray-500">Optional: Upload an audio sample (MP3/WAV) to clone your voice.</p>
+                                                    <input
+                                                        type="file"
+                                                        accept="audio/mpeg,audio/wav"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                setAudioSampleFile(file);
+                                                                addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
+                                                                // Clear gender selection since cloning overrides it
+                                                                setSelectedGender('');
+                                                            }
+                                                        }}
+                                                        className="hidden"
+                                                        id="audio-sample-upload"
+                                                    />
+                                                    <label
+                                                        htmlFor="audio-sample-upload"
+                                                        className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${audioSampleFile
+                                                            ? 'border-orange-500 bg-orange-500/10 text-orange-500'
+                                                            : 'border-gray-300 dark:border-white/20 bg-white/50 dark:bg-black/30 text-gray-500 hover:border-orange-400/60'
+                                                            }`}
+                                                    >
+                                                        <Upload size={14} />
+                                                        {audioSampleFile ? 'Reference Audio Attached' : 'Upload Audio Reference'}
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 my-2">
+                                                    <div className="h-px bg-gray-200 dark:bg-white/10 flex-1"></div>
+                                                    <span className="text-[9px] uppercase font-bold text-gray-400">OR SELECT VOICE</span>
+                                                    <div className="h-px bg-gray-200 dark:bg-white/10 flex-1"></div>
+                                                </div>
+
+                                                <div className="flex gap-2 mb-3">
                                                     {(['male', 'female'] as const).map((g) => (
                                                         <button
                                                             key={g}
-                                                            onClick={() => handleGenderSelect(g)}
+                                                            onClick={() => {
+                                                                handleGenderSelect(g);
+                                                                setAudioSampleFile(null); // Clear custom audio if preset is chosen
+                                                            }}
                                                             disabled={isGenerating}
-                                                            className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${selectedGender === g
+                                                            className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${selectedGender === g && !audioSampleFile
                                                                 ? 'bg-orange-600 border-orange-600 text-white shadow-lg shadow-orange-600/20'
                                                                 : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-orange-400/40'
                                                                 }`}
                                                         >
                                                             <Volume2 size={10} />
-                                                            {g === 'male' ? 'Male (Onyx)' : 'Female (Nova)'}
+                                                            {g === 'male' ? 'Male (Richard)' : 'Female (Aurora)'}
                                                         </button>
                                                     ))}
                                                 </div>
                                                 <button
                                                     onClick={handleGenerateTTS}
-                                                    disabled={!selectedGender || isGenerating}
+                                                    disabled={(!selectedGender && !audioSampleFile) || isGenerating}
                                                     className="w-full py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider hover:from-orange-500 hover:to-orange-400 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
                                                 >
                                                     {isGenerating

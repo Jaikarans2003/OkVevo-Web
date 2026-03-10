@@ -183,93 +183,166 @@ function klingRequest(method, path, body = null) {
 }
 
 // ────────────────────────────────────────────────────
-// NANOBANANA PRO (Image Generation)
+// Fal AI Initialization Helpers
 // ────────────────────────────────────────────────────
 
-async function generateTrendImageCore(masterPrompt, personImage = null, faceReferenceImage = null) {
-    const apiKey = process.env.GEMINI_API_KEY;
+function initializeFalClientImage() {
+    const apiKey = process.env.FAL_API_IMAGE;
     if (!apiKey) {
-        throw new Error('GEMINI_API_KEY environment variable not set');
+        throw new Error('FAL_API_IMAGE environment variable not set');
     }
+    fal.config({ credentials: apiKey });
+}
 
-    const ai = new GoogleGenAI({ apiKey });
+function initializeFalClientVideo() {
+    const apiKey = process.env.FAL_API_VIDEO;
+    if (!apiKey) {
+        throw new Error('FAL_API_VIDEO environment variable not set');
+    }
+    fal.config({ credentials: apiKey });
+}
 
-    const contentParts = [];
 
-    if (personImage && faceReferenceImage) {
-        // Dual reference mode: Use personImage for scene/pose/outfit, faceReferenceImage for facial features
-        contentParts.push(
-            { text: masterPrompt },
-            { text: 'CRITICAL INSTRUCTION: You will receive TWO reference images.\n\nREFERENCE IMAGE 1 (Scene/Pose/Outfit): Use this for the overall scene composition, body pose, outfit, clothing, and background context.' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: personImage.toString('base64'),
-                },
+// ────────────────────────────────────────────────────
+// NANOBANANA PRO (Image Generation) with Fal AI Main & Gemini Fallback
+// ────────────────────────────────────────────────────
+
+async function generateTrendImageCore(masterPrompt, personImageBuffer = null, faceReferenceImageBuffer = null, personImageUrl = null, faceReferenceImageUrl = null) {
+    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
+
+    try {
+        initializeFalClientImage();
+
+        const falInput = {
+            prompt: masterPrompt + '\\n\\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.',
+            image_size: "portrait_9_16",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: true,
+            sync_mode: true
+        };
+
+        if (personImageUrl && faceReferenceImageUrl) {
+            falInput.prompt = `${masterPrompt}\\n\\nREFERENCE IMAGE 1 (Scene/Pose/Outfit URL): ${personImageUrl}\\nREFERENCE IMAGE 2 (Facial Features URL): ${faceReferenceImageUrl}\\nGenerate a stunning, photorealistic, cinematic photograph that:\\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\\n2. Uses the EXACT facial features and face from Reference Image 2\\n3. Follows the camera framing specified in the text prompt\\n\\nThe person's face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.`;
+        } else if (personImageUrl) {
+            falInput.prompt = `${masterPrompt}\\n\\nHere is a reference image URL: ${personImageUrl}. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person's appearance.\\n\\nGenerate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt.`;
+        }
+
+        const result = await fal.subscribe("fal-ai/flux-pro", {
+            input: falInput,
+            logs: true,
+            onQueueUpdate: (update) => {
+                if (update.status === "IN_PROGRESS") {
+                    update.logs.map((log) => log.message).forEach(console.log);
+                }
             },
-            { text: 'REFERENCE IMAGE 2 (Facial Features): Use this ONLY for the person\'s EXACT facial features, face shape, skin tone, eyes, nose, mouth, hair style, and hair color. DO NOT copy the pose, outfit, or background from this image.' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: faceReferenceImage.toString('base64'),
-                },
-            },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person\'s face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
-        );
-    } else if (personImage) {
-        // Single reference mode: Use for everything
-        contentParts.push(
-            { text: masterPrompt },
-            { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person\'s appearance.\n\nThe reference image shows the EXACT person you must generate. Keep every detail of their appearance IDENTICAL - same face, same outfit, same physical characteristics.\n\nYou may ONLY change the camera angle, framing, and background as specified in the text prompt. The person themselves must look EXACTLY like the reference image.\n\nIf the text says "Close-up", generate a tight close-up of the EXACT same person from the reference image.' },
-            {
-                inlineData: {
-                    mimeType: 'image/png',
-                    data: personImage.toString('base64'),
-                },
-            },
-            { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
-        );
-    } else {
-        contentParts.push({
-            text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.',
         });
-    }
 
-    console.log('📸 Calling NANOBANANA PRO for Trend image...');
-    console.log(`📝 Prompt length: ${masterPrompt.length}`);
-    console.log(`🧑 Person reference image: ${personImage ? 'attached' : 'none'}`);
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) {
+            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+        }
 
-    const response = await ai.models.generateContent({
-        model: NANOBANANA_MODEL,
-        contents: contentParts,
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
-    });
+        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
 
-    let imageBase64 = null;
-    let responseText = '';
+        // Download result buffer from Fal AI
+        const https = require('https');
+        const buffer = await new Promise((resolve, reject) => {
+            https.get(imageUrl, (res) => {
+                const chunks = [];
+                res.on('data', (c) => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', reject);
+            }).on('error', reject);
+        });
 
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.text) {
-                responseText += part.text;
-            } else if (part.inlineData) {
-                imageBase64 = part.inlineData.data;
+        return buffer;
+
+    } catch (falError) {
+        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+
+        // --- FALLBACK TO GEMINI ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY environment variable not set (needed for fallback)');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        const contentParts = [];
+
+        if (personImageBuffer && faceReferenceImageBuffer) {
+            // Dual reference mode
+            contentParts.push(
+                { text: masterPrompt },
+                { text: 'CRITICAL INSTRUCTION: You will receive TWO reference images.\n\nREFERENCE IMAGE 1 (Scene/Pose/Outfit): Use this for the overall scene composition, body pose, outfit, clothing, and background context.' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: personImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'REFERENCE IMAGE 2 (Facial Features): Use this ONLY for the person\'s EXACT facial features, face shape, skin tone, eyes, nose, mouth, hair style, and hair color. DO NOT copy the pose, outfit, or background from this image.' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: faceReferenceImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Generate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person\'s face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
+            );
+        } else if (personImageBuffer) {
+            // Single reference mode
+            contentParts.push(
+                { text: masterPrompt },
+                { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person\'s appearance.\n\nThe reference image shows the EXACT person you must generate. Keep every detail of their appearance IDENTICAL - same face, same outfit, same physical characteristics.\n\nYou may ONLY change the camera angle, framing, and background as specified in the text prompt. The person themselves must look EXACTLY like the reference image.\n\nIf the text says "Close-up", generate a tight close-up of the EXACT same person from the reference image.' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: personImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.' }
+            );
+        } else {
+            contentParts.push({
+                text: masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.',
+            });
+        }
+
+        console.log('📸 Calling NANOBANANA PRO Fallback for Trend image...');
+
+        const response = await ai.models.generateContent({
+            model: NANOBANANA_MODEL,
+            contents: contentParts,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+
+        let imageBase64 = null;
+        let responseText = '';
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.text) {
+                    responseText += part.text;
+                } else if (part.inlineData) {
+                    imageBase64 = part.inlineData.data;
+                }
             }
         }
+
+        if (!imageBase64) {
+            throw new Error(
+                `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
+            );
+        }
+
+        console.log('✅ Fallback: Trend image generated successfully by Gemini');
+        return Buffer.from(imageBase64, 'base64');
     }
-
-    if (!imageBase64) {
-        throw new Error(
-            `NANOBANANA PRO did not return an image. Response: ${responseText || '(empty)'}`
-        );
-    }
-
-    console.log('✅ Trend image generated successfully');
-    if (responseText) console.log('📝 Model response:', responseText);
-
-    return Buffer.from(imageBase64, 'base64');
 }
 
 // Alias for backward compatibility
@@ -278,15 +351,6 @@ const generateTrendImage = generateTrendImageCore;
 // ────────────────────────────────────────────────────
 // Fal AI API Helpers (Kling via Fal)
 // ────────────────────────────────────────────────────
-
-// Initialize Fal AI client
-function initializeFalClient() {
-    const apiKey = process.env.FAL_API_KEY;
-    if (!apiKey) {
-        throw new Error('FAL_API_KEY environment variable not set');
-    }
-    fal.config({ credentials: apiKey });
-}
 
 // ────────────────────────────────────────────────────
 // Kling via Fal AI (Video Generation)
@@ -305,6 +369,8 @@ async function generateKlingVideoCore(imageUrl, prompt, duration = 5, endFrameUr
     if (endFrameUrl) {
         console.log(`🖼️ End frame: ${endFrameUrl}`);
     }
+
+    initializeFalClientVideo();
 
     const input = {
         prompt: prompt,
@@ -370,6 +436,8 @@ async function generateGrokVideoCore(imageUrl, prompt, duration = 3) {
     console.log(`📝 Video prompt: ${prompt}`);
     console.log(`⏱️ Duration: ${duration}s`);
     console.log(`🖼️ Source image: ${imageUrl}`);
+
+    initializeFalClientVideo();
 
     const input = {
         prompt: prompt,
@@ -558,7 +626,7 @@ async function processTrendPipeline(body) {
         const retryPrefix = retryCount > 0 ? `🔄 RETRY ${retryCount}/${maxRetries} - ` : '';
         console.log(`\n${retryPrefix}📸 Image ${i + 1}/${imagePrompts.length} (index ${i})`);
         console.log(`   Output path: ${imageOutputPaths[i]}`);
-        
+
         try {
             // Determine reference image based on sourceImageIndex and useFaceReference
             let refBuffer = personBuffer; // Default to user's full body photo
@@ -622,7 +690,7 @@ async function processTrendPipeline(body) {
             console.error(`   Error type: ${err.name}`);
             console.error(`   Error message: ${err.message}`);
             console.error(`   Error stack: ${err.stack}`);
-            
+
             if (retryCount < maxRetries) {
                 const waitTime = 3000 * (retryCount + 1); // 3s, 6s
                 console.log(`   ⏳ Retrying image ${i + 1} in ${waitTime / 1000}s...`);
@@ -708,7 +776,7 @@ async function processTrendPipeline(body) {
         const generateSingleVideo = async (retryCount = 0, maxRetries = 2) => {
             const retryPrefix = retryCount > 0 ? `🔄 RETRY ${retryCount}/${maxRetries} - ` : '';
             console.log(`${retryPrefix}🎬 Generating video ${i + 1}...`);
-            
+
             try {
                 const url = await generateAndUploadVideo(
                     prompt,
@@ -738,7 +806,7 @@ async function processTrendPipeline(body) {
                 console.error(`   Error type: ${err.name}`);
                 console.error(`   Error message: ${err.message}`);
                 console.error(`   Error stack: ${err.stack}`);
-                
+
                 if (retryCount < maxRetries) {
                     const waitTime = 5000 * (retryCount + 1); // 5s, 10s
                     console.log(`   ⏳ Retrying video ${i + 1} in ${waitTime / 1000}s...`);
