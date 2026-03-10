@@ -106,7 +106,7 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
                                 <div
                                     className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
                                                flex flex-col items-center justify-center cursor-pointer
-                                               hover:border-[#FF0080]/50 transition-colors overflow-hidden"
+                                               hover:border-[#FF6B35]/50 transition-colors overflow-hidden"
                                     onClick={() => bodyInputRef.current?.click()}
                                 >
                                     {bodyPreview ? (
@@ -162,8 +162,8 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
                                 disabled={!bodyFile || !user?.uid}
                                 onClick={handleGenerate}
                                 className="w-full py-3 rounded-xl font-medium text-sm transition-all
-                                           bg-gradient-to-r from-[#FF0080] to-[#7928CA] text-white
-                                           hover:shadow-lg hover:shadow-[#FF0080]/25
+                                           bg-gradient-to-r from-[#FF6B35] to-[#FF8C42] text-white
+                                           hover:shadow-lg hover:shadow-[#FF6B35]/25
                                            disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 <Sparkles className="w-4 h-4 inline mr-2" />
@@ -175,7 +175,7 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
                     {/* ── SUBMITTING STEP ── */}
                     {step === 'submitting' && (
                         <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                            <Loader2 className="w-10 h-10 text-[#FF0080] animate-spin" />
+                            <Loader2 className="w-10 h-10 text-[#FF6B35] animate-spin" />
                             <p className="text-sm text-white/50">Submitting your generation...</p>
                         </div>
                     )}
@@ -193,7 +193,7 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
                             <div className="text-center">
                                 <p className="text-white font-semibold">Generation Started!</p>
                                 <p className="text-sm text-white/40 mt-1">
-                                    Check <span className="text-[#FF0080]">My Generations</span> below for results
+                                    Check <span className="text-[#FF6B35]">My Generations</span> below for results
                                 </p>
                             </div>
                             <button

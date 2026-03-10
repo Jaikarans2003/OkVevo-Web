@@ -13,7 +13,7 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     const pathname = usePathname();
 
     const navLinks = [
-        { name: 'Director', href: '/workspace/director' },
+        // { name: 'Director', href: '/workspace/director' },
         { name: 'AI Influencer', href: '/workspace/ai-influencer' },
         { name: 'Product Studio', href: '/workspace/product' },
         { name: 'Social Media', href: '/workspace/social' }
@@ -46,7 +46,18 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                 ))}
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
+                {/* History Link - Orange Color */}
+                <Link
+                    href="/history"
+                    className={`relative text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === '/history' ? 'text-accent-orange' : 'text-accent-orange/60 hover:text-accent-orange'}`}
+                >
+                    History
+                    {pathname === '/history' && (
+                        <div className="absolute -bottom-2 left-0 right-0 h-[1px] bg-accent-orange opacity-40" />
+                    )}
+                </Link>
+                
                 {rightContent}
             </div>
         </nav>

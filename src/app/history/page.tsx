@@ -11,6 +11,7 @@ import HistoryCard from '../../components/HistoryCard';
 import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
 import { getThemeClasses } from '../../utils/themeUtils';
 import NoiseOverlay from '../../components/NoiseOverlay';
+import StudioNavbar from '../../components/workspace/StudioNavbar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function HistoryContent() {
@@ -30,7 +31,7 @@ function HistoryContent() {
     const FILTER_TABS = [
         { id: 'ALL', label: 'All History' },
         { id: 'AI_INFLUENCER', label: 'AI Influencer' },
-        { id: 'DIRECTOR_PHOTOS', label: 'Director Photos' },
+        // { id: 'DIRECTOR_PHOTOS', label: 'Director Photos' },
         { id: 'PRODUCT_SHOOTS', label: 'Product Shoots' },
         { id: 'TRENDS', label: 'Trends' },
         { id: 'PRODUCT_PLACEMENT', label: 'Placements' }
@@ -90,6 +91,21 @@ function HistoryContent() {
         );
     }
 
+    // Right content for StudioNavbar
+    const navbarRightContent = (
+        <div className="flex items-center gap-4">
+            <button
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                className={`p-3 rounded-full transition-all duration-300 relative ${resolvedTheme === 'light' ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}
+            >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
+            <Link href="/profile" className="p-3 bg-gradient-to-r from-accent-orange to-orange-600 rounded-full hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 group">
+                <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+            </Link>
+        </div>
+    );
+
     return (
         <div className={`min-h-screen ${tc.bg} ${tc.text} relative overflow-hidden transition-colors duration-500`}>
             {resolvedTheme === 'light' && <NoiseOverlay />}
@@ -99,37 +115,8 @@ function HistoryContent() {
                 <div className="absolute bottom-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
             </div>
 
-            {/* Header */}
-            <header className={`${tc.sidebar} backdrop-blur-xl sticky top-0 z-40 border-b border-white/5`}>
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <Link href="/workspace" className="flex items-center gap-3 group">
-                            <Image
-                                src="/OKVEVO WithOut BackGrounds/White.svg"
-                                alt="OKVEVO Logo"
-                                width={40}
-                                height={40}
-                                className="group-hover:scale-110 transition-transform duration-300"
-                            />
-                            <span className="text-2xl font-bold text-accent-orange tracking-wide">
-                                <span className={resolvedTheme === 'light' ? 'text-black' : 'text-white'}>OK</span>VEVO
-                            </span>
-                        </Link>
-
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                                className={`p-3 rounded-full transition-all duration-300 relative ${resolvedTheme === 'light' ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}
-                            >
-                                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-                            </button>
-                            <Link href="/profile" className="p-3 bg-gradient-to-r from-accent-orange to-orange-600 rounded-full hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 group">
-                                <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            {/* Studio Navbar */}
+            <StudioNavbar rightContent={navbarRightContent} />
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-12 relative z-10">

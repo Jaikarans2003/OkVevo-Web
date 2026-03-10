@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 import { runPlacementPipeline, runRefinementPipeline, PlacementJobStatus } from '@/services/ProductPlacementService';
 import { runShootsPipeline, ShootPhoto, ShootJobStatus } from '@/services/ProductShootsService';
-import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
+// import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
 import { useWorkspaceSession } from '@/hooks/useWorkspaceSession';
 import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 
@@ -89,7 +89,7 @@ function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc:
                     <motion.p
                         initial={false}
                         animate={{ y: isHovered ? 0 : 20, opacity: isHovered ? 1 : 0.4 }}
-                        className="text-[10px] uppercase tracking-[0.3em] text-purple-400 font-bold mb-2"
+                        className="text-[10px] uppercase tracking-[0.3em] text-orange-400 font-bold mb-2"
                     >
                         {category}
                     </motion.p>
@@ -105,7 +105,7 @@ function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc:
                 </div>
 
                 <div className={`mt-6 flex items-center gap-3 transition-all duration-500 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                    <div className="h-px w-8 bg-purple-500/50"></div>
+                    <div className="h-px w-8 bg-orange-500/50"></div>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium">View Analysis</span>
                 </div>
             </div>
@@ -114,7 +114,7 @@ function ShowcaseCard({ videoSrc, title, category, className = "" }: { videoSrc:
                 <Play size={18} className="text-white fill-white ml-1" />
             </div>
 
-            <div className={`absolute inset-0 border-2 border-purple-500/0 group-hover:border-purple-500/20 transition-colors duration-700 rounded-3xl pointer-events-none`} />
+            <div className={`absolute inset-0 border-2 border-orange-500/0 group-hover:border-orange-500/20 transition-colors duration-700 rounded-3xl pointer-events-none`} />
         </div>
     );
 }
@@ -131,7 +131,7 @@ function ProductStudio() {
     const [brandName, setBrandName] = useState('');
 
     // Mode switching state
-    const [mode, setMode] = useState<'product-ads' | 'product-placement' | 'product-shoots'>('product-ads');
+    const [mode, setMode] = useState<'product-ads' | 'product-placement' | 'product-shoots'>('product-shoots');
     const [productImage, setProductImage] = useState<File | null>(null);
     const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
     const [placementPrompt, setPlacementPrompt] = useState('');
@@ -351,7 +351,7 @@ function ProductStudio() {
     }, [productImage, shootScenario, resolution, aspectRatio, userProfile]);
 
     return (
-        <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-purple-500/30 overflow-x-hidden">
+        <div className="min-h-screen w-full bg-[#050505] text-[#E0E0E0] font-sans selection:bg-orange-500/30 overflow-x-hidden">
 
             <StudioNavbar
                 rightContent={
@@ -365,7 +365,7 @@ function ProductStudio() {
             />
 
             {/* Session History Sidebar — fixed on left */}
-            {userProfile?.uid && (
+            {/* {userProfile?.uid && (
                 <div className="fixed top-0 left-0 h-full z-40 pt-16">
                     <SessionHistorySidebar
                         userId={userProfile.uid}
@@ -376,7 +376,7 @@ function ProductStudio() {
                         accentColor="orange"
                     />
                 </div>
-            )}
+            )} */}
 
             {/* --- LUXURY HERO SECTION --- */}
             <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
@@ -407,7 +407,7 @@ function ProductStudio() {
                     </div>
                     {/* Right Card */}
                     <div className="absolute bottom-1/3 right-[10%] w-72 h-64 bg-gradient-to-bl from-white/5 to-transparent border border-white/5 rounded-2xl backdrop-blur-sm rotate-12 opacity-40 flex items-center justify-center">
-                        <div className="w-32 h-32 rounded-full border border-white/10 border-t-purple-500/50 animate-spin"></div>
+                        <div className="w-32 h-32 rounded-full border border-white/10 border-t-orange-500/50 animate-spin"></div>
                     </div>
                 </motion.div>
 
@@ -427,7 +427,7 @@ function ProductStudio() {
                             <div className="h-px w-12 bg-gradient-to-l from-transparent to-white"></div>
                         </div>
                         <h1 className="text-6xl md:text-[9vw] leading-[0.85] font-sans font-medium tracking-tight text-white mix-blend-difference drop-shadow-2xl">
-                            Art of <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-white to-blue-200">Promotion</span>
+                            Art of <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-200">Promotion</span>
                         </h1>
                     </motion.div>
 
@@ -515,7 +515,7 @@ function ProductStudio() {
                                         <select
                                             value={resolution}
                                             onChange={(e) => setResolution(e.target.value)}
-                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-purple-500/50 outline-none transition-colors cursor-pointer"
+                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-orange-500/50 outline-none transition-colors cursor-pointer"
                                         >
                                             <option value="1080p">1080p (FHD)</option>
                                             <option value="2K">2K (QHD)</option>
@@ -532,7 +532,7 @@ function ProductStudio() {
                                         <select
                                             value={aspectRatio}
                                             onChange={(e) => setAspectRatio(e.target.value)}
-                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-purple-500/50 outline-none transition-colors cursor-pointer"
+                                            className="w-full appearance-none bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-[10px] uppercase tracking-wider text-white focus:border-orange-500/50 outline-none transition-colors cursor-pointer"
                                         >
                                             <option value="1:1">1:1 (Square)</option>
                                             <option value="16:9">16:9 (Landscape)</option>
@@ -549,9 +549,10 @@ function ProductStudio() {
                                 <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest">Mode</label>
                                 <div className="flex gap-1.5">
                                     {[
-                                        { id: 'product-ads' as const, label: 'Ads', icon: <Film size={10} /> },
-                                        { id: 'product-placement' as const, label: 'Placement', icon: <Crosshair size={10} /> },
-                                        { id: 'product-shoots' as const, label: 'Shoots', icon: <Camera size={10} /> },
+                                        // { id: 'product-ads' as const, label: 'Ads', icon: <Film size={10} /> },
+                                         { id: 'product-shoots' as const, label: 'Shoots', icon: <Camera size={10} /> },
+                                        { id: 'product-placement' as const, label: 'Placement', icon: <Crosshair size={10} /> }
+                                       
                                     ].map((m) => (
                                         <button
                                             key={m.id}
@@ -571,9 +572,9 @@ function ProductStudio() {
                                         {/* Zone A */}
                                         <div className="space-y-1.5">
                                             <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                                <Box size={10} className="text-purple-400" /> Zone A
+                                                <Box size={10} className="text-orange-400" /> Zone A
                                             </label>
-                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-purple-500/30 transition-colors">
+                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-orange-500/30 transition-colors">
                                                 <input type="file" id="hero-product-image" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                                 {productImagePreview ? (
                                                     <div className="space-y-2">
@@ -584,7 +585,7 @@ function ProductStudio() {
                                                     </div>
                                                 ) : (
                                                     <label htmlFor="hero-product-image" className="cursor-pointer flex flex-col items-center justify-center py-4 space-y-1.5">
-                                                        <Upload size={14} className="text-purple-400/40" />
+                                                        <Upload size={14} className="text-orange-400/40" />
                                                         <p className="text-[9px] text-white/50">Hero Product</p>
                                                     </label>
                                                 )}
@@ -594,9 +595,9 @@ function ProductStudio() {
                                         {/* Zone B */}
                                         <div className="space-y-1.5">
                                             <label className="text-[9px] uppercase font-bold text-white/30 tracking-widest flex items-center gap-1.5">
-                                                <Focus size={10} className="text-cyan-400" /> Zone B
+                                                <Focus size={10} className="text-orange-400" /> Zone B
                                             </label>
-                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-cyan-500/30 transition-colors">
+                                            <div className="relative group bg-[#0A0A0A] border border-white/10 rounded-xl p-2.5 hover:border-orange-500/30 transition-colors">
                                                 <input type="file" id="scene-image" accept="image/*" onChange={handleSceneImageUpload} className="hidden" />
                                                 {sceneImagePreview ? (
                                                     <div className="space-y-2">
@@ -607,7 +608,7 @@ function ProductStudio() {
                                                     </div>
                                                 ) : (
                                                     <label htmlFor="scene-image" className="cursor-pointer flex flex-col items-center justify-center py-4 space-y-1.5">
-                                                        <Upload size={14} className="text-cyan-400/40" />
+                                                        <Upload size={14} className="text-orange-400/40" />
                                                         <p className="text-[9px] text-white/50">Scene</p>
                                                     </label>
                                                 )}
@@ -643,9 +644,9 @@ function ProductStudio() {
                                     </button>
 
                                     {placementStatus !== 'idle' && placementStatus !== 'complete' && (
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/5 border border-purple-500/20 rounded-lg">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                            <span className="text-[9px] uppercase tracking-widest text-purple-400 font-bold leading-none">{placementStatusDetail}</span>
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                                            <span className="text-[9px] uppercase tracking-widest text-orange-400 font-bold leading-none">{placementStatusDetail}</span>
                                         </div>
                                     )}
 
@@ -698,7 +699,7 @@ function ProductStudio() {
                             )}
 
                             {/* Product Ads — Coming Soon */}
-                            {mode === 'product-ads' && (
+                            {/* {mode === 'product-ads' && (
                                 <div className="flex flex-col items-center justify-center gap-6 p-10 bg-[#0A0A0A] border border-white/5 border-dashed rounded-2xl">
                                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-white/5 flex items-center justify-center">
                                         <Film size={24} className="text-purple-400/40" />
@@ -712,7 +713,7 @@ function ProductStudio() {
                                         <span className="text-[8px] uppercase tracking-widest text-purple-400/50 font-bold">In Development</span>
                                     </div>
                                 </div>
-                            )}
+                            )} */}
 
                             {mode === 'product-shoots' && (
                                 <div className="flex flex-col gap-4">

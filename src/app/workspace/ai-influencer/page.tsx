@@ -51,9 +51,9 @@ const STEPS = [
     { id: 'generating-script', label: 'Generate', icon: Sparkles },
     { id: 'edit-script', label: 'Edit', icon: Edit3 },
     { id: 'avatar-video', label: 'Avatar', icon: Video },
-    { id: 'generating-tts', label: 'Voice', icon: Volume2 },
+    { id: 'Giving a Voice', label: 'Voice', icon: Volume2 },
     { id: 'preview-audio', label: 'Preview', icon: Play },
-    { id: 'generating-lipsync', 'label': 'LipSync', icon: Sparkles },
+    { id: 'generating-lipsync', 'label': 'Animating', icon: Sparkles },
     { id: 'complete', label: 'Done', icon: CheckCircle2 },
 ] as const;
 
@@ -77,7 +77,7 @@ function AIInfluencerWorkstation() {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
         {
             role: 'assistant',
-            content: "Hi! I'm your AI Influencer Assistant. Let's create a professional explainer video. Start by uploading or pasting your script below.",
+            content: "Hi! I'm VEVO your creative Assistant. Let's create a professional explainer video. Start by uploading or pasting your script below.",
         },
     ]);
 
@@ -165,7 +165,7 @@ function AIInfluencerWorkstation() {
         setChatStep('upload-script');
         setChatMessages([{
             role: 'assistant',
-            content: "Hi! Let's create a new explainer video. Upload or paste your script below to get started.",
+            content: "Hi! I'm VEVO Let's create a new explainer video. Upload or paste your script below to get started.",
         }]);
         setRawScript('');
         setSelectedDuration(0);
@@ -452,7 +452,7 @@ function AIInfluencerWorkstation() {
             <StudioNavbar
                 rightContent={
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isGenerating ? 'bg-[#ff6d1f]' : chatStep === 'complete' ? 'bg-green-500' : 'bg-purple-500'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isGenerating ? 'bg-[#ff6d1f]' : chatStep === 'complete' ? 'bg-green-500' : 'bg-orange-500'}`} />
                         <span className="text-[10px] uppercase font-medium text-gray-500 tracking-widest">
                             {isGenerating ? 'Generating' : chatStep === 'complete' ? 'Complete' : 'Active'}
                         </span>
@@ -471,7 +471,7 @@ function AIInfluencerWorkstation() {
                             currentSessionId={sessionId}
                             onSelectSession={handleRestoreInfluencerSession}
                             onNewSession={handleNewInfluencerSession}
-                            accentColor="purple"
+                            accentColor="orange"
                         />
                     </div>
                 )}
@@ -481,7 +481,7 @@ function AIInfluencerWorkstation() {
                     <div className="mb-6 flex items-start justify-between">
                         <div>
                             <h1 className="text-4xl md:text-5xl font-bold mb-2 text-black dark:text-white">AI Influencer</h1>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">From script to lip-synced video in minutes</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">From script to Social Media Ready video in minutes</p>
                         </div>
                         {chatStep !== 'upload-script' && (
                             <button
@@ -528,9 +528,9 @@ function AIInfluencerWorkstation() {
                                             <div key={step.id} className="flex items-center flex-shrink-0">
                                                 <div className={`flex flex-col items-center gap-0.5 ${active ? 'opacity-100' : done ? 'opacity-70' : 'opacity-25'}`}>
                                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${done
-                                                        ? 'bg-purple-600 border-purple-600 text-white'
+                                                        ? 'bg-orange-600 border-orange-600 text-white'
                                                         : active
-                                                            ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                                                            ? 'bg-orange-600/20 border-orange-500 text-orange-400'
                                                             : 'bg-transparent border-gray-300 dark:border-white/20 text-gray-400'
                                                         }`}>
                                                         {done
@@ -538,12 +538,12 @@ function AIInfluencerWorkstation() {
                                                             : <Icon size={10} />
                                                         }
                                                     </div>
-                                                    <span className={`text-[8px] font-bold uppercase tracking-wider ${active ? 'text-purple-400' : 'text-gray-400 dark:text-white/30'}`}>
+                                                    <span className={`text-[8px] font-bold uppercase tracking-wider ${active ? 'text-orange-400' : 'text-gray-400 dark:text-white/30'}`}>
                                                         {step.label}
                                                     </span>
                                                 </div>
                                                 {idx < STEPS.length - 1 && (
-                                                    <div className={`w-4 md:w-6 h-px mx-1 transition-all ${done ? 'bg-purple-600' : 'bg-gray-200 dark:bg-white/10'}`} />
+                                                    <div className={`w-4 md:w-6 h-px mx-1 transition-all ${done ? 'bg-orange-600' : 'bg-gray-200 dark:bg-white/10'}`} />
                                                 )}
                                             </div>
                                         );
@@ -555,7 +555,7 @@ function AIInfluencerWorkstation() {
                                     {/* Chat header */}
                                     <div className="px-4 py-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0F0F0F]/50 flex items-center gap-2 shrink-0">
                                         <div className="relative">
-                                            <Sparkles size={12} className="text-purple-400" />
+                                            <Sparkles size={12} className="text-orange-400" />
                                             <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse" />
                                         </div>
                                         <span className="text-[9px] uppercase font-bold text-black/70 dark:text-white/70 tracking-widest">Vevo AI</span>
@@ -581,7 +581,7 @@ function AIInfluencerWorkstation() {
                                                     value={rawScript}
                                                     onChange={(e) => setRawScript(e.target.value)}
                                                     placeholder="Paste your script here, or upload a .txt file below…"
-                                                    className="w-full h-28 p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 outline-none resize-none placeholder-black/25 dark:placeholder-white/20 leading-relaxed"
+                                                    className="w-full h-28 p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-black/25 dark:placeholder-white/20 leading-relaxed"
                                                 />
                                                 <div className="flex items-center gap-2">
                                                     <input
@@ -593,14 +593,14 @@ function AIInfluencerWorkstation() {
                                                     />
                                                     <button
                                                         onClick={() => scriptFileInputRef.current?.click()}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-white/20 bg-transparent hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:border-purple-400/50 text-[9px] text-black/50 dark:text-white/40 transition-all"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-white/20 bg-transparent hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-400/50 text-[9px] text-black/50 dark:text-white/40 transition-all"
                                                     >
                                                         <Upload size={10} /> Upload .txt file
                                                     </button>
                                                     <button
                                                         onClick={handleScriptSubmit}
                                                         disabled={!rawScript.trim()}
-                                                        className="flex-1 py-2 rounded-lg bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-purple-500 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        className="flex-1 py-2 rounded-lg bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                                                     >
                                                         Continue <ChevronRight size={11} />
                                                     </button>
@@ -624,9 +624,9 @@ function AIInfluencerWorkstation() {
                                                             key={d}
                                                             onClick={() => handleDurationSelect(d)}
                                                             disabled={isGenerating}
-                                                            className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-500/10"
+                                                            className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10"
                                                         >
-                                                            <Clock size={14} className="text-purple-400" />
+                                                            <Clock size={14} className="text-orange-400" />
                                                             <span>{d} seconds</span>
                                                             <span className="text-[8px] text-gray-400 font-normal">~{Math.floor(d * 2.5)} words</span>
                                                         </button>
@@ -648,14 +648,14 @@ function AIInfluencerWorkstation() {
                                                 <textarea
                                                     value={editableScript}
                                                     onChange={(e) => setEditableScript(e.target.value)}
-                                                    className="w-full h-28 p-3 rounded-lg border border-purple-500/30 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/20 outline-none resize-none leading-relaxed"
+                                                    className="w-full h-28 p-3 rounded-lg border border-orange-500/30 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none leading-relaxed"
                                                 />
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-[8px] text-gray-400">{editableScript.trim().split(/\s+/).length} words</span>
                                                     <button
                                                         onClick={handleConfirmScript}
                                                         disabled={!editableScript.trim()}
-                                                        className="py-2 px-5 rounded-lg bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-purple-500 transition-all flex items-center gap-1.5 disabled:opacity-40"
+                                                        className="py-2 px-5 rounded-lg bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500 transition-all flex items-center gap-1.5 disabled:opacity-40"
                                                     >
                                                         Confirm Script <ChevronRight size={11} />
                                                     </button>
@@ -682,10 +682,10 @@ function AIInfluencerWorkstation() {
                                                 />
                                                 <button
                                                     onClick={() => avatarFileInputRef.current?.click()}
-                                                    className="w-full py-5 rounded-xl border-2 border-dashed border-gray-200 dark:border-white/15 bg-white/50 dark:bg-black/30 hover:border-purple-400/60 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-all flex flex-col items-center justify-center gap-2 group"
+                                                    className="w-full py-5 rounded-xl border-2 border-dashed border-gray-200 dark:border-white/15 bg-white/50 dark:bg-black/30 hover:border-orange-400/60 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-all flex flex-col items-center justify-center gap-2 group"
                                                 >
-                                                    <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <Upload size={18} className="text-purple-500" />
+                                                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Upload size={18} className="text-orange-500" />
                                                     </div>
                                                     <div className="text-center">
                                                         <p className="text-[11px] font-semibold text-black/70 dark:text-white/70">Click to upload avatar video</p>
@@ -712,8 +712,8 @@ function AIInfluencerWorkstation() {
                                                             onClick={() => handleGenderSelect(g)}
                                                             disabled={isGenerating}
                                                             className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${selectedGender === g
-                                                                ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-600/20'
-                                                                : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-purple-400/40'
+                                                                ? 'bg-orange-600 border-orange-600 text-white shadow-lg shadow-orange-600/20'
+                                                                : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-orange-400/40'
                                                                 }`}
                                                         >
                                                             <Volume2 size={10} />
@@ -724,7 +724,7 @@ function AIInfluencerWorkstation() {
                                                 <button
                                                     onClick={handleGenerateTTS}
                                                     disabled={!selectedGender || isGenerating}
-                                                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-violet-500 text-white text-[10px] font-bold uppercase tracking-wider hover:from-purple-500 hover:to-violet-400 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
+                                                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider hover:from-orange-500 hover:to-orange-400 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
                                                 >
                                                     {isGenerating
                                                         ? <><Loader2 size={12} className="animate-spin" /> Generating Audio…</>
@@ -747,7 +747,7 @@ function AIInfluencerWorkstation() {
                                                 <audio controls src={audioUrl} className="w-full h-8 rounded-lg" />
                                                 <button
                                                     onClick={handleGenerateLipSync}
-                                                    className="w-full py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-violet-500 to-blue-500 text-white hover:from-purple-400 hover:to-blue-400 shadow-xl hover:shadow-purple-500/30 hover:scale-[1.01]"
+                                                    className="w-full py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl hover:shadow-orange-500/30 hover:scale-[1.01]"
                                                 >
                                                     <Sparkles size={13} /> Generate Lip-Synced Video
                                                 </button>
@@ -762,8 +762,8 @@ function AIInfluencerWorkstation() {
                                                 className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/40 flex items-center justify-center flex-shrink-0">
-                                                        <Loader2 size={14} className="text-purple-400 animate-spin" />
+                                                    <div className="w-8 h-8 rounded-full bg-orange-600/20 border border-orange-500/40 flex items-center justify-center flex-shrink-0">
+                                                        <Loader2 size={14} className="text-orange-400 animate-spin" />
                                                     </div>
                                                     <div>
                                                         <p className="text-[10px] font-bold text-black/80 dark:text-white/80">Generating Lip-Synced Video</p>
@@ -813,7 +813,7 @@ function AIInfluencerWorkstation() {
                                         {chatMessages.map((msg, i) => (
                                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                 <div className={`max-w-[88%] rounded-xl px-3 py-2 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user'
-                                                    ? 'bg-purple-600 text-white'
+                                                    ? 'bg-orange-600 text-white'
                                                     : 'bg-gray-100 dark:bg-[#151515] text-black/80 dark:text-white/80 border border-gray-200 dark:border-white/5'
                                                     }`}>
                                                     {msg.content}
@@ -823,7 +823,7 @@ function AIInfluencerWorkstation() {
                                         {isGenerating && (
                                             <div className="flex justify-start">
                                                 <div className="bg-gray-100 dark:bg-[#151515] border border-gray-200 dark:border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
-                                                    <Loader2 size={10} className="animate-spin text-purple-400" />
+                                                    <Loader2 size={10} className="animate-spin text-orange-400" />
                                                     <span className="text-[10px] text-black/50 dark:text-white/50">Working…</span>
                                                 </div>
                                             </div>
@@ -960,7 +960,7 @@ function AIInfluencerWorkstation() {
                                                                 <img src={item.imageUrl} alt={item.topic} className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center">
-                                                                    <Loader2 size={14} className="text-purple-400 animate-spin" />
+                                                                    <Loader2 size={14} className="text-orange-400 animate-spin" />
                                                                 </div>
                                                             )}
                                                             <div className={`absolute top-1 right-1 px-1 py-0.5 rounded text-[6px] font-bold uppercase ${item.layout === 'fullscreen' ? 'bg-orange-500 text-white' : 'bg-black/60 text-white/80'}`}>
@@ -988,7 +988,7 @@ function AIInfluencerWorkstation() {
                                     Control camera movements and animations with precision.
                                 </p>
                             </div>
-                            <div className="space-y-1.5">
+                            {/* <div className="space-y-1.5">
                                 <label className="text-[9px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest">Camera Movement</label>
                                 <textarea
                                     placeholder="Describe camera path (e.g. slow dolly in, pan left to right…)"
@@ -1004,10 +1004,10 @@ function AIInfluencerWorkstation() {
                                             <p className="text-[9px] font-bold text-black/50 dark:text-white/50 uppercase tracking-wider">{preset}</p>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                            <button className="w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 shadow-xl">
-                                <Move3d size={14} /> Apply Motion
+                                </div> */}
+                            {/* </div> */}
+                            <button className="w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl">
+                                <Move3d size={14} /> Coming Soon.
                             </button>
                         </div>
                     )}

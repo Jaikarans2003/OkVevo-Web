@@ -70,7 +70,7 @@ export default function SessionHistorySidebar({
 }: SessionHistorySidebarProps) {
     const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
     const [loading, setLoading] = useState(false);
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(true); // Minimized by default
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const accent = ACCENT[accentColor] ?? ACCENT.purple;

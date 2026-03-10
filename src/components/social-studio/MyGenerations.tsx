@@ -137,9 +137,9 @@ export default function MyGenerations() {
                         My <span className="text-white/20">Generations</span>
                     </h2>
                     {activeCount > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF0080]/10 border border-[#FF0080]/20">
-                            <Loader2 className="w-3 h-3 text-[#FF0080] animate-spin" />
-                            <span className="text-[10px] font-black text-[#FF0080] uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B35]/10 border border-[#FF6B35]/20">
+                            <Loader2 className="w-3 h-3 text-[#FF6B35] animate-spin" />
+                            <span className="text-[10px] font-black text-[#FF6B35] uppercase tracking-wider">
                                 {activeCount} Active
                             </span>
                         </div>
@@ -195,7 +195,7 @@ export default function MyGenerations() {
                                 {/* Header */}
                                 <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                                     <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-[#FF0080]" />
+                                        <Sparkles className="w-4 h-4 text-[#FF6B35]" />
                                         <h3 className="text-sm font-bold text-white">{gen.trendTitle}</h3>
                                         <span className="text-[10px] text-white/30 uppercase">{STATUS_LABELS[gen.status]}</span>
                                     </div>
@@ -331,7 +331,7 @@ function GenerationCard({
                         <img src={thumbnailUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     )}
                     <div className="relative z-10 flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 text-[#FF0080]/40 animate-spin" />
+                        <Loader2 className="w-8 h-8 text-[#FF6B35]/40 animate-spin" />
                         <div className="flex items-center gap-1.5 text-white/40">
                             <Clock className="w-3 h-3" />
                             <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -343,7 +343,7 @@ function GenerationCard({
                         {/* Progress bar */}
                         <div className="w-48 h-1 rounded-full bg-white/5 overflow-hidden">
                             <motion.div
-                                className="h-full bg-gradient-to-r from-[#FF0080]/50 to-[#FF0080]"
+                                className="h-full bg-gradient-to-r from-[#FF6B35]/50 to-[#FF6B35]"
                                 initial={{ width: '0%' }}
                                 animate={{
                                     width: gen.status === 'generating-images' ? `${(completedImages / totalImages) * 50}%`
@@ -386,8 +386,8 @@ function GenerationCard({
                             </div>
                             {gen.finalVideoUrl && (
                                 <div className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center gap-1">
-                                    <Film className="w-3 h-3 text-[#FF0080]" />
-                                    <span className="text-[9px] font-bold text-[#FF0080]">Final Video</span>
+                                    <Film className="w-3 h-3 text-[#FF6B35]" />
+                                    <span className="text-[9px] font-bold text-[#FF6B35]">Final Video</span>
                                 </div>
                             )}
                         </div>
@@ -410,8 +410,8 @@ function GenerationCard({
                         {gen.finalVideoUrl && (
                             <button
                                 onClick={() => onDownload(gen.finalVideoUrl!, `skyfall-final.mp4`)}
-                                className="flex-1 py-2 rounded-lg bg-[#FF0080]/10 hover:bg-[#FF0080]/20 transition-colors
-                                           flex items-center justify-center gap-1.5 text-xs text-[#FF0080]/70 hover:text-[#FF0080]"
+                                className="flex-1 py-2 rounded-lg bg-[#FF6B35]/10 hover:bg-[#FF6B35]/20 transition-colors
+                                           flex items-center justify-center gap-1.5 text-xs text-[#FF6B35]/70 hover:text-[#FF6B35]"
                             >
                                 <Download className="w-3 h-3" />
                                 Download Video

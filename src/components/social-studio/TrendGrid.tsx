@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Play, ImageIcon, Search, X } from 'lucide-react';
+import { Play, ImageIcon, Search, X, Loader2 } from 'lucide-react';
 import { TREND_DEFINITIONS, type TrendDefinition } from '@/data/trendDefinitions';
 
 export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, index: number, onClick: () => void }) => {
@@ -19,10 +19,9 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
                     src={trend.image}
                     alt={trend.title}
                     fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105 opacity-60 group-hover:opacity-80"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#151518] via-transparent to-transparent opacity-60" />
-
+                
                 {/* Type Icon Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transform scale-90 group-hover:scale-100 transition-transform duration-500">
@@ -32,11 +31,11 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
 
                 {/* Type badge */}
                 <div className="absolute top-4 right-4">
-                    <div className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
+                    <div className="px-2.5 py-1 rounded-full bg-[#FF6B35]/10 border border-[#FF6B35]/20 flex items-center gap-1.5">
                         {trend.videoPrompts.length > 0 ? (
                             <>
-                                <Play size={10} fill="currentColor" className="text-[#FF0080]/80" />
-                                <span className="text-[9px] font-black text-[#FF0080]/80">{trend.imagePrompts.length} Shots + Video</span>
+                                <Play size={10} fill="currentColor" className="text-[#FF6B35]/80" />
+                                <span className="text-[10px] font-black text-[#FF6B35] uppercase tracking-wider">{trend.imagePrompts.length} Shots + Video</span>
                             </>
                         ) : (
                             <>
@@ -95,7 +94,7 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void })
                 {/* Search Bar */}
                 <div className="relative w-full md:w-96 group">
                     <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                        <Search className="w-4 h-4 text-white/30 group-focus-within:text-white transition-colors" />
+                        <Loader2 className="w-8 h-8 text-[#FF6B35]/40 animate-spin" />
                     </div>
                     <input
                         type="text"
@@ -107,7 +106,7 @@ const TrendGrid = ({ onSelect }: { onSelect: (trend: TrendDefinition) => void })
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute inset-y-0 right-4 flex items-center"
+                            className="absolute inset-y-0 right-4 flex items-center hover:shadow-lg hover:shadow-[#FF6B35]/25 hover:text-white transition-colors"
                         >
                             <X className="w-4 h-4 text-white/30 hover:text-white transition-colors" />
                         </button>
