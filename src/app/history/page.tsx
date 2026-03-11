@@ -2,23 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { User, Loader2, Search, Grid, List, Sun, Moon, Sparkles, Plus, History } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { getUserHistory, UserGeneration } from '../../services/HistoryService';
-import HistoryCard from '../../components/HistoryCard';
-import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
-import { getThemeClasses } from '../../utils/themeUtils';
-import NoiseOverlay from '../../components/NoiseOverlay';
-import StudioNavbar from '../../components/workspace/StudioNavbar';
+import { 
+    User, 
+    Loader2, 
+    Search, 
+    Grid, 
+    List, 
+    Sparkles, 
+    Plus, 
+    History,
+    ArrowLeft
+} from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { getUserHistory, UserGeneration } from '@/services/HistoryService';
+import HistoryCard from '@/components/HistoryCard';
+import NoiseOverlay from '@/components/NoiseOverlay';
+import StudioNavbar from '@/components/workspace/StudioNavbar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function HistoryContent() {
     const router = useRouter();
     const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
-    const { theme, resolvedTheme, setTheme } = useTheme();
-    const tc = getThemeClasses(resolvedTheme);
 
     const [generations, setGenerations] = useState<UserGeneration[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,7 +36,6 @@ function HistoryContent() {
     const FILTER_TABS = [
         { id: 'ALL', label: 'All History' },
         { id: 'AI_INFLUENCER', label: 'AI Influencer' },
-        // { id: 'DIRECTOR_PHOTOS', label: 'Director Photos' },
         { id: 'PRODUCT_SHOOTS', label: 'Product Shoots' },
         { id: 'TRENDS', label: 'Trends' },
         { id: 'PRODUCT_PLACEMENT', label: 'Placements' }
@@ -51,9 +55,7 @@ function HistoryContent() {
             setLoading(true);
             setError(null);
             try {
-                // If the user belongs to an org, you might want to switch orgId here instead of uid depending on the requirements.
-                // Assuming history is personal or shared via the collection ID. Use UID as primary for now.
-                const hist = await getUserHistory(userProfile.uid, 100);
+                const hist = await getUserHistory(userProfile.uid, 200);
                 setGenerations(hist);
             } catch (err) {
                 console.error('Failed to load history:', err);
@@ -82,95 +84,107 @@ function HistoryContent() {
 
     if (authLoading || loading) {
         return (
-            <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-accent-orange mx-auto mb-4" />
-                    <p className={`${tc.text} text-lg font-medium`}>Gathering your creative history...</p>
-                </div>
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-[#FF4D00] animate-spin" />
             </div>
         );
     }
 
-    // Right content for StudioNavbar
     const navbarRightContent = (
         <div className="flex items-center gap-4">
-            <button
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className={`p-3 rounded-full transition-all duration-300 relative ${resolvedTheme === 'light' ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}
-            >
-                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </button>
-            <Link href="/profile" className="p-3 bg-gradient-to-r from-accent-orange to-orange-600 rounded-full hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 group">
+            <Link href="/profile" className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all group">
                 <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
             </Link>
         </div>
     );
 
-    return (
-        <div className={`min-h-screen ${tc.bg} ${tc.text} relative overflow-hidden transition-colors duration-500`}>
-            {resolvedTheme === 'light' && <NoiseOverlay />}
+    // Animation Configs
+    const titleLetters = "HISTORY".split('');
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }
+    };
+    const letterVariants = {
+        hidden: { opacity: 0, y: 40, filter: 'blur(10px)', scale: 0.8 },
+        show: { opacity: 1, y: 0, filter: 'blur(0px)', scale: 1, transition: { type: 'spring' as const, damping: 12, stiffness: 100 } }
+    };
 
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-accent-orange/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white relative overflow-x-hidden selection:bg-[#FF4D00]/30 selection:text-white pb-32">
+            <NoiseOverlay />
+            
+            {/* Background Image */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <img 
+                    src="/images/herobg.png" 
+                    alt="Background" 
+                    className="w-full h-full object-cover opacity-20 mix-blend-screen"
+                />
             </div>
 
             {/* Studio Navbar */}
             <StudioNavbar rightContent={navbarRightContent} />
 
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-6 py-12 relative z-10">
-                {/* Title */}
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-12">
-                    <div>
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-accent-orange/10 rounded-2xl">
-                                <History className="w-8 h-8 text-accent-orange" />
-                            </div>
-                            <h1 className="text-5xl md:text-6xl font-black text-accent-orange leading-tight tracking-tight">
-                                History
-                            </h1>
-                        </div>
-                        <p className={`${tc.textDim} text-lg ml-2`}>
-                            Your entire OKVEVO creative legacy in one place
-                        </p>
+            <main className="relative z-10 max-w-7xl mx-auto px-6 py-24 relative">
+                {/* Title Section */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
+                    <div className="flex flex-col items-center md:items-start">
+                        <motion.h1 
+                            variants={containerVariants} 
+                            initial="hidden" 
+                            animate="show" 
+                            className="text-5xl md:text-7xl lg:text-8xl font-black leading-none tracking-tight flex"
+                        >
+                            {titleLetters.map((char, index) => (
+                                <motion.span key={index} variants={letterVariants} className="inline-block bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 lowercase first-letter:uppercase">
+                                    {char}
+                                </motion.span>
+                            ))}
+                            <motion.span 
+                                initial={{ opacity: 0, scale: 0 }} 
+                                animate={{ opacity: 1, scale: 1 }} 
+                                transition={{ delay: 1.2, type: 'spring' }} 
+                                className="text-[#FF4D00]"
+                            >
+                                .
+                            </motion.span>
+                        </motion.h1>
+                        <p className="text-white/40 text-lg md:text-xl font-medium mt-4">Your creative journey at OKVEVO</p>
                     </div>
 
                     <Link
                         href="/workspace"
-                        className="group flex items-center gap-2 px-8 py-4 bg-text-main text-bg-main rounded-full font-bold text-lg hover:scale-105 hover:shadow-xl transition-all duration-300"
+                        className="group flex items-center gap-3 px-10 py-5 bg-[#FF4D00] hover:bg-[#e64600] text-white rounded-full font-black uppercase tracking-widest text-sm hover:scale-105 hover:shadow-2xl hover:shadow-[#FF4D00]/20 transition-all duration-300"
                     >
-                        <Plus className="w-6 h-6" />
-                        New Creation
+                        <Plus className="w-5 h-5 flex-shrink-0" />
+                        Create New
                     </Link>
                 </div>
 
                 {/* Filters */}
-                <div className="mb-10 p-2 rounded-[2rem] bg-black/5 dark:bg-white/5 shadow-xl shadow-black/20 backdrop-blur-md border border-black/10 dark:border-white/10">
-                    <div className="flex flex-col lg:flex-row items-center gap-4 p-2">
+                <div className="mb-12 p-3 rounded-[3rem] bg-[#111]/80 backdrop-blur-2xl border border-white/10 shadow-3xl">
+                    <div className="flex flex-col lg:flex-row items-center gap-6 p-2">
                         {/* Search */}
-                        <div className="relative w-full lg:flex-1">
-                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-main/50 dark:text-white/50" />
+                        <div className="relative w-full lg:flex-1 group">
+                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-[#FF4D00] transition-colors" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search by title..."
-                                className="w-full bg-transparent border-none focus:ring-0 text-text-main dark:text-white placeholder:text-text-main/50 dark:placeholder:text-white/50 pl-12 pr-4 py-3 font-medium cursor-text"
+                                placeholder="Search your creations..."
+                                className="w-full bg-white/5 border border-white/5 focus:border-[#FF4D00]/30 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none transition-all placeholder:text-white/20"
                             />
                         </div>
 
-                        <div className="hidden lg:block w-px h-8 bg-black/10 dark:bg-white/10" />
-
                         {/* Tabs */}
-                        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-2 lg:pb-0">
+                        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar scroll-smooth">
                             {FILTER_TABS.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setFilterType(tab.id)}
-                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${filterType === tab.id
-                                        ? 'bg-accent-orange text-white shadow-lg shadow-accent-orange/30'
-                                        : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${filterType === tab.id
+                                        ? 'bg-[#FF4D00] text-white shadow-xl shadow-[#FF4D00]/20'
+                                        : 'text-white/50 hover:text-white hover:bg-white/5'
                                         }`}
                                 >
                                     {tab.label}
@@ -178,17 +192,19 @@ function HistoryContent() {
                             ))}
                         </div>
 
+                        <div className="hidden lg:block w-px h-10 bg-white/10" />
+
                         {/* View Toggle */}
-                        <div className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/10">
+                        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/5">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/20 shadow-sm text-accent-orange' : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white'}`}
+                                className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-[#FF4D00] text-white shadow-lg' : 'text-white/30 hover:text-white'}`}
                             >
                                 <Grid className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/20 shadow-sm text-accent-orange' : 'text-text-main/70 hover:text-text-main dark:text-white/70 dark:hover:text-white'}`}
+                                className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#FF4D00] text-white shadow-lg' : 'text-white/30 hover:text-white'}`}
                             >
                                 <List className="w-5 h-5" />
                             </button>
@@ -198,37 +214,42 @@ function HistoryContent() {
 
                 <AnimatePresence>
                     {error && (
-                        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl mb-8 text-center font-medium">
-                            {error}
+                        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-[2rem] mb-12 text-center font-bold flex items-center justify-center gap-3">
+                            <ArrowLeft className="w-5 h-5 rotate-180" /> {error}
                         </motion.div>
                     )}
                 </AnimatePresence>
 
                 {/* Content Area */}
                 {filteredGenerations.length === 0 ? (
-                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
-                        <div className="relative inline-block mb-6">
-                            <div className="absolute inset-0 bg-accent-orange/20 blur-2xl rounded-full" />
-                            <Sparkles className="w-20 h-20 text-accent-orange relative z-10" />
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-32 bg-[#111] border border-white/10 rounded-[4rem] relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF4D00]/5 rounded-full blur-[100px]" />
+                        <div className="relative z-10 flex flex-col items-center">
+                            <div className="p-8 bg-white/5 rounded-full mb-8">
+                                <Sparkles className="w-16 h-16 text-white/10 group-hover:text-[#FF4D00] transition-colors duration-500" />
+                            </div>
+                            <h3 className="text-4xl font-black mb-4">
+                                {searchQuery || filterType !== 'ALL' ? 'No creations found' : 'No history yet'}
+                            </h3>
+                            <p className="text-white/40 mb-10 text-xl max-w-md mx-auto">
+                                {searchQuery || filterType !== 'ALL' ? 'Try adjusting your filters or search keywords.' : 'The canvas is empty, but your creativity isn\'t. Start your journey today.'}
+                            </p>
+                            <Link href="/workspace" className="px-10 py-4 bg-white/5 hover:bg-[#FF4D00] border border-white/10 hover:border-transparent rounded-full font-black text-xs uppercase tracking-widest transition-all duration-300">
+                                Launch Workspace
+                            </Link>
                         </div>
-                        <h3 className={`text-3xl font-bold ${tc.text} mb-3`}>
-                            {searchQuery || filterType !== 'ALL' ? 'No history found' : 'No history yet'}
-                        </h3>
-                        <p className={`${tc.textDim} mb-8 text-lg max-w-md mx-auto`}>
-                            {searchQuery || filterType !== 'ALL' ? 'Try adjusting your filters.' : 'You haven\'t made anything yet. Start creating!'}
-                        </p>
                     </motion.div>
                 ) : (
-                    <motion.div layout className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'flex flex-col gap-4'}>
+                    <motion.div layout className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8' : 'flex flex-col gap-6'}>
                         <AnimatePresence>
-                            {filteredGenerations.map((gen) => (
+                            {filteredGenerations.map((gen, idx) => (
                                 <motion.div
                                     key={gen.id}
                                     layout
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9 }}
-                                    transition={{ duration: 0.3 }}
+                                    transition={{ duration: 0.5, delay: idx * 0.05 }}
                                 >
                                     <HistoryCard generation={gen} viewMode={viewMode} />
                                 </motion.div>
@@ -242,9 +263,5 @@ function HistoryContent() {
 }
 
 export default function HistoryPage() {
-    return (
-        <ThemeProvider>
-            <HistoryContent />
-        </ThemeProvider>
-    );
+    return <HistoryContent />;
 }

@@ -9,6 +9,12 @@ export interface UserProfile {
     onboardingComplete: boolean;
     createdAt: any;
     updatedAt: any;
+    bio?: string;
+    socialLinks?: {
+        twitter?: string;
+        linkedin?: string;
+        website?: string;
+    };
     // Organisation-specific fields
     organisationId?: string;
     organisationRole?: 'admin' | 'member';

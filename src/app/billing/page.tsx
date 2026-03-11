@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     CreditCard,
     Calendar,
@@ -15,6 +15,7 @@ import {
     Receipt,
     Package,
     Clock,
+    Zap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -24,16 +25,11 @@ import {
     getStatusLabel,
     type SubscriptionWithPlanDetails,
 } from '@/services/SubscriptionService';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
-import { getThemeClasses } from '@/utils/themeUtils';
 import NoiseOverlay from '@/components/NoiseOverlay';
 
-function BillingContent() {
+export default function BillingPage() {
     const router = useRouter();
     const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
-    const { theme, resolvedTheme } = useTheme();
-    const tc = getThemeClasses(resolvedTheme);
-
     const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -69,251 +65,278 @@ function BillingContent() {
 
     if (authLoading || loading) {
         return (
-            <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-accent-orange mx-auto mb-4" />
-                    <p className={`${tc.text} text-lg font-medium`}>Loading your billing details...</p>
-                </div>
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-[#FF4D00] animate-spin" />
             </div>
         );
     }
 
-    const formatDate = (timestamp: { toDate: () => Date } | Date | undefined) => {
+    const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
-        const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
-        return date.toLocaleDateString('en-IN', {
+        const date = timestamp instanceof Date ? timestamp : timestamp.toDate?.() || timestamp;
+        return new Date(date).toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
         });
     };
 
-    return (
-        <div className={`min-h-screen ${tc.bg} ${tc.text} relative overflow-hidden transition-colors duration-500`}>
-            {resolvedTheme === 'light' && <NoiseOverlay />}
+    // Animation Configs
+    const titleLetters = "BILLING".split('');
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }
+    };
+    const letterVariants = {
+        hidden: { opacity: 0, y: 40, filter: 'blur(10px)', scale: 0.8 },
+        show: { opacity: 1, y: 0, filter: 'blur(0px)', scale: 1, transition: { type: 'spring' as const, damping: 12, stiffness: 100 } }
+    };
 
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-accent-orange/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2000ms' }} />
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white relative overflow-x-hidden selection:bg-[#FF4D00]/30 selection:text-white pt-24 pb-32">
+            <NoiseOverlay />
+
+            {/* Background Image */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <img 
+                    src="/images/herobg.png" 
+                    alt="Background" 
+                    className="w-full h-full object-cover opacity-30 mix-blend-screen"
+                />
             </div>
 
-            {/* Header */}
-            <header className={`${tc.sidebar} backdrop-blur-xl sticky top-0 z-40 border-b border-white/5`}>
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link
-                                href="/workspace"
-                                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                            <h1 className="text-2xl font-bold text-accent-orange">Billing</h1>
-                        </div>
-                    </div>
+            {/* Navbar */}
+            <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl border-b border-white/5 bg-[#0A0A0A]/40 px-8 py-5">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                    <Link href="/workspace" className="flex items-center gap-3 group">
+                        <ArrowLeft className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
+                        <span className="text-sm font-black tracking-widest uppercase text-white/50 group-hover:text-white transition-colors">Workspace</span>
+                    </Link>
                 </div>
-            </header>
+            </nav>
 
-            {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-6 py-12 relative z-10">
+            <main className="relative z-10 max-w-5xl mx-auto px-6 w-full mt-8">
+
+
+                <div className="w-full flex justify-center mb-16 relative z-20">
+                     <motion.h1 
+                        variants={containerVariants} 
+                        initial="hidden" 
+                        animate="show" 
+                        className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-none tracking-tight flex"
+                    >
+                        {titleLetters.map((char, index) => (
+                            <motion.span key={index} variants={letterVariants} className="inline-block bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50">
+                                {char}
+                            </motion.span>
+                        ))}
+                        <motion.span 
+                            initial={{ opacity: 0, scale: 0 }} 
+                            animate={{ opacity: 1, scale: 1 }} 
+                            transition={{ delay: 1.2, type: 'spring' }} 
+                            className="text-[#FF4D00]"
+                        >
+                            .
+                        </motion.span>
+                    </motion.h1>
+                </div>
+
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl mb-8 text-center font-medium"
+                        className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl mb-8 flex justify-center font-bold items-center gap-3"
                     >
-                        {error}
+                        <AlertCircle className="w-5 h-5" /> {error}
                     </motion.div>
                 )}
 
-                {!subscription ? (
-                    // No subscription state
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-center py-20"
-                    >
-                        <div className="relative inline-block mb-6">
-                            <div className="absolute inset-0 bg-accent-orange/20 blur-2xl rounded-full" />
-                            <CreditCard className="w-20 h-20 text-accent-orange relative z-10" />
-                        </div>
-                        <h2 className={`text-3xl font-bold ${tc.text} mb-3`}>No Active Subscription</h2>
-                        <p className={`${tc.textDim} mb-8 text-lg max-w-md mx-auto`}>
-                            You don't have an active subscription. Explore our plans to get started.
-                        </p>
-                        <Link
-                            href="/pricing"
-                            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-orange to-orange-600 rounded-full font-bold text-white hover:scale-105 hover:shadow-xl transition-all duration-300"
-                        >
-                            <Package className="w-5 h-5" />
-                            View Plans
-                        </Link>
-                    </motion.div>
-                ) : (
-                    // Subscription details
-                    <div className="space-y-8">
-                        {/* Current Plan Card */}
+                <div className="w-full max-w-4xl mx-auto relative">
+                    {!subscription ? (
+                        // No subscription state
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl"
+                            transition={{ delay: 0.8, duration: 0.8 }}
+                            className="bg-[#111] border border-white/10 rounded-[2.5rem] p-16 text-center shadow-2xl relative overflow-hidden group"
                         >
-                            <div className="flex items-start justify-between mb-6">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h2 className="text-3xl font-bold">{subscription.planDetails.name}</h2>
-                                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${getStatusColor(subscription.status)} bg-opacity-20`}>
-                                            <div className={`w-2 h-2 rounded-full ${getStatusColor(subscription.status)}`} />
-                                            <span className="text-sm font-medium">{getStatusLabel(subscription.status)}</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-white/60">
-                                        {formatPrice(subscription.planDetails.price)} / {subscription.planDetails.period}
-                                    </p>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF4D00]/5 rounded-full blur-3xl group-hover:bg-[#FF4D00]/10 transition-colors duration-500" />
+                            <div className="relative z-10">
+                                <div className="inline-block p-6 bg-white/5 rounded-full mb-6">
+                                    <Package className="w-16 h-16 text-white/20" />
                                 </div>
-                                <div className="p-4 bg-accent-orange/10 rounded-2xl">
-                                    <CreditCard className="w-8 h-8 text-accent-orange" />
-                                </div>
-                            </div>
-
-                            {/* Subscription Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-white/5 rounded-2xl p-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <Calendar className="w-5 h-5 text-white/40" />
-                                        <span className="text-sm text-white/60">Started On</span>
-                                    </div>
-                                    <p className="text-lg font-semibold">
-                                        {formatDate(subscription.activatedAt || subscription.createdAt)}
-                                    </p>
-                                </div>
-
-                                {subscription.nextBillingDate && subscription.status === 'active' && (
-                                    <div className="bg-white/5 rounded-2xl p-4">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <Clock className="w-5 h-5 text-white/40" />
-                                            <span className="text-sm text-white/60">Next Billing</span>
-                                        </div>
-                                        <p className="text-lg font-semibold">
-                                            {formatDate(subscription.nextBillingDate)}
-                                        </p>
-                                    </div>
-                                )}
-
-                                <div className="bg-white/5 rounded-2xl p-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <Receipt className="w-5 h-5 text-white/40" />
-                                        <span className="text-sm text-white/60">Subscription ID</span>
-                                    </div>
-                                    <p className="text-sm font-mono text-white/80 truncate">
-                                        {subscription.subscriptionId}
-                                    </p>
-                                </div>
-
-                                {subscription.lastPaymentDate && (
-                                    <div className="bg-white/5 rounded-2xl p-4">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <CheckCircle className="w-5 h-5 text-green-400" />
-                                            <span className="text-sm text-white/60">Last Payment</span>
-                                        </div>
-                                        <p className="text-lg font-semibold">
-                                            {formatDate(subscription.lastPaymentDate)}
-                                        </p>
-                                        {subscription.lastPaymentAmount && (
-                                            <p className="text-sm text-green-400">
-                                                {formatPrice(subscription.lastPaymentAmount)}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                <h2 className="text-4xl font-black tracking-tight mb-4 text-white">No Active Subscription</h2>
+                                <p className="text-white/50 mb-10 text-lg max-w-lg mx-auto">
+                                    You are currently on the free hobby tier. Explore our plans to unlock premium tools and generations.
+                                </p>
+                                <Link
+                                    href="/#pricing"
+                                    className="inline-flex items-center gap-2 px-10 py-4 bg-[#FF4D00] hover:bg-[#e64600] rounded-full text-white font-black uppercase tracking-widest text-sm hover:scale-105 transition-all duration-300"
+                                >
+                                    <Zap className="w-5 h-5 fill-white" />
+                                    Explore Plans
+                                </Link>
                             </div>
                         </motion.div>
-
-                        {/* Payment History */}
-                        {subscription.lastPaymentDate && (
+                    ) : (
+                        // Subscription details
+                        <div className="space-y-8">
+                            {/* Current Plan Card */}
                             <motion.div
-                                initial={{ opacity: 0, y: 20 }}
+                                initial={{ opacity: 0, y: 30 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl"
+                                transition={{ delay: 0.8, duration: 0.8 }}
+                                className="bg-[#111] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative"
                             >
-                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                                    <Receipt className="w-5 h-5 text-accent-orange" />
-                                    Recent Payment
-                                </h3>
-                                <div className="bg-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                    <div>
-                                        <p className="font-semibold">{subscription.planDetails.name}</p>
-                                        <p className="text-sm text-white/60">
-                                            {formatDate(subscription.lastPaymentDate)}
-                                        </p>
+                                {/* Mesh Gradient Area */}
+                                <div className="absolute inset-0 opacity-40 pointer-events-none">
+                                    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[120%] bg-gradient-to-br from-[#FF4D00] to-transparent rounded-full blur-[100px]" />
+                                    <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[100%] bg-gradient-to-tl from-purple-800 to-transparent rounded-full blur-[100px]" />
+                                </div>
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-[20px] pointer-events-none" />
+
+                                <div className="p-10 relative z-20">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                        <div>
+                                            <div className="flex items-center gap-4 mb-2">
+                                                <h2 className="text-4xl md:text-5xl font-black tracking-tight">{subscription.planDetails.name}</h2>
+                                                <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full ${getStatusColor(subscription.status)} bg-opacity-20 backdrop-blur-md border border-white/5`}>
+                                                    <div className={`w-2 h-2 rounded-full ${getStatusColor(subscription.status)}`} />
+                                                    <span className="text-xs font-bold uppercase tracking-widest">{getStatusLabel(subscription.status)}</span>
+                                                </div>
+                                            </div>
+                                            <p className="text-2xl font-bold text-[#FF4D00]">
+                                                {formatPrice(subscription.planDetails.price)} <span className="text-lg text-white/40">/ {subscription.planDetails.period}</span>
+                                            </p>
+                                        </div>
+                                        <div className="p-5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 shadow-xl self-start">
+                                            <CreditCard className="w-10 h-10 text-white" />
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-bold text-accent-orange">
-                                            {subscription.lastPaymentAmount ? formatPrice(subscription.lastPaymentAmount) : formatPrice(subscription.planDetails.price)}
-                                        </p>
-                                        <p className="text-sm text-green-400 flex items-center gap-1 justify-end">
-                                            <CheckCircle className="w-3 h-3" />
-                                            Paid
-                                        </p>
+
+                                    {/* Subscription Details Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Calendar className="w-4 h-4 text-[#FF4D00]" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Started On</span>
+                                            </div>
+                                            <p className="text-lg font-bold text-white">
+                                                {formatDate(subscription.activatedAt || subscription.createdAt)}
+                                            </p>
+                                        </div>
+
+                                        {subscription.nextBillingDate && subscription.status === 'active' && (
+                                            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Clock className="w-4 h-4 text-[#FF4D00]" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Next Billing</span>
+                                                </div>
+                                                <p className="text-lg font-bold text-white">
+                                                    {formatDate(subscription.nextBillingDate)}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors lg:col-span-2">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Receipt className="w-4 h-4 text-[#FF4D00]" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Subscription ID</span>
+                                            </div>
+                                            <p className="text-sm font-mono text-white/80 break-all">
+                                                {subscription.subscriptionId}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
-                        )}
 
-                        {/* Status Messages */}
-                        {subscription.status === 'cancelled' && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex items-center gap-4"
-                            >
-                                <AlertCircle className="w-6 h-6 text-red-400" />
-                                <div>
-                                    <p className="font-semibold text-red-400">Subscription Cancelled</p>
-                                    <p className="text-sm text-white/60">
-                                        Your subscription was cancelled on {formatDate(subscription.cancelledAt)}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        )}
+                            {/* Payment History & Statuses */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {subscription.lastPaymentDate && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 1 }}
+                                        className="bg-[#111] border border-white/10 rounded-3xl p-8 shadow-xl"
+                                    >
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-6 flex items-center gap-2">
+                                            <Receipt className="w-4 h-4 text-white" />
+                                            Recent Payment
+                                        </h3>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-xl mb-1">{subscription.planDetails.name}</p>
+                                                <p className="text-sm font-medium text-white/50">
+                                                    {formatDate(subscription.lastPaymentDate)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xl font-bold text-white mb-1">
+                                                    {subscription.lastPaymentAmount ? formatPrice(subscription.lastPaymentAmount) : formatPrice(subscription.planDetails.price)}
+                                                </p>
+                                                <p className="text-xs font-bold uppercase tracking-widest text-green-400 flex items-center gap-1 justify-end">
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    Paid
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                        {subscription.status === 'paused' && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 flex items-center gap-4"
-                            >
-                                <AlertCircle className="w-6 h-6 text-yellow-400" />
-                                <div>
-                                    <p className="font-semibold text-yellow-400">Subscription Paused</p>
-                                    <p className="text-sm text-white/60">
-                                        Your subscription is currently paused since {formatDate(subscription.pausedAt)}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        )}
+                                {/* Status Messages */}
+                                {subscription.status === 'cancelled' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 1 }}
+                                        className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 flex items-center gap-5 shadow-xl"
+                                    >
+                                        <div className="p-4 bg-red-500/20 rounded-full">
+                                            <AlertCircle className="w-8 h-8 text-red-500" />
+                                        </div>
+                                        <div>
+                                            <p className="font-black text-xl text-red-400 mb-1">Subscription Cancelled</p>
+                                            <p className="text-sm font-medium text-white/70">
+                                                Your subscription was cancelled on {formatDate(subscription.cancelledAt)}.
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-4">
-                            <Link
-                                href="/pricing"
-                                className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
-                            >
-                                Change Plan
-                            </Link>
+                                {subscription.status === 'paused' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 1 }}
+                                        className="bg-yellow-500/10 border border-yellow-500/20 rounded-3xl p-8 flex items-center gap-5 shadow-xl"
+                                    >
+                                        <div className="p-4 bg-yellow-500/20 rounded-full">
+                                            <AlertCircle className="w-8 h-8 text-yellow-500" />
+                                        </div>
+                                        <div>
+                                            <p className="font-black text-xl text-yellow-400 mb-1">Subscription Paused</p>
+                                            <p className="text-sm font-medium text-white/70">
+                                                Your subscription is currently paused since {formatDate(subscription.pausedAt)}.
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-center pt-8">
+                                <Link
+                                    href="/#pricing"
+                                    className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest transition-colors shadow-xl"
+                                >
+                                    Change Plan
+                                </Link>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </main>
         </div>
-    );
-}
-
-export default function BillingPage() {
-    return (
-        <ThemeProvider>
-            <BillingContent />
-        </ThemeProvider>
     );
 }
