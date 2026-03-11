@@ -208,43 +208,43 @@ function initializeFalClientVideo() {
 // ────────────────────────────────────────────────────
 
 async function generateTrendImageCore(masterPrompt, personImageBuffer = null, faceReferenceImageBuffer = null, personImageUrl = null, faceReferenceImageUrl = null) {
-    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
+    console.log('🔬 Attempting image generation with Fal AI (Nano Banana 2) first...');
 
     try {
         initializeFalClientImage();
 
-        const falInput = {
-            prompt: masterPrompt + '\\n\\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.',
-            image_size: "portrait_9_16",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            num_images: 1,
-            enable_safety_checker: true,
-            sync_mode: true
-        };
+        let promptText = masterPrompt + '\n\nGenerate a stunning, photorealistic, cinematic photograph matching the exact framing of the prompt.';
 
         if (personImageUrl && faceReferenceImageUrl) {
-            falInput.prompt = `${masterPrompt}\\n\\nREFERENCE IMAGE 1 (Scene/Pose/Outfit URL): ${personImageUrl}\\nREFERENCE IMAGE 2 (Facial Features URL): ${faceReferenceImageUrl}\\nGenerate a stunning, photorealistic, cinematic photograph that:\\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\\n2. Uses the EXACT facial features and face from Reference Image 2\\n3. Follows the camera framing specified in the text prompt\\n\\nThe person's face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.`;
+            promptText = `${masterPrompt}\n\nREFERENCE IMAGE 1 (Scene/Pose/Outfit URL): ${personImageUrl}\nREFERENCE IMAGE 2 (Facial Features URL): ${faceReferenceImageUrl}\nGenerate a stunning, photorealistic, cinematic photograph that:\n1. Uses the EXACT scene composition, pose, and outfit from Reference Image 1\n2. Uses the EXACT facial features and face from Reference Image 2\n3. Follows the camera framing specified in the text prompt\n\nThe person's face must be IDENTICAL to Reference Image 2, but everything else (pose, outfit, scene) must match Reference Image 1 and the text prompt.`;
         } else if (personImageUrl) {
-            falInput.prompt = `${masterPrompt}\\n\\nHere is a reference image URL: ${personImageUrl}. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person's appearance.\\n\\nGenerate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt.`;
+            promptText = `${masterPrompt}\n\nHere is a reference image URL: ${personImageUrl}. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person's appearance.\n\nGenerate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt.`;
         }
 
-        const result = await fal.subscribe("fal-ai/flux-pro", {
+        const falInput = {
+            prompt: promptText,
+            aspect_ratio: "9:16",
+            resolution: "4K",
+            output_format: "png",
+            num_images: 1,
+        };
+
+        const result = await fal.subscribe("fal-ai/nano-banana-2", {
             input: falInput,
             logs: true,
             onQueueUpdate: (update) => {
                 if (update.status === "IN_PROGRESS") {
-                    update.logs.map((log) => log.message).forEach(console.log);
+                    update.logs?.map((log) => log.message).forEach(console.log);
                 }
             },
         });
 
         const imageUrl = result.data?.images?.[0]?.url;
         if (!imageUrl) {
-            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+            throw new Error(`Fal AI Nano Banana 2 failed: ${JSON.stringify(result)}`);
         }
 
-        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
+        console.log(`✅ Fal AI Nano Banana 2 image ready: ${imageUrl}`);
 
         // Download result buffer from Fal AI
         const https = require('https');
@@ -260,7 +260,7 @@ async function generateTrendImageCore(masterPrompt, personImageBuffer = null, fa
         return buffer;
 
     } catch (falError) {
-        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+        console.error('❌ Fal AI Nano Banana 2 failed, falling back to Gemini:', falError.message);
 
         // --- FALLBACK TO GEMINI ---
         const apiKey = process.env.GEMINI_API_KEY;

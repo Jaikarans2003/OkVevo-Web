@@ -143,7 +143,7 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
  * @returns {Buffer}                 - Generated image data
  */
 async function generateProductShoot(masterPrompt, productBuffer = null, productImageUrl = null) {
-    console.log('🔬 Attempting image generation with Fal AI (Qwen Image 2.0) first...');
+    console.log('🔬 Attempting image generation with Fal AI (Nano Banana 2) first...');
 
     try {
         initializeFalClient();
@@ -156,31 +156,28 @@ async function generateProductShoot(masterPrompt, productBuffer = null, productI
 
         const falInput = {
             prompt: promptText,
-            image_size: "landscape_4_3",
-            num_images: 1,
+            aspect_ratio: "4:3",
+            resolution: "2K",
             output_format: "png",
-            enable_safety_checker: true,
-            enable_prompt_expansion: false,
-            // sync_mode: false (default) — Fal returns a real https:// URL, not a base64 data URL
+            num_images: 1,
         };
 
-        const result = await fal.subscribe("fal-ai/qwen-image-2/pro/text-to-image", {
+        const result = await fal.subscribe("fal-ai/nano-banana-2", {
             input: falInput,
             logs: true,
             onQueueUpdate: (update) => {
                 if (update.status === "IN_PROGRESS") {
-                    update.logs.map((log) => log.message).forEach(console.log);
+                    update.logs?.map((log) => log.message).forEach(console.log);
                 }
             },
         });
 
-        // Qwen Image 2.0 returns images at result.images[0].url (not result.data.images)
-        const imageUrl = result.images?.[0]?.url || result.data?.images?.[0]?.url;
+        const imageUrl = result.data?.images?.[0]?.url;
         if (!imageUrl) {
-            throw new Error(`Fal AI Qwen Image 2.0 failed: ${JSON.stringify(result)}`);
+            throw new Error(`Fal AI Nano Banana 2 failed: ${JSON.stringify(result)}`);
         }
 
-        console.log(`✅ Fal AI Qwen Image 2.0 image ready: ${imageUrl.startsWith('data:') ? '[base64 data URL]' : imageUrl}`);
+        console.log(`✅ Fal AI Nano Banana 2 image ready: ${imageUrl}`);
 
         // Handle both https:// URLs and data: base64 URLs (just in case)
         let buffer;
@@ -204,7 +201,7 @@ async function generateProductShoot(masterPrompt, productBuffer = null, productI
         return buffer;
 
     } catch (falError) {
-        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+        console.error('❌ Fal AI Nano Banana 2 failed, falling back to Gemini:', falError.message);
 
         // --- FALLBACK TO GEMINI ---
         const apiKey = process.env.GEMINI_API_KEY;

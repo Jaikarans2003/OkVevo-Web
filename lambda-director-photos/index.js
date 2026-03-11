@@ -97,37 +97,35 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
  * @returns {Buffer} - Generated image data
  */
 async function generateDirectorPhoto(masterPrompt) {
-    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
+    console.log('🔬 Attempting image generation with Fal AI (Nano Banana 2) first...');
 
     try {
         initializeFalClient();
 
         const falInput = {
-            prompt: masterPrompt + '\\n\\nGenerate the image described above. Make it cinematic, photorealistic, and visually stunning.',
-            image_size: "landscape_16_9",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
+            prompt: masterPrompt + '\n\nGenerate the image described above. Make it cinematic, photorealistic, and visually stunning.',
+            aspect_ratio: "16:9",
+            resolution: "2K",
+            output_format: "png",
             num_images: 1,
-            enable_safety_checker: true,
-            sync_mode: true
         };
 
-        const result = await fal.subscribe("fal-ai/flux-pro", {
+        const result = await fal.subscribe("fal-ai/nano-banana-2", {
             input: falInput,
             logs: true,
             onQueueUpdate: (update) => {
                 if (update.status === "IN_PROGRESS") {
-                    update.logs.map((log) => log.message).forEach(console.log);
+                    update.logs?.map((log) => log.message).forEach(console.log);
                 }
             },
         });
 
         const imageUrl = result.data?.images?.[0]?.url;
         if (!imageUrl) {
-            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+            throw new Error(`Fal AI Nano Banana 2 failed: ${JSON.stringify(result)}`);
         }
 
-        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
+        console.log(`✅ Fal AI Nano Banana 2 image ready: ${imageUrl}`);
 
         // Download result buffer from Fal AI
         const https = require('https');
@@ -143,7 +141,7 @@ async function generateDirectorPhoto(masterPrompt) {
         return buffer;
 
     } catch (falError) {
-        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+        console.error('❌ Fal AI Nano Banana 2 failed, falling back to Gemini:', falError.message);
 
         // --- FALLBACK TO GEMINI ---
         const apiKey = process.env.GEMINI_API_KEY;

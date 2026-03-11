@@ -141,42 +141,41 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
  * Note: product/scene images require public URLs for Fal AI.
  */
 async function generateWithNanoBanana(masterPrompt, heroImageBuffer = null, sceneImageBuffer = null, heroImageUrl = null, sceneImageUrl = null) {
-    console.log('🔬 Attempting image generation with Fal AI (Flux Pro) first...');
+    console.log('🔬 Attempting image generation with Fal AI (Nano Banana 2) first...');
 
     try {
         initializeFalClient();
 
-        let falPrompt = masterPrompt + '\\n\\nGenerate the image described above.';
-        const falInput = {
-            prompt: falPrompt,
-            image_size: "landscape_16_9",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            num_images: 1,
-            enable_safety_checker: true,
-            sync_mode: true
-        };
+        let falPrompt = masterPrompt + '\n\nGenerate the image described above.';
 
         if (heroImageUrl && sceneImageUrl) {
-            falInput.prompt = `${masterPrompt}\\n\\nHero Product image url: ${heroImageUrl}\\nScene / Environment image url: ${sceneImageUrl}\\nGenerate the final photorealistic composite image based on the master prompt above, placing the hero product naturally into the scene environment. You must strictly incorporate the structure and context of the provided images.`;
+            falPrompt = `${masterPrompt}\n\nHero Product image url: ${heroImageUrl}\nScene / Environment image url: ${sceneImageUrl}\nGenerate the final photorealistic composite image based on the master prompt above, placing the hero product naturally into the scene environment. You must strictly incorporate the structure and context of the provided images.`;
         }
 
-        const result = await fal.subscribe("fal-ai/flux-pro", {
+        const falInput = {
+            prompt: falPrompt,
+            aspect_ratio: "16:9",
+            resolution: "2K",
+            output_format: "png",
+            num_images: 1,
+        };
+
+        const result = await fal.subscribe("fal-ai/nano-banana-2", {
             input: falInput,
             logs: true,
             onQueueUpdate: (update) => {
                 if (update.status === "IN_PROGRESS") {
-                    update.logs.map((log) => log.message).forEach(console.log);
+                    update.logs?.map((log) => log.message).forEach(console.log);
                 }
             },
         });
 
         const imageUrl = result.data?.images?.[0]?.url;
         if (!imageUrl) {
-            throw new Error(`Fal AI Flux Pro failed: ${JSON.stringify(result)}`);
+            throw new Error(`Fal AI Nano Banana 2 failed: ${JSON.stringify(result)}`);
         }
 
-        console.log(`✅ Fal AI Flux Pro image ready: ${imageUrl}`);
+        console.log(`✅ Fal AI Nano Banana 2 image ready: ${imageUrl}`);
 
         // Download result buffer from Fal AI to maintain existing return contract
         const https = require('https');
@@ -192,7 +191,7 @@ async function generateWithNanoBanana(masterPrompt, heroImageBuffer = null, scen
         return buffer;
 
     } catch (falError) {
-        console.error('❌ Fal AI generation failed, falling back to Gemini:', falError.message);
+        console.error('❌ Fal AI Nano Banana 2 failed, falling back to Gemini:', falError.message);
 
         // --- FALLBACK TO GEMINI ---
         const apiKey = process.env.GEMINI_API_KEY;

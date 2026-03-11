@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fal } from '@fal-ai/client';
 
 /**
  * AI Influencer TTS Generation API Route
@@ -53,82 +54,40 @@ export async function POST(request: NextRequest) {
         let baseUrl = '';
 
         if (audioSampleUrl) {
-            console.log('🎙️ Generating cloned TTS with Fal AI (F5-TTS)...');
+            console.log('🎙️ Generating cloned TTS with Fal AI (Resemble AI)...');
             console.log(`   Job ID: ${jobId} | Clone Source: ${audioSampleUrl} | Chars: ${script.length}`);
-            baseUrl = 'fal-ai/f5-tts';
+            baseUrl = 'resemble-ai/chatterboxhd/text-to-speech';
             payload = {
-                gen_text: script,
-                ref_audio_url: audioSampleUrl
+                text: script,
+                audio_url: audioSampleUrl
             };
         } else {
-            console.log(`🎙️ Generating preset TTS with Fal AI (PlayHT)...`);
+            console.log(`🎙️ Generating preset TTS with Fal AI (Resemble AI)...`);
             console.log(`   Job ID: ${jobId} | Voice Gender: ${gender} | Chars: ${script.length}`);
-            baseUrl = 'fal-ai/playht/tts/v3';
+            baseUrl = 'resemble-ai/chatterboxhd/text-to-speech';
             payload = {
-                input: script,
-                voice: gender === 'male' ? 'Will (English (US)/American)' : 'Jennifer (English (US)/American)'
+                text: script,
+                voice: gender === 'male' ? 'Richard' : 'Aurora'
             };
         }
 
-        // Call Fal AI Queue API
-        const submitUrl = `https://queue.fal.run/${baseUrl}`;
-
-        const submitResponse = await fetch(submitUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Key ${falApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!submitResponse.ok) {
-            const errText = await submitResponse.text();
-            console.error('❌ Fal AI TTS submit error:', errText);
-            throw new Error(`Fal AI TTS submit failed: ${submitResponse.status} ${errText}`);
-        }
-
-        const { request_id } = await submitResponse.json();
-        console.log(`✅ Fal AI TTS job submitted: ${request_id}`);
-
-        // Poll for completion
-        const statusUrl = `https://queue.fal.run/${baseUrl}/requests/${request_id}/status`;
+        // Call Fal AI Queue API via Fal client
         let resultUrl = '';
-        let attempts = 0;
-        const maxAttempts = 60; // 5 minutes max at 5s intervals
-
-        while (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            attempts++;
-
-            const statusRes = await fetch(statusUrl, {
-                headers: { 'Authorization': `Key ${falApiKey}` }
+        try {
+            const result = await fal.subscribe(baseUrl, {
+                input: payload,
+                logs: true,
+                onQueueUpdate: (update) => {
+                    if (update.status === 'IN_PROGRESS' && update.logs) {
+                        update.logs.map((log) => log.message).forEach((msg) => console.log(`   [Fal AI] ${msg}`));
+                    }
+                },
             });
-
-            if (!statusRes.ok) {
-                console.error(`❌ Fal AI status error: ${statusRes.status}`);
-                continue; // keep trying
-            }
-
-            const statusData = await statusRes.json();
-
-            if (statusData.status === 'COMPLETED') {
-                console.log('✅ Fal AI TTS rendering complete.');
-                // Fetch the final result
-                const resultRes = await fetch(`https://queue.fal.run/${baseUrl}/requests/${request_id}`, {
-                    headers: { 'Authorization': `Key ${falApiKey}` }
-                });
-
-                if (resultRes.ok) {
-                    const finalData = await resultRes.json();
-                    resultUrl = finalData.audio?.url || finalData.audio_url; // Fallbacks for fal output shape
-                }
-                break;
-            } else if (statusData.status === 'FAILED') {
-                throw new Error(`Fal AI TTS failed: ${JSON.stringify(statusData)}`);
-            } else if (attempts % 3 === 0) {
-                console.log(`   ⏳ TTS generation in progress (attempt ${attempts}/${maxAttempts})...`);
-            }
+            console.log(`✅ Fal AI TTS rendering complete. Request ID: ${result.requestId}`);
+            resultUrl = result.data.audio?.url || result.data.audio_url || result.data.url;
+        } catch (falErr: any) {
+            console.error('❌ Fal AI TTS error:', falErr);
+            throw new Error(`Fal AI TTS failed: ${falErr.message || JSON.stringify(falErr)}`);
         }
 
         if (!resultUrl) {

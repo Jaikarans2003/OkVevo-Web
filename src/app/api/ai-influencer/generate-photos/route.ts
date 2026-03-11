@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fal } from '@fal-ai/client';
 
 /**
  * POST /api/ai-influencer/generate-photos
  *
- * Generates one cinematic image per visual moment using Gemini image generation
- * (NANOBANANA / gemini-2.0-flash-exp-image-generation).
- * Uploads each to Firebase Storage and returns public URLs.
+ * Generates one cinematic image per visual moment using Nano Banana 2 (Fal AI)
+ * with Gemini as fallback. Uploads each to Firebase Storage and returns public URLs.
  *
  * Body: { jobId: string, moments: ImageMoment[] }
  * Returns: { photos: { time, start, end, topic, imageUrl, layout }[] }
@@ -20,8 +20,47 @@ interface InputMoment {
     layout: 'split' | 'fullscreen';
 }
 
+/**
+ * Primary: Generate image with Nano Banana 2 via Fal AI.
+ */
+async function generateImageFromNanoBanana(prompt: string, aspectRatio: string, resolution: string): Promise<Buffer> {
+    const falApiKey = process.env.FAL_API_IMAGE;
+    if (!falApiKey) throw new Error('FAL_API_IMAGE not configured');
+
+    fal.config({ credentials: falApiKey });
+
+    const result = await fal.subscribe('fal-ai/nano-banana-2', {
+        input: {
+            prompt,
+            aspect_ratio: aspectRatio,
+            resolution,
+            output_format: 'png',
+            num_images: 1,
+        },
+        logs: true,
+        onQueueUpdate: (update) => {
+            if (update.status === 'IN_PROGRESS' && update.logs) {
+                update.logs.map((log) => log.message).forEach((msg) => console.log(`   [Fal AI] ${msg}`));
+            }
+        },
+    });
+
+    const imageUrl = result.data?.images?.[0]?.url;
+    if (!imageUrl) throw new Error(`Nano Banana 2 returned no image: ${JSON.stringify(result)}`);
+
+    console.log(`✅ Nano Banana 2 image ready: ${imageUrl}`);
+
+    // Download the image buffer
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`Failed to download Nano Banana 2 image: ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+}
+
+/**
+ * Fallback: Generate image with Gemini.
+ */
 async function generateImageFromGemini(prompt: string, apiKey: string): Promise<Buffer> {
-    // Use the Gemini image generation REST endpoint
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`;
 
     const requestBody = {
@@ -103,11 +142,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
-        }
-
         const firebaseStorage = tryInitFirebase();
         const photos: any[] = [];
 
@@ -116,19 +150,30 @@ export async function POST(request: NextRequest) {
             console.log(`🖼️ Generating image ${i + 1}/${moments.length}: ${moment.topic}`);
 
             try {
-                // Apply specific aspect ratio instructions based on the image index
-                const aspectRatioInstruction = i === 0
-                    ? "Generate this image specifically in 2K resolution with a vertical 9:16 aspect ratio."
-                    : "Generate this image specifically in 2K resolution with a standard horizontal 16:9 aspect ratio.";
+                const aspectRatio = i === 0 ? '9:16' : '16:9';
+                const resolution = '2K';
+                const finalPrompt = moment.prompt;
 
-                const finalPrompt = `${moment.prompt}. ${aspectRatioInstruction}`;
+                let imageBuffer: Buffer;
 
-                const imageBuffer = await generateImageFromGemini(finalPrompt, apiKey);
+                // Try Nano Banana 2 first, fall back to Gemini
+                try {
+                    console.log(`🔬 Trying Nano Banana 2 (Fal AI) for image ${i + 1}...`);
+                    imageBuffer = await generateImageFromNanoBanana(finalPrompt, aspectRatio, resolution);
+                } catch (falErr: any) {
+                    console.warn(`⚠️ Nano Banana 2 failed for image ${i + 1}, falling back to Gemini:`, falErr.message);
+                    const geminiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+                    if (!geminiKey) throw new Error('Neither FAL_API_IMAGE nor GEMINI_API_KEY configured');
+
+                    const aspectInstruction = i === 0
+                        ? "Generate this image specifically in 2K resolution with a vertical 9:16 aspect ratio."
+                        : "Generate this image specifically in 2K resolution with a standard horizontal 16:9 aspect ratio.";
+                    imageBuffer = await generateImageFromGemini(`${finalPrompt}. ${aspectInstruction}`, geminiKey);
+                }
 
                 let imageUrl: string;
 
                 if (firebaseStorage) {
-                    // Upload to Firebase Storage
                     const bucket = firebaseStorage.bucket();
                     const imagePath = `AIInfluencer/${jobId}/photos/img-${i}.png`;
                     const file = bucket.file(imagePath);
@@ -136,7 +181,6 @@ export async function POST(request: NextRequest) {
                     await file.makePublic();
                     imageUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
                 } else {
-                    // Fallback: return as data URL (frontend can display, Lambda can't use)
                     imageUrl = `data:image/png;base64,${imageBuffer.toString('base64')}`;
                 }
 
@@ -152,7 +196,6 @@ export async function POST(request: NextRequest) {
                 });
             } catch (imgErr: any) {
                 console.warn(`⚠️ Failed to generate image ${i + 1} (${moment.topic}):`, imgErr.message);
-                // Add placeholder so the timeline is still complete — Lambda will skip if null
                 photos.push({
                     time: moment.time,
                     start: moment.start,
