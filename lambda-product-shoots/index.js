@@ -136,36 +136,35 @@ async function uploadToFirebase(imageBuffer, destinationPath, mimeType = 'image/
 // ────────────────────────────────────────────────────
 
 /**
- * Generate a product photo using Fal AI (qwen_image2) with Gemini Fallback.
- * Reference images for Fal AI need to be valid URLs.
- *
- * @param {string} masterPrompt     - Photography master prompt with full technical details
+ * Generate a product photo using Fal AI (Qwen Image 2.0) with Gemini Fallback.
+ * @param {string} masterPrompt     - Photography master prompt
  * @param {Buffer|null} productBuffer - Product image buffer (for Gemini fallback)
  * @param {string|null} productImageUrl - Product image public URL (for Fal AI)
  * @returns {Buffer}                 - Generated image data
  */
 async function generateProductShoot(masterPrompt, productBuffer = null, productImageUrl = null) {
-    console.log('🔬 Attempting image generation with Fal AI (qwen_image2) first...');
+    console.log('🔬 Attempting image generation with Fal AI (Qwen Image 2.0) first...');
 
     try {
         initializeFalClient();
 
-        const falInput = {
-            prompt: masterPrompt + '\\n\\nGenerate a stunning, photorealistic professional product photograph based on the description. Make sure to apply the specified camera angle, lighting setup, and composition.',
-            image_size: "landscape_16_9",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            num_images: 1,
-            enable_safety_checker: true,
-            sync_mode: true
-        };
+        let promptText = masterPrompt + '\n\nGenerate a stunning, photorealistic professional product photograph based on the description. Make sure to apply the specified camera angle, lighting setup, and composition.';
 
         if (productImageUrl) {
-            // Include reference url in prompt - though depending on Fal model specs, image-to-image parameters might differ
-            falInput.prompt = `${masterPrompt}\\n\\nHere is the exact product to photograph (image URL): ${productImageUrl}\\nGenerate a stunning, photorealistic professional product photograph based on the master prompt above. The product must look exactly like the reference image provided. Apply the specified camera angle, lighting setup, and composition.`;
+            promptText = `${masterPrompt}\n\nHere is the exact product to photograph (image URL): ${productImageUrl}\nGenerate a stunning, photorealistic professional product photograph based on the master prompt above. The product must look exactly like the reference image provided. Apply the specified camera angle, lighting setup, and composition.`;
         }
 
-        const result = await fal.subscribe("fal-ai/qwen-image2", {
+        const falInput = {
+            prompt: promptText,
+            image_size: "landscape_4_3",
+            num_images: 1,
+            output_format: "png",
+            enable_safety_checker: true,
+            enable_prompt_expansion: false,
+            // sync_mode: false (default) — Fal returns a real https:// URL, not a base64 data URL
+        };
+
+        const result = await fal.subscribe("fal-ai/qwen-image-2/pro/text-to-image", {
             input: falInput,
             logs: true,
             onQueueUpdate: (update) => {
@@ -175,23 +174,32 @@ async function generateProductShoot(masterPrompt, productBuffer = null, productI
             },
         });
 
-        const imageUrl = result.data?.images?.[0]?.url;
+        // Qwen Image 2.0 returns images at result.images[0].url (not result.data.images)
+        const imageUrl = result.images?.[0]?.url || result.data?.images?.[0]?.url;
         if (!imageUrl) {
-            throw new Error(`Fal AI qwen_image2 failed: ${JSON.stringify(result)}`);
+            throw new Error(`Fal AI Qwen Image 2.0 failed: ${JSON.stringify(result)}`);
         }
 
-        console.log(`✅ Fal AI qwen_image2 image ready: ${imageUrl}`);
+        console.log(`✅ Fal AI Qwen Image 2.0 image ready: ${imageUrl.startsWith('data:') ? '[base64 data URL]' : imageUrl}`);
 
-        // Download result buffer from Fal AI
-        const https = require('https');
-        const buffer = await new Promise((resolve, reject) => {
-            https.get(imageUrl, (res) => {
-                const chunks = [];
-                res.on('data', (c) => chunks.push(c));
-                res.on('end', () => resolve(Buffer.concat(chunks)));
-                res.on('error', reject);
-            }).on('error', reject);
-        });
+        // Handle both https:// URLs and data: base64 URLs (just in case)
+        let buffer;
+        if (imageUrl.startsWith('data:')) {
+            const base64Data = imageUrl.split(',')[1];
+            if (!base64Data) throw new Error('Invalid data URL returned by Fal AI');
+            buffer = Buffer.from(base64Data, 'base64');
+            console.log(`✅ Decoded base64 image: ${buffer.length} bytes`);
+        } else {
+            const https = require('https');
+            buffer = await new Promise((resolve, reject) => {
+                https.get(imageUrl, (res) => {
+                    const chunks = [];
+                    res.on('data', (c) => chunks.push(c));
+                    res.on('end', () => resolve(Buffer.concat(chunks)));
+                    res.on('error', reject);
+                }).on('error', reject);
+            });
+        }
 
         return buffer;
 

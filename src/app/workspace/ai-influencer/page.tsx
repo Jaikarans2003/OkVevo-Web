@@ -725,7 +725,7 @@ function AIInfluencerWorkstation() {
                                                     <p className="text-[10px] text-gray-500">Optional: Upload an audio sample (MP3/WAV) to clone your voice.</p>
                                                     <input
                                                         type="file"
-                                                        accept="audio/mpeg,audio/wav"
+                                                        accept="audio/mpeg,audio/wav,audio/*"
                                                         onChange={(e) => {
                                                             const file = e.target.files?.[0];
                                                             if (file) {
