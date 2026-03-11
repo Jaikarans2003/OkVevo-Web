@@ -49,30 +49,29 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'FAL_API_AUDIO key not configured' }, { status: 500 });
         }
 
-        // Resemble AI Chatterbox Voice mapping 
-        // Available: Aurora, Blade, Britney, Carl, Cliff, Richard, Rico, Siobhan, Vicky
-        const voiceMap: Record<string, string> = { male: 'Richard', female: 'Aurora' };
-
-        let payload: any = {
-            text: script,
-            exaggeration: 0.5,
-            cfg: 0.5,
-            temperature: 0.8
-        };
+        let payload: any = {};
+        let baseUrl = '';
 
         if (audioSampleUrl) {
-            console.log('🎙️ Generating cloned TTS with Fal AI (Resemble Chatterbox)...');
+            console.log('🎙️ Generating cloned TTS with Fal AI (F5-TTS)...');
             console.log(`   Job ID: ${jobId} | Clone Source: ${audioSampleUrl} | Chars: ${script.length}`);
-            payload.audio_url = audioSampleUrl;
+            baseUrl = 'fal-ai/f5-tts';
+            payload = {
+                gen_text: script,
+                ref_audio_url: audioSampleUrl
+            };
         } else {
-            const voice = voiceMap[gender];
-            console.log(`🎙️ Generating preset TTS with Fal AI (Resemble Chatterbox)...`);
-            console.log(`   Job ID: ${jobId} | Voice: ${voice} | Chars: ${script.length}`);
-            payload.voice = voice;
+            console.log(`🎙️ Generating preset TTS with Fal AI (PlayHT)...`);
+            console.log(`   Job ID: ${jobId} | Voice Gender: ${gender} | Chars: ${script.length}`);
+            baseUrl = 'fal-ai/playht/tts/v3';
+            payload = {
+                input: script,
+                voice: gender === 'male' ? 'Will (English (US)/American)' : 'Jennifer (English (US)/American)'
+            };
         }
 
-        // Call Fal AI Queue API for Resemble Chatterbox
-        const submitUrl = 'https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech';
+        // Call Fal AI Queue API
+        const submitUrl = `https://queue.fal.run/${baseUrl}`;
 
         const submitResponse = await fetch(submitUrl, {
             method: 'POST',
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
         console.log(`✅ Fal AI TTS job submitted: ${request_id}`);
 
         // Poll for completion
-        const statusUrl = `https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech/requests/${request_id}/status`;
+        const statusUrl = `https://queue.fal.run/${baseUrl}/requests/${request_id}/status`;
         let resultUrl = '';
         let attempts = 0;
         const maxAttempts = 60; // 5 minutes max at 5s intervals
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
             if (statusData.status === 'COMPLETED') {
                 console.log('✅ Fal AI TTS rendering complete.');
                 // Fetch the final result
-                const resultRes = await fetch(`https://queue.fal.run/fal-ai/resemble-ai/chatterboxhd/text-to-speech/requests/${request_id}`, {
+                const resultRes = await fetch(`https://queue.fal.run/${baseUrl}/requests/${request_id}`, {
                     headers: { 'Authorization': `Key ${falApiKey}` }
                 });
 
