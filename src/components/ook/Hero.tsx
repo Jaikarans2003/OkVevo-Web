@@ -146,12 +146,13 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     >
                         Get started
                     </button>
-                    <button
+                    <a
+                        href="#showcase"
                         className="btn-outline-pro px-10 py-5 flex items-center gap-2 group text-white border-white/20 hover:border-accent-orange"
                     >
                         <Play className="w-5 h-5 fill-white group-hover:fill-accent-orange transition-colors" />
                         Watch Demo
-                    </button>
+                    </a>
                 </motion.div>
 
                 {/* Social Proof Section */}

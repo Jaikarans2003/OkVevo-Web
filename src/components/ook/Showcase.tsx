@@ -11,15 +11,15 @@ const Showcase = () => {
     const tabs = [
         {
             name: 'Create',
-            image: '/create.png',
+            video: '/videos/script.mp4',
         },
         {
             name: 'Animate',
-            image: '/showcase_animate.jpg',
+            video: '/videos/influencer.mp4',
         },
         {
             name: 'Publish',
-            image: '/showcase_publish.jpg',
+            video: '/videos/aiproduct.mp4',
         }
     ];
 
@@ -78,12 +78,13 @@ const Showcase = () => {
                                 className="absolute inset-0 bg-[#080808]"
                             >
                                 <div className="relative w-full h-full">
-                                    <Image 
-                                        src={tabs[activeTab].image} 
-                                        alt={tabs[activeTab].name}
-                                        fill
-                                        className="object-cover"
-                                        priority
+                                    <video
+                                        src={tabs[activeTab].video}
+                                        autoPlay
+                                        muted
+                                        loop
+                                        playsInline
+                                        className="w-full h-full object-cover"
                                     />
                                     {/* Optional gradient overlay to blend edges if needed */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
