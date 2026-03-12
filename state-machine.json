@@ -1,0 +1,104 @@
+{
+  "Comment": "AI Influencer Video Generation Pipeline",
+  "StartAt": "AI_Prep",
+  "States": {
+    "AI_Prep": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:lambda-ai-prep",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "userId.$": "$.userId",
+        "topic.$": "$.topic",
+        "duration.$": "$.duration",
+        "avatarVideoUrl.$": "$.avatarVideoUrl",
+        "taskToken.$": "$$.Task.Token"
+      },
+      "Next": "Wait_For_Assets",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+    "Wait_For_Assets": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-noop",
+        "Payload": {
+            "message": "Waiting for TTS and Image webhooks"
+        }
+      },
+      "TimeoutSeconds": 300,
+      "Next": "Submit_LipSync",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "Handle_Failure"
+        }
+      ]
+    },
+    "Submit_LipSync": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:lambda-lipsync-submit",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "userId.$": "$.userId",
+        "ttsUrl.$": "$.ttsUrl",
+        "avatarVideoUrl.$": "$.avatarVideoUrl",
+        "taskToken.$": "$$.Task.Token"
+      },
+      "Next": "Wait_For_LipSync",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+    "Wait_For_LipSync": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-noop",
+        "Payload": {
+            "message": "Waiting for LipSync webhook"
+        }
+      },
+      "TimeoutSeconds": 600,
+      "Next": "Render_Video",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "Handle_Failure"
+        }
+      ]
+    },
+    "Render_Video": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:lambda-renderer",
+      "Next": "Complete",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+    "Handle_Failure": {
+      "Type": "Fail",
+      "Error": "JobFailed",
+      "Cause": "The AI Influencer pipeline failed or timed out."
+    },
+    "Complete": {
+      "Type": "Succeed"
+    }
+  }
+}

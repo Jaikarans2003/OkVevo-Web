@@ -50,67 +50,60 @@ export async function POST(request: NextRequest) {
         }
 
 
-        // ── SQS Configuration ──────────────────────────────────
-        const queueUrl = process.env.SQS_AI_INFLUENCER_QUEUE_URL;
-        const awsRegion = process.env.AWS_REGION || 'us-east-1';
+        // ── Step Function Configuration ──────────────────────────
+        const sfnRegion = process.env.AWS_REGION || 'us-east-1';
+        const sfnArn = process.env.SFN_AI_INFLUENCER_ARN;
         const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
         const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-        if (!queueUrl || !awsAccessKeyId || !awsSecretAccessKey) {
-            console.warn('⚠️ AI Influencer SQS not configured — running in mock mode');
+        if (!sfnArn || !awsAccessKeyId || !awsSecretAccessKey) {
+            console.warn('⚠️ AI Influencer Step Function not configured — running in mock mode');
             return NextResponse.json({
                 success: true,
                 jobId,
-                message: 'AI Influencer job acknowledged (SQS not configured, mock mode)',
+                message: 'AI Influencer job acknowledged (Step Function not configured, mock mode)',
                 mock: true,
             });
         }
 
-        // ── Dispatch to SQS ────────────────────────────────────
-        const sqsClient = new SQSClient({
-            region: awsRegion,
+        // ── Dispatch to Step Function ──────────────────────────────
+        const { SFNClient, StartExecutionCommand } = require('@aws-sdk/client-sfn');
+        const sfnClient = new SFNClient({
+            region: sfnRegion,
             credentials: {
                 accessKeyId: awsAccessKeyId,
                 secretAccessKey: awsSecretAccessKey,
             },
         });
 
-        const messageBody = JSON.stringify({
-            type: 'ai-influencer-lipsync',
+        const executionInput = JSON.stringify({
             jobId,
             userId,
             avatarVideoUrl,
-            audioUrl,
-            script: script || null,
-            duration: duration || null,
-            gender: gender || null,
-            imageTimeline: imageTimeline || [],
-            timestamp: new Date().toISOString(),
+            topic: body.topic || 'General AI Video',
+            duration: duration || 30,
         });
 
-        const command = new SendMessageCommand({
-            QueueUrl: queueUrl,
-            MessageBody: messageBody,
-            MessageGroupId: userId,
-            MessageDeduplicationId: `${jobId}-${Date.now()}`,
+        const command = new StartExecutionCommand({
+            stateMachineArn: sfnArn,
+            name: `${jobId}-${Date.now()}`,
+            input: executionInput,
         });
 
-        console.log('🎬 Dispatching AI Influencer LipSync job to SQS FIFO:', {
+        console.log('🎬 Starting AI Influencer Step Function:', {
             jobId,
             userId,
-            avatarVideoUrl,
-            audioUrl,
-            queueUrl,
+            sfnArn,
         });
 
-        const result = await sqsClient.send(command);
-        console.log('✅ AI Influencer SQS message sent:', result.MessageId);
+        const result = await sfnClient.send(command);
+        console.log('✅ AI Influencer Step Function started:', result.executionArn);
 
         return NextResponse.json({
             success: true,
             jobId,
-            messageId: result.MessageId,
-            message: 'AI Influencer job dispatched to SQS FIFO queue',
+            executionArn: result.executionArn,
+            message: 'AI Influencer pipeline started via AWS Step Functions',
         });
 
     } catch (error) {
