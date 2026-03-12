@@ -7,6 +7,7 @@
 import { db } from '../config/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { checkRateLimit } from './RateLimitService';
+import { checkCredits, deductCredits } from './CreditsService';
 
 export interface AIInfluencerJobRequest {
     jobId: string;
@@ -61,6 +62,9 @@ export interface AIInfluencerJob {
 
 const COLLECTION = 'aiInfluencerJobs';
 
+// Track active generations per user to prevent multiple simultaneous generations
+const activeGenerations = new Set<string>();
+
 /**
  * Generate a unique job ID
  */
@@ -87,13 +91,39 @@ export const dispatchAIInfluencerJob = async (
             throw new Error('Authentication required. Please sign in to generate AI influencer videos.');
         }
 
-        // Check rate limit
-        const rateLimitResult = await checkRateLimit(request.userId, 'AI_INFLUENCER');
-        if (!rateLimitResult.allowed) {
+        // Check if user already has an active generation
+        if (activeGenerations.has(request.userId)) {
             return {
                 success: false,
                 jobId: request.jobId,
-                error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.',
+                error: 'You already have an active AI Influencer generation in progress. Please wait for it to complete before starting a new one.',
+            };
+        }
+
+        // Mark user as having an active generation
+        activeGenerations.add(request.userId);
+
+        // Check credits
+        const creditCheck = await checkCredits(request.userId, 'AI_INFLUENCER');
+        if (!creditCheck.allowed) {
+            activeGenerations.delete(request.userId);
+            return {
+                success: false,
+                jobId: request.jobId,
+                error: creditCheck.error || 'Insufficient credits. Please upgrade your plan.',
+            };
+        }
+
+        // Deduct credits (70 for AI Influencer)
+        try {
+            await deductCredits(request.userId, 70, 'AI_INFLUENCER', request.jobId, 'AI Influencer video generation');
+        } catch (error) {
+            activeGenerations.delete(request.userId);
+            const msg = error instanceof Error ? error.message : 'Failed to deduct credits';
+            return {
+                success: false,
+                jobId: request.jobId,
+                error: msg,
             };
         }
 
@@ -145,6 +175,9 @@ export const dispatchAIInfluencerJob = async (
             jobId: request.jobId,
             error: msg,
         };
+    } finally {
+        // Remove user from active generations when done
+        activeGenerations.delete(request.userId);
     }
 };
 

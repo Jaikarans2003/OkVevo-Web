@@ -15,7 +15,10 @@ import {
     Receipt,
     Package,
     Clock,
-    Zap
+    Zap,
+    TrendingDown,
+    TrendingUp,
+    RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -25,12 +28,15 @@ import {
     getStatusLabel,
     type SubscriptionWithPlanDetails,
 } from '@/services/SubscriptionService';
+import { getCreditHistory, type CreditTransaction } from '@/services/CreditsService';
+import { FEATURE_COSTS } from '@/types/credits';
 import NoiseOverlay from '@/components/NoiseOverlay';
 
 export default function BillingPage() {
     const router = useRouter();
     const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
     const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
+    const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -41,25 +47,29 @@ export default function BillingPage() {
         }
     }, [authLoading, isAuthenticated, router]);
 
-    // Load subscription data
+    // Load subscription data and credit history
     useEffect(() => {
-        const loadSubscription = async () => {
+        const loadData = async () => {
             if (!userProfile) return;
             setLoading(true);
             setError(null);
             try {
-                const sub = await getUserSubscription(userProfile.uid);
+                const [sub, history] = await Promise.all([
+                    getUserSubscription(userProfile.uid),
+                    getCreditHistory(userProfile.uid, 10)
+                ]);
                 setSubscription(sub);
+                setCreditHistory(history);
             } catch (err) {
-                console.error('Failed to load subscription:', err);
-                setError('Failed to load subscription details. Please try again.');
+                console.error('Failed to load data:', err);
+                setError('Failed to load billing details. Please try again.');
             } finally {
                 setLoading(false);
             }
         };
 
         if (userProfile) {
-            loadSubscription();
+            loadData();
         }
     }, [userProfile]);
 
@@ -250,6 +260,119 @@ export default function BillingPage() {
                                     </div>
                                 </div>
                             </motion.div>
+
+                            {/* Credits Overview Card */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.9, duration: 0.8 }}
+                                className="bg-gradient-to-br from-[#FF4D00]/10 to-orange-600/10 border border-[#FF4D00]/20 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF4D00]/10 rounded-full blur-3xl" />
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-3 bg-[#FF4D00]/20 rounded-full">
+                                                <Zap className="w-6 h-6 text-[#FF4D00] fill-[#FF4D00]" />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-white">Credits Balance</h3>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Current Balance</p>
+                                            <p className="text-4xl font-black text-white">{(subscription.credits || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Initial Credits</p>
+                                            <p className="text-4xl font-black text-white/60">{(subscription.initialCredits || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Credits Used</p>
+                                            <p className="text-4xl font-black text-red-400">{(subscription.creditsUsed || 0).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Feature Costs */}
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-white/50 mb-4">Credit Costs per Feature</h4>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                                                <span className="text-xs font-bold text-white/70">AI Influencer</span>
+                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.AI_INFLUENCER}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                                                <span className="text-xs font-bold text-white/70">Product Shoots</span>
+                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.PRODUCT_SHOOTS}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                                                <span className="text-xs font-bold text-white/70">Placement</span>
+                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.PRODUCT_PLACEMENT}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                                                <span className="text-xs font-bold text-white/70">Trends</span>
+                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.TRENDS}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* Credit Transaction History */}
+                            {creditHistory.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 1, duration: 0.8 }}
+                                    className="bg-[#111] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl"
+                                >
+                                    <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                                        <Receipt className="w-5 h-5 text-[#FF4D00]" />
+                                        Recent Credit Transactions
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {creditHistory.map((transaction) => {
+                                            const isDeduction = transaction.amount < 0;
+                                            const Icon = isDeduction ? TrendingDown : TrendingUp;
+                                            const colorClass = isDeduction ? 'text-red-400' : 'text-green-400';
+                                            
+                                            return (
+                                                <div
+                                                    key={transaction.transactionId}
+                                                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`p-2 rounded-full ${isDeduction ? 'bg-red-500/20' : 'bg-green-500/20'}`}>
+                                                            <Icon className={`w-4 h-4 ${colorClass}`} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-white">{transaction.reason}</p>
+                                                            <p className="text-xs text-white/50 mt-1">
+                                                                {transaction.createdAt?.toDate?.()?.toLocaleDateString('en-IN', {
+                                                                    day: 'numeric',
+                                                                    month: 'short',
+                                                                    year: 'numeric',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                }) || 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-lg font-black ${colorClass}`}>
+                                                            {isDeduction ? '' : '+'}{transaction.amount.toLocaleString()}
+                                                        </p>
+                                                        <p className="text-xs text-white/50 mt-1">
+                                                            Balance: {transaction.balanceAfter.toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </motion.div>
+                            )}
 
                             {/* Payment History & Statuses */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

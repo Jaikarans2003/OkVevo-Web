@@ -12,10 +12,11 @@ import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { checkRateLimit } from './RateLimitService';
+import { checkCredits, deductCredits } from './CreditsService';
 
 // ── Types ───────────────────────────────────────────────────────────
 
-export type ShootJobStatus = 'idle' | 'generating-prompts' | 'uploading' | 'dispatching' | 'polling' | 'complete' | 'error';
+export type ShootJobStatus = 'idle' | 'generating-prompts' | 'uploading' | 'dispatching' | 'queued' | 'complete' | 'error';
 
 export interface ShootPhoto {
     shotIndex: number;
@@ -23,7 +24,7 @@ export interface ShootPhoto {
     masterPrompt: string;
     jobId: string;
     imageUrl?: string;
-    status: 'pending' | 'dispatched' | 'polling' | 'complete' | 'error';
+    status: 'pending' | 'dispatched' | 'queued' | 'complete' | 'error';
     error?: string;
 }
 
@@ -49,6 +50,9 @@ export interface ProductShootsJob {
 }
 
 const COLLECTION = 'productShootsJobs';
+
+// Track active generations per user to prevent multiple simultaneous generations
+const activeGenerations = new Set<string>();
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -196,19 +200,24 @@ const pollForShootPhoto = async (
     outputPath: string,
     onProgress?: (elapsed: number) => void
 ): Promise<string> => {
-    const MAX_ATTEMPTS = 40;    // 40 × 3s = 2 minutes max
+    const MAX_ATTEMPTS = 60;    // 60 × 3s = 3 minutes max
     const INTERVAL_MS = 3000;
+
+    // Construct public URL directly (Lambda makes files public)
+    const bucketName = 'text2video-16cbf.firebasestorage.app';
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${outputPath}`;
 
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
         await new Promise(r => setTimeout(r, INTERVAL_MS));
 
         try {
-            const imageRef = ref(storage, outputPath);
-            const url = await getDownloadURL(imageRef);
+            // Try to fetch the image directly to verify it exists
+            const response = await fetch(publicUrl, { method: 'HEAD', mode: 'no-cors' });
+            // If no exception thrown and we get here, file likely exists
             console.log(`✅ Shoot photo found: ${outputPath}`);
-            return url;
+            return publicUrl;
         } catch {
-            // Not ready yet
+            // Not ready yet or network error
         }
 
         const elapsed = ((i + 1) * INTERVAL_MS / 1000);
@@ -235,19 +244,49 @@ export const runShootsPipeline = async (
         return { status: 'error', photos: [], error: 'Authentication required. Please sign in to generate product shoots.' };
     }
 
-    // Check rate limit
-    const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_SHOOTS');
-    if (!rateLimitResult.allowed) {
+    // Check if user already has an active generation
+    if (activeGenerations.has(userId)) {
         return { 
             status: 'error', 
             photos: [], 
-            error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+            error: 'You already have an active product shoot generation in progress. Please wait for it to complete before starting a new one.' 
         };
     }
 
-    const baseJobId = generateShootJobId();
+    // Mark user as having an active generation
+    activeGenerations.add(userId);
 
     try {
+        // Check rate limit
+        const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_SHOOTS');
+        if (!rateLimitResult.allowed) {
+            return { 
+                status: 'error', 
+                photos: [], 
+                error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+            };
+        }
+
+        // Check credits (50 credits per shot, 4 shots = 200 total)
+        const creditCheck = await checkCredits(userId, 'PRODUCT_SHOOTS');
+        if (!creditCheck.allowed) {
+            return { 
+                status: 'error', 
+                photos: [], 
+                error: creditCheck.error || 'Insufficient credits. Please upgrade your plan.' 
+            };
+        }
+
+        const baseJobId = generateShootJobId();
+
+        // Deduct credits for 4 shots (50 each = 200 total)
+        try {
+            await deductCredits(userId, 200, 'PRODUCT_SHOOTS', baseJobId, 'Product shoots generation (4 shots)');
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Failed to deduct credits';
+            return { status: 'error', photos: [], error: msg };
+        }
+
         // ── Step 1: Generate photography master prompts ──
         onStatusChange('generating-prompts', 'Analyzing product and generating photography prompts...');
         const shotPrompts = await generatePhotographyPrompts(productFile, shootScenario);
@@ -290,60 +329,19 @@ export const runShootsPipeline = async (
             onPhotoUpdate([...photos]);
         }
 
-        // ── Step 4: Poll for all shot results concurrently ──
-        onStatusChange('polling', 'Waiting for shots to generate...');
+        // ── Step 4: Fire and Forget - All shots dispatched ──
+        onStatusChange('queued', 'All shots queued! Check History for results.');
 
-        const dispatched = photos.filter(p => p.status === 'dispatched');
-
-        await Promise.allSettled(
-            dispatched.map(async (photo) => {
-                const outputPath = `ProductShoots/${photo.jobId}.png`;
-                try {
-                    photo.status = 'polling';
-                    onPhotoUpdate([...photos]);
-
-                    const imageUrl = await pollForShootPhoto(outputPath);
-                    photo.imageUrl = imageUrl;
-                    photo.status = 'complete';
-                    onPhotoUpdate([...photos]);
-
-                    // Update Firestore document with result
-                    try {
-                        await setDoc(doc(db, COLLECTION, photo.jobId), {
-                            status: 'complete',
-                            outputUrl: imageUrl,
-                            updatedAt: Timestamp.now(),
-                        }, { merge: true });
-                    } catch (e) {
-                        console.warn('Failed to update Firestore doc:', e);
-                    }
-                } catch (error) {
-                    photo.status = 'error';
-                    photo.error = error instanceof Error ? error.message : 'Polling failed';
-                    onPhotoUpdate([...photos]);
-
-                    // Update Firestore document with error
-                    try {
-                        await setDoc(doc(db, COLLECTION, photo.jobId), {
-                            status: 'error',
-                            error: photo.error,
-                            updatedAt: Timestamp.now(),
-                        }, { merge: true });
-                    } catch (e) {
-                        console.warn('Failed to update Firestore doc:', e);
-                    }
-                }
-            })
-        );
-
-        const allComplete = photos.every(p => p.status === 'complete');
-        onStatusChange(allComplete ? 'complete' : 'error', allComplete ? 'All shots generated!' : 'Some shots failed');
-
-        return { status: allComplete ? 'complete' : 'error', photos };
+        // Return immediately - don't wait for generation
+        const allDispatched = photos.every(p => p.status === 'dispatched');
+        return { status: allDispatched ? 'queued' : 'error', photos };
 
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         onStatusChange('error', msg);
         return { status: 'error', photos: [], error: msg };
+    } finally {
+        // Remove user from active generations when done (success or error)
+        activeGenerations.delete(userId);
     }
 };

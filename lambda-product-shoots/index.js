@@ -265,9 +265,47 @@ async function generateProductShoot(masterPrompt, productBuffer = null, productI
     }
 }
 
-// ────────────────────────────────────────────────────
-// Core Processing Logic
-// ────────────────────────────────────────────────────
+/**
+ * Update Firestore document after successful processing
+ */
+async function updateJobCompletion(jobId, outputUrl) {
+    try {
+        const db = admin.firestore();
+        const jobRef = db.collection('productShootsJobs').doc(jobId);
+        
+        await jobRef.update({
+            status: 'complete',
+            outputUrl: outputUrl,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log(`✅ Firestore updated: ${jobId} marked as complete`);
+    } catch (error) {
+        console.error(`❌ Failed to update Firestore for ${jobId}:`, error);
+        // Don't throw - job succeeded even if Firestore update fails
+    }
+}
+
+/**
+ * Update Firestore document when job fails
+ * Firebase Function will detect 'error' status and trigger credit refund
+ */
+async function updateJobFailure(jobId, errorMessage) {
+    try {
+        const db = admin.firestore();
+        const jobRef = db.collection('productShootsJobs').doc(jobId);
+        
+        await jobRef.update({
+            status: 'error',
+            error: errorMessage,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log(`❌ Firestore updated: ${jobId} marked as error - ${errorMessage}`);
+    } catch (error) {
+        console.error(`❌ Failed to update Firestore for ${jobId}:`, error);
+    }
+}
 
 /**
  * Process a single Product Shoot photo generation job.
@@ -317,7 +355,7 @@ exports.handler = async (event) => {
             for (const record of event.Records) {
                 console.log('Raw record body:', record.body);
                 const body = JSON.parse(record.body);
-                const { jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution = '4K', aspectRatio = '16:9' } = body;
+                const { jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution = '4K', aspectRatio = '16:9', userId } = body;
 
                 console.log(`[Job ${jobId}] Starting shoot process for: ${shotName}`);
                 console.log(`[Job ${jobId}] Resolution: ${resolution}, Aspect Ratio: ${aspectRatio}`);
@@ -326,7 +364,17 @@ exports.handler = async (event) => {
                     continue;
                 }
 
-                await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution, aspectRatio);
+                try {
+                    const imageUrl = await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution, aspectRatio);
+                    
+                    // Update Firestore to mark job as complete
+                    const publicUrl = `https://storage.googleapis.com/${process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app'}/${outputPath || `ProductShoots/${jobId}.png`}`;
+                    await updateJobCompletion(jobId, publicUrl);
+                } catch (error) {
+                    console.error(`❌ Job ${jobId} failed:`, error);
+                    // Mark job as error in Firestore - Firebase Function will handle credit refund
+                    await updateJobFailure(jobId, error.message || 'Processing failed');
+                }
             }
 
             return { statusCode: 200, body: 'Product shoots SQS processing complete' };
@@ -346,13 +394,28 @@ exports.handler = async (event) => {
                 };
             }
 
-            const imageUrl = await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName);
+            try {
+                const imageUrl = await processShootJob(jobId, masterPrompt, productImageUrl, outputPath, shotName);
+                
+                // Update Firestore to mark job as complete
+                await updateJobCompletion(jobId, imageUrl);
 
-            return {
-                statusCode: 200,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ success: true, jobId, imageUrl, shotName }),
-            };
+                return {
+                    statusCode: 200,
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                    body: JSON.stringify({ success: true, jobId, imageUrl, shotName }),
+                };
+            } catch (error) {
+                console.error(`❌ Job ${jobId} failed:`, error);
+                // Mark job as error in Firestore - Firebase Function will handle credit refund
+                await updateJobFailure(jobId, error.message || 'Processing failed');
+                
+                return {
+                    statusCode: 500,
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                    body: JSON.stringify({ success: false, error: error.message || 'Processing failed' }),
+                };
+            }
         }
     } catch (error) {
         console.error('❌ Product Shoots Lambda error:', error);

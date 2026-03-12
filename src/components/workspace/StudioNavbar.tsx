@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
+import CreditsDisplay from './CreditsDisplay';
+import { useAuth } from '@/hooks/useAuth';
 
 interface StudioNavbarProps {
     rightContent?: ReactNode;
@@ -11,6 +13,7 @@ interface StudioNavbarProps {
 
 export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     const pathname = usePathname();
+    const { userProfile } = useAuth();
 
     const navLinks = [
         // { name: 'Director', href: '/workspace/director' },
@@ -46,7 +49,8 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                 ))}
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+                {userProfile && <CreditsDisplay userId={userProfile.uid} variant="navbar" />}
                 {/* History Link - Orange Color */}
                 <Link
                     href="/history"

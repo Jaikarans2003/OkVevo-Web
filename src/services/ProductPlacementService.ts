@@ -14,6 +14,7 @@ import { storage, db } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { checkRateLimit } from './RateLimitService';
+import { checkCredits, deductCredits } from './CreditsService';
 
 export type PlacementJobStatus = 'idle' | 'analyzing' | 'refining' | 'uploading' | 'compositing' | 'polling' | 'complete' | 'error';
 
@@ -39,6 +40,9 @@ export interface PlacementJob {
 }
 
 const COLLECTION = 'placementJobs';
+
+// Track active generations per user to prevent multiple simultaneous generations
+const activeGenerations = new Set<string>();
 
 /**
  * Generate a unique placement job ID
@@ -202,18 +206,45 @@ export const runPlacementPipeline = async (
         return { status: 'error', error: 'Authentication required. Please sign in to generate product placements.' };
     }
 
-    // Check rate limit
-    const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_PLACEMENT');
-    if (!rateLimitResult.allowed) {
+    // Check if user already has an active generation
+    if (activeGenerations.has(userId)) {
         return { 
             status: 'error', 
-            error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+            error: 'You already have an active product placement generation in progress. Please wait for it to complete before starting a new one.' 
         };
     }
+
+    // Mark user as having an active generation
+    activeGenerations.add(userId);
 
     const jobId = generatePlacementJobId();
 
     try {
+        // Check rate limit
+        const rateLimitResult = await checkRateLimit(userId, 'PRODUCT_PLACEMENT');
+        if (!rateLimitResult.allowed) {
+            return { 
+                status: 'error', 
+                error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.' 
+            };
+        }
+
+        const jobId = generatePlacementJobId();
+
+        // Check credits (30 for Product Placement)
+        const creditCheck = await checkCredits(userId, 'PRODUCT_PLACEMENT');
+        if (!creditCheck.allowed) {
+            return { status: 'error', error: creditCheck.error || 'Insufficient credits. Please upgrade your plan.' };
+        }
+
+        // Deduct credits
+        try {
+            await deductCredits(userId, 30, 'PRODUCT_PLACEMENT', jobId, 'Product placement generation');
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Failed to deduct credits';
+            return { status: 'error', error: msg };
+        }
+
         // ── Step 1: Vision Orchestrator ──────────────────────────
         onStatusChange('analyzing', 'Analyzing hero product & scene lighting...');
 
@@ -284,6 +315,9 @@ export const runPlacementPipeline = async (
         }
         
         return { status: 'error', error: msg };
+    } finally {
+        // Remove user from active generations when done
+        activeGenerations.delete(userId);
     }
 };
 
@@ -305,6 +339,17 @@ export const runRefinementPipeline = async (
     if (!userId) {
         return { status: 'error', error: 'Authentication required. Please sign in to refine compositions.' };
     }
+
+    // Check if user already has an active generation
+    if (activeGenerations.has(userId)) {
+        return { 
+            status: 'error', 
+            error: 'You already have an active product placement generation in progress. Please wait for it to complete before starting a new one.' 
+        };
+    }
+
+    // Mark user as having an active generation
+    activeGenerations.add(userId);
 
     const jobId = generatePlacementJobId();
 
@@ -342,5 +387,8 @@ export const runRefinementPipeline = async (
         const msg = error instanceof Error ? error.message : 'Unknown error';
         onStatusChange('error', msg);
         return { status: 'error', error: msg };
+    } finally {
+        // Remove user from active generations when done
+        activeGenerations.delete(userId);
     }
 };

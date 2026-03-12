@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import type { TrendDefinition } from '../data/trendDefinitions';
 import { checkRateLimit } from './RateLimitService';
+import { checkCredits, deductCredits } from './CreditsService';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -61,6 +62,9 @@ export interface TrendGeneration {
 }
 
 const COLLECTION = 'trendGenerations';
+
+// Track active generations per user to prevent multiple simultaneous generations
+const activeGenerations = new Set<string>();
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -124,9 +128,21 @@ export const submitTrendJob = async (
     trend: TrendDefinition,
     userId: string,
 ): Promise<{ success: boolean; jobId?: string; error?: string }> => {
+    // Check if user already has an active generation
+    if (activeGenerations.has(userId)) {
+        return {
+            success: false,
+            error: 'You already have an active trend generation in progress. Please wait for it to complete before starting a new one.',
+        };
+    }
+
+    // Mark user as having an active generation
+    activeGenerations.add(userId);
+
     // Check rate limit
     const rateLimitResult = await checkRateLimit(userId, 'TREND_GENERATION');
     if (!rateLimitResult.allowed) {
+        activeGenerations.delete(userId);
         return {
             success: false,
             error: rateLimitResult.error || 'Rate limit exceeded. Please try again later.',
@@ -134,6 +150,22 @@ export const submitTrendJob = async (
     }
 
     const jobId = generateJobId();
+
+    // Check credits (100 for Trends - Sky Fall)
+    const creditCheck = await checkCredits(userId, 'TRENDS');
+    if (!creditCheck.allowed) {
+        activeGenerations.delete(userId);
+        return { success: false, error: creditCheck.error || 'Insufficient credits. Please upgrade your plan.' };
+    }
+
+    // Deduct credits
+    try {
+        await deductCredits(userId, 100, 'TRENDS', jobId, 'Trend generation (Sky Fall)');
+    } catch (error) {
+        activeGenerations.delete(userId);
+        const msg = error instanceof Error ? error.message : 'Failed to deduct credits';
+        return { success: false, error: msg };
+    }
 
     try {
         // 1. Upload person photos (full body + optional face)
@@ -206,6 +238,9 @@ export const submitTrendJob = async (
         const msg = error instanceof Error ? error.message : 'Unknown error';
         console.error(`❌ Pipeline job failed: ${msg}`);
         return { success: false, error: msg };
+    } finally {
+        // Remove user from active generations when done
+        activeGenerations.delete(userId);
     }
 };
 

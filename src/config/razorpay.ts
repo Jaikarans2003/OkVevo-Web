@@ -28,3 +28,9 @@ export const SUBSCRIPTION_PLANS = {
 } as const;
 
 export type PlanType = keyof typeof SUBSCRIPTION_PLANS;
+
+// Credit allocation per plan
+export const PLAN_CREDITS: Record<PlanType, number> = {
+    hobby: 10000,  // ₹4,999 → 10,000 credits
+    pro: 32000,    // ₹13,999 → 32,000 credits
+};

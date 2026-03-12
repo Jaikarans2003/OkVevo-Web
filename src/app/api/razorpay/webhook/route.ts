@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { RAZORPAY_CONFIG } from '@/config/razorpay';
+import { RAZORPAY_CONFIG, PLAN_CREDITS, PlanType } from '@/config/razorpay';
 import { db } from '@/config/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { initializeSubscriptionCredits } from '@/services/CreditsService';
 
 /**
  * Razorpay Webhook Handler
@@ -29,8 +30,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify webhook signature
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || RAZORPAY_CONFIG.keySecret;
         const expectedSignature = crypto
-            .createHmac('sha256', RAZORPAY_CONFIG.keySecret)
+            .createHmac('sha256', webhookSecret)
             .update(body)
             .digest('hex');
 
@@ -97,33 +99,83 @@ export async function POST(request: NextRequest) {
 async function handleSubscriptionActivated(payload: any) {
     const subscription = payload.subscription.entity;
     const userId = subscription.notes?.userId;
+    const planType = subscription.notes?.planType as PlanType;
 
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
+    if (!userId || !planType) {
+        console.warn('⚠️ Missing userId or planType in subscription notes');
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
-        status: 'active',
+    const initialCredits = PLAN_CREDITS[planType];
+    if (!initialCredits) {
+        console.warn(`⚠️ No credits defined for plan: ${planType}`);
+        return;
+    }
+
+    // Create subscription document in user subcollection
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await setDoc(subscriptionRef, {
+        userId,
+        planType,
         subscriptionId: subscription.id,
+        status: 'active',
+        credits: initialCredits,
+        initialCredits,
+        creditsUsed: 0,
         activatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
-    console.log(`✅ Subscription activated for user: ${userId}`);
+    // Initialize credits with transaction history
+    await initializeSubscriptionCredits(userId, subscription.id, planType, initialCredits);
+
+    // Also update root-level subscription for backward compatibility
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await setDoc(rootSubRef, {
+        userId,
+        planType,
+        subscriptionId: subscription.id,
+        status: 'active',
+        activatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    console.log(`✅ Subscription activated for user: ${userId}, allocated ${initialCredits} credits`);
 }
 
 async function handleSubscriptionCharged(payload: any) {
     const payment = payload.payment.entity;
     const subscription = payload.subscription.entity;
     const userId = subscription.notes?.userId;
+    const planType = subscription.notes?.planType as PlanType;
 
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
+    if (!userId || !planType) {
+        console.warn('⚠️ Missing userId or planType in subscription notes');
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
+    const initialCredits = PLAN_CREDITS[planType];
+    if (!initialCredits) {
+        console.warn(`⚠️ No credits defined for plan: ${planType}`);
+        return;
+    }
+
+    // Reset credits on monthly charge (new billing cycle)
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await updateDoc(subscriptionRef, {
+        lastPaymentId: payment.id,
+        lastPaymentAmount: payment.amount,
+        lastPaymentDate: serverTimestamp(),
+        status: 'active',
+        credits: initialCredits,
+        creditsUsed: 0,
+        updatedAt: serverTimestamp(),
+    });
+
+    // Also update root-level subscription
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await updateDoc(rootSubRef, {
         lastPaymentId: payment.id,
         lastPaymentAmount: payment.amount,
         lastPaymentDate: serverTimestamp(),
@@ -131,7 +183,7 @@ async function handleSubscriptionCharged(payload: any) {
         updatedAt: serverTimestamp(),
     });
 
-    console.log(`✅ Payment charged for user: ${userId}, amount: ${payment.amount}`);
+    console.log(`✅ Payment charged for user: ${userId}, credits reset to ${initialCredits}`);
 }
 
 async function handleSubscriptionCancelled(payload: any) {
@@ -143,7 +195,17 @@ async function handleSubscriptionCancelled(payload: any) {
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
+    // Update subscription in user subcollection
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await updateDoc(subscriptionRef, {
+        status: 'cancelled',
+        cancelledAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Also update root-level subscription
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await updateDoc(rootSubRef, {
         status: 'cancelled',
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -161,7 +223,17 @@ async function handleSubscriptionPaused(payload: any) {
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
+    // Update subscription in user subcollection
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await updateDoc(subscriptionRef, {
+        status: 'paused',
+        pausedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Also update root-level subscription
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await updateDoc(rootSubRef, {
         status: 'paused',
         pausedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -179,7 +251,17 @@ async function handleSubscriptionResumed(payload: any) {
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
+    // Update subscription in user subcollection
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await updateDoc(subscriptionRef, {
+        status: 'active',
+        resumedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Also update root-level subscription
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await updateDoc(rootSubRef, {
         status: 'active',
         resumedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -197,7 +279,17 @@ async function handleSubscriptionCompleted(payload: any) {
         return;
     }
 
-    await updateDoc(doc(db, 'subscriptions', userId), {
+    // Update subscription in user subcollection
+    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
+    await updateDoc(subscriptionRef, {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Also update root-level subscription
+    const rootSubRef = doc(db, 'subscriptions', userId);
+    await updateDoc(rootSubRef, {
         status: 'completed',
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, CreditCard, User, History } from 'lucide-react';
+import CreditsDisplay from './CreditsDisplay';
+import { useAuth } from '@/hooks/useAuth';
 
 const DashNavbar = () => {
+    const { userProfile } = useAuth();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [currentSectionTheme, setCurrentSectionTheme] = useState<'light' | 'dark'>('light');
@@ -58,7 +61,8 @@ const DashNavbar = () => {
                     </a>
 
                     {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-12">
+                    <div className="hidden md:flex items-center gap-6">
+                        {userProfile && <CreditsDisplay userId={userProfile.uid} variant="navbar" />}
                         {navLinks.map((link) => (
                             <a
                                 key={link.name}
@@ -89,6 +93,11 @@ const DashNavbar = () => {
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         className="absolute top-full left-4 right-4 mt-4 glass-card p-12 rounded-[40px] md:hidden flex flex-col gap-8 text-center"
                     >
+                        {userProfile && (
+                            <div className="mb-4">
+                                <CreditsDisplay userId={userProfile.uid} variant="navbar" showLink={false} />
+                            </div>
+                        )}
                         {navLinks.map((link) => (
                             <a
                                 key={link.name}

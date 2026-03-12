@@ -453,6 +453,24 @@ export default function ProfilePage() {
                                         </p>
                                     </div>
 
+                                    {/* Credits Widget */}
+                                    <div className="bg-gradient-to-br from-[#FF4D00]/10 to-orange-600/10 border border-[#FF4D00]/20 rounded-xl p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Zap className="w-4 h-4 text-[#FF4D00] fill-[#FF4D00]" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-white/70">Credits</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-xs text-white/50 mb-1">Balance</p>
+                                                <p className="text-2xl font-black text-white">{(subscription.credits || 0).toLocaleString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-white/50 mb-1">Used</p>
+                                                <p className="text-2xl font-black text-red-400">{(subscription.creditsUsed || 0).toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-3 pt-4 border-t border-white/10">
                                         <p className="flex items-center justify-between text-sm">
                                             <span className="text-white/50">Started</span>
@@ -473,8 +491,8 @@ export default function ProfilePage() {
                             ) : (
                                 <div className="relative z-10 flex flex-col items-center justify-center text-center py-6">
                                     <Briefcase className="w-10 h-10 text-white/20 mb-4" />
-                                    <h4 className="text-xl font-bold mb-2">Hobby Plan</h4>
-                                    <p className="text-white/50 text-sm mb-6">You are currently on the free tier.</p>
+                                    <h4 className="text-xl font-bold mb-2">No Active Subscription</h4>
+                                    <p className="text-white/50 text-sm mb-6">Subscribe to access premium features.</p>
                                     <Link href="/#pricing" className="w-full px-4 py-3 bg-gradient-to-r from-[#FF4D00] to-orange-600 rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-[#FF4D00]/20 transition-all text-center">
                                         Upgrade Now
                                     </Link>
