@@ -47,6 +47,31 @@ exports.handler = async (event) => {
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
     const falApiKey = process.env.FAL_API_VIDEO || process.env.FAL_API_KEY;
 
+    if (event.fal_mode === "mock") {
+        console.log("🛠️ MOCK MODE ENABLED: Returning fake lipsync");
+        const mockRequestId = "mock-lipsync";
+        
+        await db.collection('falJobs').doc(mockRequestId).set({
+            userId,
+            jobId,
+            taskToken,
+            type: 'lipsync'
+        });
+
+        await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
+            status: 'submitting-lipsync',
+            lipSyncRequestId: mockRequestId
+        });
+
+        return { 
+            success: true, 
+            jobId, 
+            request_id: mockRequestId,
+            mock: true,
+            video_url: "https://samplelib.com/lib/preview/mp4/sample-5s.mp4" 
+        };
+    }
+
     // Submit LipSync job to Fal AI
     const submitResponse = await httpsRequest('https://queue.fal.run/veed/lipsync', {
         method: 'POST',

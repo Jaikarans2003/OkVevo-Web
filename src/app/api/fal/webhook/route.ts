@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
 
         console.log(` Fal AI Webhook received for job ${request_id}: ${status}`);
 
-        if (status !== 'COMPLETED') {
+        const normalizedStatus = (status || '').toUpperCase();
+
+        if (normalizedStatus !== 'COMPLETED') {
             console.warn(`⚠️ Job ${request_id} failed or is incomplete: ${error || status}`);
             // We might want to notify SFN about failure here using SendTaskFailure
             return NextResponse.json({ success: true }); // Still return 200 to Fal

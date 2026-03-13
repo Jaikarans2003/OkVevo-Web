@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
             avatarVideoUrl,
             topic: body.topic || 'General AI Video',
             duration: duration || 30,
+            fal_mode: process.env.FAL_MODE || 'live'
         });
 
         const command = new StartExecutionCommand({

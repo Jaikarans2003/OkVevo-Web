@@ -66,6 +66,36 @@ exports.handler = async (event) => {
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
     const falApiKey = process.env.FAL_API_KEY;
 
+    if (event.fal_mode === "mock") {
+        console.log("🛠️ MOCK MODE ENABLED: Returning fake assets");
+        const fakeImages = [
+            "https://picsum.photos/seed/1/1024",
+            "https://picsum.photos/seed/2/1024",
+            "https://picsum.photos/seed/3/1024"
+        ];
+        const fakeAudio = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+        const mockRequestIds = ["mock1", "mock2", "mock3", "mock-tts"];
+
+        // Step 4: Map mock request_ids to taskToken in Firestore
+        const batch = db.batch();
+        mockRequestIds.forEach(rid => {
+            const ref = db.collection('falJobs').doc(rid);
+            batch.set(ref, { userId, jobId, taskToken });
+        });
+
+        const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+        batch.update(jobRef, { script: scriptText, moments, status: 'preparing-assets' });
+
+        await batch.commit();
+
+        return {
+            images: fakeImages,
+            audioUrl: fakeAudio,
+            request_ids: mockRequestIds,
+            mock: true
+        };
+    }
+
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
     // In a real scenario, we'd map moments to Fal jobs.
     const imageJobs = moments.slice(0, 3).map(m => {
