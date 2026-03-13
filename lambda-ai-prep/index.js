@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     console.log(`🚀 Starting AI Prep for Job: ${jobId}`);
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Step 1: Generate Script
     const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
@@ -68,12 +68,13 @@ exports.handler = async (event) => {
 
     if (event.fal_mode === "mock") {
         console.log("🛠️ MOCK MODE ENABLED: Returning fake assets");
+        const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
         const fakeImages = [
-            "https://picsum.photos/seed/1/1024",
-            "https://picsum.photos/seed/2/1024",
-            "https://picsum.photos/seed/3/1024"
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock1.jpg`,
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock2.jpg`,
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock3.jpg`
         ];
-        const fakeAudio = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+        const fakeAudio = `https://storage.googleapis.com/${bucket}/InfluencerAudio/Audio1.mpeg`;
         const mockRequestIds = ["mock1", "mock2", "mock3", "mock-tts"];
 
         // Step 4: Map mock request_ids to taskToken in Firestore

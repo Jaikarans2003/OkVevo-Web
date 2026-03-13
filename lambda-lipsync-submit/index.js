@@ -68,7 +68,7 @@ exports.handler = async (event) => {
             jobId, 
             request_id: mockRequestId,
             mock: true,
-            video_url: "https://samplelib.com/lib/preview/mp4/sample-5s.mp4" 
+            video_url: "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62" 
         };
     }
 
