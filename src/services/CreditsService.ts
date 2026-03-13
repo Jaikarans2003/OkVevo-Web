@@ -40,6 +40,10 @@ export type { CreditTransaction };
 export async function getUserCredits(userId: string): Promise<number> {
     if (!userId) return 0;
 
+    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+        return 9999;
+    }
+
     try {
         // Query the user's active subscription
         const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
@@ -103,6 +107,11 @@ export async function deductCredits(
 ): Promise<boolean> {
     if (!userId || amount <= 0) {
         throw new Error('Invalid userId or amount');
+    }
+
+    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+        console.log(`🛠️ CREDIT DEDUCTION BYPASS ENABLED: Skipping deduction of ${amount} for ${feature}`);
+        return true;
     }
 
     try {
@@ -188,6 +197,11 @@ export async function addCredits(
 ): Promise<void> {
     if (!userId || amount <= 0) {
         throw new Error('Invalid userId or amount');
+    }
+
+    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+        console.log(`🛠️ CREDIT ADDITION BYPASS ENABLED: Skipping addition of ${amount} - ${reason}`);
+        return;
     }
 
     try {

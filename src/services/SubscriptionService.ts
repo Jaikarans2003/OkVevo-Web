@@ -41,6 +41,26 @@ export interface SubscriptionWithPlanDetails extends SubscriptionData {
 export async function getUserSubscription(userId: string): Promise<SubscriptionWithPlanDetails | null> {
     if (!userId) return null;
 
+    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+        return {
+            userId,
+            planType: 'pro',
+            subscriptionId: 'mock-sub-id',
+            status: 'active',
+            credits: 9999,
+            initialCredits: 9999,
+            creditsUsed: 0,
+            planDetails: {
+                name: 'Pro (Mock)',
+                price: 0,
+                currency: 'INR',
+                period: 'monthly',
+                interval: 1,
+            },
+            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        };
+    }
+
     try {
         // Query the user's active subscription from subcollection
         const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');

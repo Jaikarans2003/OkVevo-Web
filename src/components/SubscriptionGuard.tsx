@@ -24,6 +24,13 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
                 return;
             }
 
+            if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+                console.log('🛠️ SUBSCRIPTION BYPASS ENABLED');
+                setHasSubscription(true);
+                setChecking(false);
+                return;
+            }
+
             try {
                 const subscription = await getUserSubscription(userProfile.uid);
                 const isActive = subscription?.status === 'active';
