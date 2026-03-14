@@ -56,10 +56,11 @@ export async function POST(request: NextRequest) {
         const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
         const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-        const isMockMode = !sfnArn || !awsAccessKeyId || !awsSecretAccessKey || process.env.FAL_MODE === 'mock' || process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
+        const hasSfnCreds = !!sfnArn && !!awsAccessKeyId && !!awsSecretAccessKey;
+        const isMissingCredsMock = !hasSfnCreds;
 
-        if (isMockMode) {
-            console.warn('⚠️ AI Influencer Step Function not configured or mock mode enabled — returning dummy video');
+        if (isMissingCredsMock) {
+            console.warn('⚠️ AI Influencer Step Function not configured — returning dummy video directly');
 
             try {
                 const admin = require('firebase-admin');
@@ -108,9 +109,10 @@ export async function POST(request: NextRequest) {
             jobId,
             userId,
             avatarVideoUrl,
+            audioUrl,
             topic: body.topic || 'General AI Video',
             duration: duration || 30,
-            fal_mode: process.env.FAL_MODE || 'live'
+            fal_mode: process.env.FAL_MODE || process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 'mock' : 'live'
         });
 
         const command = new StartExecutionCommand({

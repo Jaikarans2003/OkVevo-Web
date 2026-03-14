@@ -29,11 +29,7 @@
       "Parameters": {
         "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-noop",
         "Payload": {
-            "message": "Waiting for TTS and Image webhooks",
-            "jobId.$": "$.jobId",
-            "userId.$": "$.userId",
-            "fal_mode.$": "$.fal_mode",
-            "taskToken.$": "$$.Task.Token"
+            "message": "Waiting for TTS and Image webhooks"
         }
       },
       "TimeoutSeconds": 300,
@@ -51,7 +47,6 @@
       "Parameters": {
         "jobId.$": "$.jobId",
         "userId.$": "$.userId",
-        "fal_mode.$": "$.fal_mode",
         "ttsUrl.$": "$.ttsUrl",
         "avatarVideoUrl.$": "$.avatarVideoUrl",
         "taskToken.$": "$$.Task.Token"
@@ -72,11 +67,7 @@
       "Parameters": {
         "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-noop",
         "Payload": {
-            "message": "Waiting for LipSync webhook",
-            "jobId.$": "$.jobId",
-            "userId.$": "$.userId",
-            "fal_mode.$": "$.fal_mode",
-            "taskToken.$": "$$.Task.Token"
+            "message": "Waiting for LipSync webhook"
         }
       },
       "TimeoutSeconds": 600,
@@ -111,3 +102,4 @@
     }
   }
 }
+
