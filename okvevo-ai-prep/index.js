@@ -42,8 +42,44 @@ exports.handler = async (event) => {
     const { jobId, userId, topic, duration, avatarVideoUrl, taskToken } = event;
     console.log(`🚀 Starting AI Prep for Job: ${jobId}`);
 
+    // ⚡ MOCK MODE FAST PATH - Must be checked FIRST before any API calls
+    if (event.fal_mode === "mock") {
+        console.log("🛠️ MOCK MODE ENABLED: Returning fake assets immediately, skipping all AI calls.");
+        const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
+        const fakeImages = [
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock1.jpg`,
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock2.jpg`,
+            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock3.jpg`
+        ];
+        const fakeAudio = `https://storage.googleapis.com/${bucket}/audio/narration-director-1771518209173-1771518226280.mp3`;
+
+        // Update job status in Firestore
+        const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+        await jobRef.update({ script: '(mock script)', moments: [], status: 'preparing-assets' });
+
+        // Immediately resume Step Function with mock data (this replaces the webhook)
+        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
+        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
+
+        await sfnClient.send(new SendTaskSuccessCommand({
+            taskToken: taskToken,
+            output: JSON.stringify({
+                images: fakeImages,
+                audioUrl: fakeAudio,
+                fal_mode: "mock",
+                jobId,
+                userId,
+                status: 'COMPLETED',
+                mock: true
+            })
+        }));
+
+        console.log("✅ Mock mode: Step Function resumed with fake assets");
+        return { status: "mock-resumed" };
+    }
+
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     // Step 1: Generate Script
     const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
@@ -62,43 +98,6 @@ exports.handler = async (event) => {
         console.error("Failed to parse moments JSON", e);
     }
 
-    // Step 3: Submit Fal Jobs (Parallel)
-    const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
-    const falApiKey = process.env.FAL_API_KEY;
-
-    if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE ENABLED: Auto-resuming with fake assets");
-        const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
-        const fakeImages = [
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock1.jpg`,
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock2.jpg`,
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock3.jpg`
-        ];
-        const fakeAudio = `https://storage.googleapis.com/${bucket}/InfluencerAudio/Audio1.mpeg`;
-
-        // Update job status
-        const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-        await jobRef.update({ script: scriptText, moments, status: 'preparing-assets' });
-
-        // Immediately resume Step Function with mock data
-        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
-        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
-
-        await sfnClient.send(new SendTaskSuccessCommand({
-            taskToken: taskToken,
-            output: JSON.stringify({
-                images: fakeImages,
-                audioUrl: fakeAudio,
-                jobId,
-                userId,
-                status: 'COMPLETED',
-                mock: true
-            })
-        }));
-
-        console.log("✅ Mock mode: Step Function resumed with fake assets");
-        return { status: "mock-resumed" };
-    }
 
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
     // In a real scenario, we'd map moments to Fal jobs.
