@@ -56,12 +56,40 @@ export async function POST(request: NextRequest) {
         const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
         const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-        if (!sfnArn || !awsAccessKeyId || !awsSecretAccessKey) {
-            console.warn('⚠️ AI Influencer Step Function not configured — running in mock mode');
+        const isMockMode = !sfnArn || !awsAccessKeyId || !awsSecretAccessKey || process.env.FAL_MODE === 'mock' || process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
+
+        if (isMockMode) {
+            console.warn('⚠️ AI Influencer Step Function not configured or mock mode enabled — returning dummy video');
+
+            try {
+                const admin = require('firebase-admin');
+                if (!admin.apps.length) {
+                    const svcKey = process.env.FB_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '';
+                    if (svcKey) {
+                        const serviceAccount = JSON.parse(Buffer.from(svcKey.trim(), 'base64').toString('utf-8'));
+                        admin.initializeApp({
+                            credential: admin.credential.cert(serviceAccount)
+                        });
+                    }
+                }
+                
+                if (admin.apps.length) {
+                    const db = admin.firestore();
+                    await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).set({
+                        status: 'complete',
+                        finalVideoUrl: 'https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/MockAIGeneratedVideos/1.mp4',
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    console.log('✅ Mock mode: Updated Firestore with dummy video URL');
+                }
+            } catch (err) {
+                 console.error('⚠️ Failed to update Firestore in mock mode:', err);
+            }
+
             return NextResponse.json({
                 success: true,
                 jobId,
-                message: 'AI Influencer job acknowledged (Step Function not configured, mock mode)',
+                message: 'AI Influencer job finished (mock mode)',
                 mock: true,
             });
         }

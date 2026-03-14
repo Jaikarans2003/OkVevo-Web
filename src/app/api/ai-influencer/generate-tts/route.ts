@@ -45,6 +45,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Mock Mode Check
+        if (process.env.FAL_MODE === 'mock' || process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
+            console.log('Mock mode enabled for TTS -> returning dummy audio');
+            return NextResponse.json({
+                success: true,
+                audioUrl: 'https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/audio/narration-director-1771518209173-1771518226280.mp3',
+                audioSize: 1090000,
+                storageMode: 'mock'
+            });
+        }
+
         const falApiKey = process.env.FAL_API_AUDIO;
         if (!falApiKey) {
             return NextResponse.json({ error: 'FAL_API_AUDIO key not configured' }, { status: 500 });

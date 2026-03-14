@@ -142,6 +142,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Mock Mode Check
+        if (process.env.FAL_MODE === 'mock' || process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
+            console.log('Mock mode enabled for photos -> returning dummy photos');
+            const mockImageUrl = 'https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/MockAIGeneratedPhotos/download.jpeg';
+            const mockPhotos = moments.map((moment, i) => ({
+                time: moment.time,
+                start: moment.start,
+                end: moment.end,
+                topic: moment.topic,
+                imageUrl: mockImageUrl,
+                layout: i === 0 ? 'fullscreen' : 'split',
+            }));
+            return NextResponse.json({ success: true, photos: mockPhotos });
+        }
+
         const firebaseStorage = tryInitFirebase();
         const photos: any[] = [];
 
