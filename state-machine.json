@@ -6,7 +6,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
       "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:lambda-ai-prep",
+        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-ai-prep",
         "Payload": {
           "jobId.$": "$.jobId",
           "userId.$": "$.userId",
@@ -31,7 +31,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
       "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:lambda-lipsync-submit",
+        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-lipsync-submit",
         "Payload": {
           "jobId.$": "$.jobId",
           "userId.$": "$.userId",
@@ -53,7 +53,7 @@
     },
     "Render_Video": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:lambda-renderer",
+      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-renderer",
       "Parameters": {
         "jobId.$": "$.jobId",
         "userId.$": "$.userId",

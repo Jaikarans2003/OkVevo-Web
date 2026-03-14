@@ -5,7 +5,7 @@ param (
     [string]$Region = "us-east-1"
 )
 
-$Lambdas = @("lambda-ai-prep", "lambda-lipsync-submit")
+$Lambdas = @("okvevo-ai-prep", "okvevo-lipsync-submit", "okvevo-renderer", "okvevo-noop")
 $RootDir = Get-Location
 
 foreach ($Lambda in $Lambdas) {
