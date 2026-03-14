@@ -30,7 +30,7 @@ exports.handler = async (event) => {
                 jobId,
                 userId,
                 // These are passed down by lambda-ai-prep in mock mode normally
-                ttsUrl: "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/InfluencerAudio%2FAudio1.mpeg?alt=media",
+                ttsUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/audio/narration-director-1771518209173-1771518226280.mp3",
                 avatarVideoUrl: "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media"
             };
 
