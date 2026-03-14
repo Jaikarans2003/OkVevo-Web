@@ -67,7 +67,7 @@ exports.handler = async (event) => {
     const falApiKey = process.env.FAL_API_KEY;
 
     if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE ENABLED: Returning fake assets");
+        console.log("🛠️ MOCK MODE ENABLED: Auto-resuming with fake assets");
         const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
         const fakeImages = [
             `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock1.jpg`,
@@ -75,26 +75,29 @@ exports.handler = async (event) => {
             `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock3.jpg`
         ];
         const fakeAudio = `https://storage.googleapis.com/${bucket}/InfluencerAudio/Audio1.mpeg`;
-        const mockRequestIds = ["mock1", "mock2", "mock3", "mock-tts"];
 
-        // Step 4: Map mock request_ids to taskToken in Firestore
-        const batch = db.batch();
-        mockRequestIds.forEach(rid => {
-            const ref = db.collection('falJobs').doc(rid);
-            batch.set(ref, { userId, jobId, taskToken });
-        });
-
+        // Update job status
         const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-        batch.update(jobRef, { script: scriptText, moments, status: 'preparing-assets' });
+        await jobRef.update({ script: scriptText, moments, status: 'preparing-assets' });
 
-        await batch.commit();
+        // Immediately resume Step Function with mock data
+        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
+        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-        return {
-            images: fakeImages,
-            audioUrl: fakeAudio,
-            request_ids: mockRequestIds,
-            mock: true
-        };
+        await sfnClient.send(new SendTaskSuccessCommand({
+            taskToken: taskToken,
+            output: JSON.stringify({
+                images: fakeImages,
+                audioUrl: fakeAudio,
+                jobId,
+                userId,
+                status: 'COMPLETED',
+                mock: true
+            })
+        }));
+
+        console.log("✅ Mock mode: Step Function resumed with fake assets");
+        return { status: "mock-resumed" };
     }
 
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
@@ -123,19 +126,28 @@ exports.handler = async (event) => {
     
     // Step 4: Map request_ids to taskToken in Firestore
     const batch = db.batch();
+    const requestIds = [];
     responses.forEach(res => {
         if (res.body.request_id) {
             const ref = db.collection('falJobs').doc(res.body.request_id);
-            batch.set(ref, { userId, jobId, taskToken });
+            batch.set(ref, { userId, jobId, taskToken, type: 'ai-prep' });
+            requestIds.push(res.body.request_id);
         }
     });
 
-    // Also update the job doc with the script and moments
+    // Store job metadata to track webhook completion
     const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-    batch.update(jobRef, { script: scriptText, moments, status: 'preparing-assets' });
+    batch.update(jobRef, { 
+        script: scriptText, 
+        moments, 
+        status: 'preparing-assets',
+        expectedAssets: requestIds.length,
+        completedAssets: 0,
+        taskToken
+    });
 
     await batch.commit();
 
-    console.log(`✅ AI Prep complete. Submitted ${responses.length} Fal jobs.`);
-    return { success: true, jobId, userId };
+    console.log(`✅ AI Prep complete. Submitted ${responses.length} Fal jobs. Waiting for webhooks...`);
+    // DO NOT RETURN - Let webhooks resume the Step Function via SendTaskSuccess
 };

@@ -48,28 +48,31 @@ exports.handler = async (event) => {
     const falApiKey = process.env.FAL_API_VIDEO || process.env.FAL_API_KEY;
 
     if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE ENABLED: Returning fake lipsync");
-        const mockRequestId = "mock-lipsync";
+        console.log("🛠️ MOCK MODE ENABLED: Auto-resuming with fake lipsync");
         
-        await db.collection('falJobs').doc(mockRequestId).set({
-            userId,
-            jobId,
-            taskToken,
-            type: 'lipsync'
-        });
-
         await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
-            status: 'submitting-lipsync',
-            lipSyncRequestId: mockRequestId
+            status: 'lipsync-complete'
         });
 
-        return { 
-            success: true, 
-            jobId, 
-            request_id: mockRequestId,
-            mock: true,
-            video_url: "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62" 
-        };
+        // Immediately resume Step Function with mock lipsync video
+        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
+        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
+
+        const mockVideoUrl = "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62";
+
+        await sfnClient.send(new SendTaskSuccessCommand({
+            taskToken: taskToken,
+            output: JSON.stringify({
+                lipSyncVideoUrl: mockVideoUrl,
+                jobId,
+                userId,
+                status: 'COMPLETED',
+                mock: true
+            })
+        }));
+
+        console.log("✅ Mock mode: Step Function resumed with fake lipsync video");
+        return { status: "mock-resumed" };
     }
 
     // Submit LipSync job to Fal AI
@@ -106,5 +109,6 @@ exports.handler = async (event) => {
         lipSyncRequestId: request_id
     });
 
-    return { success: true, jobId, request_id };
+    console.log(`✅ LipSync job submitted. Waiting for webhook to resume Step Function...`);
+    // DO NOT RETURN - Let webhook resume the Step Function via SendTaskSuccess
 };

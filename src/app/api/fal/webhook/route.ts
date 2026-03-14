@@ -58,29 +58,99 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Job mapping not found' }, { status: 404 });
         }
 
-        const { taskToken, userId, jobId } = falJobDoc.data() || {};
+        const { taskToken, userId, jobId, type } = falJobDoc.data() || {};
 
         if (!taskToken) {
             console.error(`❌ No taskToken found for request_id: ${request_id}`);
             return NextResponse.json({ success: false, error: 'Task token missing' }, { status: 400 });
         }
 
-        // 2. Resume Step Function
-        console.log(`🚀 Resuming Step Function for Job ${jobId} (User: ${userId})`);
-        
-        await sfnClient.send(new SendTaskSuccessCommand({
-            taskToken: taskToken,
-            output: JSON.stringify({
+        // 2. Handle different job types
+        if (type === 'ai-prep') {
+            // This is an AI_Prep asset (image or TTS) - need to aggregate
+            console.log(`📦 AI_Prep asset completed: ${request_id}`);
+            
+            const db = admin.firestore();
+            const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+            const jobDoc = await jobRef.get();
+            
+            if (!jobDoc.exists) {
+                console.error(`❌ Job ${jobId} not found`);
+                return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
+            }
+
+            const jobData = jobDoc.data() || {};
+            const expectedAssets = jobData.expectedAssets || 0;
+            const completedAssets = (jobData.completedAssets || 0) + 1;
+            const assetResults = jobData.assetResults || [];
+
+            // Store this asset's result
+            assetResults.push({
                 request_id,
-                status,
                 output,
-            }),
-        }));
+                type: output.images ? 'image' : 'audio'
+            });
 
-        // 3. Cleanup mapping (optional but recommended)
-        await falJobRef.delete();
+            await jobRef.update({
+                completedAssets,
+                assetResults,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
 
-        return NextResponse.json({ success: true });
+            console.log(`📊 AI_Prep progress: ${completedAssets}/${expectedAssets} assets completed`);
+
+            // Check if all assets are ready
+            if (completedAssets >= expectedAssets) {
+                console.log(`✅ All AI_Prep assets ready! Resuming Step Function...`);
+                
+                // Aggregate results
+                const images = assetResults
+                    .filter((r: any) => r.type === 'image')
+                    .map((r: any) => r.output.images?.[0]?.url)
+                    .filter(Boolean);
+                
+                const audioResult = assetResults.find((r: any) => r.type === 'audio');
+                const audioUrl = audioResult?.output?.audio_file?.url || '';
+
+                // Resume Step Function with aggregated data
+                await sfnClient.send(new SendTaskSuccessCommand({
+                    taskToken: taskToken,
+                    output: JSON.stringify({
+                        images,
+                        audioUrl,
+                        jobId,
+                        userId,
+                        status: 'COMPLETED'
+                    }),
+                }));
+
+                // Cleanup
+                await falJobRef.delete();
+            } else {
+                // Still waiting for more assets
+                await falJobRef.delete();
+            }
+
+            return NextResponse.json({ success: true });
+        } else {
+            // This is a LipSync job or other single-response job
+            console.log(`🚀 Resuming Step Function for Job ${jobId} (User: ${userId})`);
+            
+            await sfnClient.send(new SendTaskSuccessCommand({
+                taskToken: taskToken,
+                output: JSON.stringify({
+                    request_id,
+                    status,
+                    output,
+                    lipSyncVideoUrl: output.video?.url || output.video_url || ''
+                }),
+            }));
+
+            // Cleanup mapping
+            await falJobRef.delete();
+
+            return NextResponse.json({ success: true });
+        }
 
     } catch (error: any) {
         console.error('❌ Webhook processing error:', error);
