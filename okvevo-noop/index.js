@@ -30,7 +30,7 @@ exports.handler = async (event) => {
                 fal_mode: "mock",
                 jobId,
                 userId,
-                // These are passed down by lambda-ai-prep in mock mode normally
+                // These are passed down by okvevo-ai-prep in mock mode normally
                 ttsUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/audio/narration-director-1771518209173-1771518226280.mp3",
                 avatarVideoUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/AIInfluencer/mock/avatar.mp4",
                 lipSyncVideoUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/AIInfluencer/mock/avatar.mp4"
