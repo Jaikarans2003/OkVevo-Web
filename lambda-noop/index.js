@@ -27,11 +27,13 @@ exports.handler = async (event) => {
                 status: "COMPLETED",
                 request_id: `mock-${Date.now()}`,
                 mock: true,
+                fal_mode: "mock",
                 jobId,
                 userId,
                 // These are passed down by lambda-ai-prep in mock mode normally
                 ttsUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/audio/narration-director-1771518209173-1771518226280.mp3",
-                avatarVideoUrl: "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media"
+                avatarVideoUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/AIInfluencer/mock/avatar.mp4",
+                lipSyncVideoUrl: "https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/AIInfluencer/mock/avatar.mp4"
             };
 
             await sfnClient.send(new SendTaskSuccessCommand({

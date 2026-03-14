@@ -11,8 +11,10 @@
         "topic.$": "$.topic",
         "duration.$": "$.duration",
         "avatarVideoUrl.$": "$.avatarVideoUrl",
+        "fal_mode.$": "$.fal_mode",
         "taskToken.$": "$$.Task.Token"
       },
+      "ResultPath": "$.aiPrepResult",
       "Next": "Wait_For_Assets",
       "Retry": [
         {
@@ -91,6 +93,12 @@
     "Render_Video": {
       "Type": "Task",
       "Resource": "arn:aws:lambda:us-east-1:315974965935:function:lambda-renderer",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "userId.$": "$.userId",
+        "lipSyncVideoUrl.$": "$.lipSyncVideoUrl",
+        "audioUrl.$": "$.ttsUrl"
+      },
       "Next": "Complete",
       "Retry": [
         {
