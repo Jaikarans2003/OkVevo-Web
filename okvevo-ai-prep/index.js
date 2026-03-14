@@ -55,7 +55,7 @@ exports.handler = async (event) => {
 
         // Update job status in Firestore
         const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-        await jobRef.update({ script: '(mock script)', moments: [], status: 'preparing-assets' });
+        await jobRef.set({ script: '(mock script)', moments: [], status: 'preparing-assets' }, { merge: true });
 
         // Immediately resume Step Function with mock data (this replaces the webhook)
         const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
