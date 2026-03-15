@@ -3,7 +3,11 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const https = require('https');
 
 // Initialize Firebase
-const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf-8'));
+const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+if (!saBase64) {
+    throw new Error("Missing Firebase Service Account Key (FIREBASE_SERVICE_ACCOUNT_KEY or FB_SERVICE_ACCOUNT_KEY)");
+}
+const serviceAccount = JSON.parse(Buffer.from(saBase64, 'base64').toString('utf-8'));
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
@@ -47,11 +51,11 @@ exports.handler = async (event) => {
         console.log("🛠️ MOCK MODE ENABLED: Returning fake assets immediately, skipping all AI calls.");
         const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
         const fakeImages = [
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock1.jpg`,
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock2.jpg`,
-            `https://storage.googleapis.com/${bucket}/InfluencerAssets/mock3.jpg`
+            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock1.jpg?alt=media`,
+            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock2.jpg?alt=media`,
+            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock3.jpg?alt=media`
         ];
-        const fakeAudio = `https://storage.googleapis.com/${bucket}/audio/narration-director-1771518209173-1771518226280.mp3`;
+        const fakeAudio = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAudio%2FAudio1.mpeg?alt=media`;
 
         // Update job status in Firestore
         const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
@@ -101,6 +105,9 @@ exports.handler = async (event) => {
 
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
     // In a real scenario, we'd map moments to Fal jobs.
+    const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
+    const falApiKey = process.env.FAL_API_IMAGE || process.env.FAL_API_KEY;
+
     const imageJobs = moments.slice(0, 3).map(m => {
         return httpsRequest('https://queue.fal.run/fal-ai/flux/schnell', {
             method: 'POST',

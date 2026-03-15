@@ -25,14 +25,15 @@ export async function POST(request: NextRequest) {
             duration,
             gender,
             imageTimeline,
+            topic,
         } = body;
 
         // ── Validation ─────────────────────────────────────────
-        if (!jobId || !avatarVideoUrl || !audioUrl) {
+        if (!jobId || !userId) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: 'Missing required fields: jobId, avatarVideoUrl, audioUrl',
+                    error: 'Missing required fields: jobId, userId',
                 },
                 { status: 400 }
             );
@@ -95,6 +96,27 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        if (body.action === 'resume') {
+            const { taskToken, avatarVideoUrl } = body;
+            if (!taskToken || !avatarVideoUrl) {
+                return NextResponse.json({ success: false, error: 'Missing taskToken or avatarVideoUrl for resume' }, { status: 400 });
+            }
+
+            const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
+            const sfnClient = new SFNClient({
+                region: sfnRegion,
+                credentials: { accessKeyId: awsAccessKeyId, secretAccessKey: awsSecretAccessKey },
+            });
+
+            console.log('🚀 Resuming Step Function with Avatar:', { jobId, avatarVideoUrl });
+            await sfnClient.send(new SendTaskSuccessCommand({
+                taskToken,
+                output: JSON.stringify({ avatarVideoUrl, status: 'RESUMED' })
+            }));
+
+            return NextResponse.json({ success: true, message: 'Step Function resumed' });
+        }
+
         // ── Dispatch to Step Function ──────────────────────────────
         const { SFNClient, StartExecutionCommand } = require('@aws-sdk/client-sfn');
         const sfnClient = new SFNClient({
@@ -108,11 +130,12 @@ export async function POST(request: NextRequest) {
         const executionInput = JSON.stringify({
             jobId,
             userId,
-            avatarVideoUrl,
-            audioUrl,
-            topic: body.topic || 'General AI Video',
+            avatarVideoUrl: avatarVideoUrl || '',
+            audioUrl: audioUrl || '',
+            imageTimeline: imageTimeline || [],
+            topic: topic || body.topic || 'General AI Video',
             duration: duration || 30,
-            fal_mode: process.env.FAL_MODE || process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 'mock' : 'live'
+            fal_mode: process.env.FAL_MODE || (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 'mock' : 'live')
         });
 
         const command = new StartExecutionCommand({

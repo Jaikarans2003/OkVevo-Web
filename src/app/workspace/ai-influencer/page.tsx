@@ -93,6 +93,7 @@ function AIInfluencerWorkstation() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
+    const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
     const [isGeneratingPhotos, setIsGeneratingPhotos] = useState(false);
@@ -141,12 +142,60 @@ function AIInfluencerWorkstation() {
         // Poll from user-specific subcollection: users/{userId}/aiInfluencerJobs/{jobId}
         const unsub = onSnapshot(doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId), (snap) => {
             const data = snap.data();
-            if (data?.status === 'complete' && data?.finalVideoUrl) {
+            if (!data) return;
+
+            // 1. Check for generated script
+            if (data.script && chatStep === 'generating-script') {
+                setGeneratedScript(data.script);
+                setEditableScript(data.script);
+                setChatStep('edit-script');
+                addAssistant(`✅ Narrative script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
+            }
+
+            // 2. Check for visual assets (images)
+            if (data.assetResults || data.imageTimeline) {
+                const results = data.assetResults || [];
+                const timeline = data.imageTimeline || [];
+                
+                // If we have a timeline from Gemini but no images yet, show placeholders
+                if (timeline.length > 0 && imageTimeline.length === 0) {
+                    setImageTimeline(timeline);
+                }
+
+                // If images are arriving from webhook, update the timeline
+                if (results.length > 0) {
+                   const images = results
+                       .filter((r: any) => r.type === 'image')
+                       .map((r: any) => r.output.images?.[0]?.url)
+                       .filter(Boolean);
+                   
+                   if (images.length > 0) {
+                       setImageTimeline(prev => prev.map((item, idx) => ({
+                           ...item,
+                           imageUrl: images[idx] || item.imageUrl
+                       })));
+                   }
+
+                   const audioResult = results.find((r: any) => r.type === 'audio');
+                   if (audioResult?.output?.audio_file?.url && !audioUrl) {
+                       setAudioUrl(audioResult.output.audio_file.url);
+                   }
+                }
+            }
+
+            // 3. Check for wait token (human-in-the-loop pause)
+            if (data.waitTaskToken && !waitTaskToken) {
+                console.log('⏳ Human wait token received:', data.waitTaskToken);
+                setWaitTaskToken(data.waitTaskToken);
+            }
+
+            // 4. Check for final completion
+            if (data.status === 'complete' && data.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
                 setChatStep('complete');
                 addAssistant('🎉 Your lip-synced video is ready! Watch it in the monitor on the right.');
                 setIsGenerating(false);
-            } else if (data?.status === 'error') {
+            } else if (data.status === 'error') {
                 addAssistant(`❌ Error: ${data.errorMessage || 'Video generation failed. Please try again.'}`);
                 setChatStep('preview-audio');
                 setIsGenerating(false);
@@ -178,6 +227,7 @@ function AIInfluencerWorkstation() {
         setAudioUrl(null);
         setFinalVideoUrl(null);
         setJobId(null);
+        setWaitTaskToken(null);
         setIsGenerating(false);
         setImageTimeline([]);
         setIsGeneratingPhotos(false);
@@ -263,51 +313,47 @@ function AIInfluencerWorkstation() {
 
     // ── Step 2: Duration ─────────────────────────────────
     const handleDurationSelect = async (duration: 15 | 30) => {
-        setSelectedDuration(duration);
-        addUser(`${duration} seconds`);
-
-        // Debug: Check if rawScript is available
-        console.log('🔍 Debug - rawScript before generateScript:', rawScript ? `${rawScript.substring(0, 50)}...` : 'EMPTY');
-        console.log('🔍 Debug - rawScript length:', rawScript?.length || 0);
-
-        if (!rawScript?.trim()) {
-            addAssistant('❌ Error: No script available. Please upload or paste your script first.');
-            setChatStep('upload-script');
+        if (!user?.uid) {
+            addAssistant('❌ Please sign in to generate videos.');
             return;
         }
 
+        setSelectedDuration(duration);
+        addUser(`${duration} seconds`);
+
+        const newJobId = generateJobId();
+        setJobId(newJobId);
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analysing your script and generating a ${duration}-second narrative explainer…`);
-        await generateScript(duration, rawScript);
+        addAssistant(`Triggering AI Pipeline... Analysing your script and generating a ${duration}-second narrative explainer. This happens in the background via AWS Step Functions.`);
+
+        try {
+            const res = await fetch('/api/sqs/ai-influencer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jobId: newJobId,
+                    userId: user.uid,
+                    topic: rawScript, // Using the pasted text as the topic/prompt for analysis
+                    duration: duration,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to start Step Function');
+            
+            console.log('✅ Step Function triggered:', data.executionArn);
+            addAssistant('🎬 Step Function started! Waiting for Gemini to generate your script...');
+        } catch (err: any) {
+            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
+            setIsGenerating(false);
+            setChatStep('duration');
+        }
     };
 
     // ── Step 3: Generate script ──────────────────────────
+    // REDUNDANT - Now handled by Step Function
     const generateScript = async (duration: number, scriptToSend: string) => {
-        try {
-            console.log('📝 Sending script to API:', scriptToSend ? `${scriptToSend.substring(0, 50)}...` : 'EMPTY');
-            console.log('📝 Duration:', duration);
-
-            const response = await fetch('/api/ai-influencer/generate-script', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ script: scriptToSend, duration }),
-            });
-            const data = await response.json();
-            if (!data.success) throw new Error(data.error || 'Script generation failed');
-
-            setGeneratedScript(data.script);
-            setEditableScript(data.script);
-            addAssistant(
-                `✅ Narrative script generated (${data.wordCount} words, ~${duration}s). ` +
-                `Review and edit it below, then click Continue.`
-            );
-            setChatStep('edit-script');
-        } catch (err: any) {
-            addAssistant(`❌ Script generation failed: ${err.message}`);
-            setChatStep('duration');
-        }
-        setIsGenerating(false);
+        console.log('Skipping client-side script generation, Step Function is taking over.');
     };
 
     // ── Step 4 → 5: Confirm script → avatar upload ───────
@@ -428,29 +474,24 @@ function AIInfluencerWorkstation() {
                 p => p.imageUrl && !p.imageUrl.startsWith('data:')
             );
 
-            console.log('🖼️ DEBUG: imageTimeline length:', imageTimeline.length);
-            console.log('🖼️ DEBUG: validTimeline length:', validTimeline.length);
-            console.log('🖼️ DEBUG: validTimeline:', validTimeline);
-
+            console.log('🎬 Attempting to resume Step Function with Avatar...');
+            
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     jobId,
                     userId: user.uid,
-                    avatarVideoUrl,
-                    audioUrl,
-                    script: editableScript,
-                    duration: selectedDuration,
-                    gender: selectedGender,
-                    imageTimeline: validTimeline,
+                    action: 'resume',
+                    taskToken: waitTaskToken, // The token from the Human_Wait state
+                    avatarVideoUrl: avatarVideoUrl,
                 }),
             });
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Failed to dispatch job');
-            addAssistant(`Job dispatched! ${validTimeline.length > 0 ? `${validTimeline.length} photo overlays included. ` : ''}Monitoring progress… (usually 2–5 min)`);
+            if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
+            addAssistant(`Pipeline resumed with your avatar video! Monitoring progress… (usually 1–3 min)`);
         } catch (err: any) {
-            addAssistant(`❌ Error: ${err.message}`);
+            addAssistant(`❌ Failed to progress: ${err.message}. You might need to wait a few seconds for the system to be ready for the avatar.`);
             setChatStep('preview-audio');
             setIsGenerating(false);
         }

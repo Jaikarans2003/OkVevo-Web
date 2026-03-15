@@ -11,7 +11,11 @@ const FFMPEG = '/opt/bin/ffmpeg';
 const JOBS_COLLECTION = 'aiInfluencerJobs';
 
 // Initialize Firebase
-const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf-8'));
+const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+if (!saBase64) {
+    throw new Error("Missing Firebase Service Account Key (FIREBASE_SERVICE_ACCOUNT_KEY or FB_SERVICE_ACCOUNT_KEY)");
+}
+const serviceAccount = JSON.parse(Buffer.from(saBase64, 'base64').toString('utf-8'));
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),

@@ -2,7 +2,11 @@ const admin = require('firebase-admin');
 const https = require('https');
 
 // Initialize Firebase
-const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf-8'));
+const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+if (!saBase64) {
+    throw new Error("Missing Firebase Service Account Key (FIREBASE_SERVICE_ACCOUNT_KEY or FB_SERVICE_ACCOUNT_KEY)");
+}
+const serviceAccount = JSON.parse(Buffer.from(saBase64, 'base64').toString('utf-8'));
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
@@ -58,7 +62,8 @@ exports.handler = async (event) => {
         const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
         const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-        const mockVideoUrl = "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62";
+        const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
+        const mockVideoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62`;
 
         await sfnClient.send(new SendTaskSuccessCommand({
             taskToken: taskToken,

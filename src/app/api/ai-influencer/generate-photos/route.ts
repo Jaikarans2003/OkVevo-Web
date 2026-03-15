@@ -144,14 +144,20 @@ export async function POST(request: NextRequest) {
 
         // Mock Mode Check
         if (process.env.FAL_MODE === 'mock' || process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
-            console.log('Mock mode enabled for photos -> returning dummy photos');
-            const mockImageUrl = 'https://storage.googleapis.com/text2video-16cbf.firebasestorage.app/MockAIGeneratedPhotos/download.jpeg';
+            console.log('Mock mode enabled for photos -> returning dummy photos from InfluencerAssets');
+            // Use real mock images that exist in Firebase Storage (publicly readable)
+            const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
+            const mockImages = [
+                `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock1.jpg?alt=media`,
+                `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock2.jpg?alt=media`,
+                `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock3.jpg?alt=media`,
+            ];
             const mockPhotos = moments.map((moment, i) => ({
                 time: moment.time,
                 start: moment.start,
                 end: moment.end,
                 topic: moment.topic,
-                imageUrl: mockImageUrl,
+                imageUrl: mockImages[i % mockImages.length],
                 layout: i === 0 ? 'fullscreen' : 'split',
             }));
             return NextResponse.json({ success: true, photos: mockPhotos });
