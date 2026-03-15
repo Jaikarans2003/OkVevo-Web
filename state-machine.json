@@ -18,7 +18,7 @@
         }
       },
       "ResultPath": "$.aiPrepResult",
-      "TimeoutSeconds": 300,
+      "TimeoutSeconds": 31622400,
       "Next": "Wait_For_Avatar",
       "Catch": [
         {
@@ -58,7 +58,7 @@
         }
       },
       "ResultPath": "$.lipSyncResult",
-      "TimeoutSeconds": 600,
+      "TimeoutSeconds": 3600,
       "Next": "Render_Video",
       "Catch": [
         {

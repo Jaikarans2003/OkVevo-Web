@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
                     .filter(Boolean);
                 
                 const audioResult = assetResults.find((r: any) => r.type === 'audio');
-                const audioUrl = audioResult?.output?.audio_file?.url || '';
+                const audioUrl = audioResult?.output?.audio?.url || audioResult?.output?.audio_file?.url || '';
 
                 // Resume Step Function with aggregated data
                 await sfnClient.send(new SendTaskSuccessCommand({

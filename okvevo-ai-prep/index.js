@@ -83,7 +83,7 @@ exports.handler = async (event) => {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
 
     // Step 1: Generate Script
     const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
@@ -109,7 +109,7 @@ exports.handler = async (event) => {
     const falApiKey = process.env.FAL_API_IMAGE || process.env.FAL_API_KEY;
 
     const imageJobs = moments.slice(0, 3).map(m => {
-        return httpsRequest('https://queue.fal.run/fal-ai/flux/schnell', {
+        return httpsRequest('https://queue.fal.run/fal-ai/fal-ai/nano-banana-2', {
             method: 'POST',
             headers: { 'Authorization': `Key ${falApiKey}`, 'Content-Type': 'application/json' }
         }, {
@@ -119,14 +119,26 @@ exports.handler = async (event) => {
         });
     });
 
-    const ttsJob = httpsRequest('https://queue.fal.run/fal-ai/playht/tts/v3', {
+    // Use user's uploaded voice for cloning with Resemble AI ChatterboxHD (optional)
+    const voiceUrl = event.voiceUrl || event.userVoiceUrl; // User-uploaded voice file URL
+    
+    const ttsPayload = {
+        text: scriptText,
+        webhook_url: webhookUrl
+    };
+    
+    // Only add audio_url if user provided a voice for cloning
+    if (voiceUrl) {
+        ttsPayload.audio_url = voiceUrl;
+        console.log(`🎤 Using user voice for cloning: ${voiceUrl}`);
+    } else {
+        console.log(`🎤 No voice provided, using default TTS voice`);
+    }
+    
+    const ttsJob = httpsRequest('https://queue.fal.run/resemble-ai/chatterboxhd/text-to-speech', {
         method: 'POST',
         headers: { 'Authorization': `Key ${falApiKey}`, 'Content-Type': 'application/json' }
-    }, {
-        input: scriptText,
-        voice: "s3://voice-cloning-zero-shot/d9ff78ba-d016-41f6-b092-2300259e1dff/original/manifest.json",
-        webhook_url: webhookUrl
-    });
+    }, ttsPayload);
 
     const responses = await Promise.all([...imageJobs, ttsJob]);
     
@@ -143,14 +155,14 @@ exports.handler = async (event) => {
 
     // Store job metadata to track webhook completion
     const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-    batch.update(jobRef, { 
+    batch.set(jobRef, { 
         script: scriptText, 
         moments, 
         status: 'preparing-assets',
         expectedAssets: requestIds.length,
         completedAssets: 0,
         taskToken
-    });
+    }, { merge: true });
 
     await batch.commit();
 
