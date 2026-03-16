@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const https = require('https');
 
 // Initialize Firebase
@@ -46,58 +46,99 @@ exports.handler = async (event) => {
     const { jobId, userId, topic, duration, avatarVideoUrl, taskToken } = event;
     console.log(`🚀 Starting AI Prep for Job: ${jobId}`);
 
-    // ⚡ MOCK MODE FAST PATH - Must be checked FIRST before any API calls
+    // ⚡ MOCK MODE - Submit fake Fal jobs and WAIT for manual webhook trigger
+    // DO NOT auto-resume. Write fake request_ids to Firestore just like production,
+    // then exit. The developer will use Postman to POST to /api/fal/webhook with
+    // each fake request_id to simulate Fal AI callbacks and advance the pipeline.
     if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE ENABLED: Returning fake assets immediately, skipping all AI calls.");
+        console.log("🛠️ MOCK MODE: Submitting fake Fal jobs. Waiting for manual webhook POSTs...");
+
         const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
-        const fakeImages = [
-            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock1.jpg?alt=media`,
-            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock2.jpg?alt=media`,
-            `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAssets%2Fmock3.jpg?alt=media`
+
+        // Fake request IDs — one per image + one for TTS audio
+        const mockImageIds = [
+            `mock-image-0-${jobId}`,
+            `mock-image-1-${jobId}`,
+            `mock-image-2-${jobId}`,
         ];
-        const fakeAudio = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/InfluencerAudio%2FAudio1.mpeg?alt=media`;
+        const mockTtsId = `mock-tts-${jobId}`;
+        const allMockIds = [...mockImageIds, mockTtsId];
 
-        // Update job status in Firestore
-        const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
-        await jobRef.set({ script: '(mock script)', moments: [], status: 'preparing-assets' }, { merge: true });
-
-        // Immediately resume Step Function with mock data (this replaces the webhook)
-        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
-        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
-
-        await sfnClient.send(new SendTaskSuccessCommand({
-            taskToken: taskToken,
-            output: JSON.stringify({
-                images: fakeImages,
-                audioUrl: fakeAudio,
-                fal_mode: "mock",
-                jobId,
+        // Write each fake request_id to falJobs — identical to what production does
+        const batch = db.batch();
+        allMockIds.forEach((reqId, i) => {
+            const ref = db.collection('falJobs').doc(reqId);
+            batch.set(ref, {
                 userId,
-                status: 'COMPLETED',
-                mock: true
-            })
-        }));
+                jobId,
+                taskToken,
+                type: 'ai-prep'
+            });
+        });
 
-        console.log("✅ Mock mode: Step Function resumed with fake assets");
-        return { status: "mock-resumed" };
+        // Update the main job document — identical to production flow
+        const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+        batch.set(jobRef, {
+            script: '(mock script)',
+            moments: [
+                { start: 0, end: 5, prompt: 'mock scene 1' },
+                { start: 5, end: 10, prompt: 'mock scene 2' },
+                { start: 10, end: 15, prompt: 'mock scene 3' },
+            ],
+            status: 'preparing-assets',
+            expectedAssets: allMockIds.length,
+            completedAssets: 0,
+            taskToken
+        }, { merge: true });
+
+        await batch.commit();
+
+        // Log the fake request IDs clearly so developer can copy into Postman
+        console.log("════════════════════════════════════════════════════");
+        console.log("🛠️  MOCK MODE — Waiting for manual webhook POSTs");
+        console.log("════════════════════════════════════════════════════");
+        console.log(`Webhook URL: ${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`);
+        console.log("POST 3 image callbacks (use one of your mock image URLs):");
+        mockImageIds.forEach(id => {
+            console.log(`  request_id: "${id}"  (type: image)`);
+        });
+        console.log("POST 1 TTS audio callback:");
+        console.log(`  request_id: "${mockTtsId}"  (type: audio)`);
+        console.log("Mock image URL:  https://firebasestorage.googleapis.com/v0/b/" + bucket + "/o/InfluencerAssets%2Fmock1.jpg?alt=media");
+        console.log("Mock audio URL:  https://firebasestorage.googleapis.com/v0/b/" + bucket + "/o/InfluencerAudio%2FAudio1.mpeg?alt=media");
+        console.log("════════════════════════════════════════════════════");
+        console.log("✅ MOCK MODE: Lambda done. Step Function is now paused, waiting for your webhook POSTs.");
+
+        // DO NOT call SendTaskSuccess — let the webhook do it after your manual POST
+        return { status: "mock-submitted", mockRequestIds: allMockIds };
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY });
+    const model = 'llama-3.3-70b-versatile';
 
     // Step 1: Generate Script
     const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
-    const scriptResult = await model.generateContent(scriptPrompt);
-    const scriptText = scriptResult.response.text().trim();
+    const scriptChat = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: scriptPrompt }],
+        model: model,
+    });
+    const scriptText = scriptChat.choices[0]?.message?.content?.trim() || "(No script generated)";
 
     // Step 2: Extract Moments
     const momentsPrompt = `Given this script: "${scriptText}", extract visual moments for a ${duration}s video. 
-    Output ONLY a JSON array of objects: { start: number, end: number, prompt: string }.`;
-    const momentsResult = await model.generateContent(momentsPrompt);
+    Output ONLY a JSON array of objects: [{ start: number, end: number, prompt: string }]. No other text.`;
+    const momentsChat = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: momentsPrompt }],
+        model: model,
+        response_format: { type: "json_object" }
+    });
     let moments = [];
     try {
-        const text = momentsResult.response.text();
-        moments = JSON.parse(text.substring(text.indexOf('['), text.lastIndexOf(']') + 1));
+        const content = momentsChat.choices[0]?.message?.content;
+        const parsed = JSON.parse(content);
+        // Groq/Llama usually wraps json_object in a root key if not specified, 
+        // but let's handle both array and object wrapping
+        moments = Array.isArray(parsed) ? parsed : (parsed.moments || Object.values(parsed)[0]);
     } catch (e) {
         console.error("Failed to parse moments JSON", e);
     }

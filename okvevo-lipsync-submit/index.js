@@ -52,32 +52,39 @@ exports.handler = async (event) => {
     const falApiKey = process.env.FAL_API_VIDEO || process.env.FAL_API_KEY;
 
     if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE ENABLED: Auto-resuming with fake lipsync");
-        
-        await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
-            status: 'lipsync-complete'
+        console.log("🛠️ MOCK MODE: Submitting fake LipSync job. Waiting for manual webhook POST...");
+
+        // Generate a deterministic fake request ID so it's easy to copy into Postman
+        const mockRequestId = `mock-lipsync-${jobId}`;
+
+        // Write to falJobs — identical to production
+        await db.collection('falJobs').doc(mockRequestId).set({
+            userId,
+            jobId,
+            taskToken,
+            type: 'lipsync'
         });
 
-        // Immediately resume Step Function with mock lipsync video
-        const { SFNClient, SendTaskSuccessCommand } = require('@aws-sdk/client-sfn');
-        const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
+        // Update job status — identical to production
+        await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
+            status: 'submitting-lipsync',
+            lipSyncRequestId: mockRequestId
+        });
 
+        // Log clearly for developer to copy into Postman
+        console.log("════════════════════════════════════════════════════");
+        console.log("🛠️  MOCK MODE — Waiting for manual LipSync webhook POST");
+        console.log("════════════════════════════════════════════════════");
+        console.log(`Webhook URL: ${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`);
+        console.log("Send this POST body to the webhook URL:");
+        console.log(`  request_id: "${mockRequestId}"`);
         const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
-        const mockVideoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/final.mp4?alt=media&token=ea3eda9d-0e59-433d-bc85-8d8b16883f62`;
+        console.log(`  Mock lipsync video URL: https://storage.googleapis.com/${bucket}/AIInfluencer/mock/avatar.mp4`);
+        console.log("════════════════════════════════════════════════════");
+        console.log("✅ MOCK MODE: Lambda done. Step Function is now paused, waiting for your webhook POST.");
 
-        await sfnClient.send(new SendTaskSuccessCommand({
-            taskToken: taskToken,
-            output: JSON.stringify({
-                lipSyncVideoUrl: mockVideoUrl,
-                jobId,
-                userId,
-                status: 'COMPLETED',
-                mock: true
-            })
-        }));
-
-        console.log("✅ Mock mode: Step Function resumed with fake lipsync video");
-        return { status: "mock-resumed" };
+        // DO NOT call SendTaskSuccess — let the webhook resume after your manual POST
+        return { status: "mock-submitted", mockRequestId };
     }
 
     // Submit LipSync job to Fal AI

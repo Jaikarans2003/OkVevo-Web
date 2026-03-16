@@ -94,6 +94,105 @@ function parseSrtTime(timeStr) {
 }
 
 // ────────────────────────────────────────────────────
+// Gemini Speech-to-Text Caption Generation
+// ────────────────────────────────────────────────────
+
+/**
+ * Calls Gemini API to transcribe audio and produce SRT subtitle content.
+ * Uses inline base64 audio data to avoid any extra upload step.
+ * @param {Buffer} audioBuffer - The raw audio buffer (mp3/mpeg)
+ * @returns {Promise<string|null>} SRT formatted subtitle string or null on failure
+ */
+async function generateCaptionsWithGemini(audioBuffer) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+        console.warn('⚠️ Gemini API key not set — skipping caption generation');
+        return null;
+    }
+
+    console.log('🎤 Generating captions via Gemini speech-to-text...');
+
+    const base64Audio = audioBuffer.toString('base64');
+    const requestBody = {
+        contents: [{
+            parts: [
+                {
+                    inline_data: {
+                        mime_type: 'audio/mpeg',
+                        data: base64Audio
+                    }
+                },
+                {
+                    text: `Transcribe this audio and output the result ONLY as a valid SRT subtitle file. 
+Use this exact format for each entry:
+
+1
+00:00:00,000 --> 00:00:03,000
+Subtitle text here
+
+2
+00:00:03,000 --> 00:00:06,000
+Next subtitle text
+
+Rules:
+- Each subtitle block should be 2-4 seconds long
+- Keep each subtitle to 1-2 short lines (max ~8 words per line)
+- Output ONLY the SRT content, no explanations, no markdown, no code blocks
+- Start timestamps from 00:00:00,000`
+                }
+            ]
+        }],
+        generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 4096
+        }
+    };
+
+    return new Promise((resolve) => {
+        const body = JSON.stringify(requestBody);
+        const parsedUrl = new URL(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+        );
+        const reqOptions = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        };
+
+        const req = require('https').request(reqOptions, (res) => {
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(Buffer.concat(chunks).toString());
+                    const srtText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    if (srtText.trim()) {
+                        console.log(`✅ Gemini generated ${srtText.split('\n\n').length} subtitle blocks`);
+                        resolve(srtText.trim());
+                    } else {
+                        console.warn('⚠️ Gemini returned empty transcription');
+                        resolve(null);
+                    }
+                } catch (e) {
+                    console.error('⚠️ Failed to parse Gemini response:', e.message);
+                    resolve(null);
+                }
+            });
+        });
+        req.on('error', (e) => {
+            console.error('⚠️ Gemini request error:', e.message);
+            resolve(null);
+        });
+        req.write(body);
+        req.end();
+    });
+}
+
+// ────────────────────────────────────────────────────
 // FFmpeg Compositing
 // ────────────────────────────────────────────────────
 
@@ -344,18 +443,36 @@ exports.handler = async (event) => {
             }
         }
 
-        // Handle subtitles if present
+        // Handle subtitles — either download a pre-built SRT, or generate via Gemini
         let localSrtPath = null;
         if (remoteSrtPath) {
+            // SRT was provided in the event — download it directly
             try {
                 console.log('Got remoteSrtPath:', remoteSrtPath);
                 if (remoteSrtPath.startsWith('http')) {
                     const srtBuf = await downloadFromUrl(remoteSrtPath);
                     localSrtPath = `/tmp/${jobId}-captions.srt`;
                     fs.writeFileSync(localSrtPath, srtBuf);
+                    console.log('✅ Downloaded SRT from remoteSrtPath');
                 }
             } catch (err) {
                 console.warn('⚠️ Could not download SRT:', err.message);
+            }
+        }
+
+        if (!localSrtPath && audioUrl) {
+            // No SRT was provided — generate captions from the TTS audio via Gemini
+            try {
+                console.log('🎤 No SRT provided — generating captions from audio using Gemini...');
+                const audioBuffer = await downloadFromUrl(audioUrl);
+                const srtContent = await generateCaptionsWithGemini(audioBuffer);
+                if (srtContent) {
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    fs.writeFileSync(localSrtPath, srtContent, 'utf8');
+                    console.log(`✅ Gemini captions written to ${localSrtPath}`);
+                }
+            } catch (err) {
+                console.warn('⚠️ Failed to generate Gemini captions:', err.message);
             }
         }
 

@@ -6,7 +6,8 @@ $Region = "us-east-1"
 # Extract values from .env
 $EnvContent = Get-Content .env -Raw
 if ($EnvContent -match "FB_SERVICE_ACCOUNT_KEY=([^\r\n]+)") { $FB_KEY = $Matches[1].Trim() }
-if ($EnvContent -match "GEMINI_API_KEY=([^\r\n]+)") { $GEMINI_KEY = $Matches[1].Trim() }
+if ($EnvContent -match "NEXT_PUBLIC_GROQ_API_KEY=([^\r\n]+)") { $GROQ_KEY = $Matches[1].Trim() }
+if ($EnvContent -match "GROQ_API_KEY=([^\r\n]+)") { $GROQ_KEY = $Matches[1].Trim() }
 if ($EnvContent -match "FAL_API_IMAGE=([^\r\n]+)") { $FAL_IMAGE = $Matches[1].Trim() }
 if ($EnvContent -match "FAL_API_VIDEO=([^\r\n]+)") { $FAL_VIDEO = $Matches[1].Trim() }
 if ($EnvContent -match "FAL_API_AUDIO=([^\r\n]+)") { $FAL_AUDIO = $Matches[1].Trim() }
@@ -24,7 +25,7 @@ $CommonVars = "FB_SERVICE_ACCOUNT_KEY=$FB_KEY,FIREBASE_STORAGE_BUCKET=$STORAGE_B
 
 # 1. okvevo-ai-prep
 Write-Host "🔧 Configuring okvevo-ai-prep..."
-$prepVars = "$CommonVars,GEMINI_API_KEY=$GEMINI_KEY,FAL_API_IMAGE=$FAL_IMAGE,FAL_API_AUDIO=$FAL_AUDIO,NEXT_PUBLIC_BASE_URL=$BASE_URL"
+$prepVars = "$CommonVars,GROQ_API_KEY=$GROQ_KEY,FAL_API_IMAGE=$FAL_IMAGE,FAL_API_AUDIO=$FAL_AUDIO,NEXT_PUBLIC_BASE_URL=$BASE_URL"
 aws lambda update-function-configuration --function-name okvevo-ai-prep --region $Region --environment "Variables={$prepVars}"
 
 # 2. okvevo-lipsync-submit
