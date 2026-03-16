@@ -26,11 +26,11 @@ const webhookUrl = `${baseUrl}/api/fal/webhook`;
 
 let output = {};
 if (type === 'image') {
-    output = { image_url: url || "https://picsum.photos/1024" };
+    output = { images: [{ url: url || "https://picsum.photos/1024" }] };
 } else if (type === 'tts') {
-    output = { audio_url: url || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" };
+    output = { audio: { url: url || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" } };
 } else if (type === 'lipsync') {
-    output = { video_url: url || "https://samplelib.com/lib/preview/mp4/sample-5s.mp4" };
+    output = { video: { url: url || "https://samplelib.com/lib/preview/mp4/sample-5s.mp4" } };
 }
 
 const payload = {
