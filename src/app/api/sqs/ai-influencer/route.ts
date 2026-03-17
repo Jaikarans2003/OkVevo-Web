@@ -132,9 +132,13 @@ export async function POST(request: NextRequest) {
             userId,
             avatarVideoUrl: avatarVideoUrl || '',
             audioUrl: audioUrl || '',
+            script: script || '', // Confirmed script from Phase 1
+            moments: body.moments || imageTimeline || [], // Visual moments from Phase 1
             imageTimeline: imageTimeline || [],
             topic: topic || body.topic || 'General AI Video',
             duration: duration || 30,
+            gender: gender || 'female',
+            audioSampleUrl: body.audioSampleUrl || '',
             fal_mode: process.env.FAL_MODE || (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 'mock' : 'live')
         });
 

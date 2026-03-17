@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { auth, storage, db } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import SubscriptionGuard from '@/components/SubscriptionGuard';
@@ -311,7 +311,7 @@ function AIInfluencerWorkstation() {
         setChatStep('duration');
     };
 
-    // ── Step 2: Duration ─────────────────────────────────
+    // ── Step 2: Duration → Phase 1 Script Generation ─────
     const handleDurationSelect = async (duration: 15 | 30) => {
         if (!user?.uid) {
             addAssistant('❌ Please sign in to generate videos.');
@@ -321,30 +321,49 @@ function AIInfluencerWorkstation() {
         setSelectedDuration(duration);
         addUser(`${duration} seconds`);
 
-        const newJobId = generateJobId();
-        setJobId(newJobId);
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Triggering AI Pipeline... Analysing your script and generating a ${duration}-second narrative explainer. This happens in the background via AWS Step Functions.`);
+        addAssistant(`Analyzing your script and generating a ${duration}-second narrative explainer with Gemini...`);
 
         try {
-            const res = await fetch('/api/sqs/ai-influencer', {
+            // Phase 1: Generate script + moments synchronously via Next.js API
+            const res = await fetch('/api/ai-influencer/generate-script', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    jobId: newJobId,
-                    userId: user.uid,
-                    topic: rawScript, // Using the pasted text as the topic/prompt for analysis
+                    script: rawScript,
                     duration: duration,
                 }),
             });
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Failed to start Step Function');
             
-            console.log('✅ Step Function triggered:', data.executionArn);
-            addAssistant('🎬 Step Function started! Waiting for Gemini to generate your script...');
+            if (!data.success) throw new Error(data.error || 'Failed to generate script');
+            
+            console.log('✅ Script generated:', data.wordCount, 'words');
+            console.log('✅ Visual moments extracted:', data.moments?.length || 0);
+            
+            setGeneratedScript(data.script);
+            setEditableScript(data.script);
+            
+            // Store moments for later use
+            if (data.moments && Array.isArray(data.moments)) {
+                const momentsWithLayout: ImageMoment[] = data.moments.map((m: any) => ({
+                    time: `${m.start}-${m.end}s`,
+                    start: m.start,
+                    end: m.end,
+                    topic: m.topic || 'Visual moment',
+                    prompt: m.prompt || m.topic,
+                    imageUrl: null,
+                    layout: 'split' as const,
+                }));
+                setImageTimeline(momentsWithLayout);
+            }
+            
+            addAssistant(`✨ Script generated! (~${data.wordCount} words)\n🖼️ ${data.moments?.length || 0} visual moments extracted.\n\nReview and edit your script below. When ready, click "Confirm Script" to proceed with video generation.`);
+            setChatStep('edit-script');
+            setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
+            addAssistant(`❌ Failed to generate script: ${err.message}`);
             setIsGenerating(false);
             setChatStep('duration');
         }
@@ -356,15 +375,20 @@ function AIInfluencerWorkstation() {
         console.log('Skipping client-side script generation, Step Function is taking over.');
     };
 
-    // ── Step 4 → 5: Confirm script → avatar upload ───────
-    const handleConfirmScript = () => {
+    // ── Step 4: Confirm script → Phase 2 Start Step Function ───────
+    const handleConfirmScript = async () => {
+        if (!user?.uid || !editableScript || !selectedDuration) {
+            addAssistant('❌ Missing required data to start video generation.');
+            return;
+        }
+
         addUser('[Script confirmed]');
         addAssistant('Perfect! Now upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
+        
         // Kick off photo asset generation in background (non-blocking)
-        if (editableScript && selectedDuration) {
-            addAssistant('🖼️ Generating visual asset images in the background…');
-            generatePhotoAssets(editableScript, selectedDuration);
-        }
+        addAssistant('🖼️ Generating visual asset images in the background…');
+        generatePhotoAssets(editableScript, selectedDuration);
+        
         setChatStep('avatar-video');
     };
 
@@ -385,7 +409,7 @@ function AIInfluencerWorkstation() {
     };
 
     const handleGenerateTTS = async () => {
-        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo) return;
+        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo || !user?.uid) return;
         setIsGenerating(true);
 
         const newJobId = generateJobId();
@@ -408,43 +432,61 @@ function AIInfluencerWorkstation() {
                 audioSampleUrl = await getDownloadURL(sampleRef);
             }
 
-            // Generate TTS
-            addAssistant(audioSampleUrl ? 'Generating voice-over with Fal AI Voice Cloning…' : 'Generating voice-over with Fal AI preset voice…');
-            const res = await fetch('/api/ai-influencer/generate-tts', {
+            // Save script and moments to Firestore
+            addAssistant('💾 Saving script and visual moments to Firestore...');
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', newJobId);
+            await setDoc(jobRef, {
+                jobId: newJobId,
+                userId: user.uid,
+                script: editableScript,
+                moments: imageTimeline.map(m => ({
+                    start: m.start,
+                    end: m.end,
+                    topic: m.topic,
+                    prompt: m.prompt,
+                })),
+                duration: selectedDuration,
+                avatarVideoUrl: videoUrl,
+                gender: selectedGender,
+                audioSampleUrl: audioSampleUrl || null,
+                status: 'preparing',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            });
+            console.log('✅ Saved to Firestore:', newJobId);
+
+            // Phase 2: Start Step Function with confirmed script
+            addAssistant('🎬 Starting AI Pipeline with your confirmed script...');
+            const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     jobId: newJobId,
-                    script: editableScript,
+                    userId: user.uid,
+                    script: editableScript, // Send confirmed script
+                    duration: selectedDuration,
+                    avatarVideoUrl: videoUrl,
                     gender: selectedGender,
-                    audioSampleUrl: audioSampleUrl
+                    audioSampleUrl: audioSampleUrl,
+                    moments: imageTimeline.map(m => ({
+                        start: m.start,
+                        end: m.end,
+                        topic: m.topic,
+                        prompt: m.prompt,
+                    })),
                 }),
             });
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'TTS generation failed');
-
-            let finalAudioUrl: string = data.audioUrl;
-
-            // If the API returned a base64 data URL (no Firebase Admin on server),
-            // upload the audio using the client-side Firebase SDK so Lambda can access it.
-            if (data.audioUrl?.startsWith('data:')) {
-                addAssistant('Uploading audio to storage…');
-                const base64Data = data.audioUrl.split(',')[1];
-                const audioBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-                const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
-                const audioRef = ref(storage, `AIInfluencer/${newJobId}/audio.mp3`);
-                await uploadBytes(audioRef, audioBlob);
-                finalAudioUrl = await getDownloadURL(audioRef);
-            }
-
-            setAudioUrl(finalAudioUrl);
-            addAssistant('🎙️ Voice-over generated! Listen to the preview below. When you\'re happy, click "Generate Lip-Synced Video".');
-            setChatStep('preview-audio');
+            if (!data.success) throw new Error(data.error || 'Failed to start Step Function');
+            
+            console.log('✅ Step Function triggered:', data.executionArn);
+            addAssistant('🎬 Step Function started! Generating TTS audio and preparing for lip-sync...');
+            // The Firestore listener will update the UI when TTS completes
         } catch (err: any) {
             addAssistant(`❌ Error: ${err.message}`);
             setChatStep('generating-tts');
+            setIsGenerating(false);
         }
-        setIsGenerating(false);
     };
 
     // ── Step 7: LipSync ───────────────────────────────────

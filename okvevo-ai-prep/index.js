@@ -43,8 +43,9 @@ function httpsRequest(url, options = {}, body = null) {
 }
 
 exports.handler = async (event) => {
-    const { jobId, userId, topic, duration, avatarVideoUrl, taskToken } = event;
+    const { jobId, userId, topic, duration, avatarVideoUrl, taskToken, script: providedScript, gender, audioSampleUrl } = event;
     console.log(`🚀 Starting AI Prep for Job: ${jobId}`);
+    console.log(`📝 Script provided: ${providedScript ? 'YES (Phase 2)' : 'NO (generating now)'}`);
 
     // ⚡ MOCK MODE - Submit fake Fal jobs and WAIT for manual webhook trigger
     // DO NOT auto-resume. Write fake request_ids to Firestore just like production,
@@ -79,7 +80,7 @@ exports.handler = async (event) => {
         // Update the main job document — identical to production flow
         const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
         batch.set(jobRef, {
-            script: '(mock script)',
+            script: providedScript || '(mock script)',
             moments: [
                 { start: 0, end: 5, prompt: 'mock scene 1' },
                 { start: 5, end: 10, prompt: 'mock scene 2' },
@@ -113,35 +114,88 @@ exports.handler = async (event) => {
         return { status: "mock-submitted", mockRequestIds: allMockIds };
     }
 
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY });
-    const model = 'llama-3.3-70b-versatile';
-
-    // Step 1: Generate Script
-    const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
-    const scriptChat = await groq.chat.completions.create({
-        messages: [{ role: 'user', content: scriptPrompt }],
-        model: model,
-    });
-    const scriptText = scriptChat.choices[0]?.message?.content?.trim() || "(No script generated)";
-
-    // Step 2: Extract Moments
-    const momentsPrompt = `Given this script: "${scriptText}", extract visual moments for a ${duration}s video. 
-    Output ONLY a JSON array of objects: [{ start: number, end: number, prompt: string }]. No other text.`;
-    const momentsChat = await groq.chat.completions.create({
-        messages: [{ role: 'user', content: momentsPrompt }],
-        model: model,
-        response_format: { type: "json_object" }
-    });
+    let scriptText;
     let moments = [];
-    try {
-        const content = momentsChat.choices[0]?.message?.content;
-        const parsed = JSON.parse(content);
-        // Groq/Llama usually wraps json_object in a root key if not specified, 
-        // but let's handle both array and object wrapping
-        moments = Array.isArray(parsed) ? parsed : (parsed.moments || Object.values(parsed)[0]);
-    } catch (e) {
-        console.error("Failed to parse moments JSON", e);
+
+    // Phase 2: Check if script and moments were already generated and saved to Firestore
+    if (providedScript && providedScript.trim()) {
+        console.log('✅ Using provided script from Phase 1 (Next.js)');
+        scriptText = providedScript.trim();
+        
+        // Check if moments were also provided
+        if (event.moments && Array.isArray(event.moments) && event.moments.length > 0) {
+            console.log('✅ Using provided moments from Phase 1 (Gemini)');
+            moments = event.moments;
+        } else {
+            // Fallback: Try to read from Firestore
+            console.log('📖 Reading moments from Firestore...');
+            try {
+                const jobDoc = await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).get();
+                if (jobDoc.exists) {
+                    const jobData = jobDoc.data();
+                    if (jobData.moments && Array.isArray(jobData.moments)) {
+                        moments = jobData.moments;
+                        console.log(`✅ Loaded ${moments.length} moments from Firestore`);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to read moments from Firestore:', err);
+            }
+        }
+        
+        // If still no moments, generate them
+        if (!moments || moments.length === 0) {
+            console.log('⚠️ No moments found, extracting with Groq...');
+            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY });
+            const model = 'llama-3.3-70b-versatile';
+            
+            const momentsPrompt = `Given this script: "${scriptText}", extract visual moments for a ${duration}s video. 
+            Output ONLY a JSON array of objects: [{ start: number, end: number, prompt: string }]. No other text.`;
+            const momentsChat = await groq.chat.completions.create({
+                messages: [{ role: 'user', content: momentsPrompt }],
+                model: model,
+                response_format: { type: "json_object" }
+            });
+            try {
+                const content = momentsChat.choices[0]?.message?.content;
+                const parsed = JSON.parse(content);
+                moments = Array.isArray(parsed) ? parsed : (parsed.moments || Object.values(parsed)[0]);
+            } catch (e) {
+                console.error("Failed to parse moments JSON", e);
+            }
+        }
+    } else {
+        // Phase 1 (legacy): Generate script here (shouldn't happen with new flow)
+        console.log('⚠️ No script provided, generating with Groq (legacy flow)');
+        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY });
+        const model = 'llama-3.3-70b-versatile';
+
+        const scriptPrompt = `Generate a compelling ${duration}-second explainer video script about "${topic}". Output only the narration text.`;
+        const scriptChat = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: scriptPrompt }],
+            model: model,
+        });
+        scriptText = scriptChat.choices[0]?.message?.content?.trim() || "(No script generated)";
+
+        // Extract Moments
+        const momentsPrompt = `Given this script: "${scriptText}", extract visual moments for a ${duration}s video. 
+        Output ONLY a JSON array of objects: [{ start: number, end: number, prompt: string }]. No other text.`;
+        const momentsChat = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: momentsPrompt }],
+            model: model,
+            response_format: { type: "json_object" }
+        });
+        try {
+            const content = momentsChat.choices[0]?.message?.content;
+            const parsed = JSON.parse(content);
+            moments = Array.isArray(parsed) ? parsed : (parsed.moments || Object.values(parsed)[0]);
+        } catch (e) {
+            console.error("Failed to parse moments JSON", e);
+        }
     }
+
+    console.log(`📝 Final script: ${scriptText.length} chars`);
+    console.log(`🖼️ Final moments: ${moments.length} items`);
 
 
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
