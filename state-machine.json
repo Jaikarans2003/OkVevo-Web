@@ -13,35 +13,23 @@
           "topic.$": "$.topic",
           "duration.$": "$.duration",
           "avatarVideoUrl.$": "$.avatarVideoUrl",
+          "script.$": "$.script",
+          "moments.$": "$.moments",
+          "gender.$": "$.gender",
+          "audioSampleUrl.$": "$.audioSampleUrl",
           "fal_mode.$": "$.fal_mode",
           "taskToken.$": "$$.Task.Token"
         }
       },
       "ResultPath": "$.aiPrepResult",
       "TimeoutSeconds": 31622400,
-      "Next": "Wait_For_Avatar",
+      "Next": "Submit_LipSync",
       "Catch": [
         {
           "ErrorEquals": ["States.Timeout"],
           "Next": "Handle_Failure"
         }
       ]
-    },
-    "Wait_For_Avatar": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-noop",
-        "Payload": {
-          "jobId.$": "$.jobId",
-          "userId.$": "$.userId",
-          "fal_mode.$": "$.fal_mode",
-          "taskToken.$": "$$.Task.Token"
-        }
-      },
-      "ResultPath": "$.waitResult",
-      "TimeoutSeconds": 3600,
-      "Next": "Submit_LipSync"
     },
     "Submit_LipSync": {
       "Type": "Task",
@@ -53,7 +41,7 @@
           "userId.$": "$.userId",
           "fal_mode.$": "$.fal_mode",
           "ttsUrl.$": "$.aiPrepResult.audioUrl",
-          "avatarVideoUrl.$": "$.waitResult.avatarVideoUrl",
+          "avatarVideoUrl.$": "$.avatarVideoUrl",
           "taskToken.$": "$$.Task.Token"
         }
       },
@@ -75,7 +63,7 @@
         "userId.$": "$.userId",
         "lipSyncVideoUrl.$": "$.lipSyncResult.lipSyncVideoUrl",
         "audioUrl.$": "$.aiPrepResult.audioUrl",
-        "imageTimeline.$": "$.aiPrepResult.images"
+        "imageTimeline.$": "$.aiPrepResult.imageTimeline"
       },
       "Next": "Complete",
       "Retry": [

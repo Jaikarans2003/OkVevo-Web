@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { auth, storage, db } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import SubscriptionGuard from '@/components/SubscriptionGuard';
@@ -376,7 +376,7 @@ function AIInfluencerWorkstation() {
         setJobId(newJobId);
 
         addUser('[Script confirmed]');
-        addAssistant('Perfect! I am starting the visual asset and script preparation in the background.');
+        addAssistant('Perfect! Your script is ready.');
         addAssistant('Now, please upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
 
         try {
@@ -393,46 +393,51 @@ function AIInfluencerWorkstation() {
                     prompt: m.prompt,
                 })),
                 duration: selectedDuration,
-                status: 'preparing-assets',
+                status: 'awaiting-avatar',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             });
 
-            // Start Step Function (Phase 2 Start)
-            const res = await fetch('/api/sqs/ai-influencer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jobId: newJobId,
-                    userId: user.uid,
-                    script: editableScript,
-                    duration: selectedDuration,
-                    moments: imageTimeline.map(m => ({
-                        start: m.start,
-                        end: m.end,
-                        topic: m.topic,
-                        prompt: m.prompt,
-                    })),
-                }),
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
-            console.log('✅ Pipeline started:', data.executionArn);
-
+            console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
-            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
+            addAssistant(`❌ Failed to save script: ${err.message}`);
         }
     };
 
     // ── Step 5: Avatar video upload ───────────────────────
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !user?.uid || !jobId) return;
+        
         setAvatarVideo(file);
         addUser(`[Avatar video uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-        addAssistant('Avatar received! Now choose the voice gender for your narration.');
-        setChatStep('generating-tts'); // show gender selector inline
+        addAssistant('Uploading avatar video to storage…');
+        setIsGenerating(true);
+
+        try {
+            // Upload avatar to Firebase Storage
+            const videoRef = ref(storage, `AIInfluencer/${jobId}/avatar.mp4`);
+            await uploadBytes(videoRef, file);
+            const videoUrl = await getDownloadURL(videoRef);
+            setAvatarVideoUrl(videoUrl);
+
+            // Update Firestore with avatar URL
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+            await setDoc(jobRef, {
+                avatarVideoUrl: videoUrl,
+                status: 'awaiting-voice',
+                updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            addAssistant('✅ Avatar uploaded! Now choose the voice for your narration.');
+            addAssistant('You can either select a preset voice (Male/Female) or upload your own voice sample for cloning.');
+            setChatStep('generating-tts');
+            setIsGenerating(false);
+        } catch (err: any) {
+            addAssistant(`❌ Failed to upload avatar: ${err.message}`);
+            setIsGenerating(false);
+        }
     };
 
     // ── Step 6a: Gender → TTS ─────────────────────────────
@@ -442,45 +447,62 @@ function AIInfluencerWorkstation() {
     };
 
     const handleGenerateTTS = async () => {
-        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo || !user?.uid || !jobId) return;
+        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideoUrl || !user?.uid || !jobId) return;
         setIsGenerating(true);
 
         try {
-            // Upload avatar to Firebase
-            addAssistant('Uploading avatar video to storage…');
-            const videoRef = ref(storage, `AIInfluencer/${jobId}/avatar.mp4`);
-            await uploadBytes(videoRef, avatarVideo);
-            const videoUrl = await getDownloadURL(videoRef);
-            setAvatarVideoUrl(videoUrl);
-
-            // Upload audio sample to Firebase if provided
-            let audioSampleUrl;
+            // Get audioSampleUrl from Firestore if voice sample was uploaded
+            let audioSampleUrl = null;
             if (audioSampleFile) {
-                addAssistant('Uploading reference audio sample to storage…');
-                const sampleRef = ref(storage, `AIInfluencer/${jobId}/sample_audio${audioSampleFile.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
-                await uploadBytes(sampleRef, audioSampleFile);
-                audioSampleUrl = await getDownloadURL(sampleRef);
+                const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+                const jobDoc = await getDoc(jobRef);
+                if (jobDoc.exists()) {
+                    audioSampleUrl = jobDoc.data()?.audioSampleUrl || null;
+                }
             }
 
-            // Update Firestore with avatar details
+            // Update Firestore with final voice selection
             const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
             await setDoc(jobRef, {
-                avatarVideoUrl: videoUrl,
                 gender: selectedGender,
-                audioSampleUrl: audioSampleUrl || null,
+                status: 'starting-pipeline',
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('📂 Avatar and voice settings saved.');
+            addAssistant('🚀 Starting AI Influencer Pipeline...');
+            addAssistant('This will generate images, audio, and create your final video. This may take 2-5 minutes.');
 
-            // If we already have a waitTaskToken, resume immediately
-            if (waitTaskToken) {
-                handleResumePipeline(waitTaskToken, videoUrl);
-            } else {
-                addAssistant('⏳ Waiting for background assets (images/audio) to be ready before starting lip-sync…');
-            }
+            // Start Step Function with all data
+            const res = await fetch('/api/sqs/ai-influencer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jobId: jobId,
+                    userId: user.uid,
+                    script: editableScript,
+                    duration: selectedDuration,
+                    avatarVideoUrl: avatarVideoUrl,
+                    gender: selectedGender || 'female',
+                    audioSampleUrl: audioSampleUrl,
+                    moments: imageTimeline.map(m => ({
+                        start: m.start,
+                        end: m.end,
+                        topic: m.topic,
+                        prompt: m.prompt,
+                    })),
+                }),
+            });
+
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
+            
+            console.log('✅ Step Function started:', data.executionArn);
+            addAssistant('✅ Pipeline started! Generating your AI Influencer video...');
+            
+            setChatStep('generating-lipsync');
+            setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`❌ Error: ${err.message}`);
+            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
             setIsGenerating(false);
         }
     };
@@ -805,13 +827,33 @@ function AIInfluencerWorkstation() {
                                                     <input
                                                         type="file"
                                                         accept="audio/mpeg,audio/wav,audio/*"
-                                                        onChange={(e) => {
+                                                        onChange={async (e) => {
                                                             const file = e.target.files?.[0];
-                                                            if (file) {
+                                                            if (file && user?.uid && jobId) {
                                                                 setAudioSampleFile(file);
                                                                 addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-                                                                // Clear gender selection since cloning overrides it
-                                                                setSelectedGender('');
+                                                                addAssistant('Uploading voice sample to storage…');
+                                                                setIsGenerating(true);
+                                                                
+                                                                try {
+                                                                    const sampleRef = ref(storage, `AIInfluencer/${jobId}/sample_audio${file.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
+                                                                    await uploadBytes(sampleRef, file);
+                                                                    const sampleUrl = await getDownloadURL(sampleRef);
+                                                                    
+                                                                    // Update Firestore with voice sample URL
+                                                                    const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+                                                                    await setDoc(jobRef, {
+                                                                        audioSampleUrl: sampleUrl,
+                                                                        updatedAt: new Date().toISOString(),
+                                                                    }, { merge: true });
+                                                                    
+                                                                    addAssistant('✅ Voice sample uploaded! Click "Generate Voice-Over" to start.');
+                                                                    setSelectedGender('');
+                                                                    setIsGenerating(false);
+                                                                } catch (err: any) {
+                                                                    addAssistant(`❌ Failed to upload voice sample: ${err.message}`);
+                                                                    setIsGenerating(false);
+                                                                }
                                                             }
                                                         }}
                                                         className="hidden"

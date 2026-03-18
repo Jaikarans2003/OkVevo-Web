@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
             if (completedAssets >= expectedAssets) {
                 console.log(`✅ All AI_Prep assets ready! Resuming Step Function...`);
                 
-                // Aggregate results
+                // Aggregate image URLs
                 const images = assetResults
                     .filter((r: any) => r.type === 'image')
                     .map((r: any) => r.output.images?.[0]?.url)
@@ -116,11 +116,24 @@ export async function POST(request: NextRequest) {
                 const audioResult = assetResults.find((r: any) => r.type === 'audio');
                 const audioUrl = audioResult?.output?.audio?.url || audioResult?.output?.audio_file?.url || '';
 
-                // Resume Step Function with aggregated data
+                // Merge images with moments timing data from Firestore
+                const moments = jobData.moments || [];
+                const imageTimeline = moments.map((moment: any, idx: number) => ({
+                    start: moment.start,
+                    end: moment.end,
+                    topic: moment.topic || `Moment ${idx + 1}`,
+                    prompt: moment.prompt || '',
+                    imageUrl: images[idx] || null,  // Match image URL by index
+                    layout: moment.layout || 'split'
+                }));
+
+                console.log(`🖼️ Built imageTimeline with ${imageTimeline.length} items`);
+
+                // Resume Step Function with imageTimeline (not just images array)
                 await sfnClient.send(new SendTaskSuccessCommand({
                     taskToken: taskToken,
                     output: JSON.stringify({
-                        images,
+                        imageTimeline,  // Pass full timeline with timing data
                         audioUrl,
                         jobId,
                         userId,
