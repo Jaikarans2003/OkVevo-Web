@@ -576,8 +576,32 @@ function AIInfluencerWorkstation() {
                 }
             />
 
+            {/* Full Screen Hero Section */}
+            <div className="w-full h-[90vh] relative overflow-hidden z-0">
+                <img 
+                    src="/images/ai-influencer.png" 
+                    alt="AI Influencer Hero" 
+                    className="absolute inset-0 w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                
+                {/* Navigation Button */}
+                <div className="absolute bottom-16 left-0 right-0 flex justify-center z-20">
+                    <motion.button 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8, duration: 0.6 }}
+                        onClick={() => document.getElementById('workstation')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="px-10 py-5 bg-[#FF6B35] hover:bg-[#FF8F6B] text-black font-black uppercase tracking-[0.2em] text-xs rounded-full shadow-[0_20px_40px_rgba(255,107,53,0.3)] transition-all flex items-center gap-3 group"
+                    >
+                        Start Creating
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </motion.button>
+                </div>
+            </div>
+
             {/* Body — history sidebar + main content */}
-            <div className="flex pt-16 min-h-screen">
+            <div id="workstation" className="flex pt-16 min-h-screen">
                 {/* Session History Sidebar */}
                 {user?.uid && (
                     <div className="sticky top-16 h-[calc(100vh-4rem)] flex-shrink-0">

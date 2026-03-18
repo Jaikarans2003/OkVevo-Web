@@ -71,103 +71,119 @@ export default function TrendModal({ trend, onClose, onSubmitted }: TrendModalPr
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
             <motion.div
-                className="relative w-full max-w-lg bg-[#111113] border border-white/10 rounded-2xl overflow-hidden"
+                className="relative w-full max-w-4xl bg-[#0d0d0f] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl"
                 initial={{ scale: 0.9, y: 30 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 30 }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-white/10">
-                    <div>
-                        <h2 className="text-lg font-semibold text-white">{trend.title}</h2>
-                        <p className="text-sm text-white/50">{trend.description}</p>
+                <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.02]">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-[#FF6B35]/10 flex items-center justify-center text-[#FF6B35]">
+                            <Sparkles className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white tracking-tight">{trend.title}</h2>
+                            <p className="text-sm text-white/40">{trend.description}</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+                    <button onClick={onClose} className="p-3 rounded-full hover:bg-white/10 transition-colors border border-white/5">
                         <X className="w-5 h-5 text-white/60" />
                     </button>
                 </div>
 
-                <div className="p-5">
+                <div className="p-8">
 
                     {/* ── UPLOAD STEP ── */}
                     {step === 'upload' && (
-                        <div className="space-y-4">
+                        <div className="space-y-8">
                             {error && (
-                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                                <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                                     {error}
                                 </div>
                             )}
 
-                            {/* Full Body Photo Upload */}
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Full Body Photo <span className="text-red-400">*</span>
-                                </label>
-                                <div
-                                    className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
-                                               flex flex-col items-center justify-center cursor-pointer
-                                               hover:border-[#FF6B35]/50 transition-colors overflow-hidden"
-                                    onClick={() => bodyInputRef.current?.click()}
-                                >
-                                    {bodyPreview ? (
-                                        <Image src={bodyPreview} alt="Body Preview" fill className="object-cover" />
-                                    ) : (
-                                        <>
-                                            <Upload className="w-8 h-8 text-white/30 mb-2" />
-                                            <p className="text-sm text-white/40">Upload full body photo</p>
-                                            <p className="text-xs text-white/30 mt-1">Required for outfit reference</p>
-                                        </>
-                                    )}
-                                    <input
-                                        ref={bodyInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleBodyFileSelect}
-                                    />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Full Body Photo Upload */}
+                                <div className="space-y-3">
+                                    <label className="flex items-center justify-between text-sm font-bold text-white/80 tracking-wide uppercase">
+                                        <span>Full Body Photo</span>
+                                        <span className="text-[#FF6B35] font-black">*</span>
+                                    </label>
+                                    <div
+                                        className={`relative w-full aspect-video border-2 border-dashed rounded-[1.5rem]
+                                                   flex flex-col items-center justify-center cursor-pointer
+                                                   transition-all duration-300 overflow-hidden group
+                                                   ${bodyPreview ? 'border-[#FF6B35]/40 bg-[#FF6B35]/5' : 'border-white/10 bg-white/[0.02] hover:border-[#FF6B35]/50 hover:bg-[#FF6B35]/5'}`}
+                                        onClick={() => bodyInputRef.current?.click()}
+                                    >
+                                        {bodyPreview ? (
+                                            <Image src={bodyPreview} alt="Body Preview" fill className="object-cover" />
+                                        ) : (
+                                            <>
+                                                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                                                    <Upload className="w-5 h-5 text-white/40 group-hover:text-[#FF6B35]" />
+                                                </div>
+                                                <p className="text-sm text-white/50 group-hover:text-white transition-colors">Upload reference photo</p>
+                                                <p className="text-[10px] text-white/20 mt-1 uppercase tracking-widest font-bold">Required for outfit</p>
+                                            </>
+                                        )}
+                                        <input
+                                            ref={bodyInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleBodyFileSelect}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Face Photo Upload */}
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Face Close-up Photo <span className="text-white/40">(Optional)</span>
-                                </label>
-                                <div
-                                    className="relative w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl
-                                               flex flex-col items-center justify-center cursor-pointer
-                                               hover:border-[#7928CA]/50 transition-colors overflow-hidden"
-                                    onClick={() => faceInputRef.current?.click()}
-                                >
-                                    {facePreview ? (
-                                        <Image src={facePreview} alt="Face Preview" fill className="object-cover" />
-                                    ) : (
-                                        <>
-                                            <Upload className="w-8 h-8 text-white/30 mb-2" />
-                                            <p className="text-sm text-white/40">Upload face close-up</p>
-                                            <p className="text-xs text-white/30 mt-1">For better facial accuracy</p>
-                                        </>
-                                    )}
-                                    <input
-                                        ref={faceInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleFaceFileSelect}
-                                    />
+                                {/* Face Photo Upload */}
+                                <div className="space-y-3">
+                                    <label className="flex items-center justify-between text-sm font-bold text-white/40 tracking-wide uppercase">
+                                        <span>Face Close-up</span>
+                                        <span className="text-[10px] font-medium italic lowercase">(Optional)</span>
+                                    </label>
+                                    <div
+                                        className={`relative w-full aspect-video border-2 border-dashed rounded-[1.5rem]
+                                                   flex flex-col items-center justify-center cursor-pointer
+                                                   transition-all duration-300 overflow-hidden group
+                                                   ${facePreview ? 'border-[#7928CA]/40 bg-[#7928CA]/5' : 'border-white/10 bg-white/[0.02] hover:border-[#7928CA]/50 hover:bg-[#7928CA]/5'}`}
+                                        onClick={() => faceInputRef.current?.click()}
+                                    >
+                                        {facePreview ? (
+                                            <Image src={facePreview} alt="Face Preview" fill className="object-cover" />
+                                        ) : (
+                                            <>
+                                                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                                                    <Upload className="w-5 h-5 text-white/40 group-hover:text-[#7928CA]" />
+                                                </div>
+                                                <p className="text-sm text-white/50 group-hover:text-white transition-colors">Upload face photo</p>
+                                                <p className="text-[10px] text-white/20 mt-1 uppercase tracking-widest font-bold">For better accuracy</p>
+                                            </>
+                                        )}
+                                        <input
+                                            ref={faceInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleFaceFileSelect}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             <button
                                 disabled={!bodyFile || !user?.uid}
                                 onClick={handleGenerate}
-                                className="w-full py-3 rounded-xl font-medium text-sm transition-all
-                                           bg-gradient-to-r from-[#FF6B35] to-[#FF8C42] text-white
-                                           hover:shadow-lg hover:shadow-[#FF6B35]/25
-                                           disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all
+                                           bg-[#FF6B35] text-black
+                                           hover:bg-[#FF8C42] hover:shadow-[0_20px_40px_rgba(255,107,53,0.3)]
+                                           disabled:opacity-20 disabled:cursor-not-allowed transform active:scale-[0.98]"
                             >
                                 <Sparkles className="w-4 h-4 inline mr-2" />
-                                Generate
+                                Generate Trend
                             </button>
                         </div>
                     )}

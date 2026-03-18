@@ -187,7 +187,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                         date: "Brand New",
                                         iconClassName: "text-white",
                                         titleClassName: "text-white",
-                                        className: "[grid-area:stack] hover:-translate-y-8 before:absolute before:w-[100%]  before:rounded-xl before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/5 backdrop-blur-md",
+                                        className: "[grid-area:stack] hover:-translate-y-8 before:absolute before:w-[100%]  before:rounded-xl before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/5 backdrop-blur-md",
                                     },
                                     {
                                         icon: <TrendingUp className="size-4 text-orange-200" />,
@@ -196,7 +196,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                         date: "Updated Today",
                                         iconClassName: "text-white",
                                         titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-10 translate-y-4 hover:-translate-y-4 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
+                                        className: "[grid-area:stack] translate-x-10 translate-y-4 hover:-translate-y-4 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
                                     },
                                     {
                                         icon: <Palette className="size-4 text-orange-200" />,
@@ -205,7 +205,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                         date: "2 days ago",
                                         iconClassName: "text-white",
                                         titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-20 translate-y-10 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
+                                        className: "[grid-area:stack] translate-x-20 translate-y-10 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
                                     },
                                     {
                                         icon: <Video className="size-4 text-orange-200" />,
@@ -214,7 +214,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                         date: "Just Now",
                                         iconClassName: "text-white",
                                         titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-28 translate-y-16 hover:translate-y-8 bg-white/10 backdrop-blur-md border border-white/20",
+                                        className: "[grid-area:stack] translate-x-28 translate-y-16 hover:translate-y-8 bg-white/10  backdrop-blur-md border border-white/20",
                                     },
                                 ]} />
                             </div>

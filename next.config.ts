@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    async rewrites() {
+        return [
+            {
+                source: '/okvevo-masiv',
+                destination: '/masivpage',
+            },
+        ];
+    },
     // output: 'export', // Disabled to allow API routes for SQS integration
 
     images: {
