@@ -96,7 +96,6 @@ function AIInfluencerWorkstation() {
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
-    const [isGeneratingPhotos, setIsGeneratingPhotos] = useState(false);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -136,6 +135,37 @@ function AIInfluencerWorkstation() {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages, isGenerating]);
 
+    // ── Auto-resume pipeline when token arrives ───────────
+    useEffect(() => {
+        if (waitTaskToken && avatarVideoUrl && jobId && user?.uid) {
+            console.log('🚀 Auto-resuming pipeline with received token...');
+            handleResumePipeline(waitTaskToken, avatarVideoUrl);
+        }
+    }, [waitTaskToken, avatarVideoUrl]);
+
+    const handleResumePipeline = async (token: string, videoUrl: string) => {
+        try {
+            const res = await fetch('/api/sqs/ai-influencer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'resume',
+                    jobId,
+                    userId: user.uid,
+                    taskToken: token,
+                    avatarVideoUrl: videoUrl,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
+            console.log('✅ Pipeline resumed successfully');
+            setWaitTaskToken(null);
+            addAssistant('🎬 Preparation complete! Moving to Lip-Sync stage...');
+        } catch (err: any) {
+            console.error('Failed to resume pipeline:', err);
+        }
+    };
+
     // ── Firestore polling ────────────────────────────────
     useEffect(() => {
         if (!jobId || !user?.uid) return;
@@ -156,7 +186,7 @@ function AIInfluencerWorkstation() {
             if (data.assetResults || data.imageTimeline) {
                 const results = data.assetResults || [];
                 const timeline = data.imageTimeline || [];
-                
+
                 // If we have a timeline from Gemini but no images yet, show placeholders
                 if (timeline.length > 0 && imageTimeline.length === 0) {
                     setImageTimeline(timeline);
@@ -164,22 +194,22 @@ function AIInfluencerWorkstation() {
 
                 // If images are arriving from webhook, update the timeline
                 if (results.length > 0) {
-                   const images = results
-                       .filter((r: any) => r.type === 'image')
-                       .map((r: any) => r.output.images?.[0]?.url)
-                       .filter(Boolean);
-                   
-                   if (images.length > 0) {
-                       setImageTimeline(prev => prev.map((item, idx) => ({
-                           ...item,
-                           imageUrl: images[idx] || item.imageUrl
-                       })));
-                   }
+                    const images = results
+                        .filter((r: any) => r.type === 'image')
+                        .map((r: any) => r.output.images?.[0]?.url)
+                        .filter(Boolean);
 
-                   const audioResult = results.find((r: any) => r.type === 'audio');
-                   if (audioResult?.output?.audio_file?.url && !audioUrl) {
-                       setAudioUrl(audioResult.output.audio_file.url);
-                   }
+                    if (images.length > 0) {
+                        setImageTimeline(prev => prev.map((item, idx) => ({
+                            ...item,
+                            imageUrl: images[idx] || item.imageUrl
+                        })));
+                    }
+
+                    const audioResult = results.find((r: any) => r.type === 'audio');
+                    if (audioResult?.output?.audio_file?.url && !audioUrl) {
+                        setAudioUrl(audioResult.output.audio_file.url);
+                    }
                 }
             }
 
@@ -230,7 +260,6 @@ function AIInfluencerWorkstation() {
         setWaitTaskToken(null);
         setIsGenerating(false);
         setImageTimeline([]);
-        setIsGeneratingPhotos(false);
     };
 
     const handleRestoreInfluencerSession = useCallback((session: WorkspaceSession) => {
@@ -252,45 +281,6 @@ function AIInfluencerWorkstation() {
         resetSession();
     }, [resetSession]);
 
-    // ── Background: Extract moments + generate photos ─────
-    const generatePhotoAssets = async (script: string, duration: number) => {
-        setIsGeneratingPhotos(true);
-        try {
-            // Step A: Extract visual moments
-            const momentsRes = await fetch('/api/ai-influencer/extract-moments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ script, duration }),
-            });
-            const momentsData = await momentsRes.json();
-            if (!momentsData.success || !momentsData.moments?.length) {
-                console.warn('Could not extract visual moments:', momentsData.error);
-                return;
-            }
-
-            // Optimistically show placeholders
-            const placeholders: ImageMoment[] = momentsData.moments.map((m: any) => ({
-                ...m, imageUrl: null,
-            }));
-            setImageTimeline(placeholders);
-
-            // Step B: Generate images
-            const tempJobId = `photos-${Date.now()}`;
-            const photosRes = await fetch('/api/ai-influencer/generate-photos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jobId: tempJobId, moments: momentsData.moments }),
-            });
-            const photosData = await photosRes.json();
-            if (photosData.success && photosData.photos?.length) {
-                setImageTimeline(photosData.photos);
-            }
-        } catch (err) {
-            console.warn('generatePhotoAssets failed (non-blocking):', err);
-        } finally {
-            setIsGeneratingPhotos(false);
-        }
-    };
 
     // ── Step 1: Script file upload ────────────────────────
     const handleScriptFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,15 +326,15 @@ function AIInfluencerWorkstation() {
                 }),
             });
             const data = await res.json();
-            
+
             if (!data.success) throw new Error(data.error || 'Failed to generate script');
-            
+
             console.log('✅ Script generated:', data.wordCount, 'words');
             console.log('✅ Visual moments extracted:', data.moments?.length || 0);
-            
+
             setGeneratedScript(data.script);
             setEditableScript(data.script);
-            
+
             // Store moments for later use
             if (data.moments && Array.isArray(data.moments)) {
                 const momentsWithLayout: ImageMoment[] = data.moments.map((m: any) => ({
@@ -358,7 +348,7 @@ function AIInfluencerWorkstation() {
                 }));
                 setImageTimeline(momentsWithLayout);
             }
-            
+
             addAssistant(`✨ Script generated! (~${data.wordCount} words)\n🖼️ ${data.moments?.length || 0} visual moments extracted.\n\nReview and edit your script below. When ready, click "Confirm Script" to proceed with video generation.`);
             setChatStep('edit-script');
             setIsGenerating(false);
@@ -382,14 +372,57 @@ function AIInfluencerWorkstation() {
             return;
         }
 
+        const newJobId = generateJobId();
+        setJobId(newJobId);
+
         addUser('[Script confirmed]');
-        addAssistant('Perfect! Now upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
-        
-        // Kick off photo asset generation in background (non-blocking)
-        addAssistant('🖼️ Generating visual asset images in the background…');
-        generatePhotoAssets(editableScript, selectedDuration);
-        
-        setChatStep('avatar-video');
+        addAssistant('Perfect! I am starting the visual asset and script preparation in the background.');
+        addAssistant('Now, please upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
+
+        try {
+            // Save initial job state to Firestore
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', newJobId);
+            await setDoc(jobRef, {
+                jobId: newJobId,
+                userId: user.uid,
+                script: editableScript,
+                moments: imageTimeline.map(m => ({
+                    start: m.start,
+                    end: m.end,
+                    topic: m.topic,
+                    prompt: m.prompt,
+                })),
+                duration: selectedDuration,
+                status: 'preparing-assets',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            });
+
+            // Start Step Function (Phase 2 Start)
+            const res = await fetch('/api/sqs/ai-influencer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jobId: newJobId,
+                    userId: user.uid,
+                    script: editableScript,
+                    duration: selectedDuration,
+                    moments: imageTimeline.map(m => ({
+                        start: m.start,
+                        end: m.end,
+                        topic: m.topic,
+                        prompt: m.prompt,
+                    })),
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
+            console.log('✅ Pipeline started:', data.executionArn);
+
+            setChatStep('avatar-video');
+        } catch (err: any) {
+            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
+        }
     };
 
     // ── Step 5: Avatar video upload ───────────────────────
@@ -409,16 +442,13 @@ function AIInfluencerWorkstation() {
     };
 
     const handleGenerateTTS = async () => {
-        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo || !user?.uid) return;
+        if (!editableScript || (!selectedGender && !audioSampleFile) || !avatarVideo || !user?.uid || !jobId) return;
         setIsGenerating(true);
-
-        const newJobId = generateJobId();
-        setJobId(newJobId);
 
         try {
             // Upload avatar to Firebase
             addAssistant('Uploading avatar video to storage…');
-            const videoRef = ref(storage, `AIInfluencer/${newJobId}/avatar.mp4`);
+            const videoRef = ref(storage, `AIInfluencer/${jobId}/avatar.mp4`);
             await uploadBytes(videoRef, avatarVideo);
             const videoUrl = await getDownloadURL(videoRef);
             setAvatarVideoUrl(videoUrl);
@@ -427,64 +457,30 @@ function AIInfluencerWorkstation() {
             let audioSampleUrl;
             if (audioSampleFile) {
                 addAssistant('Uploading reference audio sample to storage…');
-                const sampleRef = ref(storage, `AIInfluencer/${newJobId}/sample_audio${audioSampleFile.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
+                const sampleRef = ref(storage, `AIInfluencer/${jobId}/sample_audio${audioSampleFile.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
                 await uploadBytes(sampleRef, audioSampleFile);
                 audioSampleUrl = await getDownloadURL(sampleRef);
             }
 
-            // Save script and moments to Firestore
-            addAssistant('💾 Saving script and visual moments to Firestore...');
-            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', newJobId);
+            // Update Firestore with avatar details
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
             await setDoc(jobRef, {
-                jobId: newJobId,
-                userId: user.uid,
-                script: editableScript,
-                moments: imageTimeline.map(m => ({
-                    start: m.start,
-                    end: m.end,
-                    topic: m.topic,
-                    prompt: m.prompt,
-                })),
-                duration: selectedDuration,
                 avatarVideoUrl: videoUrl,
                 gender: selectedGender,
                 audioSampleUrl: audioSampleUrl || null,
-                status: 'preparing',
-                createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            });
-            console.log('✅ Saved to Firestore:', newJobId);
+            }, { merge: true });
 
-            // Phase 2: Start Step Function with confirmed script
-            addAssistant('🎬 Starting AI Pipeline with your confirmed script...');
-            const res = await fetch('/api/sqs/ai-influencer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jobId: newJobId,
-                    userId: user.uid,
-                    script: editableScript, // Send confirmed script
-                    duration: selectedDuration,
-                    avatarVideoUrl: videoUrl,
-                    gender: selectedGender,
-                    audioSampleUrl: audioSampleUrl,
-                    moments: imageTimeline.map(m => ({
-                        start: m.start,
-                        end: m.end,
-                        topic: m.topic,
-                        prompt: m.prompt,
-                    })),
-                }),
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Failed to start Step Function');
-            
-            console.log('✅ Step Function triggered:', data.executionArn);
-            addAssistant('🎬 Step Function started! Generating TTS audio and preparing for lip-sync...');
-            // The Firestore listener will update the UI when TTS completes
+            addAssistant('📂 Avatar and voice settings saved.');
+
+            // If we already have a waitTaskToken, resume immediately
+            if (waitTaskToken) {
+                handleResumePipeline(waitTaskToken, videoUrl);
+            } else {
+                addAssistant('⏳ Waiting for background assets (images/audio) to be ready before starting lip-sync…');
+            }
         } catch (err: any) {
             addAssistant(`❌ Error: ${err.message}`);
-            setChatStep('generating-tts');
             setIsGenerating(false);
         }
     };
@@ -517,7 +513,7 @@ function AIInfluencerWorkstation() {
             );
 
             console.log('🎬 Attempting to resume Step Function with Avatar...');
-            
+
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1058,7 +1054,7 @@ function AIInfluencerWorkstation() {
                                 )}
 
                                 {/* ── Photo Assets Panel ── */}
-                                {(imageTimeline.length > 0 || isGeneratingPhotos) && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
+                                {imageTimeline.length > 0 && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -1067,25 +1063,12 @@ function AIInfluencerWorkstation() {
                                         <div className="flex items-center justify-between">
                                             <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
                                                 <Sparkles size={8} /> Visual Assets
-                                                {isGeneratingPhotos && (
-                                                    <span className="ml-1 text-purple-400 flex items-center gap-1">
-                                                        <Loader2 size={7} className="animate-spin" /> Generating…
-                                                    </span>
-                                                )}
                                             </p>
                                             <span className="text-[8px] text-gray-400">
                                                 {imageTimeline.filter(p => p.imageUrl).length}/{imageTimeline.length} ready
                                             </span>
                                         </div>
 
-                                        {/* Skeleton placeholders while generating */}
-                                        {isGeneratingPhotos && imageTimeline.length === 0 && (
-                                            <div className="flex gap-2 overflow-x-auto pb-1">
-                                                {Array.from({ length: selectedDuration === 15 ? 3 : 6 }).map((_, i) => (
-                                                    <div key={i} className="flex-shrink-0 w-[90px] h-[64px] rounded-lg bg-gray-200/60 dark:bg-white/5 animate-pulse" />
-                                                ))}
-                                            </div>
-                                        )}
 
                                         {/* Image strip */}
                                         {imageTimeline.length > 0 && (

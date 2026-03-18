@@ -395,6 +395,10 @@ exports.handler = async (event) => {
         await updateJobDoc(jobId, userId, { status: 'rendering' });
 
         // 1. Download Assets
+        console.log(`📹 Downloading LipSync video: "${lipSyncVideoUrl}"`);
+        if (!lipSyncVideoUrl || typeof lipSyncVideoUrl !== 'string' || !lipSyncVideoUrl.startsWith('http')) {
+             throw new Error(`Invalid LipSync video URL provided: "${lipSyncVideoUrl}"`);
+        }
         const lipSyncPath = `/tmp/${jobId}-lipsync.mp4`;
         const videoBuf = await downloadFromUrl(lipSyncVideoUrl);
         fs.writeFileSync(lipSyncPath, videoBuf);
