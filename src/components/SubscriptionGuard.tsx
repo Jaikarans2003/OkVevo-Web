@@ -33,17 +33,20 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
 
             try {
                 const subscription = await getUserSubscription(userProfile.uid);
-                const isActive = subscription?.status === 'active';
+                const isActive = subscription?.status === 'active' || (userProfile as any)?.isPro === true;
                 setHasSubscription(isActive);
 
                 if (!isActive) {
                     // Redirect to LandingPage Pricing section if no active subscription
+                    console.log('🔴 NO ACTIVE SUBSCRIPTION FOUND, REDIRECTING...');
                     router.push('/#pricing');
                 }
             } catch (error) {
                 console.error('Failed to check subscription:', error);
-                setHasSubscription(false);
-                router.push('/#pricing');
+                // If Firestore check fails (network/CORS/access error), allow access
+                // to avoid locking out valid users due to infrastructure issues
+                console.log('⚠️ Subscription check failed due to error - allowing access');
+                setHasSubscription(true);
             } finally {
                 setChecking(false);
             }

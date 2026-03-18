@@ -11,15 +11,11 @@ import {
     Palette,
     TrendingUp,
     Zap,
-    Home,
-    Layers,
-    Settings,
-    LogOut,
-    ArrowUpRight,
-    Search
+    ArrowUpRight
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import DisplayCards from '@/components/ui/display-cards';
 
 interface WorkspaceBentoProps {
     user?: any;
@@ -113,57 +109,114 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
         <div className="min-h-screen pt-32 pb-16 px-6 md:px-12 bg-black selection:bg-accent-orange/30">
             <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                {/* --- LEFT PROFILE SECTION --- */}
+                {/* --- LEFT CENTRAL DASHBOARD SECTION --- */}
                 <motion.div
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="lg:col-span-4 bg-[#FF4D00] rounded-[3rem] p-10 flex flex-col relative overflow-hidden h-fit lg:min-h-[584px] shadow-2xl"
+                    className="lg:col-span-4 bg-[#FF4D00] rounded-[3.5rem] p-8 md:p-10 flex flex-col relative overflow-hidden h-fit lg:min-h-[720px] shadow-2xl text-white"
                 >
-                    {/* Top Accent */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-[4rem]" />
+                    {/* Top Right Logo Accent */}
+                    <div className="absolute top-8 right-8 text-white/20 text-[10px] font-black tracking-widest uppercase">
+                        OKVEVO
+                    </div>
+                    
+                    {/* Header */}
+                    <div className="mb-8 relative z-10">
+                        <h2 className="text-5xl font-black leading-none mb-1 tracking-tight">
+                            CENTRAL
+                        </h2>
+                        <h2 className="text-5xl font-medium leading-none tracking-tight opacity-70">
+                            DASHBOARD
+                        </h2>
+                    </div>
 
-                    <div className="relative z-10 flex flex-col h-full">
-                        {/* Profile Image & Meta */}
-                        <div className="mb-10">
-                            <div className="w-32 h-32 rounded-full border-4 border-white/30 p-2 mb-6 relative">
-                                <div className="w-full h-full rounded-full bg-white/20 overflow-hidden flex items-center justify-center text-3xl font-black text-white">
-                                    {avatarUrl ? (
-                                        <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        firstInitial
-                                    )}
-                                </div>
-                                <div className="absolute bottom-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                </div>
-                            </div>
-
-                            <h2 className="text-4xl font-black text-white leading-none mb-3">
-                                Im,<br />{displayName}
-                            </h2>
-                            <p className="text-white/70 font-medium text-sm border-b border-white/20 pb-4 inline-block">
-                                {email}
-                            </p>
+                    {/* Stats/Offering Grid (Matching Image) */}
+                    <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
+                        {/* Persona: Influencers */}
+                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
+                             <Zap className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">PERSONA</p>
+                                <p className="text-xl font-black leading-tight">INFLUENCERS</p>
+                             </div>
                         </div>
 
-                        {/* Navigation / Sidebar Menu (Vertical) */}
-                        <div className="flex flex-col gap-8 mt-4">
-                            {['Studio', 'Research', 'Templates', 'Insights'].map((item) => (
-                                <button key={item} className="text-left w-fit group">
-                                    <span className="text-sm font-black uppercase tracking-[0.3em] text-white/50 group-hover:text-white transition-colors duration-300 transform group-hover:translate-x-2 inline-block">
-                                        {item}
-                                    </span>
-                                </button>
-                            ))}
+                        {/* Trends: Popular */}
+                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
+                             <TrendingUp className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">TRENDS</p>
+                                <p className="text-xl font-black leading-tight">POPULAR</p>
+                             </div>
                         </div>
 
-                        {/* Bottom Disc Badge (Matching Reference) */}
-                        <div className="mt-auto pt-12 self-end">
-                            <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center border-4 border-white/10 relative group cursor-pointer hover:rotate-12 transition-transform duration-500">
-                                {/* <div className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-spin-slow" /> */}
-                                {/* <div className="text-[8px] font-black text-white text-center uppercase tracking-tighter">
-                                    My<br />Studio<br />2026
-                                </div> */}
+                        {/* Studio: Ad-Gen */}
+                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
+                             <Palette className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">STUDIO</p>
+                                <p className="text-xl font-black leading-tight">Ad-Gen</p>
+                             </div>
+                        </div>
+
+                        {/* Cinema: Directing */}
+                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
+                             <Video className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">CINEMA</p>
+                                <p className="text-xl font-black leading-tight">Directing</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Tilted Cards Area */}
+                    <div className="relative pb-10">
+                        {/* Subtle Glow Only */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[120%] h-[300px] pointer-events-none z-0 overflow-visible translate-y-20 scale-110">
+                             <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-orange-400/40 via-orange-400/10 to-transparent blur-2xl rounded-[50%]" />
+                        </div>
+
+                        {/* Tilted Cards (Offering Display) */}
+                        <div className="relative z-10 flex flex-col items-start translate-x-[-10px]">
+                            <div className="scale-[0.7] md:scale-[0.8] origin-left -mb-10 lg:-mb-20">
+                                <DisplayCards cards={[
+                                    {
+                                        icon: <Zap className="size-4 text-orange-200" />,
+                                        title: "Influencers",
+                                        description: "Persona AI Studio",
+                                        date: "Brand New",
+                                        iconClassName: "text-white",
+                                        titleClassName: "text-white",
+                                        className: "[grid-area:stack] hover:-translate-y-8 before:absolute before:w-[100%]  before:rounded-xl before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/5 backdrop-blur-md",
+                                    },
+                                    {
+                                        icon: <TrendingUp className="size-4 text-orange-200" />,
+                                        title: "Popular",
+                                        description: "Viral Trends Sync",
+                                        date: "Updated Today",
+                                        iconClassName: "text-white",
+                                        titleClassName: "text-white",
+                                        className: "[grid-area:stack] translate-x-10 translate-y-4 hover:-translate-y-4 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
+                                    },
+                                    {
+                                        icon: <Palette className="size-4 text-orange-200" />,
+                                        title: "Ad-Gen",
+                                        description: "Product Studio",
+                                        date: "2 days ago",
+                                        iconClassName: "text-white",
+                                        titleClassName: "text-white",
+                                        className: "[grid-area:stack] translate-x-20 translate-y-10 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[50%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
+                                    },
+                                    {
+                                        icon: <Video className="size-4 text-orange-200" />,
+                                        title: "Directing",
+                                        description: "Cinema AI Engine",
+                                        date: "Just Now",
+                                        iconClassName: "text-white",
+                                        titleClassName: "text-white",
+                                        className: "[grid-area:stack] translate-x-28 translate-y-16 hover:translate-y-8 bg-white/10 backdrop-blur-md border border-white/20",
+                                    },
+                                ]} />
                             </div>
                         </div>
                     </div>
@@ -276,7 +329,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                         {/* Social Trends */}
                         <motion.div 
                             whileHover={{ y: -5 }}
-                            className="bg-[#FFD54F] rounded-[2.5rem] overflow-hidden group border border-white/20 shadow-xl relative cursor-pointer"
+                            className="bg-[#FFD54F] rounded-[2.5rem] overflow-hidden group border border-white/20 shadow-xl relative cursor-pointer md:col-span-2"
                         >
                             <Link href={features[2].action} className="block w-full h-full relative">
                                 <div className="absolute top-6 left-8 z-20">

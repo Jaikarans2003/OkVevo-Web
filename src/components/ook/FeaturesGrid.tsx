@@ -18,7 +18,7 @@ import {
 
 const FeaturesGrid = () => {
     return (
-        <section className="relative py-24 bg-black overflow-hidden rounded-b-[80px] md:rounded-b-[120px]">
+        <section className="relative py-24 bg-black overflow-hidden">
             {/* Background elements to match theme */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent-orange/5 blur-[120px] rounded-full" />

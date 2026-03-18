@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, CreditCard, User, History } from 'lucide-react';
@@ -55,22 +56,22 @@ const DashNavbar = () => {
     return (
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
-                <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-transparent border-transparent'}`}>
-                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 ${textColor}`}>
+                <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-[#0A0A0A]/40 backdrop-blur-xl border border-white/5'}`}>
+                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 ${textColor}`}>
                         OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
-                    </a>
+                    </Link>
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center gap-6">
                         {userProfile && <CreditsDisplay userId={userProfile.uid} variant="navbar" />}
                         {navLinks.map((link) => (
-                            <a
+                            <Link
                                 key={link.name}
                                 href={link.href}
                                 className={`flex items-center gap-2 text-[10px] font-black tracking-[0.2em] uppercase transition-colors duration-500 ${textColor} hover:text-accent-orange`}
                             >
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                     </div>
 
@@ -99,7 +100,7 @@ const DashNavbar = () => {
                             </div>
                         )}
                         {navLinks.map((link) => (
-                            <a
+                            <Link
                                 key={link.name}
                                 href={link.href}
                                 className="flex items-center justify-center gap-3 text-2xl text-text-main hover:text-accent-orange"
@@ -107,7 +108,7 @@ const DashNavbar = () => {
                             >
                                 {link.icon}
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                     </motion.div>
                 )}
