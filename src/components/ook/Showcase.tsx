@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
+import ButtonWithIconDemo from '@/components/ui/button-with-icon';
 
 const Showcase = () => {
     const [activeTab, setActiveTab] = useState(0);
@@ -55,11 +57,10 @@ const Showcase = () => {
                         >
                             Streamline your video creation pipeline by turning text into high-quality social media content, bringing your digital avatars to life without a camera, and optimizing content for every platform.
                         </motion.p>
-                        <div>
-                            <a href="/workspace" className="inline-flex items-center gap-2 text-white font-medium hover:text-orange-400 transition-colors border-b border-white hover:border-orange-400 pb-1 w-max">
-                                Discover OKVEVO AI 
-                                <ArrowRight className="w-4 h-4" />
-                            </a>
+                        <div className="pt-4">
+                            <Link href="/workspace">
+                                <ButtonWithIconDemo />
+                            </Link>
                         </div>
                     </div>
                 </div>

@@ -8,14 +8,21 @@ import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
 import {
     Video,
-    Palette,
-    TrendingUp,
     Zap,
-    ArrowUpRight
+    ArrowUpRight,
+    Sparkles,
+    PenTool,
+    Palette,
+    Settings,
+    Plus,
+    Camera,
+    Image as ImageIcon,
+    Type,
+    Circle,
+    Calendar
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import DisplayCards from '@/components/ui/display-cards';
 
 interface WorkspaceBentoProps {
     user?: any;
@@ -109,115 +116,75 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
         <div className="min-h-screen pt-32 pb-16 px-6 md:px-12 bg-black selection:bg-accent-orange/30">
             <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                {/* --- LEFT CENTRAL DASHBOARD SECTION --- */}
+                {/* --- POCKET STYLE AI CREATIVE STUDIO --- */}
                 <motion.div
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="lg:col-span-4 bg-[#FF4D00] rounded-[3.5rem] p-8 md:p-10 flex flex-col relative overflow-hidden h-fit lg:min-h-[720px] shadow-2xl text-white"
+                    className="lg:col-span-4 bg-[#6C5CE7] rounded-[4rem] p-3 flex flex-col relative overflow-hidden h-fit lg:min-h-[725px] shadow-2xl"
                 >
-                    {/* Top Right Logo Accent */}
-                    <div className="absolute top-8 right-8 text-white/20 text-[10px] font-black tracking-widest uppercase">
-                        OKVEVO
-                    </div>
-                    
-                    {/* Header */}
-                    <div className="mb-8 relative z-10">
-                        <h2 className="text-5xl font-black leading-none mb-1 tracking-tight">
-                            CENTRAL
-                        </h2>
-                        <h2 className="text-5xl font-medium leading-none tracking-tight opacity-70">
-                            DASHBOARD
-                        </h2>
-                    </div>
-
-                    {/* Stats/Offering Grid (Matching Image) */}
-                    <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
-                        {/* Persona: Influencers */}
-                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
-                             <Zap className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
-                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">PERSONA</p>
-                                <p className="text-xl font-black leading-tight">INFLUENCERS</p>
-                             </div>
-                        </div>
-
-                        {/* Trends: Popular */}
-                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
-                             <TrendingUp className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
-                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">TRENDS</p>
-                                <p className="text-xl font-black leading-tight">POPULAR</p>
-                             </div>
-                        </div>
-
-                        {/* Studio: Ad-Gen */}
-                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
-                             <Palette className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
-                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">STUDIO</p>
-                                <p className="text-xl font-black leading-tight">Ad-Gen</p>
-                             </div>
-                        </div>
-
-                        {/* Cinema: Directing */}
-                        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 flex flex-col h-[120px] group cursor-pointer hover:bg-white/20 transition-all duration-300">
-                             <Video className="size-4 mb-4 text-white/50 group-hover:text-white transition-colors" />
-                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">CINEMA</p>
-                                <p className="text-xl font-black leading-tight">Directing</p>
-                             </div>
-                        </div>
-                    </div>
-
-                    {/* Bottom Tilted Cards Area */}
-                    <div className="relative pb-10">
-                        {/* Subtle Glow Only */}
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[120%] h-[300px] pointer-events-none z-0 overflow-visible translate-y-20 scale-110">
-                             <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-orange-400/40 via-orange-400/10 to-transparent blur-2xl rounded-[50%]" />
-                        </div>
-
-                        {/* Tilted Cards (Offering Display) */}
-                        <div className="relative z-10 flex flex-col items-start translate-x-[-10px]">
-                            <div className="scale-[0.7] md:scale-[0.8] origin-left -mb-10 lg:-mb-20">
-                                <DisplayCards cards={[
-                                    {
-                                        icon: <Zap className="size-4 text-orange-200" />,
-                                        title: "Influencers",
-                                        description: "Persona AI Studio",
-                                        date: "Brand New",
-                                        iconClassName: "text-white",
-                                        titleClassName: "text-white",
-                                        className: "[grid-area:stack] hover:-translate-y-8 before:absolute before:w-[100%]  before:rounded-xl before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/5 backdrop-blur-md",
-                                    },
-                                    {
-                                        icon: <TrendingUp className="size-4 text-orange-200" />,
-                                        title: "Popular",
-                                        description: "Viral Trends Sync",
-                                        date: "Updated Today",
-                                        iconClassName: "text-white",
-                                        titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-10 translate-y-4 hover:-translate-y-4 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
-                                    },
-                                    {
-                                        icon: <Palette className="size-4 text-orange-200" />,
-                                        title: "Ad-Gen",
-                                        description: "Product Studio",
-                                        date: "2 days ago",
-                                        iconClassName: "text-white",
-                                        titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-20 translate-y-10 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-white/20 before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-white/5 grayscale-[20%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0 bg-white/10 backdrop-blur-md",
-                                    },
-                                    {
-                                        icon: <Video className="size-4 text-orange-200" />,
-                                        title: "Directing",
-                                        description: "Cinema AI Engine",
-                                        date: "Just Now",
-                                        iconClassName: "text-white",
-                                        titleClassName: "text-white",
-                                        className: "[grid-area:stack] translate-x-28 translate-y-16 hover:translate-y-8 bg-white/10  backdrop-blur-md border border-white/20",
-                                    },
-                                ]} />
+                    {/* Top Pocket Section */}
+                    <div className="bg-white/10 rounded-[3rem] border-2 border-dashed border-white/30 p-5 mb-4 flex items-center justify-center">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-2">
+                                <Zap className="size-5 text-white" />
                             </div>
+                            <h2 className="text-xl font-black text-white leading-none uppercase tracking-tighter">AI Creative</h2>
+                            <p className="text-white/60 text-[8px] font-bold mt-1 uppercase tracking-widest">Always in your pocket</p>
+                        </div>
+                    </div>
+
+                    {/* Propped-Up Center Card */}
+                    <div className="relative flex-1 flex items-center justify-center py-2">
+                        <motion.div 
+                            initial={{ rotate: -5, y: 10 }}
+                            whileHover={{ rotate: 0, y: 0, scale: 1.05 }}
+                            className="relative w-[80%] bg-[#FFF4F2] rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.3)] border-4 border-white p-4 rotate-[-4deg] z-20 cursor-pointer transition-all duration-500"
+                        >
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2 px-2 py-1 bg-[#FF6B35]/10 rounded-full border border-[#FF6B35]/20">
+                                    <Calendar className="size-2.5 text-[#FF6B35]" />
+                                    <span className="text-[8px] font-black text-[#FF6B35] uppercase tracking-tighter">FRI, 19 MAR</span>
+                                </div>
+                                <div className="w-5 h-5 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+                                    <img src="/gym-avatar.png" className="w-full h-full object-cover" />
+                                </div>
+                            </div>
+
+                            {/* Card Content */}
+                            <div className="mb-4">
+                                <p className="text-slate-800 text-[xs] font-bold leading-tight mb-3">
+                                    I want a viral hook for my gym persona!
+                                </p>
+                                <div className="w-full aspect-[4/3] rounded-xl overflow-hidden shadow-sm border border-slate-200">
+                                    <img src="/gym-avatar.png" alt="Gym Persona" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="mt-2 pt-2 border-t border-dashed border-slate-200">
+                                    <p className="text-[8px] text-slate-600 font-medium tracking-tight">Flow Sync • 4K Mesh • Motion</p>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Back-layer Decorative Container */}
+                        <div className="absolute inset-x-6 top-10 bottom-10 bg-[#FF6B35] rounded-[3.5rem] shadow-xl z-10 border-2 border-white/20" />
+                    </div>
+
+                    {/* Bottom Pocket Section */}
+                    <div className="bg-[#FF9FF3]/20 rounded-[2.5rem] border-2 border-dashed border-[#FF9FF3]/40 p-4 mt-4 flex flex-col items-center justify-center">
+                        <div className="text-center mb-3">
+                            <h3 className="text-lg font-black text-white/90 uppercase tracking-tighter leading-none">Wherever you are</h3>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                             {[
+                                 { icon: Camera, color: "bg-white/20 text-white" },
+                                 { icon: Video, color: "bg-white/20 text-white" },
+                                 { icon: Palette, color: "bg-white/20 text-white" },
+                                 { icon: Sparkles, color: "bg-white text-[#6C5CE7]" },
+                             ].map((item, i) => (
+                                 <button key={i} className={`size-8 rounded-xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95 ${item.color}`}>
+                                     <item.icon className="size-4" />
+                                 </button>
+                             ))}
                         </div>
                     </div>
                 </motion.div>

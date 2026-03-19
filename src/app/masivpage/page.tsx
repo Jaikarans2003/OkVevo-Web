@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ShoppingCart, Upload, Check, Trash2 } from 'lucide-react';
 import { useRef } from 'react';
+import MasivHero from '@/components/masiv/MasivHero';
+import FeaturedShows from '@/components/masiv/FeaturedShows';
 
 const products = [
     {
@@ -121,13 +123,8 @@ export default function OkvevoMasivPage() {
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden">
 
-            {/* Minimal Subtle Grain Overlay for texture */}
-            <div className="fixed inset-0 pointer-events-none opacity-[0.02] z-[100] mix-blend-screen"
-                style={{ backgroundImage: `url("https://res.cloudinary.com/dlbvavyun/image/upload/v1711463133/noise_p8xkzm.png")` }}
-            />
-
             {/* Custom Floating Pill Navbar (Landing Page style) */}
-            <nav className="fixed top-0 left-0 right-0 z-40 px-4 md:px-6 py-8 transition-all duration-700 pointer-events-none">
+            <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-8 transition-all duration-700 pointer-events-none">
                 <div className="max-w-[1200px] mx-auto pointer-events-auto flex items-center justify-between w-full px-8 py-5 rounded-full backdrop-blur-xl bg-gradient-to-r from-[#FF6B35]/10 via-[#0A0A0A]/80 to-[#FF6B35]/10 border border-white/10 hover:shadow-[0_0_30px_rgba(255,107,53,0.15)] transition-all">
                     
                     {/* Left - Official Logo */}
@@ -170,17 +167,33 @@ export default function OkvevoMasivPage() {
                 </div>
             </nav>
 
-            {/* Main Content */}
-            <main className="pt-36 max-w-[1400px] mx-auto px-6 pb-24">
+            {/* Top Light Section to match photo style */}
+            <div className="bg-[#0b0b0b] text-white pb-24 rounded-b-[80px] shadow-2xl relative z-10">
+                
+                {/* Minimal Subtle Grain Overlay for texture */}
+                <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[100] mix-blend-multiply"
+                    style={{ backgroundImage: `url("https://res.cloudinary.com/dlbvavyun/image/upload/v1711463133/noise_p8xkzm.png")` }}
+                />
 
-                {/* Header Title Space */}
-                <header className="mb-12 md:mb-16">
-                    <p className="text-[#FF6B35] text-xs font-bold tracking-[0.2em] uppercase mb-4">
-                        Discover & Create
+                {/* Main Content (Top Light Part) */}
+                <main className="pt-36 max-w-[1500px] mx-auto pb-12">
+                    {/* New Photo-Accurate Sections */}
+                    <MasivHero />
+                    <FeaturedShows />
+                </main>
+            </div>
+
+            {/* Dark Section for Cards */}
+            <main className="max-w-[1500px] mx-auto pb-24 relative z-0">
+                
+                {/* Header Title Space (Optionally kept or moved) */}
+                <header className="mb-12 md:mb-24 px-10 text-center">
+                    <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
+                        Explore Our Catalog
                     </p>
-                    <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white leading-[1.1]">
-                        "AI-Crafted Visuals, <br />
-                        Starting with Your Photos."
+                    <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
+                        "AI-Crafted Visuals,<br />
+                        Starting with You."
                     </h1>
                 </header>
 
