@@ -48,7 +48,7 @@ export default function LandingPage() {
                 <div id="pricing">
                     <Pricing user={user} />
                 </div>
-                <FeaturesGrid />
+                {/* <FeaturesGrid /> */}
                 {/* <TuneTalez /> */}
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}
             </main>
