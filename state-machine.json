@@ -1,59 +1,220 @@
 {
-  "Comment": "AI Influencer Video Generation Pipeline",
-  "StartAt": "AI_Prep",
+  "Comment": "AI Influencer Video Generation Pipeline with Webhook Recovery",
+  "StartAt": "AI_Prep_With_Recovery",
   "States": {
-    "AI_Prep": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-ai-prep",
-        "Payload": {
-          "jobId.$": "$.jobId",
-          "userId.$": "$.userId",
-          "topic.$": "$.topic",
-          "duration.$": "$.duration",
-          "avatarVideoUrl.$": "$.avatarVideoUrl",
-          "script.$": "$.script",
-          "moments.$": "$.moments",
-          "gender.$": "$.gender",
-          "audioSampleUrl.$": "$.audioSampleUrl",
-          "fal_mode.$": "$.fal_mode",
-          "taskToken.$": "$$.Task.Token"
+    "AI_Prep_With_Recovery": {
+      "Type": "Parallel",
+      "Comment": "Run webhook wait and recovery timeout in parallel",
+      "Branches": [
+        {
+          "StartAt": "AI_Prep",
+          "States": {
+            "AI_Prep": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-ai-prep",
+                "Payload": {
+                  "jobId.$": "$.jobId",
+                  "userId.$": "$.userId",
+                  "topic.$": "$.topic",
+                  "duration.$": "$.duration",
+                  "avatarVideoUrl.$": "$.avatarVideoUrl",
+                  "script.$": "$.script",
+                  "moments.$": "$.moments",
+                  "gender.$": "$.gender",
+                  "audioSampleUrl.$": "$.audioSampleUrl",
+                  "fal_mode.$": "$.fal_mode",
+                  "taskToken.$": "$$.Task.Token"
+                }
+              },
+              "ResultPath": "$.aiPrepResult",
+              "TimeoutSeconds": 31622400,
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Wait_For_Webhooks_Or_Timeout",
+          "States": {
+            "Wait_For_Webhooks_Or_Timeout": {
+              "Type": "Wait",
+              "Seconds": 1800,
+              "Comment": "Wait 30 minutes before checking for recovery (TTS takes 20-25 mins)",
+              "Next": "Recovery_Loop"
+            },
+            "Recovery_Loop": {
+              "Type": "Task",
+              "Resource": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-fal-recovery",
+              "Parameters": {
+                "jobId.$": "$.jobId",
+                "userId.$": "$.userId"
+              },
+              "ResultPath": "$.recoveryResult",
+              "Comment": "Recovery Lambda polls Fal AI for missing assets",
+              "Next": "Check_If_Complete",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 1.5
+                }
+              ]
+            },
+            "Check_If_Complete": {
+              "Type": "Choice",
+              "Comment": "Check if recovery found all assets",
+              "Choices": [
+                {
+                  "Variable": "$.recoveryResult.allAssetsComplete",
+                  "BooleanEquals": true,
+                  "Next": "Recovery_Success"
+                }
+              ],
+              "Default": "Wait_For_Webhooks_Or_Timeout"
+            },
+            "Recovery_Success": {
+              "Type": "Succeed",
+              "Comment": "Recovery completed, Parallel will end"
+            }
+          }
         }
+      ],
+      "ResultSelector": {
+        "aiPrepResult.$": "$[0].aiPrepResult"
       },
-      "ResultPath": "$.aiPrepResult",
-      "TimeoutSeconds": 31622400,
-      "Next": "Submit_LipSync",
+      "ResultPath": "$.parallelResult",
+      "Next": "Extract_AI_Prep_Result",
       "Catch": [
         {
-          "ErrorEquals": ["States.Timeout"],
+          "ErrorEquals": ["States.ALL"],
           "Next": "Handle_Failure"
         }
       ]
     },
-    "Submit_LipSync": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+    "Extract_AI_Prep_Result": {
+      "Type": "Pass",
+      "Comment": "Extract aiPrepResult from parallel output",
       "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-lipsync-submit",
-        "Payload": {
-          "jobId.$": "$.jobId",
-          "userId.$": "$.userId",
-          "fal_mode.$": "$.fal_mode",
-          "ttsUrl.$": "$.aiPrepResult.audioUrl",
-          "avatarVideoUrl.$": "$.avatarVideoUrl",
-          "taskToken.$": "$$.Task.Token"
-        }
+        "jobId.$": "$.jobId",
+        "userId.$": "$.userId",
+        "topic.$": "$.topic",
+        "duration.$": "$.duration",
+        "avatarVideoUrl.$": "$.avatarVideoUrl",
+        "script.$": "$.script",
+        "moments.$": "$.moments",
+        "gender.$": "$.gender",
+        "audioSampleUrl.$": "$.audioSampleUrl",
+        "fal_mode.$": "$.fal_mode",
+        "aiPrepResult.$": "$.parallelResult.aiPrepResult"
       },
-      "ResultPath": "$.lipSyncResult",
-      "TimeoutSeconds": 3600,
-      "Next": "Render_Video",
+      "Next": "Submit_LipSync_With_Recovery"
+    },
+    "Submit_LipSync_With_Recovery": {
+      "Type": "Parallel",
+      "Comment": "Run lipsync webhook wait and recovery timeout in parallel",
+      "Branches": [
+        {
+          "StartAt": "Submit_LipSync",
+          "States": {
+            "Submit_LipSync": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-lipsync-submit",
+                "Payload": {
+                  "jobId.$": "$.jobId",
+                  "userId.$": "$.userId",
+                  "fal_mode.$": "$.fal_mode",
+                  "ttsUrl.$": "$.aiPrepResult.audioUrl",
+                  "avatarVideoUrl.$": "$.avatarVideoUrl",
+                  "taskToken.$": "$$.Task.Token"
+                }
+              },
+              "ResultPath": "$.lipSyncResult",
+              "TimeoutSeconds": 3600,
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Wait_For_LipSync_Webhooks",
+          "States": {
+            "Wait_For_LipSync_Webhooks": {
+              "Type": "Wait",
+              "Seconds": 300,
+              "Comment": "Wait 5 minutes before checking for lipsync recovery",
+              "Next": "LipSync_Recovery_Loop"
+            },
+            "LipSync_Recovery_Loop": {
+              "Type": "Task",
+              "Resource": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-lipsync-recovery",
+              "Parameters": {
+                "jobId.$": "$.jobId",
+                "userId.$": "$.userId"
+              },
+              "ResultPath": "$.recoveryResult",
+              "Comment": "Recovery Lambda polls Fal AI for missing lipsync/Whisper jobs",
+              "Next": "Check_LipSync_Complete",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 1.5
+                }
+              ]
+            },
+            "Check_LipSync_Complete": {
+              "Type": "Choice",
+              "Comment": "Check if recovery found all lipsync jobs",
+              "Choices": [
+                {
+                  "Variable": "$.recoveryResult.allJobsComplete",
+                  "BooleanEquals": true,
+                  "Next": "LipSync_Recovery_Success"
+                }
+              ],
+              "Default": "Wait_For_LipSync_Webhooks"
+            },
+            "LipSync_Recovery_Success": {
+              "Type": "Succeed",
+              "Comment": "Lipsync recovery completed, Parallel will end"
+            }
+          }
+        }
+      ],
+      "ResultSelector": {
+        "lipSyncResult.$": "$[0].lipSyncResult"
+      },
+      "ResultPath": "$.parallelLipSyncResult",
+      "Next": "Extract_LipSync_Result",
       "Catch": [
         {
-          "ErrorEquals": ["States.Timeout"],
+          "ErrorEquals": ["States.ALL"],
           "Next": "Handle_Failure"
         }
       ]
+    },
+    "Extract_LipSync_Result": {
+      "Type": "Pass",
+      "Comment": "Extract lipSyncResult from parallel output",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "userId.$": "$.userId",
+        "topic.$": "$.topic",
+        "duration.$": "$.duration",
+        "avatarVideoUrl.$": "$.avatarVideoUrl",
+        "script.$": "$.script",
+        "moments.$": "$.moments",
+        "gender.$": "$.gender",
+        "audioSampleUrl.$": "$.audioSampleUrl",
+        "fal_mode.$": "$.fal_mode",
+        "aiPrepResult.$": "$.aiPrepResult",
+        "lipSyncResult.$": "$.parallelLipSyncResult.lipSyncResult"
+      },
+      "Next": "Render_Video"
     },
     "Render_Video": {
       "Type": "Task",
@@ -63,7 +224,8 @@
         "userId.$": "$.userId",
         "lipSyncVideoUrl.$": "$.lipSyncResult.lipSyncVideoUrl",
         "audioUrl.$": "$.aiPrepResult.audioUrl",
-        "imageTimeline.$": "$.aiPrepResult.imageTimeline"
+        "imageTimeline.$": "$.aiPrepResult.imageTimeline",
+        "lipSyncResult.$": "$.lipSyncResult"
       },
       "Next": "Complete",
       "Retry": [

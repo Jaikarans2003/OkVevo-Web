@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const https = require('https');
+const { fal } = require('@fal-ai/client');
 
 // Initialize Firebase
 const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
@@ -15,6 +16,11 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+// Configure Fal AI client
+fal.config({
+    credentials: process.env.FAL_API_VIDEO || process.env.FAL_API_KEY
+});
 
 function httpsRequest(url, options = {}, body = null) {
     return new Promise((resolve, reject) => {
@@ -51,76 +57,65 @@ exports.handler = async (event) => {
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
     const falApiKey = process.env.FAL_API_VIDEO || process.env.FAL_API_KEY;
 
-    if (event.fal_mode === "mock") {
-        console.log("🛠️ MOCK MODE: Submitting fake LipSync job. Waiting for manual webhook POST...");
-
-        // Generate a deterministic fake request ID so it's easy to copy into Postman
-        const mockRequestId = `mock-lipsync-${jobId}`;
-
-        // Write to falJobs — identical to production
-        await db.collection('falJobs').doc(mockRequestId).set({
-            userId,
-            jobId,
-            taskToken,
-            type: 'lipsync'
-        });
-
-        // Update job status — identical to production
-        await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
-            status: 'submitting-lipsync',
-            lipSyncRequestId: mockRequestId
-        });
-
-        // Log clearly for developer to copy into Postman
-        console.log("════════════════════════════════════════════════════");
-        console.log("🛠️  MOCK MODE — Waiting for manual LipSync webhook POST");
-        console.log("════════════════════════════════════════════════════");
-        console.log(`Webhook URL: ${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`);
-        console.log("Send this POST body to the webhook URL:");
-        console.log(`  request_id: "${mockRequestId}"`);
-        const bucket = process.env.FIREBASE_STORAGE_BUCKET || 'text2video-16cbf.firebasestorage.app';
-        console.log(`  Mock lipsync video URL: https://storage.googleapis.com/${bucket}/AIInfluencer/mock/avatar.mp4`);
-        console.log("════════════════════════════════════════════════════");
-        console.log("✅ MOCK MODE: Lambda done. Step Function is now paused, waiting for your webhook POST.");
-
-        // DO NOT call SendTaskSuccess — let the webhook resume after your manual POST
-        return { status: "mock-submitted", mockRequestId };
-    }
-
-    // Submit LipSync job to Fal AI
-    const submitResponse = await httpsRequest('https://queue.fal.run/veed/lipsync', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Key ${falApiKey}`,
-            'Content-Type': 'application/json',
-        }
-    }, {
-        video_url: avatarVideoUrl,
-        audio_url: ttsUrl,
-        webhook_url: webhookUrl
+    // Submit LipSync job to Fal AI using SDK
+    const lipsyncResult = await fal.queue.submit('veed/lipsync', {
+        input: {
+            video_url: avatarVideoUrl,
+            audio_url: ttsUrl
+        },
+        webhookUrl: webhookUrl
     });
 
-    if (submitResponse.statusCode !== 200) {
-        throw new Error(`Fal AI LipSync submit failed: ${JSON.stringify(submitResponse.body)}`);
-    }
+    const lipsyncRequestId = lipsyncResult.request_id;
+    console.log(`✅ LipSync job submitted: ${lipsyncRequestId}`);
 
-    const { request_id } = submitResponse.body;
-    console.log(`✅ LipSync job submitted: ${request_id}`);
+    // Submit Whisper transcription job to Fal AI using SDK
+    const whisperResult = await fal.queue.submit('fal-ai/whisper', {
+        input: {
+            audio_url: ttsUrl,
+            task: 'transcribe',
+            chunk_level: 'word',
+            version: '3',
+            batch_size: 64,
+            num_speakers: null
+        },
+        webhookUrl: webhookUrl
+    });
 
-    // Store taskToken for the LipSync webhook
-    await db.collection('falJobs').doc(request_id).set({
+    const whisperRequestId = whisperResult.request_id;
+    console.log(`✅ Whisper transcription job submitted: ${whisperRequestId}`);
+
+    // Store taskToken for both webhooks
+    await db.collection('falJobs').doc(lipsyncRequestId).set({
         userId,
         jobId,
         taskToken,
-        type: 'lipsync'
+        type: 'lipsync',
+        model: 'veed/lipsync',
+        jobType: 'lipsync'
     });
 
-    // Update job status
+    await db.collection('falJobs').doc(whisperRequestId).set({
+        userId,
+        jobId,
+        taskToken,
+        type: 'whisper-transcription',
+        model: 'fal-ai/whisper',
+        jobType: 'whisper-transcription'
+    });
+
+    // Update job status to track both jobs
     await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
-        status: 'submitting-lipsync',
-        lipSyncRequestId: request_id
+        status: 'submitting-lipsync-and-transcription',
+        lipSyncRequestId: lipsyncRequestId,
+        whisperRequestId: whisperRequestId,
+        expectedLipsyncResults: 2,
+        completedLipsyncResults: 0,
+        lipsyncResults: [],
+        requestIds: [lipsyncRequestId, whisperRequestId],
+        processingLock: false
     });
 
-    console.log(`✅ LipSync job submitted. Waiting for webhook to resume Step Function...`);
-    // DO NOT RETURN - Let webhook resume the Step Function via SendTaskSuccess
+    console.log(`✅ Both LipSync and Whisper jobs submitted. Waiting for 2 webhooks to resume Step Function...`);
+    // DO NOT RETURN - Let webhooks resume the Step Function via SendTaskSuccess (after both complete)
 };

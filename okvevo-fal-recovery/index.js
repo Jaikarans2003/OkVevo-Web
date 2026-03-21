@@ -88,6 +88,21 @@ exports.handler = async (event) => {
         
         // 5. Find missing request_ids
         console.log('\n🔍 Identifying missing assets...');
+        
+        // BACKWARD COMPATIBILITY: If requestIds missing, query falJobs collection
+        if (!requestIds || requestIds.length === 0) {
+            console.log('   ⚠️ requestIds array missing (old job format)');
+            console.log('   🔎 Querying falJobs collection for this job...');
+            
+            const falJobsSnapshot = await db.collection('falJobs')
+                .where('jobId', '==', jobId)
+                .where('type', '==', 'ai-prep')
+                .get();
+            
+            requestIds = falJobsSnapshot.docs.map(doc => doc.id);
+            console.log(`   ✅ Found ${requestIds.length} request IDs from falJobs collection`);
+        }
+        
         const completedIds = assetResults.map(r => r.request_id);
         const missingIds = requestIds.filter(id => !completedIds.includes(id));
         
@@ -105,73 +120,106 @@ exports.handler = async (event) => {
         console.log('\n🔎 Polling Fal AI for missing assets...');
         const recoveredAssets = [];
         
+        // Fallback models for AI Prep jobs when falJobs mapping is missing
+        const FALLBACK_MODELS = [
+            'fal-ai/nano-banana-2',           // Image generation
+            'resemble-ai/chatterboxhd/text-to-speech'  // TTS
+        ];
+        
         for (const requestId of missingIds) {
             console.log(`\n   Checking request_id: ${requestId}`);
             
             // Get model info from falJobs collection
             const falJobDoc = await db.collection('falJobs').doc(requestId).get();
             
-            if (!falJobDoc.exists) {
-                console.warn(`   ⚠️ falJobs mapping not found for ${requestId}`);
-                continue;
+            let modelsToTry = [];
+            
+            if (falJobDoc.exists) {
+                const { model, jobType } = falJobDoc.data();
+                if (model) {
+                    console.log(`   Model from falJobs: ${model}`);
+                    modelsToTry.push(model);
+                } else {
+                    console.warn(`   ⚠️ falJobs exists but model is undefined, using fallbacks`);
+                    modelsToTry = [...FALLBACK_MODELS];
+                }
+            } else {
+                console.warn(`   ⚠️ falJobs mapping not found for ${requestId}, trying fallback models`);
+                modelsToTry = [...FALLBACK_MODELS];
             }
             
-            const { model, jobType } = falJobDoc.data();
-            console.log(`   Model: ${model}`);
-            console.log(`   Type: ${jobType}`);
+            let recovered = false;
             
-            try {
-                // Poll Fal AI status API
-                const res = await fal.queue.status(model, { 
-                    requestId: requestId,
-                    logs: false 
-                });
+            for (const model of modelsToTry) {
+                if (recovered) break;
                 
-                const normalizedStatus = (res.status || '').toUpperCase();
-                console.log(`   Status: ${normalizedStatus}`);
-                
-                if (normalizedStatus === 'OK' || normalizedStatus === 'COMPLETED') {
-                    // ✅ Job completed - webhook was missed
-                    console.log('   ✅ Job completed! Webhook was missed.');
+                try {
+                    console.log(`   🔄 Trying model: ${model}`);
                     
-                    // Extract payload (SDK returns res.data, not res.payload)
-                    const payload = res.data;
-                    
-                    if (!payload) {
-                        console.error('   ❌ No data in response!');
-                        continue;
-                    }
-                    
-                    // Determine asset type from payload structure
-                    const assetType = payload.images ? 'image' : 'audio';
-                    console.log(`   Asset Type: ${assetType}`);
-                    
-                    if (assetType === 'image' && payload.images && payload.images[0]) {
-                        console.log(`   Image URL: ${payload.images[0].url.substring(0, 60)}...`);
-                    } else if (assetType === 'audio' && payload.audio) {
-                        console.log(`   Audio URL: ${payload.audio.url.substring(0, 60)}...`);
-                    }
-                    
-                    // Add to recovered assets
-                    recoveredAssets.push({
-                        request_id: requestId,
-                        output: payload,
-                        type: assetType
+                    // Poll Fal AI status API
+                    const res = await fal.queue.status(model, { 
+                        requestId: requestId,
+                        logs: false 
                     });
                     
-                } else if (normalizedStatus === 'ERROR' || normalizedStatus === 'FAILED') {
-                    // ❌ Job failed on Fal AI side
-                    console.error(`   ❌ Fal AI job failed: ${requestId}`);
-                    console.error(`   Error details:`, res.error || 'No error details');
-                    // TODO: Future enhancement - retry failed jobs
+                    const normalizedStatus = (res.status || '').toUpperCase();
+                    console.log(`   Status: ${normalizedStatus}`);
                     
-                } else {
-                    // Job still in progress
-                    console.log(`   ⏳ Job still in progress: ${normalizedStatus}`);
+                    if (normalizedStatus === 'OK' || normalizedStatus === 'COMPLETED') {
+                        console.log('   ✅ Job completed! Webhook was missed.');
+                        
+                        // Fetch actual data from response_url
+                        let payload;
+                        if (res.response_url) {
+                            console.log('   📡 Fetching data from response_url...');
+                            const dataRes = await fal.queue.result(model, { requestId: requestId });
+                            payload = dataRes.data || dataRes;
+                        } else {
+                            // Fallback: try to get data from response
+                            payload = res.data || res.output || res;
+                        }
+                        
+                        if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
+                            console.error('   ❌ No data in response!');
+                            continue;
+                        }
+                        
+                        // Determine asset type from payload structure
+                        const assetType = payload.images ? 'image' : 'audio';
+                        console.log(`   Asset Type: ${assetType}`);
+                        
+                        if (assetType === 'image' && payload.images && payload.images[0]) {
+                            console.log(`   Image URL: ${payload.images[0].url.substring(0, 60)}...`);
+                        } else if (assetType === 'audio' && payload.audio) {
+                            console.log(`   Audio URL: ${payload.audio.url.substring(0, 60)}...`);
+                        }
+                        
+                        // Add to recovered assets
+                        recoveredAssets.push({
+                            request_id: requestId,
+                            output: payload,
+                            type: assetType
+                        });
+                        
+                        recovered = true;
+                        break; // Successfully recovered, stop trying other models
+                        
+                    } else if (normalizedStatus === 'ERROR' || normalizedStatus === 'FAILED') {
+                        console.error(`   ❌ Fal AI job failed: ${requestId}`);
+                        console.error(`   Error details:`, res.error || 'No error details');
+                        
+                    } else {
+                        console.log(`   ⏳ Job still in progress: ${normalizedStatus}`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`   ❌ Error polling with model ${model}:`, error.message);
+                    // Continue to next model
                 }
-                
-            } catch (error) {
-                console.error(`   ❌ Error polling Fal AI for ${requestId}:`, error.message);
+            }
+            
+            if (!recovered) {
+                console.log(`   ⚠️ Could not recover asset ${requestId} with any model`);
             }
         }
         

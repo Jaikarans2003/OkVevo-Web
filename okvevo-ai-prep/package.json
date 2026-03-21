@@ -4,6 +4,7 @@
   "main": "index.js",
   "dependencies": {
     "@aws-sdk/client-sfn": "^3.1009.0",
+    "@fal-ai/client": "^1.0.0",
     "groq-sdk": "^0.37.0",
     "firebase-admin": "^12.7.0"
   }

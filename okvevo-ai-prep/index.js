@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const https = require('https');
+const { fal } = require('@fal-ai/client');
 
 // Initialize Firebase
 const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
@@ -15,6 +16,11 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+// Configure Fal AI client
+fal.config({
+    credentials: process.env.FAL_API_KEY || process.env.FAL_API_IMAGE
+});
 
 function httpsRequest(url, options = {}, body = null) {
     return new Promise((resolve, reject) => {
@@ -62,48 +68,70 @@ exports.handler = async (event) => {
     // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
     // In a real scenario, we'd map moments to Fal jobs.
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
-    const falApiKey = process.env.FAL_API_IMAGE || process.env.FAL_API_KEY;
+    const falApiKey = process.env.FAL_API_KEY || process.env.FAL_API_IMAGE;
 
-    const imageJobs = moments.slice(0, 3).map(m => {
-        return httpsRequest('https://queue.fal.run/fal-ai/nano-banana-2', {
-            method: 'POST',
-            headers: { 'Authorization': `Key ${falApiKey}`, 'Content-Type': 'application/json' }
-        }, {
-            prompt: m.prompt,
-            image_size: "landscape_4_3",
-            webhook_url: webhookUrl
+    const startTime = Date.now();
+    console.log(`⏱️ Starting job submissions at ${new Date().toISOString()}`);
+
+    // Submit image jobs using Fal AI SDK
+    const imageJobs = moments.slice(0, 3).map((m, idx) => {
+        console.log(`🖼️ Submitting image job ${idx + 1}...`);
+        return fal.queue.submit('fal-ai/nano-banana-2', {
+            input: {
+                prompt: m.prompt,
+                image_size: "landscape_4_3"
+            },
+            webhookUrl: webhookUrl
         });
     });
 
-    // Use user's uploaded voice for cloning with Resemble AI ChatterboxHD (optional)
-    const ttsPayload = {
-        text: scriptText,
-        webhook_url: webhookUrl
+    // Submit TTS job using Fal AI SDK
+    const ttsInput = {
+        text: scriptText
     };
     
     // Only add audio_url if user provided a voice for cloning
     if (audioSampleUrl) {
-        ttsPayload.audio_url = audioSampleUrl;
+        ttsInput.audio_url = audioSampleUrl;
         console.log(`🎤 Using user voice for cloning: ${audioSampleUrl}`);
     } else {
         console.log(`🎤 No voice provided, using default TTS voice`);
     }
     
-    const ttsJob = httpsRequest('https://queue.fal.run/resemble-ai/chatterboxhd/text-to-speech', {
-        method: 'POST',
-        headers: { 'Authorization': `Key ${falApiKey}`, 'Content-Type': 'application/json' }
-    }, ttsPayload);
+    console.log('📝 TTS Input:', JSON.stringify(ttsInput, null, 2));
+    console.log('🔗 Webhook URL:', webhookUrl);
+    
+    let ttsJob;
+    try {
+        const ttsSubmitStart = Date.now();
+        console.log(`🎙️ Submitting TTS job at ${new Date().toISOString()}...`);
+        ttsJob = fal.queue.submit('resemble-ai/chatterboxhd/text-to-speech', {
+            input: ttsInput,
+            webhookUrl: webhookUrl
+        });
+        console.log(`✅ TTS job promise created successfully (${Date.now() - ttsSubmitStart}ms)`);
+    } catch (error) {
+        console.error('❌ TTS job submission failed:', error.message);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        throw error;
+    }
 
     const responses = await Promise.all([...imageJobs, ttsJob]);
+    const totalTime = Date.now() - startTime;
+    console.log(`📊 Received ${responses.length} responses from Fal AI in ${totalTime}ms`);
     
     // Step 4: Map request_ids to taskToken in Firestore
     const batch = db.batch();
     const requestIds = [];
-    responses.forEach(res => {
-        if (res.body.request_id) {
-            const ref = db.collection('falJobs').doc(res.body.request_id);
+    responses.forEach((res, idx) => {
+        if (res.request_id) {
+            const ref = db.collection('falJobs').doc(res.request_id);
             batch.set(ref, { userId, jobId, taskToken, type: 'ai-prep' });
-            requestIds.push(res.body.request_id);
+            requestIds.push(res.request_id);
+            const jobType = idx < imageJobs.length ? 'image' : 'tts';
+            console.log(`✅ Job ${idx + 1} (${jobType}): ${res.request_id}`);
+        } else {
+            console.warn(`⚠️ Job ${idx + 1}: Missing request_id`, res);
         }
     });
 
@@ -115,6 +143,8 @@ exports.handler = async (event) => {
         status: 'preparing-assets',
         expectedAssets: requestIds.length,
         completedAssets: 0,
+        requestIds: requestIds,
+        processingLock: false,
         taskToken
     }, { merge: true });
 

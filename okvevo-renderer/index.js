@@ -93,6 +93,44 @@ function parseSrtTime(timeStr) {
     return secs || 0;
 }
 
+// Helper to format seconds to SRT time format (HH:MM:SS,mmm)
+function formatSrtTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const millis = Math.floor((seconds % 1) * 1000);
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(millis).padStart(3, '0')}`;
+}
+
+// Helper to safely extract timestamps from Whisper chunk (handles multiple formats)
+function getTimestamps(chunk) {
+    if (chunk.timestamp) return chunk.timestamp;
+    if (chunk.timestamps) return chunk.timestamps;
+    if (chunk.start !== undefined && chunk.end !== undefined) {
+        return [chunk.start, chunk.end];
+    }
+    return [0, 0];
+}
+
+// Convert Whisper transcription chunks to SRT format
+function whisperChunksToSrt(chunks) {
+    if (!chunks || chunks.length === 0) return null;
+    
+    let srtContent = '';
+    chunks.forEach((chunk, idx) => {
+        const [start, end] = getTimestamps(chunk);
+        const startTime = formatSrtTime(start);
+        const endTime = formatSrtTime(end);
+        
+        srtContent += `${idx + 1}\n`;
+        srtContent += `${startTime} --> ${endTime}\n`;
+        srtContent += `${chunk.text}\n\n`;
+    });
+    
+    return srtContent;
+}
+
 // ────────────────────────────────────────────────────
 // Gemini Speech-to-Text Caption Generation
 // ────────────────────────────────────────────────────
@@ -387,7 +425,19 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 // ────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-    const { jobId, userId, lipSyncVideoUrl, audioUrl, imageTimeline, srtPath: remoteSrtPath } = event;
+    const { 
+        jobId, 
+        userId, 
+        lipSyncVideoUrl, 
+        audioUrl,
+        imageTimeline, 
+        srtPath: remoteSrtPath,
+        lipSyncResult
+    } = event;
+    
+    // Extract transcription from lipSyncResult with fallback
+    const transcription = lipSyncResult?.transcription || '';
+    const transcriptionChunks = lipSyncResult?.transcriptionChunks || [];
 
     console.log(`🎬 RENDERER: Starting final assembly for Job ${jobId}`);
 
@@ -447,12 +497,13 @@ exports.handler = async (event) => {
             }
         }
 
-        // Handle subtitles — either download a pre-built SRT, or generate via Gemini
+        // Handle subtitles — priority: remoteSrtPath > Whisper > Gemini
         let localSrtPath = null;
+        
+        // Option 1: Pre-built SRT provided
         if (remoteSrtPath) {
-            // SRT was provided in the event — download it directly
             try {
-                console.log('Got remoteSrtPath:', remoteSrtPath);
+                console.log('📄 Got remoteSrtPath:', remoteSrtPath);
                 if (remoteSrtPath.startsWith('http')) {
                     const srtBuf = await downloadFromUrl(remoteSrtPath);
                     localSrtPath = `/tmp/${jobId}-captions.srt`;
@@ -463,11 +514,26 @@ exports.handler = async (event) => {
                 console.warn('⚠️ Could not download SRT:', err.message);
             }
         }
-
-        if (!localSrtPath && audioUrl) {
-            // No SRT was provided — generate captions from the TTS audio via Gemini
+        
+        // Option 2: Use Whisper transcription (NEW - PREFERRED)
+        if (!localSrtPath && transcriptionChunks && transcriptionChunks.length > 0) {
             try {
-                console.log('🎤 No SRT provided — generating captions from audio using Gemini...');
+                console.log(`📝 Using Whisper transcription for subtitles (${transcriptionChunks.length} chunks)`);
+                const srtContent = whisperChunksToSrt(transcriptionChunks);
+                if (srtContent) {
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    fs.writeFileSync(localSrtPath, srtContent, 'utf8');
+                    console.log(`✅ Whisper SRT written to ${localSrtPath}`);
+                }
+            } catch (err) {
+                console.warn('⚠️ Failed to convert Whisper to SRT:', err.message);
+            }
+        }
+
+        // Option 3: Fallback to Gemini (only if Whisper not available)
+        if (!localSrtPath && audioUrl) {
+            try {
+                console.log('⚠️ No Whisper data - falling back to Gemini for captions...');
                 const audioBuffer = await downloadFromUrl(audioUrl);
                 const srtContent = await generateCaptionsWithGemini(audioBuffer);
                 if (srtContent) {

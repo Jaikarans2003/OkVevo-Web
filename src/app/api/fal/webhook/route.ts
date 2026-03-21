@@ -149,8 +149,81 @@ export async function POST(request: NextRequest) {
             }
 
             return NextResponse.json({ success: true });
+        } else if (type === 'lipsync' || type === 'whisper-transcription') {
+            // This is a LipSync or Whisper job - need to wait for both
+            console.log(`📦 ${type} job completed: ${request_id}`);
+            
+            const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+            const jobDoc = await jobRef.get();
+            
+            if (!jobDoc.exists) {
+                console.error(`❌ Job ${jobId} not found`);
+                return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
+            }
+
+            const jobData = jobDoc.data() || {};
+            const expectedLipsyncResults = jobData.expectedLipsyncResults || 1;
+            const completedLipsyncResults = (jobData.completedLipsyncResults || 0) + 1;
+            const lipsyncResults = jobData.lipsyncResults || [];
+            
+            // Store this result
+            lipsyncResults.push({
+                request_id,
+                type,
+                output
+            });
+            
+            await jobRef.update({
+                completedLipsyncResults,
+                lipsyncResults,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log(`� Lipsync progress: ${completedLipsyncResults}/${expectedLipsyncResults} jobs completed`);
+
+            // Check if all lipsync-related jobs are ready
+            if (completedLipsyncResults >= expectedLipsyncResults) {
+                console.log(`✅ All lipsync jobs ready! Resuming Step Function...`);
+                
+                // Extract results
+                const lipsyncResult = lipsyncResults.find((r: any) => r.type === 'lipsync');
+                const whisperResult = lipsyncResults.find((r: any) => r.type === 'whisper-transcription');
+                
+                if (!lipsyncResult) {
+                    console.error('❌ Lipsync result missing!');
+                    return NextResponse.json({ success: false, error: 'Lipsync result missing' }, { status: 500 });
+                }
+
+                // Resume Step Function with both results
+                await sfnClient.send(new SendTaskSuccessCommand({
+                    taskToken: taskToken,
+                    output: JSON.stringify({
+                        request_id,
+                        status,
+                        output: lipsyncResult.output,
+                        lipSyncVideoUrl: lipsyncResult.output.video?.url || lipsyncResult.output.video_url || '',
+                        transcription: whisperResult?.output?.text || '',
+                        transcriptionChunks: whisperResult?.output?.chunks || []
+                    }),
+                }));
+
+                // Cleanup mappings for both jobs
+                await falJobRef.delete();
+                if (whisperResult) {
+                    await db.collection('falJobs').doc(whisperResult.request_id).delete();
+                }
+                if (lipsyncResult && lipsyncResult.request_id !== request_id) {
+                    await db.collection('falJobs').doc(lipsyncResult.request_id).delete();
+                }
+            } else {
+                // Still waiting for more results
+                console.log(`⏳ Waiting for ${expectedLipsyncResults - completedLipsyncResults} more job(s)`);
+                await falJobRef.delete();
+            }
+
+            return NextResponse.json({ success: true });
         } else {
-            // This is a LipSync job or other single-response job
+            // Other single-response job types (fallback)
             console.log(`🚀 Resuming Step Function for Job ${jobId} (User: ${userId})`);
             
             await sfnClient.send(new SendTaskSuccessCommand({
@@ -158,8 +231,7 @@ export async function POST(request: NextRequest) {
                 output: JSON.stringify({
                     request_id,
                     status,
-                    output,
-                    lipSyncVideoUrl: output.video?.url || output.video_url || ''
+                    output
                 }),
             }));
 
