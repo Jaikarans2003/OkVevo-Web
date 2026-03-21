@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/config/firebase';
-import type { UserWithStats, AdminAction, CreditOperation } from '@/types/admin';
+import { auth, db } from '@/config/firebase';
+import { collection, query, orderBy, onSnapshot, limit, Timestamp } from 'firebase/firestore';
+import type { UserWithStats, AdminAction, CreditOperation, UserStats } from '@/types/admin';
 import UserTable from '@/components/admin/UserTable';
 import CreditEditModal from '@/components/admin/CreditEditModal';
 import DeleteUserModal from '@/components/admin/DeleteUserModal';
 import AuditLogPanel from '@/components/admin/AuditLogPanel';
-import { RefreshCw, Users, Activity, Shield } from 'lucide-react';
+import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -35,20 +37,21 @@ export default function AdminDashboard() {
                 const token = await user.getIdToken();
                 setAuthToken(token);
                 
-                // Fetch initial data
-                await Promise.all([
-                    fetchUsers(token),
-                    fetchAuditLogs(token)
-                ]);
-            } catch (err: any) {
-                console.error('Auth error:', err);
-                if (err.message?.includes('Forbidden')) {
+                // Verify admin status on server
+                const res = await fetch('/api/admin/check', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
                     setError('Access denied. You do not have admin permissions.');
                     setTimeout(() => router.push('/'), 3000);
-                } else {
-                    setError(err.message || 'Failed to load admin dashboard');
+                    return;
                 }
-            } finally {
+
+                setLoading(false);
+            } catch (err: any) {
+                console.error('Auth error:', err);
+                setError(err.message || 'Failed to load admin dashboard');
                 setLoading(false);
             }
         });
@@ -56,60 +59,61 @@ export default function AdminDashboard() {
         return () => unsubscribe();
     }, [router]);
 
-    const fetchUsers = async (token: string) => {
-        try {
-            const response = await fetch('/api/admin/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+    // Real-time Users from userStats collection
+    useEffect(() => {
+        if (loading) return;
+
+        const q = query(collection(db, 'userStats'), orderBy('updatedAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const statsData = snapshot.docs.map(doc => {
+                const data = doc.data() as UserStats;
+                return {
+                    uid: doc.id,
+                    email: data.email || '',
+                    creditsAllocated: data.creditsAllocated || 0,
+                    creditsSpent: data.creditsSpent || 0,
+                    creditsRemaining: data.creditsRemaining || 0,
+                    planType: data.planType || 'hobby',
+                    subscriptionStatus: data.subscriptionStatus || 'active',
+                    createdAt: data.updatedAt?.toDate() || new Date(), // Using updatedAt as fallback
+                    lastActivity: data.lastActivity?.toDate(),
+                } as UserWithStats;
             });
+            setUsers(statsData);
+        }, (err) => {
+            console.error('Firestore Users Error:', err);
+            setError('Failed to load real-time users.');
+        });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to fetch users');
-            }
+        return () => unsubscribe();
+    }, [loading]);
 
-            const data = await response.json();
-            setUsers(data.users || []);
-        } catch (err: any) {
-            throw err;
-        }
-    };
+    // Real-time Audit Logs from adminAuditLogs collection
+    useEffect(() => {
+        if (loading) return;
 
-    const fetchAuditLogs = async (token: string) => {
-        try {
-            const response = await fetch('/api/admin/audit-logs?limit=50', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+        const q = query(
+            collection(db, 'adminAuditLogs'), 
+            orderBy('timestamp', 'desc'),
+            limit(50)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const logsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as AdminAction[];
+            setAuditLogs(logsData);
+        }, (err) => {
+            console.error('Firestore Logs Error:', err);
+        });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to fetch audit logs');
-            }
-
-            const data = await response.json();
-            setAuditLogs(data.logs || []);
-        } catch (err: any) {
-            console.error('Failed to fetch audit logs:', err);
-        }
-    };
+        return () => unsubscribe();
+    }, [loading]);
 
     const handleRefresh = async () => {
-        if (!authToken) return;
-        
+        // Since it's real-time, refresh is just a visual feedback or re-sync if needed
         setRefreshing(true);
-        try {
-            await Promise.all([
-                fetchUsers(authToken),
-                fetchAuditLogs(authToken)
-            ]);
-        } catch (err: any) {
-            setError(err.message || 'Failed to refresh data');
-        } finally {
-            setRefreshing(false);
-        }
+        setTimeout(() => setRefreshing(false), 500);
     };
 
     const handleEditCredits = (user: UserWithStats) => {
@@ -233,6 +237,27 @@ export default function AdminDashboard() {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
+                {/* Trend Requests Quick Access */}
+                <div className="mb-10 p-1 bg-gradient-to-r from-[#FF6B35]/20 to-transparent rounded-[24px]">
+                    <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-[#FF6B35]/10 flex items-center justify-center border border-[#FF6B35]/20">
+                                <Sparkles className="w-7 h-7 text-[#FF6B35]" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black tracking-tighter uppercase">Trend Request Queue</h2>
+                                <p className="text-gray-400 text-sm">Manage manual AI generation and student outputs here.</p>
+                            </div>
+                        </div>
+                        <Link 
+                            href="/admin/trend-requests"
+                            className="w-full md:w-auto px-8 py-4 bg-[#FF6B35] hover:bg-[#FF8B55] text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
+                        >
+                            Open Queue <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                    </div>
+                </div>
+
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">

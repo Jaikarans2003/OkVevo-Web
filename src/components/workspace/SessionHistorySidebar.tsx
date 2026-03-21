@@ -107,7 +107,7 @@ export default function SessionHistorySidebar({
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-[#0A0A0A] border-r border-white/5 h-full"
+                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-white/5 dark:bg-black/20 backdrop-blur-xl border-r border-white/10 h-full shadow-2xl"
             >
                 <button
                     onClick={() => setCollapsed(false)}
@@ -145,7 +145,7 @@ export default function SessionHistorySidebar({
         <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-64 flex-shrink-0 flex flex-col bg-[#080808] border-r border-white/5 h-full overflow-hidden"
+            className="w-64 flex-shrink-0 flex flex-col bg-white/5 dark:bg-black/20 backdrop-blur-xl border-r border-white/10 h-full overflow-hidden shadow-2xl"
         >
             {/* Header */}
             <div className="px-4 py-4 border-b border-white/5 flex items-center justify-between">

@@ -12,7 +12,7 @@ export const TrendCard = ({ trend, index, onClick }: { trend: TrendDefinition, i
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
             onClick={onClick}
-            className="group relative bg-[#151518] rounded-[2rem] border border-[#222] overflow-hidden cursor-pointer transition-all duration-500 hover:border-white/20 h-[420px] md:h-[480px] flex flex-col"
+            className="group relative bg-white/5 dark:bg-black/20 backdrop-blur-xl rounded-[2rem] border border-white/10 overflow-hidden cursor-pointer transition-all duration-500 hover:border-white/20 h-[420px] md:h-[480px] flex flex-col shadow-2xl"
         >
             <div className="h-[240px] md:h-[320px] relative overflow-hidden shrink-0">
                 <Image

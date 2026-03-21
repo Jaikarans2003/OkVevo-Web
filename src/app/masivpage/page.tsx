@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ShoppingCart, Upload, Check, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
+import { db, storage } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '@/hooks/useAuth';
+import { onSnapshot, doc } from 'firebase/firestore';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 
@@ -14,7 +18,7 @@ const products = [
         thumbnail: '/masiv/gangster.png',
         description: 'Cyberpunk cityscape assets for video production',
         price: 2999,
-        badge1: '12-18 Yrs',
+        badge1: 'UNISEX',
         badge2: 'Trending'
     },
     {
@@ -23,7 +27,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=400&fit=crop',
         description: 'Clean, minimal backgrounds for product shots',
         price: 1999,
-        badge1: '10-24 Yrs',
+        badge1: 'UNISEX',
         badge2: 'Clean'
     },
     {
@@ -32,7 +36,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1535868463750-c78d9543614f?w=400&h=400&fit=crop',
         description: 'Futuristic UI elements and overlays',
         price: 2799,
-        badge1: 'Gamers',
+        badge1: 'UNISEX',
         badge2: 'HUD'
     },
     {
@@ -41,7 +45,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=400&fit=crop',
         description: 'Fluid abstract motion graphics pack',
         price: 2499,
-        badge1: 'All Ages',
+        badge1: 'UNISEX',
         badge2: 'Motion'
     },
     {
@@ -50,7 +54,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
         description: 'Stunning nature footage and overlays',
         price: 3499,
-        badge1: 'Pro',
+        badge1: 'UNISEX',
         badge2: 'Nature'
     },
     {
@@ -59,7 +63,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
         description: 'Authentic film grain overlays for vintage look',
         price: 1599,
-        badge1: 'Classic',
+        badge1: 'UNISEX',
         badge2: 'Vintage'
     },
     {
@@ -68,7 +72,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
         description: 'Authentic film grain overlays for vintage look',
         price: 1599,
-        badge1: 'Classic',
+        badge1: 'UNISEX',
         badge2: 'Vintage'
     },
     {
@@ -77,7 +81,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
         description: 'Authentic film grain overlays for vintage look',
         price: 1599,
-        badge1: 'Classic',
+        badge1: 'UNISEX',
         badge2: 'Vintage'
     },
     {
@@ -86,7 +90,7 @@ const products = [
         thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
         description: 'Authentic film grain overlays for vintage look',
         price: 1599,
-        badge1: 'Classic',
+        badge1: 'UNISEX',
         badge2: 'Vintage'
     },
 ];
@@ -98,6 +102,7 @@ const bgColors = [
     'bg-[#E5E5E5]',//Grey
     'bg-[#FF6A00]', // Bright Orange
     'bg-[#F5F1E8]', // Cream
+    
 ];
 
 interface CartItem {
@@ -107,9 +112,14 @@ interface CartItem {
 }
 
 export default function OkvevoMasivPage() {
+    const { user } = useAuth();
     const [selectedCard, setSelectedCard] = useState<string | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showCart, setShowCart] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+    const [resultImage, setResultImage] = useState<string | null>(null);
 
     // Image Upload State
     const [fullBodyImage, setFullBodyImage] = useState<string | null>(null);
@@ -118,6 +128,82 @@ export default function OkvevoMasivPage() {
     // Refs for hidden inputs
     const fullBodyInputRef = useRef<HTMLInputElement>(null);
     const faceInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!activeRequestId) return;
+
+        // Listen for the specific request document to get the resultUrl
+        const unsubscribe = onSnapshot(doc(db, 'trend_requests', activeRequestId), (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.data();
+                if (data.resultUrl) {
+                    setResultImage(data.resultUrl);
+                    setIsSubmitting(false); // Stop loading once result is here
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [activeRequestId]);
+
+    // Reset success state after a delay
+    useEffect(() => {
+        if (submitSuccess) {
+            const timer = setTimeout(() => setSubmitSuccess(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [submitSuccess]);
+
+    const handleTryTrend = async (product: typeof products[0]) => {
+        if (!fullBodyImage) {
+            alert('Please upload a full body photo first.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const timestamp = Date.now();
+            const userId = user?.uid || 'anonymous';
+            
+            // 1. Upload Full Body Image
+            const fullBodyRef = ref(storage, `trend_requests/${userId}/${timestamp}_full_body.jpg`);
+            await uploadString(fullBodyRef, fullBodyImage, 'data_url');
+            const fullBodyUrl = await getDownloadURL(fullBodyRef);
+
+            // 2. Upload Face Image (if present)
+            let faceUrl = '';
+            if (faceCloseUpImage) {
+                const faceRef = ref(storage, `trend_requests/${userId}/${timestamp}_face.jpg`);
+                await uploadString(faceRef, faceCloseUpImage, 'data_url');
+                faceUrl = await getDownloadURL(faceRef);
+            }
+
+            // 3. Save Request to Firestore
+            const docRef = await addDoc(collection(db, 'trend_requests'), {
+                userId,
+                userEmail: user?.email || 'anonymous',
+                userName: user?.displayName || 'Anonymous User',
+                trendId: product.id,
+                trendName: product.name,
+                price: product.price,
+                fullBodyUrl,
+                faceUrl,
+                status: 'pending',
+                createdAt: serverTimestamp()
+            });
+
+            setActiveRequestId(docRef.id);
+            // setSubmitSuccess(true); // We don't close yet, we wait for results
+            // setSelectedCard(null); 
+            // setFullBodyImage(null);
+            // setFaceCloseUpImage(null);
+        } catch (error) {
+            console.error('Error submitting trend request:', error);
+            alert('Failed to submit request. Please try again.');
+        } finally {
+            // setIsSubmitting(false); // We keep loading until resultUrl arrives
+        }
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'full' | 'face') => {
         const file = e.target.files?.[0];
@@ -213,7 +299,7 @@ export default function OkvevoMasivPage() {
                     </h1>
                 </header>
 
-                {/* Vertical Normal Grid */}
+                {/* Vertical Normal Grid (4 columns) */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {products.map((product, index) => {
                         const cardBg = bgColors[index % bgColors.length];
@@ -224,46 +310,45 @@ export default function OkvevoMasivPage() {
                                 key={product.id}
                                 onClick={() => setSelectedCard(product.id)}
                                 // Min height of 640px for a more compact 4-column layout
-                                className={`group relative p-8 rounded-[40px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[640px] shadow-2xl ${cardBg}`}
+                                className={`group relative p-5 rounded-[40px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[750px] shadow-2xl ${cardBg}`}
                                 whileHover={{ y: -8 }}
                                 whileTap={{ scale: 0.98 }}
                             >
                                 {/* ---- TOP SECTION (Mathematically Bounded) ---- */}
-                                <div className="z-10 relative flex flex-col h-[120px] shrink-0">
-                                    <div className="flex gap-2 justify-between items-start mb-4 w-full">
+                                <div className="z-10 relative flex flex-col h-[130px] shrink-0 mb-4 px-3">
+                                    <div className="flex gap-2 justify-between items-start mb-6 w-full">
                                         <div className="flex gap-2">
-                                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
                                                 }`}>
                                                 {product.badge1 || 'Trend'}
                                             </span>
-                                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
                                                 }`}>
                                                 {product.badge2 || 'New'}
                                             </span>
                                         </div>
-
+ 
                                         {/* Small Okvevo Logo Badge */}
-                                        <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center shrink-0">
-                                            <span className="font-black text-[10px] tracking-tighter text-black flex items-center leading-none">
-                                                <img src="/OKVEVO WithOut BackGrounds/Black.svg" alt="OKVEVO" className="h-4 md:h-5 object-contain" />
-                                            </span>
+                                        <div className="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center shrink-0 border border-black/5">
+                                            <img src="/OKVEVO WithOut BackGrounds/Black.svg" alt="OKVEVO" className="h-4 object-contain" />
                                         </div>
                                     </div>
-
+ 
                                     {/* Exact original Title */}
-                                    <h3 className="text-4xl lg:text-[42px] font-black tracking-tight leading-[1.05] text-black pr-4">
+                                    <h3 className="text-4xl lg:text-[40px] font-black tracking-tighter leading-[1] text-black pr-2">
                                         {product.name}
                                     </h3>
                                 </div>
-
+ 
                                 {/* ---- MIDDLE THUMBNAIL (Mathematically Bounded) ---- */}
-                                <div className="relative w-full h-[320px] rounded-[30px] overflow-hidden z-0 mt-4 shrink-0">
-                                    <div className="w-full h-full relative rounded-[30px] overflow-hidden ring-4 ring-black/5 ring-inset">
+                                <div className="relative w-full h-[420px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group mb-4">
+                                    <div className="w-full h-full relative border-4 border-black/5 rounded-[30px] overflow-hidden">
                                         <img
                                             src={product.thumbnail}
                                             alt={product.name}
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-[1.1]"
                                         />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                 </div>
 
@@ -476,10 +561,25 @@ export default function OkvevoMasivPage() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-col gap-3 mt-8 relative z-10">
-                                                    <button className="w-full py-5 rounded-2xl bg-[#FF6B35] hover:bg-[#FF8F6B] text-black font-black uppercase tracking-widest text-sm transition-all shadow-[0_0_30px_rgba(255,107,53,0.3)]">
-                                                        Try Trend
-                                                    </button>
+                                                    <div className="flex flex-col gap-3 mt-8 relative z-10">
+                                                        <button 
+                                                            onClick={() => handleTryTrend(product)}
+                                                            disabled={isSubmitting || !fullBodyImage}
+                                                            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl flex items-center justify-center gap-3 ${
+                                                                isSubmitting || !fullBodyImage
+                                                                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                                                                    : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-black shadow-[0_0_30px_rgba(255,107,53,0.3)]'
+                                                            }`}
+                                                        >
+                                                            {isSubmitting ? (
+                                                                <>
+                                                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                                    Reviewing Trend...
+                                                                </>
+                                                            ) : (
+                                                                'Try Trend'
+                                                            )}
+                                                        </button>
                                                     <button
                                                         onClick={() => addToCart(product)}
                                                         disabled={alreadyInCart}
@@ -508,6 +608,92 @@ export default function OkvevoMasivPage() {
                                 </motion.div>
                             );
                         })()}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* --- GENERATION LOADER / RESULT OVERLAY --- */}
+            <AnimatePresence>
+                {(isSubmitting || resultImage) && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6"
+                    >
+                        <div className="max-w-4xl w-full text-center">
+                            {resultImage ? (
+                                <motion.div 
+                                    initial={{ scale: 0.9, y: 20 }}
+                                    animate={{ scale: 1, y: 0 }}
+                                    className="flex flex-col items-center"
+                                >
+                                    <div className="mb-8">
+                                        <h2 className="text-5xl font-black tracking-tighter uppercase mb-2">Your Trend is Ready</h2>
+                                        <p className="text-gray-400">Our AI has successfully crafted your unique look</p>
+                                    </div>
+                                    
+                                    <div className="relative group rounded-[32px] overflow-hidden border border-white/10 shadow-2xl mb-10 w-full max-w-lg aspect-[3/4]">
+                                        <img src={resultImage} alt="AI Result" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button 
+                                            onClick={() => window.open(resultImage, '_blank')}
+                                            className="px-8 py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all"
+                                        >
+                                            Download High-Res
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setResultImage(null);
+                                                setActiveRequestId(null);
+                                                setIsSubmitting(false);
+                                                setSelectedCard(null);
+                                            }}
+                                            className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all"
+                                        >
+                                            Back to Catalog
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                <div className="flex flex-col items-center">
+                                    <div className="relative w-32 h-32 mb-10">
+                                        <div className="absolute inset-0 border-4 border-[#FF6B35]/20 rounded-full" />
+                                        <motion.div 
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-0 border-4 border-[#FF6B35] border-t-transparent rounded-full"
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-16 h-16 bg-[#FF6B35]/10 rounded-full flex items-center justify-center animate-pulse">
+                                                <div className="w-8 h-8 rounded-full bg-[#FF6B35]" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h2 className="text-4xl font-black tracking-tighter uppercase mb-4 animate-pulse">Generating your Trend</h2>
+                                    <div className="space-y-2 max-w-md mx-auto">
+                                        <p className="text-gray-400 text-lg">Our design team is manually reviewing your photos to ensure the highest AI quality.</p>
+                                        <p className="text-[#FF6B35] text-sm font-black tracking-widest uppercase">Do not close this window</p>
+                                    </div>
+
+                                    {/* Progress simulation or steps */}
+                                    <div className="mt-12 flex justify-center gap-2">
+                                        {[0, 1, 2].map(i => (
+                                            <motion.div 
+                                                key={i}
+                                                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                                                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.4 }}
+                                                className="w-2 h-2 rounded-full bg-[#FF6B35]"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

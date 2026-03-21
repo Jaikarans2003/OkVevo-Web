@@ -300,7 +300,7 @@ function GenerationCard({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-[#151518] rounded-2xl border border-white/10 overflow-hidden group"
+            className="bg-white/5 dark:bg-black/20 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden group shadow-2xl"
         >
             {/* Card Header */}
             <div className="p-4 flex items-center justify-between">

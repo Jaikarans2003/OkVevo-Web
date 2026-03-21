@@ -21,11 +21,23 @@ export default function InstagramTrendsStudio() {
 
             <StudioNavbar />
 
-            <main>
-                <InstagramHero />
-                <TrendGrid onSelect={(trend) => setSelectedTrend(trend)} />
-                <MyGenerations />
-            </main>
+            <div 
+            className="min-h-screen relative pt-14"
+            style={{ 
+                backgroundImage: 'url("/images/bgg.png")',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundAttachment: 'fixed'
+            }}
+        >
+            {/* Background Overlay */}
+            <div className="absolute inset-0 bg-[#050505]/40 backdrop-blur-[2px] pointer-events-none" />
+
+                <div className="relative z-10 space-y-12">
+                    <TrendGrid onSelect={(trend) => setSelectedTrend(trend)} />
+                    <MyGenerations />
+                </div>
+            </div>
 
             {/* Trend Generation Modal */}
             <AnimatePresence>

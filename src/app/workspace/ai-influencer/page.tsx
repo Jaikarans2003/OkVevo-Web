@@ -576,32 +576,28 @@ function AIInfluencerWorkstation() {
                 }
             />
 
-            {/* Full Screen Hero Section */}
-            <div className="w-full h-[90vh] relative overflow-hidden z-0">
-                <img 
-                    src="/images/ai-influencer.png" 
-                    alt="AI Influencer Hero" 
-                    className="absolute inset-0 w-full h-full object-cover" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-                
-                {/* Navigation Button */}
-                <div className="absolute bottom-16 left-0 right-0 flex justify-center z-20">
-                    <motion.button 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8, duration: 0.6 }}
-                        onClick={() => document.getElementById('workstation')?.scrollIntoView({ behavior: 'smooth' })}
-                        className="px-10 py-5 bg-[#FF6B35] hover:bg-[#FF8F6B] text-black font-black uppercase tracking-[0.2em] text-xs rounded-full shadow-[0_20px_40px_rgba(255,107,53,0.3)] transition-all flex items-center gap-3 group"
-                    >
-                        Start Creating
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </motion.button>
-                </div>
-            </div>
+            {/* Workstation Area with Video Background */}
+            <div 
+                id="workstation" 
+                className="relative min-h-screen pt-24"
+            >
+                {/* Background Video with Hue-Shift to Orange */}
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="fixed inset-0 w-full h-full object-cover pointer-events-none z-0"
+                    style={{ filter: 'hue-rotate(140deg) saturate(1.4) brightness(0.9)' }}
+                >
+                    <source src="/videos/bg-blue.mp4" type="video/mp4" />
+                </video>
 
-            {/* Body — history sidebar + main content */}
-            <div id="workstation" className="flex pt-16 min-h-screen">
+                {/* Subtle Orange-tinted Overlay for Readability */}
+                <div className="fixed inset-0 bg-[#050505]/40 backdrop-blur-[1px] pointer-events-none z-0" />
+
+                {/* Body — history sidebar + main content */}
+                <div className="flex relative z-10 min-h-screen">
                 {/* Session History Sidebar */}
                 {user?.uid && (
                     <div className="sticky top-16 h-[calc(100vh-4rem)] flex-shrink-0">
@@ -616,20 +612,28 @@ function AIInfluencerWorkstation() {
                     </div>
                 )}
 
-                <main className="flex-1 relative z-10 pb-16 px-4 md:px-10 max-w-[1600px] mx-auto pt-8">
-                    {/* Header */}
-                    <div className="mb-6 flex items-start justify-between">
+                <main className="flex-1 relative z-10 pb-16 px-4 md:px-10 max-w-[1600px] mx-auto pt-4 backdrop-blur-xl bg-white/5 dark:bg-black/10 rounded-[3rem] border border-white/10 mx-6 mb-6 mt-2 shadow-2xl overflow-hidden">
+                    {/* Header with Professional Status */}
+                    <div className="mb-8 flex items-start justify-between">
                         <div>
-                            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-black dark:text-white">AI Influencer</h1>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">From script to Social Media Ready video in minutes</p>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h1 className="text-4xl md:text-5xl font-bold text-black dark:text-white tracking-tight">AI Influencer</h1>
+                                <div className="mt-2 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-orange-500/80">Active Studio</span>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-white/40 font-medium">From script to social-ready cinema in minutes</p>
                         </div>
                         {chatStep !== 'upload-script' && (
-                            <button
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={resetFlow}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-red-500 border border-gray-200 dark:border-white/10 rounded-lg hover:border-red-500/30 transition-all"
+                                className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-red-500 border border-gray-200 dark:border-white/10 rounded-xl hover:border-red-500/30 transition-all bg-white/5 backdrop-blur-md"
                             >
                                 <RotateCcw size={11} /> Reset
-                            </button>
+                            </motion.button>
                         )}
                     </div>
 
@@ -658,32 +662,32 @@ function AIInfluencerWorkstation() {
                             {/* ── LEFT: Step Wizard ── */}
                             <div className="w-full md:w-[700px] flex-shrink-0 flex flex-col gap-4">
 
-                                {/* Progress Bar */}
-                                <div className="flex items-center gap-0 bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-3 overflow-x-auto">
+                                {/* Sleek Progress Bar */}
+                                <div className="flex items-center gap-2 bg-white/5 dark:bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 overflow-x-auto shadow-2xl relative group">
                                     {STEPS.map((step, idx) => {
                                         const done = idx < currentStepIdx;
                                         const active = idx === currentStepIdx;
                                         const Icon = step.icon;
                                         return (
                                             <div key={step.id} className="flex items-center flex-shrink-0">
-                                                <div className={`flex flex-col items-center gap-0.5 ${active ? 'opacity-100' : done ? 'opacity-70' : 'opacity-25'}`}>
-                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${done
-                                                        ? 'bg-orange-600 border-orange-600 text-white'
+                                                <motion.div 
+                                                    whileHover={{ scale: 1.1, y: -2 }}
+                                                    className={`flex flex-col items-center gap-1 transition-opacity duration-500 ${active ? 'opacity-100' : done ? 'opacity-80' : 'opacity-20'}`}
+                                                >
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-500 ${done
+                                                        ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)]'
                                                         : active
-                                                            ? 'bg-orange-600/20 border-orange-500 text-orange-400'
-                                                            : 'bg-transparent border-gray-300 dark:border-white/20 text-gray-400'
+                                                            ? 'bg-orange-600/20 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                                                            : 'bg-white/5 border-white/10 text-white/40'
                                                         }`}>
-                                                        {done
-                                                            ? <CheckCircle2 size={11} />
-                                                            : <Icon size={10} />
-                                                        }
+                                                        {done ? <CheckCircle2 size={12} /> : <Icon size={12} />}
                                                     </div>
-                                                    <span className={`text-[8px] font-bold uppercase tracking-wider ${active ? 'text-orange-400' : 'text-gray-400 dark:text-white/30'}`}>
+                                                    <span className={`text-[7px] font-black uppercase tracking-[0.14em] ${active ? 'text-orange-400' : 'text-white/30'}`}>
                                                         {step.label}
                                                     </span>
-                                                </div>
+                                                </motion.div>
                                                 {idx < STEPS.length - 1 && (
-                                                    <div className={`w-4 md:w-6 h-px mx-1 transition-all ${done ? 'bg-orange-600' : 'bg-gray-200 dark:bg-white/10'}`} />
+                                                    <div className={`w-6 md:w-8 h-[1px] mx-2 transition-all duration-700 ${done ? 'bg-orange-600' : 'bg-white/10'}`} />
                                                 )}
                                             </div>
                                         );
@@ -691,7 +695,7 @@ function AIInfluencerWorkstation() {
                                 </div>
 
                                 {/* ── Chat Panel ── */}
-                                <div className="flex flex-col bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl" style={{ height: '620px' }}>
+                                <div className="flex flex-col bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl" style={{ height: '620px' }}>
                                     {/* Chat header */}
                                     <div className="px-4 py-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0F0F0F]/50 flex items-center gap-2 shrink-0">
                                         <div className="relative">
@@ -1008,22 +1012,51 @@ function AIInfluencerWorkstation() {
                                     </AnimatePresence>
 
                                     {/* ── Chat Messages ── */}
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white/30 dark:bg-[#070707]">
+                                    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white/5 dark:bg-[#070707]/80 backdrop-blur-3xl">
                                         {chatMessages.map((msg, i) => (
                                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[88%] rounded-xl px-3 py-2 text-[11px] leading-relaxed shadow-sm ${msg.role === 'user'
-                                                    ? 'bg-orange-600 text-white'
-                                                    : 'bg-gray-100 dark:bg-[#151515] text-black/80 dark:text-white/80 border border-gray-200 dark:border-white/5'
-                                                    }`}>
-                                                    {msg.content}
+                                                <div className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                    {msg.role === 'assistant' && (
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 mb-1">
+                                                            <Sparkles size={8} className="text-orange-400" />
+                                                            <span className="text-[7px] font-black uppercase tracking-widest text-white/40">Vevo AI Assistant</span>
+                                                        </div>
+                                                    )}
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        className={`max-w-[85%] rounded-[1.25rem] px-4 py-3 text-[11px] leading-relaxed shadow-xl ${msg.role === 'user'
+                                                            ? 'bg-gradient-to-br from-orange-600 to-orange-500 text-white rounded-tr-none border border-orange-400/20'
+                                                            : 'bg-white/5 dark:bg-[#151515] text-white/80 border border-white/5 rounded-tl-none backdrop-blur-md'
+                                                            }`}
+                                                    >
+                                                        {msg.content}
+                                                    </motion.div>
                                                 </div>
                                             </div>
                                         ))}
                                         {isGenerating && (
                                             <div className="flex justify-start">
-                                                <div className="bg-gray-100 dark:bg-[#151515] border border-gray-200 dark:border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
-                                                    <Loader2 size={10} className="animate-spin text-orange-400" />
-                                                    <span className="text-[10px] text-black/50 dark:text-white/50">Working…</span>
+                                                <div className="flex flex-col gap-1.5 items-start">
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 mb-1">
+                                                        <Sparkles size={8} className="text-orange-400" />
+                                                        <span className="text-[7px] font-black uppercase tracking-widest text-white/40">Vevo AI Thinking</span>
+                                                    </div>
+                                                    <div className="bg-white/5 dark:bg-[#151515] rounded-[1.25rem] rounded-tl-none px-4 py-3 border border-white/5 backdrop-blur-md">
+                                                        <div className="flex gap-1.5 items-center">
+                                                            <div className="flex gap-1">
+                                                                {[0, 1, 2].map((i) => (
+                                                                    <motion.div
+                                                                        key={i}
+                                                                        animate={{ y: [0, -3, 0] }}
+                                                                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                                                                        className="w-1 h-1 rounded-full bg-orange-400"
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                            <span className="text-[9px] text-white/20 ml-2 font-medium uppercase tracking-widest">Processing</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -1033,13 +1066,21 @@ function AIInfluencerWorkstation() {
                             </div>
 
                             {/* ── RIGHT: Monitor Output ── */}
-                            <div className="flex-shrink-0 flex flex-col gap-4">
+                            <div className="flex-1 flex flex-col gap-4">
                                 <div
-                                    className="w-[380px] bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
-                                    style={{ aspectRatio: '9/16', maxHeight: '680px' }}
+                                    className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
+                                    style={{ 
+                                        aspectRatio: '9/16', 
+                                        maxHeight: '715px',
+                                        backgroundImage: 'url("/output.png")',
+                                        backgroundSize: 'fit',
+                                        backgroundPosition: 'center'
+                                    }}
                                 >
+                                    {/* Subdued Overlay for the monitor interior */}
+                                    <div className="absolute inset-0 bg-black/20 z-0" />
                                     {/* Grid bg */}
-                                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none" />
+                                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none z-0" />
 
                                     {/* Traffic lights */}
                                     <div className="absolute top-3 left-3 flex gap-1.5 z-10">
@@ -1054,14 +1095,18 @@ function AIInfluencerWorkstation() {
                                                 key="video"
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
-                                                className="absolute inset-0 flex items-center justify-center bg-black"
+                                                className="absolute inset-0 flex items-center justify-center bg-black group"
                                             >
                                                 <video
                                                     src={finalVideoUrl}
                                                     controls
                                                     autoPlay
-                                                    className="w-full h-full object-contain"
+                                                    className="w-full h-full object-contain shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]"
                                                 />
+                                                {/* Pro Overlay */}
+                                                <div className="absolute top-4 right-4 px-2 py-1 rounded bg-black/60 border border-white/10 backdrop-blur-md text-[8px] font-bold text-white/60 uppercase tracking-widest z-10 pointer-events-none">
+                                                    Master • 4K
+                                                </div>
                                             </motion.div>
                                         ) : isGenerating ? (
                                             <motion.div
@@ -1069,18 +1114,23 @@ function AIInfluencerWorkstation() {
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/50 backdrop-blur-sm"
+                                                className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-[#050505]/90 backdrop-blur-md z-20"
                                             >
                                                 <div className="relative">
-                                                    <div className="w-14 h-14 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center">
-                                                        <Sparkles size={22} className="text-purple-400" />
+                                                    <div className="w-20 h-20 rounded-[2.5rem] bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shadow-[0_0_40px_rgba(234,88,12,0.1)]">
+                                                        <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                                            className="absolute inset-0 rounded-[2.5rem] border-2 border-dashed border-orange-500/20"
+                                                        />
+                                                        <Sparkles size={28} className="text-orange-400" />
                                                     </div>
-                                                    <div className="absolute inset-0 rounded-2xl border-2 border-purple-500/30 animate-ping opacity-40" />
+                                                    <div className="absolute -inset-4 rounded-full border border-orange-500/10 animate-[ping_3s_infinite]" />
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Processing</p>
-                                                    <p className="text-[9px] text-white/40 mt-1">
-                                                        {chatStep === 'generating-lipsync' ? 'LipSync via Fal AI…' : 'Please wait…'}
+                                                    <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Rendering Engine</p>
+                                                    <p className="text-[9px] text-white/30 mt-2 font-medium uppercase tracking-widest">
+                                                        {chatStep === 'generating-lipsync' ? 'Synthesizing LipSync…' : 'Processing Cinematic Frames…'}
                                                     </p>
                                                 </div>
                                             </motion.div>
@@ -1089,18 +1139,21 @@ function AIInfluencerWorkstation() {
                                                 key="empty"
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 opacity-20"
+                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 transition-all group"
                                             >
-                                                <div className="w-16 h-16 rounded-3xl border border-dashed border-black/40 dark:border-white/40 flex items-center justify-center mb-4">
-                                                    <MonitorPlay size={26} className="text-black dark:text-white" />
+                                                <div className="w-20 h-20 rounded-[2.5rem] border border-dashed border-white/10 flex items-center justify-center mb-6 group-hover:border-orange-500/30 transition-colors duration-700">
+                                                    <MonitorPlay size={32} className="text-white/10 group-hover:text-orange-500/40 transition-all duration-700 group-hover:scale-110" />
                                                 </div>
-                                                <h3 className="text-lg font-semibold text-black dark:text-white mb-1">Monitor Output</h3>
-                                                <p className="text-xs text-black/60 dark:text-white/60 max-w-[180px]">
-                                                    Your generated video will appear here
+                                                <h3 className="text-xl font-bold text-white/20 mb-2  group-hover:text-white/40 transition-colors">Monitor Output</h3>
+                                                <p className="text-[10px] mb-60 text-white/10 font-medium uppercase tracking-[0.2em] max-w-[200px] group-hover:text-white/20 transition-colors">
+                                                    Awaiting video signal
                                                 </p>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
+                                    
+                                    {/* Scanline Effect Overlay */}
+                                    <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[1]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 1px, transparent 2px)', backgroundSize: '100% 2px' }} />
                                 </div>
 
                                 {/* Script quick-view panel (shown after step 4) */}
@@ -1108,7 +1161,7 @@ function AIInfluencerWorkstation() {
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="w-[380px] bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4"
+                                        className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4"
                                     >
                                         <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
                                             <FileText size={8} /> Script Preview
@@ -1124,7 +1177,7 @@ function AIInfluencerWorkstation() {
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="w-[380px] bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3"
+                                        className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3"
                                     >
                                         <div className="flex items-center justify-between">
                                             <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
@@ -1199,7 +1252,8 @@ function AIInfluencerWorkstation() {
                     )}
                 </main>
             </div>
-        </section>
+        </div>
+    </section>
     );
 }
 

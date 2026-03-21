@@ -23,7 +23,7 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     ];
 
     return (
-        <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5 sticky top-0 bg-[#0B0B0D]/80 backdrop-blur-xl z-[90]">
+        <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5 fixed top-0 left-0 right-0 bg-[#0B0B0D]/80 backdrop-blur-xl z-[90]">
             <Link href="/workspace" className="flex items-center gap-1 group">
                 <Image
                     src="/OKVEVO WithOut BackGrounds/White.svg"
