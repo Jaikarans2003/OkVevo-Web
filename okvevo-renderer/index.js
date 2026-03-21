@@ -231,6 +231,68 @@ Rules:
 }
 
 // ────────────────────────────────────────────────────
+// ASS Subtitle Conversion (libass)
+// ────────────────────────────────────────────────────
+
+// Convert SRT time format (00:00:01,500) to ASS format (0:00:01.50)
+function srtTimeToAss(srtTime) {
+    const normalized = srtTime.trim().replace(',', '.');
+    const parts = normalized.split(':');
+    
+    if (parts.length === 3) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parts[1];
+        const seconds = parseFloat(parts[2]).toFixed(2);
+        
+        // ASS format: H:MM:SS.CS (centiseconds)
+        return `${hours}:${minutes}:${seconds}`;
+    }
+    
+    return '0:00:00.00';
+}
+
+// Convert SRT to ASS format with custom styling
+function convertSrtToAss(srtPath) {
+    const srtContent = fs.readFileSync(srtPath, 'utf8');
+    
+    // ASS header with styling optimized for 360x640 vertical video
+    let ass = `[Script Info]
+Title: AI Influencer Captions
+ScriptType: v4.00+
+WrapStyle: 0
+PlayResX: 360
+PlayResY: 640
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Roboto Bold,32,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,1,0,0,0,100,100,0,0,1,3,0,2,10,10,80,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+    // Parse SRT and convert to ASS
+    const blocks = srtContent.split(/\r?\n\r?\n/).filter(b => b.trim());
+    
+    blocks.forEach(block => {
+        const lines = block.split(/\r?\n/);
+        if (lines.length >= 3) {
+            const timeParts = lines[1].split(' --> ');
+            if (timeParts.length === 2) {
+                const start = srtTimeToAss(timeParts[0]);
+                const end = srtTimeToAss(timeParts[1]);
+                const text = lines.slice(2).join('\\N'); // \N is line break in ASS
+                
+                ass += `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}\n`;
+            }
+        }
+    });
+    
+    return ass;
+}
+
+// ────────────────────────────────────────────────────
 // FFmpeg Compositing
 // ────────────────────────────────────────────────────
 
@@ -329,61 +391,20 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
         if (srtPath && fs.existsSync(srtPath)) {
             try {
-                const fontPath = '/tmp/Roboto-Bold.ttf';
-                if (!fs.existsSync(fontPath)) {
-                    const fontBuf = await downloadFromUrl('https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf');
-                    fs.writeFileSync(fontPath, fontBuf);
-                }
-
-                const srtText = fs.readFileSync(srtPath, 'utf8');
-                const blocks = srtText.split(/\r?\n\r?\n/).filter(b => b.trim());
-
-                let currentIn = '[outv]';
-                blocks.forEach((block, idx) => {
-                    const lines = block.split(/\r?\n/);
-                    if (lines.length >= 3) {
-                        const timeParts = lines[1].split(' --> ');
-                        if (timeParts.length === 2) {
-                            const start = parseSrtTime(timeParts[0]);
-                            const end = parseSrtTime(timeParts[1]);
-
-                            const words = lines.slice(2).join(' ').split(/\s+/);
-                            let wrappedLines = [];
-                            let currentLine = '';
-
-                            for (const word of words) {
-                                if (currentLine.length + word.length > 20) {
-                                    if (currentLine) wrappedLines.push(currentLine.trim());
-                                    currentLine = word + ' ';
-                                } else {
-                                    currentLine += word + ' ';
-                                }
-                            }
-                            if (currentLine.trim()) wrappedLines.push(currentLine.trim());
-
-                            const maxLen = Math.max(...wrappedLines.map(l => l.length));
-                            let wrappedText = wrappedLines.map(line => {
-                                const padCount = Math.floor((maxLen - line.length) / 2);
-                                return '\u2002'.repeat(padCount) + line;
-                            }).join('\n');
-
-                            const textFilePath = `/tmp/sub_${Date.now()}_${idx}.txt`;
-                            fs.writeFileSync(textFilePath, wrappedText);
-
-                            const outLabel = `[subs${idx}]`;
-                            finalFilterComplex += `;${currentIn}drawtext=fontfile='${fontPath}':textfile='${textFilePath}':enable='between(t,${start},${end})':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)-160:borderw=2:bordercolor=black@0.9:line_spacing=5${outLabel}`;
-                            currentIn = outLabel;
-                        }
-                    }
-                });
-
-                if (currentIn !== '[outv]') {
-                    finalFilterComplex += `;${currentIn}copy[outv_subs]`;
-                } else {
-                    srtPath = null;
-                }
+                // Convert SRT to ASS format for libass rendering
+                const assPath = `/tmp/${Date.now()}-captions.ass`;
+                const assContent = convertSrtToAss(srtPath);
+                fs.writeFileSync(assPath, assContent, 'utf8');
+                
+                const eventCount = assContent.split('\n').filter(line => line.startsWith('Dialogue:')).length;
+                console.log(`✅ Generated ASS subtitle file with ${eventCount} dialogue events`);
+                
+                // Use subtitles filter with libass for better rendering
+                // This is much simpler and more performant than drawtext
+                finalFilterComplex += `;[outv]subtitles='${assPath}'[outv_subs]`;
+                
             } catch (err) {
-                console.error('⚠️ Failed to generate drawtext subtitles graph:', err.message);
+                console.error('⚠️ Failed to generate ASS subtitles:', err.message);
                 srtPath = null;
             }
         }
