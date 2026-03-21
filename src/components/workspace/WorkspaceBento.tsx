@@ -84,13 +84,13 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
         {
             id: 'social',
             title: 'Instagram Trends',
-            // stats: 'Viral',
             description: 'Pick a Trend',
+            subtitle: 'Viral content at your fingertips',
             image: '/WorkSpacePhotos/3.png',
             action: '/workspace/social',
-            color: 'bg-[#FFD54F]', // Yellow/Orange
-            textColor: 'text-slate-800',
-            isLarge: false
+            color: 'bg-[#1A1A1A]', // Dark
+            textColor: 'text-white',
+            isWide: true
         },
         {
             id: 'ai-influencer',
@@ -262,7 +262,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                         </motion.div>
 
                         {/* Product Studio */}
-                        <motion.div 
+                        {/* <motion.div 
                             whileHover={{ y: -5 }}
                             className="bg-[#A8E6CF] rounded-[2.5rem] overflow-hidden group border border-white/20 shadow-xl relative cursor-pointer"
                         >
@@ -275,9 +275,9 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:bg-white group-hover:text-[#A8E6CF] transition-all">
                                         <ArrowUpRight className="w-5 h-5 text-white group-hover:text-[#A8E6CF]" />
                                     </div>
-                                </div>
+                                </div> */}
                                 {/* Stronger Dual Gradients */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                                {/* <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent z-10" />
                                 <img 
                                     src={features[1].image} 
@@ -285,27 +285,27 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90" 
                                 />
                                 <div className="absolute bottom-6 left-8 z-20">
-                                    <div className="text-white drop-shadow-lg">
+                                    <div className="text-white drop-shadow-lg"> */}
                                         {/* <div className="text-3xl font-black leading-none mb-1">{features[1].stats}</div> */}
-                                        {/* <p className="text-[10px] font-bold uppercase tracking-tighter opacity-70">Generation Daily</p> */}
+                                        {/* <p className="text-[10px] font-bold uppercase tracking-tighter opacity-70">Generation Daily</p>
                                     </div>
                                 </div>
                             </Link>
                         </motion.div>
 
-                        {/* Social Trends */}
+                        {/* Instagram Trends */}
                         <motion.div 
                             whileHover={{ y: -5 }}
-                            className="bg-[#FFD54F] rounded-[2.5rem] overflow-hidden group border border-white/20 shadow-xl relative cursor-pointer md:col-span-2"
+                            className="bg-[#1A1A1A] rounded-[2.5rem] overflow-hidden group border border-white/20 shadow-xl relative cursor-pointer"
                         >
                             <Link href={features[2].action} className="block w-full h-full relative">
                                 <div className="absolute top-6 left-8 z-20">
                                     <h3 className="text-4xl font-black text-white mb-2 drop-shadow-lg">{features[2].title}</h3>
-                                    <p className="text-white/70 font-bold uppercase tracking-widest text-xs drop-shadow-md">{features[2].description}</p>
+                                    <p className="text-accent-orange font-black text-[10px] uppercase tracking-[0.3em] drop-shadow-sm">{features[2].description}</p>
                                 </div>
                                 <div className="absolute top-6 right-8 z-20">
-                                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:bg-white group-hover:text-[#FFD54F] transition-all">
-                                        <ArrowUpRight className="w-5 h-5 text-white group-hover:text-[#FFD54F]" />
+                                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:bg-white group-hover:text-black transition-all">
+                                        <ArrowUpRight className="w-5 h-5 text-white group-hover:text-black" />
                                     </div>
                                 </div>
                                 {/* Stronger Dual Gradients */}
@@ -316,12 +316,8 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                     alt={features[2].title} 
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90" 
                                 />
-                                <div className="absolute bottom-6 left-8 z-20">
-                                    <div className="text-white drop-shadow-lg">
-                                        {/* <div className="text-3xl font-black leading-none mb-1">{features[2].stats}</div> */}
-                                        {/* <p className="text-[10px] font-bold uppercase tracking-tighter opacity-70">Trends Sync</p> */}
-                                    </div>
-                                </div>
+                                {/* Bottom Accent glow */}
+                                <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-accent-orange/10 rounded-full blur-[80px] z-0" />
                             </Link>
                         </motion.div>
 

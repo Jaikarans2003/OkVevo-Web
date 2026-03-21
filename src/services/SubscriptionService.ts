@@ -41,7 +41,7 @@ export interface SubscriptionWithPlanDetails extends SubscriptionData {
 export async function getUserSubscription(userId: string): Promise<SubscriptionWithPlanDetails | null> {
     if (!userId) return null;
 
-    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'true') {
+    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'false') {
         return {
             userId,
             planType: 'pro',
