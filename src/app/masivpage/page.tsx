@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ShoppingCart, Upload, Check, Trash2 } from 'lucide-react';
 import { useRef } from 'react';
-import MasivHero from '@/components/masiv/MasivHero';
+// import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 
 const products = [
@@ -170,17 +170,7 @@ export default function OkvevoMasivPage() {
             {/* Top Light Section to match photo style */}
             <div className="bg-[#0b0b0b] text-white pb-24 rounded-b-[80px] shadow-2xl relative z-10">
                 
-                {/* Minimal Subtle Grain Overlay for texture */}
-                <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[100] mix-blend-multiply"
-                    style={{ backgroundImage: `url("https://res.cloudinary.com/dlbvavyun/image/upload/v1711463133/noise_p8xkzm.png")` }}
-                />
-
-                {/* Main Content (Top Light Part) */}
-                <main className="pt-36 max-w-[1500px] mx-auto pb-12">
-                    {/* New Photo-Accurate Sections */}
-                    <MasivHero />
-                    <FeaturedShows />
-                </main>
+                
             </div>
 
             {/* Dark Section for Cards */}
@@ -191,9 +181,8 @@ export default function OkvevoMasivPage() {
                     <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
                         Explore Our Catalog
                     </p>
-                    <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
-                        "AI-Crafted Visuals,<br />
-                        Starting with You."
+                    <h1 className="text-6xl md:text-5xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
+                        "AI-Crafted Visuals, Starting with You."
                     </h1>
                 </header>
 
