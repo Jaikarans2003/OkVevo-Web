@@ -10,8 +10,8 @@ import FeaturedShows from '@/components/masiv/FeaturedShows';
 const products = [
     {
         id: '1',
-        name: 'Neon City Pack',
-        thumbnail: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=400&h=400&fit=crop',
+        name: 'Modern Mafia',
+        thumbnail: '/masiv/gangster.png',
         description: 'Cyberpunk cityscape assets for video production',
         price: 2999,
         badge1: '12-18 Yrs',
@@ -19,7 +19,7 @@ const products = [
     },
     {
         id: '2',
-        name: 'Luxury Minimal',
+        name: 'Winter Hour',
         thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=400&fit=crop',
         description: 'Clean, minimal backgrounds for product shots',
         price: 1999,
@@ -27,26 +27,8 @@ const products = [
         badge2: 'Clean'
     },
     {
-        id: '3',
-        name: 'Abstract Flow',
-        thumbnail: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=400&fit=crop',
-        description: 'Fluid abstract motion graphics pack',
-        price: 2499,
-        badge1: 'All Ages',
-        badge2: 'Motion'
-    },
-    {
         id: '4',
-        name: 'Nature Cinematic',
-        thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
-        description: 'Stunning nature footage and overlays',
-        price: 3499,
-        badge1: 'Pro',
-        badge2: 'Nature'
-    },
-    {
-        id: '5',
-        name: 'Tech HUD Elements',
+        name: 'Raw Glass',
         thumbnail: 'https://images.unsplash.com/photo-1535868463750-c78d9543614f?w=400&h=400&fit=crop',
         description: 'Futuristic UI elements and overlays',
         price: 2799,
@@ -54,8 +36,53 @@ const products = [
         badge2: 'HUD'
     },
     {
+        id: '5',
+        name: 'GTA Character',
+        thumbnail: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=400&fit=crop',
+        description: 'Fluid abstract motion graphics pack',
+        price: 2499,
+        badge1: 'All Ages',
+        badge2: 'Motion'
+    },
+    {
         id: '6',
-        name: 'Film Grain Collection',
+        name: 'Void Cast',
+        thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
+        description: 'Stunning nature footage and overlays',
+        price: 3499,
+        badge1: 'Pro',
+        badge2: 'Nature'
+    },
+    {
+        id: '7',
+        name: 'Apex Editorial Male',
+        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
+        description: 'Authentic film grain overlays for vintage look',
+        price: 1599,
+        badge1: 'Classic',
+        badge2: 'Vintage'
+    },
+    {
+        id: '8',
+        name: 'Vantaged',
+        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
+        description: 'Authentic film grain overlays for vintage look',
+        price: 1599,
+        badge1: 'Classic',
+        badge2: 'Vintage'
+    },
+    {
+        id: '9',
+        name: 'The Pause',
+        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
+        description: 'Authentic film grain overlays for vintage look',
+        price: 1599,
+        badge1: 'Classic',
+        badge2: 'Vintage'
+    },
+    {
+        id: '10',
+        name: 'Off Set',
         thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
         description: 'Authentic film grain overlays for vintage look',
         price: 1599,
@@ -187,7 +214,7 @@ export default function OkvevoMasivPage() {
                 </header>
 
                 {/* Vertical Normal Grid */}
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {products.map((product, index) => {
                         const cardBg = bgColors[index % bgColors.length];
                         const isOrange = cardBg === 'bg-[#FF6B35]';
@@ -196,8 +223,8 @@ export default function OkvevoMasivPage() {
                             <motion.div
                                 key={product.id}
                                 onClick={() => setSelectedCard(product.id)}
-                                // Min height of 740px to closely match the massive screenshot card height
-                                className={`group relative p-8 rounded-[40px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[740px] shadow-2xl ${cardBg}`}
+                                // Min height of 640px for a more compact 4-column layout
+                                className={`group relative p-8 rounded-[40px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[640px] shadow-2xl ${cardBg}`}
                                 whileHover={{ y: -8 }}
                                 whileTap={{ scale: 0.98 }}
                             >
@@ -230,7 +257,7 @@ export default function OkvevoMasivPage() {
                                 </div>
 
                                 {/* ---- MIDDLE THUMBNAIL (Mathematically Bounded) ---- */}
-                                <div className="relative w-full h-[380px] rounded-[30px] overflow-hidden z-0 mt-4 shrink-0">
+                                <div className="relative w-full h-[320px] rounded-[30px] overflow-hidden z-0 mt-4 shrink-0">
                                     <div className="w-full h-full relative rounded-[30px] overflow-hidden ring-4 ring-black/5 ring-inset">
                                         <img
                                             src={product.thumbnail}
