@@ -231,107 +231,10 @@ Rules:
 }
 
 // ────────────────────────────────────────────────────
-// Phrase-Based Caption System (libass)
+// ASS Subtitle Conversion (libass)
 // ────────────────────────────────────────────────────
 
-// Convert seconds to ASS time format (H:MM:SS.CS)
-function secondsToAssTime(sec) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = (sec % 60).toFixed(2);
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(5, '0')}`;
-}
-
-// Smart text wrapping for captions (max 18 chars per line)
-function smartWrapText(text) {
-    const words = text.split(' ');
-    let lines = [];
-    let current = '';
-
-    for (let word of words) {
-        if ((current + word).length > 18) {
-            lines.push(current.trim());
-            current = word + ' ';
-        } else {
-            current += word + ' ';
-        }
-    }
-
-    if (current.trim()) lines.push(current.trim());
-
-    return lines.join('\\N'); // ASS line break
-}
-
-// Group word-by-word chunks into natural phrases (2-4 sec duration)
-function groupWordsIntoPhrases(chunks) {
-    if (!chunks || chunks.length === 0) return [];
-
-    const phrases = [];
-    let currentPhrase = [];
-    let startTime = null;
-
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const [start, end] = getTimestamps(chunk);
-
-        if (startTime === null) startTime = start;
-
-        currentPhrase.push(chunk.text.trim());
-
-        const duration = end - startTime;
-        const wordCount = currentPhrase.length;
-
-        const shouldBreak =
-            duration >= 2.5 ||         // max duration
-            wordCount >= 6 ||         // max words
-            chunk.text.includes('.') || 
-            chunk.text.includes(',') ||
-            chunk.text.includes('!');
-
-        if (shouldBreak || i === chunks.length - 1) {
-            phrases.push({
-                text: currentPhrase.join(' '),
-                start: startTime,
-                end: end
-            });
-
-            currentPhrase = [];
-            startTime = null;
-        }
-    }
-
-    return phrases;
-}
-
-// Convert phrases to ASS format with premium pill-style captions
-function phrasesToAss(phrases) {
-    let ass = `[Script Info]
-Title: AI Influencer Captions
-ScriptType: v4.00+
-PlayResX: 360
-PlayResY: 640
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,Helvetica Neue,42,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,0,0,0,0,100,105,0.5,0,3,0,0,2,30,30,120,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-`;
-
-    phrases.forEach(p => {
-        const start = secondsToAssTime(p.start);
-        const end = secondsToAssTime(p.end);
-        const wrapped = smartWrapText(p.text);
-
-        ass += `Dialogue: 0,${start},${end},Default,,0,0,0,,${wrapped}\n`;
-    });
-
-    return ass;
-}
-
-// Legacy SRT time converter (kept for backward compatibility)
+// Convert SRT time format (00:00:01,500) to ASS format (0:00:01.50)
 function srtTimeToAss(srtTime) {
     const normalized = srtTime.trim().replace(',', '.');
     const parts = normalized.split(':');
@@ -340,31 +243,36 @@ function srtTimeToAss(srtTime) {
         const hours = parseInt(parts[0], 10);
         const minutes = parts[1];
         const seconds = parseFloat(parts[2]).toFixed(2);
+        
+        // ASS format: H:MM:SS.CS (centiseconds)
         return `${hours}:${minutes}:${seconds}`;
     }
     
     return '0:00:00.00';
 }
 
-// Legacy SRT to ASS converter (fallback for pre-built SRT files)
+// Convert SRT to ASS format with custom styling
 function convertSrtToAss(srtPath) {
     const srtContent = fs.readFileSync(srtPath, 'utf8');
     
+    // ASS header with styling optimized for 360x640 vertical video
     let ass = `[Script Info]
 Title: AI Influencer Captions
 ScriptType: v4.00+
+WrapStyle: 0
 PlayResX: 360
 PlayResY: 640
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
-Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,Helvetica Neue,42,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,0,0,0,0,100,105,0.5,0,3,0,0,2,30,30,120,1
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Montserrat SemiBold,42,&H00FFFFFF,&H000000FF,&H00000000,&HCC000000,0,0,0,0,100,105,0.5,0,3,0,0,2,30,30,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
+    // Parse SRT and convert to ASS
     const blocks = srtContent.split(/\r?\n\r?\n/).filter(b => b.trim());
     
     blocks.forEach(block => {
@@ -374,7 +282,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if (timeParts.length === 2) {
                 const start = srtTimeToAss(timeParts[0]);
                 const end = srtTimeToAss(timeParts[1]);
-                const text = lines.slice(2).join('\\N');
+                const text = lines.slice(2).join('\\N'); // \N is line break in ASS
                 
                 ass += `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}\n`;
             }
@@ -388,16 +296,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 // FFmpeg Compositing
 // ────────────────────────────────────────────────────
 
-function compositeImagesOnVideo(videoPath, images, outputPath, assPath = null) {
+function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
     return new Promise(async (resolve, reject) => {
         const hasImages = images && images.length > 0;
 
-        if (!hasImages && !assPath) {
+        if (!hasImages && !srtPath) {
             fs.copyFileSync(videoPath, outputPath);
             return resolve();
         }
 
-        console.log(`🖼️ Compositing ${hasImages ? images.length : 0} images and ${assPath ? 'phrase-based captions' : 'no subtitles'} onto video...`);
+        console.log(`🖼️ Compositing ${hasImages ? images.length : 0} images and ${srtPath ? 'subtitles' : 'no subtitles'} onto video...`);
 
         const args = ['-i', videoPath];
         if (hasImages) {
@@ -481,19 +389,36 @@ function compositeImagesOnVideo(videoPath, images, outputPath, assPath = null) {
             finalFilterComplex += ';' + audioFilterComplex.replace(/;$/, '');
         }
 
-        if (assPath && fs.existsSync(assPath)) {
+        // Download font for libass rendering
+        let assPath = null;
+        if (srtPath && fs.existsSync(srtPath)) {
             try {
-                const assContent = fs.readFileSync(assPath, 'utf8');
-                const eventCount = assContent.split('\n').filter(line => line.startsWith('Dialogue:')).length;
-                console.log(`✅ Applying ${eventCount} phrase-based captions with libass`);
+                // Download Montserrat SemiBold font to /tmp
+                const fontPath = '/tmp/Montserrat-SemiBold.ttf';
+                if (!fs.existsSync(fontPath)) {
+                    console.log('📥 Downloading Montserrat SemiBold font...');
+                    const fontBuf = await downloadFromUrl('https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-SemiBold.ttf');
+                    fs.writeFileSync(fontPath, fontBuf);
+                    console.log('✅ Font downloaded to /tmp');
+                }
+
+                // Convert SRT to ASS format for libass rendering
+                assPath = `/tmp/${Date.now()}-captions.ass`;
+                const assContent = convertSrtToAss(srtPath);
+                fs.writeFileSync(assPath, assContent, 'utf8');
                 
-                // Use subtitles filter with libass for premium caption rendering
-                finalFilterComplex += `;[outv]subtitles='${assPath}':fontsdir=/tmp[outv_subs]`;
+                const eventCount = assContent.split('\n').filter(line => line.startsWith('Dialogue:')).length;
+                console.log(`✅ Generated ASS subtitle file with ${eventCount} dialogue events`);
                 
             } catch (err) {
-                console.error('⚠️ Failed to apply ASS subtitles:', err.message);
+                console.error('⚠️ Failed to generate ASS subtitles:', err.message);
                 assPath = null;
             }
+        }
+
+        // Add subtitles to the end of filter_complex chain
+        if (assPath) {
+            finalFilterComplex += `;[outv]subtitles=${assPath}:fontsdir=/tmp[outv_subs]`;
         }
 
         const videoMap = assPath ? '[outv_subs]' : '[outv]';
@@ -605,58 +530,49 @@ exports.handler = async (event) => {
             }
         }
 
-        // Handle subtitles — priority: Whisper Phrases > remoteSrtPath > Gemini
-        let localAssPath = null;
+        // Handle subtitles — priority: remoteSrtPath > Whisper > Gemini
+        let localSrtPath = null;
         
-        // Option 1: Use Whisper transcription chunks (PREFERRED - Phrase-based)
-        if (transcriptionChunks && transcriptionChunks.length > 0) {
+        // Option 1: Pre-built SRT provided
+        if (remoteSrtPath) {
             try {
-                console.log(`🎬 Generating phrase-based captions from ${transcriptionChunks.length} word chunks`);
-                const phrases = groupWordsIntoPhrases(transcriptionChunks);
-                console.log(`✅ Grouped into ${phrases.length} natural phrases`);
-                
-                const assContent = phrasesToAss(phrases);
-                localAssPath = `/tmp/${jobId}-captions.ass`;
-                fs.writeFileSync(localAssPath, assContent, 'utf8');
-                console.log(`✅ Phrase-based ASS captions written to ${localAssPath}`);
+                console.log('📄 Got remoteSrtPath:', remoteSrtPath);
+                if (remoteSrtPath.startsWith('http')) {
+                    const srtBuf = await downloadFromUrl(remoteSrtPath);
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    fs.writeFileSync(localSrtPath, srtBuf);
+                    console.log('✅ Downloaded SRT from remoteSrtPath');
+                }
             } catch (err) {
-                console.warn('⚠️ Failed to generate phrase-based captions:', err.message);
+                console.warn('⚠️ Could not download SRT:', err.message);
             }
         }
         
-        // Option 2: Pre-built SRT provided (fallback to legacy conversion)
-        if (!localAssPath && remoteSrtPath) {
+        // Option 2: Use Whisper transcription (NEW - PREFERRED)
+        if (!localSrtPath && transcriptionChunks && transcriptionChunks.length > 0) {
             try {
-                console.log('� Got remoteSrtPath, using legacy SRT conversion:', remoteSrtPath);
-                if (remoteSrtPath.startsWith('http')) {
-                    const srtBuf = await downloadFromUrl(remoteSrtPath);
-                    const localSrtPath = `/tmp/${jobId}-captions.srt`;
-                    fs.writeFileSync(localSrtPath, srtBuf);
-                    
-                    const assContent = convertSrtToAss(localSrtPath);
-                    localAssPath = `/tmp/${jobId}-captions.ass`;
-                    fs.writeFileSync(localAssPath, assContent, 'utf8');
-                    console.log('✅ Converted SRT to ASS format');
+                console.log(`📝 Using Whisper transcription for subtitles (${transcriptionChunks.length} chunks)`);
+                const srtContent = whisperChunksToSrt(transcriptionChunks);
+                if (srtContent) {
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    fs.writeFileSync(localSrtPath, srtContent, 'utf8');
+                    console.log(`✅ Whisper SRT written to ${localSrtPath}`);
                 }
             } catch (err) {
-                console.warn('⚠️ Could not process SRT:', err.message);
+                console.warn('⚠️ Failed to convert Whisper to SRT:', err.message);
             }
         }
 
-        // Option 3: Fallback to Gemini (only if no Whisper or SRT available)
-        if (!localAssPath && audioUrl) {
+        // Option 3: Fallback to Gemini (only if Whisper not available)
+        if (!localSrtPath && audioUrl) {
             try {
                 console.log('⚠️ No Whisper data - falling back to Gemini for captions...');
                 const audioBuffer = await downloadFromUrl(audioUrl);
                 const srtContent = await generateCaptionsWithGemini(audioBuffer);
                 if (srtContent) {
-                    const localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
                     fs.writeFileSync(localSrtPath, srtContent, 'utf8');
-                    
-                    const assContent = convertSrtToAss(localSrtPath);
-                    localAssPath = `/tmp/${jobId}-captions.ass`;
-                    fs.writeFileSync(localAssPath, assContent, 'utf8');
-                    console.log(`✅ Gemini captions converted to ASS format`);
+                    console.log(`✅ Gemini captions written to ${localSrtPath}`);
                 }
             } catch (err) {
                 console.warn('⚠️ Failed to generate Gemini captions:', err.message);
@@ -665,7 +581,7 @@ exports.handler = async (event) => {
 
         // 2. FFmpeg Rendering
         const finalLocalPath = `/tmp/${jobId}-final.mp4`;
-        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localAssPath);
+        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localSrtPath);
 
         // 3. Upload to Firebase
         const finalBuffer = fs.readFileSync(finalLocalPath);
@@ -681,7 +597,7 @@ exports.handler = async (event) => {
 
         // Cleanup temp files
         const filesToCleanup = [
-            lipSyncPath, finalLocalPath, localAssPath,
+            lipSyncPath, finalLocalPath, localSrtPath,
             ...sfxPaths,
             ...downloadedImages.map(img => img.localPath)
         ].filter(Boolean);
