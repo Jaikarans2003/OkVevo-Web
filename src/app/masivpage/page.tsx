@@ -52,6 +52,18 @@ const products = [
     },
     {
         id: '4',
+        name: 'Sky fall',
+        type: 'video',
+        thumbnails: [
+            '/masiv/skyfall.mov',
+        ],
+        description: 'Experience the thrill of freefall with cinematic sky-high visuals.',
+        price: 2799,
+        badge1: 'UNISEX',
+        badge2: 'HUD'
+    },
+    {
+        id: '5',
         name: 'Hero v/s monster ',
         type: 'video',
         thumbnails: [
@@ -63,7 +75,7 @@ const products = [
         badge2: 'Clean'
     },
     {
-        id: '5',
+        id: '6',
         name: 'Raw Glass',
         type: 'photo',
         thumbnails: [
@@ -76,7 +88,7 @@ const products = [
         badge2: 'HUD'
     },
     {
-        id: '6',
+        id: '7',
         name: 'GTA Character',
         type: 'photo',
         thumbnails: [
@@ -89,7 +101,7 @@ const products = [
         badge2: 'Motion'
     },
     {
-        id: '7',
+        id: '8',
         name: 'Void Cast',
         type: 'photo',
         thumbnails: [
@@ -102,7 +114,7 @@ const products = [
         badge2: 'Nature'
     },
     {
-        id: '8',
+        id: '9',
         name: 'Apex Editorial',
         type: 'photo',
         thumbnails: ['/masiv/apex1.png', '/masiv/apex1f.png', '/masiv/apex2.png', '/masiv/apex3f.png', '/masiv/apex3.png'],
@@ -112,7 +124,7 @@ const products = [
         badge2: 'Editorial'
     },
     {
-        id: '9',
+        id: '10',
         name: 'Vantaged',
         type: 'photo',
         thumbnails: ['/masiv/vantage1m.png', '/masiv/van1f.png', '/masiv/vantagedmale.png', '/masiv/van2f.png'],
@@ -122,7 +134,7 @@ const products = [
         badge2: 'Vintage'
     },
     {
-        id: '10',
+        id: '11',
         name: 'The Pause',
         type: 'photo',
         thumbnails: [
@@ -135,7 +147,7 @@ const products = [
         badge2: 'Slow-Mo'
     },
     {
-        id: '11',
+        id: '12',
         name: 'Off Set',
         type: 'photo',
         thumbnails: [
@@ -558,7 +570,7 @@ export default function OkvevoMasivPage() {
                         onTryTrend={(item) => setSelectedCard(item.id)}
                         items={[
                             {
-                                id: '7',
+                                id: '8',
                                 title: '"VOID <br/> CAST"',
                                 image: "/masiv/voidmale.png",
                                 description: "Dive into dark, mysterious visuals with cinematic depth.",
@@ -572,7 +584,7 @@ export default function OkvevoMasivPage() {
                                 badge: "Trending Now"
                             },
                             {
-                                id: '6',
+                                id: '7',
                                 title: '"GTA <br/> CHARACTER"',
                                 image: "/masiv/gtamale.png",
                                 description: "Step into a GTA-style world with ultra-real character visuals and high-fidelity detail.",

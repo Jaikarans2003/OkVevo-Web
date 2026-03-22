@@ -135,52 +135,89 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                 {/* --- MAIN BENTO GRID --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 auto-rows-[340px]">
                     
-                    {/* CARD 1: PLATFORM OFFERING (Top Left - Wide) */}
+                    {/* CARD 1A: PLATFORM OFFERING (Top Left 1) */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        whileHover={{ scale: 1.01 }}
-                        className="lg:col-span-8 bg-[#111111] rounded-[2.5rem] p-10 flex flex-col justify-between relative overflow-hidden group border border-white/20 shadow-2xl"
+                        whileHover={{ y: -5 }}
+                        className="lg:col-span-4 bg-[#111111] rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden group border border-white/10 shadow-2xl"
                     >
-                        <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="relative z-10 h-full flex flex-col justify-between">
                             <div>
-                                <div className="flex items-center gap-3 mb-8">
+                                <div className="flex items-center gap-3 mb-6">
                                     <div className="w-10 h-10 rounded-2xl bg-accent-orange/10 border border-accent-orange/20 flex items-center justify-center">
                                         <Sparkles className="text-accent-orange size-5" />
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-bold text-sm tracking-tight uppercase">Platform Offering</h4>
-                                        <p className="text-white/30 text-[10px] font-medium uppercase tracking-[0.2em]">Next-Gen Studio</p>
+                                        <h4 className="text-white font-bold text-sm tracking-tight uppercase">Platform</h4>
+                                        <p className="text-white/30 text-[10px] font-medium uppercase tracking-[0.2em]">Next-Gen</p>
                                     </div>
                                 </div>
 
-                                <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tighter leading-[0.95] mb-6">
-                                    Generate <span className="text-accent-orange">Cinematic AI</span> <br/> Content in seconds.
+                                <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tighter leading-[1] mb-4">
+                                    Generate <span className="text-accent-orange">Cinematic AI</span> Content.
                                 </h1>
 
-                                <p className="max-w-md text-white/50 text-sm leading-relaxed font-light">
-                                    Push the boundaries of storytelling with our suite of AI tools. From cinematic trailers to viral trends, we provide everything you need to scale your vision.
+                                <p className="text-white/50 text-[13px] leading-relaxed font-light">
+                                    Push the boundaries of storytelling. Everything you need to scale your vision.
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-6 mt-8">
+                            <div className="flex items-center gap-4 mt-6">
                                 <div className="flex -space-x-3">
-                                    {[1, 2, 3, 4].map((i) => (
-                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-[#111111] bg-white/10 overflow-hidden">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="w-8 h-8 rounded-full border-2 border-[#111111] bg-white/10 overflow-hidden">
                                             <img src={`/WorkSpacePhotos/${i}.png`} onError={(e) => (e.currentTarget.src = `/WorkSpacePhotos/${i}.jpg`)} className="w-full h-full object-cover" />
                                         </div>
                                     ))}
                                 </div>
-                                <div className="h-10 w-px bg-white/10" />
+                                <div className="h-8 w-px bg-white/10" />
                                 <div>
                                     <p className="text-white font-bold text-sm leading-none">10k+</p>
-                                    <p className="text-white/30 text-[10px] uppercase font-bold tracking-widest mt-1">Generations</p>
+                                    <p className="text-white/30 text-[9px] uppercase font-bold tracking-widest mt-1">Gens</p>
                                 </div>
                             </div>
                         </div>
-                        
-                        {/* Interactive Shine */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-accent-orange/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                    </motion.div>
+
+                    {/* CARD 1B: PRODUCT STUDIO (Top Left 2) */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, delay: 0.1 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        whileHover={{ scale: 1.02 }}
+                        className="lg:col-span-4 bg-[#A8E6CF] rounded-[2.5rem] relative overflow-hidden group shadow-2xl cursor-pointer"
+                    >
+                        {/* Decorative Background Image / Pattern */}
+                        <div className="absolute inset-0 pointer-events-none group-hover:scale-110 transition-transform duration-1000 ease-out">
+                            <img src="/WorkSpacePhotos/2.jpg" alt="Product Studio" className="w-full h-full object-cover opacity-90 mix-blend-multiply" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-[#A8E6CF]/90 via-[#A8E6CF]/40 to-[#0A261D]/90" />
+                        </div>
+                        
+                        <Link href="/workspace/product" className="relative z-10 w-full h-full p-8 flex flex-col justify-between block group/link">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 text-[#0A261D] font-black text-[10px] uppercase tracking-[0.2em] bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#0A261D]/10">
+                                    <Camera size={12} className="text-[#0A261D]" /> Brand Boost
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-[#0A261D] border border-white/50 group-hover/link:bg-white group-hover/link:rotate-45 transition-all duration-300">
+                                    <ArrowUpRight className="size-5" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-[2.2rem] font-black text-white tracking-tighter leading-[0.9] mb-3 drop-shadow-md group-hover/link:translate-x-2 transition-transform duration-300">
+                                    Product <br /> Studio.
+                                </h3>
+                                <p className="text-white/90 text-[13px] font-medium leading-relaxed max-w-[220px] drop-shadow-sm group-hover/link:text-white transition-colors duration-300">
+                                    Elevate your products with AI-generated cinematic environments and premium lighting.
+                                </p>
+                            </div>
+
+                            {/* Floating Microinteractions */}
+                            <div className="absolute right-4 bottom-24 w-12 h-12 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-500 shadow-xl pointer-events-none">
+                                <Palette className="text-white size-5" />
+                            </div>
+                        </Link>
                     </motion.div>
 
                     {/* CARD 2: PERSONA / AVATAR (Top Right - Small) */}
@@ -213,49 +250,49 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         whileHover={{ y: -5 }}
-                        className="lg:col-span-4 bg-[#FF6B35] rounded-[2.5rem] p-10 flex flex-col justify-between relative overflow-hidden group shadow-2xl cursor-pointer"
+                        className="lg:col-span-4 bg-[#FF6B35] rounded-[2.5rem] overflow-hidden group shadow-2xl cursor-pointer"
                     >
-                        <Link href="/workspace/ai-influencer" className="absolute inset-0 z-10" />
-                        
-                        <div className="relative z-10 h-full flex flex-col justify-between">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2 text-black/60 font-black text-[9px] uppercase tracking-[0.3em]">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
-                                    High Scale
+                        <Link href="/workspace/ai-influencer" className="w-full h-full relative p-10 flex flex-col justify-between block overflow-hidden">
+                            <div className="relative z-10 h-full flex flex-col justify-between pointer-events-none">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-2 text-black/60 font-black text-[9px] uppercase tracking-[0.3em]">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
+                                        High Scale
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-orange-500 transition-all pointer-events-auto">
+                                        <ArrowUpRight className="size-4" />
+                                    </div>
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-orange-500 transition-all">
-                                    <ArrowUpRight className="size-4" />
+                                
+                                <div className="pointer-events-auto">
+                                    <h2 className="text-[2.75rem] font-bold text-black tracking-tighter leading-[0.9] mb-4">
+                                        AI <br/> Influencer <br/> Studio.
+                                    </h2>
+                                    <p className="text-black/70 text-[13px] font-bold leading-relaxed max-w-[200px]">
+                                        Build your digital twin and scale your persona infinitely.
+                                    </p>
                                 </div>
-                            </div>
-                            
-                            <div>
-                                <h2 className="text-[2.75rem] font-bold text-black tracking-tighter leading-[0.9] mb-4">
-                                    AI <br/> Influencer <br/> Studio.
-                                </h2>
-                                <p className="text-black/70 text-[13px] font-bold leading-relaxed max-w-[200px]">
-                                    Build your digital twin and scale your persona infinitely.
-                                </p>
+
+                                {/* Refined Floating Visual Modules */}
+                                <div className="absolute top-24 -right-4 w-20 h-20 opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity duration-700">
+                                    <Sparkles className="text-black size-full" />
+                                </div>
+                                
+                                <div className="relative h-16 flex items-center gap-4 mt-4 pointer-events-none">
+                                    <motion.div 
+                                        animate={{ y: [0, -4, 0], rotate: [0, 5, 0] }}
+                                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                        className="w-12 h-12 bg-black/10 backdrop-blur-xl rounded-2xl border border-black/5 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
+                                    >
+                                        <Video className="text-black/60 size-6" />
+                                    </motion.div>
+                                    <div className="h-px bg-black/10 flex-1" />
+                                </div>
                             </div>
 
-                            {/* Refined Floating Visual Modules */}
-                            <div className="absolute top-24 -right-4 w-20 h-20 opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity duration-700">
-                                <Sparkles className="text-black size-full" />
-                            </div>
-                            
-                            <div className="relative h-16 flex items-center gap-4 mt-4">
-                                <motion.div 
-                                    animate={{ y: [0, -4, 0], rotate: [0, 5, 0] }}
-                                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                    className="w-12 h-12 bg-black/10 backdrop-blur-xl rounded-2xl border border-black/5 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
-                                >
-                                    <Video className="text-black/60 size-6" />
-                                </motion.div>
-                                <div className="h-px bg-black/10 flex-1" />
-                            </div>
-                        </div>
-
-                        {/* Interactive Grid Overlay */}
-                        <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity pointer-events-none" style={{ backgroundImage: 'radial-gradient(black 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                            {/* Interactive Grid Overlay */}
+                            <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity pointer-events-none" style={{ backgroundImage: 'radial-gradient(black 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                        </Link>
                     </motion.div>
 
                     {/* CARD 4: VIRAL TRENDS (Bottom Right - Horizontal Split Layout) */}
