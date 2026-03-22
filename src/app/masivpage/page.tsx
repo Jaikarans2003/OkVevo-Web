@@ -15,85 +15,146 @@ const products = [
     {
         id: '1',
         name: 'Modern Mafia',
-        thumbnail: '/masiv/gangster.png',
-        description: 'Cyberpunk cityscape assets for video production',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/Gangster.png',
+            '/masiv/gangsterfemale.png'
+        ],
+        description: 'Own the streets with bold, cinematic mafia energy.',
         price: 2999,
         badge1: 'UNISEX',
         badge2: 'Trending'
     },
     {
         id: '2',
+        name: 'Warrior fighting',
+        type: 'video',
+        thumbnails: [
+            '/masiv/horseback.mov',
+        ],
+        description: 'Unleash raw warrior power in every intense frame.',
+        price: 1999,
+        badge1: 'UNISEX',
+        badge2: 'Clean'
+    },
+    {
+        id: '3',
         name: 'Winter Hour',
-        thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=400&fit=crop',
-        description: 'Clean, minimal backgrounds for product shots',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/winterHourmale.png',
+            '/masiv/winterfemale.png'
+        ],
+        description: 'Capture calm, aesthetic winter vibes with soft elegance.',
         price: 1999,
         badge1: 'UNISEX',
         badge2: 'Clean'
     },
     {
         id: '4',
+        name: 'Hero v/s monster ',
+        type: 'video',
+        thumbnails: [
+            '/masiv/hero.mov',
+        ],
+        description: 'Experience epic hero vs monster battles like never before.',
+        price: 1999,
+        badge1: 'UNISEX',
+        badge2: 'Clean'
+    },
+    {
+        id: '5',
         name: 'Raw Glass',
-        thumbnail: 'https://images.unsplash.com/photo-1535868463750-c78d9543614f?w=400&h=400&fit=crop',
-        description: 'Futuristic UI elements and overlays',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/rawmale.png',
+            '/masiv/rawfemale.png'
+        ],
+        description: 'Sleek glass visuals that redefine modern minimal aesthetics.',
         price: 2799,
         badge1: 'UNISEX',
         badge2: 'HUD'
     },
     {
-        id: '5',
+        id: '6',
         name: 'GTA Character',
-        thumbnail: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=400&fit=crop',
-        description: 'Fluid abstract motion graphics pack',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/gtamale.png',
+            '/masiv/gtafemale.png'
+        ],
+        description: 'Step into a GTA-style world with ultra-real character visuals.',
         price: 2499,
         badge1: 'UNISEX',
         badge2: 'Motion'
     },
     {
-        id: '6',
+        id: '7',
         name: 'Void Cast',
-        thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
-        description: 'Stunning nature footage and overlays',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/voidmale.png',
+            '/masiv/voidfemale.png'
+        ],
+        description: 'Dive into dark, mysterious visuals with cinematic depth.',
         price: 3499,
         badge1: 'UNISEX',
         badge2: 'Nature'
     },
     {
-        id: '7',
-        name: 'Apex Editorial Male',
-        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
-        description: 'Authentic film grain overlays for vintage look',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Vintage'
-    },
-    {
         id: '8',
-        name: 'Vantaged',
-        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
-        description: 'Authentic film grain overlays for vintage look',
+        name: 'Apex Editorial',
+        type: 'photo',
+        thumbnails: ['/masiv/apex1.png', '/masiv/apex1f.png', '/masiv/apex2.png', '/masiv/apex3f.png', '/masiv/apex3.png'],
+        description: 'Create magazine-worthy looks with premium editorial style.',
         price: 1599,
         badge1: 'UNISEX',
-        badge2: 'Vintage'
+        badge2: 'Editorial'
     },
     {
         id: '9',
-        name: 'The Pause',
-        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
-        description: 'Authentic film grain overlays for vintage look',
+        name: 'Vantaged',
+        type: 'photo',
+        thumbnails: ['/masiv/vantage1m.png', '/masiv/van1f.png', '/masiv/vantagedmale.png', '/masiv/van2f.png'],
+        description: 'Bring timeless vintage aesthetics to life effortlessly.',
         price: 1599,
         badge1: 'UNISEX',
         badge2: 'Vintage'
     },
     {
         id: '10',
-        name: 'Off Set',
-        thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=400&fit=crop',
-        description: 'Authentic film grain overlays for vintage look',
+        name: 'The Pause',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/pausemale.png',
+            '/masiv/pausefemale.png'
+        ],
+        description: 'Freeze powerful emotions in stunning slow-motion moments.',
         price: 1599,
         badge1: 'UNISEX',
-        badge2: 'Vintage'
+        badge2: 'Slow-Mo'
+    },
+    {
+        id: '11',
+        name: 'Off Set',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/offmale.png',
+            '/masiv/offfemale.png'
+        ],
+        description: 'Capture raw, authentic studio moments with creative edge.',
+        price: 1599,
+        badge1: 'UNISEX',
+        badge2: 'Studio'
     },
 ];
+ 
+const isVideo = (url: string) => {
+    return url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm') || url.toLowerCase().endsWith('.mov');
+};
+
+import { useMemo } from 'react';
+import { Search } from 'lucide-react';
 
 const bgColors = [
     'bg-[#FF6A00]', // Bright Orange
@@ -111,12 +172,204 @@ interface CartItem {
     price: number;
 }
 
+const ThumbnailScroller = ({ images }: { images: string[] }) => {
+    const [index, setIndex] = useState(0);
+    useEffect(() => {
+        
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % images.length);
+        }, 4000); // Shift every 4 seconds
+        return () => clearInterval(interval);
+    }, [images.length]);
+
+
+    const getLabel = (idx: number) => {
+        if (images.length === 2) {
+            return idx === 0 ? "MALE" : "FEMALE";
+        }
+        return `PREVIEW ${idx + 1}`;
+    };
+
+    return (
+        <div className="w-full h-full relative bg-black">
+            <AnimatePresence>
+                <motion.div
+                    key={index}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                    className="absolute inset-0 w-full h-full"
+                >
+                    {isVideo(images[index]) ? (
+                        <video
+                            src={images[index]}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            className="w-full h-full object-cover rounded-[30px]"
+                        />
+                    ) : (
+                        <img
+                            src={images[index]}
+                            alt={`Preview ${index}`}
+                            className="w-full h-full object-cover rounded-[30px]"
+                        />
+                    )}
+                    {/* Floating Label */}
+                    <div className="absolute top-4 left-4 z-20">
+                        <span className="bg-black/60 backdrop-blur-md text-[9px] font-black text-white px-3 py-1 rounded-full border border-white/10 tracking-[0.2em] uppercase">
+                            {getLabel(index)}
+                        </span>
+                    </div>
+                </motion.div>
+            </AnimatePresence>
+            
+            {/* Visual Indicator Dots */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                {images.map((_, i) => (
+                    <div 
+                        key={i} 
+                        className={`h-1 rounded-full transition-all duration-700 ${
+                            i === index ? 'w-6 bg-[#FF6B35]' : 'w-2 bg-white/30'
+                        }`} 
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (product: any) => void }) => {
+    const [index, setIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % items.length);
+        }, 6000); // Swipe every 6 seconds
+        return () => clearInterval(interval);
+    }, [items.length]);
+
+    return (
+        <div className="relative w-full h-[500px] md:h-[700px] rounded-[48px] overflow-hidden group shadow-2xl border border-white/5 bg-[#0a0a0a]">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 1.5, ease: [0.23, 1, 0.32, 1] }}
+                    className="absolute inset-0 w-full h-full"
+                >
+                    {/* Background Layer */}
+                    {isVideo(items[index].image) ? (
+                        <video 
+                            src={items[index].image} 
+                            autoPlay 
+                            muted 
+                            loop 
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover opacity-85 transition-transform duration-[8000ms] scale-100 group-hover:scale-110"
+                        />
+                    ) : (
+                        <img 
+                            src={items[index].image} 
+                            alt={items[index].title} 
+                            className="absolute inset-0 w-full h-full object-cover opacity-85 transition-transform duration-[6000ms] scale-100 group-hover:scale-110"
+                        />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-50" />
+
+                    {/* Content Layer */}
+                    <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-20 max-w-2xl">
+                        <motion.span 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.5 }}
+                            className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-xs mb-6 inline-flex items-center gap-2"
+                        >
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
+                            {items[index].badge || "Featured Collection"}
+                        </motion.span>
+                        <motion.h2 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7 }}
+                            className="text-5xl md:text-7xl font-black tracking-tighter text-white mb-8 leading-[0.9]"
+                        >
+                            {items[index].title.split('<br/>')[0]} <br/> 
+                            <span className="text-white/40">{items[index].title.split('<br/>')[1]}</span>
+                        </motion.h2>
+                        <motion.p 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.9 }}
+                            className="text-gray-300 text-lg md:text-xl mb-12 max-w-md leading-relaxed"
+                        >
+                            {items[index].description}
+                        </motion.p>
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 1.1 }}
+                            className="flex flex-wrap gap-4"
+                        >
+                            <button 
+                                onClick={() => onTryTrend(items[index])}
+                                className="px-10 py-5 bg-[#FF6B35] hover:bg-[#FF8B55] text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl hover:shadow-[#FF6B35]/20 flex items-center gap-3 group/btn"
+                            >
+                                Try Trend <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><Plus className="w-4 h-4" /></motion.div>
+                            </button>
+                        </motion.div>
+                    </div>
+                </motion.div>
+            </AnimatePresence>
+
+            {/* Carousel Nav Dots */}
+            <div className="absolute bottom-10 right-10 flex gap-3 z-30">
+                {items.map((_, i) => (
+                    <button
+                        key={i}
+                        onClick={() => setIndex(i)}
+                        className={`h-1.5 rounded-full transition-all duration-700 ${
+                            i === index ? 'w-12 bg-[#FF6B35]' : 'w-3 bg-white/20'
+                        }`}
+                    />
+                ))}
+            </div>
+
+            {/* Visual Decorative elements */}
+            <div className="absolute top-10 right-10 hidden lg:block">
+                <div className="w-40 h-40 border border-white/10 rounded-full flex items-center justify-center p-4 backdrop-blur-sm animate-reel-spin">
+                    <div className="w-full h-full border-t-2 border-[#FF6B35] rounded-full" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-[#FF6B35] font-black text-[10px] tracking-widest uppercase rotate-12">
+                    Premium 2026
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function OkvevoMasivPage() {
     const { user } = useAuth();
     const [selectedCard, setSelectedCard] = useState<string | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showCart, setShowCart] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<'all' | 'photo' | 'video'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredProducts = useMemo(() => {
+        return products.filter(product => {
+            const matchesCategory = activeFilter === 'all' || product.type === activeFilter;
+            const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                product.description.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [activeFilter, searchQuery]);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
@@ -287,10 +540,10 @@ export default function OkvevoMasivPage() {
             </div>
 
             {/* Dark Section for Cards */}
-            <main className="max-w-[1500px] mx-auto pb-24 relative z-0">
+            <main className="max-w-[1400px] mx-auto pb-24 relative z-0">
                 
                 {/* Header Title Space (Optionally kept or moved) */}
-                <header className="mb-12 md:mb-24 px-10 text-center">
+                <header className="mb-12 md:mb-8 px-10 text-center mt-10">
                     <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
                         Explore Our Catalog
                     </p>
@@ -299,9 +552,81 @@ export default function OkvevoMasivPage() {
                     </h1>
                 </header>
 
+                {/* Featured Trends Section */}
+                <section className="px-6 md:px-10 mb-16">
+                    <FeaturedCarousel 
+                        onTryTrend={(item) => setSelectedCard(item.id)}
+                        items={[
+                            {
+                                id: '7',
+                                title: '"VOID <br/> CAST"',
+                                image: "/masiv/voidmale.png",
+                                description: "Dive into dark, mysterious visuals with cinematic depth.",
+                                badge: "Featured Collection"
+                            },
+                            {
+                                id: '2',
+                                title: '"WARRIOR <br/> FIGHTING"',
+                                image: "/masiv/horseback.mov",
+                                description: "Unleash raw warrior power in every intense frame. Cinematic battle environments for a professional look.",
+                                badge: "Trending Now"
+                            },
+                            {
+                                id: '6',
+                                title: '"GTA <br/> CHARACTER"',
+                                image: "/masiv/gtamale.png",
+                                description: "Step into a GTA-style world with ultra-real character visuals and high-fidelity detail.",
+                                badge: "Fan Favourite"
+                            }
+                        ]}
+                    />
+                </section>
+
+                {/* Filter & Search Control Bar */}
+                <section className="px-10 mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
+                    {/* Category Tabs */}
+                    <div className="flex bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
+                        {['all', 'photo', 'video'].map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => setActiveFilter(type as any)}
+                                className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                                    activeFilter === type 
+                                    ? 'bg-[#FF6B35] text-white shadow-lg' 
+                                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                                }`}
+                            >
+                                {type}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative w-full md:w-96 group">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                            <Search className={`w-4 h-4 transition-colors duration-300 ${searchQuery ? 'text-[#FF6B35]' : 'text-white/20'}`} />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search trends..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 text-white pl-14 pr-12 py-4 rounded-2xl outline-none focus:border-[#FF6B35]/50 focus:bg-white/10 transition-all font-bold text-sm placeholder:text-white/20"
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery('')}
+                                className="absolute inset-y-0 right-4 flex items-center p-2 text-white/30 hover:text-white transition-colors"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </section>
+
                 {/* Vertical Normal Grid (4 columns) */}
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {products.map((product, index) => {
+                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filteredProducts.map((product, index) => {
                         const cardBg = bgColors[index % bgColors.length];
                         const isOrange = cardBg === 'bg-[#FF6B35]';
 
@@ -310,12 +635,12 @@ export default function OkvevoMasivPage() {
                                 key={product.id}
                                 onClick={() => setSelectedCard(product.id)}
                                 // Min height of 640px for a more compact 4-column layout
-                                className={`group relative p-5 rounded-[40px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[750px] shadow-2xl ${cardBg}`}
+                                className={`group relative p-5 rounded-[30px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[600px] shadow-2xl ${cardBg}`}
                                 whileHover={{ y: -8 }}
                                 whileTap={{ scale: 0.98 }}
                             >
                                 {/* ---- TOP SECTION (Mathematically Bounded) ---- */}
-                                <div className="z-10 relative flex flex-col h-[130px] shrink-0 mb-4 px-3">
+                                <div className="z-10 relative flex flex-col h-[100px] shrink-0 px-2 ">
                                     <div className="flex gap-2 justify-between items-start mb-6 w-full">
                                         <div className="flex gap-2">
                                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
@@ -335,25 +660,23 @@ export default function OkvevoMasivPage() {
                                     </div>
  
                                     {/* Exact original Title */}
-                                    <h3 className="text-4xl lg:text-[40px] font-black tracking-tighter leading-[1] text-black pr-2">
+                                    <h3 className="text-3xl lg:text-[32px] font-black tracking-tighter leading-[1] text-black pr-2">
                                         {product.name}
                                     </h3>
                                 </div>
  
                                 {/* ---- MIDDLE THUMBNAIL (Mathematically Bounded) ---- */}
-                                <div className="relative w-full h-[420px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group mb-4">
+                                <div className="relative w-full h-[420px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group">
                                     <div className="w-full h-full relative border-4 border-black/5 rounded-[30px] overflow-hidden">
-                                        <img
-                                            src={product.thumbnail}
-                                            alt={product.name}
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-[1.1]"
+                                        <ThumbnailScroller 
+                                            images={product.thumbnails} 
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                 </div>
 
                                 {/* ---- BOTTOM SECTION (Mathematically Bounded) ---- */}
-                                <div className="z-10 w-full relative pt-2 flex gap-4 shrink-0 mt-auto min-h-[80px] items-end justify-between">
+                                <div className="z-10 w-full relative flex gap-2 shrink-0 mt-4 min-h-[60px] items-end justify-between">
                                     <div className="flex-1 flex flex-col justify-end">
                                         <p className="text-sm md:text-[15px] mb-4 leading-relaxed font-semibold text-black/70 pr-4">
                                             {product.description}
@@ -436,10 +759,8 @@ export default function OkvevoMasivPage() {
                                         {/* LEFT Part: Thumbnail */}
                                         <div className="w-full md:w-1/3 h-1/3 md:h-full p-6 pb-3 md:pb-6 pr-3 md:pr-3">
                                             <div className="w-full h-full rounded-3xl overflow-hidden relative border border-white/5">
-                                                <img
-                                                    src={product.thumbnail}
-                                                    alt={product.name}
-                                                    className="w-full h-full object-cover"
+                                                <ThumbnailScroller 
+                                                    images={product.thumbnails} 
                                                 />
                                             </div>
                                         </div>
