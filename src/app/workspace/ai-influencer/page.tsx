@@ -1068,12 +1068,12 @@ function AIInfluencerWorkstation() {
                             {/* ── RIGHT: Monitor Output ── */}
                             <div className="flex-1 flex flex-col gap-4">
                                 <div
-                                    className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
+                                    className="w-full max-w-[402px] mx-auto bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
                                     style={{ 
                                         aspectRatio: '9/16', 
                                         maxHeight: '715px',
                                         backgroundImage: 'url("/output.png")',
-                                        backgroundSize: 'fit',
+                                        backgroundSize: 'cover',
                                         backgroundPosition: 'center'
                                     }}
                                 >
