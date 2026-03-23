@@ -38,8 +38,8 @@ const HowItWorks = () => {
                 {/* Header Section */}
                 <div className="mb-12">
                     <motion.div 
-                        initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-5xl md:text-[80px] font-bold leading-[1.1] tracking-[-0.03em] text-white"

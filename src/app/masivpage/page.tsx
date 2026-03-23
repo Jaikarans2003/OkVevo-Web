@@ -216,7 +216,7 @@ const ThumbnailScroller = ({ images }: { images: string[] }) => {
     };
 
     return (
-        <div className="w-full h-full relative bg-black">
+        <div className="w-full h-full relative bg-transparent">
             <AnimatePresence>
                 <motion.div
                     key={index}
@@ -233,13 +233,13 @@ const ThumbnailScroller = ({ images }: { images: string[] }) => {
                             muted
                             loop
                             playsInline
-                            className="w-full h-full object-cover rounded-[30px]"
+                            className="w-full h-full object-cover"
                         />
                     ) : (
                         <img
                             src={images[index]}
                             alt={`Preview ${index}`}
-                            className="w-full h-full object-cover rounded-[30px]"
+                            className="w-full h-full object-cover"
                         />
                     )}
                     {/* Floating Label */}
@@ -277,7 +277,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     }, [items.length]);
 
     return (
-        <div className="relative w-full h-[500px] md:h-[700px] rounded-[48px] overflow-hidden group shadow-2xl border border-white/5 bg-[#0a0a0a]">
+        <div className="relative w-full h-[400px] md:h-[500px] rounded-[48px] overflow-hidden group shadow-2xl border border-white/5 bg-[#0a0a0a]">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={index}
@@ -512,7 +512,8 @@ export default function OkvevoMasivPage() {
     const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden">
+        <div className="min-h-screen bg-[#050505] bg-gradient-to-br from-black via-[#0f0202] to-[#140802] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden relative">
+            <div className="fixed inset-0 bg-[linear-gradient(to_right,#ffffff15_1.5px,transparent_1.5px),linear-gradient(to_bottom,#ffffff15_1.5px,transparent_1.5px)] bg-[size:90px_90px] pointer-events-none z-0 opacity-100" />
 
             {/* Custom Floating Pill Navbar (Landing Page style) */}
             <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-8 transition-all duration-700 pointer-events-none">
@@ -520,8 +521,11 @@ export default function OkvevoMasivPage() {
                     
                     {/* Left - Official Logo */}
                     <div className="flex-1 flex justify-start">
-                        <a href="/" className="hover:opacity-80 transition-opacity">
-                            <img src="/OKVEVO WithOut BackGrounds/White.svg" alt="OKVEVO" className="h-6 md:h-10 object-contain" />
+                        <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                            <img src="/OKVEVO WithOut BackGrounds/Orange.svg" alt="OKVEVO Logo" className="h-8 w-8 object-contain" />
+                            <span className="text-xl md:text-2xl font-black tracking-tighter text-white">
+                                OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] inline-block ml-1 animate-pulse" />
+                            </span>
                         </a>
                     </div>
 
@@ -558,8 +562,8 @@ export default function OkvevoMasivPage() {
                 </div>
             </nav>
 
-            {/* Top Light Section to match photo style */}
-            <div className="bg-[#0b0b0b] text-white pb-24 rounded-b-[80px] shadow-2xl relative z-10">
+            {/* Section with persistent grid background */}
+            <div className="bg-transparent text-white pb-24 relative z-10 transition-all">
                 
                 
             </div>
@@ -569,11 +573,11 @@ export default function OkvevoMasivPage() {
                 
                 {/* Header Title Space (Optionally kept or moved) */}
                 <header className="mb-12 md:mb-8 px-10 text-center mt-10">
-                    <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
+                    {/* <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
                         Explore Our Catalog
-                    </p>
+                    </p> */}
                     <h1 className="text-6xl md:text-5xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
-                        "AI-Crafted Visuals, Starting with You."
+                        "AI-Crafted Visuals, Staring with You."
                     </h1>
                 </header>
 
@@ -652,71 +656,88 @@ export default function OkvevoMasivPage() {
                 {/* Vertical Normal Grid (4 columns) */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {filteredProducts.map((product, index) => {
-                        const cardBg = bgColors[index % bgColors.length];
-                        const isOrange = cardBg === 'bg-[#FF6B35]';
+                        const gradients = [
+                            'from-red-600/25 via-orange-500/15 to-transparent',
+                            'from-orange-500/25 via-white/10 to-transparent',
+                            'from-red-500/25 via-white/10 to-transparent',
+                            'from-[#FF6B35]/30 to-transparent'
+                        ];
+                        const borderColors = [
+                            'border-red-500/30',
+                            'border-orange-500/30',
+                            'border-white/20',
+                            'border-[#FF6B35]/30'
+                        ];
+                        const shadowColors = [
+                            'hover:shadow-red-500/10',
+                            'hover:shadow-orange-500/10',
+                            'hover:shadow-white/5',
+                            'hover:shadow-[#FF6B35]/10'
+                        ];
+                        const currentGradient = gradients[index % gradients.length];
+                        const currentBorder = borderColors[index % borderColors.length];
+                        const currentShadow = shadowColors[index % shadowColors.length];
 
                         return (
                             <motion.div
                                 key={product.id}
                                 onClick={() => setSelectedCard(product.id)}
-                                // Min height of 640px for a more compact 4-column layout
-                                className={`group relative p-5 rounded-[30px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[600px] shadow-2xl ${cardBg}`}
+                                // Min height of 600px, reduced padding for larger thumbnail
+                                className={`group relative p-4 rounded-[30px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[600px] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] bg-gradient-to-br ${currentGradient} bg-white/5 backdrop-blur-xl border ${currentBorder} z-10 ${currentShadow} hover:shadow-2xl`}
                                 whileHover={{ y: -8 }}
                                 whileTap={{ scale: 0.98 }}
                             >
-                                {/* ---- TOP SECTION (Mathematically Bounded) ---- */}
-                                <div className="z-10 relative flex flex-col h-[100px] shrink-0 px-2 ">
-                                    <div className="flex gap-2 justify-between items-start mb-6 w-full">
+                                {/* ---- TOP SECTION ---- */}
+                                <div className="z-10 relative flex flex-col h-[85px] shrink-0 px-1 ">
+                                    <div className="flex gap-2 justify-between items-start mb-3 w-full">
                                         <div className="flex gap-2">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
-                                                }`}>
+                                            <span className="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-sm">
                                                 {product.badge1 || 'Trend'}
                                             </span>
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${isOrange ? 'bg-white text-black' : 'bg-black text-white'
-                                                }`}>
+                                            <span className="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-sm">
                                                 {product.badge2 || 'New'}
                                             </span>
                                         </div>
  
                                         {/* Small Okvevo Logo Badge */}
-                                        <div className="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center shrink-0 border border-black/5">
-                                            <img src="/OKVEVO WithOut BackGrounds/Black.svg" alt="OKVEVO" className="h-4 object-contain" />
+                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-md">
+                                            <img src="/OKVEVO WithOut BackGrounds/White.svg" alt="OKVEVO" className="h-3.5 object-contain" />
                                         </div>
                                     </div>
  
                                     {/* Exact original Title */}
-                                    <h3 className="text-3xl lg:text-[32px] font-black tracking-tighter leading-[1] text-black pr-2">
+                                    <h3 className="text-2xl lg:text-[28px] font-black tracking-tighter leading-[1] text-white pr-2 drop-shadow-md">
                                         {product.name}
                                     </h3>
                                 </div>
  
-                                {/* ---- MIDDLE THUMBNAIL (Mathematically Bounded) ---- */}
-                                <div className="relative w-full h-[420px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group">
-                                    <div className="w-full h-full relative border-4 border-black/5 rounded-[30px] overflow-hidden">
+                                {/* ---- MIDDLE THUMBNAIL (Maximized) ---- */}
+                                <div className="relative w-full h-[450px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group">
+                                    <div className="w-full h-full relative rounded-[30px] overflow-hidden">
                                         <ThumbnailScroller 
                                             images={product.thumbnails} 
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                 </div>
-
-                                {/* ---- BOTTOM SECTION (Mathematically Bounded) ---- */}
-                                <div className="z-10 w-full relative flex gap-2 shrink-0 mt-4 min-h-[60px] items-end justify-between">
+ 
+                                {/* ---- BOTTOM SECTION ---- */}
+                                <div className="z-10 w-full relative flex gap-2 shrink-0 mt-3 min-h-[60px] items-end justify-between">
                                     <div className="flex-1 flex flex-col justify-end">
-                                        <p className="text-sm md:text-[15px] mb-4 leading-relaxed font-semibold text-black/70 pr-4">
+                                        <p className="text-[13px] mb-2 leading-relaxed font-semibold text-white/70 pr-2">
                                             {product.description}
                                         </p>
-                                        <div className="flex items-center gap-1 font-black text-3xl tracking-tighter text-black">
+                                        <div className="flex items-center gap-1 font-black text-2xl tracking-tighter text-white drop-shadow-md">
                                             {product.price === 0 ? "Free" : `₹${product.price}`}
                                         </div>
                                     </div>
-
+ 
                                     <div className="flex-shrink-0 flex items-end">
                                         <button
-                                            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-700 ${
+                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-700 ${
                                                 isInCart(product.id)
                                                     ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] scale-105 cursor-default'
-                                                    : 'bg-black text-[#FF6B35] group-hover:rotate-90 group-hover:shadow-xl'
+                                                    : 'bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white hover:text-orange-500 shadow-lg group-hover:rotate-90'
                                             }`}
                                             disabled={isInCart(product.id)}
                                             onClick={(e) => {
@@ -725,9 +746,9 @@ export default function OkvevoMasivPage() {
                                             }}
                                         >
                                             {isInCart(product.id) ? (
-                                                <Check className="w-6 h-6" />
+                                                <Check className="w-5 h-5" />
                                             ) : (
-                                                <Plus className="w-6 h-6" />
+                                                <Plus className="w-5 h-5" />
                                             )}
                                         </button>
                                     </div>

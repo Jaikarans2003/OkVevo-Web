@@ -66,15 +66,18 @@ export default function Sidebar() {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -10 }}
-                                className="flex items-center"
+                                className="flex items-center gap-2"
                             >
                                 <Image
-                                    src="/OKVEVO WithOut BackGrounds/White.svg"
+                                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
                                     alt="OKVEVO Logo"
-                                    width={140}
-                                    height={40}
-                                    className="h-8 w-auto object-contain"
+                                    width={32}
+                                    height={32}
+                                    className="w-8 h-8 object-contain"
                                 />
+                                <span className="text-xl font-black tracking-[-0.05em] text-white">
+                                    OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />
+                                </span>
                             </motion.div>
                         )}
                     </AnimatePresence>

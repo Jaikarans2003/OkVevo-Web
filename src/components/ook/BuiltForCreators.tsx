@@ -62,8 +62,8 @@ const KineticVision = () => {
 
                 {/* Kinetic Heading */}
                 <motion.h2
-                    initial={{ opacity: 0, filter: 'blur(20px)', y: 40 }}
-                    whileInView={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     viewport={{ once: true }}
                     className="text-6xl md:text-9xl font-black tracking-tighter text-white leading-[0.9]"

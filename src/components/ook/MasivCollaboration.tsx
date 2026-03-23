@@ -6,15 +6,16 @@ const MasivCollaboration = () => {
     return (
         <section className="relative h-screen bg-black overflow-hidden flex flex-col items-center justify-center font-sans">
             {/* Background Image with Black Filter */}
-            <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 z-0 transform-gpu">
                 <img
                     src="/bgimage.png"
                     alt="OKVEVO X MASIV Background"
                     className="w-full h-full object-cover"
+                    loading="lazy"
                 />
                 {/* Black Filter (Overlay) */}
-                <div className="absolute inset-0 bg-black/30" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black" />
+                <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
             </div>
 
             <div className="relative z-10 text-center px-6">

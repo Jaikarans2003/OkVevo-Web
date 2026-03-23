@@ -680,7 +680,7 @@ function AIInfluencerWorkstation() {
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                            <div className="w-1 h-1 rounded-full bg-orange-500" /> Initial Narrative Script
+                                                            <span className="w-1 h-1 rounded-full bg-orange-500" /> Initial Narrative Script
                                                         </p>
                                                     </div>
                                                     <textarea
@@ -722,7 +722,7 @@ function AIInfluencerWorkstation() {
                                                     className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
                                                 >
                                                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Temporal Calibration
+                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Temporal Calibration
                                                     </p>
                                                     <div className="flex gap-3">
                                                         {([15, 30] as const).map((d) => (
@@ -750,7 +750,7 @@ function AIInfluencerWorkstation() {
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                            <div className="w-1 h-1 rounded-full bg-orange-500" /> Refined Narrative
+                                                            <span className="w-1 h-1 rounded-full bg-orange-500" /> Refined Narrative
                                                         </p>
                                                         <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{editableScript.trim().split(/\s+/).length} Words</span>
                                                     </div>
@@ -777,7 +777,7 @@ function AIInfluencerWorkstation() {
                                                     className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
                                                 >
                                                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Visual Identity Mapping
+                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Visual Identity Mapping
                                                     </p>
                                                     <input
                                                         type="file"
@@ -809,7 +809,7 @@ function AIInfluencerWorkstation() {
                                                     className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-5"
                                                 >
                                                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Acoustic Synthesis
+                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Acoustic Synthesis
                                                     </p>
                                                     
                                                     <div className="space-y-3">
@@ -906,7 +906,7 @@ function AIInfluencerWorkstation() {
                                                     className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-5"
                                                 >
                                                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Audio Verification
+                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Audio Verification
                                                     </p>
                                                     <div className="bg-black/40 rounded-2xl p-4 border border-white/5 shadow-inner">
                                                         <audio controls src={audioUrl} className="w-full h-10 accent-orange-500" />

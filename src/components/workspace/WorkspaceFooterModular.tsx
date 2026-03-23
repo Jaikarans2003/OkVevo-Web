@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 export default function DashFooterModular() {
     return (
@@ -46,8 +47,8 @@ export default function DashFooterModular() {
                 <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] text-white/20 font-mono tracking-widest gap-4">
                     <span>© 2024 OKVEVO INC. SYSTEM V3.0</span>
                     <div className="flex gap-8">
-                        <a href="#" className="hover:text-white transition-colors">PRIVACY_POLICY</a>
-                        <a href="#" className="hover:text-white transition-colors">TERMS_OF_SERVICE</a>
+                        <Link href="/legal" className="hover:text-white transition-colors">PRIVACY_POLICY</Link>
+                        <Link href="/legal" className="hover:text-white transition-colors">TERMS_OF_SERVICE</Link>
                     </div>
                 </div>
             </div>

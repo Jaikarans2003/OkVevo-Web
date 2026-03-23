@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { getThemeClasses } from '../../../utils/themeUtils';
 
 export default function OnboardingWelcomePage() {
@@ -33,9 +34,17 @@ export default function OnboardingWelcomePage() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="mb-12"
                 >
-                    <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-2 rounded-full">
-                        <Sparkles className="w-5 h-5 text-accent-orange" />
-                        <span className="font-medium text-orange-100/80">OKVEVO Studio</span>
+                    <div className="inline-flex items-center gap-2.5 bg-white/5 backdrop-blur-sm border border-white/10 px-5 py-2.5 rounded-full">
+                        <Image
+                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            alt="Logo"
+                            width={24}
+                            height={24}
+                            className="w-5 h-5 object-contain"
+                        />
+                        <span className="font-black tracking-tighter text-orange-100/90 text-xl">
+                            OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />
+                        </span>
                     </div>
                 </motion.div>
 

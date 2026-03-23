@@ -24,14 +24,17 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
 
     return (
         <nav className="h-16 px-6 md:px-8 flex items-center justify-between border border-white/10 fixed top-5 left-1/2 -translate-x-1/2 bg-[#0B0B0D]/85 backdrop-blur-2xl z-[90] w-[95%] max-w-[1200px] rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <Link href="/workspace" className="flex items-center gap-1 group">
+            <Link href="/workspace" className="flex items-center gap-2 group transition-all duration-300">
                 <Image
-                    src="/OKVEVO WithOut BackGrounds/White.svg"
+                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
                     alt="OKVEVO Logo"
-                    width={100}
-                    height={24}
-                    className="h-6 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
+                <span className="text-xl font-black tracking-[-0.05em] text-white">
+                    OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />
+                </span>
             </Link>
 
             <div className="flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
