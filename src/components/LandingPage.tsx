@@ -12,6 +12,7 @@ import Showcase from './ook/Showcase';
 import HowItWorks from './ook/Features';
 import BuiltForCreators from './ook/BuiltForCreators';
 import Pricing from './ook/Pricing';
+import MasivCollaboration from './ook/MasivCollaboration';
 import FeaturesGrid from './ook/FeaturesGrid';
 import Footer from './ook/Footer';
 
@@ -45,6 +46,7 @@ export default function LandingPage() {
                 {/* <Features /> */}
                 <HowItWorks />
                 {/* <BuiltForCreators /> */}
+                <MasivCollaboration />
                 <div id="pricing">
                     <Pricing user={user} />
                 </div>

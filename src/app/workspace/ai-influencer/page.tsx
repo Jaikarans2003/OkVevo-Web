@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download
+    RotateCcw, Play, Download, Mic2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
@@ -71,6 +71,7 @@ function AIInfluencerWorkstation() {
     const [user, setUser] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'explainers' | 'motion-control'>('explainers');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     // Step state
     const [chatStep, setChatStep] = useState<ChatStep>('upload-script');
@@ -409,7 +410,7 @@ function AIInfluencerWorkstation() {
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !user?.uid || !jobId) return;
-        
+
         setAvatarVideo(file);
         addUser(`[Avatar video uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
         addAssistant('Uploading avatar video to storage…');
@@ -495,10 +496,10 @@ function AIInfluencerWorkstation() {
 
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
-            
+
             console.log('✅ Step Function started:', data.executionArn);
             addAssistant('✅ Pipeline started! Generating your AI Influencer video...');
-            
+
             setChatStep('generating-lipsync');
             setIsGenerating(false);
         } catch (err: any) {
@@ -563,7 +564,7 @@ function AIInfluencerWorkstation() {
     return (
         <section
             data-section-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-            className="relative min-h-screen bg-[#FAFAFA] dark:bg-black text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-x-hidden transition-colors duration-500"
+            className="relative h-screen bg-[#FAFAFA] dark:bg-black text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
         >
             <StudioNavbar
                 rightContent={
@@ -577,9 +578,9 @@ function AIInfluencerWorkstation() {
             />
 
             {/* Workstation Area with Video Background */}
-            <div 
-                id="workstation" 
-                className="relative min-h-screen pt-24"
+            <div
+                id="workstation"
+                className="relative h-screen flex flex-col pt-20"
             >
                 {/* Background Video with Hue-Shift to Orange */}
                 <video
@@ -587,677 +588,669 @@ function AIInfluencerWorkstation() {
                     loop
                     muted
                     playsInline
-                    className="fixed inset-0 w-full h-full object-cover pointer-events-none z-0"
+                    className="absolute inset-0 w-full h-full object-cover opacity-100 hue-rotate-[15deg] saturate-[1.2] brightness-[1.05]"
                     style={{ filter: 'hue-rotate(140deg) saturate(1.4) brightness(0.9)' }}
                 >
                     <source src="/videos/bg-blue.mp4" type="video/mp4" />
                 </video>
 
-                {/* Subtle Orange-tinted Overlay for Readability */}
-                <div className="fixed inset-0 bg-[#050505]/40 backdrop-blur-[1px] pointer-events-none z-0" />
+                {/* Removed Global Overlay as requested */}
 
-                {/* Body — history sidebar + main content */}
-                <div className="flex relative z-10 min-h-screen">
-                {/* Session History Sidebar */}
-                {user?.uid && (
-                    <div className="sticky top-16 h-[calc(100vh-4rem)] flex-shrink-0">
-                        <SessionHistorySidebar
-                            userId={user.uid}
-                            feature="ai-influencer"
-                            currentSessionId={sessionId}
-                            onSelectSession={handleRestoreInfluencerSession}
-                            onNewSession={handleNewInfluencerSession}
-                            accentColor="orange"
-                        />
-                    </div>
-                )}
-
-                <main className="flex-1 relative z-10 pb-16 px-4 md:px-10 max-w-[1600px] mx-auto pt-4 backdrop-blur-xl bg-white/5 dark:bg-black/10 rounded-[3rem] border border-white/10 mx-6 mb-6 mt-2 shadow-2xl overflow-hidden">
-                    {/* Header with Professional Status */}
-                    <div className="mb-8 flex items-start justify-between">
-                        <div>
-                            <div className="flex items-center gap-3 mb-1">
-                                <h1 className="text-4xl md:text-5xl font-bold text-black dark:text-white tracking-tight">AI Influencer</h1>
-                                <div className="mt-2 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                                    <span className="text-[8px] font-bold uppercase tracking-widest text-orange-500/80">Active Studio</span>
-                                </div>
+                {/* ── Body — history sidebar + main content ── */}
+                <div className="flex-1 flex relative z-10 overflow-hidden">
+                    {/* Session History Sidebar Overlay */}
+                    {user?.uid && (
+                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10`}>
+                            <div className="relative h-full">
+                                <SessionHistorySidebar
+                                    userId={user.uid}
+                                    feature="ai-influencer"
+                                    currentSessionId={sessionId}
+                                    onSelectSession={(session) => {
+                                        handleRestoreInfluencerSession(session);
+                                        setIsHistoryOpen(false);
+                                    }}
+                                    onNewSession={() => {
+                                        handleNewInfluencerSession();
+                                        setIsHistoryOpen(false);
+                                    }}
+                                    accentColor="orange"
+                                />
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-white/40 font-medium">From script to social-ready cinema in minutes</p>
                         </div>
-                        {chatStep !== 'upload-script' && (
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={resetFlow}
-                                className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-red-500 border border-gray-200 dark:border-white/10 rounded-xl hover:border-red-500/30 transition-all bg-white/5 backdrop-blur-md"
-                            >
-                                <RotateCcw size={11} /> Reset
-                            </motion.button>
-                        )}
-                    </div>
+                    )}
 
-                    {/* Mode Tabs */}
-                    <div className="flex gap-1.5 mb-6">
-                        {[
-                            { id: 'explainers', icon: FileText, label: 'Explainers' },
-                            { id: 'motion-control', icon: Move3d, label: 'Motion Control' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex items-center gap-1.5 py-2 px-5 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${activeTab === tab.id
-                                    ? 'bg-white dark:bg-white text-black border-white'
-                                    : 'bg-[#111] dark:bg-[#111] text-white/50 border-white/10 hover:border-white/20'
-                                    }`}
-                            >
-                                <tab.icon size={10} /> {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Open/Close History Button */}
+                    {user?.uid && (
+                        <button
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                            className={`fixed left-0 top-1/2 -translate-y-1/2 z-[60] p-3 bg-orange-600/90 backdrop-blur-md text-white rounded-r-2xl shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all duration-500 hover:pr-5 group ${isHistoryOpen ? 'translate-x-[288px]' : 'translate-x-0'}`}
+                        >
+                            {isHistoryOpen ? <ChevronRight size={18} className="rotate-180 transition-transform duration-500" /> : <Clock size={18} className="group-hover:rotate-12 transition-transform" />}
+                        </button>
+                    )}
 
-                    {activeTab === 'explainers' ? (
-                        <div className="flex flex-col md:flex-row gap-4 items-start">
+                    <main className="flex-1 relative z-10 px-4 md:px-10 max-w-[1700px] mx-auto pt-8 backdrop-blur-[40px] bg-black/40 rounded-[3rem] border border-white/10 mx-6 mb-6 mt-2 shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+                        {/* Header with Professional Status */}
+                        {activeTab === 'explainers' ? (
+                            <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center flex-1 overflow-hidden pb-8">
 
-                            {/* ── LEFT: Step Wizard ── */}
-                            <div className="w-full md:w-[700px] flex-shrink-0 flex flex-col gap-4">
-
-                                {/* Sleek Progress Bar */}
-                                <div className="flex items-center gap-2 bg-white/5 dark:bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 overflow-x-auto shadow-2xl relative group">
-                                    {STEPS.map((step, idx) => {
-                                        const done = idx < currentStepIdx;
-                                        const active = idx === currentStepIdx;
-                                        const Icon = step.icon;
-                                        return (
-                                            <div key={step.id} className="flex items-center flex-shrink-0">
-                                                <motion.div 
-                                                    whileHover={{ scale: 1.1, y: -2 }}
-                                                    className={`flex flex-col items-center gap-1 transition-opacity duration-500 ${active ? 'opacity-100' : done ? 'opacity-80' : 'opacity-20'}`}
-                                                >
-                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-500 ${done
-                                                        ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)]'
-                                                        : active
-                                                            ? 'bg-orange-600/20 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
-                                                            : 'bg-white/5 border-white/10 text-white/40'
-                                                        }`}>
-                                                        {done ? <CheckCircle2 size={12} /> : <Icon size={12} />}
-                                                    </div>
-                                                    <span className={`text-[7px] font-black uppercase tracking-[0.14em] ${active ? 'text-orange-400' : 'text-white/30'}`}>
-                                                        {step.label}
-                                                    </span>
-                                                </motion.div>
-                                                {idx < STEPS.length - 1 && (
-                                                    <div className={`w-6 md:w-8 h-[1px] mx-2 transition-all duration-700 ${done ? 'bg-orange-600' : 'bg-white/10'}`} />
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* ── Chat Panel ── */}
-                                <div className="flex flex-col bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl" style={{ height: '620px' }}>
-                                    {/* Chat header */}
-                                    <div className="px-4 py-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0F0F0F]/50 flex items-center gap-2 shrink-0">
-                                        <div className="relative">
-                                            <Sparkles size={12} className="text-orange-400" />
-                                            <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-black animate-pulse" />
+                                {/* ── LEFT: Step Wizard ── */}
+                                <div className="w-full md:w-[700px] pl-10 flex-shrink-0 flex flex-col gap-6 overflow-hidden">
+                                    {/* Page Title & Status */}
+                                    <div className="flex items-center gap-4 px-2 mb-2">
+                                        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
+                                            <Sparkles size={20} className="text-orange-500" />
                                         </div>
-                                        <span className="text-[9px] uppercase font-bold text-black/70 dark:text-white/70 tracking-widest">Vevo AI</span>
-                                        <span className="ml-auto text-[8px] text-gray-400 dark:text-white/30 uppercase tracking-wider">
-                                            Step {Math.min(currentStepIdx + 1, STEPS.length)} / {STEPS.length}
-                                        </span>
+                                        <div className="flex flex-col">
+                                            <h1 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">AI Influencer Studio</h1>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                                                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {/* ── Inline Step Controls ── */}
-                                    <AnimatePresence mode="wait">
+                                    {/* ── Chat Panel ── */}
+                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.03] backdrop-blur-[80px] border border-orange-500/40 rounded-[2.5rem] overflow-hidden shadow-[0_0_30px_rgba(234,88,12,0.15),0_30px_100px_rgba(0,0,0,0.5)] ring-1 ring-orange-500/20">
+                                        {/* Chat header */}
+                                        <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative">
+                                                    <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">Neural Assistant</span>
+                                            </div>
+                                            <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                                <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">
+                                                    Protocol Phase {Math.min(currentStepIdx + 1, STEPS.length)} <span className="text-white/10 mx-1">/</span> {STEPS.length}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                        {/* STEP 1: Script upload/paste */}
-                                        {chatStep === 'upload-script' && (
-                                            <motion.div
-                                                key="upload-script"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 pt-4 pb-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <FileText size={9} /> Step 1 — Upload or Paste Your Script
-                                                </p>
-                                                <textarea
-                                                    value={rawScript}
-                                                    onChange={(e) => setRawScript(e.target.value)}
-                                                    placeholder="Paste your script here, or upload a .txt file below…"
-                                                    className="w-full h-28 p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-black/25 dark:placeholder-white/20 leading-relaxed"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="file"
-                                                        ref={scriptFileInputRef}
-                                                        onChange={handleScriptFileUpload}
-                                                        accept=".txt,.md"
-                                                        className="hidden"
+                                        {/* ── Inline Step Controls ── */}
+                                        <AnimatePresence mode="wait">
+
+                                            {/* STEP 1: Script upload/paste */}
+                                            {chatStep === 'upload-script' && (
+                                                <motion.div
+                                                    key="upload-script"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-5 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                            <div className="w-1 h-1 rounded-full bg-orange-500" /> Initial Narrative Script
+                                                        </p>
+                                                    </div>
+                                                    <textarea
+                                                        value={rawScript}
+                                                        onChange={(e) => setRawScript(e.target.value)}
+                                                        placeholder="Synthesize your story here..."
+                                                        className="w-full h-32 p-5 rounded-2xl border border-white/5 bg-black/40 text-[13px] text-white/90 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/10 outline-none resize-none placeholder-white/10 leading-relaxed transition-all shadow-inner"
                                                     />
-                                                    <button
-                                                        onClick={() => scriptFileInputRef.current?.click()}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-white/20 bg-transparent hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-400/50 text-[9px] text-black/50 dark:text-white/40 transition-all"
-                                                    >
-                                                        <Upload size={10} /> Upload .txt file
-                                                    </button>
-                                                    <button
-                                                        onClick={handleScriptSubmit}
-                                                        disabled={!rawScript.trim()}
-                                                        className="flex-1 py-2 rounded-lg bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                                                    >
-                                                        Continue <ChevronRight size={11} />
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        )}
-
-                                        {/* STEP 2: Duration */}
-                                        {chatStep === 'duration' && (
-                                            <motion.div
-                                                key="duration"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Clock size={9} /> Step 2 — Select Narration Duration
-                                                </p>
-                                                <div className="flex gap-2">
-                                                    {([15, 30] as const).map((d) => (
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="file"
+                                                            ref={scriptFileInputRef}
+                                                            onChange={handleScriptFileUpload}
+                                                            accept=".txt,.md"
+                                                            className="hidden"
+                                                        />
                                                         <button
-                                                            key={d}
-                                                            onClick={() => handleDurationSelect(d)}
-                                                            disabled={isGenerating}
-                                                            className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                                                            onClick={() => scriptFileInputRef.current?.click()}
+                                                            className="flex items-center gap-2 px-5 py-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-[10px] font-black uppercase tracking-[0.15em] text-white/50 transition-all active:scale-95"
                                                         >
-                                                            <Clock size={14} className="text-orange-400" />
-                                                            <span>{d} seconds</span>
-                                                            <span className="text-[8px] text-gray-400 font-normal">~{Math.floor(d * 2.5)} words</span>
+                                                            <Upload size={12} strokeWidth={2.5} /> Import Source
                                                         </button>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                                        <button
+                                                            onClick={handleScriptSubmit}
+                                                            disabled={!rawScript.trim()}
+                                                            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:from-orange-500 hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed shadow-xl active:scale-95"
+                                                        >
+                                                            Initialise Protocol <ChevronRight size={14} strokeWidth={3} />
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
 
-                                        {/* STEP 4: Edit Script */}
-                                        {chatStep === 'edit-script' && (
-                                            <motion.div
-                                                key="edit-script"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Edit3 size={9} /> Step 4 — Review & Edit Script
-                                                </p>
-                                                <textarea
-                                                    value={editableScript}
-                                                    onChange={(e) => setEditableScript(e.target.value)}
-                                                    className="w-full h-28 p-3 rounded-lg border border-orange-500/30 bg-white/70 dark:bg-black/40 text-[11px] text-black dark:text-white focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none leading-relaxed"
-                                                />
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[8px] text-gray-400">{editableScript.trim().split(/\s+/).length} words</span>
+                                            {/* STEP 2: Duration */}
+                                            {chatStep === 'duration' && (
+                                                <motion.div
+                                                    key="duration"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
+                                                >
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Temporal Calibration
+                                                    </p>
+                                                    <div className="flex gap-3">
+                                                        {([15, 30] as const).map((d) => (
+                                                            <button
+                                                                key={d}
+                                                                onClick={() => handleDurationSelect(d)}
+                                                                disabled={isGenerating}
+                                                                className="flex-1 py-4 rounded-2xl font-black text-[12px] tracking-[0.1em] border transition-all flex flex-col items-center gap-2 disabled:opacity-20 bg-white/[0.02] border-white/5 text-white/60 hover:border-orange-500/50 hover:bg-orange-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] active:scale-95"
+                                                            >
+                                                                <Clock size={16} className="text-orange-500" strokeWidth={2.5} />
+                                                                <span>{d} Seconds</span>
+                                                                <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">~{Math.floor(d * 2.5)} Tokens</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+
+                                            {/* STEP 4: Edit Script */}
+                                            {chatStep === 'edit-script' && (
+                                                <motion.div
+                                                    key="edit-script"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                            <div className="w-1 h-1 rounded-full bg-orange-500" /> Refined Narrative
+                                                        </p>
+                                                        <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{editableScript.trim().split(/\s+/).length} Words</span>
+                                                    </div>
+                                                    <textarea
+                                                        value={editableScript}
+                                                        onChange={(e) => setEditableScript(e.target.value)}
+                                                        className="w-full h-32 p-5 rounded-2xl border border-orange-500/30 bg-black/40 text-[13px] text-white leading-relaxed focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none shadow-inner"
+                                                    />
                                                     <button
                                                         onClick={handleConfirmScript}
                                                         disabled={!editableScript.trim()}
-                                                        className="py-2 px-5 rounded-lg bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500 transition-all flex items-center gap-1.5 disabled:opacity-40"
+                                                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:from-orange-500 hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 shadow-xl"
                                                     >
-                                                        Confirm Script <ChevronRight size={11} />
+                                                        Finalise Script <ChevronRight size={14} strokeWidth={3} />
                                                     </button>
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                                </motion.div>
+                                            )}
 
-                                        {/* STEP 5: Avatar Video Upload */}
-                                        {chatStep === 'avatar-video' && (
-                                            <motion.div
-                                                key="avatar-video"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Video size={9} /> Step 5 — Upload Avatar Video
-                                                </p>
-                                                <input
-                                                    type="file"
-                                                    ref={avatarFileInputRef}
-                                                    onChange={handleAvatarUpload}
-                                                    accept="video/mp4,video/mov,video/webm,video/quicktime"
-                                                    className="hidden"
-                                                />
-                                                <button
-                                                    onClick={() => avatarFileInputRef.current?.click()}
-                                                    className="w-full py-5 rounded-xl border-2 border-dashed border-gray-200 dark:border-white/15 bg-white/50 dark:bg-black/30 hover:border-orange-400/60 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-all flex flex-col items-center justify-center gap-2 group"
+                                            {/* STEP 5: Avatar Video Upload */}
+                                            {chatStep === 'avatar-video' && (
+                                                <motion.div
+                                                    key="avatar-video"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
                                                 >
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <Upload size={18} className="text-orange-500" />
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-[11px] font-semibold text-black/70 dark:text-white/70">Click to upload avatar video</p>
-                                                        <p className="text-[9px] text-gray-400 mt-0.5">MP4, MOV, WebM · Max 200MB</p>
-                                                    </div>
-                                                </button>
-                                            </motion.div>
-                                        )}
-
-                                        {/* STEP 6: Voice & TTS */}
-                                        {chatStep === 'generating-tts' && (
-                                            <motion.div
-                                                key="generating-tts"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Users size={9} /> Step 6 — Voice Cloning & Audio
-                                                </p>
-
-                                                <div className="mb-3 space-y-2">
-                                                    <p className="text-[10px] text-gray-500">Optional: Upload an audio sample (MP3/WAV) to clone your voice.</p>
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Visual Identity Mapping
+                                                    </p>
                                                     <input
                                                         type="file"
-                                                        accept="audio/mpeg,audio/wav,audio/*"
-                                                        onChange={async (e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file && user?.uid && jobId) {
-                                                                setAudioSampleFile(file);
-                                                                addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-                                                                addAssistant('Uploading voice sample to storage…');
-                                                                setIsGenerating(true);
-                                                                
-                                                                try {
-                                                                    const sampleRef = ref(storage, `AIInfluencer/${jobId}/sample_audio${file.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
-                                                                    await uploadBytes(sampleRef, file);
-                                                                    const sampleUrl = await getDownloadURL(sampleRef);
-                                                                    
-                                                                    // Update Firestore with voice sample URL
-                                                                    const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
-                                                                    await setDoc(jobRef, {
-                                                                        audioSampleUrl: sampleUrl,
-                                                                        updatedAt: new Date().toISOString(),
-                                                                    }, { merge: true });
-                                                                    
-                                                                    addAssistant('✅ Voice sample uploaded! Click "Generate Voice-Over" to start.');
-                                                                    setSelectedGender('');
-                                                                    setIsGenerating(false);
-                                                                } catch (err: any) {
-                                                                    addAssistant(`❌ Failed to upload voice sample: ${err.message}`);
-                                                                    setIsGenerating(false);
-                                                                }
-                                                            }
-                                                        }}
+                                                        ref={avatarFileInputRef}
+                                                        onChange={handleAvatarUpload}
+                                                        accept="video/mp4,video/mov,video/webm,video/quicktime"
                                                         className="hidden"
-                                                        id="audio-sample-upload"
                                                     />
-                                                    <label
-                                                        htmlFor="audio-sample-upload"
-                                                        className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${audioSampleFile
-                                                            ? 'border-orange-500 bg-orange-500/10 text-orange-500'
-                                                            : 'border-gray-300 dark:border-white/20 bg-white/50 dark:bg-black/30 text-gray-500 hover:border-orange-400/60'
-                                                            }`}
+                                                    <button
+                                                        onClick={() => avatarFileInputRef.current?.click()}
+                                                        className="w-full py-8 rounded-[2rem] border-2 border-dashed border-white/10 bg-white/[0.02] hover:border-orange-500/50 hover:bg-orange-600/5 transition-all flex flex-col items-center justify-center gap-3 group active:scale-[0.98]"
                                                     >
-                                                        <Upload size={14} />
-                                                        {audioSampleFile ? 'Reference Audio Attached' : 'Upload Audio Reference'}
-                                                    </label>
-                                                </div>
+                                                        <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-orange-500/20 transition-all duration-500 shadow-2xl">
+                                                            <Upload size={24} className="text-orange-500" strokeWidth={2.5} />
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <p className="text-[12px] font-black uppercase tracking-[0.1em] text-white/80">Upload Avatar Media</p>
+                                                            <p className="text-[9px] text-white/20 mt-1 uppercase font-bold tracking-widest">MP4 / MOV / WEBM · Standard HD</p>
+                                                        </div>
+                                                    </button>
+                                                </motion.div>
+                                            )}
 
-                                                <div className="flex items-center gap-3 my-2">
-                                                    <div className="h-px bg-gray-200 dark:bg-white/10 flex-1"></div>
-                                                    <span className="text-[9px] uppercase font-bold text-gray-400">OR SELECT VOICE</span>
-                                                    <div className="h-px bg-gray-200 dark:bg-white/10 flex-1"></div>
-                                                </div>
+                                            {/* STEP 6: Voice & TTS */}
+                                            {chatStep === 'generating-tts' && (
+                                                <motion.div
+                                                    key="generating-tts"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-5"
+                                                >
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Acoustic Synthesis
+                                                    </p>
+                                                    
+                                                    <div className="space-y-3">
+                                                        <input
+                                                            type="file"
+                                                            accept="audio/mpeg,audio/wav,audio/*"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file && user?.uid && jobId) {
+                                                                    setAudioSampleFile(file);
+                                                                    addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
+                                                                    addAssistant('Uploading voice sample to storage…');
+                                                                    setIsGenerating(true);
 
-                                                <div className="flex gap-2 mb-3">
-                                                    {(['male', 'female'] as const).map((g) => (
-                                                        <button
-                                                            key={g}
-                                                            onClick={() => {
-                                                                handleGenderSelect(g);
-                                                                setAudioSampleFile(null); // Clear custom audio if preset is chosen
+                                                                    try {
+                                                                        const sampleRef = ref(storage, `AIInfluencer/${jobId}/sample_audio${file.name.endsWith('.wav') ? '.wav' : '.mp3'}`);
+                                                                        await uploadBytes(sampleRef, file);
+                                                                        const sampleUrl = await getDownloadURL(sampleRef);
+
+                                                                        // Update Firestore with voice sample URL
+                                                                        const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+                                                                        await setDoc(jobRef, {
+                                                                            audioSampleUrl: sampleUrl,
+                                                                            updatedAt: new Date().toISOString(),
+                                                                        }, { merge: true });
+
+                                                                        addAssistant('✅ Voice sample uploaded! Click "Generate Voice-Over" to start.');
+                                                                        setSelectedGender('');
+                                                                        setIsGenerating(false);
+                                                                    } catch (err: any) {
+                                                                        addAssistant(`❌ Failed to upload voice sample: ${err.message}`);
+                                                                        setIsGenerating(false);
+                                                                    }
+                                                                }
                                                             }}
-                                                            disabled={isGenerating}
-                                                            className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${selectedGender === g && !audioSampleFile
-                                                                ? 'bg-orange-600 border-orange-600 text-white shadow-lg shadow-orange-600/20'
-                                                                : 'bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-orange-400/40'
+                                                            className="hidden"
+                                                            id="audio-sample-upload"
+                                                        />
+                                                        <label
+                                                            htmlFor="audio-sample-upload"
+                                                            className={`w-full py-4 rounded-xl border border-dashed flex justify-center items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] cursor-pointer transition-all active:scale-[0.98] ${audioSampleFile
+                                                                ? 'border-orange-500 bg-orange-500/10 text-orange-500 shadow-[0_0_20px_rgba(234,88,12,0.1)]'
+                                                                : 'border-white/10 bg-white/[0.02] text-white/40 hover:border-orange-500/40 hover:bg-orange-600/5'
                                                                 }`}
                                                         >
-                                                            <Volume2 size={10} />
-                                                            {g === 'male' ? 'Male (Richard)' : 'Female (Aurora)'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                <button
-                                                    onClick={handleGenerateTTS}
-                                                    disabled={(!selectedGender && !audioSampleFile) || isGenerating}
-                                                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider hover:from-orange-500 hover:to-orange-400 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
-                                                >
-                                                    {isGenerating
-                                                        ? <><Loader2 size={12} className="animate-spin" /> Generating Audio…</>
-                                                        : <><Volume2 size={12} /> Generate Voice-Over</>
-                                                    }
-                                                </button>
-                                            </motion.div>
-                                        )}
-
-                                        {/* STEP 7: Preview Audio + Trigger LipSync */}
-                                        {chatStep === 'preview-audio' && audioUrl && (
-                                            <motion.div
-                                                key="preview-audio"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
-                                            >
-                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
-                                                    <Volume2 size={9} /> Step 7 — Preview Audio
-                                                </p>
-                                                <audio controls src={audioUrl} className="w-full h-8 rounded-lg" />
-                                                <button
-                                                    onClick={handleGenerateLipSync}
-                                                    className="w-full py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl hover:shadow-orange-500/30 hover:scale-[1.01]"
-                                                >
-                                                    <Sparkles size={13} /> Generate Lip-Synced Video
-                                                </button>
-                                            </motion.div>
-                                        )}
-
-                                        {/* STEP 8: Generating LipSync (waiting) */}
-                                        {chatStep === 'generating-lipsync' && (
-                                            <motion.div
-                                                key="generating-lipsync"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-orange-600/20 border border-orange-500/40 flex items-center justify-center flex-shrink-0">
-                                                        <Loader2 size={14} className="text-orange-400 animate-spin" />
+                                                            <Mic2 size={16} strokeWidth={2.5} />
+                                                            {audioSampleFile ? 'Reference DNA Linked' : 'Clone Unique Voice'}
+                                                        </label>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-black/80 dark:text-white/80">Generating Lip-Synced Video</p>
-                                                        <p className="text-[9px] text-gray-400 mt-0.5">Fal AI is processing… usually 2–5 minutes.</p>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
 
-                                        {/* STEP COMPLETE */}
-                                        {chatStep === 'complete' && (
-                                            <motion.div
-                                                key="complete"
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-green-50/50 dark:bg-green-900/10 shrink-0 space-y-2"
-                                            >
-                                                <div className="flex items-center gap-2 text-green-500">
-                                                    <CheckCircle2 size={14} />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Video Ready!</span>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    {finalVideoUrl && (
-                                                        <a
-                                                            href={finalVideoUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            download
-                                                            className="flex-1 py-2 rounded-lg bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-green-500 transition-all flex items-center justify-center gap-1.5"
-                                                        >
-                                                            <Download size={11} /> Download Video
-                                                        </a>
-                                                    )}
+                                                    <div className="flex items-center gap-4 py-2">
+                                                        <div className="h-px bg-white/5 flex-1" />
+                                                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/10 italic">Neural Presets</span>
+                                                        <div className="h-px bg-white/5 flex-1" />
+                                                    </div>
+
+                                                    <div className="flex gap-3">
+                                                        {(['male', 'female'] as const).map((g) => (
+                                                            <button
+                                                                key={g}
+                                                                onClick={() => {
+                                                                    handleGenderSelect(g);
+                                                                    setAudioSampleFile(null);
+                                                                }}
+                                                                disabled={isGenerating}
+                                                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] border transition-all flex items-center justify-center gap-2 active:scale-95 ${selectedGender === g && !audioSampleFile
+                                                                    ? 'bg-orange-600 border-orange-500 text-white shadow-[0_5px_20px_rgba(234,88,12,0.3)]'
+                                                                    : 'bg-white/[0.02] border-white/5 text-white/40 hover:border-white/20'
+                                                                    }`}
+                                                            >
+                                                                <Volume2 size={12} strokeWidth={2.5} />
+                                                                {g === 'male' ? 'Richard' : 'Aurora'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                     <button
-                                                        onClick={resetFlow}
-                                                        className="flex-1 py-2 rounded-lg border border-gray-200 dark:border-white/10 text-black/60 dark:text-white/60 text-[10px] font-bold uppercase tracking-wider hover:border-purple-400/40 transition-all flex items-center justify-center gap-1.5"
+                                                        onClick={handleGenerateTTS}
+                                                        disabled={(!selectedGender && !audioSampleFile) || isGenerating}
+                                                        className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(234,88,12,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 shadow-xl"
                                                     >
-                                                        <RotateCcw size={11} /> New Video
+                                                        {isGenerating
+                                                            ? <><Loader2 size={14} className="animate-spin" /> Synthesizing Voice…</>
+                                                            : <><Sparkles size={14} /> Commit Audio Layer</>
+                                                        }
                                                     </button>
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                                </motion.div>
+                                            )}
 
-                                    </AnimatePresence>
-
-                                    {/* ── Chat Messages ── */}
-                                    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white/5 dark:bg-[#070707]/80 backdrop-blur-3xl">
-                                        {chatMessages.map((msg, i) => (
-                                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                                    {msg.role === 'assistant' && (
-                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 mb-1">
-                                                            <Sparkles size={8} className="text-orange-400" />
-                                                            <span className="text-[7px] font-black uppercase tracking-widest text-white/40">Vevo AI Assistant</span>
-                                                        </div>
-                                                    )}
-                                                    <motion.div
-                                                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                        className={`max-w-[85%] rounded-[1.25rem] px-4 py-3 text-[11px] leading-relaxed shadow-xl ${msg.role === 'user'
-                                                            ? 'bg-gradient-to-br from-orange-600 to-orange-500 text-white rounded-tr-none border border-orange-400/20'
-                                                            : 'bg-white/5 dark:bg-[#151515] text-white/80 border border-white/5 rounded-tl-none backdrop-blur-md'
-                                                            }`}
+                                            {/* STEP 7: Preview Audio + Trigger LipSync */}
+                                            {chatStep === 'preview-audio' && audioUrl && (
+                                                <motion.div
+                                                    key="preview-audio"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-5"
+                                                >
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-orange-500" /> Audio Verification
+                                                    </p>
+                                                    <div className="bg-black/40 rounded-2xl p-4 border border-white/5 shadow-inner">
+                                                        <audio controls src={audioUrl} className="w-full h-10 accent-orange-500" />
+                                                    </div>
+                                                    <button
+                                                        onClick={handleGenerateLipSync}
+                                                        className="w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 text-white hover:from-orange-500 hover:shadow-[0_0_30px_rgba(234,88,12,0.4)] shadow-xl active:scale-[0.98]"
                                                     >
-                                                        {msg.content}
-                                                    </motion.div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {isGenerating && (
-                                            <div className="flex justify-start">
-                                                <div className="flex flex-col gap-1.5 items-start">
-                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 mb-1">
-                                                        <Sparkles size={8} className="text-orange-400" />
-                                                        <span className="text-[7px] font-black uppercase tracking-widest text-white/40">Vevo AI Thinking</span>
+                                                        <Sparkles size={14} /> Synchronize Media Engine
+                                                    </button>
+                                                </motion.div>
+                                            )}
+
+                                            {/* STEP 8: Generating LipSync (waiting) */}
+                                            {chatStep === 'generating-lipsync' && (
+                                                <motion.div
+                                                    key="generating-lipsync"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-2xl bg-orange-600/20 border border-orange-500/40 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                                                            <div className="absolute inset-0 bg-orange-500/10 animate-pulse" />
+                                                            <Loader2 size={20} className="text-orange-500 animate-spin" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">Media Synthesis Active</p>
+                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">Fal AI Neural Mapping · 2-5 Min Transit</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-white/5 dark:bg-[#151515] rounded-[1.25rem] rounded-tl-none px-4 py-3 border border-white/5 backdrop-blur-md">
-                                                        <div className="flex gap-1.5 items-center">
-                                                            <div className="flex gap-1">
-                                                                {[0, 1, 2].map((i) => (
-                                                                    <motion.div
-                                                                        key={i}
-                                                                        animate={{ y: [0, -3, 0] }}
-                                                                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                                                                        className="w-1 h-1 rounded-full bg-orange-400"
-                                                                    />
-                                                                ))}
+                                                </motion.div>
+                                            )}
+
+                                            {/* STEP COMPLETE */}
+                                            {chatStep === 'complete' && (
+                                                <motion.div
+                                                    key="complete"
+                                                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                                                    className="px-6 py-8 border-b border-white/5 bg-green-500/5 shrink-0 space-y-5 flex flex-col items-center text-center"
+                                                >
+                                                    <div className="w-16 h-16 rounded-[2rem] bg-green-500/10 border border-green-500/30 flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.1)]">
+                                                        <CheckCircle2 size={32} className="text-green-500" strokeWidth={2.5} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Generation Successful</h4>
+                                                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol terminated with exit code 0</p>
+                                                    </div>
+                                                    <div className="flex w-full gap-3">
+                                                        {finalVideoUrl && (
+                                                            <a
+                                                                href={finalVideoUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                download
+                                                                className="flex-1 py-4 rounded-xl bg-green-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500 transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
+                                                            >
+                                                                <Download size={14} strokeWidth={3} /> Secure Download
+                                                            </a>
+                                                        )}
+                                                        <button
+                                                            onClick={resetFlow}
+                                                            className="flex-1 py-4 rounded-xl border border-white/5 bg-white/[0.02] text-white/60 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/[0.05] transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                        >
+                                                            <RotateCcw size={14} strokeWidth={3} /> Purge & Reset
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+
+                                        {/* ── Chat Messages ── */}
+                                        <div className="flex-1 overflow-y-auto min-h-0 p-8 space-y-8 bg-black/40 backdrop-blur-[60px] no-scrollbar overflow-x-hidden rounded-[2.5rem]">
+                                            {chatMessages.map((msg, i) => (
+                                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`flex flex-col gap-2.5 max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                        {msg.role === 'assistant' && (
+                                                            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
+                                                                <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Intelligence Synthesis</span>
                                                             </div>
-                                                            <span className="text-[9px] text-white/20 ml-2 font-medium uppercase tracking-widest">Processing</span>
+                                                        )}
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            className={`rounded-[2rem] px-7 py-5 text-[15px] leading-relaxed shadow-2xl transition-all ${msg.role === 'user'
+                                                                ? 'bg-gradient-to-br from-orange-600 to-orange-500 text-white rounded-tr-none border border-white/10 shadow-[0_10px_40px_rgba(234,88,12,0.2)]'
+                                                                : 'bg-white/[0.02] text-white/80 border border-white/5 rounded-tl-none backdrop-blur-2xl ring-1 ring-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)]'
+                                                                }`}
+                                                        >
+                                                            {msg.content}
+                                                        </motion.div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {isGenerating && (
+                                                <div className="flex justify-start">
+                                                    <div className="flex flex-col gap-2.5 items-start">
+                                                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
+                                                            <Loader2 size={10} className="text-orange-500 animate-spin" />
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">Processing Protocol</span>
+                                                        </div>
+                                                        <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
+                                                            <div className="flex gap-2 items-center">
+                                                                <div className="flex gap-1.5">
+                                                                    {[0, 1, 2].map((i) => (
+                                                                        <motion.div
+                                                                            key={i}
+                                                                            animate={{ scale: [1, 1.5, 1], opacity: [0.2, 1, 0.2] }}
+                                                                            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                                                                            className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]"
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                                <span className="text-[10px] text-white/30 ml-3 font-black uppercase tracking-[0.2em]">Executing...</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                        <div ref={chatEndRef} />
+                                            )}
+                                            <div ref={chatEndRef} />
+                                        </div>
+                                    </div>
+                                    {/* Sleek Progress Bar */}
+                                    <div className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto shadow-2xl relative group">
+                                        {STEPS.map((step, idx) => {
+                                            const done = idx < currentStepIdx;
+                                            const active = idx === currentStepIdx;
+                                            const Icon = step.icon;
+                                            return (
+                                                <div key={step.id} className="flex items-center flex-shrink-0">
+                                                    <motion.div
+                                                        whileHover={{ scale: 1.05, y: -2 }}
+                                                        className={`flex flex-col items-center gap-2 transition-all duration-700 ${active ? 'opacity-100' : done ? 'opacity-90' : 'opacity-20'}`}
+                                                    >
+                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-700 ${done
+                                                            ? 'bg-orange-600 border-orange-500/50 text-white shadow-[0_0_25px_rgba(234,88,12,0.4)]'
+                                                            : active
+                                                                ? 'bg-white/10 border-orange-500 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.3)]'
+                                                                : 'bg-white/5 border-white/5 text-white/30'
+                                                            }`}>
+                                                            {done ? <CheckCircle2 size={16} strokeWidth={3} /> : <Icon size={16} strokeWidth={2.5} />}
+                                                        </div>
+                                                        <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${active ? 'text-orange-400' : 'text-white/20'}`}>
+                                                            {step.label}
+                                                        </span>
+                                                    </motion.div>
+                                                    {idx < STEPS.length - 1 && (
+                                                        <div className={`w-8 md:w-12 h-[2px] mx-3 rounded-full transition-all duration-1000 ${done ? 'bg-gradient-to-r from-orange-600 to-orange-400' : 'bg-white/10'}`} />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                            </div>
+                                
 
-                            {/* ── RIGHT: Monitor Output ── */}
-                            <div className="flex-1 flex gap-4 items-start">
-                                {/* Monitor Column */}
-                                <div
-                                    className="w-full max-w-[402px] shrink-0 bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
-                                    style={{ 
-                                        aspectRatio: '9/16', 
-                                        maxHeight: '715px',
-                                        backgroundImage: 'url("/output.png")',
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center'
-                                    }}
-                                >
-                                    {/* Subdued Overlay for the monitor interior */}
-                                    <div className="absolute inset-0 bg-black/20 z-0" />
-                                    {/* Grid bg */}
-                                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none z-0" />
+                                {/* ── RIGHT: Monitor Output ── */}
+                                <div className="flex-1 flex gap-6 items-stretch overflow-hidden">
+                                    {/* Monitor Column */}
+                                    <div
+                                        className="h-full w-full max-w-[420px] shrink-0 bg-black rounded-[2.5rem] border-[12px] border-orange-500/20 overflow-hidden relative shadow-[0_0_40px_rgba(234,88,12,0.2),0_40px_100px_rgba(0,0,0,0.8)] group/monitor transition-all duration-700 hover:border-orange-500/40"
+                                        style={{
+                                            aspectRatio: '9/16',
+                                            maxHeight: 'calc(100vh - 12rem)'
+                                        }}
+                                    >
+                                        {/* Cinematic Glass Glare */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-30 pointer-events-none z-10" />
+                                        
+                                        {/* Subdued Overlay for the monitor interior */}
+                                        <div className="absolute inset-0 bg-black/40 z-0 rounded-[2.5rem]" />
+                                        
+                                        {/* High-Tech Grid bg */}
+                                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
 
-                                    {/* Traffic lights */}
-                                    <div className="absolute top-3 left-3 flex gap-1.5 z-10">
-                                        <div className="w-2 h-2 rounded-full bg-red-500/40" />
-                                        <div className="w-2 h-2 rounded-full bg-yellow-500/40" />
-                                        <div className="w-2 h-2 rounded-full bg-green-500/40" />
+                                        {/* Traffic lights / OS buttons */}
+                                        <div className="absolute top-6 left-6 flex gap-2 z-20">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-500/20" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30 border border-yellow-500/20" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-green-500/30 border border-green-500/20" />
+                                        </div>
+
+                                        <AnimatePresence mode="wait">
+                                            {finalVideoUrl ? (
+                                                <motion.div
+                                                    key="video"
+                                                    initial={{ opacity: 0, scale: 1.1 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="absolute inset-0 flex items-center justify-center bg-black group"
+                                                >
+                                                    <video
+                                                        src={finalVideoUrl}
+                                                        controls
+                                                        autoPlay
+                                                        className="w-full h-full object-contain shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]"
+                                                    />
+                                                    {/* Pro Status Overlay */}
+                                                    <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-black/80 border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/40 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                                                        Cinema Mode • 4K
+                                                    </div>
+                                                </motion.div>
+                                            ) : isGenerating ? (
+                                                <motion.div
+                                                    key="loading"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-black/80 backdrop-blur-3xl z-20"
+                                                >
+                                                    <div className="relative">
+                                                        <div className="w-24 h-24 rounded-[3rem] bg-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_60px_rgba(234,88,12,0.1)]">
+                                                            <motion.div
+                                                                animate={{ rotate: 360 }}
+                                                                transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                                                                className="absolute inset-0 rounded-[3rem] border-2 border-dashed border-orange-500/10"
+                                                            />
+                                                            <Sparkles size={32} className="text-orange-500 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                                                        </div>
+                                                        <div className="absolute -inset-6 rounded-full border border-orange-500/5 animate-[ping_4s_infinite]" />
+                                                    </div>
+                                                    <div className="text-center space-y-3">
+                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">Neural Synthesis</p>
+                                                        <div className="flex justify-center gap-1.5">
+                                                            {[0,1,2].map(i => (
+                                                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500/20 animate-pulse" />
+                                                            ))}
+                                                        </div>
+                                                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">
+                                                            {chatStep === 'generating-lipsync' ? 'Phase: Lipschitz Mapping…' : 'Phase: Lighting Protocol…'}
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div
+                                                    key="empty"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 transition-all"
+                                                >
+                                                    <div className="relative group/icon mb-8">
+                                                        <div className="absolute -inset-8 bg-orange-500/5 rounded-full blur-3xl opacity-0 group-hover/monitor:opacity-100 transition-opacity duration-1000" />
+                                                        <div className="w-24 h-24 rounded-[3rem] border border-dashed border-white/10 flex items-center justify-center group-hover/monitor:border-orange-500/30 transition-all duration-700 bg-white/[0.01]">
+                                                            <MonitorPlay size={36} className="text-white/[0.05] group-hover/monitor:text-orange-500/50 transition-all duration-1000 group-hover/monitor:scale-110" />
+                                                        </div>
+                                                    </div>
+                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">Studio Downlink</h3>
+                                                    <div className="flex items-center gap-3 mb-6">
+                                                        <div className="w-2 h-2 rounded-full bg-white/5 animate-pulse" />
+                                                        <p className="text-[10px] text-white/10 font-black uppercase tracking-[0.3em] group-hover/monitor:text-white/20 transition-colors">
+                                                            Standby Protocol
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+
+                                        {/* Scanline Effect Overlay */}
+                                        <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[1] rounded-[2.5rem]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 1px, transparent 2px)', backgroundSize: '100% 2px' }} />
                                     </div>
 
-                                    <AnimatePresence mode="wait">
-                                        {finalVideoUrl ? (
+                                    {/* Right Side Sidebar (Script + Assets) */}
+                                    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                                        {/* Script quick-view panel (shown after step 4) */}
+                                        {editableScript && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
                                             <motion.div
-                                                key="video"
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="absolute inset-0 flex items-center justify-center bg-black group"
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-orange-500/30 rounded-xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
                                             >
-                                                <video
-                                                    src={finalVideoUrl}
-                                                    controls
-                                                    autoPlay
-                                                    className="w-full h-full object-contain shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]"
-                                                />
-                                                {/* Pro Overlay */}
-                                                <div className="absolute top-4 right-4 px-2 py-1 rounded bg-black/60 border border-white/10 backdrop-blur-md text-[8px] font-bold text-white/60 uppercase tracking-widest z-10 pointer-events-none">
-                                                    Master • 4K
-                                                </div>
-                                            </motion.div>
-                                        ) : isGenerating ? (
-                                            <motion.div
-                                                key="loading"
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-[#050505]/90 backdrop-blur-md z-20"
-                                            >
-                                                <div className="relative">
-                                                    <div className="w-20 h-20 rounded-[2.5rem] bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shadow-[0_0_40px_rgba(234,88,12,0.1)]">
-                                                        <motion.div
-                                                            animate={{ rotate: 360 }}
-                                                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                                                            className="absolute inset-0 rounded-[2.5rem] border-2 border-dashed border-orange-500/20"
-                                                        />
-                                                        <Sparkles size={28} className="text-orange-400" />
-                                                    </div>
-                                                    <div className="absolute -inset-4 rounded-full border border-orange-500/10 animate-[ping_3s_infinite]" />
-                                                </div>
-                                                <div className="text-center">
-                                                    <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Rendering Engine</p>
-                                                    <p className="text-[9px] text-white/30 mt-2 font-medium uppercase tracking-widest">
-                                                        {chatStep === 'generating-lipsync' ? 'Synthesizing LipSync…' : 'Processing Cinematic Frames…'}
-                                                    </p>
-                                                </div>
-                                            </motion.div>
-                                        ) : (
-                                            <motion.div
-                                                key="empty"
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 transition-all group"
-                                            >
-                                                <div className="w-20 h-20 rounded-[2.5rem] border border-dashed border-white/10 flex items-center justify-center mb-6 group-hover:border-orange-500/30 transition-colors duration-700">
-                                                    <MonitorPlay size={32} className="text-white/10 group-hover:text-orange-500/40 transition-all duration-700 group-hover:scale-110" />
-                                                </div>
-                                                <h3 className="text-xl font-bold text-white/20 mb-2  group-hover:text-white/40 transition-colors">Monitor Output</h3>
-                                                <p className="text-[10px] mb-60 text-white/10 font-medium uppercase tracking-[0.2em] max-w-[200px] group-hover:text-white/20 transition-colors">
-                                                    Awaiting video signal
+                                                <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
+                                                    <FileText size={8} /> Script Preview
+                                                </p>
+                                                <p className="text-[10px] text-black/60 dark:text-white/50 leading-relaxed line-clamp-5">
+                                                    {editableScript}
                                                 </p>
                                             </motion.div>
                                         )}
-                                    </AnimatePresence>
-                                    
-                                    {/* Scanline Effect Overlay */}
-                                    <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[1]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 1px, transparent 2px)', backgroundSize: '100% 2px' }} />
-                                </div>
 
-                                {/* Right Side Sidebar (Script + Assets) */}
-                                <div className="flex-1 flex flex-col gap-4">
-                                    {/* Script quick-view panel (shown after step 4) */}
-                                    {editableScript && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4"
-                                        >
-                                        <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
-                                            <FileText size={8} /> Script Preview
-                                        </p>
-                                        <p className="text-[10px] text-black/60 dark:text-white/50 leading-relaxed line-clamp-5">
-                                            {editableScript}
-                                        </p>
-                                    </motion.div>
-                                )}
-
-                                {/* ── Photo Assets Panel ── */}
-                                {imageTimeline.length > 0 && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
-                                                <Sparkles size={8} /> Visual Assets
-                                            </p>
-                                            <span className="text-[8px] text-gray-400">
-                                                {imageTimeline.filter(p => p.imageUrl).length}/{imageTimeline.length} ready
-                                            </span>
-                                        </div>
+                                        {/* ── Photo Assets Panel ── */}
+                                        {imageTimeline.length > 0 && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-orange-500/30 rounded-xl p-4 space-y-3 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
+                                                        <Sparkles size={8} /> Visual Assets
+                                                    </p>
+                                                    <span className="text-[8px] text-gray-400">
+                                                        {imageTimeline.filter(p => p.imageUrl).length}/{imageTimeline.length} ready
+                                                    </span>
+                                                </div>
 
 
-                                        {/* Image strip */}
-                                        {imageTimeline.length > 0 && (
-                                            <div className="flex flex-col gap-3 overflow-y-auto pb-1 pr-1 max-h-[500px]">
-                                                {imageTimeline.map((item, i) => (
-                                                    <div key={i} className="flex-shrink-0 w-full space-y-1">
-                                                        <div className="relative w-full h-[120px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">
-                                                            {item.imageUrl ? (
-                                                                <img src={item.imageUrl} alt={item.topic} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center">
-                                                                    <Loader2 size={14} className="text-orange-400 animate-spin" />
+                                                {/* Image strip */}
+                                                {imageTimeline.length > 0 && (
+                                                    <div className="flex-1 flex flex-col gap-3 overflow-y-auto pb-1 pr-1 no-scrollbar">
+                                                        {imageTimeline.map((item, i) => (
+                                                            <div key={i} className="flex-shrink-0 w-full space-y-1">
+                                                                <div className="relative w-full h-[120px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">
+                                                                    {item.imageUrl ? (
+                                                                        <img src={item.imageUrl} alt={item.topic} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center">
+                                                                            <Loader2 size={14} className="text-orange-400 animate-spin" />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className={`absolute top-1 right-1 px-1 py-0.5 rounded text-[6px] font-bold uppercase ${item.layout === 'fullscreen' ? 'bg-orange-500 text-white' : 'bg-black/60 text-white/80'}`}>
+                                                                        {item.layout === 'fullscreen' ? 'Full' : 'Split'}
+                                                                    </div>
                                                                 </div>
-                                                            )}
-                                                            <div className={`absolute top-1 right-1 px-1 py-0.5 rounded text-[6px] font-bold uppercase ${item.layout === 'fullscreen' ? 'bg-orange-500 text-white' : 'bg-black/60 text-white/80'}`}>
-                                                                {item.layout === 'fullscreen' ? 'Full' : 'Split'}
+                                                                <p className="text-[7px] text-black/50 dark:text-white/40 truncate">{item.time}s</p>
+                                                                <p className="text-[7px] text-black/70 dark:text-white/60 truncate font-medium">{item.topic}</p>
                                                             </div>
-                                                        </div>
-                                                        <p className="text-[7px] text-black/50 dark:text-white/40 truncate">{item.time}s</p>
-                                                        <p className="text-[7px] text-black/70 dark:text-white/60 truncate font-medium">{item.topic}</p>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                )}
+                                            </motion.div>
                                         )}
-                                    </motion.div>
-                                )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        /* Motion Control Tab */
-                        <div className="max-w-[700px] space-y-4">
-                            <div className="space-y-2">
-                                <h2 className="text-xl font-semibold tracking-tight text-black dark:text-white">
-                                    Motion <span className="text-black/30 dark:text-white/30">Control</span>
-                                </h2>
-                                <p className="text-black/40 dark:text-white/40 text-[11px] leading-relaxed">
-                                    Control camera movements and animations with precision.
-                                </p>
+                        ) : (
+                            /* Motion Control Tab */
+                            <div className="max-w-[700px] space-y-4">
+                                <div className="space-y-2">
+                                    <h2 className="text-xl font-semibold tracking-tight text-black dark:text-white">
+                                        Motion <span className="text-black/30 dark:text-white/30">Control</span>
+                                    </h2>
+                                    <p className="text-black/40 dark:text-white/40 text-[11px] leading-relaxed">
+                                        Control camera movements and animations with precision.
+                                    </p>
+                                </div>
+                                <button className="w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl">
+                                    <Move3d size={14} /> Coming Soon.
+                                </button>
                             </div>
-                            {/* <div className="space-y-1.5">
-                                <label className="text-[9px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest">Camera Movement</label>
-                                <textarea
-                                    placeholder="Describe camera path (e.g. slow dolly in, pan left to right…)"
-                                    className="w-full h-24 bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-3 text-[11px] text-black dark:text-white focus:border-purple-500/30 outline-none transition-colors placeholder-black/20 dark:placeholder-white/20 resize-none leading-relaxed"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest">Motion Presets</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {['Camera Paths', 'Animation Control'].map((preset) => (
-                                        <div key={preset} className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/5 rounded-lg">
-                                            <div className="w-1 h-1 rounded-full bg-cyan-400/60" />
-                                            <p className="text-[9px] font-bold text-black/50 dark:text-white/50 uppercase tracking-wider">{preset}</p>
-                                        </div>
-                                    ))}
-                                </div> */}
-                            {/* </div> */}
-                            <button className="w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl">
-                                <Move3d size={14} /> Coming Soon.
-                            </button>
-                        </div>
-                    )}
-                </main>
+                        )}
+                    </main>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
     );
 }
 

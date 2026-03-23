@@ -107,7 +107,7 @@ export default function SessionHistorySidebar({
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-white/5 dark:bg-black/20 backdrop-blur-xl border-r border-white/10 h-full shadow-2xl"
+                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full shadow-2xl"
             >
                 <button
                     onClick={() => setCollapsed(false)}
@@ -145,13 +145,13 @@ export default function SessionHistorySidebar({
         <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-64 flex-shrink-0 flex flex-col bg-white/5 dark:bg-black/20 backdrop-blur-xl border-r border-white/10 h-full overflow-hidden shadow-2xl"
+            className="w-72 flex-shrink-0 flex flex-col bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full overflow-hidden shadow-2xl rounded-r-[2.5rem]"
         >
             {/* Header */}
             <div className="px-4 py-4 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <History size={14} className={accent.text} />
-                    <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/50">
+                    <span className="text-[13px] uppercase font-black tracking-[0.2em] text-white/60">
                         History
                     </span>
                 </div>
@@ -216,10 +216,10 @@ export default function SessionHistorySidebar({
 
                                         {/* Content */}
                                         <div className="flex-1 min-w-0">
-                                            <p className={`text-[11px] font-medium truncate leading-tight ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white/80'} transition-colors`}>
+                                            <p className={`text-[14px] font-bold truncate leading-tight ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white/80'} transition-colors`}>
                                                 {session.title || 'Untitled Session'}
                                             </p>
-                                            <p className="text-[9px] text-white/25 mt-0.5">
+                                            <p className="text-[11px] text-white/30 mt-1">
                                                 {formatSessionDate(session.updatedAt)}
                                             </p>
                                         </div>
@@ -249,9 +249,9 @@ export default function SessionHistorySidebar({
             <div className="px-4 py-3 border-t border-white/5">
                 <button
                     onClick={onNewSession}
-                    className={`w-full py-2.5 rounded-xl text-[9px] uppercase tracking-widest font-bold transition-all border flex items-center justify-center gap-2 ${accent.bg} ${accent.text} ${accent.border} hover:brightness-110`}
+                    className={`w-full py-4 rounded-xl text-[11px] uppercase tracking-[0.25em] font-black transition-all border flex items-center justify-center gap-2 ${accent.bg} ${accent.text} ${accent.border} hover:brightness-110 shadow-lg`}
                 >
-                    <Plus size={11} />
+                    <Plus size={14} />
                     New Session
                 </button>
             </div>
