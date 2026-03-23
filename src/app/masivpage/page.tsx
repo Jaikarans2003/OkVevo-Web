@@ -13,6 +13,19 @@ import FeaturedShows from '@/components/masiv/FeaturedShows';
 
 const products = [
     {
+        id: '13',
+        name: 'Dhurandhar',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/dhurandharmale.png',
+            '/masiv/dhurandharfemale.png'
+        ],
+        description: 'Embrace the legendary aura of a true Dhurandhar.',
+        price: 2499,
+        badge1: 'UNISEX',
+        badge2: 'Legendary'
+    },
+    {
         id: '1',
         name: 'Modern Mafia',
         type: 'photo',

@@ -13,7 +13,7 @@ const Showcase = () => {
     const tabs = [
         {
             name: 'Create',
-            video: '/videos/script.mp4',
+            video: '/videos/newcreate.mov',
         },
         {
             name: 'Animate',

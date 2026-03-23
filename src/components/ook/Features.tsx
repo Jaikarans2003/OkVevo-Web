@@ -11,18 +11,18 @@ const HowItWorks = () => {
 
     const steps = [
         {
-            shortTitle: "AI Influencers",
-            fullText: "Create talking avatar videos in seconds — upload your avatar, generate a script and produce social media ready videos instantly.",
+            shortTitle: "Avatar Identity",
+            fullText: "Transform any image into a hyper-realistic digital persona. Customize presence, tone, and character in seconds.",
             img: "/avatar.png",
         },
         {
-            shortTitle: "Product Studio",
-            fullText: "Create stunning product photos without a studio — upload your product and generate lifestyle images and marketing visuals instantly.",
+            shortTitle: "Neural Scripting",
+            fullText: "Our advanced AI converts your ideas into high-converting scripts automatically, tailored precisely for your digital identity.",
             img: "/movie-scene.png",
         },
         {
-            shortTitle: "Social Media",
-            fullText: "Generate viral short-form videos — effortlessly optimized for Instagram Reels, TikTok, and YouTube Shorts.",
+            shortTitle: "Cinematic Production",
+            fullText: "Generate studio-quality videos instantly. No camera, no equipment — just pure neural rendering at scale.",
             img: "/ai-engine.png",
         }
     ];

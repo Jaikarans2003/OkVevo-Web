@@ -33,11 +33,17 @@ const services = [
     },
 ];
 
-const offerings = [
-    { name: 'Script-to-Cinema', icon: '📝' },
-    { name: 'Digital Avatars', icon: '👤' },
+const activeFeature = {
+    name: 'AI Influencer Studio',
+    status: 'Live Now',
+    description: 'Transform your presence with hyper-realistic digital twins.',
+    icon: <UserCheck className="w-4 h-4 text-accent-orange" />
+};
+
+const upcomingFeatures = [
     { name: 'Product Studio', icon: '🛍️' },
     { name: 'Social Trends', icon: '🎬' },
+    { name: 'Script-to-Cinema', icon: '📝' },
 ];
 
 const Hero = ({ onJoinClick }: HeroProps) => {
@@ -98,7 +104,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             <div className="relative z-10 pt-32 px-6 flex flex-col items-center text-center max-w-5xl mx-auto">
 
                 {/* Feature Badge/Pill */}
-                <Link href="/workspace/social">
+                <Link href="/okvevo-masiv">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 13 }}
@@ -108,7 +114,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                         <div className="px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md flex items-center gap-2 border border-white/5">
                             <span className="px-2 py-0.5 rounded-full bg-accent-orange text-[10px] font-bold text-white uppercase tracking-wider">New</span>
                             <span className="text-sm text-white/80 font-medium flex items-center gap-1 group-hover:text-white transition-colors">
-                                Social Media Trends is here
+                                OKVEVO X MASIV Trends are here
                                 <ChevronRight className="w-4 h-4 text-accent-orange group-hover:translate-x-0.5 transition-transform" />
                             </span>
                         </div>
@@ -158,27 +164,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     </a>
                 </motion.div>
 
-                {/* Social Proof Section */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.8 }}
-                    className="space-y-6 mb-24"
-                >
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/30">
-                        Our Core AI Capabilities
-                    </p>
-                    <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                        {offerings.map((item) => (
-                            <div key={item.name} className="flex items-center gap-3 group/item cursor-default">
-                                <span className="text-xl group-hover/item:scale-110 transition-transform">{item.icon}</span>
-                                <span className="text-sm font-bold tracking-widest text-white/80 group-hover/item:text-accent-orange transition-colors">
-                                    {item.name}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </motion.div>
+
             </div>
 
             {/* --- Bottom Video Section --- */}

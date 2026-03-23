@@ -657,7 +657,7 @@ function AIInfluencerWorkstation() {
                     </div>
 
                     {activeTab === 'explainers' ? (
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
+                        <div className="flex flex-col md:flex-row gap-4 items-start">
 
                             {/* ── LEFT: Step Wizard ── */}
                             <div className="w-full md:w-[700px] flex-shrink-0 flex flex-col gap-4">
@@ -1066,9 +1066,10 @@ function AIInfluencerWorkstation() {
                             </div>
 
                             {/* ── RIGHT: Monitor Output ── */}
-                            <div className="flex-1 flex flex-col gap-4">
+                            <div className="flex-1 flex gap-4 items-start">
+                                {/* Monitor Column */}
                                 <div
-                                    className="w-full max-w-[402px] mx-auto bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
+                                    className="w-full max-w-[402px] shrink-0 bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden relative shadow-2xl"
                                     style={{ 
                                         aspectRatio: '9/16', 
                                         maxHeight: '715px',
@@ -1156,13 +1157,15 @@ function AIInfluencerWorkstation() {
                                     <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[1]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 1px, transparent 2px)', backgroundSize: '100% 2px' }} />
                                 </div>
 
-                                {/* Script quick-view panel (shown after step 4) */}
-                                {editableScript && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4"
-                                    >
+                                {/* Right Side Sidebar (Script + Assets) */}
+                                <div className="flex-1 flex flex-col gap-4">
+                                    {/* Script quick-view panel (shown after step 4) */}
+                                    {editableScript && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-4"
+                                        >
                                         <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
                                             <FileText size={8} /> Script Preview
                                         </p>
@@ -1191,10 +1194,10 @@ function AIInfluencerWorkstation() {
 
                                         {/* Image strip */}
                                         {imageTimeline.length > 0 && (
-                                            <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+                                            <div className="flex flex-col gap-3 overflow-y-auto pb-1 pr-1 max-h-[500px]">
                                                 {imageTimeline.map((item, i) => (
-                                                    <div key={i} className="flex-shrink-0 snap-start w-[100px] space-y-1">
-                                                        <div className="relative w-full h-[70px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">
+                                                    <div key={i} className="flex-shrink-0 w-full space-y-1">
+                                                        <div className="relative w-full h-[120px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">
                                                             {item.imageUrl ? (
                                                                 <img src={item.imageUrl} alt={item.topic} className="w-full h-full object-cover" />
                                                             ) : (
@@ -1214,6 +1217,7 @@ function AIInfluencerWorkstation() {
                                         )}
                                     </motion.div>
                                 )}
+                                </div>
                             </div>
                         </div>
                     ) : (

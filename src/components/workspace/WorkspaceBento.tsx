@@ -183,23 +183,32 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
 
                     {/* CARD 1B: PRODUCT STUDIO (Top Left 2) */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20, delay: 0.1 }}
+                        initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
                         whileHover={{ scale: 1.02 }}
-                        className="lg:col-span-4 bg-[#A8E6CF] rounded-[2.5rem] relative overflow-hidden group shadow-2xl cursor-pointer"
+                        className="lg:col-span-4 bg-[#A8E6CF] rounded-[2.5rem] relative overflow-hidden group shadow-2xl cursor-default"
                     >
+                        {/* Coming Soon Overlay */}
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[6px]">
+                            <span className="px-6 py-2.5 bg-black/40 text-white font-bold uppercase tracking-[0.2em] rounded-full border border-white/10 text-xs shadow-2xl flex items-center gap-2">
+                                <Sparkles size={14} className="text-accent-orange" />
+                                Coming Soon...
+                            </span>
+                        </div>
+
                         {/* Decorative Background Image / Pattern */}
                         <div className="absolute inset-0 pointer-events-none group-hover:scale-110 transition-transform duration-1000 ease-out">
                             <img src="/WorkSpacePhotos/2.jpg" alt="Product Studio" className="w-full h-full object-cover opacity-90 mix-blend-multiply" />
                             <div className="absolute inset-0 bg-gradient-to-b from-[#A8E6CF]/90 via-[#A8E6CF]/40 to-[#0A261D]/90" />
                         </div>
                         
-                        <Link href="/workspace/product" className="relative z-10 w-full h-full p-8 flex flex-col justify-between block group/link">
+                        <div className="relative z-10 w-full h-full p-8 flex flex-col justify-between block group/link pointer-events-none">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-2 text-[#0A261D] font-black text-[10px] uppercase tracking-[0.2em] bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#0A261D]/10">
                                     <Camera size={12} className="text-[#0A261D]" /> Brand Boost
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-[#0A261D] border border-white/50 group-hover/link:bg-white group-hover/link:rotate-45 transition-all duration-300">
+                                <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-[#0A261D] border border-white/50 group-hover/link:bg-white group-hover/link:rotate-45 transition-all duration-300 opacity-50">
                                     <ArrowUpRight className="size-5" />
                                 </div>
                             </div>
@@ -217,7 +226,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                             <div className="absolute right-4 bottom-24 w-12 h-12 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-500 shadow-xl pointer-events-none">
                                 <Palette className="text-white size-5" />
                             </div>
-                        </Link>
+                        </div>
                     </motion.div>
 
                     {/* CARD 2: PERSONA / AVATAR (Top Right - Small) */}
@@ -300,9 +309,17 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         whileHover={{ scale: 1.01 }}
-                        className="lg:col-span-8 bg-[#111111] rounded-[2.5rem] overflow-hidden group relative border border-white/10 shadow-2xl flex flex-col md:flex-row"
+                        className="lg:col-span-8 bg-[#111111] rounded-[2.5rem] overflow-hidden group relative border border-white/10 shadow-2xl flex flex-col md:flex-row cursor-default"
                     >
-                        <Link href="/workspace/social" className="flex flex-col md:flex-row w-full h-full relative p-8 md:p-12 gap-10">
+                        {/* Coming Soon Overlay */}
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[6px]">
+                            <span className="px-6 py-2.5 bg-black/40 text-white font-bold uppercase tracking-[0.2em] rounded-full border border-white/10 text-xs shadow-2xl flex items-center gap-2">
+                                <Sparkles size={14} className="text-accent-orange" />
+                                Coming Soon...
+                            </span>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row w-full h-full relative p-8 md:p-12 gap-10 pointer-events-none">
                             {/* Left Side: Content */}
                             <div className="flex-1 flex flex-col justify-center relative z-20">
                                 <div className="flex items-center gap-2 text-accent-orange font-black text-[9px] uppercase tracking-[0.3em] mb-4">
@@ -316,7 +333,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                     Spot global trends in real-time and convert them into cinematic content with a single click.
                                 </p>
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-black transition-all">
+                                    <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-black transition-all opacity-50">
                                         <ArrowUpRight className="size-6" />
                                     </div>
                                     <span className="text-[10px] font-black uppercase tracking-widest text-white/20 group-hover:text-white/60 transition-colors">Enter Trends Studio</span>
@@ -342,7 +359,7 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
                                     <span className="text-[8px] font-black uppercase tracking-widest text-white/50">Tracking 50+ Trends</span>
                                 </motion.div>
                             </div>
-                        </Link>
+                        </div>
                     </motion.div>
 
                 </div>
