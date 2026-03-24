@@ -62,6 +62,13 @@ exports.handler = async (event) => {
         console.log('   Request IDs:', requestIds.length);
         console.log('   Job Status:', status);
         console.log('   Processing Lock:', processingLock);
+        console.log('   Task Token:', taskToken ? taskToken.substring(0, 30) + '...' : '❌ MISSING');
+        
+        // Guard: taskToken is required to resume the Step Function
+        if (!taskToken) {
+            console.error('❌ CRITICAL: taskToken is missing from Firestore! The lipsync-submit lambda must store taskToken in aiInfluencerJobs.');
+            throw new Error('taskToken missing from Firestore job document. Ensure okvevo-lipsync-submit saves taskToken to aiInfluencerJobs.');
+        }
         
         // 2. Check if already completed or all jobs received
         if (status === 'lipsync-completed' || lipsyncResults.length >= expectedLipsyncResults) {
