@@ -773,7 +773,7 @@ function AIInfluencerWorkstation() {
                                                                 className="flex-1 py-4 rounded-2xl font-black text-[12px] tracking-[0.1em] border transition-all flex flex-col items-center gap-2 disabled:opacity-20 bg-white/[0.02] border-white/5 text-white/60 hover:border-orange-500/50 hover:bg-orange-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] active:scale-95"
                                                             >
                                                                 <Clock size={16} className="text-orange-500" strokeWidth={2.5} />
-                                                                <span>{d} Seconds</span>
+                                                                <span>{d === 15 ? '0–15' : d === 30 ? '15–30' : '30–60'} Seconds</span>
                                                                 <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">~{Math.floor(d * 2.5)} Tokens / {d === 15 ? '3' : d === 30 ? '5' : '8'} Images</span>
                                                             </button>
                                                         ))}
