@@ -15,7 +15,7 @@ import Groq from 'groq-sdk';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { script, topic, duration } = body;
+        const { script, topic, duration, ttsPacing } = body;
 
         const inputSource = script?.trim() || topic?.trim();
 
@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (![15, 30].includes(duration)) {
+        if (![15, 30, 60].includes(duration)) {
             return NextResponse.json(
-                { error: 'Duration must be 15 or 30 seconds' },
+                { error: 'Duration must be 15, 30, or 60 seconds' },
                 { status: 400 }
             );
         }
@@ -44,44 +44,75 @@ export async function POST(request: NextRequest) {
         }
 
         const groq = new Groq({ apiKey: groqApiKey });
-        const targetWordCount = Math.floor(duration * 2.5);
+        
+        const isFast = ttsPacing === 'fast';
+        let minWords = 0;
+        let maxWords = 0;
+        let momentsCount = 0;
+
+        // Tone & Formatting Instructions
+        const toneInstructions = isFast 
+            ? "High-energy, confident, punchy, and aggressive pacing. Hook-heavy delivery."
+            : "Slower speech, emotional depth, steady, and profound delivery.";
+            
+        const formattingInstructions = isFast
+            ? "Keep sentences punchy and continuous. Use minimal pauses. Do not add excessive line breaks so the energy doesn't die."
+            : "Use frequent line breaks as the primary method to force the voice engine to pause and take a breath. You may use ellipses (...) very occasionally for special dramatic effect, but line breaks are the default.";
+
+        if (duration === 15) {
+            minWords = isFast ? 55 : 40;
+            maxWords = isFast ? 65 : 45;
+            momentsCount = 3;
+        } else if (duration === 30) {
+            minWords = isFast ? 120 : 80;
+            maxWords = isFast ? 140 : 95;
+            momentsCount = 5;
+        } else if (duration === 60) {
+            minWords = isFast ? 210 : 160;
+            maxWords = isFast ? 230 : 180;
+            momentsCount = 8;
+        } else {
+            // Fallback just in case
+            minWords = Math.floor(duration * 2.0);
+            maxWords = Math.floor(duration * 2.5);
+            momentsCount = 3;
+        }
+
         const isRawScript = Boolean(script?.trim());
+
+        const baseRequirements = `
+Requirements for the output script:
+- Duration Target: exactly ${duration} seconds when read aloud
+- ABSOLUTE WORD COUNT LIMIT: Must be strictly between ${minWords} and ${maxWords} words. Do not exceed this boundary under any circumstance.
+- Tone: ${toneInstructions}
+- Pacing & Formatting: ${formattingInstructions}
+- Language: Conversational spoken English. No bullet points, no headers, no stage directions like "[pause]" or "(music)". Only the spoken text.
+`;
 
         const scriptPrompt = isRawScript
             ? `You are an expert scriptwriter for short-form video content.
 
-The user has provided their raw script below. Your task is to analyze it, extract the core message, and transform it into a polished, professional ${duration}-second explainer/narrator script.
+The user has provided their raw script below. Your task is to analyze it, extract the core message, and transform it into a polished, professional ${duration}-second narrator script.
 
 USER'S RAW SCRIPT:
 """
 ${inputSource}
 """
+${baseRequirements}
+- Structure: Hook (first 2-3 seconds) → Core message → Conclusion
+- Preserve the key information from the original script but make it flow naturally.
 
-Requirements for the output script:
-- Duration: exactly ${duration} seconds when read aloud at a natural pace
-- Target word count: approximately ${targetWordCount} words (at ~150 words/min speaking pace)
-- Tone: Professional, engaging, clear — like a confident TV narrator
-- Structure: Hook (first 2-3 seconds) → Core message → Punchy conclusion
-- Language: Conversational spoken English — no bullet points, no headers, no stage directions
-- Preserve the key information from the original script but make it flow naturally
-- Do NOT include any directions like "[pause]" or "(music)" — just pure narration text
-
-Output ONLY the final narration script text. No explanations, no labels, no formatting.`
-            : `Generate a compelling ${duration}-second explainer video script about "${inputSource}".
-
-Requirements:
-- Duration: ${duration} seconds
-- Word count: approximately ${targetWordCount} words
-- Tone: Professional, engaging, informative
+Output ONLY the final narration script text. No explanations, no labels.`
+            : `Generate a compelling ${duration}-second video script about "${inputSource}".
+${baseRequirements}
 - Structure: Hook → Problem → Solution → Call to Action
-- Natural spoken language, not written text
-- Suitable for a talking-head video format
 
-Output only the narration text. No formatting, no sections, just the script.`;
+Output ONLY the final narration script text. No explanations, no labels.`;
 
         console.log('📝 Generating explainer script with Groq...');
         console.log(`   Mode: ${isRawScript ? 'RAW SCRIPT TRANSFORM' : 'TOPIC GENERATION'}`);
-        console.log(`   Duration: ${duration}s (~${targetWordCount} words)`);
+        console.log(`   Duration: ${duration}s (Target: ${minWords}-${maxWords} words)`);
+        console.log(`   TTS Pacing: ${ttsPacing || 'calm'}`);
         console.log(`   Input length: ${inputSource.length} chars`);
 
         const scriptChat = await groq.chat.completions.create({
@@ -110,7 +141,7 @@ Output only the narration text. No formatting, no sections, just the script.`;
         const genAI = new GoogleGenerativeAI(geminiApiKey);
         const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        const momentsPrompt = `Given this ${duration}-second video script, extract 3-4 key visual moments that should be illustrated with images.
+        const momentsPrompt = `Given this ${duration}-second video script, extract exactly ${momentsCount} key visual moments that should be illustrated with images.
 
 SCRIPT:
 """
@@ -123,7 +154,7 @@ For each moment, provide:
 3. topic: Brief description of the moment (string)
 4. prompt: Detailed image generation prompt for that moment (string)
 
-Output ONLY a JSON array in this exact format:
+Output ONLY a JSON array with exactly ${momentsCount} objects in this exact format:
 [
   { "start": 0, "end": 5, "topic": "Opening hook", "prompt": "detailed image prompt here" },
   { "start": 5, "end": 10, "topic": "Main point", "prompt": "detailed image prompt here" }

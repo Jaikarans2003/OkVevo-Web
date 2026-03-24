@@ -14,10 +14,11 @@ export interface AIInfluencerJobRequest {
     userId: string;
     topic: string;
     script?: string;
-    duration: 15 | 30;
+    duration: 15 | 30 | 60;
     gender: 'male' | 'female';
     photoUrl?: string;
     avatarUrl: string;
+    ttsPacing?: 'calm' | 'fast';
 }
 
 export interface AIInfluencerJobResponse {
@@ -35,6 +36,7 @@ export interface AIInfluencerJobStatus {
     topic: string;
     duration: number;
     gender: string;
+    ttsPacing?: 'calm' | 'fast';
     generatedScript?: string;
     audioUrl?: string;
     lipsyncVideoUrl?: string;
@@ -54,6 +56,7 @@ export interface AIInfluencerJob {
     script?: string;
     avatarUrl: string;
     photoUrl?: string;
+    ttsPacing?: 'calm' | 'fast';
     finalVideoUrl?: string;
     errorMessage?: string;
     createdAt: Timestamp;

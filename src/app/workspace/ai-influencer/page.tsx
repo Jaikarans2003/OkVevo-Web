@@ -24,6 +24,7 @@ import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 type ChatStep =
     | 'upload-script'        // 1. Upload / paste script
     | 'duration'             // 2. Select duration
+    | 'tts-pacing'           // 2b. Select pacing
     | 'generating-script'    // 3. AI generating narrative script
     | 'edit-script'          // 4. Show editable script
     | 'avatar-video'         // 5. Upload avatar video
@@ -48,6 +49,7 @@ interface ImageMoment {
 const STEPS = [
     { id: 'upload-script', label: 'Script', icon: FileText },
     { id: 'duration', label: 'Duration', icon: Clock },
+    { id: 'tts-pacing', label: 'Pacing', icon: Sparkles },
     { id: 'generating-script', label: 'Generate', icon: Sparkles },
     { id: 'edit-script', label: 'Edit', icon: Edit3 },
     { id: 'avatar-video', label: 'Avatar', icon: Video },
@@ -58,7 +60,7 @@ const STEPS = [
 ] as const;
 
 const STEP_ORDER: ChatStep[] = [
-    'upload-script', 'duration', 'generating-script', 'edit-script',
+    'upload-script', 'duration', 'tts-pacing', 'generating-script', 'edit-script',
     'avatar-video', 'generating-tts', 'preview-audio', 'generating-lipsync', 'complete',
 ];
 
@@ -83,7 +85,8 @@ function AIInfluencerWorkstation() {
 
     // Data state
     const [rawScript, setRawScript] = useState('');
-    const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 0>(0);
+    const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 60 | 0>(0);
+    const [ttsPacing, setTtsPacing] = useState<'calm' | 'fast' | ''>('');
     const [generatedScript, setGeneratedScript] = useState('');
     const [editableScript, setEditableScript] = useState('');
     const [avatarVideo, setAvatarVideo] = useState<File | null>(null);
@@ -249,6 +252,7 @@ function AIInfluencerWorkstation() {
         }]);
         setRawScript('');
         setSelectedDuration(0);
+        setTtsPacing('');
         setGeneratedScript('');
         setEditableScript('');
         setAvatarVideo(null);
@@ -301,19 +305,28 @@ function AIInfluencerWorkstation() {
         setChatStep('duration');
     };
 
-    // ── Step 2: Duration → Phase 1 Script Generation ─────
-    const handleDurationSelect = async (duration: 15 | 30) => {
+    // ── Step 2: Duration ─────
+    const handleDurationSelect = (duration: 15 | 30 | 60) => {
         if (!user?.uid) {
             addAssistant('❌ Please sign in to generate videos.');
             return;
         }
 
         setSelectedDuration(duration);
-        addUser(`${duration} seconds`);
+        addUser(`${duration === 15 ? '0 to 15' : duration === 30 ? '15 to 30' : '30 to 60'} seconds`);
+        
+        setChatStep('tts-pacing');
+        addAssistant('Great! Now select the pacing style for the AI voiceover.');
+    };
+
+    // ── Step 2b: Pacing → Phase 1 Script Generation ─────
+    const handlePacingSelect = async (pacing: 'calm' | 'fast') => {
+        setTtsPacing(pacing);
+        addUser(`${pacing === 'calm' ? 'Calm & Steady' : 'Fast & Punchy'} style`);
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analyzing your script and generating a ${duration}-second narrative explainer with Gemini...`);
+        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-second narrative explainer with Gemini...`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -322,7 +335,8 @@ function AIInfluencerWorkstation() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     script: rawScript,
-                    duration: duration,
+                    duration: selectedDuration,
+                    ttsPacing: pacing
                 }),
             });
             const data = await res.json();
@@ -355,7 +369,7 @@ function AIInfluencerWorkstation() {
         } catch (err: any) {
             addAssistant(`❌ Failed to generate script: ${err.message}`);
             setIsGenerating(false);
-            setChatStep('duration');
+            setChatStep('tts-pacing');
         }
     };
 
@@ -483,6 +497,7 @@ function AIInfluencerWorkstation() {
                     duration: selectedDuration,
                     avatarVideoUrl: avatarVideoUrl,
                     gender: selectedGender || 'female',
+                    ttsPacing: ttsPacing,
                     audioSampleUrl: audioSampleUrl,
                     moments: imageTimeline.map(m => ({
                         start: m.start,
@@ -763,7 +778,7 @@ function AIInfluencerWorkstation() {
                                                     <Clock size={9} /> Step 2 — Select Narration Duration
                                                 </p>
                                                 <div className="flex gap-2">
-                                                    {([15, 30] as const).map((d) => (
+                                                    {([15, 30, 60] as const).map((d) => (
                                                         <button
                                                             key={d}
                                                             onClick={() => handleDurationSelect(d)}
@@ -771,10 +786,41 @@ function AIInfluencerWorkstation() {
                                                             className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10"
                                                         >
                                                             <Clock size={14} className="text-orange-400" />
-                                                            <span>{d} seconds</span>
-                                                            <span className="text-[8px] text-gray-400 font-normal">~{Math.floor(d * 2.5)} words</span>
+                                                            <span>{d === 15 ? '0 to 15' : d === 30 ? '15 to 30' : '30 to 60'} sec</span>
+                                                            <span className="text-[8px] text-gray-400 font-normal">{d === 15 ? '~3' : d === 30 ? '~5' : '~8'} images</span>
                                                         </button>
                                                     ))}
+                                                </div>
+                                            </motion.div>
+                                        )}
+
+                                        {/* STEP 2b: Pacing */}
+                                        {chatStep === 'tts-pacing' && (
+                                            <motion.div
+                                                key="tts-pacing"
+                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                                                className="px-4 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-[#0D0D0D] shrink-0 space-y-2"
+                                            >
+                                                <p className="text-[9px] uppercase font-bold text-black/40 dark:text-white/40 tracking-widest flex items-center gap-1.5">
+                                                    <Sparkles size={9} /> Step 3 — Select Voice Pacing Style
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handlePacingSelect('calm')}
+                                                        disabled={isGenerating}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                                                    >
+                                                        <span>Calm & Steady</span>
+                                                        <span className="text-[8px] text-gray-400 font-normal">Slower speech, emotional depth</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePacingSelect('fast')}
+                                                        disabled={isGenerating}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-[11px] tracking-wider border transition-all flex flex-col items-center gap-1 bg-white/60 dark:bg-black/40 border-gray-200 dark:border-white/10 text-black/70 dark:text-white/70 hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                                                    >
+                                                        <span>Fast & Punchy</span>
+                                                        <span className="text-[8px] text-gray-400 font-normal">Hook-heavy, aggressive pacing</span>
+                                                    </button>
                                                 </div>
                                             </motion.div>
                                         )}

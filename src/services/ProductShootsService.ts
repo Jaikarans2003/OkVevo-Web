@@ -24,7 +24,7 @@ export interface ShootPhoto {
     masterPrompt: string;
     jobId: string;
     imageUrl?: string;
-    status: 'pending' | 'dispatched' | 'queued' | 'complete' | 'error';
+    status: 'pending' | 'dispatched' | 'polling' | 'queued' | 'complete' | 'error';
     error?: string;
 }
 
@@ -200,8 +200,8 @@ const pollForShootPhoto = async (
     outputPath: string,
     onProgress?: (elapsed: number) => void
 ): Promise<string> => {
-    const MAX_ATTEMPTS = 60;    // 60 × 3s = 3 minutes max
-    const INTERVAL_MS = 3000;
+    const MAX_ATTEMPTS = 60;    // 60 × 5s = 5 minutes max
+    const INTERVAL_MS = 5000;
 
     // Construct public URL directly (Lambda makes files public)
     const bucketName = 'text2video-16cbf.firebasestorage.app';
@@ -329,11 +329,33 @@ export const runShootsPipeline = async (
             onPhotoUpdate([...photos]);
         }
 
-        // ── Step 4: Fire and Forget - All shots dispatched ──
+        // ── Step 4: Background Polling for results (Fire & Forget) ──
         onStatusChange('queued', 'All shots queued! Check History for results.');
+        
+        photos.forEach(async (photo) => {
+            if (photo.status !== 'dispatched') return;
+            
+            try {
+                // Shift to polling state for UI feedback
+                photo.status = 'polling';
+                onPhotoUpdate([...photos]);
+                
+                const outputPath = `ProductShoots/${photo.jobId}.png`;
+                const imageUrl = await pollForShootPhoto(outputPath);
+                
+                photo.status = 'complete';
+                photo.imageUrl = imageUrl;
+                onPhotoUpdate([...photos]);
+            } catch (error) {
+                console.error(`Error polling for photo ${photo.jobId}:`, error);
+                photo.status = 'error';
+                photo.error = error instanceof Error ? error.message : 'Generation timed out';
+                onPhotoUpdate([...photos]);
+            }
+        });
 
         // Return immediately - don't wait for generation
-        const allDispatched = photos.every(p => p.status === 'dispatched');
+        const allDispatched = photos.every(p => p.status === 'dispatched' || p.status === 'polling' || p.status === 'complete');
         return { status: allDispatched ? 'queued' : 'error', photos };
 
     } catch (error) {

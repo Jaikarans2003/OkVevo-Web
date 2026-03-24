@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
             script,
             duration,
             gender,
+            ttsPacing,
             imageTimeline,
             topic,
         } = body;
@@ -138,6 +139,7 @@ export async function POST(request: NextRequest) {
             topic: topic || body.topic || 'General AI Video',
             duration: duration || 30,
             gender: gender || 'female',
+            ttsPacing: ttsPacing || 'calm',
             audioSampleUrl: body.audioSampleUrl || '',
             fal_mode: process.env.FAL_MODE || (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 'mock' : 'live')
         });
