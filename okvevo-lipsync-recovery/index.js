@@ -84,17 +84,37 @@ exports.handler = async (event) => {
             console.log(`   Transcription: ${transcription ? 'Present' : 'Missing'}`);
             console.log(`   Transcription Chunks: ${transcriptionChunks.length}`);
             
+            const stepFunctionOutput = {
+                request_id: lipsyncResult.request_id,
+                status: 'OK',
+                output: lipsyncResult.output,
+                lipSyncVideoUrl: lipSyncVideoUrl,
+                transcription: transcription,
+                transcriptionChunks: transcriptionChunks
+            };
+            
+            // CRITICAL FIX: Call SendTaskSuccess to resume the Submit_LipSync task
+            // This ensures the first branch of the parallel state completes properly
+            if (taskToken) {
+                console.log('\n🚀 Resuming Step Function with already-completed data...');
+                console.log('   Task Token:', taskToken.substring(0, 50) + '...');
+                
+                try {
+                    await sfnClient.send(new SendTaskSuccessCommand({
+                        taskToken: taskToken,
+                        output: JSON.stringify(stepFunctionOutput),
+                    }));
+                    console.log('✅ Step Function resumed successfully!');
+                } catch (err) {
+                    console.error('❌ Failed to resume Step Function:', err.message);
+                    // If SendTaskSuccess fails (e.g., token already used), just return the data
+                }
+            }
+            
             return {
                 allJobsComplete: true,
                 alreadyCompleted: true,
-                lipSyncResult: {
-                    request_id: lipsyncResult.request_id,
-                    status: 'OK',
-                    output: lipsyncResult.output,
-                    lipSyncVideoUrl: lipSyncVideoUrl,
-                    transcription: transcription,
-                    transcriptionChunks: transcriptionChunks
-                }
+                lipSyncResult: stepFunctionOutput
             };
         }
         
