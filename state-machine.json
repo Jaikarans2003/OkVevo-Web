@@ -39,8 +39,8 @@
           "States": {
             "Wait_For_Webhooks_Or_Timeout": {
               "Type": "Wait",
-              "Seconds": 1800,
-              "Comment": "Wait 30 minutes before checking for recovery (TTS takes 20-25 mins)",
+              "Seconds": 30,
+              "Comment": "Wait 30 seconds before checking for recovery to bypass broken webhooks fast",
               "Next": "Recovery_Loop"
             },
             "Recovery_Loop": {
@@ -143,8 +143,8 @@
           "States": {
             "Wait_For_LipSync_Webhooks": {
               "Type": "Wait",
-              "Seconds": 300,
-              "Comment": "Wait 5 minutes before checking for lipsync recovery",
+              "Seconds": 30,
+              "Comment": "Wait 30 seconds before checking for lipsync recovery",
               "Next": "LipSync_Recovery_Loop"
             },
             "LipSync_Recovery_Loop": {

@@ -71,10 +71,47 @@ exports.handler = async (event) => {
             return { allAssetsComplete: true, alreadyCompleted: true };
         }
         
-        // 3. Check if all assets already received
+        // 3. Check if all assets already received but Step Function is still stuck
         if (assetResults.length >= expectedAssets) {
-            console.log('\n✅ All assets already received. No recovery needed.');
-            return { allAssetsComplete: true, recoveryNotNeeded: true };
+            console.log('\n✅ All assets already received. Webhook must have failed to resume Step Function. Sending TaskToken now.');
+            
+            // Build Step Function output (we must reconstruct it)
+            const images = assetResults
+                .filter(r => r.type === 'image')
+                .map(r => r.output.images?.[0]?.url)
+                .filter(Boolean);
+            
+            const audioResult = assetResults.find(r => r.type === 'audio');
+            const audioUrl = audioResult?.output?.audio?.url || audioResult?.output?.audio_file?.url || '';
+            
+            const imageTimeline = moments.map((moment, idx) => ({
+                start: moment.start,
+                end: moment.end,
+                topic: moment.topic || `Moment ${idx + 1}`,
+                prompt: moment.prompt || '',
+                imageUrl: images[idx] || null,
+                layout: moment.layout || 'split'
+            }));
+            
+            const stepFunctionOutput = {
+                imageTimeline,
+                audioUrl,
+                jobId,
+                userId,
+                status: 'COMPLETED'
+            };
+            
+            try {
+                await sfnClient.send(new SendTaskSuccessCommand({
+                    taskToken: taskToken,
+                    output: JSON.stringify(stepFunctionOutput),
+                }));
+                console.log('✅ Step Function resumed successfully as a fallback!');
+            } catch (err) {
+                console.error('❌ Failed to resume Step Function fallback:', err.message);
+            }
+            
+            return { allAssetsComplete: true, recoveryNotNeeded: true, FallbackTokenSent: true };
         }
         
         // 4. Acquire processing lock to prevent race condition
