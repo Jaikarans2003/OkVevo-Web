@@ -834,7 +834,7 @@ function ProductStudio() {
                                                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                                                                         <Loader2 size={20} className="text-orange-400/40 animate-spin mb-2" />
                                                                         <p className="text-[8px] text-white/30 uppercase tracking-wider">
-                                                                            {shot.status === 'polling' ? 'Generating...' : shot.status === 'dispatched' ? 'Queued' : 'Pending'}
+                                                                            {shot.status === 'dispatched' ? 'In Queue' : shot.status === 'pending' ? 'Pending' : 'Processing...'}
                                                                         </p>
                                                                     </div>
                                                                 )}

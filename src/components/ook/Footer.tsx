@@ -1,6 +1,8 @@
 'use client';
 
 import { ArrowUp } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
 
 const Footer = () => {
     const scrollToTop = () => {
@@ -9,7 +11,7 @@ const Footer = () => {
 
     return (
         <footer data-section-theme="light" className="bg-black overflow-hidden">
-            <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-40 pb-20 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
+            <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-10 pb-20 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
                 {/* Decorative Pattern / Glow */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10" />
 
@@ -17,6 +19,13 @@ const Footer = () => {
                     <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-32">
                         <div className="max-w-sm">
                             <a href="/" className="text-4xl font-black tracking-tighter text-white mb-8 block transition-transform hover:scale-105 origin-left font-museo-moderno">
+                                <Image 
+                                    src="/OKVEVO WithOut BackGrounds/black.svg" 
+                                    alt="OKVEVO Logo" 
+                                    width={40} 
+                                    height={40} 
+                                    className="w-12 h-12 object-contain"
+                                />
                                 OKVEVO<span className="text-text-main">.</span>
                             </a>
                             <p className="text-xl text-white font-medium leading-relaxed">
@@ -39,7 +48,7 @@ const Footer = () => {
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
                                     <li><a href="#" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</a></li>
                                     <li><a href="#" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Contact</a></li>
-                                    <li><a href="#" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Legal</a></li>
+                                    <li><Link href="/legal" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Legal</Link></li>
                                 </ul>
                             </div>
 
@@ -54,8 +63,17 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center justify-between w-full pt-16 border-t border-white/20 gap-12">
+                    {/* Giant Watermark Typography */}
+                    <div className="w-full flex justify-center -mt-16 leading-none select-none pointer-events-none">
+                        <h1 className="text-[15vw] lg:text-[13vw] font-black leading-[0.75] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white/30 to-transparent uppercase relative z-0">
+                            OKVEVO
+                        </h1>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-8 md:pt-16 border-t border-white/20 gap-12 mt-10">
                         <div className="flex gap-10">
+                            <Link href="/legal" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">PRIVACY_POLICY</Link>
+                            <Link href="/legal" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">TERMS_OF_SERVICE</Link>
                             <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Twitter</a>
                             <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Instagram</a>
                             <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">LinkedIn</a>

@@ -94,24 +94,27 @@ const Pricing = ({ user }: PricingProps) => {
 
     return (
         <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
+            {/* Top Fade to blend with previous section seamlessly */}
+            <div className="absolute top-0 inset-x-0 h-64 bg-gradient-to-b from-black via-black/80 to-transparent z-10 pointer-events-none" />
+
             {/* Premium Background Layer */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 z-0 pointer-events-none mt-32">
                 {/* Massive Glow Blobs for "Fill" */}
-                <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[120px] animate-pulse-slow-reverse" />
+                <div className="absolute top-[20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-3xl transform-gpu" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-3xl transform-gpu" />
                 
                 {/* Mesh Gradients */}
                 <svg className="absolute inset-0 w-full h-full opacity-40" preserveAspectRatio="xMidYMid slice">
                     <defs>
-                        <radialGradient id="price-mesh-1" cx="20%" cy="30%" r="50%">
+                        <radialGradient id="price-mesh-1" cx="20%" cy="60%" r="50%">
                             <stop offset="0%" stopColor="#FF6600" stopOpacity="0.5" />
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
-                        <radialGradient id="price-mesh-2" cx="80%" cy="70%" r="50%">
+                        <radialGradient id="price-mesh-2" cx="80%" cy="80%" r="50%">
                             <stop offset="0%" stopColor="#8F00FF" stopOpacity="0.4" />
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
-                        <radialGradient id="price-mesh-3" cx="50%" cy="50%" r="60%">
+                        <radialGradient id="price-mesh-3" cx="50%" cy="70%" r="60%">
                             <stop offset="0%" stopColor="#FF00D6" stopOpacity="0.2" />
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
@@ -130,7 +133,7 @@ const Pricing = ({ user }: PricingProps) => {
                 </svg>
 
                 {/* Animated Floating Embers (Only if mounted to avoid hydration error) */}
-                {mounted && [...Array(25)].map((_, i) => (
+                {mounted && [...Array(10)].map((_, i) => (
                     <motion.div
                         key={i}
                         className="absolute w-[2px] h-[2px] bg-orange-400 rounded-full blur-[1px]"
@@ -161,8 +164,8 @@ const Pricing = ({ user }: PricingProps) => {
                 {/* Section Header */}
                 <div className="text-center mb-16">
                     <motion.h2
-                        initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                         className="text-5xl md:text-[80px] font-bold mb-6 text-white tracking-tight leading-none"
@@ -170,8 +173,8 @@ const Pricing = ({ user }: PricingProps) => {
                         Pricing
                     </motion.h2>
                     <motion.p 
-                        initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
-                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed"
@@ -190,10 +193,10 @@ const Pricing = ({ user }: PricingProps) => {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                                className={`relative h-full rounded-none p-8 flex flex-col transition-all duration-500 backdrop-blur-3xl group transform-gpu ${
+                                className={`relative h-full rounded-none p-8 flex flex-col transition-all duration-500 group transform-gpu ${
                                     plan.highlighted
                                         ? 'bg-[#120a05]/70 border border-orange-500/40 shadow-[0_0_50px_rgba(255,107,0,0.15)] ring-1 ring-orange-500/20'
-                                        : 'bg-[#0a0a0a]/50 border border-[#1f1f1f] hover:border-[#333] hover:bg-[#0a0a0a]/70 hover:shadow-2xl hover:shadow-white/5'
+                                        : 'bg-[#0a0a0a]/90 border border-[#1f1f1f] hover:border-[#333] hover:shadow-2xl hover:shadow-white/5'
                                 }`}
                             >
                                 {/* Inner Glow for Pro Card */}

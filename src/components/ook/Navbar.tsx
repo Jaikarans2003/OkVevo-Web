@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from '../ThemeToggle';
+import Image from 'next/image';
 
 interface NavbarProps {
     user?: any;
@@ -59,8 +60,15 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className="flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10 hover:shadow-[0_0_30px_rgba(255,102,0,0.15)] group/nav">
-                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
-                        OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
+                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
+                        <Image 
+                            src="/OKVEVO WithOut BackGrounds/Orange.svg" 
+                            alt="OKVEVO Logo" 
+                            width={32} 
+                            height={32} 
+                            className="w-8 h-8 object-contain"
+                        />
+                        OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse ml-[-4px]" />
                     </a>
 
                     {/* Desktop Nav */}

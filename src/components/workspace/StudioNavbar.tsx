@@ -23,15 +23,18 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     ];
 
     return (
-        <nav className="h-24 px-8 flex items-center justify-between border-b border-white/5 fixed top-0 left-0 right-0 bg-[#0B0B0D]/80 backdrop-blur-xl z-[90]">
-            <Link href="/workspace" className="flex items-center gap-1 group">
+        <nav className="h-16 px-6 md:px-8 flex items-center justify-between border border-white/10 fixed top-5 left-1/2 -translate-x-1/2 bg-[#0B0B0D]/85 backdrop-blur-2xl z-[90] w-[95%] max-w-[1200px] rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <Link href="/workspace" className="flex items-center gap-2 group transition-all duration-300">
                 <Image
-                    src="/OKVEVO WithOut BackGrounds/White.svg"
+                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
                     alt="OKVEVO Logo"
-                    width={140}
-                    height={40}
-                    className="h-10 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
+                <span className="text-xl font-black tracking-[-0.05em] text-white">
+                    OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />
+                </span>
             </Link>
 
             <div className="flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
@@ -51,18 +54,18 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
 
             <div className="flex items-center gap-4">
                 {userProfile && <CreditsDisplay userId={userProfile.uid} variant="navbar" />}
-                {/* History Link - Orange Color */}
+                {/* Profile Link - Orange Color */}
                 <Link
-                    href="/history"
-                    className={`relative text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === '/history' ? 'text-accent-orange' : 'text-accent-orange/60 hover:text-accent-orange'}`}
+                    href="/profile"
+                    className={`relative text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === '/profile' ? 'text-accent-orange' : 'text-accent-orange/60 hover:text-accent-orange'}`}
                 >
-                    History
-                    {pathname === '/history' && (
+                    Profile
+                    {pathname === '/profile' && (
                         <div className="absolute -bottom-2 left-0 right-0 h-[1px] bg-accent-orange opacity-40" />
                     )}
                 </Link>
                 
-                {rightContent}
+                {/* {rightContent} */}
             </div>
         </nav>
     );

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, CreditCard, User, History } from 'lucide-react';
@@ -57,8 +58,15 @@ const DashNavbar = () => {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-[#0A0A0A]/40 backdrop-blur-xl border border-white/5'}`}>
-                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-1 group transition-colors duration-500 ${textColor}`}>
-                        OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
+                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-colors duration-500 ${textColor}`}>
+                        <Image 
+                            src="/OKVEVO WithOut BackGrounds/Orange.svg" 
+                            alt="OKVEVO Logo" 
+                            width={32} 
+                            height={32} 
+                            className="w-8 h-8 object-contain"
+                        />
+                        OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse ml-[-4px]" />
                     </Link>
 
                     {/* Desktop Nav */}

@@ -113,16 +113,16 @@ function AIStudioContent() {
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         {/* Logo */}
-                        <Link href="/workspace" className="flex items-center gap-3 group">
+                        <Link href="/workspace" className="flex items-center gap-2 group transition-all duration-300">
                             <Image
-                                src="/OKVEVO WithOut BackGrounds/White.svg"
+                                src="/OKVEVO WithOut BackGrounds/Orange.svg"
                                 alt="OKVEVO Logo"
-                                width={40}
-                                height={40}
-                                className="group-hover:scale-110 transition-transform duration-300"
+                                width={32}
+                                height={32}
+                                className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-110"
                             />
-                            <span className="text-2xl font-bold text-accent-orange tracking-wide">
-                                <span className={resolvedTheme === 'light' ? 'text-black' : 'text-white'}>OK</span>VEVO
+                            <span className="text-xl md:text-2xl font-black tracking-[-0.05em] text-white">
+                                OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />
                             </span>
                         </Link>
 
