@@ -62,11 +62,10 @@ const DashNavbar = () => {
                         <Image 
                             src="/OKVEVO WithOut BackGrounds/Orange.svg" 
                             alt="OKVEVO Logo" 
-                            width={32} 
-                            height={32} 
-                            className="w-8 h-8 object-contain"
+                            width={40} 
+                            height={40} 
+                            className="w-12 h-12 object-contain"
                         />
-                        OKVEVO<span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse ml-[-4px]" />
                     </Link>
 
                     {/* Desktop Nav */}

@@ -13,17 +13,17 @@ const HowItWorks = () => {
         {
             shortTitle: "Avatar Identity",
             fullText: "Transform any image into a hyper-realistic digital persona. Customize presence, tone, and character in seconds.",
-            img: "/avatar.png",
+            img: "/weight.png",
         },
         {
             shortTitle: "Neural Scripting",
             fullText: "Our advanced AI converts your ideas into high-converting scripts automatically, tailored precisely for your digital identity.",
-            img: "/movie-scene.png",
+            img: "/second.png",
         },
         {
             shortTitle: "Cinematic Production",
             fullText: "Generate studio-quality videos instantly. No camera, no equipment — just pure neural rendering at scale.",
-            img: "/ai-engine.png",
+            img: "/third.png",
         }
     ];
 

@@ -24,6 +24,7 @@ import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 type ChatStep =
     | 'upload-script'        // 1. Upload / paste script
     | 'duration'             // 2. Select duration
+    | 'tts-pacing'           // 2b. Select pacing
     | 'generating-script'    // 3. AI generating narrative script
     | 'edit-script'          // 4. Show editable script
     | 'avatar-video'         // 5. Upload avatar video
@@ -48,6 +49,7 @@ interface ImageMoment {
 const STEPS = [
     { id: 'upload-script', label: 'Script', icon: FileText },
     { id: 'duration', label: 'Duration', icon: Clock },
+    { id: 'tts-pacing', label: 'Pacing', icon: Sparkles },
     { id: 'generating-script', label: 'Generate', icon: Sparkles },
     { id: 'edit-script', label: 'Edit', icon: Edit3 },
     { id: 'avatar-video', label: 'Avatar', icon: Video },
@@ -58,7 +60,7 @@ const STEPS = [
 ] as const;
 
 const STEP_ORDER: ChatStep[] = [
-    'upload-script', 'duration', 'generating-script', 'edit-script',
+    'upload-script', 'duration', 'tts-pacing', 'generating-script', 'edit-script',
     'avatar-video', 'generating-tts', 'preview-audio', 'generating-lipsync', 'complete',
 ];
 
@@ -84,7 +86,8 @@ function AIInfluencerWorkstation() {
 
     // Data state
     const [rawScript, setRawScript] = useState('');
-    const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 0>(0);
+    const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 60 | 0>(0);
+    const [ttsPacing, setTtsPacing] = useState<'calm' | 'fast' | ''>('');
     const [generatedScript, setGeneratedScript] = useState('');
     const [editableScript, setEditableScript] = useState('');
     const [avatarVideo, setAvatarVideo] = useState<File | null>(null);
@@ -102,6 +105,7 @@ function AIInfluencerWorkstation() {
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
     const avatarFileInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const stepsRef = useRef<HTMLDivElement>(null);
 
     // ── Auth ──────────────────────────────────────────────
     useEffect(() => {
@@ -133,8 +137,24 @@ function AIInfluencerWorkstation() {
 
     // ── Auto-scroll chat ─────────────────────────────────
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages, isGenerating]);
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, [chatMessages, isGenerating, chatStep]);
+
+    // ── Auto-scroll process bar ───────────────────────────
+    useEffect(() => {
+        if (stepsRef.current) {
+            const activeStepEl = stepsRef.current.children[currentStepIndex] as HTMLElement;
+            if (activeStepEl) {
+                activeStepEl.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest', 
+                    inline: 'center' 
+                });
+            }
+        }
+    }, [chatStep]);
+
+    const currentStepIndex = getStepIndex(chatStep);
 
     // ── Auto-resume pipeline when token arrives ───────────
     useEffect(() => {
@@ -250,6 +270,7 @@ function AIInfluencerWorkstation() {
         }]);
         setRawScript('');
         setSelectedDuration(0);
+        setTtsPacing('');
         setGeneratedScript('');
         setEditableScript('');
         setAvatarVideo(null);
@@ -302,19 +323,28 @@ function AIInfluencerWorkstation() {
         setChatStep('duration');
     };
 
-    // ── Step 2: Duration → Phase 1 Script Generation ─────
-    const handleDurationSelect = async (duration: 15 | 30) => {
+    // ── Step 2: Duration ─────
+    const handleDurationSelect = (duration: 15 | 30 | 60) => {
         if (!user?.uid) {
             addAssistant('❌ Please sign in to generate videos.');
             return;
         }
 
         setSelectedDuration(duration);
-        addUser(`${duration} seconds`);
+        addUser(`${duration === 15 ? '0 to 15' : duration === 30 ? '15 to 30' : '30 to 60'} seconds`);
+        
+        setChatStep('tts-pacing');
+        addAssistant('Great! Now select the pacing style for the AI voiceover.');
+    };
+
+    // ── Step 2b: Pacing → Phase 1 Script Generation ─────
+    const handlePacingSelect = async (pacing: 'calm' | 'fast') => {
+        setTtsPacing(pacing);
+        addUser(`${pacing === 'calm' ? 'Calm & Steady' : 'Fast & Punchy'} style`);
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analyzing your script and generating a ${duration}-second narrative explainer with Gemini...`);
+        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-second narrative explainer with Gemini...`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -323,7 +353,8 @@ function AIInfluencerWorkstation() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     script: rawScript,
-                    duration: duration,
+                    duration: selectedDuration,
+                    ttsPacing: pacing
                 }),
             });
             const data = await res.json();
@@ -356,7 +387,7 @@ function AIInfluencerWorkstation() {
         } catch (err: any) {
             addAssistant(`❌ Failed to generate script: ${err.message}`);
             setIsGenerating(false);
-            setChatStep('duration');
+            setChatStep('tts-pacing');
         }
     };
 
@@ -484,6 +515,7 @@ function AIInfluencerWorkstation() {
                     duration: selectedDuration,
                     avatarVideoUrl: avatarVideoUrl,
                     gender: selectedGender || 'female',
+                    ttsPacing: ttsPacing,
                     audioSampleUrl: audioSampleUrl,
                     moments: imageTimeline.map(m => ({
                         start: m.start,
@@ -564,7 +596,7 @@ function AIInfluencerWorkstation() {
     return (
         <section
             data-section-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-            className="relative h-screen bg-[#FAFAFA] dark:bg-black text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
+            className="relative h-screen bg-[#FAFAFA] dark:bg-transparent text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
         >
             <StudioNavbar
                 rightContent={
@@ -588,19 +620,25 @@ function AIInfluencerWorkstation() {
                     loop
                     muted
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover opacity-100 hue-rotate-[15deg] saturate-[1.2] brightness-[1.05]"
-                    style={{ filter: 'hue-rotate(140deg) saturate(1.4) brightness(0.9)' }}
+                    className="fixed inset-0 w-full h-full object-cover opacity-100"
+                    style={{ filter: 'hue-rotate(145deg) saturate(1.6) brightness(1.1)' }}
                 >
                     <source src="/videos/bg-blue.mp4" type="video/mp4" />
                 </video>
 
-                {/* Removed Global Overlay as requested */}
+                {/* Global Textural Dot Grid (Stitch Aesthetic) */}
+                <div className="fixed inset-0 bg-[radial-gradient(#ffffff1a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40 z-0" />
+
+                {/* Orange Ambient Light Overlay */}
+                <div className="fixed inset-0 bg-orange-500/10 pointer-events-none z-0 mix-blend-overlay" />
+
+
 
                 {/* ── Body — history sidebar + main content ── */}
                 <div className="flex-1 flex relative z-10 overflow-hidden">
                     {/* Session History Sidebar Overlay */}
                     {user?.uid && (
-                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10`}>
+                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out ${isHistoryOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10`}>
                             <div className="relative h-full">
                                 <SessionHistorySidebar
                                     userId={user.uid}
@@ -630,13 +668,14 @@ function AIInfluencerWorkstation() {
                         </button>
                     )}
 
-                    <main className="flex-1 relative z-10 px-4 md:px-10 max-w-[1700px] mx-auto pt-8 backdrop-blur-[40px] bg-black/40 rounded-[3rem] border border-white/10 mx-6 mb-6 mt-2 shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+                    <main className="flex-1 relative z-10 px-4 md:px-10 w-full max-w-none pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
+
                         {/* Header with Professional Status */}
                         {activeTab === 'explainers' ? (
-                            <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center flex-1 overflow-hidden pb-8">
+                            <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
 
                                 {/* ── LEFT: Step Wizard ── */}
-                                <div className="w-full md:w-[700px] pl-10 flex-shrink-0 flex flex-col gap-6 overflow-hidden">
+                                <div className="w-full md:w-[700px] pl-10 flex-shrink-0 flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
                                     {/* Page Title & Status */}
                                     <div className="flex items-center gap-4 px-2 mb-2">
                                         <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
@@ -652,7 +691,8 @@ function AIInfluencerWorkstation() {
                                     </div>
 
                                     {/* ── Chat Panel ── */}
-                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.03] backdrop-blur-[80px] border border-orange-500/40 rounded-[2.5rem] overflow-hidden shadow-[0_0_30px_rgba(234,88,12,0.15),0_30px_100px_rgba(0,0,0,0.5)] ring-1 ring-orange-500/20">
+                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.04] border border-white/20 rounded-[2.5rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.4)] backdrop-blur-[120px] relative">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none" />
                                         {/* Chat header */}
                                         <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
                                             <div className="flex items-center gap-3">
@@ -687,7 +727,7 @@ function AIInfluencerWorkstation() {
                                                         value={rawScript}
                                                         onChange={(e) => setRawScript(e.target.value)}
                                                         placeholder="Synthesize your story here..."
-                                                        className="w-full h-32 p-5 rounded-2xl border border-white/5 bg-black/40 text-[13px] text-white/90 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/10 outline-none resize-none placeholder-white/10 leading-relaxed transition-all shadow-inner"
+                                                        className="w-full h-32 p-5 rounded-2xl border border-white/10 bg-white/[0.03] text-[13px] text-white/90 focus:border-white/30 focus:ring-1 focus:ring-white/10 outline-none resize-none placeholder-white/20 leading-relaxed transition-all shadow-inner"
                                                     />
                                                     <div className="flex items-center gap-3">
                                                         <input
@@ -725,7 +765,7 @@ function AIInfluencerWorkstation() {
                                                         <span className="w-1 h-1 rounded-full bg-orange-500" /> Temporal Calibration
                                                     </p>
                                                     <div className="flex gap-3">
-                                                        {([15, 30] as const).map((d) => (
+                                                        {([15, 30, 60] as const).map((d) => (
                                                             <button
                                                                 key={d}
                                                                 onClick={() => handleDurationSelect(d)}
@@ -734,9 +774,40 @@ function AIInfluencerWorkstation() {
                                                             >
                                                                 <Clock size={16} className="text-orange-500" strokeWidth={2.5} />
                                                                 <span>{d} Seconds</span>
-                                                                <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">~{Math.floor(d * 2.5)} Tokens</span>
+                                                                <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">~{Math.floor(d * 2.5)} Tokens / {d === 15 ? '3' : d === 30 ? '5' : '8'} Images</span>
                                                             </button>
                                                         ))}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+
+                                            {/* STEP 3: Pacing */}
+                                            {chatStep === 'tts-pacing' && (
+                                                <motion.div
+                                                    key="tts-pacing"
+                                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="px-6 py-6 border-b border-white/5 bg-white/[0.01] shrink-0 space-y-4"
+                                                >
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Pacing Calibration
+                                                    </p>
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={() => handlePacingSelect('calm')}
+                                                            disabled={isGenerating}
+                                                            className="flex-1 py-4 rounded-2xl font-black text-[12px] tracking-[0.1em] border transition-all flex flex-col items-center gap-2 disabled:opacity-20 bg-white/[0.02] border-white/5 text-white/60 hover:border-orange-500/50 hover:bg-orange-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] active:scale-95"
+                                                        >
+                                                            <span>Calm & Steady</span>
+                                                            <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">Slower</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handlePacingSelect('fast')}
+                                                            disabled={isGenerating}
+                                                            className="flex-1 py-4 rounded-2xl font-black text-[12px] tracking-[0.1em] border transition-all flex flex-col items-center gap-2 disabled:opacity-20 bg-white/[0.02] border-white/5 text-white/60 hover:border-orange-500/50 hover:bg-orange-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] active:scale-95"
+                                                        >
+                                                            <span>Fast & Punchy</span>
+                                                            <span className="text-[8px] text-white/20 font-black tracking-widest uppercase">Aggressive</span>
+                                                        </button>
                                                     </div>
                                                 </motion.div>
                                             )}
@@ -757,7 +828,7 @@ function AIInfluencerWorkstation() {
                                                     <textarea
                                                         value={editableScript}
                                                         onChange={(e) => setEditableScript(e.target.value)}
-                                                        className="w-full h-32 p-5 rounded-2xl border border-orange-500/30 bg-black/40 text-[13px] text-white leading-relaxed focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none shadow-inner"
+                                                        className="w-full h-32 p-5 rounded-2xl border border-white/20 bg-white/[0.03] text-[13px] text-white leading-relaxed focus:border-white/40 focus:ring-1 focus:ring-white/10 outline-none resize-none shadow-inner"
                                                     />
                                                     <button
                                                         onClick={handleConfirmScript}
@@ -978,7 +1049,9 @@ function AIInfluencerWorkstation() {
                                         </AnimatePresence>
 
                                         {/* ── Chat Messages ── */}
-                                        <div className="flex-1 overflow-y-auto min-h-0 p-8 space-y-8 bg-black/40 backdrop-blur-[60px] no-scrollbar overflow-x-hidden rounded-[2.5rem]">
+                                        <div 
+                                            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-8 space-y-8 bg-transparent custom-scrollbar rounded-[2.5rem] scroll-smooth"
+                                        >
                                             {chatMessages.map((msg, i) => (
                                                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                     <div className={`flex flex-col gap-2.5 max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
@@ -1030,7 +1103,10 @@ function AIInfluencerWorkstation() {
                                         </div>
                                     </div>
                                     {/* Sleek Progress Bar */}
-                                    <div className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto shadow-2xl relative group">
+                                    <div 
+                                        ref={stepsRef}
+                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto custom-scrollbar shadow-2xl relative group"
+                                    >
                                         {STEPS.map((step, idx) => {
                                             const done = idx < currentStepIdx;
                                             const active = idx === currentStepIdx;
@@ -1064,20 +1140,21 @@ function AIInfluencerWorkstation() {
                                 
 
                                 {/* ── RIGHT: Monitor Output ── */}
-                                <div className="flex-1 flex gap-6 items-stretch overflow-hidden">
+                                <div className="flex-1 flex gap-6 items-stretch h-full max-h-full overflow-hidden min-h-0">
                                     {/* Monitor Column */}
                                     <div
-                                        className="h-full w-full max-w-[420px] shrink-0 bg-black rounded-[2.5rem] border-[12px] border-orange-500/20 overflow-hidden relative shadow-[0_0_40px_rgba(234,88,12,0.2),0_40px_100px_rgba(0,0,0,0.8)] group/monitor transition-all duration-700 hover:border-orange-500/40"
+                                        className="h-full w-full max-w-[420px] shrink-0 bg-white/[0.04] backdrop-blur-[120px] rounded-[2.5rem] border border-white/20 overflow-hidden relative shadow-[0_30px_60px_rgba(0,0,0,0.4)] group/monitor transition-all duration-700 hover:border-white/30"
                                         style={{
                                             aspectRatio: '9/16',
                                             maxHeight: 'calc(100vh - 12rem)'
                                         }}
                                     >
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none" />
                                         {/* Cinematic Glass Glare */}
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-30 pointer-events-none z-10" />
                                         
-                                        {/* Subdued Overlay for the monitor interior */}
-                                        <div className="absolute inset-0 bg-black/40 z-0 rounded-[2.5rem]" />
+                                        {/* Pure Translucent interior */}
+                                        <div className="absolute inset-0 bg-transparent z-0 rounded-[2.5rem]" />
                                         
                                         {/* High-Tech Grid bg */}
                                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
@@ -1095,7 +1172,7 @@ function AIInfluencerWorkstation() {
                                                     key="video"
                                                     initial={{ opacity: 0, scale: 1.1 }}
                                                     animate={{ opacity: 1, scale: 1 }}
-                                                    className="absolute inset-0 flex items-center justify-center bg-black group"
+                                                    className="absolute inset-0 flex items-center justify-center bg-transparent group"
                                                 >
                                                     <video
                                                         src={finalVideoUrl}
@@ -1104,7 +1181,7 @@ function AIInfluencerWorkstation() {
                                                         className="w-full h-full object-contain shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]"
                                                     />
                                                     {/* Pro Status Overlay */}
-                                                    <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-black/80 border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/40 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
+                                                    <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/60 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                                                         Cinema Mode • 4K
                                                     </div>
@@ -1115,7 +1192,7 @@ function AIInfluencerWorkstation() {
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
                                                     exit={{ opacity: 0 }}
-                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-black/80 backdrop-blur-3xl z-20"
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-white/[0.02] backdrop-blur-3xl z-20"
                                                 >
                                                     <div className="relative">
                                                         <div className="w-24 h-24 rounded-[3rem] bg-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_60px_rgba(234,88,12,0.1)]">
@@ -1243,7 +1320,7 @@ function AIInfluencerWorkstation() {
                                     </p>
                                 </div>
                                 <button className="w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-400 hover:to-orange-500 shadow-xl">
-                                    <Move3d size={14} /> Coming Soon.
+                                    <Sparkles size={14} /> Coming Soon.
                                 </button>
                             </div>
                         )}

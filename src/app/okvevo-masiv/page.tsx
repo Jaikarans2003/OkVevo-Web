@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2 } from 'lucide-react';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search } from 'lucide-react';
+import Lenis from 'lenis';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -177,9 +178,6 @@ const products = [
 const isVideo = (url: string) => {
     return url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm') || url.toLowerCase().endsWith('.mov');
 };
-
-import { useMemo } from 'react';
-import { Search } from 'lucide-react';
 
 const bgColors = [
     'bg-[#FF6A00]', // Bright Orange
@@ -383,6 +381,28 @@ export default function OkvevoMasivPage() {
     const [selectedCard, setSelectedCard] = useState<string | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showCart, setShowCart] = useState(false);
+
+    useEffect(() => {
+        const lenis = new Lenis({
+            duration: 1.5,
+            lerp: 0.08,
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
+            smoothWheel: true,
+            wheelMultiplier: 1,
+            touchMultiplier: 2.5,
+        });
+
+        function raf(time: number) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+
+        requestAnimationFrame(raf);
+        return () => {
+            lenis.destroy();
+        };
+    }, []);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeFilter, setActiveFilter] = useState<'all' | 'photo' | 'video'>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -522,31 +542,12 @@ export default function OkvevoMasivPage() {
                     {/* Left - Official Logo */}
                     <div className="flex-1 flex justify-start">
                         <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                            <img src="/OKVEVO WithOut BackGrounds/Orange.svg" alt="OKVEVO Logo" className="h-8 w-8 object-contain" />
-                            <span className="text-xl md:text-2xl font-black tracking-tighter text-white">
-                                OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] inline-block ml-1 animate-pulse" />
-                            </span>
+                            <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-10 w-auto object-contain" />
                         </a>
                     </div>
 
-                    {/* Center - Collab Text with Red Dash */}
-                    <div className="flex-1 flex justify-center">
-                        <div className="text-xl md:text-2xl font-black tracking-tighter flex items-center gap-3">
-                            <div className="hidden sm:flex items-center gap-3">
-                                OKVEVO
-                                <span className="text-orange-600 font-medium font-sans">X</span>
-                            </div>
-                            <span className="text-white flex items-center">
-                                MA
-                                <span className="relative inline-flex flex-col items-center">
-                                    {/* Red dash over S */}
-                                    <div className="absolute -top-1 md:-top-2 w-3 md:w-3.5 h-1 md:h-1.5 bg-red-600 rounded-full" />
-                                    S
-                                </span>
-                                IV
-                            </span>
-                        </div>
-                    </div>
+                    {/* Center - Empty */}
+                    <div className="flex-1 flex justify-center" />
 
                     {/* Right - Cart */}
                     <div className="flex-1 flex justify-end">
