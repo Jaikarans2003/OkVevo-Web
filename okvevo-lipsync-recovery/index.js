@@ -62,6 +62,13 @@ exports.handler = async (event) => {
         console.log('   Request IDs:', requestIds.length);
         console.log('   Job Status:', status);
         console.log('   Processing Lock:', processingLock);
+        console.log('   Task Token:', taskToken ? taskToken.substring(0, 30) + '...' : '❌ MISSING');
+        
+        // Guard: taskToken is required to resume the Step Function
+        if (!taskToken) {
+            console.error('❌ CRITICAL: taskToken is missing from Firestore! The lipsync-submit lambda must store taskToken in aiInfluencerJobs.');
+            throw new Error('taskToken missing from Firestore job document. Ensure okvevo-lipsync-submit saves taskToken to aiInfluencerJobs.');
+        }
         
         // 2. Check if already completed or all jobs received
         if (status === 'lipsync-completed' || lipsyncResults.length >= expectedLipsyncResults) {
@@ -84,17 +91,37 @@ exports.handler = async (event) => {
             console.log(`   Transcription: ${transcription ? 'Present' : 'Missing'}`);
             console.log(`   Transcription Chunks: ${transcriptionChunks.length}`);
             
+            const stepFunctionOutput = {
+                request_id: lipsyncResult.request_id,
+                status: 'OK',
+                output: lipsyncResult.output,
+                lipSyncVideoUrl: lipSyncVideoUrl,
+                transcription: transcription,
+                transcriptionChunks: transcriptionChunks
+            };
+            
+            // CRITICAL FIX: Call SendTaskSuccess to resume the Submit_LipSync task
+            // This ensures the first branch of the parallel state completes properly
+            if (taskToken) {
+                console.log('\n🚀 Resuming Step Function with already-completed data...');
+                console.log('   Task Token:', taskToken.substring(0, 50) + '...');
+                
+                try {
+                    await sfnClient.send(new SendTaskSuccessCommand({
+                        taskToken: taskToken,
+                        output: JSON.stringify(stepFunctionOutput),
+                    }));
+                    console.log('✅ Step Function resumed successfully!');
+                } catch (err) {
+                    console.error('❌ Failed to resume Step Function:', err.message);
+                    // If SendTaskSuccess fails (e.g., token already used), just return the data
+                }
+            }
+            
             return {
                 allJobsComplete: true,
                 alreadyCompleted: true,
-                lipSyncResult: {
-                    request_id: lipsyncResult.request_id,
-                    status: 'OK',
-                    output: lipsyncResult.output,
-                    lipSyncVideoUrl: lipSyncVideoUrl,
-                    transcription: transcription,
-                    transcriptionChunks: transcriptionChunks
-                }
+                lipSyncResult: stepFunctionOutput
             };
         }
         

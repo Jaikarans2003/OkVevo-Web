@@ -105,6 +105,7 @@ exports.handler = async (event) => {
     });
 
     // Update job status to track both jobs
+    // CRITICAL: taskToken must be stored here so okvevo-lipsync-recovery can call SendTaskSuccess
     await db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId).update({
         status: 'submitting-lipsync-and-transcription',
         lipSyncRequestId: lipsyncRequestId,
@@ -113,7 +114,8 @@ exports.handler = async (event) => {
         completedLipsyncResults: 0,
         lipsyncResults: [],
         requestIds: [lipsyncRequestId, whisperRequestId],
-        processingLock: false
+        processingLock: false,
+        taskToken: taskToken  // ✅ Required by lipsync-recovery to resume the Step Function
     });
 
     console.log(`✅ Both LipSync and Whisper jobs submitted. Waiting for 2 webhooks to resume Step Function...`);

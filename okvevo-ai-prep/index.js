@@ -48,8 +48,8 @@ function httpsRequest(url, options = {}, body = null) {
 }
 
 exports.handler = async (event) => {
-    const { jobId, userId, duration, taskToken, script, moments, audioSampleUrl } = event;
-    console.log(`🚀 Starting AI Prep for Job: ${jobId}`);
+    const { jobId, userId, duration, ttsPacing, taskToken, script, moments, audioSampleUrl } = event;
+    console.log(`🚀 Starting AI Prep for Job: ${jobId} (Duration: ${duration}s, TTS Pacing: ${ttsPacing || 'calm'})`);
     
     // Validate required inputs
     if (!script || !script.trim()) {
@@ -62,19 +62,21 @@ exports.handler = async (event) => {
 
     const scriptText = script.trim();
     console.log(`📝 Script: ${scriptText.length} chars`);
-    console.log(`🖼️ Moments: ${moments.length} items`);
+    console.log(`🖼️ Moments: ${moments.length} items extracted`);
 
-
-    // Use a simplified logic: for the demo, we assume we need 3 images and 1 TTS
-    // In a real scenario, we'd map moments to Fal jobs.
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fal/webhook`;
     const falApiKey = process.env.FAL_API_KEY || process.env.FAL_API_IMAGE;
 
     const startTime = Date.now();
     console.log(`⏱️ Starting job submissions at ${new Date().toISOString()}`);
 
+    let momentsCount = 3;
+    if (duration === 15) momentsCount = 3;
+    else if (duration === 30) momentsCount = 5;
+    else if (duration === 60) momentsCount = 8;
+    
     // Submit image jobs using Fal AI SDK
-    const imageJobs = moments.slice(0, 3).map((m, idx) => {
+    const imageJobs = moments.slice(0, momentsCount).map((m, idx) => {
         console.log(`🖼️ Submitting image job ${idx + 1}...`);
         return fal.queue.submit('fal-ai/nano-banana-2', {
             input: {
@@ -89,6 +91,16 @@ exports.handler = async (event) => {
     const ttsInput = {
         text: scriptText
     };
+    
+    // Apply Settings for specific TTS pacing / styles based on ChatterboxHD specs
+    if (ttsPacing === 'fast') {
+        ttsInput.exaggeration = 0.8;
+        ttsInput.cfg = 0.5;
+    } else {
+        // Calm defaults or general pacing
+        ttsInput.exaggeration = 0.3;
+        ttsInput.cfg = 0.7;
+    }
     
     // Only add audio_url if user provided a voice for cloning
     if (audioSampleUrl) {
