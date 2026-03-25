@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         let minWords = 0;
         let maxWords = 0;
         let momentsCount = 0;
+        let minDuration = 0;
 
         // Tone & Formatting Instructions
         const toneInstructions = isFast 
@@ -56,23 +57,27 @@ export async function POST(request: NextRequest) {
             : "Slower speech, emotional depth, steady, and profound delivery.";
             
         const formattingInstructions = isFast
-            ? "Keep sentences punchy and continuous. Use minimal pauses. Do not add excessive line breaks so the energy doesn't die."
-            : "Use frequent line breaks as the primary method to force the voice engine to pause and take a breath. You may use ellipses (...) very occasionally for special dramatic effect, but line breaks are the default.";
+            ? "Keep sentences punchy and continuous. Moderate pauses (not too many or you kill energy). Do not add excessive line breaks."
+            : "Heavy pauses. Use ellipses (...) and frequent line breaks as the primary method to force the voice engine to pause and take a breath.";
 
         if (duration === 15) {
+            minDuration = 10;
             minWords = isFast ? 55 : 40;
             maxWords = isFast ? 65 : 45;
             momentsCount = 3;
         } else if (duration === 30) {
+            minDuration = 25;
             minWords = isFast ? 120 : 80;
             maxWords = isFast ? 140 : 95;
             momentsCount = 5;
         } else if (duration === 60) {
+            minDuration = 55;
             minWords = isFast ? 210 : 160;
             maxWords = isFast ? 230 : 180;
             momentsCount = 8;
         } else {
             // Fallback just in case
+            minDuration = Math.max(0, duration - 5);
             minWords = Math.floor(duration * 2.0);
             maxWords = Math.floor(duration * 2.5);
             momentsCount = 3;
@@ -82,8 +87,8 @@ export async function POST(request: NextRequest) {
 
         const baseRequirements = `
 Requirements for the output script:
-- Duration Target: exactly ${duration} seconds when read aloud
-- ABSOLUTE WORD COUNT LIMIT: Must be strictly between ${minWords} and ${maxWords} words. Do not exceed this boundary under any circumstance.
+- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
+- ABSOLUTE WORD COUNT LIMIT: You must generate EXACTLY between ${minWords} and ${maxWords} words. This is a hard limit. Count your words. If you write less than ${minWords} words, the video will be rejected. Do not exceed ${maxWords} words.
 - Tone: ${toneInstructions}
 - Pacing & Formatting: ${formattingInstructions}
 - Language: Conversational spoken English. No bullet points, no headers, no stage directions like "[pause]" or "(music)". Only the spoken text.
