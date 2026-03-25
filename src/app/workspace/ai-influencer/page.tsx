@@ -669,7 +669,7 @@ function AIInfluencerWorkstation() {
                         </button>
                     )}
 
-                    <main className="flex-1 relative z-10 px-4 md:px-10 w-full max-w-[1600px] pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
+                    <main className="flex-1 relative ml-12 z-10 px-4 md:px-10 w-full max-w-[1600px] pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
 
                         {/* Header with Professional Status */}
                         {activeTab === 'explainers' ? (
@@ -692,8 +692,8 @@ function AIInfluencerWorkstation() {
                                     </div>
 
                                     {/* ── Chat Panel ── */}
-                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.04] border border-white/20 rounded-[2.5rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.4)] backdrop-blur-[120px] relative">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none" />
+                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.04] border border-white/20 rounded-[2.5rem] overflow-hidden backdrop-blur-[80px] relative">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none rounded-[2.5rem]" />
                                         {/* Chat header */}
                                         <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
                                             <div className="flex items-center gap-3">
@@ -1106,7 +1106,7 @@ function AIInfluencerWorkstation() {
                                     {/* Sleek Progress Bar */}
                                     <div 
                                         ref={stepsRef}
-                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto custom-scrollbar shadow-2xl relative group"
+                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto custom-scrollbar relative group"
                                     >
                                         {STEPS.map((step, idx) => {
                                             const done = idx < currentStepIdx;
@@ -1144,21 +1144,18 @@ function AIInfluencerWorkstation() {
                                 <div className="flex-1 flex gap-6 items-stretch h-full max-h-full overflow-hidden min-h-0">
                                     {/* Monitor Column */}
                                     <div
-                                        className="h-full w-full max-w-[420px] shrink-0 bg-white/[0.04] backdrop-blur-[120px] rounded-[2.5rem] border border-white/20 overflow-hidden relative shadow-[0_30px_60px_rgba(0,0,0,0.4)] group/monitor transition-all duration-700 hover:border-white/30"
+                                        className="h-full w-full max-w-[420px] shrink-0 bg-white/[0.04] backdrop-blur-[80px] rounded-[2.5rem] border border-white/20 overflow-hidden relative  group/monitor transition-all duration-700 hover:border-white/30"
                                         style={{
                                             aspectRatio: '9/16',
                                             maxHeight: 'min(calc(100vh - 12rem), 750px)'
                                         }}
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none" />
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none z-10 rounded-[2.5rem]" />
                                         {/* Cinematic Glass Glare */}
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-30 pointer-events-none z-10" />
-                                        
-                                        {/* Pure Translucent interior */}
-                                        <div className="absolute inset-0 bg-transparent z-0 rounded-[2.5rem]" />
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-30 pointer-events-none z-10 rounded-[2.5rem]" />
                                         
                                         {/* High-Tech Grid bg */}
-                                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+                                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0 rounded-[2.5rem]" />
 
                                         {/* Traffic lights / OS buttons */}
                                         <div className="absolute top-6 left-6 flex gap-2 z-20">
@@ -1173,13 +1170,13 @@ function AIInfluencerWorkstation() {
                                                     key="video"
                                                     initial={{ opacity: 0, scale: 1.1 }}
                                                     animate={{ opacity: 1, scale: 1 }}
-                                                    className="absolute inset-0 flex items-center justify-center bg-transparent group"
+                                                    className="absolute inset-0 flex items-center justify-center bg-transparent group rounded-[2.5rem] overflow-hidden"
                                                 >
                                                     <video
                                                         src={finalVideoUrl}
                                                         controls
                                                         autoPlay
-                                                        className="w-full h-full object-contain shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]"
+                                                        className="w-full h-full object-contain rounded-[2.5rem]"
                                                     />
                                                     {/* Pro Status Overlay */}
                                                     <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/60 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
@@ -1193,7 +1190,7 @@ function AIInfluencerWorkstation() {
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
                                                     exit={{ opacity: 0 }}
-                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-white/[0.02] backdrop-blur-3xl z-20"
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-white/[0.02] backdrop-blur-3xl z-20 rounded-[2.5rem]"
                                                 >
                                                     <div className="relative">
                                                         <div className="w-24 h-24 rounded-[3rem] bg-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_60px_rgba(234,88,12,0.1)]">
@@ -1223,7 +1220,7 @@ function AIInfluencerWorkstation() {
                                                     key="empty"
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 transition-all"
+                                                    className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 transition-all rounded-[2.5rem]"
                                                 >
                                                     <div className="relative group/icon mb-8">
                                                         <div className="absolute -inset-8 bg-orange-500/5 rounded-full blur-3xl opacity-0 group-hover/monitor:opacity-100 transition-opacity duration-1000" />
@@ -1242,8 +1239,7 @@ function AIInfluencerWorkstation() {
                                             )}
                                         </AnimatePresence>
 
-                                        {/* Scanline Effect Overlay */}
-                                        <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-[1] rounded-[2.5rem]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 1px, transparent 2px)', backgroundSize: '100% 2px' }} />
+
                                     </div>
 
                                     {/* Right Side Sidebar (Script + Assets) */}
@@ -1253,7 +1249,7 @@ function AIInfluencerWorkstation() {
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-orange-500/30 rounded-xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
+                                                className="w-full bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
                                             >
                                                 <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
                                                     <FileText size={8} /> Script Preview
@@ -1269,7 +1265,7 @@ function AIInfluencerWorkstation() {
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="w-full bg-white/50 dark:bg-[#0A0A0A] border border-orange-500/30 rounded-xl p-4 space-y-3 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
+                                                className="w-full bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 space-y-3 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">

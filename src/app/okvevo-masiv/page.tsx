@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { onSnapshot, doc } from 'firebase/firestore';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
+import Link from 'next/link';
 
 const products = [
     {
@@ -562,9 +563,9 @@ export default function OkvevoMasivPage() {
                     
                     {/* Left - Official Logo */}
                     <div className="flex-1 flex justify-start">
-                        <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                             <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-10 w-auto object-contain" />
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Center - Empty */}

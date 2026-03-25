@@ -110,7 +110,7 @@ export default function SessionHistorySidebar({
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full shadow-2xl"
+                className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full shadow-2xl rounded-r-2xl"
             >
                 <button
                     onClick={() => setCollapsed(false)}

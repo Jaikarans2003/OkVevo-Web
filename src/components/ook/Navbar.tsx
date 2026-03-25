@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from '../ThemeToggle';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface NavbarProps {
     user?: any;
@@ -51,16 +52,16 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     const textColorDim = 'text-white/70';
 
     const navLinks = [
-        { name: 'Process', href: '#features' },
-        { name: 'Pricing', href: '#pricing' },
-        { name: 'Masive', href: '/okvevo-masiv', isExternal: true }
+        { name: 'Process', href: '/#features' },
+        { name: 'Pricing', href: '/#pricing' },
+        { name: 'Masiv', href: '/okvevo-masiv' }
     ];
 
     return (
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className="flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10 hover:shadow-[0_0_30px_rgba(255,102,0,0.15)] group/nav">
-                    <a href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
+                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
                         <Image 
                             src="/OKVEVO WithOut BackGrounds/Orange.svg" 
                             alt="OKVEVO Logo" 
@@ -68,18 +69,18 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             height={40} 
                             className="w-12 h-12 object-contain"
                         />
-                    </a>
+                    </Link>
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center gap-12">
                         {navLinks.map((link) => (
-                            <a
+                            <Link
                                 key={link.name}
                                 href={link.href}
                                 className={`text-xs tracking-[0.2em] uppercase transition-colors duration-500 ${isScrolled ? `${textColor} hover:text-accent-orange` : `${textColorDim} hover:${textColor}`}`}
                             >
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                         <div className="flex items-center gap-6">
                             {/* <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} /> */}
@@ -112,14 +113,14 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                         className="absolute top-full left-4 right-4 mt-4 glass-card p-12 rounded-[40px] md:hidden flex flex-col gap-8 text-center"
                     >
                         {navLinks.map((link) => (
-                            <a
+                            <Link
                                 key={link.name}
                                 href={link.href}
                                 className="text-2xl text-text-main hover:text-accent-orange"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                         <div className="flex flex-col gap-6">
                             <button
@@ -143,3 +144,5 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
 };
 
 export default Navbar;
+
+
