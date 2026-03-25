@@ -17,7 +17,7 @@ const MasivCollaboration = () => {
                 <div className="absolute inset-0 bg-black/30 pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
             </div>
-
+ 
             <div className="relative z-10 text-center px-6">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -26,20 +26,18 @@ const MasivCollaboration = () => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     className="flex flex-col items-center"
                 >
-                    <div className=" -translate-y-[10vh]">
-                        <p className="-mt-40 text-1xl md:text-2xl font-black tracking-tighter text-white leading-none">
+                    <div className=" -translate-y-[25vh]">
+                        <p className="text-white/80 mb-4">
+                            OKVEVO x MASIV
+                        </p>
+                        <p className="text-1xl md:text-2xl font-black tracking-tighter text-white leading-none">
                             "Enter the booth and <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-red-600 to-red-800">transform yourself</span> with AI."
                         </p>
-
                     </div>
-
-                    <button className="-mt-32 mb-2 px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]">
-                        OKVEVO X MASIV
-                    </button>
-                    {/* <p className="text-white/80  ">
-                            OKVEVO x MASIV
-                    </p> */}
+                    <button className="-mt-32 mb-7 px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]">
+                        See Our Location
+                    </button>                  
                 </motion.div>
             </div>
 

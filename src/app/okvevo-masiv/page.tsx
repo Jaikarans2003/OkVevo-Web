@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { onSnapshot, doc } from 'firebase/firestore';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
+import MasivRazorpayCheckout from '@/components/payment/MasivRazorpayCheckout';
 
 const products = [
     {
@@ -27,18 +28,57 @@ const products = [
         badge2: 'Legendary'
     },
     {
-        id: '1',
-        name: 'Modern Mafia',
+        id: '14',
+        name: 'Cenimatic Gangster',
         type: 'photo',
         thumbnails: [
-            '/masiv/Gangster.png',
-            '/masiv/gangsterfemale.png'
+            '/masiv/Cinematic Gangster Portrait Male.png',
+            '/masiv/Cinematic Gangster Portrait Female.png'
         ],
         description: 'Own the streets with bold, cinematic mafia energy.',
         price: 2999,
         badge1: 'UNISEX',
         badge2: 'Trending'
     },
+    {
+        id: '4',
+        name: 'Sky fall',
+        type: 'video',
+        thumbnails: [
+            '/masiv/skyfall.mp4',
+        ],
+        description: 'Experience the thrill of freefall with cinematic sky-high visuals.',
+        price: 2799,
+        badge1: 'UNISEX',
+        badge2: 'HUD'
+    },
+    {
+        id: '3',
+        name: 'Winter Hour',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/Winter hour Male.png',
+            '/masiv/winterfemale.png'
+        ],
+        description: 'Capture calm, aesthetic winter vibes with soft elegance.',
+        price: 1999,
+        badge1: 'UNISEX',
+        badge2: 'Clean'
+    },
+     {
+        id: '1',
+        name: 'Modern Mafia',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/Modern Mafia Male.png',
+            '/masiv/Modern Mafia Female.png'
+        ],
+        description: 'Own the streets with bold, cinematic mafia energy.',
+        price: 2999,
+        badge1: 'UNISEX',
+        badge2: 'Trending'
+    },
+    
     {
         id: '2',
         name: 'Warrior fighting',
@@ -50,69 +90,6 @@ const products = [
         price: 1999,
         badge1: 'UNISEX',
         badge2: 'Clean'
-    },
-    {
-        id: '3',
-        name: 'Winter Hour',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/winterHourmale.png',
-            '/masiv/winterfemale.png'
-        ],
-        description: 'Capture calm, aesthetic winter vibes with soft elegance.',
-        price: 1999,
-        badge1: 'UNISEX',
-        badge2: 'Clean'
-    },
-    {
-        id: '4',
-        name: 'Sky fall',
-        type: 'video',
-        thumbnails: [
-            '/masiv/skyfall.mov',
-        ],
-        description: 'Experience the thrill of freefall with cinematic sky-high visuals.',
-        price: 2799,
-        badge1: 'UNISEX',
-        badge2: 'HUD'
-    },
-    {
-        id: '5',
-        name: 'Hero v/s monster ',
-        type: 'video',
-        thumbnails: [
-            '/masiv/hero.mov',
-        ],
-        description: 'Experience epic hero vs monster battles like never before.',
-        price: 1999,
-        badge1: 'UNISEX',
-        badge2: 'Clean'
-    },
-    {
-        id: '6',
-        name: 'Raw Glass',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/rawmale.png',
-            '/masiv/rawfemale.png'
-        ],
-        description: 'Sleek glass visuals that redefine modern minimal aesthetics.',
-        price: 2799,
-        badge1: 'UNISEX',
-        badge2: 'HUD'
-    },
-    {
-        id: '7',
-        name: 'GTA Character',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/gtamale.png',
-            '/masiv/gtafemale.png'
-        ],
-        description: 'Step into a GTA-style world with ultra-real character visuals.',
-        price: 2499,
-        badge1: 'UNISEX',
-        badge2: 'Motion'
     },
     {
         id: '8',
@@ -128,26 +105,6 @@ const products = [
         badge2: 'Nature'
     },
     {
-        id: '9',
-        name: 'Apex Editorial',
-        type: 'photo',
-        thumbnails: ['/masiv/apex1.png', '/masiv/apex1f.png', '/masiv/apex2.png', '/masiv/apex3f.png', '/masiv/apex3.png'],
-        description: 'Create magazine-worthy looks with premium editorial style.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Editorial'
-    },
-    {
-        id: '10',
-        name: 'Vantaged',
-        type: 'photo',
-        thumbnails: ['/masiv/vantage1m.png', '/masiv/van1f.png', '/masiv/vantagedmale.png', '/masiv/van2f.png'],
-        description: 'Bring timeless vintage aesthetics to life effortlessly.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Vintage'
-    },
-    {
         id: '11',
         name: 'The Pause',
         type: 'photo',
@@ -160,7 +117,66 @@ const products = [
         badge1: 'UNISEX',
         badge2: 'Slow-Mo'
     },
+     {
+        id: '10',
+        name: 'Vantaged',
+        type: 'photo',
+        thumbnails: ['/masiv/Vantaged Male 1.png', '/masiv/van1f.png', '/masiv/vantagedmale.png', '/masiv/van2f.png'],
+        description: 'Bring timeless vintage aesthetics to life effortlessly.',
+        price: 1599,
+        badge1: 'UNISEX',
+        badge2: 'Vintage'
+    },
     {
+        id: '6',
+        name: 'Raw Glass',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/rawmale.png',
+            '/masiv/rawfemale.png'
+        ],
+        description: 'Sleek glass visuals that redefine modern minimal aesthetics.',
+        price: 2799,
+        badge1: 'UNISEX',
+        badge2: 'HUD'
+    },
+    {
+        id: '9',
+        name: 'Apex Editorial',
+        type: 'photo',
+        thumbnails: ['/masiv/apex1.png', '/masiv/apex1f.png', '/masiv/apex2.png', '/masiv/apex3f.png', '/masiv/apex3.png'],
+        description: 'Create magazine-worthy looks with premium editorial style.',
+        price: 1599,
+        badge1: 'UNISEX',
+        badge2: 'Editorial'
+    },
+    {
+        id: '5',
+        name: 'Hero v/s monster ',
+        type: 'video',
+        thumbnails: [
+            '/masiv/hero.mov',
+        ],
+        description: 'Experience epic hero vs monster battles like never before.',
+        price: 1999,
+        badge1: 'UNISEX',
+        badge2: 'Clean'
+    },
+    {
+        id: '7',
+        name: 'GTA Character',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/gtamale.png',
+            '/masiv/gtafemale.png'
+        ],
+        description: 'Step into a GTA-style world with ultra-real character visuals.',
+        price: 2499,
+        badge1: 'UNISEX',
+        badge2: 'Motion'
+    },
+    
+   {
         id: '12',
         name: 'Off Set',
         type: 'photo',
@@ -173,6 +189,8 @@ const products = [
         badge1: 'UNISEX',
         badge2: 'Studio'
     },
+    
+    
 ];
  
 const isVideo = (url: string) => {
@@ -193,6 +211,9 @@ interface CartItem {
     id: string;
     name: string;
     price: number;
+    trendType: string;
+    fullBodyImageUrl: string;
+    faceImageUrl: string | null;
 }
 
 const ThumbnailScroller = ({ images }: { images: string[] }) => {
@@ -201,7 +222,7 @@ const ThumbnailScroller = ({ images }: { images: string[] }) => {
         
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % images.length);
-        }, 4000); // Shift every 4 seconds
+        }, 3000); // Shift every 3 seconds
         return () => clearInterval(interval);
     }, [images.length]);
 
@@ -339,12 +360,12 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             transition={{ delay: 1.1 }}
                             className="flex flex-wrap gap-4"
                         >
-                            <button 
+                            {/* <button 
                                 onClick={() => onTryTrend(items[index])}
                                 className="px-10 py-5 bg-[#FF6B35] hover:bg-[#FF8B55] text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl hover:shadow-[#FF6B35]/20 flex items-center gap-3 group/btn"
                             >
                                 Try Trend <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><Plus className="w-4 h-4" /></motion.div>
-                            </button>
+                            </button> */}
                         </motion.div>
                     </div>
                 </motion.div>
@@ -381,6 +402,9 @@ export default function OkvevoMasivPage() {
     const [selectedCard, setSelectedCard] = useState<string | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showCart, setShowCart] = useState(false);
+    const [userName, setUserName] = useState('');
+    const [whatsappNumber, setWhatsappNumber] = useState('');
+    const [email, setEmail] = useState('');
 
     useEffect(() => {
         const lenis = new Lenis({
@@ -517,11 +541,52 @@ export default function OkvevoMasivPage() {
         }
     };
 
-    const addToCart = (product: typeof products[0]) => {
-        if (!cart.find(item => item.id === product.id)) {
-            setCart([...cart, { id: product.id, name: product.name, price: product.price }]);
+    const addToCart = async (product: typeof products[0]) => {
+        // Validate that photos are uploaded
+        if (!fullBodyImage) {
+            alert('Please upload a full body photo before adding to cart.');
+            return;
         }
-        setSelectedCard(null);
+
+        try {
+            const timestamp = Date.now();
+            const userId = user?.uid || 'anonymous';
+            
+            // Upload Full Body Image to Storage
+            const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
+            await uploadString(fullBodyRef, fullBodyImage, 'data_url');
+            const fullBodyUrl = await getDownloadURL(fullBodyRef);
+
+            // Upload Face Image (if present)
+            let faceUrl = '';
+            if (faceCloseUpImage) {
+                const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
+                await uploadString(faceRef, faceCloseUpImage, 'data_url');
+                faceUrl = await getDownloadURL(faceRef);
+            }
+
+            // Add to cart with photo URLs (no Firestore write yet - will be created after payment)
+            if (!cart.find(item => item.id === product.id)) {
+                setCart([...cart, { 
+                    id: product.id, 
+                    name: product.name, 
+                    price: product.price,
+                    trendType: product.type,
+                    fullBodyImageUrl: fullBodyUrl,
+                    faceImageUrl: faceUrl || null
+                }]);
+            }
+            
+            // Clear uploaded images after successful submission
+            setFullBodyImage(null);
+            setFaceCloseUpImage(null);
+            
+            alert('Successfully added to cart with your photos!');
+            setSelectedCard(null);
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert('Failed to add to cart. Please try again.');
+        }
     };
 
     const removeFromCart = (id: string) => {
@@ -587,19 +652,20 @@ export default function OkvevoMasivPage() {
                     <FeaturedCarousel 
                         onTryTrend={(item) => setSelectedCard(item.id)}
                         items={[
-                            {
-                                id: '8',
-                                title: '"VOID <br/> CAST"',
-                                image: "/masiv/voidmale.png",
-                                description: "Dive into dark, mysterious visuals with cinematic depth.",
-                                badge: "Featured Collection"
-                            },
+                            
                             {
                                 id: '2',
                                 title: '"WARRIOR <br/> FIGHTING"',
                                 image: "/masiv/horseback.mov",
                                 description: "Unleash raw warrior power in every intense frame. Cinematic battle environments for a professional look.",
                                 badge: "Trending Now"
+                            },
+                            {
+                                id: '8',
+                                title: '"VOID <br/> CAST"',
+                                image: "/masiv/voidmale.png",
+                                description: "Dive into dark, mysterious visuals with cinematic depth.",
+                                badge: "Featured Collection"
                             },
                             {
                                 id: '7',
@@ -930,7 +996,7 @@ export default function OkvevoMasivPage() {
                                                 </div>
 
                                                     <div className="flex flex-col gap-3 mt-8 relative z-10">
-                                                        <button 
+                                                        {/* <button 
                                                             onClick={() => handleTryTrend(product)}
                                                             disabled={isSubmitting || !fullBodyImage}
                                                             className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl flex items-center justify-center gap-3 ${
@@ -945,14 +1011,17 @@ export default function OkvevoMasivPage() {
                                                                     Reviewing Trend...
                                                                 </>
                                                             ) : (
-                                                                'Try Trend'
+                                                                'Submit'
                                                             )}
-                                                        </button>
+                                                        </button> */}
                                                     <button
                                                         onClick={() => addToCart(product)}
-                                                        disabled={alreadyInCart}
-                                                        className={`w-full py-5 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 border ${alreadyInCart
+                                                        disabled={alreadyInCart || !fullBodyImage}
+                                                        className={`w-full py-5 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 border ${
+                                                            alreadyInCart
                                                                 ? 'bg-green-500/10 text-green-500 border-green-500/20 cursor-not-allowed'
+                                                                : !fullBodyImage
+                                                                ? 'bg-red-500/10 text-red-500 border-red-500/20 cursor-not-allowed'
                                                                 : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
                                                             }`}
                                                     >
@@ -960,6 +1029,11 @@ export default function OkvevoMasivPage() {
                                                             <>
                                                                 <Check className="w-5 h-5" />
                                                                 In Cart
+                                                            </>
+                                                        ) : !fullBodyImage ? (
+                                                            <>
+                                                                <Upload className="w-5 h-5" />
+                                                                Upload Photo First
                                                             </>
                                                         ) : (
                                                             <>
@@ -1126,13 +1200,75 @@ export default function OkvevoMasivPage() {
 
                                 {cart.length > 0 && (
                                     <div className="border-t border-white/10 pt-6 mt-6">
+                                        {/* User Information Form */}
+                                        <div className="mb-6 space-y-4">
+                                            <h3 className="text-sm font-black uppercase tracking-widest text-white/70 mb-4">Your Details</h3>
+                                            
+                                            {/* Name - Mandatory */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
+                                                    Name <span className="text-red-500">*</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={userName}
+                                                    onChange={(e) => setUserName(e.target.value)}
+                                                    placeholder="Enter your full name"
+                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
+                                                />
+                                            </div>
+
+                                            {/* WhatsApp Number - Mandatory */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
+                                                    WhatsApp Number <span className="text-red-500">*</span>
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    value={whatsappNumber}
+                                                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                                                    placeholder="Enter your WhatsApp number"
+                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
+                                                />
+                                            </div>
+
+                                            {/* Email - Optional */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
+                                                    Email <span className="text-white/30 text-[10px]">(Optional)</span>
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    value={email}
+                                                    onChange={(e) => setEmail(e.target.value)}
+                                                    placeholder="Enter your email address"
+                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
+                                                />
+                                            </div>
+                                        </div>
+
                                         <div className="flex items-end justify-between mb-6">
                                             <span className="text-white/50 font-bold uppercase tracking-widest text-xs">Total Amount</span>
                                             <span className="text-4xl font-black text-white">₹{totalPrice}</span>
                                         </div>
-                                        <button className="w-full py-5 bg-white text-black hover:bg-white/90 font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl">
-                                            Proceed to Checkout
-                                        </button>
+                                        <MasivRazorpayCheckout
+                                            cartItems={cart}
+                                            totalAmount={totalPrice}
+                                            userName={userName}
+                                            whatsappNumber={whatsappNumber}
+                                            email={email}
+                                            onSuccess={() => {
+                                                setCart([]);
+                                                setUserName('');
+                                                setWhatsappNumber('');
+                                                setEmail('');
+                                                setShowCart(false);
+                                                alert('🎉 Payment successful! Your order has been placed.');
+                                            }}
+                                            onError={(error) => {
+                                                alert(`❌ Payment failed: ${error}`);
+                                            }}
+                                        />
                                     </div>
                                 )}
                             </div>

@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db, storage } from '@/config/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Shield, ArrowLeft, Clock, CheckCircle, Trash2, ExternalLink, User, Image as ImageIcon, UploadCloud } from 'lucide-react';
+import { Shield, ArrowLeft, Clock, CheckCircle, Trash2, ExternalLink, User, Image as ImageIcon, UploadCloud, ShoppingCart, X } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,10 +24,50 @@ interface TrendRequest {
     createdAt: Timestamp;
 }
 
+interface MasivOrder {
+    id: string;
+    orderId?: string;
+    userId: string;
+    userEmail: string;
+    userName?: string;
+    whatsappNumber?: string;
+    email?: string;
+    
+    // Old format (single item)
+    trendId?: string;
+    trendName?: string;
+    trendType?: string;
+    price?: number;
+    fullBodyImageUrl?: string;
+    faceImageUrl?: string | null;
+    
+    // New format (multiple items)
+    items?: Array<{
+        trendId: string;
+        trendName: string;
+        trendType: string;
+        price: number;
+        fullBodyImageUrl: string;
+        faceImageUrl: string | null;
+    }>;
+    
+    totalAmount?: number;
+    paymentStatus?: 'pending' | 'paid' | 'failed';
+    isVerified?: boolean;  // Webhook verification flag
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    createdAt: Timestamp;
+    paidAt?: Timestamp;
+}
+
 export default function TrendRequestsAdmin() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState<TrendRequest[]>([]);
+    const [masivOrders, setMasivOrders] = useState<MasivOrder[]>([]);
+    const [activeTab, setActiveTab] = useState<'trend_requests' | 'masiv_orders'>('masiv_orders');
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -36,7 +76,7 @@ export default function TrendRequestsAdmin() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.push('/login');
+                router.push('/admin/login');
                 return;
             }
 
@@ -48,21 +88,21 @@ export default function TrendRequestsAdmin() {
 
                 if (!res.ok) {
                     setError('Access denied. Admin only.');
-                    router.push('/');
+                    router.push('/admin/login');
                     return;
                 }
 
                 setLoading(false);
             } catch (err) {
                 console.error('Admin Auth Error:', err);
-                router.push('/');
+                router.push('/admin/login');
             }
         });
 
         return () => unsubscribe();
     }, [router]);
 
-    // Live data from Firestore
+    // Live data from Firestore - Trend Requests
     useEffect(() => {
         if (loading) return;
 
@@ -81,12 +121,40 @@ export default function TrendRequestsAdmin() {
         return () => unsubscribe();
     }, [loading]);
 
-    const updateStatus = async (id: string, newStatus: string) => {
+    // Live data from Firestore - Masiv Orders
+    useEffect(() => {
+        if (loading) return;
+
+        const q = query(collection(db, 'masiv_orders'), orderBy('createdAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const orderData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as MasivOrder[];
+            setMasivOrders(orderData);
+        }, (err) => {
+            console.error('Firestore Error (Masiv Orders):', err);
+        });
+
+        return () => unsubscribe();
+    }, [loading]);
+
+    const updateStatus = async (id: string, newStatus: string, collection_name: string = 'trend_requests') => {
         try {
-            await updateDoc(doc(db, 'trend_requests', id), { status: newStatus });
+            await updateDoc(doc(db, collection_name, id), { status: newStatus });
         } catch (err) {
             console.error('Update Error:', err);
             alert('Failed to update status.');
+        }
+    };
+
+    const deleteMasivOrder = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this order?')) return;
+        try {
+            await deleteDoc(doc(db, 'masiv_orders', id));
+        } catch (err) {
+            console.error('Delete Error:', err);
+            alert('Failed to delete order.');
         }
     };
 
@@ -147,44 +215,268 @@ export default function TrendRequestsAdmin() {
                             <Shield className="w-6 h-6 text-[#FF6B35]" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black tracking-tighter uppercase">Trend Requests</h1>
-                            <p className="text-gray-400 text-sm">Manage manual generation queue</p>
+                            <h1 className="text-3xl font-black tracking-tighter uppercase">Order Management</h1>
+                            <p className="text-gray-400 text-sm">Manage MASIV orders and trend requests</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex gap-4">
                     <div className="bg-[#111] border border-white/5 p-4 rounded-2xl min-w-[150px]">
-                        <p className="text-xs text-gray-500 uppercase font-black mb-1">Total Pending</p>
+                        <p className="text-xs text-gray-500 uppercase font-black mb-1">MASIV Orders</p>
                         <p className="text-2xl font-black text-[#FF6B35]">
-                            {requests.filter(r => r.status === 'pending').length}
+                            {masivOrders.filter(r => r.status === 'pending').length}
                         </p>
                     </div>
                     <div className="bg-[#111] border border-white/5 p-4 rounded-2xl min-w-[150px]">
                         <p className="text-xs text-gray-500 uppercase font-black mb-1">Completed</p>
                         <p className="text-2xl font-black text-green-500">
-                            {requests.filter(r => r.status === 'completed').length}
+                            {masivOrders.filter(r => r.status === 'completed').length}
                         </p>
                     </div>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="max-w-7xl mx-auto">
-                <div className="bg-[#111] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-[#181818] border-b border-white/5">
-                                    <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">User Details</th>
-                                    <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Trend Information</th>
-                                    <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Uploaded Assets</th>
-                                    <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Status</th>
-                                    <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {requests.map((req) => (
+            {/* Tab Navigation */}
+            <div className="max-w-7xl mx-auto mb-8">
+                <div className="flex gap-4 border-b border-white/5">
+                    <button
+                        onClick={() => setActiveTab('masiv_orders')}
+                        className={`px-6 py-3 font-black uppercase tracking-widest text-sm transition-all relative ${
+                            activeTab === 'masiv_orders'
+                                ? 'text-[#FF6B35]'
+                                : 'text-gray-500 hover:text-white'
+                        }`}
+                    >
+                        MASIV Orders ({masivOrders.length})
+                        {activeTab === 'masiv_orders' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6B35]" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('trend_requests')}
+                        className={`px-6 py-3 font-black uppercase tracking-widest text-sm transition-all relative ${
+                            activeTab === 'trend_requests'
+                                ? 'text-[#FF6B35]'
+                                : 'text-gray-500 hover:text-white'
+                        }`}
+                    >
+                        Trend Requests ({requests.length})
+                        {activeTab === 'trend_requests' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6B35]" />
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* MASIV Orders Table */}
+            {activeTab === 'masiv_orders' && (
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-[#111] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-[#181818] border-b border-white/5">
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">User Details</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Trend Information</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Uploaded Photos</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Status</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {masivOrders.map((order) => (
+                                        <tr key={order.id} className="hover:bg-white/[0.02] transition-colors group">
+                                            {/* User Info */}
+                                            <td className="px-6 py-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 overflow-hidden">
+                                                        <User className="w-5 h-5 text-gray-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-sm">{order.userName || order.userEmail.split('@')[0]}</p>
+                                                        <p className="text-xs text-gray-500">{order.userEmail}</p>
+                                                        {order.whatsappNumber && (
+                                                            <p className="text-xs text-green-500 mt-1">📱 {order.whatsappNumber}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            {/* Trend Info */}
+                                            <td className="px-6 py-6">
+                                                {order.items ? (
+                                                    // New format: multiple items
+                                                    <>
+                                                        <p className="font-bold text-sm text-[#FF6B35] mb-2">
+                                                            Order #{order.orderId?.slice(-8)}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mb-1">
+                                                            {order.items.length} item{order.items.length > 1 ? 's' : ''} • ₹{order.totalAmount}
+                                                        </p>
+                                                        <div className="text-[10px] text-gray-600 space-y-0.5">
+                                                            {order.items.map((item, idx) => (
+                                                                <p key={idx}>• {item.trendName}</p>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex gap-2 mt-2">
+                                                            {order.paymentStatus && (
+                                                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                    order.paymentStatus === 'paid' 
+                                                                        ? 'bg-green-500/20 text-green-500'
+                                                                        : order.paymentStatus === 'failed'
+                                                                        ? 'bg-red-500/20 text-red-500'
+                                                                        : 'bg-yellow-500/20 text-yellow-500'
+                                                                }`}>
+                                                                    {order.paymentStatus.toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                            {order.paymentStatus === 'paid' && (
+                                                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                    order.isVerified 
+                                                                        ? 'bg-blue-500/20 text-blue-400'
+                                                                        : 'bg-orange-500/20 text-orange-400'
+                                                                }`}>
+                                                                    {order.isVerified ? '✓ VERIFIED' : '⚠ PENDING'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    // Old format: single item
+                                                    <>
+                                                        <p className="font-bold text-sm text-[#FF6B35]">{order.trendName}</p>
+                                                        <p className="text-xs text-gray-500">₹{order.price} • {order.trendType}</p>
+                                                    </>
+                                                )}
+                                                <p className="text-[10px] text-gray-600 mt-1">
+                                                    {order.createdAt?.toDate().toLocaleString()}
+                                                </p>
+                                            </td>
+
+                                            {/* Uploaded Photos */}
+                                            <td className="px-6 py-6">
+                                                <div className="flex gap-2 flex-wrap max-w-[200px]">
+                                                    {order.items ? (
+                                                        // New format: show all photos from all items
+                                                        order.items.map((item, idx) => (
+                                                            <div key={idx} className="flex gap-2">
+                                                                <div 
+                                                                    onClick={() => setSelectedImage(item.fullBodyImageUrl)}
+                                                                    className="w-12 h-12 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
+                                                                >
+                                                                    <img src={item.fullBodyImageUrl} alt="Full Body" className="w-full h-full object-cover" />
+                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+                                                                        <ExternalLink className="w-3 h-3 text-white" />
+                                                                    </div>
+                                                                </div>
+                                                                {item.faceImageUrl && (
+                                                                    <div 
+                                                                        onClick={() => setSelectedImage(item.faceImageUrl!)}
+                                                                        className="w-12 h-12 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
+                                                                    >
+                                                                        <img src={item.faceImageUrl} alt="Face" className="w-full h-full object-cover" />
+                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+                                                                            <ExternalLink className="w-3 h-3 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        // Old format: single item photos
+                                                        <>
+                                                            {order.fullBodyImageUrl && (
+                                                                <div 
+                                                                    onClick={() => setSelectedImage(order.fullBodyImageUrl!)}
+                                                                    className="w-14 h-14 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
+                                                                >
+                                                                    <img src={order.fullBodyImageUrl} alt="Full Body" className="w-full h-full object-cover" />
+                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+                                                                        <ExternalLink className="w-4 h-4 text-white" />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {order.faceImageUrl && (
+                                                                <div 
+                                                                    onClick={() => setSelectedImage(order.faceImageUrl!)}
+                                                                    className="w-14 h-14 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
+                                                                >
+                                                                    <img src={order.faceImageUrl} alt="Face" className="w-full h-full object-cover" />
+                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+                                                                        <ExternalLink className="w-4 h-4 text-white" />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            {/* Status */}
+                                            <td className="px-6 py-6">
+                                                <select 
+                                                    value={order.status}
+                                                    onChange={(e) => updateStatus(order.id, e.target.value, 'masiv_orders')}
+                                                    className={`text-xs font-bold px-3 py-1.5 rounded-full border bg-transparent transition-all outline-none cursor-pointer ${
+                                                        order.status === 'completed' 
+                                                            ? 'border-green-500/30 text-green-500 hover:bg-green-500/10'
+                                                            : order.status === 'processing'
+                                                            ? 'border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10'
+                                                            : 'border-white/10 text-gray-400 hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    <option value="pending" className="bg-[#111]">Pending</option>
+                                                    <option value="processing" className="bg-[#111]">Processing</option>
+                                                    <option value="completed" className="bg-[#111]">Completed</option>
+                                                </select>
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td className="px-6 py-6 text-right">
+                                                <button 
+                                                    onClick={() => deleteMasivOrder(order.id)}
+                                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {masivOrders.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-20 text-center text-gray-600">
+                                                <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                                <p className="font-bold">No MASIV orders yet</p>
+                                                <p className="text-sm">Orders will appear here when users add trends to cart</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Trend Requests Table */}
+            {activeTab === 'trend_requests' && (
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-[#111] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-[#181818] border-b border-white/5">
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">User Details</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Trend Information</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Uploaded Assets</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500">Status</th>
+                                        <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-gray-500 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {requests.map((req) => (
                                     <tr key={req.id} className="hover:bg-white/[0.02] transition-colors group">
                                         {/* User Info */}
                                         <td className="px-6 py-6">
@@ -301,7 +593,8 @@ export default function TrendRequestsAdmin() {
                         </table>
                     </div>
                 </div>
-            </div>
+                </div>
+            )}
 
             {/* Image Modal */}
             <AnimatePresence>
@@ -333,24 +626,4 @@ export default function TrendRequestsAdmin() {
             </AnimatePresence>
         </div>
     );
-}
-
-function X(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-        </svg>
-    )
 }
