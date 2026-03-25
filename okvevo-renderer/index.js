@@ -252,7 +252,7 @@ function srtTimeToAss(srtTime) {
 }
 
 // Convert SRT to ASS format with custom styling
-function convertSrtToAss(srtPath) {
+function convertSrtToAss(srtPath, images = []) {
     const srtContent = fs.readFileSync(srtPath, 'utf8');
     
     // ASS header with styling optimized for 360x640 vertical video
@@ -266,7 +266,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Montserrat SemiBold,42,&H00FFFFFF,&H000000FF,&H00000000,&HCC000000,0,0,0,0,100,105,0.5,0,3,0,0,2,30,30,120,1
+Style: Default,Montserrat SemiBold,42,&H00FFFFFF,&H000000FF,&H00000000,&HCC000000,0,0,0,0,100,105,0.5,0,1,3,2,2,30,30,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -280,11 +280,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if (lines.length >= 3) {
             const timeParts = lines[1].split(' --> ');
             if (timeParts.length === 2) {
+                const startSecs = parseSrtTime(timeParts[0]);
+                const endSecs = parseSrtTime(timeParts[1]);
                 const start = srtTimeToAss(timeParts[0]);
                 const end = srtTimeToAss(timeParts[1]);
-                const text = lines.slice(2).join('\\N'); // \N is line break in ASS
+                const text = lines.slice(2).join('\\N').toUpperCase(); // \N is line break in ASS
                 
-                ass += `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}\n`;
+                const isSplitIntersect = images.some(img => img.layout === 'split' && !(endSecs <= img.start || startSecs >= img.end));
+                const posTag = isSplitIntersect ? '\\an5\\pos(180,320)' : '';
+                
+                const animatedText = `{${posTag}\\fscx50\\fscy50\\t(0,150,\\fscx100\\fscy100)\\fad(100,100)}${text}`;
+                ass += `Dialogue: 0,${start},${end},Default,,0,0,0,,${animatedText}\n`;
             }
         }
     });
@@ -340,10 +346,13 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
         if (hasImages) {
             images.forEach((img, idx) => {
                 const inputIdx = idx + 1;
+                const streamDur = img.end - img.start;
+                const fadeDur = Math.min(0.3, streamDur / 2); // safe fade
+                const fadeOutStart = Math.max(0, streamDur - fadeDur);
                 if (img.layout === 'fullscreen') {
-                    filterComplex += `[${inputIdx}:v]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,fps=30,format=yuv420p[img${idx}];`;
+                    filterComplex += `[${inputIdx}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(zoom+0.0015,1.5)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=360x640:fps=30,format=yuva420p,fade=t=in:st=0:d=${fadeDur}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${fadeDur}:alpha=1,setpts=PTS+(${img.start}/TB)[img${idx}];`;
                 } else {
-                    filterComplex += `[${inputIdx}:v]scale=360:320:force_original_aspect_ratio=increase,crop=360:320,fps=30,format=yuv420p[img${idx}];`;
+                    filterComplex += `[${inputIdx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,zoompan=z='min(zoom+0.0015,1.5)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=360x320:fps=30,format=yuva420p,fade=t=in:st=0:d=${fadeDur}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${fadeDur}:alpha=1,setpts=PTS+(${img.start}/TB)[img${idx}];`;
                 }
             });
         }
@@ -404,7 +413,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
 
                 // Convert SRT to ASS format for libass rendering
                 assPath = `/tmp/${Date.now()}-captions.ass`;
-                const assContent = convertSrtToAss(srtPath);
+                const assContent = convertSrtToAss(srtPath, images);
                 fs.writeFileSync(assPath, assContent, 'utf8');
                 
                 const eventCount = assContent.split('\n').filter(line => line.startsWith('Dialogue:')).length;
