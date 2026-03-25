@@ -23,6 +23,8 @@ interface SessionHistorySidebarProps {
     onNewSession: () => void;
     /** Accent colour class for the active highlight, e.g. "purple" | "orange" | "cyan" */
     accentColor?: 'purple' | 'orange' | 'cyan' | 'pink';
+    /** Whether the sidebar should start collapsed. Defaults to true. */
+    initiallyCollapsed?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,10 +69,11 @@ export default function SessionHistorySidebar({
     onSelectSession,
     onNewSession,
     accentColor = 'purple',
+    initiallyCollapsed = true,
 }: SessionHistorySidebarProps) {
     const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
     const [loading, setLoading] = useState(false);
-    const [collapsed, setCollapsed] = useState(true); // Minimized by default
+    const [collapsed, setCollapsed] = useState(initiallyCollapsed); 
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const accent = ACCENT[accentColor] ?? ACCENT.purple;

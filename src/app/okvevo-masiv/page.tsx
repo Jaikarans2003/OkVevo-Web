@@ -14,6 +14,27 @@ import FeaturedShows from '@/components/masiv/FeaturedShows';
 
 const products = [
     {
+        id: '14',
+        name: 'Nazakat',
+        type: 'photo',
+        thumbnails: [
+            '/masiv/nazakat/suit4.jpeg',
+            '/masiv/nazakat/suit5.jpeg',
+            '/masiv/nazakat/suit6.jpeg',
+            '/masiv/nazakat/suit7.jpeg',
+            '/masiv/nazakat/suit8.jpeg',
+            '/masiv/nazakat/suit9.jpeg',
+            '/masiv/nazakat/suit10.jpeg',
+            '/masiv/nazakat/suit11.jpeg',
+            '/masiv/nazakat/suit12.jpeg',
+            
+        ],
+        description: 'Embrace your feminine side.',
+        price: 2499,
+        badge1: 'FEMALE',
+        badge2: 'Ethereal'
+    },
+    {
         id: '13',
         name: 'Dhurandhar',
         type: 'photo',

@@ -620,7 +620,7 @@ function AIInfluencerWorkstation() {
                     loop
                     muted
                     playsInline
-                    className="fixed inset-0 w-full h-full object-cover opacity-100"
+                    className="fixed inset-0 w-full h-full object-cover opacity-50"
                     style={{ filter: 'hue-rotate(145deg) saturate(1.6) brightness(1.1)' }}
                 >
                     <source src="/videos/bg-blue.mp4" type="video/mp4" />
@@ -653,6 +653,7 @@ function AIInfluencerWorkstation() {
                                         setIsHistoryOpen(false);
                                     }}
                                     accentColor="orange"
+                                    initiallyCollapsed={false}
                                 />
                             </div>
                         </div>
@@ -668,14 +669,14 @@ function AIInfluencerWorkstation() {
                         </button>
                     )}
 
-                    <main className="flex-1 relative z-10 px-4 md:px-10 w-full max-w-none pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
+                    <main className="flex-1 relative z-10 px-4 md:px-10 w-full max-w-[1600px] pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
 
                         {/* Header with Professional Status */}
                         {activeTab === 'explainers' ? (
-                            <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
+                            <div className="flex flex-col md:flex-row gap-10 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
 
                                 {/* ── LEFT: Step Wizard ── */}
-                                <div className="w-full md:w-[700px] pl-10 flex-shrink-0 flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
+                                <div className="flex-1 max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
                                     {/* Page Title & Status */}
                                     <div className="flex items-center gap-4 px-2 mb-2">
                                         <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
@@ -1146,7 +1147,7 @@ function AIInfluencerWorkstation() {
                                         className="h-full w-full max-w-[420px] shrink-0 bg-white/[0.04] backdrop-blur-[120px] rounded-[2.5rem] border border-white/20 overflow-hidden relative shadow-[0_30px_60px_rgba(0,0,0,0.4)] group/monitor transition-all duration-700 hover:border-white/30"
                                         style={{
                                             aspectRatio: '9/16',
-                                            maxHeight: 'calc(100vh - 12rem)'
+                                            maxHeight: 'min(calc(100vh - 12rem), 750px)'
                                         }}
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none" />
