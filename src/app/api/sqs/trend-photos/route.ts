@@ -11,6 +11,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { type, jobId, userId } = body;
 
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: 'Authorization required: userId is missing' },
+                { status: 401 }
+            );
+        }
+
         if (!jobId) {
             return NextResponse.json(
                 { success: false, error: 'jobId is required' },
@@ -52,14 +59,14 @@ export async function POST(request: NextRequest) {
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: messageBody,
-            MessageGroupId: userId || 'trend-default',
+            MessageGroupId: userId,
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
         console.log('🎬 Dispatching trend job to SQS FIFO:', {
             jobId,
             type: type || 'trend-photo',
-            userId: userId || 'anonymous',
+            userId,
         });
 
         const result = await sqsClient.send(command);

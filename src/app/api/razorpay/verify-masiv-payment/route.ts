@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
             totalAmount,
         } = body;
 
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: 'Authorization required: userId is missing' },
+                { status: 401 }
+            );
+        }
+
         if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
             return NextResponse.json(
                 { success: false, error: 'Missing payment verification data' },
@@ -51,10 +58,10 @@ export async function POST(request: NextRequest) {
         const orderDoc = await addDoc(collection(db, 'masiv_orders'), {
             orderId: razorpay_order_id,
             userId,
-            userEmail: userEmail || 'anonymous',
+            userEmail: userEmail, // Removed fallback to null
             userName,
             whatsappNumber,
-            email: email || null,
+            email: email, // Removed fallback to null
             
             items: cartItems.map((item: any) => ({
                 trendId: item.id,

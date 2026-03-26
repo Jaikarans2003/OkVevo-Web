@@ -20,6 +20,7 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
     useEffect(() => {
         const checkSubscription = async () => {
             if (!userProfile) {
+                router.push('/login');
                 setChecking(false);
                 return;
             }

@@ -41,8 +41,13 @@ export default function MasivRazorpayCheckout({
 
     const handleCheckout = async () => {
         const user = auth.currentUser;
-        const userId = user?.uid || `guest_${Date.now()}`;
-        const userEmail = user?.email || email || `${whatsappNumber}@guest.masiv`;
+        if (!user) {
+            alert('Please sign in to complete your checkout.');
+            setLoading(false);
+            return;
+        }
+        const userId = user.uid;
+        const userEmail = user.email || email || `${whatsappNumber}@authenticated.masiv`;
 
         setLoading(true);
 

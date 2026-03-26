@@ -15,6 +15,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { jobId, masterPrompt, userId, productImageUrl, outputPath, shotName, resolution, aspectRatio } = body;
 
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: 'Authorization required: userId is missing' },
+                { status: 401 }
+            );
+        }
+
         if (!jobId || !masterPrompt) {
             return NextResponse.json(
                 { success: false, error: 'jobId and masterPrompt are required' },
@@ -54,7 +61,7 @@ export async function POST(request: NextRequest) {
             productImageUrl: productImageUrl || null,
             outputPath: outputPath || `ProductShoots/${jobId}.png`,
             shotName: shotName || 'Unknown Shot',
-            userId: userId || 'anonymous',
+            userId,
             resolution: resolution || '4K',
             aspectRatio: aspectRatio || '16:9',
             timestamp: new Date().toISOString(),
@@ -63,14 +70,14 @@ export async function POST(request: NextRequest) {
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: messageBody,
-            MessageGroupId: userId || 'shoots-default',
+            MessageGroupId: userId,
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
         console.log('📸 Dispatching product-shoot job to SQS FIFO:', {
             jobId,
             shotName,
-            userId: userId || 'anonymous',
+            userId,
             promptLength: masterPrompt.length,
             hasProductImage: !!productImageUrl,
             outputPath: outputPath || `ProductShoots/${jobId}.png`,

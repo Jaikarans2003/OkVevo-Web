@@ -5,16 +5,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search } from 'lucide-react';
 import Lenis from 'lenis';
 import { db, storage } from '@/config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { onSnapshot, doc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 import Link from 'next/link';
 import MasivRazorpayCheckout from '@/components/payment/MasivRazorpayCheckout';
 
-const products = [
+interface MasivProduct {
+    id: string;
+    name: string;
+    type: 'photo' | 'video';
+    thumbnails: string[];
+    description: string;
+    price: number;
+    badge1: string;
+    badge2: string;
+}
+
+// Keeping the initial format as a fallback or for structure reference
+const INITIAL_PRODUCTS: MasivProduct[] = [
     {
         id: '14',
         name: 'Nazakat',
@@ -29,191 +42,15 @@ const products = [
             '/masiv/nazakat/suit10.jpeg',
             '/masiv/nazakat/suit11.jpeg',
             '/masiv/nazakat/suit12.jpeg',
-            
         ],
         description: 'Embrace your feminine side.',
         price: 2499,
         badge1: 'FEMALE',
         badge2: 'Ethereal'
     },
-    {
-        id: '13',
-        name: 'Dhurandhar',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/dhurandharmale.png',
-            '/masiv/dhurandharfemale.png'
-        ],
-        description: 'Embrace the legendary aura of a true Dhurandhar.',
-        price: 2499,
-        badge1: 'UNISEX',
-        badge2: 'Legendary'
-    },
-    {
-        id: '14',
-        name: 'Cenimatic Gangster',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/Cinematic Gangster Portrait Male.png',
-            '/masiv/Cinematic Gangster Portrait Female.png'
-        ],
-        description: 'Own the streets with bold, cinematic mafia energy.',
-        price: 2999,
-        badge1: 'UNISEX',
-        badge2: 'Trending'
-    },
-    {
-        id: '4',
-        name: 'Sky fall',
-        type: 'video',
-        thumbnails: [
-            '/masiv/skyfall.mp4',
-        ],
-        description: 'Experience the thrill of freefall with cinematic sky-high visuals.',
-        price: 2799,
-        badge1: 'UNISEX',
-        badge2: 'HUD'
-    },
-    {
-        id: '3',
-        name: 'Winter Hour',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/Winter hour Male.png',
-            '/masiv/winterfemale.png'
-        ],
-        description: 'Capture calm, aesthetic winter vibes with soft elegance.',
-        price: 1999,
-        badge1: 'UNISEX',
-        badge2: 'Clean'
-    },
-     {
-        id: '1',
-        name: 'Modern Mafia',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/Modern Mafia Male.png',
-            '/masiv/Modern Mafia Female.png'
-        ],
-        description: 'Own the streets with bold, cinematic mafia energy.',
-        price: 2999,
-        badge1: 'UNISEX',
-        badge2: 'Trending'
-    },
-    
-    {
-        id: '2',
-        name: 'Warrior fighting',
-        type: 'video',
-        thumbnails: [
-            '/masiv/horseback.mov',
-        ],
-        description: 'Unleash raw warrior power in every intense frame.',
-        price: 1999,
-        badge1: 'UNISEX',
-        badge2: 'Clean'
-    },
-    {
-        id: '8',
-        name: 'Void Cast',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/voidmale.png',
-            '/masiv/voidfemale.png'
-        ],
-        description: 'Dive into dark, mysterious visuals with cinematic depth.',
-        price: 3499,
-        badge1: 'UNISEX',
-        badge2: 'Nature'
-    },
-    {
-        id: '11',
-        name: 'The Pause',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/pausemale.png',
-            '/masiv/pausefemale.png'
-        ],
-        description: 'Freeze powerful emotions in stunning slow-motion moments.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Slow-Mo'
-    },
-     {
-        id: '10',
-        name: 'Vantaged',
-        type: 'photo',
-        thumbnails: ['/masiv/Vantaged Male 1.png', '/masiv/van1f.png', '/masiv/vantagedmale.png', '/masiv/van2f.png'],
-        description: 'Bring timeless vintage aesthetics to life effortlessly.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Vintage'
-    },
-    {
-        id: '6',
-        name: 'Raw Glass',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/rawmale.png',
-            '/masiv/rawfemale.png'
-        ],
-        description: 'Sleek glass visuals that redefine modern minimal aesthetics.',
-        price: 2799,
-        badge1: 'UNISEX',
-        badge2: 'HUD'
-    },
-    {
-        id: '9',
-        name: 'Apex Editorial',
-        type: 'photo',
-        thumbnails: ['/masiv/apex1.png', '/masiv/apex1f.png', '/masiv/apex2.png', '/masiv/apex3f.png', '/masiv/apex3.png'],
-        description: 'Create magazine-worthy looks with premium editorial style.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Editorial'
-    },
-    {
-        id: '5',
-        name: 'Hero v/s monster ',
-        type: 'video',
-        thumbnails: [
-            '/masiv/hero.mov',
-        ],
-        description: 'Experience epic hero vs monster battles like never before.',
-        price: 1999,
-        badge1: 'UNISEX',
-        badge2: 'Clean'
-    },
-    {
-        id: '7',
-        name: 'GTA Character',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/gtamale.png',
-            '/masiv/gtafemale.png'
-        ],
-        description: 'Step into a GTA-style world with ultra-real character visuals.',
-        price: 2499,
-        badge1: 'UNISEX',
-        badge2: 'Motion'
-    },
-    
-   {
-        id: '12',
-        name: 'Off Set',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/offmale.png',
-            '/masiv/offfemale.png'
-        ],
-        description: 'Capture raw, authentic studio moments with creative edge.',
-        price: 1599,
-        badge1: 'UNISEX',
-        badge2: 'Studio'
-    },
-    
-    
+    // ... other products would be here if needed for initial local dev
 ];
+
  
 const isVideo = (url: string) => {
     return url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm') || url.toLowerCase().endsWith('.mov');
@@ -342,7 +179,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                         <img 
                             src={items[index].image} 
                             alt={items[index].title} 
-                            className="absolute inset-0 w-full h-full object-cover opacity-85 transition-transform duration-[6000ms] scale-100 group-hover:scale-110"
+                            className="absolute inset-0 w-full h-full object-cover opacity-90 transition-transform duration-[6000ms] scale-100 group-hover:scale-110"
                         />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
@@ -420,13 +257,42 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
 };
 
 export default function OkvevoMasivPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading, isAuthenticated } = useAuth();
     const [selectedCard, setSelectedCard] = useState<string | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showCart, setShowCart] = useState(false);
     const [userName, setUserName] = useState('');
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [email, setEmail] = useState('');
+    const router = useRouter();
+
+    const [products, setProducts] = useState<MasivProduct[]>([]);
+    const [loadingProducts, setLoadingProducts] = useState(true);
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !isAuthenticated()) {
+            router.push('/login');
+        }
+    }, [authLoading, isAuthenticated, router]);
+
+    // Fetch Products from Firestore
+    useEffect(() => {
+        const q = query(collection(db, 'masiv_products'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedProducts = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as MasivProduct[];
+            setProducts(fetchedProducts);
+            setLoadingProducts(false);
+        }, (error) => {
+            console.error("Error fetching masiv_products:", error);
+            setLoadingProducts(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         const lenis = new Lenis({
@@ -460,7 +326,7 @@ export default function OkvevoMasivPage() {
                                 product.description.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         });
-    }, [activeFilter, searchQuery]);
+    }, [activeFilter, searchQuery, products]);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
@@ -498,7 +364,7 @@ export default function OkvevoMasivPage() {
         }
     }, [submitSuccess]);
 
-    const handleTryTrend = async (product: typeof products[0]) => {
+    const handleTryTrend = async (product: MasivProduct) => {
         if (!fullBodyImage) {
             alert('Please upload a full body photo first.');
             return;
@@ -506,8 +372,12 @@ export default function OkvevoMasivPage() {
 
         setIsSubmitting(true);
         try {
+            if (!user?.uid) {
+                alert('Please sign in to continue.');
+                return;
+            }
             const timestamp = Date.now();
-            const userId = user?.uid || 'anonymous';
+            const userId = user.uid;
             
             // 1. Upload Full Body Image
             const fullBodyRef = ref(storage, `trend_requests/${userId}/${timestamp}_full_body.jpg`);
@@ -563,7 +433,7 @@ export default function OkvevoMasivPage() {
         }
     };
 
-    const addToCart = async (product: typeof products[0]) => {
+    const addToCart = async (product: MasivProduct) => {
         // Validate that photos are uploaded
         if (!fullBodyImage) {
             alert('Please upload a full body photo before adding to cart.');
@@ -571,8 +441,12 @@ export default function OkvevoMasivPage() {
         }
 
         try {
+            if (!user?.uid) {
+                alert('Please sign in to add items to cart.');
+                return;
+            }
             const timestamp = Date.now();
-            const userId = user?.uid || 'anonymous';
+            const userId = user.uid;
             
             // Upload Full Body Image to Storage
             const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
@@ -671,33 +545,25 @@ export default function OkvevoMasivPage() {
 
                 {/* Featured Trends Section */}
                 <section className="px-6 md:px-10 mb-16">
-                    <FeaturedCarousel 
-                        onTryTrend={(item) => setSelectedCard(item.id)}
-                        items={[
-                            
-                            {
-                                id: '2',
-                                title: '"WARRIOR <br/> FIGHTING"',
-                                image: "/masiv/horseback.mov",
-                                description: "Unleash raw warrior power in every intense frame. Cinematic battle environments for a professional look.",
-                                badge: "Trending Now"
-                            },
-                            {
-                                id: '8',
-                                title: '"VOID <br/> CAST"',
-                                image: "/masiv/voidmale.png",
-                                description: "Dive into dark, mysterious visuals with cinematic depth.",
-                                badge: "Featured Collection"
-                            },
-                            {
-                                id: '7',
-                                title: '"GTA <br/> CHARACTER"',
-                                image: "/masiv/gtamale.png",
-                                description: "Step into a GTA-style world with ultra-real character visuals and high-fidelity detail.",
-                                badge: "Fan Favourite"
-                            }
-                        ]}
-                    />
+                    {loadingProducts ? (
+                        <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
+                                <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <FeaturedCarousel 
+                            onTryTrend={(item) => setSelectedCard(item.id)}
+                            items={products.slice(0, 3).map(p => ({
+                                id: p.id,
+                                title: p.name.toUpperCase().split(' ').join(' <br/> '),
+                                image: p.thumbnails[0],
+                                description: p.description,
+                                badge: p.badge1 || "Featured Collection"
+                            }))}
+                        />
+                    )}
                 </section>
 
                 {/* Filter & Search Control Bar */}
@@ -1038,7 +904,7 @@ export default function OkvevoMasivPage() {
                                                         </button> */}
                                                     <button
                                                         onClick={() => addToCart(product)}
-                                                        disabled={alreadyInCart || !fullBodyImage}
+                                                        disabled={alreadyInCart || !fullBodyImage || loadingProducts}
                                                         className={`w-full py-5 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 border ${
                                                             alreadyInCart
                                                                 ? 'bg-green-500/10 text-green-500 border-green-500/20 cursor-not-allowed'

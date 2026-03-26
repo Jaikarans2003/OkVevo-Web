@@ -14,6 +14,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { jobId, masterPrompt, userId, outputPath } = body;
 
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: 'Authorization required: userId is missing' },
+                { status: 401 }
+            );
+        }
+
         if (!jobId || !masterPrompt) {
             return NextResponse.json(
                 { success: false, error: 'jobId and masterPrompt are required' },
@@ -51,20 +58,20 @@ export async function POST(request: NextRequest) {
             jobId,
             masterPrompt,
             outputPath: outputPath || `DirectorPhotos/${jobId}.png`,
-            userId: userId || 'anonymous',
+            userId,
             timestamp: new Date().toISOString(),
         });
 
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: messageBody,
-            MessageGroupId: userId || 'director-default',
+            MessageGroupId: userId,
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
         console.log('📸 Dispatching director-photo job to SQS FIFO:', {
             jobId,
-            userId: userId || 'anonymous',
+            userId,
             promptLength: masterPrompt.length,
             outputPath: outputPath || `DirectorPhotos/${jobId}.png`,
             queueUrl,

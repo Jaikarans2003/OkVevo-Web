@@ -9,6 +9,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Shield, ArrowLeft, Clock, CheckCircle, Trash2, ExternalLink, User, Image as ImageIcon, UploadCloud, ShoppingCart, X } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdminGuard from '@/components/admin/AdminGuard';
 
 interface TrendRequest {
     id: string;
@@ -62,7 +63,7 @@ interface MasivOrder {
     paidAt?: Timestamp;
 }
 
-export default function TrendRequestsAdmin() {
+function TrendRequestsAdmin() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState<TrendRequest[]>([]);
@@ -72,35 +73,10 @@ export default function TrendRequestsAdmin() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-    // Check authentication
+    // Auth is handled by AdminGuard
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                router.push('/admin/login');
-                return;
-            }
-
-            try {
-                const token = await user.getIdToken();
-                const res = await fetch('/api/admin/check', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!res.ok) {
-                    setError('Access denied. Admin only.');
-                    router.push('/admin/login');
-                    return;
-                }
-
-                setLoading(false);
-            } catch (err) {
-                console.error('Admin Auth Error:', err);
-                router.push('/admin/login');
-            }
-        });
-
-        return () => unsubscribe();
-    }, [router]);
+        setLoading(false);
+    }, []);
 
     // Live data from Firestore - Trend Requests
     useEffect(() => {
@@ -625,5 +601,13 @@ export default function TrendRequestsAdmin() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function TrendRequestsAdminPage() {
+    return (
+        <AdminGuard>
+            <TrendRequestsAdmin />
+        </AdminGuard>
     );
 }
