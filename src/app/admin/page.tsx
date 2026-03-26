@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.push('/login');
+                router.push('/admin/login');
                 return;
             }
 
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
 
                 if (!res.ok) {
                     setError('Access denied. You do not have admin permissions.');
-                    setTimeout(() => router.push('/'), 3000);
+                    setTimeout(() => router.push('/admin/login'), 3000);
                     return;
                 }
 

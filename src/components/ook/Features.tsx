@@ -12,7 +12,7 @@ const HowItWorks = () => {
     const steps = [
         {
             shortTitle: "Avatar Identity",
-            fullText: "Transform any image into a hyper-realistic digital persona. Customize presence, tone, and character in seconds.",
+            fullText: "Transform any Sample into a Realistic digital persona in seconds.",
             img: "/weight.png",
         },
         {
