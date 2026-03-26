@@ -15,7 +15,8 @@ import {
 import { 
     ref, 
     uploadBytesResumable, 
-    getDownloadURL 
+    getDownloadURL,
+    deleteObject 
 } from 'firebase/storage';
 import { 
     Plus, 
@@ -76,6 +77,7 @@ function ProductManager() {
                 id: doc.id,
                 ...doc.data()
             })) as MasivProduct[];
+            console.log('✅ Loaded products from Firestore:', fetchedProducts.map(p => ({ id: p.id, name: p.name })));
             setProducts(fetchedProducts);
             setLoading(false);
         });
@@ -121,7 +123,26 @@ function ProductManager() {
         }
     };
 
-    const removeThumbnail = (index: number) => {
+    const removeThumbnail = async (index: number) => {
+        const thumbnailUrl = formData.thumbnails?.[index];
+        if (!thumbnailUrl) return;
+
+        try {
+            // Delete from Firebase Storage
+            // Extract storage path from URL
+            const urlParts = thumbnailUrl.split('/o/')[1]?.split('?')[0];
+            if (urlParts) {
+                const storagePath = decodeURIComponent(urlParts);
+                const storageRef = ref(storage, storagePath);
+                await deleteObject(storageRef);
+                console.log('✅ Deleted old file from storage:', storagePath);
+            }
+        } catch (error) {
+            console.error('Error deleting file from storage:', error);
+            // Continue even if deletion fails
+        }
+
+        // Remove from form data
         setFormData(prev => ({
             ...prev,
             thumbnails: prev.thumbnails?.filter((_, i) => i !== index)
@@ -130,45 +151,108 @@ function ProductManager() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validate required fields
+        if (!formData.name?.trim()) {
+            alert('Product name is required');
+            return;
+        }
+        if (!formData.description?.trim()) {
+            alert('Description is required');
+            return;
+        }
+        if (!formData.thumbnails || formData.thumbnails.length === 0) {
+            alert('At least one thumbnail/asset is required');
+            return;
+        }
+
         setUploading(true);
 
         try {
             if (editingProduct) {
+                // UPDATE existing product in same document
+                console.log('🔄 Updating product with ID:', editingProduct.id);
+                console.log('📄 Document path:', `masiv_products/${editingProduct.id}`);
                 const docRef = doc(db, 'masiv_products', editingProduct.id);
                 await updateDoc(docRef, {
-                    ...formData,
+                    name: formData.name,
+                    type: formData.type,
+                    thumbnails: formData.thumbnails,
+                    description: formData.description,
+                    price: formData.price,
+                    badge1: formData.badge1 || '',
+                    badge2: formData.badge2 || '',
                     updatedAt: serverTimestamp()
                 });
+                console.log('✅ Product updated successfully:', editingProduct.id);
+                alert('✅ Product updated successfully!');
             } else {
-                await addDoc(collection(db, 'masiv_products'), {
-                    ...formData,
+                // CREATE new product
+                const docRef = await addDoc(collection(db, 'masiv_products'), {
+                    name: formData.name,
+                    type: formData.type,
+                    thumbnails: formData.thumbnails,
+                    description: formData.description,
+                    price: formData.price,
+                    badge1: formData.badge1 || '',
+                    badge2: formData.badge2 || '',
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 });
+                console.log('✅ Product created:', docRef.id);
+                alert('✅ Product created successfully!');
             }
             closeModal();
         } catch (error) {
             console.error("Error saving product:", error);
-            alert("Failed to save product.");
+            alert(`❌ Failed to save product: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+        if (!confirm(`Are you sure you want to delete "${name}"?\n\nThis will permanently delete the product and all its assets from storage.`)) return;
+        
         try {
+            // Find the product to get its thumbnails
+            const product = products.find(p => p.id === id);
+            
+            // Delete all associated files from Firebase Storage
+            if (product?.thumbnails) {
+                for (const thumbnailUrl of product.thumbnails) {
+                    try {
+                        const urlParts = thumbnailUrl.split('/o/')[1]?.split('?')[0];
+                        if (urlParts) {
+                            const storagePath = decodeURIComponent(urlParts);
+                            const storageRef = ref(storage, storagePath);
+                            await deleteObject(storageRef);
+                            console.log('✅ Deleted file from storage:', storagePath);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting file:', error);
+                        // Continue deleting other files even if one fails
+                    }
+                }
+            }
+            
+            // Delete the Firestore document
             await deleteDoc(doc(db, 'masiv_products', id));
+            console.log('✅ Product deleted:', id);
+            alert('✅ Product and all assets deleted successfully!');
         } catch (error) {
             console.error("Error deleting product:", error);
+            alert(`❌ Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
     const openModal = (product?: MasivProduct) => {
         if (product) {
+            console.log('📝 Editing product:', { id: product.id, name: product.name });
             setEditingProduct(product);
             setFormData(product);
         } else {
+            console.log('➕ Creating new product');
             setEditingProduct(null);
             setFormData({
                 name: '',

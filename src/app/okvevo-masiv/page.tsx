@@ -5,10 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search } from 'lucide-react';
 import Lenis from 'lenis';
 import { db, storage } from '@/config/firebase';
-import { collection, addDoc, serverTimestamp, query } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/hooks/useAuth';
-import { onSnapshot, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
@@ -18,38 +17,13 @@ import MasivRazorpayCheckout from '@/components/payment/MasivRazorpayCheckout';
 interface MasivProduct {
     id: string;
     name: string;
-    type: 'photo' | 'video';
+    type: 'photo' | 'video'
     thumbnails: string[];
     description: string;
     price: number;
     badge1: string;
     badge2: string;
 }
-
-// Keeping the initial format as a fallback or for structure reference
-const INITIAL_PRODUCTS: MasivProduct[] = [
-    {
-        id: '14',
-        name: 'Nazakat',
-        type: 'photo',
-        thumbnails: [
-            '/masiv/nazakat/suit4.jpeg',
-            '/masiv/nazakat/suit5.jpeg',
-            '/masiv/nazakat/suit6.jpeg',
-            '/masiv/nazakat/suit7.jpeg',
-            '/masiv/nazakat/suit8.jpeg',
-            '/masiv/nazakat/suit9.jpeg',
-            '/masiv/nazakat/suit10.jpeg',
-            '/masiv/nazakat/suit11.jpeg',
-            '/masiv/nazakat/suit12.jpeg',
-        ],
-        description: 'Embrace your feminine side.',
-        price: 2499,
-        badge1: 'FEMALE',
-        badge2: 'Ethereal'
-    },
-    // ... other products would be here if needed for initial local dev
-];
 
  
 const isVideo = (url: string) => {
