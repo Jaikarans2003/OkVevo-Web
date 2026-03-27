@@ -28,70 +28,66 @@ const Pricing = ({ user }: PricingProps) => {
         // If user is logged in, the payment component will handle it
     };
 
-    const plans = [
-        {
-            name: 'Hobby',
-            icon: Sparkles,
-            price: '₹4,999',
-            period: 'per month',
-            description: 'Perfect for getting started with AI-powered creativity',
-            features: [
-                '10 generations per month',
-                'Basic prompts library',
-                'Standard quality outputs',
-                'Community support',
-                'Watermarked exports'
-            ],
-            notIncluded: [
-                'Advanced AI models',
-                'Priority processing',
-                'Commercial license'
-            ],
-            highlighted: false,
-            cta: 'Get Started',
-        },
-        {
-            name: 'Pro',
-            icon: Zap,
-            price: '₹13,999',
-            period: 'per month',
-            description: 'For creators who want unlimited possibilities',
-            features: [
-                'Unlimited generations',
-                'Advanced prompts library',
-                'Premium quality outputs',
-                'Priority support',
-                'No watermarks',
-                'Commercial license',
-                'Advanced AI models',
-                'Priority processing'
-            ],
-            notIncluded: [],
-            highlighted: true,
-            cta: 'Start Pro Trial',
-        },
-        {
-            name: 'Enterprise',
-            icon: Crown,
-            price: 'Custom',
-            period: 'contact sales',
-            description: 'For organizations with custom needs',
-            features: [
-                'Everything in Pro',
-                'Dedicated account manager',
-                'Custom AI model training',
-                'API access',
-                'Team collaboration tools',
-                'Advanced analytics',
-                'SLA guarantees',
-                'White-label options'
-            ],
-            notIncluded: [],
-            highlighted: false,
-            cta: 'Contact Sales',
-        }
-    ];
-
+   const plans = [
+    {
+        name: 'Hobby',
+        icon: Sparkles,
+        price: '₹4,999',
+        period: 'per month',
+        description: 'Perfect for getting started with AI-powered influencer content',
+        features: [
+            '50 AI Influencer Videos OR 30 minutes generation',
+            'Unlimited custom avatar uploads',
+            'Unlimited custom voice uploads',
+            'Up to 50 thumbnail generations'
+        ],
+        notIncluded: [
+            'Logo overlay / branding',
+            'Priority support',
+            'High-volume generation'
+        ],
+        highlighted: false,
+        cta: 'Get Started',
+    },
+    {
+        name: 'Pro',
+        icon: Zap,
+        price: '₹13,999',
+        period: 'per month',
+        description: 'For creators and brands scaling AI content production',
+        features: [
+            '180 AI Influencer Videos',
+            '105 minutes generation time',
+            'Unlimited custom avatar uploads',
+            'Unlimited custom voice uploads',
+            'Up to 180 thumbnail generations',
+            'Custom logo & marquee overlay',
+            '24/7 email support'
+        ],
+        notIncluded: [],
+        highlighted: true,
+        cta: 'Start Pro Trial',
+    },
+   {
+    name: 'Enterprise',
+    icon: Crown,
+    price: 'Custom',
+    period: 'contact sales',
+    description: 'For organizations scaling AI content with full control and collaboration',
+    features: [
+        'Everything in Pro',
+        'Unlimited team seats',
+        'Custom organization setup',
+        'Admin access & controls',
+        'Team management dashboard',
+        'Content pipeline view',
+        'Priority technical support'
+    ],
+    notIncluded: [],
+    highlighted: false,
+    cta: 'Contact Sales',
+}
+];
     return (
         <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
             {/* Top Fade to blend with previous section seamlessly */}

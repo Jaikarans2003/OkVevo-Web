@@ -26,11 +26,11 @@ const Footer = () => {
                                 <Image 
                                     src="/OKVEVO WithOut BackGrounds/black.svg" 
                                     alt="OKVEVO Logo" 
-                                    width={40} 
-                                    height={40} 
-                                    className="w-12 h-12 object-contain"
+                                    width={92} 
+                                    height={92} 
+                                    className="w-25 h-25 object-contain"
                                 />
-                                OKVEVO<span className="text-text-main">.</span>
+                                {/* OKVEVO<span className="text-text-main">.</span> */}
                             </a>
                             <p className="text-xl text-white font-medium leading-relaxed">
                                 Designing the future of cinematic storytelling through the lens of artificial intelligence.
@@ -84,7 +84,7 @@ const Footer = () => {
                         </div>
 
                         <p className="text-[11px] font-black tracking-[0.3em] uppercase text-white/60">
-                            © 2026 OKVEVO INC. <span className="text-text-main/40">EXPERIMENT 01.</span>
+                            © 2026 OKVEVO. All rights reserved.
                         </p>
                     </div>
                 </div>
