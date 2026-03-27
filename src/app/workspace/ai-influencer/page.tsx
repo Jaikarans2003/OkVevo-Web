@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download, Mic2
+    RotateCcw, Play, Download, Mic2, Image, AlignBottom, AlignTop, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
@@ -100,6 +100,15 @@ function AIInfluencerWorkstation() {
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
+
+    // ── Branding state (optional post-process — does NOT affect the pipeline) ──
+    const [brandingOpen,      setBrandingOpen]      = useState(false);
+    const [brandLogoFile,     setBrandLogoFile]     = useState<File | null>(null);
+    const [brandMarqueeText,  setBrandMarqueeText]  = useState('');
+    const [brandMarqueePos,   setBrandMarqueePos]   = useState<'top' | 'bottom'>('bottom');
+    const [brandLogoPos,      setBrandLogoPos]      = useState<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>('top-right');
+    const [isBranding,        setIsBranding]        = useState(false);
+    const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -282,6 +291,53 @@ function AIInfluencerWorkstation() {
         setWaitTaskToken(null);
         setIsGenerating(false);
         setImageTimeline([]);
+        // branding state reset
+        setBrandingOpen(false);
+        setBrandLogoFile(null);
+        setBrandMarqueeText('');
+        setBrandMarqueePos('bottom');
+        setBrandLogoPos('top-right');
+        setIsBranding(false);
+        setBrandedVideoUrl(null);
+    };
+
+    // ── Branding handler (optional — called only when user explicitly clicks Apply) ──
+    const handleApplyBranding = async () => {
+        if (!finalVideoUrl || !jobId || !user?.uid) return;
+        if (!brandLogoFile && !brandMarqueeText.trim()) return;
+
+        setIsBranding(true);
+        try {
+            let logoBase64: string | undefined;
+            let logoMimeType: string | undefined;
+            if (brandLogoFile) {
+                const buf = await brandLogoFile.arrayBuffer();
+                logoBase64  = Buffer.from(buf).toString('base64');
+                logoMimeType = brandLogoFile.type;
+            }
+            const res = await fetch('/api/ai-influencer/brand-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jobId,
+                    userId: user.uid,
+                    finalVideoUrl,
+                    logoBase64,
+                    logoMimeType,
+                    logoPosition:    brandLogoFile ? brandLogoPos : undefined,
+                    marqueeText:     brandMarqueeText.trim() || undefined,
+                    marqueePosition: brandMarqueeText.trim() ? brandMarqueePos : undefined,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Branding failed');
+            setBrandedVideoUrl(data.brandedVideoUrl);
+        } catch (err: any) {
+            console.error('Branding error:', err);
+            addAssistant(`❌ Branding failed: ${err.message}`);
+        } finally {
+            setIsBranding(false);
+        }
     };
 
     const handleRestoreInfluencerSession = useCallback((session: WorkspaceSession) => {
@@ -1026,6 +1082,7 @@ function AIInfluencerWorkstation() {
                                                         <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Generation Successful</h4>
                                                         <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol terminated with exit code 0</p>
                                                     </div>
+                                                    {/* ── Existing action buttons — untouched ── */}
                                                     <div className="flex w-full gap-3">
                                                         {finalVideoUrl && (
                                                             <a
@@ -1044,6 +1101,174 @@ function AIInfluencerWorkstation() {
                                                         >
                                                             <RotateCcw size={14} strokeWidth={3} /> Purge & Reset
                                                         </button>
+                                                    </div>
+
+                                                    {/* ── Optional Branding Panel ── */}
+                                                    <div className="w-full">
+                                                        {/* Toggle button */}
+                                                        <button
+                                                            onClick={() => setBrandingOpen(v => !v)}
+                                                            className="w-full flex items-center justify-between px-5 py-3 rounded-2xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Sparkles size={13} className="text-orange-400" />
+                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Add Branding</span>
+                                                                <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">— Logo &amp; Marquee (Optional)</span>
+                                                            </div>
+                                                            <ChevronDown
+                                                                size={14}
+                                                                className={`text-orange-400/60 transition-transform duration-300 ${brandingOpen ? 'rotate-180' : ''}`}
+                                                            />
+                                                        </button>
+
+                                                        {/* Collapsible branding form */}
+                                                        <AnimatePresence>
+                                                            {brandingOpen && (
+                                                                <motion.div
+                                                                    key="branding-panel"
+                                                                    initial={{ opacity: 0, height: 0 }}
+                                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                                    exit={{ opacity: 0, height: 0 }}
+                                                                    transition={{ duration: 0.25 }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left">
+
+                                                                        {/* ── Marquee Section ── */}
+                                                                        <div className="space-y-2">
+                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Scrolling Marquee Text
+                                                                            </p>
+                                                                            <textarea
+                                                                                value={brandMarqueeText}
+                                                                                onChange={e => setBrandMarqueeText(e.target.value)}
+                                                                                placeholder="e.g. This video is for informational purposes only."
+                                                                                rows={2}
+                                                                                className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-white/20 leading-relaxed transition-all"
+                                                                            />
+
+                                                                            {/* Marquee position picker — shown only when text is entered */}
+                                                                            {brandMarqueeText.trim() && (
+                                                                                <div className="flex gap-2">
+                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20 self-center mr-1">Position:</p>
+                                                                                    {(['bottom', 'top'] as const).map(pos => (
+                                                                                        <button
+                                                                                            key={pos}
+                                                                                            onClick={() => {
+                                                                                                setBrandMarqueePos(pos);
+                                                                                                // Auto-set logo to the opposite edge
+                                                                                                setBrandLogoPos(pos === 'bottom' ? 'top-right' : 'bottom-right');
+                                                                                            }}
+                                                                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all active:scale-95 ${
+                                                                                                brandMarqueePos === pos
+                                                                                                    ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                    : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {pos === 'bottom'
+                                                                                                ? <AlignBottom size={11} />
+                                                                                                : <AlignTop size={11} />
+                                                                                            }
+                                                                                            {pos}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* ── Logo Section ── */}
+                                                                        <div className="space-y-2">
+                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Logo Watermark
+                                                                            </p>
+                                                                            <label
+                                                                                htmlFor="brand-logo-upload"
+                                                                                className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                    brandLogoFile
+                                                                                        ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                                                                                        : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-orange-500/30 hover:bg-orange-500/5'
+                                                                                }`}
+                                                                            >
+                                                                                <Image size={13} strokeWidth={2.5} />
+                                                                                {brandLogoFile ? brandLogoFile.name : 'Upload Logo (PNG / JPG / WebP)'}
+                                                                            </label>
+                                                                            <input
+                                                                                id="brand-logo-upload"
+                                                                                type="file"
+                                                                                accept="image/png,image/jpeg,image/webp"
+                                                                                className="hidden"
+                                                                                onChange={e => {
+                                                                                    const f = e.target.files?.[0] ?? null;
+                                                                                    setBrandLogoFile(f);
+                                                                                    e.target.value = '';
+                                                                                }}
+                                                                            />
+
+                                                                            {/* Logo position picker — shown only when logo is chosen */}
+                                                                            {brandLogoFile && (
+                                                                                <div className="space-y-1.5">
+                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Logo Corner:</p>
+                                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                                        {([
+                                                                                            { val: 'top-left',     label: '↖ Top Left' },
+                                                                                            { val: 'top-right',    label: '↗ Top Right' },
+                                                                                            { val: 'bottom-left',  label: '↙ Bottom Left' },
+                                                                                            { val: 'bottom-right', label: '↘ Bottom Right' },
+                                                                                        ] as { val: typeof brandLogoPos; label: string }[]).map(({ val, label }) => {
+                                                                                            // Disable positions that conflict with the chosen marquee row
+                                                                                            const conflictRow = brandMarqueeText.trim() ? brandMarqueePos : null;
+                                                                                            const isConflict  = conflictRow && val.startsWith(conflictRow);
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={val}
+                                                                                                    disabled={!!isConflict}
+                                                                                                    onClick={() => setBrandLogoPos(val)}
+                                                                                                    title={isConflict ? `Marquee is already at the ${conflictRow}` : ''}
+                                                                                                    className={`py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all active:scale-95 ${
+                                                                                                        isConflict
+                                                                                                            ? 'opacity-25 cursor-not-allowed border-white/5 bg-white/[0.01] text-white/20'
+                                                                                                            : brandLogoPos === val
+                                                                                                                ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                                : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    {label}
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* ── Apply Button ── */}
+                                                                        <button
+                                                                            onClick={handleApplyBranding}
+                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim())}
+                                                                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
+                                                                        >
+                                                                            {isBranding
+                                                                                ? <><Loader2 size={13} className="animate-spin" /> Applying Branding…</>
+                                                                                : <><Sparkles size={13} /> Apply Branding</>
+                                                                            }
+                                                                        </button>
+
+                                                                        {/* Download branded result */}
+                                                                        {brandedVideoUrl && (
+                                                                            <a
+                                                                                href={brandedVideoUrl}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                download
+                                                                                className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                            >
+                                                                                <Download size={13} strokeWidth={3} /> Download Branded Video
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
                                                     </div>
                                                 </motion.div>
                                             )}
