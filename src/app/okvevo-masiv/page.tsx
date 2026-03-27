@@ -23,6 +23,7 @@ interface MasivProduct {
     price: number;
     badge1: string;
     badge2: string;
+    level?: number;
 }
 
  
@@ -294,13 +295,15 @@ export default function OkvevoMasivPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredProducts = useMemo(() => {
-        return products.filter(product => {
-            const matchesCategory = activeFilter === 'all' || product.type === activeFilter;
-            const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                product.description.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesCategory && matchesSearch;
-        });
-    }, [activeFilter, searchQuery, products]);
+        return products
+            .filter(product => {
+                const matchesCategory = activeFilter === 'all' || product.type === activeFilter;
+                const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCategory && matchesSearch;
+            })
+            .sort((a, b) => (a.level || 0) - (b.level || 0)); // Sort by level (ascending)
+    }, [products, activeFilter, searchQuery]);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);

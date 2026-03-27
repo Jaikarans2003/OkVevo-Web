@@ -46,6 +46,7 @@ interface MasivProduct {
     price: number;
     badge1: string;
     badge2: string;
+    level?: number;
 }
 
 function ProductManager() {
@@ -63,7 +64,8 @@ function ProductManager() {
         description: '',
         price: 0,
         badge1: '',
-        badge2: ''
+        badge2: '',
+        level: 0
     });
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -88,12 +90,26 @@ function ProductManager() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Validate product name exists before upload
+        if (!formData.name?.trim()) {
+            alert('Please enter a product name before uploading assets');
+            return;
+        }
+
         setUploading(true);
         setUploadProgress(0);
 
         try {
             const timestamp = Date.now();
-            const storagePath = `masiv_catalog/${timestamp}_${file.name}`;
+            // Sanitize product name for directory: lowercase, replace spaces with hyphens, remove special chars
+            const sanitizedProductName = formData.name
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '');
+            
+            // Store in product-specific subdirectory: masiv_catalog/{product-name}/{timestamp}_{filename}
+            const storagePath = `masiv_catalog/${sanitizedProductName}/${timestamp}_${file.name}`;
             const storageRef = ref(storage, storagePath);
             
             const uploadTask = uploadBytesResumable(storageRef, file);
@@ -115,6 +131,7 @@ function ProductManager() {
                         thumbnails: [...(prev.thumbnails || []), downloadURL]
                     }));
                     setUploading(false);
+                    console.log('✅ File uploaded to:', storagePath);
                 }
             );
         } catch (error) {
@@ -182,6 +199,7 @@ function ProductManager() {
                     price: formData.price,
                     badge1: formData.badge1 || '',
                     badge2: formData.badge2 || '',
+                    level: formData.level || 0,
                     updatedAt: serverTimestamp()
                 });
                 console.log('✅ Product updated successfully:', editingProduct.id);
@@ -196,6 +214,7 @@ function ProductManager() {
                     price: formData.price,
                     badge1: formData.badge1 || '',
                     badge2: formData.badge2 || '',
+                    level: formData.level || 0,
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 });
@@ -261,7 +280,8 @@ function ProductManager() {
                 description: '',
                 price: 0,
                 badge1: '',
-                badge2: ''
+                badge2: '',
+                level: 0
             });
         }
         setIsModalOpen(true);
@@ -277,7 +297,8 @@ function ProductManager() {
             description: '',
             price: 0,
             badge1: '',
-            badge2: ''
+            badge2: '',
+            level: 0
         });
     };
 
@@ -443,7 +464,7 @@ function ProductManager() {
                                     <textarea required value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50 min-h-[100px] resize-none" placeholder="Capture your look..." />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-8">
+                                <div className="grid grid-cols-3 gap-8">
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Badge 1 (GENDER/TYPE)</label>
                                         <input type="text" value={formData.badge1 || ''} onChange={e => setFormData({...formData, badge1: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="UNISEX" />
@@ -451,6 +472,10 @@ function ProductManager() {
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Badge 2 (STYLE)</label>
                                         <input type="text" value={formData.badge2 || ''} onChange={e => setFormData({...formData, badge2: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="Trending" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Display Level</label>
+                                        <input type="number" value={formData.level || 0} onChange={e => setFormData({...formData, level: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="0" min="0" />
                                     </div>
                                 </div>
                             </div>

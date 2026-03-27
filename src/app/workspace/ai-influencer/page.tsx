@@ -213,7 +213,7 @@ function AIInfluencerWorkstation() {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
-                addAssistant(`✅ Narrative script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
+                addAssistant(`Script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
             }
 
             // 2. Check for visual assets (images)
@@ -257,7 +257,7 @@ function AIInfluencerWorkstation() {
             if (data.status === 'complete' && data.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
                 setChatStep('complete');
-                addAssistant('🎉 Your lip-synced video is ready! Watch it in the monitor on the right.');
+                addAssistant('🎉 Your video is ready! Watch it in the monitor on the right.');
                 setIsGenerating(false);
             } else if (data.status === 'error') {
                 addAssistant(`❌ Error: ${data.errorMessage || 'Video generation failed. Please try again.'}`);
@@ -427,7 +427,7 @@ function AIInfluencerWorkstation() {
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-second narrative explainer with Gemini...`);
+        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-script`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -444,8 +444,8 @@ function AIInfluencerWorkstation() {
 
             if (!data.success) throw new Error(data.error || 'Failed to generate script');
 
-            console.log('✅ Script generated:', data.wordCount, 'words');
-            console.log('✅ Visual moments extracted:', data.moments?.length || 0);
+            // console.log('✅ Script generated:', data.wordCount, 'words');
+            // console.log('✅ Visual moments extracted:', data.moments?.length || 0);
 
             setGeneratedScript(data.script);
             setEditableScript(data.script);
@@ -513,7 +513,7 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             });
 
-            console.log('✅ Script and moments saved to Firestore');
+            // console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
             addAssistant(`❌ Failed to save script: ${err.message}`);
@@ -768,8 +768,8 @@ function AIInfluencerWorkstation() {
                                         <div className="flex flex-col">
                                             <h1 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">AI Influencer Studio</h1>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-                                                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span>
+                                                {/* <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" /> */}
+                                                {/* <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span> */}
                                             </div>
                                         </div>
                                     </div>
@@ -783,7 +783,7 @@ function AIInfluencerWorkstation() {
                                                 <div className="relative">
                                                     <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">Neural Assistant</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat Box</span>
                                             </div>
                                             <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                                 <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">

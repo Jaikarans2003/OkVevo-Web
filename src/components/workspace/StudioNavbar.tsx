@@ -18,8 +18,8 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
     const navLinks = [
         // { name: 'Director', href: '/workspace/director' },
         { name: 'AI Influencer', href: '/workspace/ai-influencer' },
-        { name: 'Product Studio', href: '/workspace/product' },
-        { name: 'Social Media', href: '/workspace/social' }
+        // { name: 'Product Studio', href: '/workspace/product' },
+        // { name: 'Social Media', href: '/workspace/social' }
     ];
 
     return (
