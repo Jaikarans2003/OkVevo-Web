@@ -4,6 +4,8 @@
   "description": "Optional post-processing Lambda: adds logo watermark and scrolling marquee to the final rendered video",
   "main": "index.js",
   "dependencies": {
+    "@fal-ai/client": "^1.9.5",
+    "@google/genai": "^1.46.0",
     "firebase-admin": "^11.11.0"
   }
 }

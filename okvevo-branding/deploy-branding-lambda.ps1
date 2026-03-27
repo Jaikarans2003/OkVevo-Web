@@ -18,11 +18,21 @@ $fbKey    = $rendererConfig.Environment.Variables.FB_SERVICE_ACCOUNT_KEY
 $fbBucket = $rendererConfig.Environment.Variables.FIREBASE_STORAGE_BUCKET
 if (-not $fbBucket) { $fbBucket = "text2video-16cbf.firebasestorage.app" }
 
+$trendJson = aws lambda get-function-configuration --function-name lambda-trend-generation --region $region --output json
+if ($LASTEXITCODE -ne 0) { Write-Error "Failed to get trend generation config"; exit 1 }
+$trendConfig = $trendJson | ConvertFrom-Json
+$falKey = $trendConfig.Environment.Variables.FAL_API_IMAGE
+$geminiKey = $trendConfig.Environment.Variables.GEMINI_API_KEY
+
+if (-not $falKey -or -not $geminiKey) { Write-Error "Missing FAL or GEMINI keys in lambda-trend-generation config" }
+
 # Write environment JSON file to avoid CLI length limits
 $envData = @{
     Variables = @{
         FB_SERVICE_ACCOUNT_KEY = $fbKey
         FIREBASE_STORAGE_BUCKET = $fbBucket
+        FAL_API_IMAGE = $falKey
+        GEMINI_API_KEY = $geminiKey
     }
 }
 $envData | ConvertTo-Json -Depth 10 | Set-Content -Path $envFile

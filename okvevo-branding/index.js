@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { GoogleGenAI } = require('@google/genai');
 
 // ────────────────────────────────────────────────────
 // Configuration
@@ -36,6 +37,51 @@ async function updateJobDoc(jobId, userId, fields) {
         .collection(JOBS_COLLECTION)
         .doc(jobId)
         .set({ ...fields, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+}
+
+// ────────────────────────────────────────────────────
+// HTTP Request Helper
+// ────────────────────────────────────────────────────
+
+function httpsRequest(url, options = {}, body = null) {
+    return new Promise((resolve, reject) => {
+        const parsedUrl = new URL(url);
+        const reqOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: options.method || 'GET',
+            headers: options.headers || {},
+        };
+
+        const req = https.request(reqOptions, (res) => {
+            // Follow redirects (301, 302, 303, 307, 308)
+            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+                console.log(`↩️ Redirect ${res.statusCode} -> ${res.headers.location}`);
+                return httpsRequest(res.headers.location, { method: 'GET' }, null)
+                    .then(resolve)
+                    .catch(reject);
+            }
+
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                if (res.headers['content-type']?.includes('application/json')) {
+                    try {
+                        resolve({ statusCode: res.statusCode, body: JSON.parse(buffer.toString()), buffer });
+                    } catch {
+                        resolve({ statusCode: res.statusCode, body: buffer.toString(), buffer });
+                    }
+                } else {
+                    resolve({ statusCode: res.statusCode, body: buffer.toString(), buffer });
+                }
+            });
+        });
+        req.on('error', reject);
+        if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
+        req.end();
+    });
 }
 
 /**
@@ -201,6 +247,154 @@ async function applyBranding(inputPath, outputPath, opts = {}) {
 }
 
 // ────────────────────────────────────────────────────
+// NanoBanana2 Thumbnail Generation (Fal AI + Gemini)
+// ────────────────────────────────────────────────────
+
+function initializeFalClientImage() {
+    const apiKey = process.env.FAL_API_IMAGE;
+    if (!apiKey) throw new Error('FAL_API_IMAGE environment variable not set');
+    fal.config({ credentials: apiKey });
+}
+
+async function generateWithNanoBanana(thumbnailPrompt, personImageUrl = null, personImageBuffer = null) {
+    console.log('🔬 Generating Thumbnail with NanoBanana2 (Fal AI -> Gemini)...');
+
+    try {
+        const apiKey = process.env.FAL_API_IMAGE;
+        if (!apiKey) throw new Error('FAL_API_IMAGE environment variable not set');
+
+        let promptText = thumbnailPrompt + '\n\nGenerate a stunning, photorealistic, cinematic YouTube/TikTok thumbnail photograph matching the exact framing and topic of the prompt.';
+
+        if (personImageUrl) {
+            promptText = `${promptText}\n\nHere is a reference image URL: ${personImageUrl}. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person's appearance.\n\nGenerate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image.`;
+        }
+
+        const falInput = {
+            prompt: promptText,
+            aspect_ratio: "9:16",
+            resolution: "4K",
+            output_format: "png",
+            num_images: 1,
+        };
+
+        // Submit job to Fal AI queue
+        const submitUrl = `https://queue.fal.run/fal-ai/nano-banana-2`;
+        const submitResponse = await httpsRequest(submitUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Key ${apiKey}`,
+                'Content-Type': 'application/json',
+            }
+        }, falInput);
+
+        if (submitResponse.statusCode !== 200) {
+            throw new Error(`Fal AI submit failed: ${submitResponse.statusCode} - ${JSON.stringify(submitResponse.body)}`);
+        }
+
+        const { request_id } = submitResponse.body;
+        console.log(`✅ Fal AI job submitted: ${request_id}`);
+
+        // Poll for completion
+        const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-2/requests/${request_id}/status`;
+        let attempts = 0;
+        const maxAttempts = 180; // 15 minutes max
+        let videoUrl = null;
+
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            attempts++;
+
+            const statusResponse = await httpsRequest(statusUrl, {
+                method: 'GET',
+                headers: { 'Authorization': `Key ${apiKey}` }
+            });
+
+            if (statusResponse.statusCode !== 200) continue;
+            
+            const status = statusResponse.body;
+            console.log(`🔄 Fal AI status (attempt ${attempts}): ${status.status}`);
+
+            if (status.status === 'COMPLETED') {
+                const resultResponse = await httpsRequest(status.response_url, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Key ${apiKey}` }
+                });
+
+                if (resultResponse.statusCode !== 200) throw new Error('Failed to fetch Fal AI result');
+                
+                const result = resultResponse.body;
+                
+                videoUrl = result.images?.[0]?.url || result.data?.images?.[0]?.url;
+                if (!videoUrl) throw new Error(`Could not find image URL. Full result: ${JSON.stringify(result)}`);
+                break;
+            }
+
+            if (status.status === 'FAILED') {
+                throw new Error(`Fal AI job failed: ${status.error || 'Unknown error'}`);
+            }
+        }
+
+        if (!videoUrl) throw new Error('Fal AI job timed out after 15 minutes');
+
+        console.log(`✅ Fal AI NanoBanana2 thumbnail ready: ${videoUrl}`);
+        return await downloadFromUrl(videoUrl);
+
+    } catch (falError) {
+        console.error('❌ Fal AI NanoBanana2 failed, falling back to Gemini:', falError.message);
+
+        // --- FALLBACK TO GEMINI ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error('GEMINI_API_KEY environment variable not set (needed for fallback)');
+
+        const ai = new GoogleGenAI({ apiKey });
+        const contentParts = [];
+
+        if (personImageBuffer) {
+            contentParts.push(
+                { text: thumbnailPrompt },
+                { text: 'CRITICAL INSTRUCTION: Here is a reference image. You MUST replicate the EXACT face, facial features, skin tone, hair style, hair color, eye color, facial structure, body type, outfit, and clothing from this reference image. DO NOT change, modify, or hallucinate ANY aspect of the person\'s appearance.\n\nThe reference image shows the EXACT person you must generate. Keep every detail of their appearance IDENTICAL - same face, same outfit, same physical characteristics.\n\nYou may ONLY change the camera angle, framing, and background as specified in the text prompt. The person themselves must look EXACTLY like the reference image.' },
+                {
+                    inlineData: {
+                        mimeType: 'image/png', // Assume PNG/JPEG buffer works fine
+                        data: personImageBuffer.toString('base64'),
+                    },
+                },
+                { text: 'Generate a stunning, photorealistic, cinematic photograph with the EXACT same person from the reference image. Only change the camera framing and background as specified in the prompt. The person must be IDENTICAL to the reference image.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio fitting for a video thumbnail.' }
+            );
+        } else {
+            contentParts.push({
+                text: thumbnailPrompt + '\n\nGenerate a stunning, photorealistic, cinematic video thumbnail matching the exact framing and topic of the prompt.\n\nCRITICAL INSTRUCTION: Generate this image specifically in 4K resolution with a vertical 9:16 aspect ratio.',
+            });
+        }
+
+        console.log('📸 Calling NanoBanana2 Fallback (Gemini) for thumbnail...');
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-image-preview',
+            contents: contentParts,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+
+        let imageBase64 = null;
+        let responseText = '';
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.text) responseText += part.text;
+                else if (part.inlineData) imageBase64 = part.inlineData.data;
+            }
+        }
+
+        if (!imageBase64) throw new Error(`NanoBanana2 Fallback did not return an image. Response: ${responseText || '(empty)'}`);
+
+        console.log('✅ Fallback: Thumbnail generated successfully by Gemini');
+        return Buffer.from(imageBase64, 'base64');
+    }
+}
+
+// ────────────────────────────────────────────────────
 // Lambda Handler
 // ────────────────────────────────────────────────────
 
@@ -244,19 +438,52 @@ exports.handler = async (event) => {
             fs.writeFileSync(logoPath, Buffer.from(logoBase64, 'base64'));
         }
 
-        await applyBranding(inputPath, outputPath, {
-            logoPath,
-            marqueeText,
-            marqueePosition,
-            logoPosition,
-        });
+        const tasks = [];
 
-        const brandedBuffer = fs.readFileSync(outputPath);
-        const storagePath   = `AIInfluencer/${jobId}/final-branded.mp4`;
-        const brandedVideoUrl = await uploadToFirebase(brandedBuffer, storagePath, 'video/mp4');
+        // Task 1: Render branded video via FFmpeg
+        const brandingTask = (async () => {
+            await applyBranding(inputPath, outputPath, {
+                logoPath,
+                marqueeText,
+                marqueePosition,
+                logoPosition,
+            });
+
+            const brandedBuffer = fs.readFileSync(outputPath);
+            const storagePath   = `AIInfluencer/${jobId}/final-branded.mp4`;
+            return await uploadToFirebase(brandedBuffer, storagePath, 'video/mp4');
+        })();
+        tasks.push(brandingTask);
+
+        // Task 2: Generate thumbnail image via NanoBanana2 (Concurrent)
+        let thumbnailTask = Promise.resolve(null);
+        if (event.generateThumbnail && event.thumbnailPrompt) {
+            console.log(`🖼️ Enabling Concurrent Thumbnail Generation...`);
+            thumbnailTask = (async () => {
+                let pImageBuffer = null;
+                if (event.thumbnailPersonPhotoUrl) {
+                    pImageBuffer = await downloadFromUrl(event.thumbnailPersonPhotoUrl);
+                } else if (event.thumbnailPersonPhotoBase64) {
+                    pImageBuffer = Buffer.from(event.thumbnailPersonPhotoBase64, 'base64');
+                }
+
+                const aiImageBuf = await generateWithNanoBanana(
+                    event.thumbnailPrompt, 
+                    event.thumbnailPersonPhotoUrl, 
+                    pImageBuffer
+                );
+
+                const storagePath = `AIInfluencer/${jobId}/thumbnail.png`;
+                return await uploadToFirebase(aiImageBuf, storagePath, 'image/png');
+            })();
+            tasks.push(thumbnailTask);
+        }
+
+        const [brandedVideoUrl, customThumbnailUrl] = await Promise.all([brandingTask, thumbnailTask]);
 
         await updateJobDoc(jobId, userId, {
             brandedVideoUrl,
+            ...(customThumbnailUrl && { customThumbnailUrl }),
             brandingStatus: 'complete',
         });
 

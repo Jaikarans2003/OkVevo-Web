@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
             logoPosition,
             marqueeText,
             marqueePosition,
+            generateThumbnail,
+            thumbnailPrompt,
+            thumbnailPersonPhotoBase64,
         } = body;
 
         // ── Validation ──────────────────────────────────────────────────────
@@ -25,9 +28,9 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
-        if (!logoBase64 && !marqueeText) {
+        if (!logoBase64 && !marqueeText && !generateThumbnail) {
             return NextResponse.json(
-                { success: false, error: 'Provide at least a logo or marquee text.' },
+                { success: false, error: 'Provide at least a logo, marquee, or thumbnail instructions.' },
                 { status: 400 }
             );
         }
@@ -46,12 +49,19 @@ export async function POST(req: NextRequest) {
         }
 
         // ── Build Lambda payload ────────────────────────────────────────────
-        const lambdaPayload: Record<string, string> = { jobId, userId, finalVideoUrl };
+        const lambdaPayload: Record<string, any> = { jobId, userId, finalVideoUrl };
         if (logoBase64)      lambdaPayload.logoBase64      = logoBase64;
         if (logoMimeType)    lambdaPayload.logoMimeType    = logoMimeType;
         if (logoPosition)    lambdaPayload.logoPosition    = logoPosition;
         if (marqueeText)     lambdaPayload.marqueeText     = marqueeText;
         if (marqueePosition) lambdaPayload.marqueePosition = marqueePosition;
+        if (generateThumbnail) {
+            lambdaPayload.generateThumbnail = generateThumbnail;
+            lambdaPayload.thumbnailPrompt = thumbnailPrompt;
+            if (thumbnailPersonPhotoBase64) {
+                lambdaPayload.thumbnailPersonPhotoBase64 = thumbnailPersonPhotoBase64;
+            }
+        }
 
         // ── Invoke Lambda using dynamic require to match project conventions ──
         const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');

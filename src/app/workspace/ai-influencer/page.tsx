@@ -107,6 +107,10 @@ function AIInfluencerWorkstation() {
     const [brandMarqueeText,  setBrandMarqueeText]  = useState('');
     const [brandMarqueePos,   setBrandMarqueePos]   = useState<'top' | 'bottom'>('bottom');
     const [brandLogoPos,      setBrandLogoPos]      = useState<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>('top-right');
+    const [brandNeedThumbnail, setBrandNeedThumbnail] = useState(false);
+    const [brandThumbnailPrompt, setBrandThumbnailPrompt] = useState('');
+    const [brandThumbnailPhotoFile, setBrandThumbnailPhotoFile] = useState<File | null>(null);
+    const [customThumbnailUrl, setCustomThumbnailUrl] = useState<string | null>(null);
     const [isBranding,        setIsBranding]        = useState(false);
     const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
 
@@ -260,6 +264,14 @@ function AIInfluencerWorkstation() {
                 setChatStep('preview-audio');
                 setIsGenerating(false);
             }
+
+            // 5. Track post-processing results
+            if (data.customThumbnailUrl) {
+                setCustomThumbnailUrl(data.customThumbnailUrl);
+            }
+            if (data.brandedVideoUrl) {
+                setBrandedVideoUrl(data.brandedVideoUrl);
+            }
         });
         return () => unsub();
     }, [jobId, user?.uid]);
@@ -297,6 +309,10 @@ function AIInfluencerWorkstation() {
         setBrandMarqueeText('');
         setBrandMarqueePos('bottom');
         setBrandLogoPos('top-right');
+        setBrandNeedThumbnail(false);
+        setBrandThumbnailPrompt('');
+        setBrandThumbnailPhotoFile(null);
+        setCustomThumbnailUrl(null);
         setIsBranding(false);
         setBrandedVideoUrl(null);
     };
@@ -304,7 +320,7 @@ function AIInfluencerWorkstation() {
     // ── Branding handler (optional — called only when user explicitly clicks Apply) ──
     const handleApplyBranding = async () => {
         if (!finalVideoUrl || !jobId || !user?.uid) return;
-        if (!brandLogoFile && !brandMarqueeText.trim()) return;
+        if (!brandLogoFile && !brandMarqueeText.trim() && (!brandNeedThumbnail || !brandThumbnailPrompt.trim())) return;
 
         setIsBranding(true);
         try {
@@ -315,6 +331,13 @@ function AIInfluencerWorkstation() {
                 logoBase64  = Buffer.from(buf).toString('base64');
                 logoMimeType = brandLogoFile.type;
             }
+
+            let thumbnailPersonPhotoBase64: string | undefined;
+            if (brandNeedThumbnail && brandThumbnailPhotoFile) {
+                const thumbBuf = await brandThumbnailPhotoFile.arrayBuffer();
+                thumbnailPersonPhotoBase64 = Buffer.from(thumbBuf).toString('base64');
+            }
+
             const res = await fetch('/api/ai-influencer/brand-video', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -327,14 +350,18 @@ function AIInfluencerWorkstation() {
                     logoPosition:    brandLogoFile ? brandLogoPos : undefined,
                     marqueeText:     brandMarqueeText.trim() || undefined,
                     marqueePosition: brandMarqueeText.trim() ? brandMarqueePos : undefined,
+                    generateThumbnail: brandNeedThumbnail,
+                    thumbnailPrompt: brandNeedThumbnail ? brandThumbnailPrompt.trim() : undefined,
+                    thumbnailPersonPhotoBase64: brandNeedThumbnail ? thumbnailPersonPhotoBase64 : undefined,
                 }),
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Branding failed');
-            setBrandedVideoUrl(data.brandedVideoUrl);
+            // The polling logic will catch brandedVideoUrl and customThumbnailUrl from Firestore
+            if (data.brandedVideoUrl) setBrandedVideoUrl(data.brandedVideoUrl);
         } catch (err: any) {
             console.error('Branding error:', err);
-            addAssistant(`❌ Branding failed: ${err.message}`);
+            addAssistant(`❌ Post-processing failed: ${err.message}`);
         } finally {
             setIsBranding(false);
         }
@@ -1241,29 +1268,92 @@ function AIInfluencerWorkstation() {
                                                                             )}
                                                                         </div>
 
+                                                                        {/* ── AI Thumbnail Section ── */}
+                                                                        <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" /> AI Thumbnail (NanoBanana2)
+                                                                                </p>
+                                                                                <button
+                                                                                    onClick={() => setBrandNeedThumbnail(v => !v)}
+                                                                                    className={`w-8 h-4 rounded-full transition-colors relative ${brandNeedThumbnail ? 'bg-blue-500' : 'bg-white/10'}`}
+                                                                                >
+                                                                                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {brandNeedThumbnail && (
+                                                                                <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                                                                                    <textarea
+                                                                                        value={brandThumbnailPrompt}
+                                                                                        onChange={e => setBrandThumbnailPrompt(e.target.value)}
+                                                                                        placeholder="Describe the thumbnail you want... e.g. 'A cinematic thumbnail of an influencer holding a glowing product box, 4K'"
+                                                                                        rows={2}
+                                                                                        className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 outline-none resize-none placeholder-white/20"
+                                                                                    />
+                                                                                    
+                                                                                    <label
+                                                                                        className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                            brandThumbnailPhotoFile
+                                                                                                ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                                                                                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-blue-500/30 hover:bg-blue-500/5'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <Image size={13} strokeWidth={2.5} />
+                                                                                        {brandThumbnailPhotoFile ? brandThumbnailPhotoFile.name : 'Upload Presenter Photo (Optional reference)'}
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            accept="image/png,image/jpeg,image/webp"
+                                                                                            className="hidden"
+                                                                                            onChange={e => {
+                                                                                                const f = e.target.files?.[0] ?? null;
+                                                                                                setBrandThumbnailPhotoFile(f);
+                                                                                                e.target.value = '';
+                                                                                            }}
+                                                                                        />
+                                                                                    </label>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
                                                                         {/* ── Apply Button ── */}
                                                                         <button
                                                                             onClick={handleApplyBranding}
-                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim())}
+                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
                                                                             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
                                                                         >
                                                                             {isBranding
-                                                                                ? <><Loader2 size={13} className="animate-spin" /> Applying Branding…</>
-                                                                                : <><Sparkles size={13} /> Apply Branding</>
+                                                                                ? <><Loader2 size={13} className="animate-spin" /> Processing…</>
+                                                                                : <><Sparkles size={13} /> Apply Processing</>
                                                                             }
                                                                         </button>
 
                                                                         {/* Download branded result */}
-                                                                        {brandedVideoUrl && (
-                                                                            <a
-                                                                                href={brandedVideoUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                download
-                                                                                className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                            >
-                                                                                <Download size={13} strokeWidth={3} /> Download Branded Video
-                                                                            </a>
+                                                                        {(brandedVideoUrl || customThumbnailUrl) && (
+                                                                            <div className="flex flex-col gap-2 pt-2">
+                                                                                {brandedVideoUrl && (
+                                                                                    <a
+                                                                                        href={brandedVideoUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        download
+                                                                                        className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                    >
+                                                                                        <Download size={13} strokeWidth={3} /> Download Branded Video
+                                                                                    </a>
+                                                                                )}
+                                                                                {customThumbnailUrl && (
+                                                                                    <a
+                                                                                        href={customThumbnailUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        download
+                                                                                        className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                    >
+                                                                                        <Image size={13} strokeWidth={3} /> Download 9:16 Thumbnail
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </motion.div>
