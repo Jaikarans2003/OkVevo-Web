@@ -75,13 +75,17 @@ exports.handler = async (event) => {
     else if (duration === 30) momentsCount = 5;
     else if (duration === 60) momentsCount = 8;
     
-    // Submit image jobs using Fal AI SDK
+    // Submit image jobs using Fal AI SDK with Flux 2 Turbo
     const imageJobs = moments.slice(0, momentsCount).map((m, idx) => {
-        console.log(`🖼️ Submitting image job ${idx + 1}...`);
-        return fal.queue.submit('fal-ai/nano-banana-2', {
+        console.log(`🖼️ Submitting image job ${idx + 1} with Flux 2 Turbo...`);
+        return fal.queue.submit('fal-ai/flux-2/turbo', {
             input: {
                 prompt: m.prompt,
-                image_size: "landscape_4_3"
+                image_size: "square",
+                num_inference_steps: 4,
+                num_images: 1,
+                enable_safety_checker: true,
+                enable_prompt_expansion: true
             },
             webhookUrl: webhookUrl
         });
