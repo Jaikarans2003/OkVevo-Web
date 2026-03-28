@@ -1,422 +1,455 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { RAZORPAY_CONFIG, PLAN_CREDITS, PlanType } from '@/config/razorpay';
-import { db } from '@/config/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { initializeSubscriptionCredits } from '@/services/CreditsService';
+import admin from 'firebase-admin';
+import { RAZORPAY_CONFIG, getPlanDetails, type PlanType } from '@/config/razorpay';
+
+// CRITICAL: Disable body parser for signature verification
+export const config = {
+    api: { bodyParser: false }
+};
+
+// Initialize Firebase Admin if not already initialized
+if (!admin.apps.length) {
+    const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+    if (!saBase64) {
+        throw new Error("Missing Firebase Service Account Key");
+    }
+    const serviceAccount = JSON.parse(
+        Buffer.from(saBase64, 'base64').toString('utf-8')
+    );
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+    });
+}
+
+const db = admin.firestore();
+const GRACE_PERIOD_DAYS = 7;
 
 /**
- * Razorpay Webhook Handler
- * POST /api/razorpay/webhook
+ * Verify Razorpay webhook signature
+ */
+function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
+    const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(body)
+        .digest('hex');
+    
+    return expectedSignature === signature;
+}
+
+/**
+ * Atomic dual write to both Firestore collections
+ */
+async function syncSubscriptionToFirestore(
+    subscriptionId: string,
+    userId: string,
+    data: any
+): Promise<void> {
+    const batch = db.batch();
+    
+    // Top-level collection for fast lookups
+    const topLevelRef = db.collection('razorpaySubscriptions').doc(subscriptionId);
+    
+    // User-scoped subcollection
+    const userRef = db.collection('users').doc(userId).collection('subscriptions').doc(subscriptionId);
+    
+    batch.set(topLevelRef, data, { merge: true });
+    batch.set(userRef, data, { merge: true });
+    
+    await batch.commit();
+}
+
+/**
+ * Get subscription with fallback lookup
+ */
+async function getSubscriptionWithFallback(
+    subscriptionId: string,
+    userId?: string
+): Promise<FirebaseFirestore.DocumentSnapshot | null> {
+    // Try direct lookup first
+    let subscriptionDoc = await db.collection('razorpaySubscriptions').doc(subscriptionId).get();
+    
+    if (subscriptionDoc.exists) {
+        return subscriptionDoc;
+    }
+    
+    // Fallback: lookup from user subcollection if userId provided
+    if (userId) {
+        subscriptionDoc = await db.collection('users').doc(userId)
+            .collection('subscriptions').doc(subscriptionId).get();
+        
+        if (subscriptionDoc.exists) {
+            return subscriptionDoc;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Production Razorpay Webhook Handler
  * 
- * Handles subscription events:
- * - subscription.activated
- * - subscription.charged
- * - subscription.cancelled
- * - subscription.paused
- * - subscription.resumed
- * - subscription.completed
+ * Handles both Subscription and Invoice events:
+ * - Subscription events: State management
+ * - Invoice events: Payment details and credit operations
  */
 export async function POST(request: NextRequest) {
-    console.log('🔔 Webhook endpoint hit at:', new Date().toISOString());
-    
     try {
+        // Get raw body for signature verification
         const body = await request.text();
         const signature = request.headers.get('x-razorpay-signature');
-        const eventId = request.headers.get('x-razorpay-event-id');
-        
-        console.log('📨 Webhook headers:', {
-            signature: signature ? 'present' : 'missing',
-            eventId: eventId || 'none',
-            contentType: request.headers.get('content-type')
-        });
 
         if (!signature) {
-            console.error('❌ Missing signature in webhook request');
+            console.error('❌ Missing Razorpay signature');
             return NextResponse.json(
                 { success: false, error: 'Missing signature' },
                 { status: 400 }
             );
         }
 
-        // Verify webhook signature
+        // Verify webhook signature using webhook secret (not API key secret)
         const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || RAZORPAY_CONFIG.keySecret;
-        console.log('🔐 Using webhook secret:', webhookSecret ? `${webhookSecret.substring(0, 3)}***` : 'MISSING');
+        const isValid = verifyWebhookSignature(body, signature, webhookSecret);
         
-        const expectedSignature = crypto
-            .createHmac('sha256', webhookSecret)
-            .update(body)
-            .digest('hex');
-
-        console.log('🔍 Signature verification:', {
-            expected: expectedSignature.substring(0, 10) + '...',
-            received: signature.substring(0, 10) + '...',
-            match: expectedSignature === signature
-        });
-
-        if (expectedSignature !== signature) {
-            console.error('❌ Webhook signature verification failed');
-            console.error('Expected:', expectedSignature);
-            console.error('Received:', signature);
-            console.error('Body length:', body.length);
+        if (!isValid) {
+            console.error('❌ Invalid Razorpay signature');
             return NextResponse.json(
                 { success: false, error: 'Invalid signature' },
-                { status: 400 }
+                { status: 401 }
             );
         }
-        
-        console.log('✅ Signature verified successfully');
 
         const event = JSON.parse(body);
-        const eventType = event.event;
-        const payload = event.payload;
+        const { event: eventType, payload } = event;
 
-        console.log(`📥 Razorpay webhook: ${eventType}`);
-        console.log('📦 Payload preview:', JSON.stringify(payload).substring(0, 200) + '...');
+        console.log(`📨 Razorpay webhook: ${eventType}`);
 
-        // Handle different subscription and payment events
+        // Handle different event types
         switch (eventType) {
-            case 'subscription.activated':
-                await handleSubscriptionActivated(payload);
-                break;
+            // ========== SUBSCRIPTION STATE EVENTS ==========
+            
+            case 'subscription.authenticated': {
+                const subscription = payload.subscription.entity;
+                const { userId, planType } = subscription.notes || {};
 
-            case 'subscription.charged':
-                await handleSubscriptionCharged(payload);
-                break;
+                if (!userId || !planType) {
+                    console.error('❌ Missing userId or planType');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
 
-            case 'subscription.cancelled':
-                await handleSubscriptionCancelled(payload);
-                break;
+                const planDetails = getPlanDetails(planType as PlanType);
+                
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    userId,
+                    planType,
+                    subscriptionId: subscription.id,
+                    status: 'authenticated',
+                    credits: planDetails.credits,
+                    initialCredits: planDetails.credits,
+                    creditsUsed: 0,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
 
-            case 'subscription.paused':
-                await handleSubscriptionPaused(payload);
+                console.log(`✅ Subscription authenticated: ${subscription.id}`);
                 break;
+            }
 
-            case 'subscription.resumed':
-                await handleSubscriptionResumed(payload);
-                break;
+            case 'subscription.activated': {
+                const subscription = payload.subscription.entity;
+                const payment = payload.payment?.entity;
+                const { userId, planType } = subscription.notes || {};
 
-            case 'subscription.completed':
-                await handleSubscriptionCompleted(payload);
-                break;
+                if (!userId || !planType) {
+                    console.error('❌ Missing userId or planType');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
 
-            case 'payment.captured':
-                await handlePaymentCaptured(payload);
-                break;
+                const planDetails = getPlanDetails(planType as PlanType);
+                
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    userId,
+                    planType,
+                    subscriptionId: subscription.id,
+                    status: 'active',
+                    credits: planDetails.credits,
+                    initialCredits: planDetails.credits,
+                    creditsUsed: 0,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPaymentId: payment?.id || null,
+                    lastPaymentAmount: payment?.amount || planDetails.price,
+                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
 
-            case 'payment.failed':
-                await handlePaymentFailed(payload);
+                console.log(`✅ Subscription activated: ${subscription.id}`);
                 break;
+            }
+
+            case 'subscription.charged': {
+                const subscription = payload.subscription.entity;
+                const payment = payload.payment?.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    lastPaymentId: payment?.id,
+                    lastPaymentAmount: payment?.amount,
+                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`✅ Subscription charged: ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.pending': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                // Set grace period: 7 days from now
+                const gracePeriodEnds = new Date();
+                gracePeriodEnds.setDate(gracePeriodEnds.getDate() + GRACE_PERIOD_DAYS);
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'pending',
+                    gracePeriodEndsAt: admin.firestore.Timestamp.fromDate(gracePeriodEnds),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`⏳ Subscription pending (grace period: ${GRACE_PERIOD_DAYS} days): ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.halted': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'halted',
+                    haltedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`🛑 Subscription halted: ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.cancelled': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'cancelled',
+                    cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`✅ Subscription cancelled: ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.paused': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'paused',
+                    pausedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`⏸️ Subscription paused: ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.resumed': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'active',
+                    resumedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`▶️ Subscription resumed: ${subscription.id}`);
+                break;
+            }
+
+            case 'subscription.completed': {
+                const subscription = payload.subscription.entity;
+                const { userId } = subscription.notes || {};
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, {
+                    status: 'completed',
+                    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`✅ Subscription completed: ${subscription.id}`);
+                break;
+            }
+
+            // ========== INVOICE PAYMENT EVENTS (PRIMARY FOR CREDITS) ==========
+
+            case 'invoice.paid': {
+                const invoice = payload.invoice.entity;
+                const payment = payload.payment?.entity;
+                const subscriptionId = invoice.subscription_id;
+
+                if (!subscriptionId) {
+                    console.log('⚠️ Invoice paid but no subscription_id');
+                    return NextResponse.json({ success: true });
+                }
+
+                // Get subscription with fallback
+                const subscriptionDoc = await getSubscriptionWithFallback(subscriptionId);
+                
+                if (!subscriptionDoc) {
+                    console.error(`❌ Subscription not found: ${subscriptionId}`);
+                    return NextResponse.json({ success: true });
+                }
+
+                const subscriptionData = subscriptionDoc.data();
+                const userId = subscriptionData?.userId;
+                const planType = subscriptionData?.planType;
+
+                if (!userId || !planType) {
+                    console.error('❌ Missing userId or planType in subscription');
+                    return NextResponse.json({ success: true });
+                }
+
+                const planDetails = getPlanDetails(planType as PlanType);
+
+                // PRIMARY: Reset credits on successful payment
+                await syncSubscriptionToFirestore(subscriptionId, userId, {
+                    status: 'active',
+                    credits: planDetails.credits,
+                    creditsUsed: 0,
+                    lastPaymentId: payment?.id,
+                    lastPaymentAmount: payment?.amount,
+                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+                    gracePeriodEndsAt: admin.firestore.FieldValue.delete(),
+                    lastPaymentFailure: admin.firestore.FieldValue.delete(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`💳 Invoice paid - Credits reset: ${subscriptionId}`);
+                break;
+            }
+
+            case 'invoice.payment_failed': {
+                const invoice = payload.invoice.entity;
+                const payment = payload.payment?.entity;
+                const subscriptionId = invoice.subscription_id;
+
+                if (!subscriptionId) {
+                    console.log('⚠️ Invoice payment failed but no subscription_id');
+                    return NextResponse.json({ success: true });
+                }
+
+                // Get subscription with fallback
+                const subscriptionDoc = await getSubscriptionWithFallback(subscriptionId);
+                
+                if (!subscriptionDoc) {
+                    console.error(`❌ Subscription not found: ${subscriptionId}`);
+                    return NextResponse.json({ success: true });
+                }
+
+                const subscriptionData = subscriptionDoc.data();
+                const userId = subscriptionData?.userId;
+
+                if (!userId) {
+                    console.error('❌ Missing userId in subscription');
+                    return NextResponse.json({ success: true });
+                }
+
+                // Set grace period
+                const gracePeriodEnds = new Date();
+                gracePeriodEnds.setDate(gracePeriodEnds.getDate() + GRACE_PERIOD_DAYS);
+
+                await syncSubscriptionToFirestore(subscriptionId, userId, {
+                    gracePeriodEndsAt: admin.firestore.Timestamp.fromDate(gracePeriodEnds),
+                    lastPaymentFailure: {
+                        paymentId: payment?.id || 'unknown',
+                        errorCode: payment?.error_code || 'unknown',
+                        errorDescription: payment?.error_description || 'Payment failed',
+                        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    },
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`⚠️ Invoice payment failed (grace period: ${GRACE_PERIOD_DAYS} days): ${subscriptionId}`);
+                break;
+            }
+
+            case 'invoice.partially_paid': {
+                const invoice = payload.invoice.entity;
+                const subscriptionId = invoice.subscription_id;
+
+                if (subscriptionId) {
+                    console.log(`💰 Invoice partially paid: ${subscriptionId}`);
+                }
+                break;
+            }
+
+            case 'invoice.expired': {
+                const invoice = payload.invoice.entity;
+                const subscriptionId = invoice.subscription_id;
+
+                if (subscriptionId) {
+                    console.log(`⏰ Invoice expired: ${subscriptionId}`);
+                }
+                break;
+            }
 
             default:
-                console.log(`⚠️ Unhandled event type: ${eventType}`);
+                console.log(`⚠️ Unhandled event: ${eventType}`);
         }
 
-        console.log('✅ Webhook processed successfully');
-        return NextResponse.json({ success: true, received: true });
+        return NextResponse.json({ success: true });
 
-    } catch (error) {
-        console.error('❌ Webhook processing error:', error);
-        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    } catch (error: any) {
+        console.error('❌ Webhook error:', error);
         return NextResponse.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : 'Webhook processing failed',
-            },
+            { success: false, error: error.message },
             { status: 500 }
         );
-    }
-}
-
-// Event Handlers
-
-async function handleSubscriptionActivated(payload: any) {
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-    const planType = subscription.notes?.planType as PlanType;
-
-    if (!userId || !planType) {
-        console.warn('⚠️ Missing userId or planType in subscription notes');
-        return;
-    }
-
-    const initialCredits = PLAN_CREDITS[planType];
-    if (!initialCredits) {
-        console.warn(`⚠️ No credits defined for plan: ${planType}`);
-        return;
-    }
-
-    // Create subscription document in user subcollection
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await setDoc(subscriptionRef, {
-        userId,
-        planType,
-        subscriptionId: subscription.id,
-        status: 'active',
-        credits: initialCredits,
-        initialCredits,
-        creditsUsed: 0,
-        activatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    // Initialize credits with transaction history
-    await initializeSubscriptionCredits(userId, subscription.id, planType, initialCredits);
-
-    // Also update root-level subscription for backward compatibility
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await setDoc(rootSubRef, {
-        userId,
-        planType,
-        subscriptionId: subscription.id,
-        status: 'active',
-        activatedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    }, { merge: true });
-
-    console.log(`✅ Subscription activated for user: ${userId}, allocated ${initialCredits} credits`);
-}
-
-async function handleSubscriptionCharged(payload: any) {
-    const payment = payload.payment.entity;
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-    const planType = subscription.notes?.planType as PlanType;
-
-    if (!userId || !planType) {
-        console.warn('⚠️ Missing userId or planType in subscription notes');
-        return;
-    }
-
-    const initialCredits = PLAN_CREDITS[planType];
-    if (!initialCredits) {
-        console.warn(`⚠️ No credits defined for plan: ${planType}`);
-        return;
-    }
-
-    // Reset credits on monthly charge (new billing cycle)
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await updateDoc(subscriptionRef, {
-        lastPaymentId: payment.id,
-        lastPaymentAmount: payment.amount,
-        lastPaymentDate: serverTimestamp(),
-        status: 'active',
-        credits: initialCredits,
-        creditsUsed: 0,
-        updatedAt: serverTimestamp(),
-    });
-
-    // Also update root-level subscription
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await updateDoc(rootSubRef, {
-        lastPaymentId: payment.id,
-        lastPaymentAmount: payment.amount,
-        lastPaymentDate: serverTimestamp(),
-        status: 'active',
-        updatedAt: serverTimestamp(),
-    });
-
-    console.log(`✅ Payment charged for user: ${userId}, credits reset to ${initialCredits}`);
-}
-
-async function handleSubscriptionCancelled(payload: any) {
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
-        return;
-    }
-
-    // Update subscription in user subcollection
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await updateDoc(subscriptionRef, {
-        status: 'cancelled',
-        cancelledAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    // Also update root-level subscription
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await updateDoc(rootSubRef, {
-        status: 'cancelled',
-        cancelledAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    console.log(`✅ Subscription cancelled for user: ${userId}`);
-}
-
-async function handleSubscriptionPaused(payload: any) {
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
-        return;
-    }
-
-    // Update subscription in user subcollection
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await updateDoc(subscriptionRef, {
-        status: 'paused',
-        pausedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    // Also update root-level subscription
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await updateDoc(rootSubRef, {
-        status: 'paused',
-        pausedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    console.log(`✅ Subscription paused for user: ${userId}`);
-}
-
-async function handleSubscriptionResumed(payload: any) {
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
-        return;
-    }
-
-    // Update subscription in user subcollection
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await updateDoc(subscriptionRef, {
-        status: 'active',
-        resumedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    // Also update root-level subscription
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await updateDoc(rootSubRef, {
-        status: 'active',
-        resumedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    console.log(`✅ Subscription resumed for user: ${userId}`);
-}
-
-async function handleSubscriptionCompleted(payload: any) {
-    const subscription = payload.subscription.entity;
-    const userId = subscription.notes?.userId;
-
-    if (!userId) {
-        console.warn('⚠️ No userId in subscription notes');
-        return;
-    }
-
-    // Update subscription in user subcollection
-    const subscriptionRef = doc(db, 'users', userId, 'subscriptions', subscription.id);
-    await updateDoc(subscriptionRef, {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    // Also update root-level subscription
-    const rootSubRef = doc(db, 'subscriptions', userId);
-    await updateDoc(rootSubRef, {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-
-    console.log(`✅ Subscription completed for user: ${userId}`);
-}
-
-async function handlePaymentCaptured(payload: any) {
-    const payment = payload.payment.entity;
-    const orderId = payment.order_id;
-    
-    console.log('🎯 handlePaymentCaptured called');
-    console.log('📋 OrderId from webhook:', orderId);
-    console.log('💳 Payment ID:', payment.id);
-
-    if (!orderId) {
-        console.warn('⚠️ No order_id in payment entity');
-        return;
-    }
-
-    try {
-        // Find and update the masiv_orders document with this order ID
-        const ordersRef = collection(db, 'masiv_orders');
-        const q = query(ordersRef, where('razorpayOrderId', '==', orderId));
-        
-        console.log('🔍 Querying Firestore for razorpayOrderId:', orderId);
-        const snapshot = await getDocs(q);
-        console.log('📊 Docs found:', snapshot.size);
-
-        if (snapshot.empty) {
-            console.error(`❌ No MASIV order found for order_id: ${orderId}`);
-            console.error('🔍 This means either:');
-            console.error('   1. Order was not created in Firestore');
-            console.error('   2. razorpayOrderId field does not match');
-            console.error('   3. Order is in different collection');
-            return;
-        }
-
-        // Update the first matching document - WEBHOOK VERIFICATION (TRUSTED)
-        const orderDoc = snapshot.docs[0];
-        console.log('📝 Found order document ID:', orderDoc.id);
-        console.log('📄 Current order data:', JSON.stringify(orderDoc.data()).substring(0, 200));
-        
-        console.log('🔄 Updating order with webhook verification...');
-        await updateDoc(doc(db, 'masiv_orders', orderDoc.id), {
-            paymentStatus: 'paid',
-            isVerified: true,  // CRITICAL: Only webhook can set this to true
-            status: 'processing',  // Move order to processing stage
-            razorpayPaymentId: payment.id,
-            paidAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
-
-        console.log(`✅ Payment captured and verified for MASIV order: ${orderId}`);
-        console.log('✅ Order updated successfully with isVerified: true, status: processing');
-    } catch (error) {
-        console.error('❌ Error updating MASIV payment status:', error);
-        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-    }
-}
-
-async function handlePaymentFailed(payload: any) {
-    const payment = payload.payment.entity;
-    const orderId = payment.order_id;
-
-    if (!orderId) {
-        console.warn('⚠️ No order_id in payment entity');
-        return;
-    }
-
-    try {
-        // Find and update the masiv_orders document with this order ID
-        const ordersRef = collection(db, 'masiv_orders');
-        const q = query(ordersRef, where('razorpayOrderId', '==', orderId));
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            console.warn(`⚠️ No MASIV order found for order_id: ${orderId}`);
-            return;
-        }
-
-        // Update the first matching document
-        const orderDoc = snapshot.docs[0];
-        await updateDoc(doc(db, 'masiv_orders', orderDoc.id), {
-            paymentStatus: 'failed',
-            isVerified: true,  // Verified as failed by webhook
-            status: 'failed',  // Mark order as failed
-            updatedAt: serverTimestamp(),
-        });
-
-        console.log(`❌ Payment failed and verified for MASIV order: ${orderId}`);
-    } catch (error) {
-        console.error('❌ Error updating failed payment status:', error);
     }
 }

@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation';
 // import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 import Link from 'next/link';
-import MasivRazorpayCheckout from '@/components/payment/MasivRazorpayCheckout';
 
 interface MasivProduct {
     id: string;
@@ -1116,24 +1115,23 @@ export default function OkvevoMasivPage() {
                                             <span className="text-white/50 font-bold uppercase tracking-widest text-xs">Total Amount</span>
                                             <span className="text-4xl font-black text-white">₹{totalPrice}</span>
                                         </div>
-                                        <MasivRazorpayCheckout
-                                            cartItems={cart}
-                                            totalAmount={totalPrice}
-                                            userName={userName}
-                                            whatsappNumber={whatsappNumber}
-                                            email={email}
-                                            onSuccess={() => {
-                                                setCart([]);
-                                                setUserName('');
-                                                setWhatsappNumber('');
-                                                setEmail('');
-                                                setShowCart(false);
-                                                alert('🎉 Payment successful! Your order has been placed.');
+                                        <button
+                                            onClick={() => {
+                                                if (!userName || !whatsappNumber) {
+                                                    alert('Please fill in all required fields (Name and WhatsApp Number)');
+                                                    return;
+                                                }
+                                                alert('Payment integration coming soon!');
                                             }}
-                                            onError={(error) => {
-                                                alert(`❌ Payment failed: ${error}`);
-                                            }}
-                                        />
+                                            disabled={!userName || !whatsappNumber}
+                                            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
+                                                !userName || !whatsappNumber
+                                                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                                                    : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_0_30px_rgba(255,107,53,0.3)]'
+                                            }`}
+                                        >
+                                            Proceed to Checkout
+                                        </button>
                                     </div>
                                 )}
                             </div>

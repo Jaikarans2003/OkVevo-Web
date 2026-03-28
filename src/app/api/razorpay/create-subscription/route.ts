@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { RAZORPAY_CONFIG, SUBSCRIPTION_PLANS, PlanType } from '@/config/razorpay';
+import { RAZORPAY_CONFIG, getPlanDetails, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
 
 /**
  * Create Razorpay Subscription
  * POST /api/razorpay/create-subscription
+ * 
+ * Flow:
+ * 1. Validate user and plan type
+ * 2. Create Razorpay subscription
+ * 3. Return subscription ID and checkout URL
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { planType, userId, userEmail, userName } = body;
 
-        if (!planType || !userId || !userEmail) {
+        // Validate inputs
+        if (!planType || !userId) {
             return NextResponse.json(
-                { success: false, error: 'Missing required fields: planType, userId, userEmail' },
+                { success: false, error: 'Missing required fields: planType, userId' },
                 { status: 400 }
             );
         }
 
-        const plan = SUBSCRIPTION_PLANS[planType as PlanType];
-        if (!plan) {
+        if (planType !== 'hobby' && planType !== 'pro') {
             return NextResponse.json(
-                { success: false, error: 'Invalid plan type' },
+                { success: false, error: 'Invalid plan type. Must be "hobby" or "pro"' },
                 { status: 400 }
             );
         }
@@ -32,37 +37,43 @@ export async function POST(request: NextRequest) {
             key_secret: RAZORPAY_CONFIG.keySecret,
         });
 
+        const planDetails = getPlanDetails(planType as PlanType);
+        const razorpayPlanId = getRazorpayPlanId(planType as PlanType);
+
+        console.log(`📦 Creating subscription for user ${userId}, plan: ${planType}`);
+
         // Create subscription
         const subscription = await razorpay.subscriptions.create({
-            plan_id: plan.planId,
+            plan_id: razorpayPlanId,
+            total_count: 12, // 12 months (1 year)
+            quantity: 1,
             customer_notify: 1,
-            total_count: 12, // 12 months
             notes: {
                 userId,
-                userEmail,
                 planType,
+                userEmail: userEmail || '',
+                userName: userName || '',
             },
         });
 
-        console.log('✅ Razorpay subscription created:', subscription.id);
+        console.log(`✅ Subscription created: ${subscription.id}`);
 
         return NextResponse.json({
             success: true,
             subscriptionId: subscription.id,
-            planId: plan.planId,
-            amount: plan.price,
-            currency: plan.currency,
+            planId: razorpayPlanId,
+            amount: planDetails.price,
+            currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
-            userEmail,
-            userName: userName || userEmail,
+            shortUrl: subscription.short_url,
         });
 
-    } catch (error) {
-        console.error('❌ Razorpay subscription creation error:', error);
+    } catch (error: any) {
+        console.error('❌ Subscription creation error:', error);
         return NextResponse.json(
             {
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to create subscription',
+                error: error.message || 'Failed to create subscription',
             },
             { status: 500 }
         );

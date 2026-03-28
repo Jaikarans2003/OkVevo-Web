@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Sparkles, Zap, Crown } from 'lucide-react';
-import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
 import { useRouter } from 'next/navigation';
+import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
 
 interface PricingProps {
     user?: any;
@@ -32,7 +32,7 @@ const Pricing = ({ user }: PricingProps) => {
     {
         name: 'Hobby',
         icon: Sparkles,
-        price: '₹4,999',
+        price: '₹5,999',
         period: 'per month',
         description: 'Perfect for getting started with AI-powered influencer content',
         features: [
@@ -47,12 +47,12 @@ const Pricing = ({ user }: PricingProps) => {
             'High-volume generation'
         ],
         highlighted: false,
-        cta: 'Get Started',
+        cta: 'Get Plan',
     },
     {
         name: 'Pro',
         icon: Zap,
-        price: '₹13,999',
+        price: '₹17,999',
         period: 'per month',
         description: 'For creators and brands scaling AI content production',
         features: [
@@ -66,7 +66,7 @@ const Pricing = ({ user }: PricingProps) => {
         ],
         notIncluded: [],
         highlighted: true,
-        cta: 'Start Pro Trial',
+        cta: 'Get Plan',
     },
    {
     name: 'Enterprise',
@@ -263,51 +263,47 @@ const Pricing = ({ user }: PricingProps) => {
                                 {/* Button Section */}
                                 <div className="w-full mt-auto relative z-10">
                                     {plan.name === 'Hobby' ? (
-                                        <div className="w-full text-center">
-                                            {user ? (
-                                                <RazorpayCheckout
-                                                    planType="hobby"
-                                                    onSuccess={(subscriptionId) => {
-                                                        console.log('Payment successful:', subscriptionId);
-                                                        router.push('/workspace');
-                                                    }}
-                                                    onError={(error) => {
-                                                        console.error('Payment error:', error);
-                                                        alert(`Payment failed: ${error}`);
-                                                    }}
-                                                />
-                                            ) : (
-                                                <button 
-                                                    onClick={() => handlePlanClick('Hobby')}
-                                                    className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444] uppercase tracking-widest"
-                                                >
-                                                    {plan.cta}
-                                                </button>
-                                            )}
-                                        </div>
+                                        user ? (
+                                            <RazorpayCheckout
+                                                planType="hobby"
+                                                onSuccess={(subscriptionId) => {
+                                                    console.log('Subscription successful:', subscriptionId);
+                                                    router.push('/workspace');
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Subscription error:', error);
+                                                    alert(`Subscription failed: ${error}`);
+                                                }}
+                                            />
+                                        ) : (
+                                            <button 
+                                                onClick={() => handlePlanClick('Hobby')}
+                                                className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444] uppercase tracking-widest"
+                                            >
+                                                {plan.cta}
+                                            </button>
+                                        )
                                     ) : plan.name === 'Pro' ? (
-                                        <div className="w-full text-center">
-                                            {user ? (
-                                                <RazorpayCheckout
-                                                    planType="pro"
-                                                    onSuccess={(subscriptionId) => {
-                                                        console.log('Payment successful:', subscriptionId);
-                                                        router.push('/workspace');
-                                                    }}
-                                                    onError={(error) => {
-                                                        console.error('Payment error:', error);
-                                                        alert(`Payment failed: ${error}`);
-                                                    }}
-                                                />
-                                            ) : (
-                                                <button 
-                                                    onClick={() => handlePlanClick('Pro')}
-                                                    className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50 transform group-hover:scale-[1.05] uppercase tracking-widest"
-                                                >
-                                                    {plan.cta}
-                                                </button>
-                                            )}
-                                        </div>
+                                        user ? (
+                                            <RazorpayCheckout
+                                                planType="pro"
+                                                onSuccess={(subscriptionId) => {
+                                                    console.log('Subscription successful:', subscriptionId);
+                                                    router.push('/workspace');
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Subscription error:', error);
+                                                    alert(`Subscription failed: ${error}`);
+                                                }}
+                                            />
+                                        ) : (
+                                            <button 
+                                                onClick={() => handlePlanClick('Pro')}
+                                                className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50 transform group-hover:scale-[1.05] uppercase tracking-widest"
+                                            >
+                                                {plan.cta}
+                                            </button>
+                                        )
                                     ) : (
                                         <button 
                                             onClick={() => handlePlanClick('Enterprise')}

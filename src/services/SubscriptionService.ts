@@ -1,13 +1,38 @@
 import { db } from '../config/firebase';
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
-import { SUBSCRIPTION_PLANS, PlanType } from '../config/razorpay';
+
+export type PlanType = 'hobby' | 'pro' | 'enterprise';
+
+export const SUBSCRIPTION_PLANS = {
+    hobby: {
+        name: 'Hobby',
+        price: 4999,
+        currency: 'INR',
+        period: 'monthly',
+        interval: 1
+    },
+    pro: {
+        name: 'Pro',
+        price: 13999,
+        currency: 'INR',
+        period: 'monthly',
+        interval: 1
+    },
+    enterprise: {
+        name: 'Enterprise',
+        price: 0,
+        currency: 'INR',
+        period: 'custom',
+        interval: 1
+    }
+};
 
 export interface SubscriptionData {
     userId: string;
     planType: PlanType;
     subscriptionId: string;
     paymentId?: string;
-    status: 'active' | 'cancelled' | 'paused' | 'completed' | 'pending';
+    status: 'active' | 'cancelled' | 'paused' | 'completed' | 'pending' | 'halted' | 'authenticated';
     credits?: number;
     initialCredits?: number;
     creditsUsed?: number;
@@ -17,10 +42,18 @@ export interface SubscriptionData {
     lastPaymentId?: string;
     lastPaymentAmount?: number;
     lastPaymentDate?: Timestamp;
+    gracePeriodEndsAt?: Timestamp;
+    lastPaymentFailure?: {
+        paymentId: string;
+        errorCode: string;
+        errorDescription: string;
+        failedAt: Timestamp;
+    };
     cancelledAt?: Timestamp;
     pausedAt?: Timestamp;
     resumedAt?: Timestamp;
     completedAt?: Timestamp;
+    haltedAt?: Timestamp;
 }
 
 export interface SubscriptionWithPlanDetails extends SubscriptionData {
@@ -126,10 +159,16 @@ export function getStatusColor(status: string): string {
     switch (status) {
         case 'active':
             return 'bg-green-500';
+        case 'authenticated':
+            return 'bg-blue-400';
+        case 'pending':
+            return 'bg-yellow-500';
+        case 'halted':
+            return 'bg-orange-500';
         case 'cancelled':
             return 'bg-red-500';
         case 'paused':
-            return 'bg-yellow-500';
+            return 'bg-yellow-600';
         case 'completed':
             return 'bg-blue-500';
         default:
@@ -144,6 +183,12 @@ export function getStatusLabel(status: string): string {
     switch (status) {
         case 'active':
             return 'Active';
+        case 'authenticated':
+            return 'Authenticated';
+        case 'pending':
+            return 'Pending';
+        case 'halted':
+            return 'Halted';
         case 'cancelled':
             return 'Cancelled';
         case 'paused':

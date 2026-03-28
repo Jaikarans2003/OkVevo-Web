@@ -35,6 +35,35 @@ import { FEATURE_COSTS } from '../types/credits';
 export type { CreditTransaction };
 
 /**
+ * Check if subscription is valid (active or within grace period)
+ */
+function isSubscriptionValid(subscriptionData: any): boolean {
+    const status = subscriptionData.status;
+    
+    // Active subscription is always valid
+    if (status === 'active') {
+        return true;
+    }
+    
+    // Pending or authenticated - check grace period
+    if (status === 'pending' || status === 'authenticated') {
+        const gracePeriodEndsAt = subscriptionData.gracePeriodEndsAt;
+        
+        if (gracePeriodEndsAt) {
+            const now = new Date();
+            const gracePeriodEnd = gracePeriodEndsAt.toDate();
+            return now < gracePeriodEnd;
+        }
+        
+        // No grace period set - allow for now
+        return true;
+    }
+    
+    // Any other status (halted, cancelled, etc.) is invalid
+    return false;
+}
+
+/**
  * Get user's current credit balance
  */
 export async function getUserCredits(userId: string): Promise<number> {
@@ -45,11 +74,11 @@ export async function getUserCredits(userId: string): Promise<number> {
     }
 
     try {
-        // Query the user's active subscription
+        // Query the user's active or pending subscriptions
         const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
         const q = query(
             subscriptionsRef,
-            where('status', '==', 'active'),
+            where('status', 'in', ['active', 'pending', 'authenticated']),
             limit(1)
         );
 
@@ -60,6 +89,12 @@ export async function getUserCredits(userId: string): Promise<number> {
         }
 
         const subscriptionData = snapshot.docs[0].data();
+        
+        // Check if subscription is valid (considering grace period)
+        if (!isSubscriptionValid(subscriptionData)) {
+            return 0;
+        }
+        
         return subscriptionData.credits || 0;
     } catch (error) {
         console.error('Failed to get user credits:', error);
@@ -116,11 +151,11 @@ export async function deductCredits(
 
     try {
         const result = await runTransaction(db, async (transaction) => {
-            // Get active subscription
+            // Get active or pending subscription
             const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
             const q = query(
                 subscriptionsRef,
-                where('status', '==', 'active'),
+                where('status', 'in', ['active', 'pending', 'authenticated']),
                 limit(1)
             );
 
@@ -132,6 +167,12 @@ export async function deductCredits(
 
             const subscriptionDoc = snapshot.docs[0];
             const subscriptionData = subscriptionDoc.data();
+            
+            // Check if subscription is valid (considering grace period)
+            if (!isSubscriptionValid(subscriptionData)) {
+                throw new Error('Subscription is inactive or grace period has expired');
+            }
+            
             const currentCredits = subscriptionData.credits || 0;
 
             // Check if sufficient credits
@@ -206,11 +247,11 @@ export async function addCredits(
 
     try {
         await runTransaction(db, async (transaction) => {
-            // Get active subscription
+            // Get active or pending subscription
             const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
             const q = query(
                 subscriptionsRef,
-                where('status', '==', 'active'),
+                where('status', 'in', ['active', 'pending', 'authenticated']),
                 limit(1)
             );
 
@@ -222,6 +263,12 @@ export async function addCredits(
 
             const subscriptionDoc = snapshot.docs[0];
             const subscriptionData = subscriptionDoc.data();
+            
+            // Check if subscription is valid (considering grace period)
+            if (!isSubscriptionValid(subscriptionData)) {
+                throw new Error('Subscription is inactive or grace period has expired');
+            }
+            
             const currentCredits = subscriptionData.credits || 0;
             const newCredits = currentCredits + amount;
 

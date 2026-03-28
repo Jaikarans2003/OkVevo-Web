@@ -1,8 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { auth } from '@/config/firebase';
-import { SUBSCRIPTION_PLANS, PlanType } from '@/config/razorpay';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+
+interface RazorpayCheckoutProps {
+    planType: 'hobby' | 'pro';
+    onSuccess?: (subscriptionId: string) => void;
+    onError?: (error: string) => void;
+}
 
 declare global {
     interface Window {
@@ -10,19 +15,32 @@ declare global {
     }
 }
 
-interface RazorpayCheckoutProps {
-    planType: PlanType;
-    onSuccess?: (subscriptionId: string) => void;
-    onError?: (error: string) => void;
-}
-
-export default function RazorpayCheckout({ planType, onSuccess, onError }: RazorpayCheckoutProps) {
+const RazorpayCheckout = ({ planType, onSuccess, onError }: RazorpayCheckoutProps) => {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [scriptLoaded, setScriptLoaded] = useState(false);
 
-    const handleSubscribe = async () => {
-        const user = auth.currentUser;
+    // Load Razorpay script
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => setScriptLoaded(true);
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
+
+    const handlePayment = async () => {
         if (!user) {
-            onError?.('Please login to subscribe');
+            onError?.('Please login to continue');
+            return;
+        }
+
+        if (!scriptLoaded) {
+            onError?.('Payment system is loading. Please try again.');
             return;
         }
 
@@ -32,12 +50,14 @@ export default function RazorpayCheckout({ planType, onSuccess, onError }: Razor
             // Create subscription
             const response = await fetch('/api/razorpay/create-subscription', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     planType,
                     userId: user.uid,
                     userEmail: user.email,
-                    userName: user.displayName,
+                    userName: user.displayName || 'User',
                 }),
             });
 
@@ -47,84 +67,30 @@ export default function RazorpayCheckout({ planType, onSuccess, onError }: Razor
                 throw new Error(data.error || 'Failed to create subscription');
             }
 
-            // Load Razorpay script if not already loaded
-            if (!window.Razorpay) {
-                const script = document.createElement('script');
-                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-                script.async = true;
-                document.body.appendChild(script);
-                await new Promise((resolve) => {
-                    script.onload = resolve;
-                });
-            }
+            const { subscriptionId, razorpayKeyId, shortUrl } = data;
 
-            // Initialize Razorpay checkout
+            // Open Razorpay checkout
             const options = {
-                key: data.razorpayKeyId,
-                subscription_id: data.subscriptionId,
+                key: razorpayKeyId,
+                subscription_id: subscriptionId,
                 name: 'OKVEVO',
-                description: SUBSCRIPTION_PLANS[planType].name,
-                image: '/logo.png',
+                description: `${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan Subscription`,
+                image: '/OKVEVO WithOut BackGrounds/White.svg',
                 prefill: {
-                    email: data.userEmail,
-                    name: data.userName,
+                    name: user.displayName || '',
+                    email: user.email || '',
                 },
                 theme: {
                     color: '#FF6B35',
-                    backdrop_color: 'rgba(0, 0, 0, 0.8)',
                 },
-                config: {
-                    display: {
-                        blocks: {
-                            banks: {
-                                name: 'All payment methods',
-                                instruments: [
-                                    {
-                                        method: 'card',
-                                    },
-                                    {
-                                        method: 'upi',
-                                    },
-                                    {
-                                        method: 'netbanking',
-                                    },
-                                    {
-                                        method: 'wallet',
-                                    },
-                                ],
-                            },
-                        },
-                        sequence: ['block.banks'],
-                        preferences: {
-                            show_default_blocks: true,
-                        },
-                    },
-                },
-                handler: async (response: any) => {
-                    // Verify payment
-                    const verifyResponse = await fetch('/api/razorpay/verify-payment', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_subscription_id: response.razorpay_subscription_id,
-                            razorpay_signature: response.razorpay_signature,
-                            userId: user.uid,
-                            planType,
-                        }),
-                    });
-
-                    const verifyData = await verifyResponse.json();
-
-                    if (verifyData.success) {
-                        onSuccess?.(response.razorpay_subscription_id);
-                    } else {
-                        onError?.(verifyData.error || 'Payment verification failed');
-                    }
+                handler: function (response: any) {
+                    console.log('Payment successful:', response);
+                    onSuccess?.(subscriptionId);
                 },
                 modal: {
-                    ondismiss: () => {
+                    ondismiss: function () {
                         setLoading(false);
+                        onError?.('Payment cancelled');
                     },
                 },
             };
@@ -132,22 +98,26 @@ export default function RazorpayCheckout({ planType, onSuccess, onError }: Razor
             const razorpay = new window.Razorpay(options);
             razorpay.open();
 
-        } catch (error) {
-            console.error('Subscription error:', error);
-            onError?.(error instanceof Error ? error.message : 'Subscription failed');
+        } catch (error: any) {
+            console.error('Payment error:', error);
+            onError?.(error.message || 'Payment failed');
             setLoading(false);
         }
     };
 
-    const plan = SUBSCRIPTION_PLANS[planType];
-
     return (
         <button
-            onClick={handleSubscribe}
-            disabled={loading}
-            className="w-full py-3 px-6 rounded-xl font-bold text-sm uppercase tracking-wider transition-all bg-gradient-to-r from-accent-orange to-accent-orange/80 text-white hover:from-accent-orange/90 hover:to-accent-orange/70 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            onClick={handlePayment}
+            disabled={loading || !scriptLoaded}
+            className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 uppercase tracking-widest ${
+                planType === 'pro'
+                    ? 'bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50 transform hover:scale-[1.05]'
+                    : 'bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444]'
+            } ${loading || !scriptLoaded ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-            {loading ? 'Processing...' : `Subscribe to ${plan.name}`}
+            {loading ? 'Processing...' : scriptLoaded ? 'Get Plan' : 'Loading...'}
         </button>
     );
-}
+};
+
+export default RazorpayCheckout;
