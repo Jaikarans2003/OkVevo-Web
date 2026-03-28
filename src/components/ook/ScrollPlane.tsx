@@ -47,8 +47,10 @@ const ScrollPlane = () => {
             ease: "none",
             onUpdate: function() {
                 const progress = this.progress();
-                const point = pathRef.current!.getPointAtLength(progress * pathLength);
-                const nextPoint = pathRef.current!.getPointAtLength(Math.min(progress * pathLength + 1, pathLength));
+                if (!pathRef.current || !planeRef.current) return;
+                
+                const point = pathRef.current.getPointAtLength(progress * pathLength);
+                const nextPoint = pathRef.current.getPointAtLength(Math.min(progress * pathLength + 1, pathLength));
                 
                 // Calculate rotation to face the path
                 const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x) * (180 / Math.PI);
