@@ -530,13 +530,66 @@ exports.handler = async (event) => {
                         localPath: imgPath,
                         start: img.start,
                         end: img.end,
-                        layout: img.layout || 'split',
+                        layout: 'split', // default — will be overridden below
                         sfxPath: sfxPath
                     });
                 } catch (err) {
                     console.warn(`⚠️ Skipping image ${i} (${img.topic}): ${err.message}`);
                 }
             }
+        }
+
+        // ── Randomly assign fullscreen layout to some photos ──
+        // Determines how many photos become fullscreen based on video duration:
+        //   0–15s  → 1 fullscreen
+        //   15–30s → 2 fullscreen
+        //   30–60s → 3 fullscreen
+        if (downloadedImages.length > 0) {
+            // Infer duration from event.duration or from the max end time of images
+            const maxEndTime = Math.max(...downloadedImages.map(img => img.end || 0));
+            const videoDuration = event.duration || maxEndTime || 15;
+
+            let fullscreenCount;
+            if (videoDuration <= 15) {
+                fullscreenCount = 1;
+            } else if (videoDuration <= 30) {
+                fullscreenCount = 2;
+            } else {
+                fullscreenCount = 3;
+            }
+
+            // Cap to available images (never more fullscreen than we have photos)
+            fullscreenCount = Math.min(fullscreenCount, downloadedImages.length);
+
+            // Build array of indices and shuffle (Fisher-Yates) to pick random ones
+            const indices = downloadedImages.map((_, i) => i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+
+            const fullscreenIndices = new Set(indices.slice(0, fullscreenCount));
+            downloadedImages.forEach((img, idx) => {
+                img.layout = fullscreenIndices.has(idx) ? 'fullscreen' : 'split';
+            });
+
+            // ── Ensure speaker gets a full-screen intro ──
+            // Push the first image's start time to at least 2s so the video
+            // opens with the speaker's face in full screen before any overlay.
+            const SPEAKER_INTRO_SECS = 2;
+            if (downloadedImages[0].start < SPEAKER_INTRO_SECS) {
+                const shift = SPEAKER_INTRO_SECS - downloadedImages[0].start;
+                console.log(`🎤 Shifting first image by +${shift.toFixed(1)}s for full-screen speaker intro`);
+                downloadedImages[0].start = SPEAKER_INTRO_SECS;
+                // Don't let the end overlap the next image — keep original duration
+                downloadedImages[0].end = Math.max(downloadedImages[0].end, SPEAKER_INTRO_SECS + 1);
+            }
+
+            const fsNames = downloadedImages
+                .filter((_, i) => fullscreenIndices.has(i))
+                .map(img => img.topic || `${img.start}-${img.end}s`);
+            console.log(`🎲 Randomly assigned ${fullscreenCount} fullscreen photo(s): [${fsNames.join(', ')}]`);
+            console.log(`   Layout map: ${downloadedImages.map((img, i) => `#${i}=${img.layout}`).join(', ')}`);
         }
 
         // Handle subtitles — priority: remoteSrtPath > Whisper > Gemini
