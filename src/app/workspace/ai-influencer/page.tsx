@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download, Mic2, Image, AlignBottom, AlignTop, ChevronDown
+    RotateCcw, Play, Download, Mic2, Image, ArrowDown, ArrowUp, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
@@ -1193,8 +1193,8 @@ function AIInfluencerWorkstation() {
                                                                                             }`}
                                                                                         >
                                                                                             {pos === 'bottom'
-                                                                                                ? <AlignBottom size={11} />
-                                                                                                : <AlignTop size={11} />
+                                                                                                ? <ArrowDown size={11} />
+                                                                                                : <ArrowUp size={11} />
                                                                                             }
                                                                                             {pos}
                                                                                         </button>
