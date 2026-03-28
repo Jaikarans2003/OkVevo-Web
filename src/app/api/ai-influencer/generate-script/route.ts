@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         }
 
         const groq = new Groq({ apiKey: groqApiKey });
-        
+
         const isFast = ttsPacing === 'fast';
         let minWords = 0;
         let maxWords = 0;
@@ -52,28 +52,28 @@ export async function POST(request: NextRequest) {
         let minDuration = 0;
 
         // Tone & Formatting Instructions
-        const toneInstructions = isFast 
+        const toneInstructions = isFast
             ? "High-energy, confident, punchy, and aggressive pacing. Hook-heavy delivery."
             : "Slower, deliberate speech with emotional depth, steady and profound delivery. Still uses full, rich sentences.";
-            
+
         const formattingInstructions = isFast
             ? "Keep sentences punchy and continuous. Moderate pauses (not too many or you kill energy). Do not add excessive line breaks."
             : "Use occasional ellipses (...) for dramatic pauses, but do NOT replace actual content with ellipses. Each sentence must be a complete, meaningful thought. The pauses are between sentences, not instead of words.";
 
         if (duration === 15) {
             minDuration = 10;
-            minWords = isFast ? 55 : 40;
-            maxWords = isFast ? 65 : 50;
+            minWords = isFast ? 55 : 38;
+            maxWords = isFast ? 63 : 48;
             momentsCount = 3;
         } else if (duration === 30) {
             minDuration = 25;
             minWords = isFast ? 120 : 80;
-            maxWords = isFast ? 140 : 100;
+            maxWords = isFast ? 138 : 98;
             momentsCount = 5;
         } else if (duration === 60) {
             minDuration = 55;
             minWords = isFast ? 210 : 160;
-            maxWords = isFast ? 230 : 185;
+            maxWords = isFast ? 228 : 183;
             momentsCount = 8;
         } else {
             // Fallback just in case
