@@ -10,7 +10,7 @@ import UserTable from '@/components/admin/UserTable';
 import CreditEditModal from '@/components/admin/CreditEditModal';
 import DeleteUserModal from '@/components/admin/DeleteUserModal';
 import AuditLogPanel from '@/components/admin/AuditLogPanel';
-import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight, LayoutGrid } from 'lucide-react';
+import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight, LayoutGrid, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import AdminGuard from '@/components/admin/AdminGuard';
 
@@ -225,7 +225,7 @@ function AdminDashboard() {
                                     <Sparkles className="w-7 h-7 text-[#FF6B35]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Trend Request Queue</h2>
+                                    <h2 className="text-xl font-black tracking-tighter uppercase">Trend Requests</h2>
                                     <p className="text-gray-400 text-sm">Manage manual AI generation and student outputs.</p>
                                 </div>
                             </div>
@@ -238,6 +238,27 @@ function AdminDashboard() {
                         </div>
                     </div>
 
+                    {/* Banner Management Quick Access */}
+                    <div className="p-1 bg-gradient-to-r from-orange-500/20 to-transparent rounded-[24px]">
+                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                                    <ImageIcon className="w-7 h-7 text-orange-500" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black tracking-tighter uppercase">Banners</h2>
+                                    <p className="text-gray-400 text-sm">Manage hero carousel ads, titles, and descriptions.</p>
+                                </div>
+                            </div>
+                            <Link 
+                                href="/admin/banners"
+                                className="w-full px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
+                            >
+                                Manage Banners <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                        </div>
+                    </div>
+
                     {/* Product Catalog Quick Access */}
                     <div className="p-1 bg-gradient-to-r from-blue-500/20 to-transparent rounded-[24px]">
                         <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
@@ -246,7 +267,7 @@ function AdminDashboard() {
                                     <LayoutGrid className="w-7 h-7 text-blue-500" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Product Catalog</h2>
+                                    <h2 className="text-xl font-black tracking-tighter uppercase">Products</h2>
                                     <p className="text-gray-400 text-sm">Update trends, change prices, and upload thumbnails.</p>
                                 </div>
                             </div>
@@ -259,6 +280,7 @@ function AdminDashboard() {
                         </div>
                     </div>
                 </div>
+
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

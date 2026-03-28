@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search } from 'lucide-react';
-import Lenis from 'lenis';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -23,6 +22,16 @@ interface MasivProduct {
     badge1: string;
     badge2: string;
     level?: number;
+}
+
+interface MasivBanner {
+    id: string;
+    title: string;
+    description: string;
+    mediaUrl: string;
+    type: 'photo' | 'video';
+    badge: string;
+    level: number;
 }
 
  
@@ -49,74 +58,156 @@ interface CartItem {
     faceImageUrl: string | null;
 }
 
-const ThumbnailScroller = ({ images }: { images: string[] }) => {
+const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHovered?: boolean }) => {
     const [index, setIndex] = useState(0);
+
     useEffect(() => {
-        
+        if (!isHovered) {
+            setIndex(0);
+            return;
+        }
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % images.length);
-        }, 3000); // Shift every 3 seconds
+        }, 1500);
         return () => clearInterval(interval);
-    }, [images.length]);
-
+    }, [images.length, isHovered]);
 
     const getLabel = (idx: number) => {
-        if (images.length === 2) {
-            return idx === 0 ? "MALE" : "FEMALE";
-        }
+        if (images.length === 2) return idx === 0 ? "MALE" : "FEMALE";
         return `PREVIEW ${idx + 1}`;
     };
 
+    const mediaUrl = images[index];
+    const isMediaVideo = isVideo(mediaUrl);
+    // Add time fragment for iOS poster generation
+    const sourceUrl = isMediaVideo ? `${mediaUrl}#t=0.001` : mediaUrl;
+
     return (
-        <div className="w-full h-full relative bg-transparent">
-            <AnimatePresence>
-                <motion.div
-                    key={index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="absolute inset-0 w-full h-full"
-                >
-                    {isVideo(images[index]) ? (
-                        <video
-                            src={images[index]}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            className="w-full h-full object-cover"
+        <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
+            <div className="absolute inset-0 w-full h-full flex items-center justify-center p-2">
+                {isMediaVideo ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                        <video 
+                            key={sourceUrl}
+                            src={sourceUrl}
+                            autoPlay={isHovered}
+                            muted 
+                            loop 
+                            playsInline 
+                            preload="auto"
+                            className="w-full h-full object-contain" 
                         />
-                    ) : (
-                        <img
-                            src={images[index]}
-                            alt={`Preview ${index}`}
-                            className="w-full h-full object-cover"
-                        />
-                    )}
-                    {/* Floating Label */}
-                    <div className="absolute top-4 left-4 z-20">
-                        <span className="bg-black/60 backdrop-blur-md text-[9px] font-black text-white px-3 py-1 rounded-full border border-white/10 tracking-[0.2em] uppercase">
-                            {getLabel(index)}
-                        </span>
+                        {!isHovered && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:opacity-0 transition-opacity">
+                                <div className="w-10 h-10 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                                    <Play className="w-4 h-4 text-white/40 fill-white/10 ml-0.5" />
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </motion.div>
-            </AnimatePresence>
-            
-            {/* Visual Indicator Dots */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                {images.map((_, i) => (
-                    <div 
-                        key={i} 
-                        className={`h-1 rounded-full transition-all duration-700 ${
-                            i === index ? 'w-6 bg-[#FF6B35]' : 'w-2 bg-white/30'
-                        }`} 
+                ) : (
+                    <img 
+                        key={sourceUrl}
+                        src={sourceUrl}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-contain" 
                     />
-                ))}
+                )}
+            </div>
+
+            <div className="absolute top-3 left-3 z-20">
+                <span className="bg-black/40 backdrop-blur-md text-[8px] font-black text-white/70 px-2 py-0.5 rounded-full border border-white/5 tracking-widest uppercase">
+                    {getLabel(index)}
+                </span>
             </div>
         </div>
     );
-};
+});
+
+ThumbnailScroller.displayName = 'ThumbnailScroller';
+
+const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard }: { 
+    product: MasivProduct, 
+    index: number, 
+    isInCart: (id: string) => boolean,
+    addToCart: (p: MasivProduct) => void,
+    setSelectedCard: (id: string) => void
+}) => {
+    const [isHovered, setIsHovered] = useState(false);
+    
+    return (
+        <div
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={() => setSelectedCard(product.id)}
+            className="group relative p-4 rounded-[32px] overflow-hidden cursor-pointer flex flex-col min-h-[580px] bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-300 transform-gpu hover:-translate-y-1"
+        >
+            {/* ---- TOP SECTION ---- */}
+            <div className="z-10 relative flex flex-col h-[85px] shrink-0 px-1 ">
+                <div className="flex gap-2 justify-between items-start mb-3 w-full">
+                    <div className="flex gap-2">
+                        <span className="px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase bg-white/5 text-white/50 border border-white/5 transition-colors group-hover:border-white/10 group-hover:text-white/80">
+                            {product.badge1 || 'Trend'}
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase bg-white/5 text-white/50 border border-white/5 transition-colors group-hover:border-white/10 group-hover:text-white/80">
+                            {product.badge2 || 'New'}
+                        </span>
+                    </div>
+
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/5 transition-colors group-hover:border-white/10">
+                        <img src="/OKVEVO WithOut BackGrounds/White.svg" alt="" className="h-2.5 object-contain opacity-30 group-hover:opacity-60 transition-opacity" />
+                    </div>
+                </div>
+
+                <h3 className="text-xl lg:text-2xl font-black tracking-tighter leading-[1] text-white/90 group-hover:text-white transition-colors text-balance">
+                    {product.name}
+                </h3>
+            </div>
+
+            {/* ---- MIDDLE THUMBNAIL ---- */}
+            <div className="relative w-full h-[430px] rounded-[24px] overflow-hidden z-0 shrink-0 shadow-lg group">
+                <div className="w-full h-full relative">
+                    <ThumbnailScroller 
+                        images={product.thumbnails} 
+                        isHovered={isHovered}
+                    />
+                </div>
+            </div>
+
+            {/* ---- BOTTOM SECTION ---- */}
+            <div className="z-10 w-full relative flex flex-col flex-1 mt-4 justify-end gap-3">
+                <p className="text-[11px] leading-relaxed font-medium text-white/40 line-clamp-2 group-hover:text-white/60 transition-colors">
+                    {product.description}
+                </p>
+                
+                <div className="flex items-center justify-between mt-auto">
+                    <div className="font-black text-xl tracking-tighter text-white/90 group-hover:text-white transition-colors">
+                        {product.price === 0 ? "Free" : `₹${product.price}`}
+                    </div>
+
+                    <button
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                            isInCart(product.id)
+                                ? 'bg-green-500/20 text-green-500 cursor-default'
+                                : 'bg-white/5 text-white/40 hover:bg-[#FF6B35] hover:text-white'
+                        }`}
+                        disabled={isInCart(product.id)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            addToCart(product);
+                        }}
+                    >
+                        {isInCart(product.id) ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+ProductCard.displayName = 'ProductCard';
+
 
 const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (product: any) => void }) => {
     const [index, setIndex] = useState(0);
@@ -133,73 +224,75 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
             <AnimatePresence mode="wait">
                 <motion.div
                     key={index}
-                    initial={{ opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 1.5, ease: [0.23, 1, 0.32, 1] }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
                     className="absolute inset-0 w-full h-full"
                 >
-                    {/* Background Layer */}
-                    {isVideo(items[index].image) ? (
-                        <video 
-                            src={items[index].image} 
-                            autoPlay 
-                            muted 
-                            loop 
-                            playsInline
-                            className="absolute inset-0 w-full h-full object-cover opacity-85 transition-transform duration-[8000ms] scale-100 group-hover:scale-110"
-                        />
-                    ) : (
-                        <img 
-                            src={items[index].image} 
-                            alt={items[index].title} 
-                            className="absolute inset-0 w-full h-full object-cover opacity-90 transition-transform duration-[6000ms] scale-100 group-hover:scale-110"
-                        />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-50" />
-
-                    {/* Content Layer */}
-                    <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-20 max-w-2xl">
-                        <motion.span 
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.5 }}
-                            className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-xs mb-6 inline-flex items-center gap-2"
-                        >
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
-                            {items[index].badge || "Featured Collection"}
-                        </motion.span>
-                        <motion.h2 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.7 }}
-                            className="text-5xl md:text-7xl font-black tracking-tighter text-white mb-8 leading-[0.9]"
-                        >
-                            {items[index].title.split('<br/>')[0]} <br/> 
-                            <span className="text-white/40">{items[index].title.split('<br/>')[1]}</span>
-                        </motion.h2>
-                        <motion.p 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.9 }}
-                            className="text-gray-300 text-lg md:text-xl mb-12 max-w-md leading-relaxed"
-                        >
-                            {items[index].description}
-                        </motion.p>
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 1.1 }}
-                            className="flex flex-wrap gap-4"
-                        >
-                            {/* <button 
-                                onClick={() => onTryTrend(items[index])}
-                                className="px-10 py-5 bg-[#FF6B35] hover:bg-[#FF8B55] text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl hover:shadow-[#FF6B35]/20 flex items-center gap-3 group/btn"
+                    {/* 50/50 Split Layout */}
+                    <div className="flex flex-col md:flex-row h-full">
+                        {/* Left Column: Content */}
+                        <div className="w-full md:w-1/2 h-full flex flex-col justify-center px-8 md:px-20 z-20 relative bg-gradient-to-r from-black via-black/80 to-transparent">
+                            <motion.span 
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-[10px] md:text-xs mb-6 inline-flex items-center gap-2"
                             >
-                                Try Trend <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><Plus className="w-4 h-4" /></motion.div>
-                            </button> */}
-                        </motion.div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
+                                {items[index].badge || "Featured Collection"}
+                            </motion.span>
+                            
+                            <motion.h2 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                                className="text-4xl md:text-7xl font-black tracking-tighter text-white mb-6 md:mb-8 leading-[0.9] uppercase"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: items[index].title }} />
+                            </motion.h2>
+
+                            <motion.p 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                                className="text-gray-400 text-sm md:text-lg mb-8 md:mb-12 max-w-md leading-relaxed"
+                            >
+                                {items[index].description}
+                            </motion.p>
+                        </div>
+
+                        {/* Right Column: Media (Coverage) */}
+                        <div className="w-full md:w-1/2 h-full relative z-10 overflow-hidden bg-black">
+                            <motion.div 
+                                key={`media-${index}`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 1 }}
+                                className="w-full h-full"
+                            >
+                                {isVideo(items[index].image) ? (
+                                    <video 
+                                        src={items[index].image} 
+                                        autoPlay 
+                                        muted 
+                                        loop 
+                                        playsInline
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <img 
+                                        src={items[index].image} 
+                                        alt={items[index].title} 
+                                        className="w-full h-full object-cover"
+                                    />
+                                )}
+                            </motion.div>
+                            
+                            {/* Gradient to blend with left content */}
+                            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-black to-transparent z-20 md:block hidden" />
+                        </div>
                     </div>
                 </motion.div>
             </AnimatePresence>
@@ -241,7 +334,9 @@ export default function OkvevoMasivPage() {
     const router = useRouter();
 
     const [products, setProducts] = useState<MasivProduct[]>([]);
+    const [banners, setBanners] = useState<MasivBanner[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(true);
+    const [loadingBanners, setLoadingBanners] = useState(true);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -268,30 +363,28 @@ export default function OkvevoMasivPage() {
         return () => unsubscribe();
     }, []);
 
-    useEffect(() => {
-        const lenis = new Lenis({
-            duration: 1.5,
-            lerp: 0.08,
-            orientation: 'vertical',
-            gestureOrientation: 'vertical',
-            smoothWheel: true,
-            wheelMultiplier: 1,
-            touchMultiplier: 2.5,
-        });
-
-        function raf(time: number) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-
-        requestAnimationFrame(raf);
-        return () => {
-            lenis.destroy();
-        };
-    }, []);
+    // Lenis removed for maximum native performance
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeFilter, setActiveFilter] = useState<'all' | 'photo' | 'video'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Fetch Banners from Firestore
+    useEffect(() => {
+        const q = query(collection(db, 'masiv_banners'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedBanners = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as MasivBanner[];
+            setBanners(fetchedBanners.sort((a, b) => (a.level || 0) - (b.level || 0)));
+            setLoadingBanners(false);
+        }, (error) => {
+            console.error("Error fetching masiv_banners:", error);
+            setLoadingBanners(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const filteredProducts = useMemo(() => {
         return products
@@ -469,8 +562,9 @@ export default function OkvevoMasivPage() {
     const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
 
     return (
-        <div className="min-h-screen bg-[#050505] bg-gradient-to-br from-black via-[#0f0202] to-[#140802] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden relative">
-            <div className="fixed inset-0 bg-[linear-gradient(to_right,#ffffff15_1.5px,transparent_1.5px),linear-gradient(to_bottom,#ffffff15_1.5px,transparent_1.5px)] bg-[size:90px_90px] pointer-events-none z-0 opacity-100" />
+        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden relative scroll-smooth">
+            {/* Minimal Background (Non-fixed to prevent paint lag) */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#1a0a05_0%,#050505_100%)] pointer-events-none z-0" />
 
             {/* Custom Floating Pill Navbar (Landing Page style) */}
             <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-8 transition-all duration-700 pointer-events-none">
@@ -521,24 +615,45 @@ export default function OkvevoMasivPage() {
 
                 {/* Featured Trends Section */}
                 <section className="px-6 md:px-10 mb-16">
-                    {loadingProducts ? (
+                    {loadingBanners ? (
                         <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
-                                <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
+                                <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Features...</p>
                             </div>
                         </div>
-                    ) : (
+                    ) : banners.length > 0 ? (
                         <FeaturedCarousel 
-                            onTryTrend={(item) => setSelectedCard(item.id)}
-                            items={products.slice(0, 3).map(p => ({
-                                id: p.id,
-                                title: p.name.toUpperCase().split(' ').join(' <br/> '),
-                                image: p.thumbnails[0],
-                                description: p.description,
-                                badge: p.badge1 || "Featured Collection"
+                            onTryTrend={() => {}}
+                            items={banners.map(b => ({
+                                id: b.id,
+                                title: b.title,
+                                image: b.mediaUrl,
+                                description: b.description,
+                                badge: b.badge
                             }))}
                         />
+                    ) : (
+                        // Fallback to products if no banners are configured
+                        loadingProducts ? (
+                            <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
+                                    <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <FeaturedCarousel 
+                                onTryTrend={(item) => setSelectedCard(item.id)}
+                                items={products.slice(0, 3).map(p => ({
+                                    id: p.id,
+                                    title: p.name.toUpperCase().split(' ').join(' <br/> '),
+                                    image: p.thumbnails[0],
+                                    description: p.description,
+                                    badge: p.badge1 || "Featured Collection"
+                                }))}
+                            />
+                        )
                     )}
                 </section>
 
@@ -586,107 +701,16 @@ export default function OkvevoMasivPage() {
 
                 {/* Vertical Normal Grid (4 columns) */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredProducts.map((product, index) => {
-                        const gradients = [
-                            'from-red-600/25 via-orange-500/15 to-transparent',
-                            'from-orange-500/25 via-white/10 to-transparent',
-                            'from-red-500/25 via-white/10 to-transparent',
-                            'from-[#FF6B35]/30 to-transparent'
-                        ];
-                        const borderColors = [
-                            'border-red-500/30',
-                            'border-orange-500/30',
-                            'border-white/20',
-                            'border-[#FF6B35]/30'
-                        ];
-                        const shadowColors = [
-                            'hover:shadow-red-500/10',
-                            'hover:shadow-orange-500/10',
-                            'hover:shadow-white/5',
-                            'hover:shadow-[#FF6B35]/10'
-                        ];
-                        const currentGradient = gradients[index % gradients.length];
-                        const currentBorder = borderColors[index % borderColors.length];
-                        const currentShadow = shadowColors[index % shadowColors.length];
-
-                        return (
-                            <motion.div
-                                key={product.id}
-                                onClick={() => setSelectedCard(product.id)}
-                                // Min height of 600px, reduced padding for larger thumbnail
-                                className={`group relative p-4 rounded-[30px] overflow-hidden cursor-pointer transition-transform duration-500 flex flex-col min-h-[600px] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] bg-gradient-to-br ${currentGradient} bg-white/5 backdrop-blur-xl border ${currentBorder} z-10 ${currentShadow} hover:shadow-2xl`}
-                                whileHover={{ y: -8 }}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                {/* ---- TOP SECTION ---- */}
-                                <div className="z-10 relative flex flex-col h-[85px] shrink-0 px-1 ">
-                                    <div className="flex gap-2 justify-between items-start mb-3 w-full">
-                                        <div className="flex gap-2">
-                                            <span className="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-sm">
-                                                {product.badge1 || 'Trend'}
-                                            </span>
-                                            <span className="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-sm">
-                                                {product.badge2 || 'New'}
-                                            </span>
-                                        </div>
- 
-                                        {/* Small Okvevo Logo Badge */}
-                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-md">
-                                            <img src="/OKVEVO WithOut BackGrounds/White.svg" alt="OKVEVO" className="h-3.5 object-contain" />
-                                        </div>
-                                    </div>
- 
-                                    {/* Exact original Title */}
-                                    <h3 className="text-2xl lg:text-[28px] font-black tracking-tighter leading-[1] text-white pr-2 drop-shadow-md">
-                                        {product.name}
-                                    </h3>
-                                </div>
- 
-                                {/* ---- MIDDLE THUMBNAIL (Maximized) ---- */}
-                                <div className="relative w-full h-[450px] rounded-[30px] overflow-hidden z-0 shrink-0 shadow-2xl group">
-                                    <div className="w-full h-full relative rounded-[30px] overflow-hidden">
-                                        <ThumbnailScroller 
-                                            images={product.thumbnails} 
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                </div>
- 
-                                {/* ---- BOTTOM SECTION ---- */}
-                                <div className="z-10 w-full relative flex gap-2 shrink-0 mt-3 min-h-[60px] items-end justify-between">
-                                    <div className="flex-1 flex flex-col justify-end">
-                                        <p className="text-[13px] mb-2 leading-relaxed font-semibold text-white/70 pr-2">
-                                            {product.description}
-                                        </p>
-                                        <div className="flex items-center gap-1 font-black text-2xl tracking-tighter text-white drop-shadow-md">
-                                            {product.price === 0 ? "Free" : `₹${product.price}`}
-                                        </div>
-                                    </div>
- 
-                                    <div className="flex-shrink-0 flex items-end">
-                                        <button
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-700 ${
-                                                isInCart(product.id)
-                                                    ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] scale-105 cursor-default'
-                                                    : 'bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white hover:text-orange-500 shadow-lg group-hover:rotate-90'
-                                            }`}
-                                            disabled={isInCart(product.id)}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                addToCart(product);
-                                            }}
-                                        >
-                                            {isInCart(product.id) ? (
-                                                <Check className="w-5 h-5" />
-                                            ) : (
-                                                <Plus className="w-5 h-5" />
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                    {filteredProducts.map((product, index) => (
+                        <ProductCard 
+                            key={product.id}
+                            product={product}
+                            index={index}
+                            isInCart={isInCart}
+                            addToCart={addToCart}
+                            setSelectedCard={setSelectedCard}
+                        />
+                    ))}
                 </section>
             </main>
 
