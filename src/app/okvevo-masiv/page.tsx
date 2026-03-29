@@ -2,15 +2,30 @@
 
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, ArrowUpRight, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, ArrowUpRight, ArrowRight, ArrowLeft, Camera, RotateCcw } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-// import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 import Link from 'next/link';
+import SessionStatus from '@/components/booth/SessionStatus';
+import { 
+  createPhotoRequest, 
+  listenToResponse, 
+  resetSession, 
+  joinSession,
+  isCameraConnected,
+  PhotoResponse 
+} from '@/lib/boothSession';
+
+// Razorpay TypeScript declaration
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 interface MasivProduct {
     id: string;
@@ -381,6 +396,9 @@ export default function OkvevoMasivPage() {
     const [userName, setUserName] = useState('');
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [email, setEmail] = useState('');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    const [successOrderId, setSuccessOrderId] = useState('');
     const router = useRouter();
 
     const [products, setProducts] = useState<MasivProduct[]>([]);
@@ -394,6 +412,20 @@ export default function OkvevoMasivPage() {
             router.push('/login');
         }
     }, [authLoading, isAuthenticated, router]);
+
+    // Load Razorpay script
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        
+        return () => {
+            if (document.body.contains(script)) {
+                document.body.removeChild(script);
+            }
+        };
+    }, []);
 
     // Fetch Products from Firestore
     useEffect(() => {
@@ -417,6 +449,20 @@ export default function OkvevoMasivPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeFilter, setActiveFilter] = useState<'all' | 'photo' | 'video'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Booth Camera System State
+    const [boothSessionId, setBoothSessionId] = useState<string>('');
+    const [showSessionConfig, setShowSessionConfig] = useState(false);
+    const [cameraConnected, setCameraConnected] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<Map<string, string>>(new Map()); // requestId -> slotId
+    const [capturedPhotos, setCapturedPhotos] = useState<{fullBody: string | null, face: string | null}>({
+        fullBody: null,
+        face: null
+    });
+    const [photoAttempts, setPhotoAttempts] = useState<{fullBody: number, face: number}>({
+        fullBody: 0,
+        face: 0
+    });
 
     // Fetch Banners from Firestore
     useEffect(() => {
@@ -446,6 +492,18 @@ export default function OkvevoMasivPage() {
             })
             .sort((a, b) => (a.level || 0) - (b.level || 0)); // Sort by level (ascending)
     }, [products, activeFilter, searchQuery]);
+
+    // Initialize booth session from localStorage
+    useEffect(() => {
+        const savedSessionId = localStorage.getItem('masivBoothSessionId');
+        if (savedSessionId) {
+            setBoothSessionId(savedSessionId);
+            joinSession(savedSessionId).catch(err => {
+                console.error('Error joining booth session:', err);
+            });
+        }
+    }, []);
+
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
@@ -552,6 +610,105 @@ export default function OkvevoMasivPage() {
         }
     };
 
+    // Booth Camera: Request photo capture
+    const requestPhotoCapture = async (slotId: 'fullBody' | 'face') => {
+        if (!boothSessionId) {
+            alert('Please configure booth session first');
+            setShowSessionConfig(true);
+            return;
+        }
+
+        const connected = await isCameraConnected(boothSessionId);
+        if (!connected) {
+            alert('Camera is not connected. Please check iPhone.');
+            return;
+        }
+
+        const attemptCount = slotId === 'fullBody' ? photoAttempts.fullBody + 1 : photoAttempts.face + 1;
+        
+        if (attemptCount > 3) {
+            alert('Maximum 3 attempts reached for this photo');
+            return;
+        }
+
+        try {
+            const requestId = await createPhotoRequest(boothSessionId, slotId, attemptCount);
+            
+            // Track pending request
+            setPendingRequests(prev => new Map(prev).set(requestId, slotId));
+            
+            // Update attempt count
+            setPhotoAttempts(prev => ({
+                ...prev,
+                [slotId]: attemptCount
+            }));
+
+            // Listen for response
+            const unsubscribe = listenToResponse(boothSessionId, requestId, (response) => {
+                if (response && response.status === 'success') {
+                    // Update captured photos
+                    setCapturedPhotos(prev => ({
+                        ...prev,
+                        [slotId]: response.imageUrl
+                    }));
+
+                    // Also set the old state for compatibility with existing cart logic
+                    if (slotId === 'fullBody') {
+                        setFullBodyImage(response.imageUrl);
+                    } else {
+                        setFaceCloseUpImage(response.imageUrl);
+                    }
+
+                    // Remove from pending
+                    setPendingRequests(prev => {
+                        const newMap = new Map(prev);
+                        newMap.delete(requestId);
+                        return newMap;
+                    });
+
+                    unsubscribe();
+                }
+            });
+        } catch (error) {
+            console.error('Error requesting photo capture:', error);
+            alert('Failed to request photo capture');
+        }
+    };
+
+    // Booth Camera: Reset session
+    const handleResetSession = async () => {
+        if (!boothSessionId) return;
+        
+        if (confirm('Reset booth session? This will clear all photos and start fresh.')) {
+            try {
+                await resetSession(boothSessionId);
+                setCapturedPhotos({ fullBody: null, face: null });
+                setFullBodyImage(null);
+                setFaceCloseUpImage(null);
+                setPhotoAttempts({ fullBody: 0, face: 0 });
+                setPendingRequests(new Map());
+                setCart([]);
+                alert('Session reset successfully');
+            } catch (error) {
+                console.error('Error resetting session:', error);
+                alert('Failed to reset session');
+            }
+        }
+    };
+
+    // Booth Camera: Configure session
+    const handleSessionConfig = (newSessionId: string) => {
+        const cleanSessionId = newSessionId.trim().toUpperCase();
+        if (cleanSessionId && !cleanSessionId.includes('/') && !cleanSessionId.includes(':') && !cleanSessionId.includes('.')) {
+            localStorage.setItem('masivBoothSessionId', cleanSessionId);
+            setBoothSessionId(cleanSessionId);
+            joinSession(cleanSessionId);
+            setShowSessionConfig(false);
+        } else {
+            alert('Invalid session ID. Please enter only letters and numbers (e.g., BOOTH1)');
+        }
+    };
+
     const addToCart = async (product: MasivProduct) => {
         // Validate that photos are uploaded
         if (!fullBodyImage) {
@@ -567,17 +724,31 @@ export default function OkvevoMasivPage() {
             const timestamp = Date.now();
             const userId = user.uid;
             
-            // Upload Full Body Image to Storage
-            const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
-            await uploadString(fullBodyRef, fullBodyImage, 'data_url');
-            const fullBodyUrl = await getDownloadURL(fullBodyRef);
-
-            // Upload Face Image (if present)
+            let fullBodyUrl: string;
             let faceUrl = '';
+
+            // Check if fullBodyImage is already a Firebase Storage URL (from booth camera)
+            if (fullBodyImage.startsWith('https://')) {
+                // Already a Firebase Storage URL, use it directly
+                fullBodyUrl = fullBodyImage;
+            } else {
+                // It's a data URL, upload it to Storage
+                const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
+                await uploadString(fullBodyRef, fullBodyImage, 'data_url');
+                fullBodyUrl = await getDownloadURL(fullBodyRef);
+            }
+
+            // Handle face image similarly
             if (faceCloseUpImage) {
-                const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
-                await uploadString(faceRef, faceCloseUpImage, 'data_url');
-                faceUrl = await getDownloadURL(faceRef);
+                if (faceCloseUpImage.startsWith('https://')) {
+                    // Already a Firebase Storage URL
+                    faceUrl = faceCloseUpImage;
+                } else {
+                    // It's a data URL, upload it
+                    const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
+                    await uploadString(faceRef, faceCloseUpImage, 'data_url');
+                    faceUrl = await getDownloadURL(faceRef);
+                }
             }
 
             // Add to cart with photo URLs (no Firestore write yet - will be created after payment)
@@ -595,6 +766,8 @@ export default function OkvevoMasivPage() {
             // Clear uploaded images after successful submission
             setFullBodyImage(null);
             setFaceCloseUpImage(null);
+            setCapturedPhotos({ fullBody: null, face: null });
+            setPhotoAttempts({ fullBody: 0, face: 0 });
             
             alert('Successfully added to cart with your photos!');
             setSelectedCard(null);
@@ -606,6 +779,99 @@ export default function OkvevoMasivPage() {
 
     const removeFromCart = (id: string) => {
         setCart(cart.filter(item => item.id !== id));
+    };
+
+    const handleCheckout = async () => {
+        // Validate inputs
+        if (!userName || !whatsappNumber) {
+            alert('Please fill in all required fields (Name and WhatsApp Number)');
+            return;
+        }
+
+        if (!user?.uid) {
+            alert('Please sign in to proceed with checkout');
+            return;
+        }
+
+        setIsProcessingPayment(true);
+
+        try {
+            // Call backend to create Razorpay order + Firestore doc
+            const response = await fetch('/api/razorpay/create-masiv-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    customerName: userName,
+                    whatsappNumber,
+                    email: email || null,
+                    items: cart,
+                    totalAmount: totalPrice,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create order');
+            }
+
+            const { orderId, key, amount, currency } = await response.json();
+
+            // Check if Razorpay script is loaded
+            if (!window.Razorpay) {
+                throw new Error('Razorpay SDK not loaded. Please refresh the page.');
+            }
+
+            // Initialize Razorpay checkout
+            const options = {
+                key,
+                amount,
+                currency,
+                name: 'OKVEVO MASIV',
+                description: 'Photo/Video Trend Order',
+                order_id: orderId,
+                prefill: {
+                    name: userName,
+                    contact: whatsappNumber,
+                    email: email || '',
+                },
+                theme: {
+                    color: '#FF6B35',
+                },
+                handler: function (response: any) {
+                    // Payment successful
+                    console.log('Payment successful:', response);
+                    setSuccessOrderId(orderId);
+                    setShowSuccessPopup(true);
+                    setCart([]);
+                    setUserName('');
+                    setWhatsappNumber('');
+                    setEmail('');
+                    setCapturedPhotos({ fullBody: null, face: null });
+                    setPhotoAttempts({ fullBody: 0, face: 0 });
+                    setShowCart(false);
+                    
+                    // Auto-close popup after 3 seconds
+                    setTimeout(() => {
+                        setShowSuccessPopup(false);
+                    }, 3000);
+                },
+                modal: {
+                    ondismiss: function () {
+                        setIsProcessingPayment(false);
+                        console.log('Payment modal closed');
+                    },
+                },
+            };
+
+            const razorpay = new window.Razorpay(options);
+            razorpay.open();
+
+        } catch (error: any) {
+            console.error('Checkout error:', error);
+            alert(`Failed to initiate payment: ${error.message}\n\nPlease try again.`);
+            setIsProcessingPayment(false);
+        }
     };
 
     const isInCart = (id: string) => cart.some(item => item.id === id);
@@ -627,8 +893,39 @@ export default function OkvevoMasivPage() {
                         </Link>
                     </div>
 
-                    {/* Center - Empty */}
-                    <div className="flex-1 flex justify-center" />
+                    {/* Center - Session Status */}
+                    <div className="flex-1 flex justify-center gap-3">
+                        {boothSessionId && <SessionStatus sessionId={boothSessionId} showBanner={true} />}
+                        {boothSessionId && (
+                            <>
+                                <button
+                                    onClick={() => setShowSessionConfig(true)}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    title="Change Session ID"
+                                >
+                                    <Camera className="w-3 h-3" />
+                                    <span className="text-xs font-bold hidden lg:block">Change</span>
+                                </button>
+                                <button
+                                    onClick={handleResetSession}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    title="Reset Session"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span className="text-xs font-bold hidden lg:block">Reset</span>
+                                </button>
+                            </>
+                        )}
+                        {!boothSessionId && (
+                            <button
+                                onClick={() => setShowSessionConfig(true)}
+                                className="flex items-center gap-2 px-4 py-1.5 bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 rounded-full border border-[#FF6B35]/30 transition-colors"
+                            >
+                                <Camera className="w-3 h-3 text-[#FF6B35]" />
+                                <span className="text-xs font-bold text-[#FF6B35]">Setup Booth</span>
+                            </button>
+                        )}
+                    </div>
 
                     {/* Right - Cart */}
                     <div className="flex-1 flex justify-end">
@@ -839,31 +1136,33 @@ export default function OkvevoMasivPage() {
                                                         </button>
                                                     )}
                                                 </div>
-                                                <label className="flex-1 min-h-0 block cursor-pointer group">
-                                                    <input 
-                                                        type="file" 
-                                                        className="hidden" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleFileChange(e, 'full')}
-                                                    />
+                                                <div className="flex-1 min-h-0">
                                                     <div 
                                                         className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
                                                             fullBodyImage 
                                                                 ? 'border-[#FF6B35]/50 bg-[#FF6B35]/5' 
-                                                                : 'border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 group-hover:border-[#FF6B35]/60'
+                                                                : 'border-[#FF6B35]/30'
                                                         }`}
                                                     >
                                                         {fullBodyImage ? (
                                                             <img src={fullBodyImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Upload strokeWidth={1.5} className="w-5 h-5 text-white/40 group-hover:text-[#FF6B35] transition-colors mb-2" />
-                                                                <span className="text-white/60 text-[13px] mb-1 group-hover:text-white transition-colors">Upload full body photo</span>
-                                                                <span className="text-white/30 text-[11px]">Required for outfit reference</span>
+                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                <button
+                                                                    onClick={() => requestPhotoCapture('fullBody')}
+                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('fullBody')}
+                                                                    className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-xs rounded-lg transition-all"
+                                                                >
+                                                                    {Array.from(pendingRequests.values()).includes('fullBody') ? 'Capturing...' : 'Tap to Capture'}
+                                                                </button>
+                                                                <span className="text-white/30 text-[11px] mt-2">
+                                                                    {photoAttempts.fullBody > 0 && `Attempt ${photoAttempts.fullBody}/3`}
+                                                                </span>
                                                             </>
                                                         )}
                                                     </div>
-                                                </label>
+                                                </div>
                                             </div>
 
                                             {/* Bottom Box: Face Close-up */}
@@ -885,31 +1184,33 @@ export default function OkvevoMasivPage() {
                                                         </button>
                                                     )}
                                                 </div>
-                                                <label className="flex-1 min-h-0 block cursor-pointer group">
-                                                    <input 
-                                                        type="file" 
-                                                        className="hidden" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleFileChange(e, 'face')}
-                                                    />
+                                                <div className="flex-1 min-h-0">
                                                     <div 
                                                         className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
                                                             faceCloseUpImage 
                                                                 ? 'border-white/30 bg-white/5' 
-                                                                : 'border-white/10 group-hover:bg-white/5 group-hover:border-white/30'
+                                                                : 'border-white/10'
                                                         }`}
                                                     >
                                                         {faceCloseUpImage ? (
                                                             <img src={faceCloseUpImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Upload strokeWidth={1.5} className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors mb-2" />
-                                                                <span className="text-white/60 text-[13px] mb-1 group-hover:text-white transition-colors">Upload face close-up</span>
-                                                                <span className="text-white/30 text-[11px]">For better facial accuracy</span>
+                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                <button
+                                                                    onClick={() => requestPhotoCapture('face')}
+                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('face')}
+                                                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/20 text-white font-bold text-xs rounded-lg transition-all"
+                                                                >
+                                                                    {Array.from(pendingRequests.values()).includes('face') ? 'Capturing...' : 'Tap to Capture'}
+                                                                </button>
+                                                                <span className="text-white/30 text-[11px] mt-2">
+                                                                    {photoAttempts.face > 0 && `Attempt ${photoAttempts.face}/3`}
+                                                                </span>
                                                             </>
                                                         )}
                                                     </div>
-                                                </label>
+                                                </div>
                                             </div>
 
                                         </div>
@@ -1191,25 +1492,148 @@ export default function OkvevoMasivPage() {
                                             <span className="text-4xl font-black text-white">₹{totalPrice}</span>
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                if (!userName || !whatsappNumber) {
-                                                    alert('Please fill in all required fields (Name and WhatsApp Number)');
-                                                    return;
-                                                }
-                                                alert('Payment integration coming soon!');
-                                            }}
-                                            disabled={!userName || !whatsappNumber}
+                                            onClick={handleCheckout}
+                                            disabled={!userName || !whatsappNumber || isProcessingPayment}
                                             className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                                                !userName || !whatsappNumber
+                                                !userName || !whatsappNumber || isProcessingPayment
                                                     ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                                                     : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_0_30px_rgba(255,107,53,0.3)]'
                                             }`}
                                         >
-                                            Proceed to Checkout
+                                            {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
                                         </button>
                                     </div>
                                 )}
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Session Configuration Modal */}
+            <AnimatePresence>
+                {showSessionConfig && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowSessionConfig(false)}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-[#0d0d0d] border border-white/10 rounded-3xl p-8 max-w-md w-full"
+                        >
+                            <div className="text-center mb-6">
+                                <Camera className="w-12 h-12 mx-auto mb-3 text-[#FF6B35]" />
+                                <h2 className="text-2xl font-black mb-2">Configure Booth Session</h2>
+                                <p className="text-white/50 text-sm">Enter the session ID to connect iPad with iPhone camera</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">
+                                        Session ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        defaultValue={boothSessionId}
+                                        placeholder="BOOTH1"
+                                        id="sessionIdInput"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors uppercase"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowSessionConfig(false)}
+                                        className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.getElementById('sessionIdInput') as HTMLInputElement;
+                                            if (input?.value) {
+                                                handleSessionConfig(input.value);
+                                            }
+                                        }}
+                                        className="flex-1 py-3 bg-[#FF6B35] hover:bg-[#FF8F6B] text-white font-bold rounded-xl transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Payment Success Popup */}
+            <AnimatePresence>
+                {showSuccessPopup && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.8, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.8, y: 20 }}
+                            className="bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border-2 border-[#FF6B35] rounded-3xl p-10 max-w-md w-full text-center shadow-[0_0_50px_rgba(255,107,53,0.5)]"
+                        >
+                            {/* Success Icon */}
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                                className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#FF6B35] to-[#FF8F6B] rounded-full flex items-center justify-center"
+                            >
+                                <Check className="w-10 h-10 text-white" strokeWidth={3} />
+                            </motion.div>
+
+                            {/* Success Message */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
+                                    Payment Successful!
+                                </h2>
+                                <p className="text-white/70 text-lg mb-4">
+                                    Your order has been placed successfully
+                                </p>
+                                
+                                {/* Order ID */}
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+                                    <p className="text-white/50 text-xs uppercase tracking-widest font-bold mb-1">
+                                        Order ID
+                                    </p>
+                                    <p className="text-[#FF6B35] font-mono text-sm break-all">
+                                        {successOrderId}
+                                    </p>
+                                </div>
+
+                                {/* Contact Info */}
+                                <p className="text-white/60 text-sm">
+                                    We'll contact you on WhatsApp shortly
+                                </p>
+                            </motion.div>
+
+                            {/* Auto-close indicator */}
+                            <motion.div
+                                initial={{ width: "100%" }}
+                                animate={{ width: "0%" }}
+                                transition={{ duration: 3, ease: "linear" }}
+                                className="h-1 bg-[#FF6B35] rounded-full mt-6"
+                            />
                         </motion.div>
                     </motion.div>
                 )}

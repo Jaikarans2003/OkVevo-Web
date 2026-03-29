@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     activatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     lastPaymentId: payment?.id || null,
-                    lastPaymentAmount: payment?.amount || planDetails.price,
+                    lastPaymentAmount: payment?.amount || 0,
                     lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -436,6 +436,73 @@ export async function POST(request: NextRequest) {
                 if (subscriptionId) {
                     console.log(`⏰ Invoice expired: ${subscriptionId}`);
                 }
+                break;
+            }
+
+            // ========== MASIV ONE-TIME PAYMENT EVENTS ==========
+            
+            case 'payment.captured': {
+                const payment = payload.payment.entity;
+                const orderId = payment.order_id;
+                const paymentId = payment.id;
+
+                if (!orderId) {
+                    console.log('⚠️ Payment without order_id, skipping');
+                    return NextResponse.json({ success: true });
+                }
+
+                // Check if this is a MASIV order by looking for the document
+                const orderRef = db.collection('masiv_orders').doc(orderId);
+                const orderDoc = await orderRef.get();
+
+                if (!orderDoc.exists) {
+                    console.log(`⚠️ Order not found in masiv_orders: ${orderId}, might be subscription payment`);
+                    return NextResponse.json({ success: true });
+                }
+
+                // Update the order with payment details
+                await orderRef.update({
+                    paymentId,
+                    status: 'paid',
+                    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+                    paymentDetails: {
+                        amount: payment.amount,
+                        method: payment.method,
+                        email: payment.email,
+                        contact: payment.contact,
+                    },
+                });
+
+                console.log(`✅ MASIV order paid: ${orderId}, payment: ${paymentId}`);
+                break;
+            }
+
+            case 'payment.failed': {
+                const payment = payload.payment.entity;
+                const orderId = payment.order_id;
+
+                if (!orderId) {
+                    console.log('⚠️ Failed payment without order_id, skipping');
+                    return NextResponse.json({ success: true });
+                }
+
+                // Check if this is a MASIV order
+                const orderRef = db.collection('masiv_orders').doc(orderId);
+                const orderDoc = await orderRef.get();
+
+                if (!orderDoc.exists) {
+                    console.log(`⚠️ Order not found in masiv_orders: ${orderId}`);
+                    return NextResponse.json({ success: true });
+                }
+
+                // Update the order status to failed
+                await orderRef.update({
+                    status: 'failed',
+                    failureReason: payment.error_description || 'Payment failed',
+                    failedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`❌ MASIV order payment failed: ${orderId}`);
                 break;
             }
 

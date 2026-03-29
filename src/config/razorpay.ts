@@ -16,8 +16,14 @@ export type PlanType = 'hobby' | 'pro' | 'enterprise';
  * Format: plan_XXXXXXXXXXXXX
  */
 export const RAZORPAY_PLAN_IDS = {
-    hobby: process.env.RAZORPAY_HOBBY_PLAN_ID || 'plan_hobby_monthly',
-    pro: process.env.RAZORPAY_PRO_PLAN_ID || 'plan_pro_monthly',
+    hobby: {
+        monthly: process.env.RAZORPAY_HOBBY_PLAN_ID || '',
+        annual: process.env.RAZORPAY_HOBBY_ANNUAL_PLAN_ID || '',
+    },
+    pro: {
+        monthly: process.env.RAZORPAY_PRO_PLAN_ID || '',
+        annual: process.env.RAZORPAY_PRO_ANNUAL_PLAN_ID || '',
+    },
 };
 
 /**
@@ -26,18 +32,34 @@ export const RAZORPAY_PLAN_IDS = {
 export const SUBSCRIPTION_PLANS = {
     hobby: {
         name: 'Hobby',
-        price: 599900, // ₹5,999 in paise
-        currency: 'INR',
-        period: 'monthly',
-        interval: 1,
+        monthly: {
+            price: 599900, // ₹5,999 in paise
+            currency: 'INR',
+            period: 'monthly',
+            interval: 1,
+        },
+        annual: {
+            price: 509900, // ₹5,099 in paise (annual monthly equivalent)
+            currency: 'INR',
+            period: 'annual',
+            interval: 12,
+        },
         credits: 10000, // Initial credits for hobby plan (50 videos or 30 min generation)
     },
     pro: {
         name: 'Pro',
-        price: 1799900, // ₹17,999 in paise
-        currency: 'INR',
-        period: 'monthly',
-        interval: 1,
+        monthly: {
+            price: 1799900, // ₹17,999 in paise
+            currency: 'INR',
+            period: 'monthly',
+            interval: 1,
+        },
+        annual: {
+            price: 1529900, // ₹15,299 in paise (annual monthly equivalent)
+            currency: 'INR',
+            period: 'annual',
+            interval: 12,
+        },
         credits: 36000, // Initial credits for pro plan (180 videos or 105 min generation)
     },
     enterprise: {
@@ -58,10 +80,36 @@ export function getPlanDetails(planType: PlanType) {
 }
 
 /**
- * Get Razorpay plan ID by plan type
+ * Get Razorpay plan ID by plan type and billing period
  */
-export function getRazorpayPlanId(planType: PlanType): string {
-    if (planType === 'hobby') return RAZORPAY_PLAN_IDS.hobby;
-    if (planType === 'pro') return RAZORPAY_PLAN_IDS.pro;
+export function getRazorpayPlanId(planType: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly'): string {
+    if (planType === 'hobby') return RAZORPAY_PLAN_IDS.hobby[billingPeriod];
+    if (planType === 'pro') return RAZORPAY_PLAN_IDS.pro[billingPeriod];
     throw new Error(`No Razorpay plan ID configured for ${planType}`);
+}
+
+/**
+ * Get plan details by plan type and billing period
+ */
+export function getPlanDetailsByPeriod(planType: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly') {
+    const plan = SUBSCRIPTION_PLANS[planType];
+    
+    // Enterprise plan doesn't have monthly/annual variants
+    if (planType === 'enterprise') {
+        const enterprisePlan = plan as typeof SUBSCRIPTION_PLANS.enterprise;
+        return {
+            name: enterprisePlan.name,
+            price: enterprisePlan.price,
+            currency: enterprisePlan.currency,
+            period: enterprisePlan.period,
+            interval: enterprisePlan.interval,
+            credits: enterprisePlan.credits,
+        };
+    }
+    
+    return {
+        name: plan.name,
+        ...(plan as any)[billingPeriod],
+        credits: plan.credits,
+    };
 }

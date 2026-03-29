@@ -32,8 +32,8 @@ const Pricing = ({ user }: PricingProps) => {
     {
         name: 'Hobby',
         icon: Sparkles,
-        price: '₹5,999',
-        period: 'per month',
+        annualPrice: '₹5,099',
+        monthlyPrice: '₹5,999',
         description: 'Perfect for getting started with AI-powered influencer content',
         features: [
             '50 AI Influencer Videos OR 30 minutes generation',
@@ -52,8 +52,8 @@ const Pricing = ({ user }: PricingProps) => {
     {
         name: 'Pro',
         icon: Zap,
-        price: '₹17,999',
-        period: 'per month',
+        annualPrice: '₹15,299',
+        monthlyPrice: '₹17,999',
         description: 'For creators and brands scaling AI content production',
         features: [
             '180 AI Influencer Videos',
@@ -164,7 +164,7 @@ const Pricing = ({ user }: PricingProps) => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                        className="text-5xl md:text-[80px] font-bold mb-6 text-white tracking-tight leading-none"
+                        className="text-5xl md:text-[80px] font-bold mb-2 text-white tracking-tight leading-none"
                     >
                         Pricing
                     </motion.h2>
@@ -177,6 +177,41 @@ const Pricing = ({ user }: PricingProps) => {
                     >
                         Choose your Creative Power
                     </motion.p>
+
+                    {/* Centralized Toggle Button */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex items-center justify-center gap-3 mt-8"
+                    >
+                        <span className={`text-xs font-semibold transition-colors ${
+                            !isAnnual ? 'text-white' : 'text-[#666]'
+                        }`}>
+                            Monthly
+                        </span>
+                        <div 
+                            className="relative w-12 h-6 rounded-full cursor-pointer transition-all bg-gradient-to-r from-orange-400 to-orange-500 shadow-[0_0_15px_rgba(255,107,0,0.3)]"
+                            onClick={() => setIsAnnual(!isAnnual)}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                                isAnnual ? 'translate-x-7' : 'translate-x-1'
+                            }`}></div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold transition-colors ${
+                                isAnnual ? 'text-white' : 'text-[#666]'
+                            }`}>
+                                Annual
+                            </span>
+                            {isAnnual && (
+                                <span className="px-1.5 py-0.5 bg-orange-500/20 border border-orange-500/40 rounded-full text-[10px] font-bold text-orange-400 uppercase tracking-wider">
+                                    15% Off
+                                </span>
+                            )}
+                        </div>
+                    </motion.div>
                 </div>
 
                 {/* Pricing Cards */}
@@ -201,33 +236,22 @@ const Pricing = ({ user }: PricingProps) => {
                                 )}
 
                                 {/* Header Section */}
-                                <div className="flex justify-between items-start mb-6 relative z-10">
-                                    <div className="pr-4">
-                                        <h3 className="text-2xl font-bold text-white mb-1 group-hover:text-orange-400 transition-colors uppercase tracking-tight">{plan.name}</h3>
-                                        <p className="text-[#888] text-sm leading-relaxed">{plan.description}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[9px] text-[#666] font-bold tracking-widest uppercase">
-                                            {plan.name === 'Enterprise' ? 'Annual Only' : 'Annual'}
-                                        </span>
-                                        {plan.name !== 'Enterprise' && (
-                                            <div 
-                                                className={`w-8 h-4 rounded-full flex items-center px-[2px] cursor-pointer transition-colors ${plan.highlighted ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-[#222] border border-[#333]'}`}
-                                                onClick={() => setIsAnnual(!isAnnual)}
-                                            >
-                                                <div className={`w-3 h-3 rounded-full bg-white shadow-sm transform transition-transform ${isAnnual ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className="mb-6 relative z-10">
+                                    <h3 className="text-2xl font-bold text-white mb-1 group-hover:text-orange-400 transition-colors uppercase tracking-tight">{plan.name}</h3>
+                                    <p className="text-[#888] text-sm leading-relaxed">{plan.description}</p>
                                 </div>
 
                                 <div className="h-px w-full bg-gradient-to-r from-transparent via-[#333] to-transparent mb-6 relative z-10"></div>
 
                                 {/* Price Section */}
                                 <div className="mb-6 flex items-baseline gap-2 relative z-10">
-                                    <span className="text-5xl font-black text-white tracking-tighter">{plan.price}</span>
+                                    <span className="text-5xl font-black text-white tracking-tighter">
+                                        {plan.name === 'Enterprise' ? plan.price : (isAnnual ? plan.annualPrice : plan.monthlyPrice)}
+                                    </span>
                                     {plan.period !== 'contact sales' && (
-                                        <span className="text-[#888] text-sm font-medium tracking-tight uppercase">{plan.period}</span>
+                                        <span className="text-[#888] text-sm font-medium tracking-tight uppercase">
+                                            {plan.name === 'Enterprise' ? plan.period : 'per month'}
+                                        </span>
                                     )}
                                 </div>
 
@@ -266,6 +290,7 @@ const Pricing = ({ user }: PricingProps) => {
                                         user ? (
                                             <RazorpayCheckout
                                                 planType="hobby"
+                                                billingPeriod={isAnnual ? 'annual' : 'monthly'}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
                                                     router.push('/workspace');
@@ -287,6 +312,7 @@ const Pricing = ({ user }: PricingProps) => {
                                         user ? (
                                             <RazorpayCheckout
                                                 planType="pro"
+                                                billingPeriod={isAnnual ? 'annual' : 'monthly'}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
                                                     router.push('/workspace');

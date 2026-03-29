@@ -6,14 +6,14 @@ export type PlanType = 'hobby' | 'pro' | 'enterprise';
 export const SUBSCRIPTION_PLANS = {
     hobby: {
         name: 'Hobby',
-        price: 4999,
+        price: 599900,
         currency: 'INR',
         period: 'monthly',
         interval: 1
     },
     pro: {
         name: 'Pro',
-        price: 13999,
+        price: 1799900,
         currency: 'INR',
         period: 'monthly',
         interval: 1
