@@ -41,7 +41,7 @@ export interface UserCredits {
  * Feature credit costs
  */
 export const FEATURE_COSTS: Record<FeatureType, number> = {
-    AI_INFLUENCER: 70,
+    AI_INFLUENCER: 200,
     PRODUCT_SHOOTS: 50,
     PRODUCT_PLACEMENT: 30,
     TRENDS: 100, // Sky Fall trend

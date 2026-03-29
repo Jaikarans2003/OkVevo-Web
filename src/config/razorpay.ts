@@ -26,7 +26,7 @@ export const RAZORPAY_PLAN_IDS = {
 export const SUBSCRIPTION_PLANS = {
     hobby: {
         name: 'Hobby',
-        price: 499900, // ₹4,999 in paise
+        price: 599900, // ₹5,999 in paise
         currency: 'INR',
         period: 'monthly',
         interval: 1,
@@ -34,11 +34,11 @@ export const SUBSCRIPTION_PLANS = {
     },
     pro: {
         name: 'Pro',
-        price: 1399900, // ₹13,999 in paise
+        price: 1799900, // ₹17,999 in paise
         currency: 'INR',
         period: 'monthly',
         interval: 1,
-        credits: 40000, // Initial credits for pro plan (180 videos or 105 min generation)
+        credits: 36000, // Initial credits for pro plan (180 videos or 105 min generation)
     },
     enterprise: {
         name: 'Enterprise',
