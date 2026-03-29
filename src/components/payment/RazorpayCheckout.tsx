@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface RazorpayCheckoutProps {
     planType: 'hobby' | 'pro';
+    billingPeriod?: 'monthly' | 'annual';
     onSuccess?: (subscriptionId: string) => void;
     onError?: (error: string) => void;
 }
@@ -15,7 +16,7 @@ declare global {
     }
 }
 
-const RazorpayCheckout = ({ planType, onSuccess, onError }: RazorpayCheckoutProps) => {
+const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', onSuccess, onError }: RazorpayCheckoutProps) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -55,6 +56,7 @@ const RazorpayCheckout = ({ planType, onSuccess, onError }: RazorpayCheckoutProp
                 },
                 body: JSON.stringify({
                     planType,
+                    billingPeriod,
                     userId: user.uid,
                     userEmail: user.email,
                     userName: user.displayName || 'User',

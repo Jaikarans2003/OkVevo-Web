@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { RAZORPAY_CONFIG, getPlanDetails, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
+import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
 
 /**
  * Create Razorpay Subscription
@@ -14,7 +14,7 @@ import { RAZORPAY_CONFIG, getPlanDetails, getRazorpayPlanId, type PlanType } fro
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { planType, userId, userEmail, userName } = body;
+        const { planType, userId, userEmail, userName, billingPeriod = 'monthly' } = body;
 
         // Validate inputs
         if (!planType || !userId) {
@@ -31,26 +31,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (billingPeriod !== 'monthly' && billingPeriod !== 'annual') {
+            return NextResponse.json(
+                { success: false, error: 'Invalid billing period. Must be "monthly" or "annual"' },
+                { status: 400 }
+            );
+        }
+
         // Initialize Razorpay instance
         const razorpay = new Razorpay({
             key_id: RAZORPAY_CONFIG.keyId,
             key_secret: RAZORPAY_CONFIG.keySecret,
         });
 
-        const planDetails = getPlanDetails(planType as PlanType);
-        const razorpayPlanId = getRazorpayPlanId(planType as PlanType);
+        const planDetails = getPlanDetailsByPeriod(planType as PlanType, billingPeriod as 'monthly' | 'annual');
+        const razorpayPlanId = getRazorpayPlanId(planType as PlanType, billingPeriod as 'monthly' | 'annual');
 
-        console.log(`📦 Creating subscription for user ${userId}, plan: ${planType}`);
+        console.log(`📦 Creating ${billingPeriod} subscription for user ${userId}, plan: ${planType}`);
 
         // Create subscription
         const subscription = await razorpay.subscriptions.create({
             plan_id: razorpayPlanId,
-            total_count: 12, // 12 months (1 year)
+            total_count: billingPeriod === 'annual' ? 1 : 12, // 1 year for annual, 12 months for monthly
             quantity: 1,
             customer_notify: 1,
             notes: {
                 userId,
                 planType,
+                billingPeriod,
                 userEmail: userEmail || '',
                 userName: userName || '',
             },
