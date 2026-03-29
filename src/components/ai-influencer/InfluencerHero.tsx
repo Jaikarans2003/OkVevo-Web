@@ -36,7 +36,7 @@ export default function InfluencerHero() {
                         className="w-full h-full object-cover grayscale-[0.2] transition-transform duration-700 group-hover:scale-105"
                         src="https://cdn.pixabay.com/video/2024/01/25/198113-906522636_large.mp4"
                     />
-                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-700" />
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/30 transition-all duration-700" />
                 </div>
 
                 {/* Bottom-Left White Poche (Kept for design consistency) */}

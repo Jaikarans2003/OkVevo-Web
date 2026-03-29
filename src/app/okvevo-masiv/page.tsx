@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play } from 'lucide-react';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, ArrowUpRight, ArrowRight, ArrowLeft } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -62,15 +62,12 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
     const [index, setIndex] = useState(0);
 
     useEffect(() => {
-        if (!isHovered) {
-            setIndex(0);
-            return;
-        }
+        // ROTATION: Automatic change every 5 seconds regardless of hover
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % images.length);
-        }, 1500);
+        }, 5000);
         return () => clearInterval(interval);
-    }, [images.length, isHovered]);
+    }, [images.length]);
 
     const getLabel = (idx: number) => {
         if (images.length === 2) return idx === 0 ? "MALE" : "FEMALE";
@@ -79,45 +76,62 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
 
     const mediaUrl = images[index];
     const isMediaVideo = isVideo(mediaUrl);
-    // Add time fragment for iOS poster generation
-    const sourceUrl = isMediaVideo ? `${mediaUrl}#t=0.001` : mediaUrl;
+    // REMOVED fragment to avoid Error 208 on certain devices
+    const sourceUrl = mediaUrl;
 
     return (
         <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center p-2">
-                {isMediaVideo ? (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                        <video 
-                            key={sourceUrl}
-                            src={sourceUrl}
-                            autoPlay={isHovered}
-                            muted 
-                            loop 
-                            playsInline 
-                            preload="auto"
-                            className="w-full h-full object-contain" 
-                        />
-                        {!isHovered && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:opacity-0 transition-opacity">
-                                <div className="w-10 h-10 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center">
-                                    <Play className="w-4 h-4 text-white/40 fill-white/10 ml-0.5" />
-                                </div>
+            <AnimatePresence mode="wait">
+                <motion.div 
+                    key={sourceUrl}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    className="absolute inset-0 w-full h-full flex items-center justify-center"
+                >
+                    {isMediaVideo ? (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            <video 
+                                src={sourceUrl}
+                                autoPlay
+                                muted 
+                                loop 
+                                playsInline 
+                                preload="metadata"
+                                crossOrigin="anonymous"
+                                className="w-full h-full object-cover" 
+                            />
+                            {/* Visual play indicator always visible for clarity if not auto-played by browser */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                <Play className="w-6 h-6 text-white/20 fill-white/10" />
                             </div>
-                        )}
-                    </div>
-                ) : (
-                    <img 
-                        key={sourceUrl}
-                        src={sourceUrl}
-                        alt=""
-                        loading="lazy"
-                        className="w-full h-full object-contain" 
+                        </div>
+                    ) : (
+                        <img 
+                            src={sourceUrl}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-full object-cover" 
+                        />
+                    )}
+                </motion.div>
+            </AnimatePresence>
+
+            {/* Pagination Dots for Thumbnails (Sleek) */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-30">
+                {images.map((_, i) => (
+                    <div 
+                        key={i} 
+                        className={`h-1 rounded-full transition-all duration-500 ${
+                            i === index ? 'w-4 bg-[#FF6B35]' : 'w-1 bg-white/20'
+                        }`} 
                     />
-                )}
+                ))}
             </div>
 
-            <div className="absolute top-3 left-3 z-20">
-                <span className="bg-black/40 backdrop-blur-md text-[8px] font-black text-white/70 px-2 py-0.5 rounded-full border border-white/5 tracking-widest uppercase">
+            <div className="absolute top-3 left-3 z-30">
+                <span className="bg-black/40 backdrop-blur-md text-[8px] font-black text-white/50 px-2 py-0.5 rounded-full border border-white/5 tracking-[0.2em] uppercase">
                     {getLabel(index)}
                 </span>
             </div>
@@ -215,108 +229,144 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     useEffect(() => {
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % items.length);
-        }, 6000); // Swipe every 6 seconds
+        }, 8000); 
         return () => clearInterval(interval);
     }, [items.length]);
 
     return (
-        <div className="relative w-full h-[400px] md:h-[500px] rounded-[48px] overflow-hidden group shadow-2xl border border-white/5 bg-[#0a0a0a]">
+        <div className="relative w-full h-[600px] md:h-[700px] rounded-[32px] md:rounded-[48px] overflow-hidden group shadow-[0_30px_100px_rgba(0,0,0,0.8),0_0_150px_rgba(255,107,53,0.25)] border border-white/5 bg-[#0a0a0a]">
+            {/* 1. IMMERSIVE BACKGROUND LAYER */}
             <AnimatePresence mode="wait">
                 <motion.div
-                    key={index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="absolute inset-0 w-full h-full"
+                    key={`bg-${index}`}
+                    initial={{ opacity: 0, scale: 1.2 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute inset-0 z-0"
                 >
-                    {/* 50/50 Split Layout */}
-                    <div className="flex flex-col md:flex-row h-full">
-                        {/* Left Column: Content */}
-                        <div className="w-full md:w-1/2 h-full flex flex-col justify-center px-8 md:px-20 z-20 relative bg-gradient-to-r from-black via-black/80 to-transparent">
-                            <motion.span 
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-[10px] md:text-xs mb-6 inline-flex items-center gap-2"
-                            >
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
-                                {items[index].badge || "Featured Collection"}
-                            </motion.span>
-                            
-                            <motion.h2 
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="text-4xl md:text-7xl font-black tracking-tighter text-white mb-6 md:mb-8 leading-[0.9] uppercase"
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: items[index].title }} />
-                            </motion.h2>
-
-                            <motion.p 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="text-gray-400 text-sm md:text-lg mb-8 md:mb-12 max-w-md leading-relaxed"
-                            >
-                                {items[index].description}
-                            </motion.p>
-                        </div>
-
-                        {/* Right Column: Media (Coverage) */}
-                        <div className="w-full md:w-1/2 h-full relative z-10 overflow-hidden bg-black">
-                            <motion.div 
-                                key={`media-${index}`}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 1 }}
-                                className="w-full h-full"
-                            >
-                                {isVideo(items[index].image) ? (
-                                    <video 
-                                        src={items[index].image} 
-                                        autoPlay 
-                                        muted 
-                                        loop 
-                                        playsInline
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <img 
-                                        src={items[index].image} 
-                                        alt={items[index].title} 
-                                        className="w-full h-full object-cover"
-                                    />
-                                )}
-                            </motion.div>
-                            
-                            {/* Gradient to blend with left content */}
-                            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-black to-transparent z-20 md:block hidden" />
-                        </div>
-                    </div>
+                    {isVideo(items[index].image) ? (
+                        <video 
+                            src={items[index].image} 
+                            autoPlay muted loop playsInline 
+                            className="w-full h-full object-cover brightness-[0.9]" 
+                        />
+                    ) : (
+                        <img 
+                            src={items[index].image} 
+                            alt="" 
+                            className="w-full h-full object-cover brightness-[0.7]" 
+                        />
+                    )}
+                    {/* Dark gradient overlay for readability */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
                 </motion.div>
             </AnimatePresence>
 
-            {/* Carousel Nav Dots */}
-            <div className="absolute bottom-10 right-10 flex gap-3 z-30">
-                {items.map((_, i) => (
-                    <button
-                        key={i}
-                        onClick={() => setIndex(i)}
-                        className={`h-1.5 rounded-full transition-all duration-700 ${
-                            i === index ? 'w-12 bg-[#FF6B35]' : 'w-3 bg-white/20'
-                        }`}
-                    />
-                ))}
+            {/* 2. HERO CONTENT (LEFT SIDE) */}
+            <div className="absolute inset-0 z-10 flex flex-col justify-center px-8 md:px-20 max-w-4xl">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={`content-${index}`}
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="space-y-6 md:space-y-10"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="h-[2px] w-12 bg-[#FF6B35]" />
+                            <span className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-[10px] md:text-xs">
+                                {items[index].badge || "Global Destination"}
+                            </span>
+                        </div>
+
+                        <h1 className="text-5xl md:text-[7rem] font-black leading-[0.85] text-white tracking-tighter uppercase max-w-min">
+                            <span dangerouslySetInnerHTML={{ __html: items[index].title }} />
+                        </h1>
+
+                        <p className="text-white/40 text-sm md:text-lg font-medium max-w-md leading-relaxed">
+                            {items[index].description || "Experience the pinnacle of creative excellence. Our global community curates only the most elite digital assets."}
+                        </p>
+
+                        <div className="flex items-center gap-8 pt-6">
+                            <button className="px-8 py-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-white text-xs font-black tracking-[0.3em] uppercase hover:bg-white hover:text-black transition-all duration-500 overflow-hidden group/btn">
+                                <span className="relative z-10">Discover Project</span>
+                            </button>
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group/play cursor-pointer hover:bg-[#FF6B35] transition-all">
+                                    <Play className="w-4 h-4 text-white fill-white/10" />
+                                </div>
+                                <span className="text-[10px] font-black tracking-widest text-white/20 uppercase">Watch Reel</span>
+                            </div>
+                        </div>
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
-            {/* Visual Decorative elements */}
-            <div className="absolute top-10 right-10 hidden lg:block">
-                <div className="w-40 h-40 border border-white/10 rounded-full flex items-center justify-center p-4 backdrop-blur-sm animate-reel-spin">
-                    <div className="w-full h-full border-t-2 border-[#FF6B35] rounded-full" />
+            {/* 3. INTERACTIVE THUMBNAILS (LAYOUT-DRIVEN SMOOTH TRANSITIONS) */}
+            <div className="absolute bottom-10 right-12 z-20 flex items-end gap-5 overflow-visible max-w-[50%] justify-end">
+                {[0, 1, 2].map((offset) => {
+                    const itemIndex = (index + offset) % items.length;
+                    const item = items[itemIndex];
+                    return (
+                        <motion.div
+                            key={item.id}
+                            layout
+                            layoutId={item.id}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ 
+                                opacity: offset === 0 ? 1 : 0.4, 
+                                x: 0, 
+                                scale: offset === 0 ? 1.05 : 1, 
+                                y: offset === 0 ? -10 : 0 
+                            }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ 
+                                layout: { duration: 0.8, ease: [0.16, 1, 0.3, 1] },
+                                opacity: { duration: 0.6 },
+                                scale: { duration: 0.6 }
+                            }}
+                            onClick={() => setIndex(itemIndex)}
+                            className={`relative w-32 md:w-52 aspect-[4/5] rounded-3xl md:rounded-[10px] overflow-hidden cursor-pointer border-2 transition-all duration-700 shadow-[0_20px_60px_rgba(0,0,0,0.8)] ${
+                                offset === 0 ? 'border-white/40' : 'border-white/5 grayscale hover:grayscale-0'
+                            }`}
+                        >
+                            <img src={item.image} alt="" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                            <div className="absolute bottom-6 left-6 right-6 text-[10px] md:text-[12px] font-black text-white leading-tight uppercase tracking-widest z-10">
+                                {item.title.replace(/<[^>]*>?/gm, '')}
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </div>
+
+            {/* 4. NAVIGATION & INDICATORS */}
+            <div className="absolute bottom-12 left-8 md:left-20 z-20 flex items-center gap-10">
+                {/* Arrow Nav */}
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => setIndex((index - 1 + items.length) % items.length)}
+                        className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-white/40 hover:text-white"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <button 
+                        onClick={() => setIndex((index + 1) % items.length)}
+                        className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-white/40 hover:text-white"
+                    >
+                        <ArrowRight className="w-5 h-5" />
+                    </button>
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center text-[#FF6B35] font-black text-[10px] tracking-widest uppercase rotate-12">
-                    Premium 2026
+
+                {/* Big Number Counter */}
+                <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-white tracking-tighter">0{index + 1}</span>
+                    <div className="h-px w-10 bg-white/20" />
+                    <span className="text-sm font-black text-white/20 tracking-tighter">0{items.length}</span>
                 </div>
             </div>
         </div>
@@ -609,52 +659,53 @@ export default function OkvevoMasivPage() {
                         Explore Our Catalog
                     </p> */}
                     <h1 className="text-6xl md:text-5xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
-                        "AI-Crafted Visuals, Staring with You."
                     </h1>
                 </header>
 
-                {/* Featured Trends Section */}
-                <section className="px-6 md:px-10 mb-16">
-                    {loadingBanners ? (
-                        <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
-                                <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Features...</p>
-                            </div>
-                        </div>
-                    ) : banners.length > 0 ? (
-                        <FeaturedCarousel 
-                            onTryTrend={() => {}}
-                            items={banners.map(b => ({
-                                id: b.id,
-                                title: b.title,
-                                image: b.mediaUrl,
-                                description: b.description,
-                                badge: b.badge
-                            }))}
-                        />
-                    ) : (
-                        // Fallback to products if no banners are configured
-                        loadingProducts ? (
+                {/* Featured Trends Section with Orange Boundary Glow */}
+                <section className="px-6 md:px-10 mb-6 relative z-10">
+                    <div className="relative z-10">
+                        {loadingBanners ? (
                             <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
                                 <div className="flex flex-col items-center gap-4">
                                     <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
-                                    <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
+                                    <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Features...</p>
                                 </div>
                             </div>
-                        ) : (
+                        ) : banners.length > 0 ? (
                             <FeaturedCarousel 
-                                onTryTrend={(item) => setSelectedCard(item.id)}
-                                items={products.slice(0, 3).map(p => ({
-                                    id: p.id,
-                                    title: p.name.toUpperCase().split(' ').join(' <br/> '),
-                                    image: p.thumbnails[0],
-                                    description: p.description,
-                                    badge: p.badge1 || "Featured Collection"
+                                onTryTrend={() => {}}
+                                items={banners.map(b => ({
+                                    id: b.id,
+                                    title: b.title,
+                                    image: b.mediaUrl,
+                                    description: b.description,
+                                    badge: b.badge
                                 }))}
                             />
-                        )
-                    )}
+                        ) : (
+                            // Fallback to products if no banners are configured
+                            loadingProducts ? (
+                                <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
+                                        <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <FeaturedCarousel 
+                                    onTryTrend={(item) => setSelectedCard(item.id)}
+                                    items={products.slice(0, 3).map(p => ({
+                                        id: p.id,
+                                        title: p.name.toUpperCase().split(' ').join(' <br/> '),
+                                        image: p.thumbnails[0],
+                                        description: p.description,
+                                        badge: p.badge1 || "Featured Collection"
+                                    }))}
+                                />
+                            )
+                        )}
+                    </div>
                 </section>
 
                 {/* Filter & Search Control Bar */}

@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download, Mic2, Image, ArrowDown, ArrowUp, ChevronDown
+    RotateCcw, Play, Download, Mic2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
@@ -100,19 +100,6 @@ function AIInfluencerWorkstation() {
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
-
-    // ── Branding state (optional post-process — does NOT affect the pipeline) ──
-    const [brandingOpen,      setBrandingOpen]      = useState(false);
-    const [brandLogoFile,     setBrandLogoFile]     = useState<File | null>(null);
-    const [brandMarqueeText,  setBrandMarqueeText]  = useState('');
-    const [brandMarqueePos,   setBrandMarqueePos]   = useState<'top' | 'bottom'>('bottom');
-    const [brandLogoPos,      setBrandLogoPos]      = useState<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>('top-right');
-    const [brandNeedThumbnail, setBrandNeedThumbnail] = useState(false);
-    const [brandThumbnailPrompt, setBrandThumbnailPrompt] = useState('');
-    const [brandThumbnailPhotoFile, setBrandThumbnailPhotoFile] = useState<File | null>(null);
-    const [customThumbnailUrl, setCustomThumbnailUrl] = useState<string | null>(null);
-    const [isBranding,        setIsBranding]        = useState(false);
-    const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +200,7 @@ function AIInfluencerWorkstation() {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
-                addAssistant(`Script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
+                addAssistant(`✅ Narrative script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
             }
 
             // 2. Check for visual assets (images)
@@ -257,20 +244,12 @@ function AIInfluencerWorkstation() {
             if (data.status === 'complete' && data.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
                 setChatStep('complete');
-                addAssistant('🎉 Your video is ready! Watch it in the monitor on the right.');
+                addAssistant('🎉 Your lip-synced video is ready! Watch it in the monitor on the right.');
                 setIsGenerating(false);
             } else if (data.status === 'error') {
                 addAssistant(`❌ Error: ${data.errorMessage || 'Video generation failed. Please try again.'}`);
                 setChatStep('preview-audio');
                 setIsGenerating(false);
-            }
-
-            // 5. Track post-processing results
-            if (data.customThumbnailUrl) {
-                setCustomThumbnailUrl(data.customThumbnailUrl);
-            }
-            if (data.brandedVideoUrl) {
-                setBrandedVideoUrl(data.brandedVideoUrl);
             }
         });
         return () => unsub();
@@ -303,68 +282,6 @@ function AIInfluencerWorkstation() {
         setWaitTaskToken(null);
         setIsGenerating(false);
         setImageTimeline([]);
-        // branding state reset
-        setBrandingOpen(false);
-        setBrandLogoFile(null);
-        setBrandMarqueeText('');
-        setBrandMarqueePos('bottom');
-        setBrandLogoPos('top-right');
-        setBrandNeedThumbnail(false);
-        setBrandThumbnailPrompt('');
-        setBrandThumbnailPhotoFile(null);
-        setCustomThumbnailUrl(null);
-        setIsBranding(false);
-        setBrandedVideoUrl(null);
-    };
-
-    // ── Branding handler (optional — called only when user explicitly clicks Apply) ──
-    const handleApplyBranding = async () => {
-        if (!finalVideoUrl || !jobId || !user?.uid) return;
-        if (!brandLogoFile && !brandMarqueeText.trim() && (!brandNeedThumbnail || !brandThumbnailPrompt.trim())) return;
-
-        setIsBranding(true);
-        try {
-            let logoBase64: string | undefined;
-            let logoMimeType: string | undefined;
-            if (brandLogoFile) {
-                const buf = await brandLogoFile.arrayBuffer();
-                logoBase64  = Buffer.from(buf).toString('base64');
-                logoMimeType = brandLogoFile.type;
-            }
-
-            let thumbnailPersonPhotoBase64: string | undefined;
-            if (brandNeedThumbnail && brandThumbnailPhotoFile) {
-                const thumbBuf = await brandThumbnailPhotoFile.arrayBuffer();
-                thumbnailPersonPhotoBase64 = Buffer.from(thumbBuf).toString('base64');
-            }
-
-            const res = await fetch('/api/ai-influencer/brand-video', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jobId,
-                    userId: user.uid,
-                    finalVideoUrl,
-                    logoBase64,
-                    logoMimeType,
-                    logoPosition:    brandLogoFile ? brandLogoPos : undefined,
-                    marqueeText:     brandMarqueeText.trim() || undefined,
-                    marqueePosition: brandMarqueeText.trim() ? brandMarqueePos : undefined,
-                    generateThumbnail: brandNeedThumbnail,
-                    thumbnailPrompt: brandNeedThumbnail ? brandThumbnailPrompt.trim() : undefined,
-                    thumbnailPersonPhotoBase64: brandNeedThumbnail ? thumbnailPersonPhotoBase64 : undefined,
-                }),
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Branding failed');
-            // The polling logic will catch brandedVideoUrl and customThumbnailUrl from Firestore
-            if (data.brandedVideoUrl) setBrandedVideoUrl(data.brandedVideoUrl);
-        } catch (err: any) {
-            console.error('Branding error:', err);
-            addAssistant(`❌ Post-processing failed: ${err.message}`);
-        } finally {
-            setIsBranding(false);
-        }
     };
 
     const handleRestoreInfluencerSession = useCallback((session: WorkspaceSession) => {
@@ -427,7 +344,7 @@ function AIInfluencerWorkstation() {
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-script`);
+        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-second narrative explainer with Gemini...`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -444,8 +361,8 @@ function AIInfluencerWorkstation() {
 
             if (!data.success) throw new Error(data.error || 'Failed to generate script');
 
-            // console.log('✅ Script generated:', data.wordCount, 'words');
-            // console.log('✅ Visual moments extracted:', data.moments?.length || 0);
+            console.log('✅ Script generated:', data.wordCount, 'words');
+            console.log('✅ Visual moments extracted:', data.moments?.length || 0);
 
             setGeneratedScript(data.script);
             setEditableScript(data.script);
@@ -513,7 +430,7 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             });
 
-            // console.log('✅ Script and moments saved to Firestore');
+            console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
             addAssistant(`❌ Failed to save script: ${err.message}`);
@@ -768,8 +685,8 @@ function AIInfluencerWorkstation() {
                                         <div className="flex flex-col">
                                             <h1 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">AI Influencer Studio</h1>
                                             <div className="flex items-center gap-2 mt-1">
-                                                {/* <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" /> */}
-                                                {/* <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span> */}
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                                                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span>
                                             </div>
                                         </div>
                                     </div>
@@ -783,7 +700,7 @@ function AIInfluencerWorkstation() {
                                                 <div className="relative">
                                                     <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat Box</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">Neural Assistant</span>
                                             </div>
                                             <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                                 <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">
@@ -1109,7 +1026,6 @@ function AIInfluencerWorkstation() {
                                                         <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Generation Successful</h4>
                                                         <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol terminated with exit code 0</p>
                                                     </div>
-                                                    {/* ── Existing action buttons — untouched ── */}
                                                     <div className="flex w-full gap-3">
                                                         {finalVideoUrl && (
                                                             <a
@@ -1128,237 +1044,6 @@ function AIInfluencerWorkstation() {
                                                         >
                                                             <RotateCcw size={14} strokeWidth={3} /> Purge & Reset
                                                         </button>
-                                                    </div>
-
-                                                    {/* ── Optional Branding Panel ── */}
-                                                    <div className="w-full">
-                                                        {/* Toggle button */}
-                                                        <button
-                                                            onClick={() => setBrandingOpen(v => !v)}
-                                                            className="w-full flex items-center justify-between px-5 py-3 rounded-2xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <Sparkles size={13} className="text-orange-400" />
-                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Add Branding</span>
-                                                                <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">— Logo &amp; Marquee (Optional)</span>
-                                                            </div>
-                                                            <ChevronDown
-                                                                size={14}
-                                                                className={`text-orange-400/60 transition-transform duration-300 ${brandingOpen ? 'rotate-180' : ''}`}
-                                                            />
-                                                        </button>
-
-                                                        {/* Collapsible branding form */}
-                                                        <AnimatePresence>
-                                                            {brandingOpen && (
-                                                                <motion.div
-                                                                    key="branding-panel"
-                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                                    exit={{ opacity: 0, height: 0 }}
-                                                                    transition={{ duration: 0.25 }}
-                                                                    className="overflow-hidden"
-                                                                >
-                                                                    <div className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left">
-
-                                                                        {/* ── Marquee Section ── */}
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Scrolling Marquee Text
-                                                                            </p>
-                                                                            <textarea
-                                                                                value={brandMarqueeText}
-                                                                                onChange={e => setBrandMarqueeText(e.target.value)}
-                                                                                placeholder="e.g. This video is for informational purposes only."
-                                                                                rows={2}
-                                                                                className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-white/20 leading-relaxed transition-all"
-                                                                            />
-
-                                                                            {/* Marquee position picker — shown only when text is entered */}
-                                                                            {brandMarqueeText.trim() && (
-                                                                                <div className="flex gap-2">
-                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20 self-center mr-1">Position:</p>
-                                                                                    {(['bottom', 'top'] as const).map(pos => (
-                                                                                        <button
-                                                                                            key={pos}
-                                                                                            onClick={() => {
-                                                                                                setBrandMarqueePos(pos);
-                                                                                                // Auto-set logo to the opposite edge
-                                                                                                setBrandLogoPos(pos === 'bottom' ? 'top-right' : 'bottom-right');
-                                                                                            }}
-                                                                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all active:scale-95 ${
-                                                                                                brandMarqueePos === pos
-                                                                                                    ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
-                                                                                                    : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
-                                                                                            }`}
-                                                                                        >
-                                                                                            {pos === 'bottom'
-                                                                                                ? <ArrowDown size={11} />
-                                                                                                : <ArrowUp size={11} />
-                                                                                            }
-                                                                                            {pos}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── Logo Section ── */}
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Logo Watermark
-                                                                            </p>
-                                                                            <label
-                                                                                htmlFor="brand-logo-upload"
-                                                                                className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
-                                                                                    brandLogoFile
-                                                                                        ? 'border-orange-500 bg-orange-500/10 text-orange-400'
-                                                                                        : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-orange-500/30 hover:bg-orange-500/5'
-                                                                                }`}
-                                                                            >
-                                                                                <Image size={13} strokeWidth={2.5} />
-                                                                                {brandLogoFile ? brandLogoFile.name : 'Upload Logo (PNG / JPG / WebP)'}
-                                                                            </label>
-                                                                            <input
-                                                                                id="brand-logo-upload"
-                                                                                type="file"
-                                                                                accept="image/png,image/jpeg,image/webp"
-                                                                                className="hidden"
-                                                                                onChange={e => {
-                                                                                    const f = e.target.files?.[0] ?? null;
-                                                                                    setBrandLogoFile(f);
-                                                                                    e.target.value = '';
-                                                                                }}
-                                                                            />
-
-                                                                            {/* Logo position picker — shown only when logo is chosen */}
-                                                                            {brandLogoFile && (
-                                                                                <div className="space-y-1.5">
-                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Logo Corner:</p>
-                                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                                        {([
-                                                                                            { val: 'top-left',     label: '↖ Top Left' },
-                                                                                            { val: 'top-right',    label: '↗ Top Right' },
-                                                                                            { val: 'bottom-left',  label: '↙ Bottom Left' },
-                                                                                            { val: 'bottom-right', label: '↘ Bottom Right' },
-                                                                                        ] as { val: typeof brandLogoPos; label: string }[]).map(({ val, label }) => {
-                                                                                            // Disable positions that conflict with the chosen marquee row
-                                                                                            const conflictRow = brandMarqueeText.trim() ? brandMarqueePos : null;
-                                                                                            const isConflict  = conflictRow && val.startsWith(conflictRow);
-                                                                                            return (
-                                                                                                <button
-                                                                                                    key={val}
-                                                                                                    disabled={!!isConflict}
-                                                                                                    onClick={() => setBrandLogoPos(val)}
-                                                                                                    title={isConflict ? `Marquee is already at the ${conflictRow}` : ''}
-                                                                                                    className={`py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all active:scale-95 ${
-                                                                                                        isConflict
-                                                                                                            ? 'opacity-25 cursor-not-allowed border-white/5 bg-white/[0.01] text-white/20'
-                                                                                                            : brandLogoPos === val
-                                                                                                                ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
-                                                                                                                : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
-                                                                                                    }`}
-                                                                                                >
-                                                                                                    {label}
-                                                                                                </button>
-                                                                                            );
-                                                                                        })}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── AI Thumbnail Section ── */}
-                                                                        <div className="space-y-4 pt-4 border-t border-white/5">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" /> AI Thumbnail (NanoBanana2)
-                                                                                </p>
-                                                                                <button
-                                                                                    onClick={() => setBrandNeedThumbnail(v => !v)}
-                                                                                    className={`w-8 h-4 rounded-full transition-colors relative ${brandNeedThumbnail ? 'bg-blue-500' : 'bg-white/10'}`}
-                                                                                >
-                                                                                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {brandNeedThumbnail && (
-                                                                                <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-                                                                                    <textarea
-                                                                                        value={brandThumbnailPrompt}
-                                                                                        onChange={e => setBrandThumbnailPrompt(e.target.value)}
-                                                                                        placeholder="Describe the thumbnail you want... e.g. 'A cinematic thumbnail of an influencer holding a glowing product box, 4K'"
-                                                                                        rows={2}
-                                                                                        className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 outline-none resize-none placeholder-white/20"
-                                                                                    />
-                                                                                    
-                                                                                    <label
-                                                                                        className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
-                                                                                            brandThumbnailPhotoFile
-                                                                                                ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                                                                                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-blue-500/30 hover:bg-blue-500/5'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <Image size={13} strokeWidth={2.5} />
-                                                                                        {brandThumbnailPhotoFile ? brandThumbnailPhotoFile.name : 'Upload Presenter Photo (Optional reference)'}
-                                                                                        <input
-                                                                                            type="file"
-                                                                                            accept="image/png,image/jpeg,image/webp"
-                                                                                            className="hidden"
-                                                                                            onChange={e => {
-                                                                                                const f = e.target.files?.[0] ?? null;
-                                                                                                setBrandThumbnailPhotoFile(f);
-                                                                                                e.target.value = '';
-                                                                                            }}
-                                                                                        />
-                                                                                    </label>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── Apply Button ── */}
-                                                                        <button
-                                                                            onClick={handleApplyBranding}
-                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
-                                                                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
-                                                                        >
-                                                                            {isBranding
-                                                                                ? <><Loader2 size={13} className="animate-spin" /> Processing…</>
-                                                                                : <><Sparkles size={13} /> Apply Processing</>
-                                                                            }
-                                                                        </button>
-
-                                                                        {/* Download branded result */}
-                                                                        {(brandedVideoUrl || customThumbnailUrl) && (
-                                                                            <div className="flex flex-col gap-2 pt-2">
-                                                                                {brandedVideoUrl && (
-                                                                                    <a
-                                                                                        href={brandedVideoUrl}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        download
-                                                                                        className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                                    >
-                                                                                        <Download size={13} strokeWidth={3} /> Download Branded Video
-                                                                                    </a>
-                                                                                )}
-                                                                                {customThumbnailUrl && (
-                                                                                    <a
-                                                                                        href={customThumbnailUrl}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        download
-                                                                                        className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                                    >
-                                                                                        <Image size={13} strokeWidth={3} /> Download 9:16 Thumbnail
-                                                                                    </a>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </motion.div>
-                                                            )}
-                                                        </AnimatePresence>
                                                     </div>
                                                 </motion.div>
                                             )}
