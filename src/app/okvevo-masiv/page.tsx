@@ -347,6 +347,8 @@ export default function OkvevoMasivPage() {
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [email, setEmail] = useState('');
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    const [successOrderId, setSuccessOrderId] = useState('');
     const router = useRouter();
 
     const [products, setProducts] = useState<MasivProduct[]>([]);
@@ -789,6 +791,8 @@ export default function OkvevoMasivPage() {
                 handler: function (response: any) {
                     // Payment successful
                     console.log('Payment successful:', response);
+                    setSuccessOrderId(orderId);
+                    setShowSuccessPopup(true);
                     setCart([]);
                     setUserName('');
                     setWhatsappNumber('');
@@ -796,7 +800,11 @@ export default function OkvevoMasivPage() {
                     setCapturedPhotos({ fullBody: null, face: null });
                     setPhotoAttempts({ fullBody: 0, face: 0 });
                     setShowCart(false);
-                    alert(`Payment successful! Order ID: ${orderId}\n\nYour order has been placed successfully. We'll contact you on WhatsApp shortly.`);
+                    
+                    // Auto-close popup after 3 seconds
+                    setTimeout(() => {
+                        setShowSuccessPopup(false);
+                    }, 3000);
                 },
                 modal: {
                     ondismiss: function () {
@@ -1509,6 +1517,72 @@ export default function OkvevoMasivPage() {
                                     </button>
                                 </div>
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Payment Success Popup */}
+            <AnimatePresence>
+                {showSuccessPopup && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.8, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.8, y: 20 }}
+                            className="bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border-2 border-[#FF6B35] rounded-3xl p-10 max-w-md w-full text-center shadow-[0_0_50px_rgba(255,107,53,0.5)]"
+                        >
+                            {/* Success Icon */}
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                                className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#FF6B35] to-[#FF8F6B] rounded-full flex items-center justify-center"
+                            >
+                                <Check className="w-10 h-10 text-white" strokeWidth={3} />
+                            </motion.div>
+
+                            {/* Success Message */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
+                                    Payment Successful!
+                                </h2>
+                                <p className="text-white/70 text-lg mb-4">
+                                    Your order has been placed successfully
+                                </p>
+                                
+                                {/* Order ID */}
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+                                    <p className="text-white/50 text-xs uppercase tracking-widest font-bold mb-1">
+                                        Order ID
+                                    </p>
+                                    <p className="text-[#FF6B35] font-mono text-sm break-all">
+                                        {successOrderId}
+                                    </p>
+                                </div>
+
+                                {/* Contact Info */}
+                                <p className="text-white/60 text-sm">
+                                    We'll contact you on WhatsApp shortly
+                                </p>
+                            </motion.div>
+
+                            {/* Auto-close indicator */}
+                            <motion.div
+                                initial={{ width: "100%" }}
+                                animate={{ width: "0%" }}
+                                transition={{ duration: 3, ease: "linear" }}
+                                className="h-1 bg-[#FF6B35] rounded-full mt-6"
+                            />
                         </motion.div>
                     </motion.div>
                 )}
