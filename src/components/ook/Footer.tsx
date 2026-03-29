@@ -22,7 +22,7 @@ const Footer = () => {
                 <div className="container relative z-10 flex flex-col pt-10">
                     <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-32">
                         <div className="max-w-sm">
-                            <a href="/" className="text-4xl font-black tracking-tighter text-white mb-8 block transition-transform hover:scale-105 origin-left font-museo-moderno">
+                            <a href="/" className="-mt-10 text-4xl font-black tracking-tighter text-white  block transition-transform hover:scale-105 origin-left font-museo-moderno">
                                 <Image 
                                     src="/OKVEVO WithOut BackGrounds/black.svg" 
                                     alt="OKVEVO Logo" 
@@ -33,22 +33,26 @@ const Footer = () => {
                                 {/* OKVEVO<span className="text-text-main">.</span> */}
                             </a>
                             <p className="text-xl text-white font-medium leading-relaxed">
+                                Zero Camera, Infinite Vision.<br />
+                                
+                            </p>
+                            <p className="text-xl text-white/50 font-small leading-relaxed">
                                 Designing the future of cinematic storytelling through the lens of artificial intelligence.
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-16 md:gap-32">
                             <div>
-                                <h4 className="text-[11px] font-black tracking-[0.4em] uppercase text-text-main/60 mb-10">Platform</h4>
+                                <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Platform</h4>
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
                                     <li><a href="#features" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Features</a></li>
                                     <li><a href="#how-it-works" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
-                                    <li><a href="#tunetalez" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">TuneTalez</a></li>
+                                    <li><a href="#OKVEVOXMASIV" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
                                 </ul>
                             </div>
 
                             <div>
-                                <h4 className="text-[11px] font-black tracking-[0.4em] uppercase text-text-main/60 mb-10">Company</h4>
+                                <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Company</h4>
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
                                 <li><a href="#" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</a></li>
                                 <li><button onClick={(e) => { e.preventDefault(); setShowContact(true); }} className="hover:text-text-main transition-all hover:translate-x-1 inline-block uppercase text-left">Contact</button></li>
@@ -76,10 +80,8 @@ const Footer = () => {
 
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-8 md:pt-16 border-t border-white/20 gap-12 mt-10">
                         <div className="flex gap-10">
-                            <Link href="/legal" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">PRIVACY_POLICY</Link>
-                            <Link href="/legal" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">TERMS_OF_SERVICE</Link>
                             <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Twitter</a>
-                            <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Instagram</a>
+                            <a href="https://www.instagram.com/azonovatechnologies/?utm_source=ig_web_button_share_sheet" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Instagram</a>
                             <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">LinkedIn</a>
                         </div>
 
@@ -131,7 +133,7 @@ const Footer = () => {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-1">Email Us</p>
-                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">hello@okvevo.com</p>
+                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">info@okvevo.com</p>
                                     </div>
                                 </a>
 
@@ -144,8 +146,8 @@ const Footer = () => {
                                         <Phone className="w-5 h-5 text-accent-orange" />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-1">Call Us</p>
-                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">+91 98765 43210</p>
+                                        <p className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-1">Located at </p>
+                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">Bengaluru, Karnataka</p>
                                     </div>
                                 </a>
                             </div>

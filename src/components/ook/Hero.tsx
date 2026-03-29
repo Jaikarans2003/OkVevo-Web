@@ -151,7 +151,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                 >
                     <button
                         onClick={onJoinClick}
-                        className="btn-premium px-10 py-5"
+                        className="btn-premium text-black bg-white px-10 py-5"
                     >
                         Get started
                     </button>
