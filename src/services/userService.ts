@@ -10,6 +10,7 @@ export interface UserProfile {
     createdAt: any;
     updatedAt: any;
     bio?: string;
+    phoneNumber?: string;
     socialLinks?: {
         twitter?: string;
         linkedin?: string;

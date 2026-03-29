@@ -132,7 +132,7 @@ export default function AuthForm() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Email address"
-                                className="w-full bg-white border-2 border-text-main/10 rounded-2xl px-12 py-4 text-text-main placeholder:text-text-dim/40 focus:outline-none focus:border-accent-orange focus:ring-0 transition-all font-medium"
+                                className="w-full bg-white border-2 border-text-main/10 rounded-2xl px-12 py-4 text-black placeholder:text-text-dim/40 focus:outline-none focus:border-accent-orange focus:ring-0 transition-all font-medium"
                                 required
                             />
                         </div>
@@ -143,7 +143,7 @@ export default function AuthForm() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Password"
-                                className="w-full bg-white border-2 border-text-main/10 rounded-2xl px-12 py-4 text-text-main placeholder:text-text-dim/40 focus:outline-none focus:border-accent-orange focus:ring-0 transition-all font-medium"
+                                className="w-full bg-white border-2 border-text-main/10 rounded-2xl px-12 py-4 text-black placeholder:text-text-dim/40 focus:outline-none focus:border-accent-orange focus:ring-0 transition-all font-medium"
                                 required
                                 minLength={6}
                             />
@@ -186,7 +186,7 @@ export default function AuthForm() {
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={loading}
-                    className="w-full bg-white hover:bg-text-main/5 border-2 border-text-main/10 hover:border-accent-orange/30 text-text-main font-bold py-4 rounded-2xl transition-all duration-500 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="w-full bg-white hover:bg-gray-50 border-2 border-text-main/10 hover:border-accent-orange/30 text-black font-bold py-4 rounded-2xl transition-all duration-500 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                     <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                         <path

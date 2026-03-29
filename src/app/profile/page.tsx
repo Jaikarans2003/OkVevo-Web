@@ -3,83 +3,48 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '../../config/firebase';
-import { onAuthStateChanged, User, signOut, updateProfile } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, updateEmail } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
-import { getUserHistory, UserGeneration } from '../../services/HistoryService';
-import { getUserSubscription, SubscriptionWithPlanDetails, formatPrice, getStatusColor, getStatusLabel } from '../../services/SubscriptionService';
-import HistoryCard from '../../components/HistoryCard';
-import { 
-    LogOut, 
-    ArrowLeft, 
-    Camera, 
-    Loader2,
-    Settings,
-    Edit3,
-    Check,
-    X,
-    ExternalLink,
-    MapPin,
-    Twitter,
-    Linkedin,
-    Globe,
-    CreditCard,
-    History as HistoryIcon,
-    Zap,
-    Briefcase
-} from 'lucide-react';
+import { ArrowLeft, Loader2, Check, AlertCircle, Edit3, Calendar, Activity, ChevronLeft, ChevronRight, LogOut, Phone } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import NoiseOverlay from '../../components/NoiseOverlay';
 
 export default function ProfilePage() {
+    const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [uploading, setUploading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     
-    // Edit state
-    const [editing, setEditing] = useState(false);
-    const [editData, setEditData] = useState({
-        name: '',
-        bio: '',
-        twitter: '',
-        linkedin: '',
-        website: ''
+    // UI state
+    const [currentDate, setCurrentDate] = useState("");
+
+    const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+
+    const [formData, setFormData] = useState({
+        email: '',
+        phoneNumber: '',
+        bio: ''
     });
 
-    // Content state
-    const [recentHistory, setRecentHistory] = useState<UserGeneration[]>([]);
-    const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
-    const router = useRouter();
-
     useEffect(() => {
+        const date = new Date();
+        setCurrentDate(date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })); // e.g. "26 May"
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                setEditData(prev => ({ ...prev, name: currentUser.displayName || '' }));
                 try {
                     const profile = await getUserProfile(currentUser.uid);
                     setUserProfile(profile);
-                    if (profile) {
-                        setEditData({
-                            name: profile.organisationName || currentUser.displayName || '',
-                            bio: profile.bio || '',
-                            twitter: profile.socialLinks?.twitter || '',
-                            linkedin: profile.socialLinks?.linkedin || '',
-                            website: profile.socialLinks?.website || ''
-                        });
-                    }
-
-                    // Fetch integrated data in parallel
-                    const [hist, sub] = await Promise.all([
-                        getUserHistory(currentUser.uid, 4), // max 4 for the grid
-                        getUserSubscription(currentUser.uid)
-                    ]);
-                    setRecentHistory(hist);
-                    setSubscription(sub);
+                    setFormData({
+                        email: profile?.email || currentUser.email || '',
+                        phoneNumber: profile?.phoneNumber || '',
+                        bio: profile?.bio || ''
+                    });
                 } catch (error) {
                     console.error('Error fetching user data:', error);
                 }
@@ -92,416 +57,362 @@ export default function ProfilePage() {
         return () => unsubscribe();
     }, [router]);
 
-    const handleSignOut = async () => {
-        try {
-            await signOut(auth);
-            router.push('/');
-        } catch (error) {
-            console.error('Error signing out:', error);
-        }
-    };
-
-    const handleSaveProfile = async () => {
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!user) return;
-        setLoading(true);
+        
+        setSaving(true);
+        setStatus({ type: null, message: '' });
+
         try {
-            await updateProfile(user, { displayName: editData.name });
-            
+            if (formData.email !== user.email) {
+                try {
+                    await updateEmail(user, formData.email);
+                } catch (error: any) {
+                    if (error.code === 'auth/requires-recent-login') {
+                        setStatus({ type: 'error', message: 'Please log out and log back in to change your email.' });
+                        setSaving(false);
+                        return;
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, {
-                organisationName: editData.name,
-                bio: editData.bio,
-                socialLinks: {
-                    twitter: editData.twitter,
-                    linkedin: editData.linkedin,
-                    website: editData.website
-                },
+                email: formData.email,
+                phoneNumber: formData.phoneNumber,
+                bio: formData.bio,
                 updatedAt: serverTimestamp()
             });
 
-            if (auth.currentUser) {
-                setUser(auth.currentUser);
-            }
-            if (userProfile) {
-                setUserProfile({
-                    ...userProfile,
-                    organisationName: editData.name,
-                    bio: editData.bio,
-                    socialLinks: {
-                        twitter: editData.twitter,
-                        linkedin: editData.linkedin,
-                        website: editData.website
-                    }
-                });
-            }
-            setEditing(false);
-        } catch (error) {
-            console.error("Profile update error:", error);
+            setUserProfile(prev => prev ? { ...prev, email: formData.email, phoneNumber: formData.phoneNumber, bio: formData.bio } : null);
+            setStatus({ type: 'success', message: 'Saved seamlessly.' });
+            
+            setTimeout(() => {
+                setStatus({ type: null, message: '' });
+                setIsEditing(false);
+            }, 800);
+
+        } catch (error: any) {
+            console.error(error);
+            setStatus({ type: 'error', message: error.message || 'An error occurred.' });
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !user) return;
-
-        setUploading(true);
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("uid", user.uid);
-
-            const response = await fetch("/api/upload/avatar", {
-                method: "POST",
-                body: formData,
-            });
-
-            const data = await response.json();
-            if (data.url) {
-                await updateProfile(user, { photoURL: data.url });
-                const userRef = doc(db, 'users', user.uid);
-                await updateDoc(userRef, { photoURL: data.url, updatedAt: serverTimestamp() });
-                if (auth.currentUser) {
-                    setUser(auth.currentUser);
-                }
-            }
-        } catch (error) {
-            console.error("Upload error:", error);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    if (loading && !user) {
+    if (loading) {
         return (
-            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-[#FF4D00] animate-spin" />
+            <div className="min-h-screen bg-[#070707] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-[#FF4D00] animate-spin" />
             </div>
         );
     }
 
     if (!user) return null;
 
-    const displayName = userProfile?.organisationName || user.displayName || 'Creator';
-    const initials = displayName.charAt(0).toUpperCase();
-
-    // Animation Configs
-    const titleLetters = "PROFILE".split('');
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }
-    };
-    const letterVariants = {
-        hidden: { opacity: 0, y: 40, filter: 'blur(10px)', scale: 0.8 },
-        show: { opacity: 1, y: 0, filter: 'blur(0px)', scale: 1, transition: { type: 'spring' as const, damping: 12, stiffness: 100 } }
-    };
-
-    const showSocialLinks = userProfile?.socialLinks && (userProfile.socialLinks.twitter || userProfile.socialLinks.linkedin || userProfile.socialLinks.website);
+    const firstName = user.displayName?.split(' ')[0] || "Creator";
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white relative overflow-x-hidden selection:bg-[#FF4D00]/30 selection:text-white pt-24 pb-32">
-            <NoiseOverlay />
-
-            {/* Background Image */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-                <img 
-                    src="/images/herobg.png" 
-                    alt="Background" 
-                    className="w-full h-full object-cover opacity-30 mix-blend-screen"
-                />
+        <div className="h-screen w-screen bg-[#0C0C0C] text-white font-sans flex flex-col md:flex-row overflow-hidden selection:bg-[#FF4D00]/30 relative">
+            
+            {/* Minimal Background Lines / Stylings */}
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+                <svg className="absolute w-full h-full opacity-10" viewBox="0 0 1000 1000" fill="none">
+                    <path d="M-100 200 C 300 100, 400 400, 900 200" stroke="currentColor" strokeWidth="1" />
+                    <path d="M-100 600 C 400 700, 300 300, 1100 500" stroke="currentColor" strokeWidth="1" />
+                </svg>
             </div>
 
-            {/* Navbar */}
-            <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl border-b border-white/5 bg-[#0A0A0A]/40 px-8 py-5">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <Link href="/workspace" className="flex items-center gap-3 group">
-                        <ArrowLeft className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
-                        <span className="text-sm font-black tracking-widest uppercase text-white/50 group-hover:text-white transition-colors">Workspace</span>
-                    </Link>
-                    <button onClick={handleSignOut} className="flex items-center gap-2 px-5 py-2 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-bold text-xs uppercase tracking-widest transition-all">
-                        <LogOut className="w-4 h-4" /> Sign Out
-                    </button>
-                </div>
-            </nav>
-
-            <main className="relative z-10 max-w-5xl mx-auto px-6 w-full mt-8">
-
-
-                <div className="w-full flex justify-center mb-8 relative z-20">
-                     <motion.h1 
-                        variants={containerVariants} 
-                        initial="hidden" 
-                        animate="show" 
-                        className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-none tracking-tight flex"
+            <AnimatePresence mode="wait">
+                {!isEditing ? (
+                    
+                    /* DASHBOARD DISPLAY MODE - FULL SCREEN */
+                    <motion.div 
+                        key="dashboard"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        className="w-full h-full flex flex-col md:flex-row relative z-10"
                     >
-                        {titleLetters.map((char, index) => (
-                            <motion.span key={index} variants={letterVariants} className="inline-block bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50">
-                                {char}
-                            </motion.span>
-                        ))}
-                        <motion.span 
-                            initial={{ opacity: 0, scale: 0 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            transition={{ delay: 1.2, type: 'spring' }} 
-                            className="text-[#FF4D00]"
-                        >
-                            .
-                        </motion.span>
-                    </motion.h1>
-                </div>
-
-                {/* Profile Card */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 30 }} 
-                    animate={{ opacity: 1, y: 0 }} 
-                    transition={{ delay: 0.8, duration: 0.8 }}
-                    className="w-full bg-[#111] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative mb-16"
-                >
-                    {/* Cover Photo Gradient Area */}
-                    <div className="h-64 md:h-80 w-full relative overflow-hidden bg-[#0A0A0A]">
-                        {/* Mesh gradient effect */}
-                        <div className="absolute inset-0 opacity-80">
-                            <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[120%] bg-gradient-to-br from-[#FF4D00] to-transparent rounded-full blur-[100px]" />
-                            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[100%] bg-gradient-to-tl from-purple-600 to-transparent rounded-full blur-[100px]" />
-                            <div className="absolute top-[20%] right-[20%] w-[30%] h-[60%] bg-gradient-to-tr from-blue-500 to-transparent rounded-full blur-[80px]" />
-                        </div>
-                        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-                        
-                        {/* Edit Button top right */}
-                        {!editing && (
-                            <button onClick={() => setEditing(true)} className="absolute top-6 right-6 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 transition-all flex items-center gap-2 group z-20">
-                                <Edit3 className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-white">Edit Profile</span>
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="px-8 pb-10 relative">
-                        {/* Avatar */}
-                        <div className="relative -mt-24 mb-6 inline-block z-20">
-                            <div className="w-40 h-40 md:w-48 md:h-48 rounded-full border-[8px] border-[#111] bg-[#1a1a1a] relative group overflow-hidden shadow-2xl">
-                                {user.photoURL ? (
-                                    <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-[#333] to-[#111] flex items-center justify-center text-5xl font-black text-white/50 uppercase">
-                                        {initials}
-                                    </div>
-                                )}
-                                
-                                <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm z-10">
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
-                                    {uploading ? <Loader2 className="w-8 h-8 text-white animate-spin" /> : <Camera className="w-8 h-8 text-white mb-2" />}
-                                    <span className="text-xs font-bold uppercase tracking-widest text-white">{uploading ? 'Uploading' : 'Update Photo'}</span>
-                                </label>
-                            </div>
-                            {userProfile?.userType === 'pro' && (
-                                <div className="absolute bottom-4 right-4 bg-gradient-to-r from-yellow-400 to-yellow-600 w-10 h-10 rounded-full border-4 border-[#111] flex items-center justify-center shadow-lg" title="PRO User">
-                                    <Zap className="w-4 h-4 text-black fill-black" />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Profile Info Form / Display */}
-                        <AnimatePresence mode="wait">
-                            {editing ? (
-                                <motion.div 
-                                    key="edit"
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="space-y-6 w-full max-w-2xl"
-                                >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#FF4D00]">Display Name</label>
-                                            <input type="text" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold focus:border-[#FF4D00] outline-none transition-colors" placeholder="Your Name" />
-                                        </div>
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#FF4D00]">Bio / Role</label>
-                                            <textarea value={editData.bio} onChange={e => setEditData({...editData, bio: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#FF4D00] outline-none transition-colors h-24 resize-none" placeholder="e.g. AI Film Director & Digital Artist" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#FF4D00] flex items-center gap-2"><Twitter className="w-3 h-3"/> Twitter / X</label>
-                                            <input type="text" value={editData.twitter} onChange={e => setEditData({...editData, twitter: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-[#FF4D00] outline-none transition-colors" placeholder="Username or URL" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#FF4D00] flex items-center gap-2"><Linkedin className="w-3 h-3"/> LinkedIn</label>
-                                            <input type="text" value={editData.linkedin} onChange={e => setEditData({...editData, linkedin: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-[#FF4D00] outline-none transition-colors" placeholder="LinkedIn URL" />
-                                        </div>
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#FF4D00] flex items-center gap-2"><Globe className="w-3 h-3"/> Personal Website</label>
-                                            <input type="text" value={editData.website} onChange={e => setEditData({...editData, website: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-[#FF4D00] outline-none transition-colors" placeholder="https://yourwebsite.com" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4 pt-4">
-                                        <button onClick={handleSaveProfile} disabled={loading} className="px-8 py-3 bg-[#FF4D00] hover:bg-[#e64600] text-white rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-transform hover:scale-105">
-                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Save Changes
-                                        </button>
-                                        <button onClick={() => setEditing(false)} className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-colors">
-                                            <X className="w-4 h-4" /> Cancel
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ) : (
-                                <motion.div 
-                                    key="display"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="flex flex-col items-start"
-                                >
-                                    <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-2">{displayName}</h2>
-                                    {userProfile?.bio ? (
-                                        <p className="text-lg md:text-xl text-white/70 font-medium mb-4 max-w-2xl">{userProfile.bio}</p>
-                                    ) : (
-                                        <p className="text-lg text-white/40 italic mb-4">No bio added yet.</p>
-                                    )}
-                                    <div className="flex items-center gap-2 text-white/50 mb-8 border border-white/10 px-4 py-2 rounded-full bg-white/5 w-fit">
-                                        <MapPin className="w-4 h-4" />
-                                        <span className="text-sm font-medium">{user.email}</span>
-                                    </div>
-
-                                    {showSocialLinks && (
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-white/30 mr-2">Links</span>
-                                            {userProfile.socialLinks?.twitter && (
-                                                <a href={userProfile.socialLinks.twitter.startsWith('http') ? userProfile.socialLinks.twitter : `https://twitter.com/${userProfile.socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white/5 hover:bg-[#FF4D00]/20 hover:text-[#FF4D00] hover:border-[#FF4D00]/50 border border-white/10 rounded-full flex items-center gap-2 text-sm font-bold transition-all">
-                                                    <Twitter className="w-4 h-4" /> Twitter
-                                                </a>
-                                            )}
-                                            {userProfile.socialLinks?.linkedin && (
-                                                <a href={userProfile.socialLinks.linkedin.startsWith('http') ? userProfile.socialLinks.linkedin : `https://${userProfile.socialLinks.linkedin}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/50 border border-white/10 rounded-full flex items-center gap-2 text-sm font-bold transition-all">
-                                                    <Linkedin className="w-4 h-4" /> LinkedIn
-                                                </a>
-                                            )}
-                                            {userProfile.socialLinks?.website && (
-                                                <a href={userProfile.socialLinks.website.startsWith('http') ? userProfile.socialLinks.website : `https://${userProfile.socialLinks.website}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/50 border border-white/10 rounded-full flex items-center gap-2 text-sm font-bold transition-all">
-                                                    <Globe className="w-4 h-4" /> Portfolio
-                                                </a>
-                                            )}
-                                        </div>
-                                    )}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </motion.div>
-
-                {/* Grid layout for History & Billing */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-                    {/* Recent History Section */}
-                    <div className="col-span-1 lg:col-span-2">
-                        <div className="flex items-end justify-between mb-6">
-                            <div>
-                                <h3 className="text-2xl font-black text-white flex items-center gap-3">
-                                    <HistoryIcon className="w-6 h-6 text-[#FF4D00]" /> Recent Activity
-                                </h3>
-                                <p className="text-white/50 text-sm mt-1">Your latest generations</p>
-                            </div>
-                            <Link href="/history" className="text-xs font-black uppercase tracking-widest text-[#FF4D00] hover:text-[#e64600] flex items-center gap-1 transition-colors">
-                                View All <ArrowLeft className="w-4 h-4 rotate-180" />
-                            </Link>
-                        </div>
-                        
-                        {recentHistory.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {recentHistory.map(gen => (
-                                    <HistoryCard key={gen.id} generation={gen} viewMode="grid" />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="w-full bg-[#111] border border-white/10 rounded-[2rem] p-12 flex flex-col items-center justify-center text-center">
-                                <HistoryIcon className="w-12 h-12 text-white/10 mb-4" />
-                                <p className="text-white/50 font-medium mb-4">No recent history found.</p>
-                                <Link href="/workspace" className="px-6 py-2 bg-[#FF4D00] text-white rounded-full font-bold text-sm hover:scale-105 transition-transform">
-                                    Start Creating
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Subscription / Billing Section */}
-                    <div className="col-span-1">
-                        <div className="flex items-end justify-between mb-6">
-                            <div>
-                                <h3 className="text-2xl font-black text-white flex items-center gap-3">
-                                    <CreditCard className="w-6 h-6 text-[#FF4D00]" /> Billing
-                                </h3>
-                                <p className="text-white/50 text-sm mt-1">Manage subscription</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-[#111] border border-white/10 rounded-[2rem] p-8 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF4D00]/5 rounded-full blur-2xl group-hover:bg-[#FF4D00]/10 transition-colors duration-500" />
+                        {/* LEFT PANEL (Main Dashboard Content) */}
+                        <div className="flex-1 bg-transparent p-6 md:p-12 lg:p-20 flex flex-col gap-10 md:gap-14 overflow-y-auto custom-scrollbar">
                             
-                            {subscription ? (
-                                <div className="relative z-10 space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Current Plan</p>
-                                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${getStatusColor(subscription.status)} bg-opacity-20`}>
-                                            <div className={`w-2 h-2 rounded-full ${getStatusColor(subscription.status)}`} />
-                                            <span className="text-xs font-bold">{getStatusLabel(subscription.status)}</span>
+                            {/* Header Row */}
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                <Link href="/workspace" className="text-white/50 text-xs font-bold tracking-widest uppercase hover:text-white flex items-center gap-2 transition-colors">
+                                    <ArrowLeft className="w-4 h-4" /> Back to Space
+                                </Link>
+                                
+                                <div className="flex items-center gap-4 self-end md:self-auto">
+                                    <div className="flex items-center gap-2 px-5 py-3 rounded-full border border-white/10 bg-transparent text-sm font-semibold text-[#A0A0A0]">
+                                        <Calendar className="w-4 h-4 opacity-70" />
+                                        {currentDate}
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsEditing(true)}
+                                        className="px-6 py-3 rounded-full bg-white text-black text-sm font-bold hover:bg-[#FF4D00] hover:text-white transition-colors"
+                                    >
+                                        Edit Details
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4">
+                                <div className="mt-3 hidden md:block">
+                                    <div className="w-0 h-0 border-t-[12px] border-t-transparent border-l-[18px] border-l-[#FF4D00] border-b-[12px] border-b-transparent"></div>
+                                </div>
+                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium leading-[1.1] tracking-tight text-[#EAEAEA]">
+                                    Hi, {firstName}.<br />
+                                    Workspace Activity 👋
+                                </h1>
+                            </div>
+
+                            {/* Middle Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto lg:h-[220px]">
+                                
+                                {/* Purple-ish Card -> Engagement Line Graph */}
+                                <div className="bg-[#B9A3E3] rounded-[36px] p-8 text-black flex flex-col relative overflow-hidden group min-h-[220px]">
+                                    <div className="flex justify-between items-start z-10">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold tracking-widest text-black/80">ENGAGEMENT</span>
+                                            <span className="text-sm font-semibold opacity-70 mt-1">Score</span>
+                                        </div>
+                                        <div className="px-4 py-2 bg-black rounded-full text-white text-xs font-bold">
+                                            85 BPM
                                         </div>
                                     </div>
                                     
-                                    <div>
-                                        <h4 className="text-3xl font-black text-white italic tracking-tight">{subscription.planDetails.name}</h4>
-                                        <p className="text-[#FF4D00] font-bold mt-1 text-lg">
-                                            {formatPrice(subscription.planDetails.price)} <span className="text-white/40 text-sm">/ {subscription.planDetails.period}</span>
-                                        </p>
+                                    <div className="absolute bottom-6 left-0 right-0 h-28 px-6">
+                                        <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="none">
+                                            <path d="M0 20 Q 25 5, 50 20 T 100 20" stroke="black" strokeWidth="1.5" fill="none" />
+                                            <circle cx="25" cy="12.5" r="3" fill="black" />
+                                            <circle cx="25" cy="12.5" r="6" fill="black" className="animate-ping opacity-30" />
+                                            <line x1="25" y1="12.5" x2="25" y2="40" stroke="black" strokeWidth="1" strokeDasharray="3 3" opacity="0.3"/>
+                                        </svg>
                                     </div>
-
-                                    {/* Credits Widget */}
-                                    <div className="bg-gradient-to-br from-[#FF4D00]/10 to-orange-600/10 border border-[#FF4D00]/20 rounded-xl p-4">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <Zap className="w-4 h-4 text-[#FF4D00] fill-[#FF4D00]" />
-                                            <span className="text-xs font-black uppercase tracking-widest text-white/70">Credits</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-xs text-white/50 mb-1">Balance</p>
-                                                <p className="text-2xl font-black text-white">{(subscription.credits || 0).toLocaleString()}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-white/50 mb-1">Used</p>
-                                                <p className="text-2xl font-black text-red-400">{(subscription.creditsUsed || 0).toLocaleString()}</p>
-                                            </div>
-                                        </div>
+                                    
+                                    <div className="absolute bottom-6 left-8 right-8 flex justify-between text-xs font-bold opacity-40">
+                                        <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span>
                                     </div>
-
-                                    <div className="space-y-3 pt-4 border-t border-white/10">
-                                        <p className="flex items-center justify-between text-sm">
-                                            <span className="text-white/50">Started</span>
-                                            <span className="font-medium">{subscription.createdAt ? new Date((subscription.createdAt as any).toDate?.() || subscription.createdAt).toLocaleDateString() : 'N/A'}</span>
-                                        </p>
-                                        {subscription.nextBillingDate && (
-                                            <p className="flex items-center justify-between text-sm">
-                                                <span className="text-white/50">Renews</span>
-                                                <span className="font-medium text-white">{new Date((subscription.nextBillingDate as any).toDate?.() || subscription.nextBillingDate).toLocaleDateString()}</span>
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <Link href="/billing" className="w-full mt-4 block text-center px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold transition-colors">
-                                        View Details
-                                    </Link>
                                 </div>
-                            ) : (
-                                <div className="relative z-10 flex flex-col items-center justify-center text-center py-6">
-                                    <Briefcase className="w-10 h-10 text-white/20 mb-4" />
-                                    <h4 className="text-xl font-bold mb-2">No Active Subscription</h4>
-                                    <p className="text-white/50 text-sm mb-6">Subscribe to access premium features.</p>
-                                    <Link href="/#pricing" className="w-full px-4 py-3 bg-gradient-to-r from-[#FF4D00] to-orange-600 rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-[#FF4D00]/20 transition-all text-center">
-                                        Upgrade Now
-                                    </Link>
+
+                                {/* Dark Geometric Card -> Account Tier */}
+                                <div className="bg-[#1C1C1E] rounded-[36px] p-8 flex items-center justify-center gap-10 border border-white/5 relative min-h-[220px]">
+                                    <div className="relative w-24 h-24 flex items-center justify-center opacity-80">
+                                        <svg className="w-full h-full text-[#B9A3E3] animate-[spin_20s_linear_infinite]" viewBox="0 0 100 100" fill="none">
+                                            <path d="M50 5 Q 75 5, 80 20 T 95 50 T 80 80 T 50 95 T 20 80 T 5 50 T 20 20 T 50 5" stroke="currentColor" strokeWidth="1.5" className="opacity-50"/>
+                                            <path d="M50 10 Q 75 10, 85 25 T 90 50 T 85 75 T 50 90 T 15 75 T 10 50 T 15 25 T 50 10" stroke="#FF4D00" strokeWidth="1.5" className="opacity-80"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[#888] text-sm font-semibold mb-3">Account Plan</span>
+                                        <div className="flex items-baseline gap-3">
+                                            <span className="text-4xl font-bold text-white tracking-tight">Pro</span><span className="text-sm text-[#888]">~</span>
+                                            <span className="text-2xl font-bold text-white tracking-tight">Max</span><span className="text-sm text-[#888]">~</span>
+                                        </div>
+                                        <div className="flex gap-10 text-xs text-[#555] font-bold mt-2">
+                                            <span>Tier</span>
+                                            <span>Limit</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                            </div>
+
+                            {/* Bottom Wide Bio Block */}
+                            <div className="w-full min-h-[240px] bg-[#121212] rounded-[36px] border border-white/5 overflow-hidden flex items-stretch mt-auto relative group">
+                                <div className="hidden lg:flex flex-col justify-center px-6 hover:bg-white/5 transition-colors cursor-pointer border-r border-white/5">
+                                    <ChevronLeft className="w-6 h-6 text-white/40 group-hover:text-white" />
+                                </div>
+                                
+                                <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+                                    <div className="w-full md:w-[300px] h-[200px] md:h-full relative shrink-0">
+                                        <div className="absolute inset-0 bg-[#FF4D00]/20 rounded-full blur-[60px] top-10" />
+                                        <div className="absolute inset-x-0 bottom-0 top-0 md:top-[15%] bg-gradient-to-tr from-[#1A1A1A] to-[#222] rounded-[36px] m-6 overflow-hidden border border-white/5 shadow-inner">
+                                            <img src="/weight.png" alt="Profile Story" className="w-full h-full object-cover mix-blend-luminosity opacity-40 group-hover:opacity-80 transition-opacity duration-700" onError={(e) => e.currentTarget.style.display = 'none'}/>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex flex-col justify-center py-8 pr-10 pl-6 z-10">
+                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-medium text-white leading-snug mb-6">
+                                            {formData.bio ? `"${formData.bio}"` : "Add a biography to tell the community about your creative workflow and vision."}
+                                        </h3>
+                                        <button onClick={() => setIsEditing(true)} className="self-start px-6 py-2.5 rounded-full border border-white/10 text-xs uppercase tracking-widest font-bold text-white/50 hover:bg-white hover:text-black transition-colors">
+                                            {formData.bio ? "Edit Story" : "Add Bio"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="hidden lg:flex flex-col justify-center px-6 hover:bg-white/5 transition-colors cursor-pointer border-l border-white/5">
+                                    <ChevronRight className="w-6 h-6 text-white/40 group-hover:text-white" />
+                                </div>
+                            </div>
+
                         </div>
-                    </div>
-                </div>
-            </main>
+
+                        {/* RIGHT DASHBOARD PANEL (Theme Color Sidebar - FULL HEIGHT) */}
+                        <div className="w-full md:w-[380px] lg:w-[460px] shrink-0 bg-[#FF4D00] p-10 lg:p-14 flex flex-col text-black relative overflow-y-auto shadow-[-20px_0_40px_rgba(0,0,0,0.5)]">
+                            
+                            {/* Decorative dots styling */}
+                            <div className="absolute top-10 left-10 w-2 h-2 bg-black rounded-full" />
+                            <div className="absolute top-16 right-16 w-3 h-3 bg-black rounded-full" />
+                            <div className="absolute top-36 left-16 w-1.5 h-1.5 bg-black rounded-full" />
+                            <div className="absolute top-28 right-28 w-1 h-1 bg-black rounded-full" />
+                            <div className="absolute top-44 right-20 w-1.5 h-1.5 bg-black rounded-full" />
+                            
+                            {/* Profile Identity */}
+                            <div className="mt-12 flex flex-col items-center z-10 w-full">
+                                <div className="w-32 h-32 rounded-[28px] border-2 border-black/20 p-1.5 mb-6 relative">
+                                    <div className="w-full h-full bg-black/10 rounded-[20px] overflow-hidden flex items-center justify-center shadow-lg">
+                                        <img src={user.photoURL || "/OKVEVO WithOut BackGrounds/Black.svg"} className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                    </div>
+                                </div>
+                                <div className="text-xl font-bold bg-black/5 px-6 py-2 rounded-full inline-block tracking-tight text-center">
+                                    {user.displayName || "MASIV Creator"}
+                                </div>
+                                <div className="text-sm font-bold text-black/60 mt-3 truncate w-full text-center tracking-wide px-4">
+                                    {formData.email}
+                                </div>
+                            </div>
+
+                            {/* 2x2 Stats Grid for minimal details */}
+                            <div className="grid grid-cols-2 gap-4 mt-16 z-10 w-full">
+                                <div className="bg-black/5 hover:bg-black/10 transition-colors duration-300 rounded-[24px] p-6 flex flex-col items-center text-center shadow-sm">
+                                    <Phone className="w-5 h-5 mb-4 opacity-40" />
+                                    <span className="text-sm font-bold tracking-tight truncate w-full">{formData.phoneNumber || "No Phone"}</span>
+                                    <span className="text-[10px] font-extrabold opacity-50 mt-1 uppercase tracking-widest">Contact</span>
+                                </div>
+                                <div className="bg-black/5 hover:bg-black/10 transition-colors duration-300 rounded-[24px] p-6 flex flex-col items-center text-center shadow-sm">
+                                    <Activity className="w-5 h-5 mb-4 opacity-40" />
+                                    <span className="text-[17px] font-bold tracking-tight text-black">Active</span>
+                                    <span className="text-[10px] font-extrabold opacity-50 mt-1 uppercase tracking-widest">Status</span>
+                                </div>
+                                <div className="bg-black/5 hover:bg-black/10 transition-colors duration-300 rounded-[24px] p-6 flex flex-col items-center text-center shadow-sm">
+                                    <span className="text-3xl font-bold mb-1 tracking-tighter">04</span>
+                                    <span className="text-[10px] font-extrabold opacity-50 uppercase tracking-widest mt-1">Projects</span>
+                                </div>
+                                <div className="bg-black/5 hover:bg-black/10 transition-colors duration-300 rounded-[24px] p-6 flex flex-col items-center text-center shadow-sm">
+                                    <span className="text-3xl font-medium mb-1 tracking-tighter">∞</span>
+                                    <span className="text-[10px] font-extrabold opacity-50 uppercase tracking-widest mt-1">Access</span>
+                                </div>
+                            </div>
+
+                            {/* Bottom Pulse Chart */}
+                            <div className="mt-auto pt-16 z-10 w-full mb-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-xs font-bold tracking-widest uppercase opacity-80">Pulse Rate</span>
+                                    <div className="flex gap-1.5">
+                                        <div className="w-2 h-2 bg-black rounded-full" />
+                                        <div className="w-2 h-2 bg-black rounded-full" />
+                                    </div>
+                                </div>
+                                <svg viewBox="0 0 200 40" className="w-full h-12 overflow-visible" fill="none">
+                                    <path d="M0 20 L 20 20 L 30 10 L 40 30 L 50 20 L 70 20 L 80 5 L 90 35 L 100 20 L 120 20 L 130 15 L 140 28 L 150 20 L 200 20" stroke="black" strokeWidth="2.5" strokeLinejoin="miter" strokeMiterlimit="2" />
+                                </svg>
+                            </div>
+
+                        </div>
+                    </motion.div>
+
+                ) : (
+
+                    /* MINIMAL EDIT FORM - NOW CENTERED FULLSCREEN */
+                    <motion.div 
+                        key="edit"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                        className="w-full h-full flex items-center justify-center relative z-10 p-6 md:p-12"
+                    >
+                        <div className="w-full max-w-xl bg-[#111] border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[48px] p-10 md:p-14 relative overflow-hidden backdrop-blur-3xl">
+                            
+                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#FF4D00] to-transparent opacity-50" />
+
+                            <div className="flex justify-between items-center mb-12">
+                                <button type="button" className="w-12 h-12 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors shadow-inner">
+                                    <Edit3 className="w-5 h-5 text-[#FF4D00]" />
+                                </button>
+                                <button onClick={() => { setIsEditing(false); setStatus({type:null, message:''}); }} className="w-12 h-12 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-inner">
+                                    <LogOut className="w-5 h-5 ml-0.5" />
+                                </button>
+                            </div>
+
+                            <div className="mb-10 text-center">
+                                <h1 className="text-3xl font-bold tracking-tight text-white mb-3">Update Credentials</h1>
+                                <p className="text-white/40 text-sm font-medium">Keep your canvas updated.</p>
+                            </div>
+
+                            <form onSubmit={handleSave} className="space-y-6">
+                                <div className="space-y-2 group">
+                                    <label className="text-xs font-bold text-white/40 uppercase ml-2 group-focus-within:text-[#FF4D00] transition-colors tracking-widest">Email Address</label>
+                                    <input 
+                                        type="email" 
+                                        required
+                                        value={formData.email} 
+                                        onChange={e => setFormData({...formData, email: e.target.value})} 
+                                        className="w-full bg-[#1A1A1A] border-transparent rounded-[24px] px-6 py-5 text-white outline-none focus:ring-2 focus:ring-[#FF4D00]/50 transition-all text-sm font-medium"
+                                        placeholder="name@example.com"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 group">
+                                    <label className="text-xs font-bold text-white/40 uppercase ml-2 group-focus-within:text-[#FF4D00] transition-colors tracking-widest">Phone Number</label>
+                                    <input 
+                                        type="tel" 
+                                        value={formData.phoneNumber} 
+                                        onChange={e => setFormData({...formData, phoneNumber: e.target.value})} 
+                                        className="w-full bg-[#1A1A1A] border-transparent rounded-[24px] px-6 py-5 text-white outline-none focus:ring-2 focus:ring-[#FF4D00]/50 transition-all text-sm font-medium"
+                                        placeholder="+1 (555) 000-0000"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 group">
+                                    <label className="text-xs font-bold text-white/40 uppercase ml-2 group-focus-within:text-[#FF4D00] transition-colors tracking-widest">Biography</label>
+                                    <textarea 
+                                        value={formData.bio} 
+                                        onChange={e => setFormData({...formData, bio: e.target.value})} 
+                                        className="w-full bg-[#1A1A1A] border-transparent rounded-[24px] px-6 py-5 text-white outline-none focus:ring-2 focus:ring-[#FF4D00]/50 transition-all text-sm font-medium resize-none min-h-[140px]"
+                                        placeholder="Record your workflow or ideas..."
+                                    />
+                                </div>
+
+                                {status.message && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                                        className={`text-xs py-4 px-5 rounded-2xl flex items-center justify-center gap-3 mt-6 font-bold tracking-wide ${
+                                            status.type === 'success' ? 'bg-[#FF4D00]/20 text-[#FF4D00]' : 'bg-red-500/20 text-red-500'
+                                        }`}
+                                    >
+                                        {status.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                        {status.message}
+                                    </motion.div>
+                                )}
+
+                                <div className="pt-6 w-full flex flex-col gap-4">
+                                    <button 
+                                        type="submit" 
+                                        disabled={saving}
+                                        className="w-full bg-white text-black font-bold py-5 rounded-[24px] hover:bg-[#FF4D00] hover:text-white transform transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Changes"}
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setIsEditing(false); setStatus({type:null, message:''}); }}
+                                        className="w-full bg-white/5 text-white font-bold py-5 rounded-[24px] hover:bg-white/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        Cancel Edit
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
