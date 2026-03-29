@@ -2,15 +2,23 @@
 
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play } from 'lucide-react';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, Camera, RotateCcw } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-// import MasivHero from '@/components/masiv/MasivHero';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 import Link from 'next/link';
+import SessionStatus from '@/components/booth/SessionStatus';
+import { 
+  createPhotoRequest, 
+  listenToResponse, 
+  resetSession, 
+  joinSession,
+  isCameraConnected,
+  PhotoResponse 
+} from '@/lib/boothSession';
 
 interface MasivProduct {
     id: string;
@@ -368,6 +376,20 @@ export default function OkvevoMasivPage() {
     const [activeFilter, setActiveFilter] = useState<'all' | 'photo' | 'video'>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Booth Camera System State
+    const [boothSessionId, setBoothSessionId] = useState<string>('');
+    const [showSessionConfig, setShowSessionConfig] = useState(false);
+    const [cameraConnected, setCameraConnected] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<Map<string, string>>(new Map()); // requestId -> slotId
+    const [capturedPhotos, setCapturedPhotos] = useState<{fullBody: string | null, face: string | null}>({
+        fullBody: null,
+        face: null
+    });
+    const [photoAttempts, setPhotoAttempts] = useState<{fullBody: number, face: number}>({
+        fullBody: 0,
+        face: 0
+    });
+
     // Fetch Banners from Firestore
     useEffect(() => {
         const q = query(collection(db, 'masiv_banners'));
@@ -396,6 +418,18 @@ export default function OkvevoMasivPage() {
             })
             .sort((a, b) => (a.level || 0) - (b.level || 0)); // Sort by level (ascending)
     }, [products, activeFilter, searchQuery]);
+
+    // Initialize booth session from localStorage
+    useEffect(() => {
+        const savedSessionId = localStorage.getItem('masivBoothSessionId');
+        if (savedSessionId) {
+            setBoothSessionId(savedSessionId);
+            joinSession(savedSessionId).catch(err => {
+                console.error('Error joining booth session:', err);
+            });
+        }
+    }, []);
+
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
@@ -502,6 +536,105 @@ export default function OkvevoMasivPage() {
         }
     };
 
+    // Booth Camera: Request photo capture
+    const requestPhotoCapture = async (slotId: 'fullBody' | 'face') => {
+        if (!boothSessionId) {
+            alert('Please configure booth session first');
+            setShowSessionConfig(true);
+            return;
+        }
+
+        const connected = await isCameraConnected(boothSessionId);
+        if (!connected) {
+            alert('Camera is not connected. Please check iPhone.');
+            return;
+        }
+
+        const attemptCount = slotId === 'fullBody' ? photoAttempts.fullBody + 1 : photoAttempts.face + 1;
+        
+        if (attemptCount > 3) {
+            alert('Maximum 3 attempts reached for this photo');
+            return;
+        }
+
+        try {
+            const requestId = await createPhotoRequest(boothSessionId, slotId, attemptCount);
+            
+            // Track pending request
+            setPendingRequests(prev => new Map(prev).set(requestId, slotId));
+            
+            // Update attempt count
+            setPhotoAttempts(prev => ({
+                ...prev,
+                [slotId]: attemptCount
+            }));
+
+            // Listen for response
+            const unsubscribe = listenToResponse(boothSessionId, requestId, (response) => {
+                if (response && response.status === 'success') {
+                    // Update captured photos
+                    setCapturedPhotos(prev => ({
+                        ...prev,
+                        [slotId]: response.imageUrl
+                    }));
+
+                    // Also set the old state for compatibility with existing cart logic
+                    if (slotId === 'fullBody') {
+                        setFullBodyImage(response.imageUrl);
+                    } else {
+                        setFaceCloseUpImage(response.imageUrl);
+                    }
+
+                    // Remove from pending
+                    setPendingRequests(prev => {
+                        const newMap = new Map(prev);
+                        newMap.delete(requestId);
+                        return newMap;
+                    });
+
+                    unsubscribe();
+                }
+            });
+        } catch (error) {
+            console.error('Error requesting photo capture:', error);
+            alert('Failed to request photo capture');
+        }
+    };
+
+    // Booth Camera: Reset session
+    const handleResetSession = async () => {
+        if (!boothSessionId) return;
+        
+        if (confirm('Reset booth session? This will clear all photos and start fresh.')) {
+            try {
+                await resetSession(boothSessionId);
+                setCapturedPhotos({ fullBody: null, face: null });
+                setFullBodyImage(null);
+                setFaceCloseUpImage(null);
+                setPhotoAttempts({ fullBody: 0, face: 0 });
+                setPendingRequests(new Map());
+                setCart([]);
+                alert('Session reset successfully');
+            } catch (error) {
+                console.error('Error resetting session:', error);
+                alert('Failed to reset session');
+            }
+        }
+    };
+
+    // Booth Camera: Configure session
+    const handleSessionConfig = (newSessionId: string) => {
+        const cleanSessionId = newSessionId.trim().toUpperCase();
+        if (cleanSessionId && !cleanSessionId.includes('/') && !cleanSessionId.includes(':') && !cleanSessionId.includes('.')) {
+            localStorage.setItem('masivBoothSessionId', cleanSessionId);
+            setBoothSessionId(cleanSessionId);
+            joinSession(cleanSessionId);
+            setShowSessionConfig(false);
+        } else {
+            alert('Invalid session ID. Please enter only letters and numbers (e.g., BOOTH1)');
+        }
+    };
+
     const addToCart = async (product: MasivProduct) => {
         // Validate that photos are uploaded
         if (!fullBodyImage) {
@@ -517,17 +650,31 @@ export default function OkvevoMasivPage() {
             const timestamp = Date.now();
             const userId = user.uid;
             
-            // Upload Full Body Image to Storage
-            const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
-            await uploadString(fullBodyRef, fullBodyImage, 'data_url');
-            const fullBodyUrl = await getDownloadURL(fullBodyRef);
-
-            // Upload Face Image (if present)
+            let fullBodyUrl: string;
             let faceUrl = '';
+
+            // Check if fullBodyImage is already a Firebase Storage URL (from booth camera)
+            if (fullBodyImage.startsWith('https://')) {
+                // Already a Firebase Storage URL, use it directly
+                fullBodyUrl = fullBodyImage;
+            } else {
+                // It's a data URL, upload it to Storage
+                const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
+                await uploadString(fullBodyRef, fullBodyImage, 'data_url');
+                fullBodyUrl = await getDownloadURL(fullBodyRef);
+            }
+
+            // Handle face image similarly
             if (faceCloseUpImage) {
-                const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
-                await uploadString(faceRef, faceCloseUpImage, 'data_url');
-                faceUrl = await getDownloadURL(faceRef);
+                if (faceCloseUpImage.startsWith('https://')) {
+                    // Already a Firebase Storage URL
+                    faceUrl = faceCloseUpImage;
+                } else {
+                    // It's a data URL, upload it
+                    const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
+                    await uploadString(faceRef, faceCloseUpImage, 'data_url');
+                    faceUrl = await getDownloadURL(faceRef);
+                }
             }
 
             // Add to cart with photo URLs (no Firestore write yet - will be created after payment)
@@ -545,6 +692,8 @@ export default function OkvevoMasivPage() {
             // Clear uploaded images after successful submission
             setFullBodyImage(null);
             setFaceCloseUpImage(null);
+            setCapturedPhotos({ fullBody: null, face: null });
+            setPhotoAttempts({ fullBody: 0, face: 0 });
             
             alert('Successfully added to cart with your photos!');
             setSelectedCard(null);
@@ -577,8 +726,39 @@ export default function OkvevoMasivPage() {
                         </Link>
                     </div>
 
-                    {/* Center - Empty */}
-                    <div className="flex-1 flex justify-center" />
+                    {/* Center - Session Status */}
+                    <div className="flex-1 flex justify-center gap-3">
+                        {boothSessionId && <SessionStatus sessionId={boothSessionId} showBanner={true} />}
+                        {boothSessionId && (
+                            <>
+                                <button
+                                    onClick={() => setShowSessionConfig(true)}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    title="Change Session ID"
+                                >
+                                    <Camera className="w-3 h-3" />
+                                    <span className="text-xs font-bold hidden lg:block">Change</span>
+                                </button>
+                                <button
+                                    onClick={handleResetSession}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    title="Reset Session"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span className="text-xs font-bold hidden lg:block">Reset</span>
+                                </button>
+                            </>
+                        )}
+                        {!boothSessionId && (
+                            <button
+                                onClick={() => setShowSessionConfig(true)}
+                                className="flex items-center gap-2 px-4 py-1.5 bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 rounded-full border border-[#FF6B35]/30 transition-colors"
+                            >
+                                <Camera className="w-3 h-3 text-[#FF6B35]" />
+                                <span className="text-xs font-bold text-[#FF6B35]">Setup Booth</span>
+                            </button>
+                        )}
+                    </div>
 
                     {/* Right - Cart */}
                     <div className="flex-1 flex justify-end">
@@ -788,31 +968,33 @@ export default function OkvevoMasivPage() {
                                                         </button>
                                                     )}
                                                 </div>
-                                                <label className="flex-1 min-h-0 block cursor-pointer group">
-                                                    <input 
-                                                        type="file" 
-                                                        className="hidden" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleFileChange(e, 'full')}
-                                                    />
+                                                <div className="flex-1 min-h-0">
                                                     <div 
                                                         className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
                                                             fullBodyImage 
                                                                 ? 'border-[#FF6B35]/50 bg-[#FF6B35]/5' 
-                                                                : 'border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 group-hover:border-[#FF6B35]/60'
+                                                                : 'border-[#FF6B35]/30'
                                                         }`}
                                                     >
                                                         {fullBodyImage ? (
                                                             <img src={fullBodyImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Upload strokeWidth={1.5} className="w-5 h-5 text-white/40 group-hover:text-[#FF6B35] transition-colors mb-2" />
-                                                                <span className="text-white/60 text-[13px] mb-1 group-hover:text-white transition-colors">Upload full body photo</span>
-                                                                <span className="text-white/30 text-[11px]">Required for outfit reference</span>
+                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                <button
+                                                                    onClick={() => requestPhotoCapture('fullBody')}
+                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('fullBody')}
+                                                                    className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-xs rounded-lg transition-all"
+                                                                >
+                                                                    {Array.from(pendingRequests.values()).includes('fullBody') ? 'Capturing...' : 'Tap to Capture'}
+                                                                </button>
+                                                                <span className="text-white/30 text-[11px] mt-2">
+                                                                    {photoAttempts.fullBody > 0 && `Attempt ${photoAttempts.fullBody}/3`}
+                                                                </span>
                                                             </>
                                                         )}
                                                     </div>
-                                                </label>
+                                                </div>
                                             </div>
 
                                             {/* Bottom Box: Face Close-up */}
@@ -834,31 +1016,33 @@ export default function OkvevoMasivPage() {
                                                         </button>
                                                     )}
                                                 </div>
-                                                <label className="flex-1 min-h-0 block cursor-pointer group">
-                                                    <input 
-                                                        type="file" 
-                                                        className="hidden" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleFileChange(e, 'face')}
-                                                    />
+                                                <div className="flex-1 min-h-0">
                                                     <div 
                                                         className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
                                                             faceCloseUpImage 
                                                                 ? 'border-white/30 bg-white/5' 
-                                                                : 'border-white/10 group-hover:bg-white/5 group-hover:border-white/30'
+                                                                : 'border-white/10'
                                                         }`}
                                                     >
                                                         {faceCloseUpImage ? (
                                                             <img src={faceCloseUpImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Upload strokeWidth={1.5} className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors mb-2" />
-                                                                <span className="text-white/60 text-[13px] mb-1 group-hover:text-white transition-colors">Upload face close-up</span>
-                                                                <span className="text-white/30 text-[11px]">For better facial accuracy</span>
+                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                <button
+                                                                    onClick={() => requestPhotoCapture('face')}
+                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('face')}
+                                                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/20 text-white font-bold text-xs rounded-lg transition-all"
+                                                                >
+                                                                    {Array.from(pendingRequests.values()).includes('face') ? 'Capturing...' : 'Tap to Capture'}
+                                                                </button>
+                                                                <span className="text-white/30 text-[11px] mt-2">
+                                                                    {photoAttempts.face > 0 && `Attempt ${photoAttempts.face}/3`}
+                                                                </span>
                                                             </>
                                                         )}
                                                     </div>
-                                                </label>
+                                                </div>
                                             </div>
 
                                         </div>
@@ -1158,6 +1342,69 @@ export default function OkvevoMasivPage() {
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Session Configuration Modal */}
+            <AnimatePresence>
+                {showSessionConfig && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowSessionConfig(false)}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-[#0d0d0d] border border-white/10 rounded-3xl p-8 max-w-md w-full"
+                        >
+                            <div className="text-center mb-6">
+                                <Camera className="w-12 h-12 mx-auto mb-3 text-[#FF6B35]" />
+                                <h2 className="text-2xl font-black mb-2">Configure Booth Session</h2>
+                                <p className="text-white/50 text-sm">Enter the session ID to connect iPad with iPhone camera</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">
+                                        Session ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        defaultValue={boothSessionId}
+                                        placeholder="BOOTH1"
+                                        id="sessionIdInput"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors uppercase"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowSessionConfig(false)}
+                                        className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.getElementById('sessionIdInput') as HTMLInputElement;
+                                            if (input?.value) {
+                                                handleSessionConfig(input.value);
+                                            }
+                                        }}
+                                        className="flex-1 py-3 bg-[#FF6B35] hover:bg-[#FF8F6B] text-white font-bold rounded-xl transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
