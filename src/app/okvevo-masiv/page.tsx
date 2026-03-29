@@ -20,6 +20,13 @@ import {
   PhotoResponse 
 } from '@/lib/boothSession';
 
+// Razorpay TypeScript declaration
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
+
 interface MasivProduct {
     id: string;
     name: string;
@@ -339,6 +346,7 @@ export default function OkvevoMasivPage() {
     const [userName, setUserName] = useState('');
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [email, setEmail] = useState('');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const router = useRouter();
 
     const [products, setProducts] = useState<MasivProduct[]>([]);
@@ -352,6 +360,20 @@ export default function OkvevoMasivPage() {
             router.push('/login');
         }
     }, [authLoading, isAuthenticated, router]);
+
+    // Load Razorpay script
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        
+        return () => {
+            if (document.body.contains(script)) {
+                document.body.removeChild(script);
+            }
+        };
+    }, []);
 
     // Fetch Products from Firestore
     useEffect(() => {
@@ -705,6 +727,93 @@ export default function OkvevoMasivPage() {
 
     const removeFromCart = (id: string) => {
         setCart(cart.filter(item => item.id !== id));
+    };
+
+    const handleCheckout = async () => {
+        // Validate inputs
+        if (!userName || !whatsappNumber) {
+            alert('Please fill in all required fields (Name and WhatsApp Number)');
+            return;
+        }
+
+        if (!user?.uid) {
+            alert('Please sign in to proceed with checkout');
+            return;
+        }
+
+        setIsProcessingPayment(true);
+
+        try {
+            // Call backend to create Razorpay order + Firestore doc
+            const response = await fetch('/api/razorpay/create-masiv-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    customerName: userName,
+                    whatsappNumber,
+                    email: email || null,
+                    items: cart,
+                    totalAmount: totalPrice,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create order');
+            }
+
+            const { orderId, key, amount, currency } = await response.json();
+
+            // Check if Razorpay script is loaded
+            if (!window.Razorpay) {
+                throw new Error('Razorpay SDK not loaded. Please refresh the page.');
+            }
+
+            // Initialize Razorpay checkout
+            const options = {
+                key,
+                amount,
+                currency,
+                name: 'OKVEVO MASIV',
+                description: 'Photo/Video Trend Order',
+                order_id: orderId,
+                prefill: {
+                    name: userName,
+                    contact: whatsappNumber,
+                    email: email || '',
+                },
+                theme: {
+                    color: '#FF6B35',
+                },
+                handler: function (response: any) {
+                    // Payment successful
+                    console.log('Payment successful:', response);
+                    setCart([]);
+                    setUserName('');
+                    setWhatsappNumber('');
+                    setEmail('');
+                    setCapturedPhotos({ fullBody: null, face: null });
+                    setPhotoAttempts({ fullBody: 0, face: 0 });
+                    setShowCart(false);
+                    alert(`Payment successful! Order ID: ${orderId}\n\nYour order has been placed successfully. We'll contact you on WhatsApp shortly.`);
+                },
+                modal: {
+                    ondismiss: function () {
+                        setIsProcessingPayment(false);
+                        console.log('Payment modal closed');
+                    },
+                },
+            };
+
+            const razorpay = new window.Razorpay(options);
+            razorpay.open();
+
+        } catch (error: any) {
+            console.error('Checkout error:', error);
+            alert(`Failed to initiate payment: ${error.message}\n\nPlease try again.`);
+            setIsProcessingPayment(false);
+        }
     };
 
     const isInCart = (id: string) => cart.some(item => item.id === id);
@@ -1324,21 +1433,15 @@ export default function OkvevoMasivPage() {
                                             <span className="text-4xl font-black text-white">₹{totalPrice}</span>
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                if (!userName || !whatsappNumber) {
-                                                    alert('Please fill in all required fields (Name and WhatsApp Number)');
-                                                    return;
-                                                }
-                                                alert('Payment integration coming soon!');
-                                            }}
-                                            disabled={!userName || !whatsappNumber}
+                                            onClick={handleCheckout}
+                                            disabled={!userName || !whatsappNumber || isProcessingPayment}
                                             className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                                                !userName || !whatsappNumber
+                                                !userName || !whatsappNumber || isProcessingPayment
                                                     ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                                                     : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_0_30px_rgba(255,107,53,0.3)]'
                                             }`}
                                         >
-                                            Proceed to Checkout
+                                            {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
                                         </button>
                                     </div>
                                 )}
