@@ -29,8 +29,9 @@ interface MasivOrder {
     id: string;
     orderId?: string;
     userId: string;
-    userEmail: string;
+    userEmail?: string;
     userName?: string;
+    customerName?: string;
     whatsappNumber?: string;
     email?: string;
     
@@ -270,8 +271,8 @@ function TrendRequestsAdmin() {
                                                         <User className="w-5 h-5 text-gray-400" />
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-sm">{order.userName || order.userEmail.split('@')[0]}</p>
-                                                        <p className="text-xs text-gray-500">{order.userEmail}</p>
+                                                        <p className="font-bold text-sm">{order.userName || order.userEmail?.split('@')[0] || order.customerName || 'Unknown User'}</p>
+                                                        <p className="text-xs text-gray-500">{order.userEmail || order.email || 'No email'}</p>
                                                         {order.whatsappNumber && (
                                                             <p className="text-xs text-green-500 mt-1">📱 {order.whatsappNumber}</p>
                                                         )}

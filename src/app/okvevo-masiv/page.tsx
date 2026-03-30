@@ -51,7 +51,8 @@ interface MasivBanner {
 
  
 const isVideo = (url: string) => {
-    return url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm') || url.toLowerCase().endsWith('.mov');
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.mov');
 };
 
 const bgColors = [
@@ -93,6 +94,17 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
     const isMediaVideo = isVideo(mediaUrl);
     // REMOVED fragment to avoid Error 208 on certain devices
     const sourceUrl = mediaUrl;
+    
+    // Debug logging
+    if (isMediaVideo) {
+        console.log('🎬 Rendering video:', {
+            url: sourceUrl,
+            isVideo: isMediaVideo,
+            urlLength: sourceUrl.length,
+            hasToken: sourceUrl.includes('token='),
+            hasAltMedia: sourceUrl.includes('alt=media')
+        });
+    }
 
     return (
         <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
@@ -106,22 +118,30 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
                     className="absolute inset-0 w-full h-full flex items-center justify-center"
                 >
                     {isMediaVideo ? (
-                        <div className="relative w-full h-full flex items-center justify-center">
-                            <video 
-                                src={sourceUrl}
-                                autoPlay
-                                muted 
-                                loop 
-                                playsInline 
-                                preload="metadata"
-                                crossOrigin="anonymous"
-                                className="w-full h-full object-cover" 
-                            />
-                            {/* Visual play indicator always visible for clarity if not auto-played by browser */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                                <Play className="w-6 h-6 text-white/20 fill-white/10" />
-                            </div>
-                        </div>
+                        <video 
+                            key={sourceUrl}
+                            src={sourceUrl}
+                            autoPlay
+                            muted 
+                            loop 
+                            playsInline 
+                            preload="auto"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                console.error('❌ Video failed to load:', sourceUrl);
+                                const error = e.currentTarget.error;
+                                if (error) {
+                                    console.error('Error code:', error.code);
+                                    console.error('Error message:', error.message);
+                                }
+                            }}
+                            onLoadedData={() => {
+                                console.log('✅ Video loaded successfully:', sourceUrl);
+                            }}
+                            onCanPlay={() => {
+                                console.log('✅ Video can play:', sourceUrl);
+                            }}
+                        />
                     ) : (
                         <img 
                             src={sourceUrl}
@@ -262,9 +282,20 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                 >
                     {isVideo(items[index].image) ? (
                         <video 
+                            key={items[index].image}
                             src={items[index].image} 
-                            autoPlay muted loop playsInline 
-                            className="w-full h-full object-cover brightness-[0.9]" 
+                            autoPlay 
+                            muted 
+                            loop 
+                            playsInline 
+                            preload="auto"
+                            className="w-full h-full object-cover brightness-[0.9]"
+                            onError={(e) => {
+                                console.error('❌ Banner video failed to load:', items[index].image);
+                            }}
+                            onLoadedData={() => {
+                                console.log('✅ Banner video loaded:', items[index].image);
+                            }}
                         />
                     ) : (
                         <img 
@@ -429,16 +460,23 @@ export default function OkvevoMasivPage() {
 
     // Fetch Products from Firestore
     useEffect(() => {
+        console.log('🔍 Fetching products from masiv_products collection...');
         const q = query(collection(db, 'masiv_products'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedProducts = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as MasivProduct[];
+            console.log(`📦 Received ${snapshot.docs.length} products from Firestore`);
+            const fetchedProducts = snapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log(`Product: ${doc.id}`, data);
+                return {
+                    id: doc.id,
+                    ...data
+                } as MasivProduct;
+            });
+            console.log('✅ Products set:', fetchedProducts);
             setProducts(fetchedProducts);
             setLoadingProducts(false);
         }, (error) => {
-            console.error("Error fetching masiv_products:", error);
+            console.error("❌ Error fetching masiv_products:", error);
             setLoadingProducts(false);
         });
 
