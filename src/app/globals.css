@@ -39,11 +39,11 @@
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   }
 
-  body {
-    --font-sans: var(--font-ubuntu), ui-sans-serif, system-ui, sans-serif;
-    --font-serif: ui-serif, Georgia, serif;
+  html, body {
     @apply bg-bg-main text-text-main antialiased font-sans;
     overflow-x: hidden;
+    width: 100%;
+    position: relative;
   }
 
   ::selection {
@@ -70,15 +70,17 @@
   }
 
   .glass-card {
-    background-color: color-mix(in srgb, var(--color-text-main), transparent 92%);
+    background-color: color-mix(in srgb, var(--color-bg-main), transparent 15%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 85%);
     box-shadow: var(--shadow-glass);
   }
 
   .glass-navbar {
-    background-color: color-mix(in srgb, var(--color-text-main), transparent 92%);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background-color: color-mix(in srgb, var(--color-bg-main), transparent 15%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid color-mix(in srgb, var(--color-text-main), transparent 85%);
     box-shadow: var(--shadow-glass);
   }
@@ -147,7 +149,7 @@
 }
 
 .centering-container {
-  @apply max-w-7xl mx-auto px-6 md:px-12 flex flex-col items-center;
+  @apply max-w-7xl mx-auto px-4 md:px-12 flex flex-col items-center w-full;
 }
 
 .shadow-premium {

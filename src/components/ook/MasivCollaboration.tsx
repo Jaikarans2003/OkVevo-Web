@@ -45,8 +45,8 @@ const MasivCollaboration = () => {
                 </motion.div>
             </div>
 
-            {/* Side Accents - To make it 'Awesome' */}
-            <div className="absolute inset-0 pointer-events-none z-20">
+                {/* Side Accents - To make it 'Awesome' */}
+            <div className="absolute inset-0 pointer-events-none z-20 hidden md:block">
                 {/* Left Side Label */}
                 <div className="absolute left-10 top-1/2 -translate-y-1/2 rotate-180 [writing-mode:vertical-lr] flex items-center gap-4">
                     <div className="w-[1px] h-20 bg-gradient-to-t from-white/20 to-transparent" />
@@ -62,13 +62,14 @@ const MasivCollaboration = () => {
                     </span>
                     <div className="w-[1px] h-20 bg-gradient-to-b from-white/20 to-transparent" />
                 </div>
+            </div>
 
                 {/* Tiny corner brackets for technical feel */}
                 <div className="absolute top-20 left-20 w-8 h-8 border-t border-l border-white/10" />
                 <div className="absolute top-20 right-20 w-8 h-8 border-t border-r border-white/10" />
                 <div className="absolute bottom-20 left-20 w-8 h-8 border-b border-l border-white/10" />
                 <div className="absolute bottom-20 right-20 w-8 h-8 border-b border-r border-white/10" />
-            </div>
+
         </section>
     );
 };

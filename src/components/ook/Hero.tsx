@@ -91,12 +91,12 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 2, delay: 1 }}
-                className="absolute top-[-450px] left-1/2 -translate-x-1/2 w-[1600px] h-[800px] flex items-center justify-center pointer-events-none"
+                className="absolute top-[-450px] left-1/2 -translate-x-1/2 w-[800px] md:w-[1600px] h-[400px] md:h-[800px] flex items-center justify-center pointer-events-none"
             >
                 {/* Thin Arc Line */}
-                <div className="absolute bottom-0 w-[1400px] h-[1400px] border-[1px] border-accent-orange/10 rounded-full mask-arc" />
+                <div className="absolute bottom-0 w-[700px] md:w-[1400px] h-[700px] md:h-[1400px] border-[1px] border-accent-orange/10 rounded-full mask-arc" />
                 {/* Glow Spread */}
-                <div className="absolute bottom-0 w-[800px] h-[400px] bg-accent-orange/5 blur-3xl rounded-full translate-y-20 transform-gpu" />
+                <div className="absolute bottom-0 w-[400px] md:w-[800px] h-[200px] md:h-[400px] bg-accent-orange/5 blur-3xl rounded-full translate-y-20 transform-gpu" />
             </motion.div>
 
             {/* --- Content Section --- */}
@@ -126,7 +126,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-                    className="text-5xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
+                    className="text-4xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
                 >
                     Zero Cameras, <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Pure OKVEVO.</span>
@@ -147,17 +147,17 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.5 }}
-                    className="flex flex-col sm:flex-row items-center gap-4 mb-20"
+                    className="flex flex-col sm:flex-row items-center gap-4 mb-20 w-full px-6"
                 >
                     <button
                         onClick={onJoinClick}
-                        className="btn-premium text-black bg-white px-10 py-5"
+                        className="btn-premium text-black bg-white w-full sm:w-auto px-10 py-5 justify-center"
                     >
                         Get started
                     </button>
                     <a
                         href="#showcase"
-                        className="btn-outline-pro px-10 py-5 flex items-center gap-2 group text-white border-white/20 hover:border-accent-orange"
+                        className="btn-outline-pro w-full sm:w-auto px-10 py-5 flex items-center justify-center gap-2 group text-white border-white/20 hover:border-accent-orange"
                     >
                         <Play className="w-5 h-5 fill-white group-hover:fill-accent-orange transition-colors" />
                         Watch Demo

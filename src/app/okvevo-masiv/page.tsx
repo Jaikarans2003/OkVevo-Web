@@ -451,7 +451,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     return (
         <div className="w-full flex justify-center px-4 md:px-10">
             <motion.section 
-                className="w-[92%] max-w-[1700px] h-[75vh] relative overflow-hidden bg-black flex items-center mt-[140px] mb-[20px] rounded-[3rem] shadow-[0_0_80px_rgba(255,107,53,0.15)] ring-1 ring-[#FF6B35]/20 border border-white/5 px-10 py-16"
+                className="w-full md:w-[92%] max-w-[1700px] h-[60vh] md:h-[75vh] relative overflow-hidden bg-black flex items-center mt-[100px] md:mt-[140px] mb-[20px] rounded-[1.5rem] md:rounded-[3rem] shadow-[0_0_80px_rgba(255,107,53,0.15)] ring-1 ring-[#FF6B35]/20 border border-white/5 px-6 md:px-10 py-10 md:py-16 mx-auto"
             >
                 {/* 0. Proactive Media Preloader (Zero-Latency Bridge) */}
                 <div className="hidden pointer-events-none opacity-0">
@@ -1129,36 +1129,36 @@ export default function OkvevoMasivPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#1a0a05_0%,#050505_100%)] pointer-events-none z-0" />
 
             {/* Custom Floating Pill Navbar (Landing Page style) */}
-            <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-8 transition-all duration-700 pointer-events-none">
-                <div className="max-w-[1200px] mx-auto pointer-events-auto flex items-center justify-between w-full px-8 py-5 rounded-full backdrop-blur-xl bg-gradient-to-r from-[#FF6B35]/10 via-[#0A0A0A]/80 to-[#FF6B35]/10 border border-white/10 hover:shadow-[0_0_30px_rgba(255,107,53,0.15)] transition-all">
+            <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-4 md:py-8 transition-all duration-700 pointer-events-none">
+                <div className="max-w-[1200px] mx-auto pointer-events-auto flex items-center justify-between w-full px-4 md:px-8 py-3 md:py-5 rounded-full backdrop-blur-xl bg-gradient-to-r from-[#FF6B35]/10 via-[#0A0A0A]/80 to-[#FF6B35]/10 border border-white/10 hover:shadow-[0_0_30px_rgba(255,107,53,0.15)] transition-all">
                     
                     {/* Left - Official Logo */}
                     <div className="flex-1 flex justify-start">
                         <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                            <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-10 w-auto object-contain" />
+                            <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-6 md:h-10 w-auto object-contain" />
                         </Link>
                     </div>
 
                     {/* Center - Session Status */}
-                    <div className="flex-1 flex justify-center gap-3">
+                    <div className="flex-1 flex justify-center gap-2 md:gap-3">
                         {boothSessionId && <SessionStatus sessionId={boothSessionId} showBanner={true} />}
                         {boothSessionId && (
                             <>
                                 <button
                                     onClick={() => setShowSessionConfig(true)}
-                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    className="flex items-center gap-2 px-3 md:px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
                                     title="Change Session ID"
                                 >
                                     <Camera className="w-3 h-3" />
-                                    <span className="text-xs font-bold hidden lg:block">Change</span>
+                                    <span className="text-[10px] md:text-xs font-bold hidden lg:block">Change</span>
                                 </button>
                                 <button
                                     onClick={handleResetSession}
-                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+                                    className="flex items-center gap-2 px-3 md:px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
                                     title="Reset Session"
                                 >
                                     <RotateCcw className="w-3 h-3" />
-                                    <span className="text-xs font-bold hidden lg:block">Reset</span>
+                                    <span className="text-[10px] md:text-xs font-bold hidden lg:block">Reset</span>
                                 </button>
                             </>
                         )}
@@ -1168,7 +1168,7 @@ export default function OkvevoMasivPage() {
                                 className="flex items-center gap-2 px-4 py-1.5 bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 rounded-full border border-[#FF6B35]/30 transition-colors"
                             >
                                 <Camera className="w-3 h-3 text-[#FF6B35]" />
-                                <span className="text-xs font-bold text-[#FF6B35]">Setup Booth</span>
+                                <span className="text-[10px] md:text-xs font-bold text-[#FF6B35]">Setup</span>
                             </button>
                         )}
                     </div>
@@ -1177,11 +1177,11 @@ export default function OkvevoMasivPage() {
                     <div className="flex-1 flex justify-end">
                         <button
                             onClick={() => setShowCart(true)}
-                            className="flex items-center gap-2.5 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors shadow-lg"
+                            className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors shadow-lg"
                         >
                             <ShoppingCart className="w-4 h-4 text-[#FF6B35]" />
-                            <span className="font-bold text-sm tracking-widest uppercase hidden sm:block">Cart <span className="text-white/50 ml-1">({cart.length})</span></span>
-                            <span className="font-bold text-sm tracking-widest uppercase sm:hidden">{cart.length}</span>
+                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase hidden sm:block">Cart <span className="text-white/50 ml-1">({cart.length})</span></span>
+                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase sm:hidden">{cart.length}</span>
                         </button>
                     </div>
                 </div>
@@ -1198,14 +1198,14 @@ export default function OkvevoMasivPage() {
                 {/* Category Grid removed at user request */}
 
                 {/* Filter & Search Control Bar */}
-                <section className="px-10 mb-8 flex flex-col md:flex-row gap-6 items-center justify-between">
+                <section className="px-6 md:px-10 mb-8 flex flex-col md:flex-row gap-6 items-center justify-between">
                     {/* Category Tabs */}
-                    <div className="flex bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
+                    <div className="flex bg-white/5 border border-white/10 p-1 rounded-2xl backdrop-blur-md w-full md:w-auto">
                         {['all', 'photo', 'video'].map((type) => (
                             <button
                                 key={type}
                                 onClick={() => setActiveFilter(type as any)}
-                                className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                                className={`flex-1 md:flex-none px-4 md:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
                                     activeFilter === type 
                                     ? 'bg-[#FF6B35] text-white shadow-lg' 
                                     : 'text-white/40 hover:text-white hover:bg-white/5'

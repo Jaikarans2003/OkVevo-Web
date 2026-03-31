@@ -54,7 +54,7 @@ const Showcase = () => {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-5xl md:text-[70px] font-bold leading-[1.05] tracking-[-0.03em] text-white mb-6"
+                            className="text-4xl md:text-[70px] font-bold leading-[1.05] tracking-[-0.03em] text-white mb-6"
                         >
                              <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">Go from</span> script to <span className="bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">legendary </span>
                             
@@ -136,14 +136,14 @@ const Showcase = () => {
                     </div>
 
                     {/* Tabs Area */}
-                    <div className="flex items-center justify-start md:justify-around gap-12 mt-12 overflow-x-auto custom-scrollbar border-t border-[#222] relative z-20">
+                    <div className="flex items-center justify-start md:justify-around gap-8 md:gap-12 mt-12 overflow-x-auto scrollbar-hide border-t border-[#222] relative z-20 px-4">
                         {tabs.map((tab, index) => {
                             const isActive = activeTab === index;
                             return (
                                 <button
                                     key={index}
                                     onClick={() => setActiveTab(index)}
-                                    className={`relative py-8 px-8 text-2xl md:text-4xl font-semibold transition-colors duration-300 whitespace-nowrap ${
+                                    className={`relative py-6 md:py-8 px-4 md:px-8 text-xl md:text-4xl font-semibold transition-colors duration-300 whitespace-nowrap ${
                                         isActive ? 'text-white' : 'text-[#555] hover:text-[#888]'
                                     }`}
                                 >
