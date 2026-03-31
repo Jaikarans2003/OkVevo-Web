@@ -37,30 +37,46 @@ function AdminDashboard() {
         return () => unsubscribe();
     }, []);
 
-    // Real-time Users from userStats collection
+    // Real-time Users from razorpaySubscriptions collection
     useEffect(() => {
         if (loading) return;
 
-        const q = query(collection(db, 'userStats'), orderBy('updatedAt', 'desc'));
+        const q = query(collection(db, 'razorpaySubscriptions'), orderBy('updatedAt', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const statsData = snapshot.docs.map(doc => {
-                const data = doc.data() as UserStats;
-                return {
-                    uid: doc.id,
-                    email: data.email || '',
-                    creditsAllocated: data.creditsAllocated || 0,
-                    creditsSpent: data.creditsSpent || 0,
-                    creditsRemaining: data.creditsRemaining || 0,
+            const subscriptionsMap = new Map<string, UserWithStats>();
+            
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                const userId = data.userId;
+                
+                if (!userId) return;
+                
+                // If user already exists, keep the most recent subscription
+                if (subscriptionsMap.has(userId)) {
+                    const existing = subscriptionsMap.get(userId)!;
+                    const existingDate = existing.createdAt?.getTime() || 0;
+                    const currentDate = data.createdAt?.toDate()?.getTime() || 0;
+                    
+                    if (currentDate <= existingDate) return;
+                }
+                
+                subscriptionsMap.set(userId, {
+                    uid: userId,
+                    email: data.email || 'No email',
+                    creditsAllocated: data.initialCredits || data.credits || 0,
+                    creditsSpent: data.creditsUsed || 0,
+                    creditsRemaining: data.credits || 0,
                     planType: data.planType || 'hobby',
-                    subscriptionStatus: data.subscriptionStatus || 'active',
-                    createdAt: data.updatedAt?.toDate() || new Date(), // Using updatedAt as fallback
-                    lastActivity: data.lastActivity?.toDate(),
-                } as UserWithStats;
+                    subscriptionStatus: data.status || 'active',
+                    createdAt: data.createdAt?.toDate() || data.updatedAt?.toDate() || new Date(),
+                    lastActivity: data.updatedAt?.toDate(),
+                } as UserWithStats);
             });
-            setUsers(statsData);
+            
+            setUsers(Array.from(subscriptionsMap.values()));
         }, (err) => {
-            console.error('Firestore Users Error:', err);
-            setError('Failed to load real-time users.');
+            console.error('Firestore Subscriptions Error:', err);
+            setError('Failed to load subscription data.');
         });
 
         return () => unsubscribe();
