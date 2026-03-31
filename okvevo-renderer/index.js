@@ -445,6 +445,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
             '-c:a', 'aac',
             '-b:a', '192k',
             '-movflags', '+faststart',
+            '-shortest',
             '-y',
             outputPath
         ];

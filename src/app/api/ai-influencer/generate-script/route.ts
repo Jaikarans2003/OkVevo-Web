@@ -61,19 +61,19 @@ export async function POST(request: NextRequest) {
             : "Use occasional ellipses (...) for dramatic pauses, but do NOT replace actual content with ellipses. Each sentence must be a complete, meaningful thought. The pauses are between sentences, not instead of words.";
 
         if (duration === 15) {
-            minDuration = 10;
-            minWords = isFast ? 55 : 38;
-            maxWords = isFast ? 63 : 48;
+            minDuration = 13;
+            minWords = isFast ? 45 : 34;
+            maxWords = isFast ? 52 : 40;
             momentsCount = 3;
         } else if (duration === 30) {
-            minDuration = 25;
-            minWords = isFast ? 120 : 80;
-            maxWords = isFast ? 138 : 98;
+            minDuration = 28;
+            minWords = isFast ? 90 : 68;
+            maxWords = isFast ? 105 : 82;
             momentsCount = 5;
         } else if (duration === 60) {
-            minDuration = 55;
-            minWords = isFast ? 210 : 160;
-            maxWords = isFast ? 228 : 183;
+            minDuration = 57;
+            minWords = isFast ? 180 : 138;
+            maxWords = isFast ? 210 : 165;
             momentsCount = 8;
         } else {
             // Fallback just in case
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             const baseRequirements = `
 Requirements for the output script:
 ${retryWarning}
-- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud at a natural speaking pace (~2.5 words/second).
+- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud at a natural speaking pace (~2.3 to 2.8 words/second).
 - ⚠️ MANDATORY WORD COUNT: The script MUST contain between ${minWords} and ${maxWords} words. This is NON-NEGOTIABLE.
   * Count every word carefully before outputting.
   * Scripts with fewer than ${minWords} words will be REJECTED.
