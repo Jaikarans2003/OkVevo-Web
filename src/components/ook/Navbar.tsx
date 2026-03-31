@@ -52,7 +52,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     const textColorDim = 'text-white/70';
 
     const navLinks = [
-        { name: 'Process', href: '/#features' },
+        { name: 'Process', href: '/#showcase' },
         { name: 'Pricing', href: '/#pricing' },
         { name: 'Masiv', href: '/okvevo-masiv' }
     ];

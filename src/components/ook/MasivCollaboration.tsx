@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 const MasivCollaboration = () => {
     return (
-        <section className="relative h-screen bg-black overflow-hidden flex flex-col items-center justify-center font-sans">
+        <section id="okvevo-x-masiv" className="relative h-screen bg-black overflow-hidden flex flex-col items-center justify-center font-sans">
             {/* Background Image with Black Filter */}
             <div className="absolute inset-0 z-0 transform-gpu">
                 <img

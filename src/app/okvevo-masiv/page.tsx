@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, memo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, ArrowUpRight, ArrowRight, ArrowLeft, Camera, RotateCcw } from 'lucide-react';
+import { Plus, X, ShoppingCart, Upload, Check, Trash2, Search, Sparkles, Play, ArrowUpRight, ArrowRight, ArrowLeft, Camera, RotateCcw, ChevronDown } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -384,6 +384,214 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                     <span className="text-sm font-black text-white/20 tracking-tighter">0{items.length}</span>
                 </div>
             </div>
+        </div>
+    );
+};const AdsSection = ({ banners }: { banners: MasivBanner[] }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const nextAd = useCallback(() => {
+        if (isTransitioning) return;
+        setIsTransitioning(true);
+        setCurrentIndex((prev) => (prev + 1) % (banners.length || 1));
+        setTimeout(() => setIsTransitioning(false), 850);
+    }, [isTransitioning, banners.length]);
+
+    const prevAd = () => {
+        if (isTransitioning) return;
+        setIsTransitioning(true);
+        setCurrentIndex((prev) => (prev - 1 + (banners.length || 1)) % (banners.length || 1));
+        setTimeout(() => setIsTransitioning(false), 850);
+    };
+
+    // Auto-cycle logic
+    useEffect(() => {
+        const timer = setInterval(() => {
+            nextAd();
+        }, 7000);
+        return () => clearInterval(timer);
+    }, [nextAd]);
+
+    if (!banners.length) return null;
+
+    const currentAd = banners[currentIndex];
+
+    return (
+        <div className="w-full flex justify-center px-4 md:px-10">
+            <motion.section 
+                className="w-[92%] max-w-[1700px] h-[75vh] relative overflow-hidden bg-black flex items-center mt-[140px] mb-[20px] rounded-[3rem] shadow-[0_0_80px_rgba(255,107,53,0.15)] ring-1 ring-[#FF6B35]/20 border border-white/5 px-10 py-16"
+            >
+                {/* 0. Proactive Media Preloader (Zero-Latency Bridge) */}
+                <div className="hidden pointer-events-none opacity-0">
+                    <img src={banners[(currentIndex + 1) % banners.length].mediaUrl} alt="" />
+                </div>
+
+                <AnimatePresence mode="wait" initial={false}>
+                    <motion.div 
+                        key={currentAd.mediaUrl}
+                        initial={{ 
+                            opacity: 0, 
+                            clipPath: "inset(15% round 2rem)",
+                            scale: 1.12
+                        }}
+                        animate={{ 
+                            opacity: 1, 
+                            clipPath: "inset(0% round 0rem)",
+                            scale: 1
+                        }}
+                        exit={{ 
+                            opacity: 0, 
+                            scale: 1.05,
+                            transition: { duration: 0.4 }
+                        }}
+                        transition={{ 
+                            duration: 0.85, 
+                            ease: [0.22, 1, 0.36, 1] 
+                        }}
+                        className="absolute inset-0 z-0 will-change-[transform,opacity,clip-path]"
+                    >
+                        {currentAd.type === 'video' ? (
+                            /* Full-Bleed Immersive Video (Zero-Latency Bridge) */
+                            <div className="absolute inset-0 bg-black">
+                                <img 
+                                    src={currentAd.mediaUrl} 
+                                    className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110" 
+                                    alt="" 
+                                />
+                                <video 
+                                    src={currentAd.mediaUrl} 
+                                    autoPlay muted loop playsInline 
+                                    preload="auto"
+                                    poster={currentAd.mediaUrl}
+                                    className="relative w-full h-full object-cover z-10"
+                                />
+                                {/* Deep Vignette for Full Video */}
+                                <div className="absolute inset-0 z-20 bg-black/30" />
+                            </div>
+                        ) : (
+                          /* PHOTO: Portrait-to-Landscape Gradient Blur Tech */
+                        <>
+                            <div className="absolute inset-0 overflow-hidden">
+                                {/* Layer 0: Ambient Color Leaks (The 'Different Colours' Base) */}
+                                <div className="absolute top-0 -left-[10%] w-[40%] h-full bg-[#FF6B35]/20 blur-[200px] rounded-full animate-pulse" />
+                                <div className="absolute bottom-0 -right-[10%] w-[40%] h-full bg-blue-500/10 blur-[200px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+
+                                {/* Layer 1: Base sharp/slight-blur background */}
+                                <img 
+                                    src={currentAd.mediaUrl} 
+                                    className="absolute inset-0 w-full h-full object-cover scale-[1.3] brightness-[0.8] contrast-[1.1] saturate-[150%] blur-[80px]" 
+                                    alt="" 
+                                />
+                                {/* Layer 2: Deep Blur layer with gradient mask */}
+                                <img 
+                                    src={currentAd.mediaUrl} 
+                                    className="absolute inset-0 w-full h-full object-cover blur-[160px] scale-[1.5] brightness-[1.1] contrast-[1.2] saturate-[200%]" 
+                                    style={{
+                                        maskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)",
+                                        WebkitMaskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)"
+                                    }}
+                                    alt="" 
+                                />
+                                {/* Subtle vignetting to keep focus */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
+                            </div>
+                            <div className="relative h-full w-full flex justify-center items-center">
+                                <div className="h-full aspect-[9/16] relative shadow-[0_0_120px_rgba(0,0,0,0.9)] border-x border-white/10 z-10 transition-transform duration-700">
+                                    <img 
+                                        src={currentAd.mediaUrl} 
+                                        className="w-full h-full object-cover" 
+                                        alt={currentAd.title}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                        )}
+                        {/* Universal Cinematic Overlays */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/20 to-black/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
+                    </motion.div>
+                </AnimatePresence>
+
+                {/* 2. Primary Typography Overlay (Positioned lower and even further left) */}
+                <div className="relative z-10 w-full px-4 md:px-0 pt-48 pointer-events-none">
+                    <div className="max-w-4xl pl-2 md:pl-4">
+                        <motion.div
+                            key={`meta-${currentIndex}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+                        >
+                            <span className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-[9px] mb-2 block">OKVEVO X MASIV</span>
+                            <div className="h-[1.5px] w-8 bg-white/30 mb-6" />
+                        </motion.div>
+                        
+                        <motion.h1
+                            key={`title-${currentIndex}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
+                            className="text-white text-4xl md:text-6xl font-black leading-[0.95] tracking-tighter uppercase select-none drop-shadow-2xl"
+                        >
+                            <span dangerouslySetInnerHTML={{ 
+                                __html: currentAd.title.includes(' ') 
+                                    ? currentAd.title.replace(' ', '<br/>') 
+                                    : currentAd.title 
+                            }} />
+                        </motion.h1>
+                        
+                        <motion.p
+                            key={`desc-${currentIndex}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 0.4, x: 0 }}
+                            transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
+                            className="text-white text-[11px] md:text-[13px] font-bold tracking-[0.15em] uppercase mt-10 max-w-lg leading-relaxed"
+                        >
+                            {currentAd.description}
+                        </motion.p>
+                    </div>
+                </div>
+                
+                {/* 3. Controls & Progress Bar */}
+
+
+            <div className="absolute bottom-6 left-10 right-10 z-30 flex items-center justify-between border-t border-white/10 pt-4">
+                <div className="flex items-center gap-12">
+                    {/* Navigation Buttons */}
+                    <div className="flex gap-4">
+                        <button onClick={prevAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
+                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        </button>
+                        <button onClick={nextAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
+
+                    {/* Progress Bar Container */}
+                    <div className="w-64 h-[2px] bg-white/10 relative overflow-hidden hidden md:block">
+                        <motion.div 
+                            key={currentIndex}
+                            initial={{ x: "-100%" }}
+                            animate={{ x: "0%" }}
+                            transition={{ duration: 7, ease: "linear" }}
+                            className="absolute inset-0 bg-[#FF6B35]" 
+                        />
+                    </div>
+                </div>
+
+                {/* Counter */}
+                <div className="flex items-baseline gap-3">
+                    <span className="text-white text-3xl font-black tracking-tighter italic">0{currentIndex + 1}</span>
+                    <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em]">/ 0{banners.length}</span>
+                </div>
+            </div>
+
+            {/* Animated Light Leaks Layer */}
+            <div className="absolute inset-0 pointer-events-none z-5">
+                <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-[#FF6B35]/5 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
+            </div>
+            </motion.section>
         </div>
     );
 };
@@ -942,71 +1150,17 @@ export default function OkvevoMasivPage() {
             </nav>
 
             {/* Section with persistent grid background */}
-            <div className="bg-transparent text-white pb-24 relative z-10 transition-all">
-                
-                
+            <div className="bg-transparent text-white relative z-10 transition-all">
+                <AdsSection banners={banners} />
             </div>
 
             {/* Dark Section for Cards */}
             <main className="max-w-[1400px] mx-auto pb-24 relative z-0">
                 
-                {/* Header Title Space (Optionally kept or moved) */}
-                <header className="mb-12 md:mb-8 px-10 text-center mt-10">
-                    {/* <p className="text-[#FF6B35] text-sm font-black tracking-[0.3em] uppercase mb-4 opacity-70">
-                        Explore Our Catalog
-                    </p> */}
-                    <h1 className="text-6xl md:text-5xl font-black tracking-tighter text-white leading-[0.9] max-w-4xl mx-auto">
-                    </h1>
-                </header>
-
-                {/* Featured Trends Section with Orange Boundary Glow */}
-                <section className="px-6 md:px-10 mb-6 relative z-10">
-                    <div className="relative z-10">
-                        {loadingBanners ? (
-                            <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
-                                    <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Features...</p>
-                                </div>
-                            </div>
-                        ) : banners.length > 0 ? (
-                            <FeaturedCarousel 
-                                onTryTrend={() => {}}
-                                items={banners.map(b => ({
-                                    id: b.id,
-                                    title: b.title,
-                                    image: b.mediaUrl,
-                                    description: b.description,
-                                    badge: b.badge
-                                }))}
-                            />
-                        ) : (
-                            // Fallback to products if no banners are configured
-                            loadingProducts ? (
-                                <div className="w-full h-[400px] md:h-[500px] rounded-[48px] bg-white/5 animate-pulse flex items-center justify-center border border-white/10">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
-                                        <p className="text-white/30 font-bold tracking-widest uppercase text-xs">Loading Trends...</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <FeaturedCarousel 
-                                    onTryTrend={(item) => setSelectedCard(item.id)}
-                                    items={products.slice(0, 3).map(p => ({
-                                        id: p.id,
-                                        title: p.name.toUpperCase().split(' ').join(' <br/> '),
-                                        image: p.thumbnails[0],
-                                        description: p.description,
-                                        badge: p.badge1 || "Featured Collection"
-                                    }))}
-                                />
-                            )
-                        )}
-                    </div>
-                </section>
+                {/* Category Grid removed at user request */}
 
                 {/* Filter & Search Control Bar */}
-                <section className="px-10 mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
+                <section className="px-10 mb-8 flex flex-col md:flex-row gap-6 items-center justify-between">
                     {/* Category Tabs */}
                     <div className="flex bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
                         {['all', 'photo', 'video'].map((type) => (

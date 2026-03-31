@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
-const mapSectionVariants = {
+const mapSectionVariants: any = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
-const photoVariants = {
+const photoVariants: any = {
     hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } }
 };

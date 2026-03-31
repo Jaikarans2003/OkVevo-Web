@@ -46,8 +46,8 @@ const Footer = () => {
                                 <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Platform</h4>
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
                                     <li><a href="#features" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Features</a></li>
-                                    <li><a href="#how-it-works" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
-                                    <li><a href="#OKVEVOXMASIV" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
+                                    <li><a href="#showcase" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
+                                    <li><a href="#okvevo-x-masiv" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
                                 </ul>
                             </div>
 
