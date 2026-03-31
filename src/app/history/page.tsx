@@ -36,9 +36,9 @@ function HistoryContent() {
     const FILTER_TABS = [
         { id: 'ALL', label: 'All History' },
         { id: 'AI_INFLUENCER', label: 'AI Influencer' },
-        { id: 'PRODUCT_SHOOTS', label: 'Product Shoots' },
+       // { id: 'PRODUCT_SHOOTS', label: 'Product Shoots' },
         { id: 'TRENDS', label: 'Trends' },
-        { id: 'PRODUCT_PLACEMENT', label: 'Placements' }
+       // { id: 'PRODUCT_PLACEMENT', label: 'Placements' }
     ];
 
     // Redirect to login if not authenticated
@@ -149,7 +149,7 @@ function HistoryContent() {
                                 .
                             </motion.span>
                         </motion.h1>
-                        <p className="text-white/40 text-lg md:text-xl font-medium mt-4">Your creative journey at OKVEVO</p>
+                        <p className="text-white/40 text-lg md:text-xl font-medium mt-4">The OKVEVO Archive: Pure Greatness Only</p>
                     </div>
 
                     <Link

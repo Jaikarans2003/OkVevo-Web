@@ -9,7 +9,7 @@ type Step = 'chat' | 'upload' | 'generate' | 'avatar';
 export default function ExplainerWorkflow() {
     const [currentStep, setCurrentStep] = useState<Step>('chat');
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([
-        { role: 'assistant', text: "Hello! I'm your AI Influencer assistant. How can I help you today? You can start by describing what kind of explainer video you want to create." }
+        { role: 'assistant', text: "Yo! OKVEVO in the building. I'm your eccentric creative genius. Step into the lab and let's cook up a masterpiece. Drop your script and let's get OKVEVING!" }
     ]);
     const [inputText, setInputText] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -43,7 +43,7 @@ export default function ExplainerWorkflow() {
         setTimeout(() => {
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                text: "That sounds like a great idea! Do you have a script ready for this explainer, or would you like me to help you write one?"
+                text: "Oooooh, I can see the vision! OKVEVO is vibing with this. Do you have a script ready for this drop, or should OKVEVO's neural engines forge one for you?"
             }]);
         }, 1000);
     };
@@ -58,8 +58,8 @@ export default function ExplainerWorkflow() {
 
         // Simulate reading and analyzing the file
         setTimeout(() => {
-            setIsAnalyzing(false);
-            setGeneratedScript(`Analysis of "${file.name}": Welcome to the future of AI Influencers. This script explores digital transformation through premium AI-generated content. Based on your uploaded file, we've optimized the tone for maximum engagement.`);
+            setIsAnalyzing(true);
+            setGeneratedScript(`🧠 OKVEVO Analysis of "${file.name}": Welcome to the future, baby. This script is pure heat. Based on your file, OKVEVO optimized the tone for maximum, unfiltered engagement. We don't play safe here.`);
         }, 3000);
     };
 
@@ -129,7 +129,7 @@ export default function ExplainerWorkflow() {
                             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
                                 <div className="flex items-center gap-3">
                                     <div className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
-                                    <span className="text-xs font-black uppercase tracking-widest text-white/60">AI Assistant Online</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-white/60">OKVEVO ONLINE & OKVEVING</span>
                                 </div>
                                 <button onClick={() => setCurrentStep('upload')} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors flex items-center gap-2 border border-white/5">
                                     Skip to Upload <ChevronRight className="w-3 h-3" />
@@ -200,9 +200,9 @@ export default function ExplainerWorkflow() {
                             </div>
 
                             <div>
-                                <h3 className="text-3xl font-black italic uppercase tracking-tight mb-3">Upload Your Script</h3>
+                                <h3 className="text-3xl font-black italic uppercase tracking-tight mb-3">Feed the Machine</h3>
                                 <p className="text-white/40 max-w-sm mx-auto font-medium">
-                                    Drop your script file here to begin AI analysis. We support .txt, .pdf, and Word documents.
+                                    Drop your script file here to begin the OKVEVO protocol. We take .txt, .pdf, or Word — as long as it's fire.
                                 </p>
                             </div>
 
@@ -230,8 +230,8 @@ export default function ExplainerWorkflow() {
                                         <div className="absolute inset-0 blur-xl bg-[#FF0080]/30 animate-pulse" />
                                     </div>
                                     <div className="text-center">
-                                        <h3 className="text-xl font-bold mb-1 italic uppercase tracking-tight">Analyzing Narrative</h3>
-                                        <p className="text-white/40 text-xs font-black uppercase tracking-[0.2em] animate-pulse">Engaging Neural Networks...</p>
+                                        <h3 className="text-xl font-bold mb-1 italic uppercase tracking-tight">OKVEVO IS COOKIN'</h3>
+                                        <p className="text-white/40 text-xs font-black uppercase tracking-[0.2em] animate-pulse">Engaging Neural OKVEVO Networks... Pure Genius Incoming...</p>
                                     </div>
                                 </div>
                             ) : (
@@ -284,7 +284,7 @@ export default function ExplainerWorkflow() {
                             <div className="flex flex-col gap-8 h-full">
                                 <div>
                                     <h3 className="text-3xl font-black uppercase italic tracking-tight mb-2">Select Your Persona</h3>
-                                    <p className="text-white/40 text-sm font-medium">Choose an AI influencer to narrate your script or upload your own creation.</p>
+                                    <p className="text-white/40 text-sm font-medium">Choose an OKVEVO persona to narrate your script or upload your own creation.</p>
                                 </div>
 
                                 <input
@@ -353,7 +353,7 @@ export default function ExplainerWorkflow() {
                                         }`}
                                 >
                                     <span className="relative z-10 flex items-center justify-center gap-3">
-                                        Launch AI Influencer <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                                        Unleash OKVEVO <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
                                     </span>
                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500" />
                                 </button>

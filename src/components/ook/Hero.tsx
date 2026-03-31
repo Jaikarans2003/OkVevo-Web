@@ -128,8 +128,8 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                     className="text-5xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
                 >
-                    Zero Camera, <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Infinite Vision.</span>
+                    Zero Cameras, <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Pure OKVEVO.</span>
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -139,7 +139,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
                     className="text-lg md:text-xl text-white/50 max-w-2xl mb-12 font-medium"
                 >
-                    Powerful AI-driven cinema tools for modern creators. Supercharge your visual storytelling and reach global audiences instantly.
+                    Powerful AI-driven cinema tools for absolute legends. Supercharge your visual storytelling and reach the world instantly.
                 </motion.p>
 
                 {/* CTA Buttons */}
@@ -196,6 +196,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                                     playsInline
                                     className="w-full h-full object-cover"
                                     src={activeService.video}
+                                    suppressHydrationWarning
                                 />
                                 {/* Overlay Gradient */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />

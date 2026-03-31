@@ -7,32 +7,39 @@ import Image from 'next/image';
 import Link from 'next/link';
 import ButtonWithIconDemo from '@/components/ui/button-with-icon';
 
+const tabs = [
+    {
+        name: 'Create',
+        video: '/videos/script.mp4',
+    },
+    {
+        name: 'Animate',
+        video: '/videos/influencer.mp4',
+    },
+    {
+        name: 'Publish',
+        video: '/videos/aiproduct.mp4',
+    }
+];
+
 const Showcase = () => {
     const [activeTab, setActiveTab] = useState(0);
+    const [mounted, setMounted] = useState(false);
 
-    const tabs = [
-        {
-            name: 'Create',
-            video: '/videos/script.mp4',
-        },
-        {
-            name: 'Animate',
-            video: '/videos/influencer.mp4',
-        },
-        {
-            name: 'Publish',
-            video: '/videos/aiproduct.mp4',
-        }
-    ];
-
-    // Cycle through tabs automatically every 5 seconds
     useEffect(() => {
+        setMounted(true);
+    }, []);
+
+
+    // Cycle through tabs automatically every 9 seconds
+    useEffect(() => {
+        if (!mounted) return;
         const interval = setInterval(() => {
             setActiveTab((prevTab) => (prevTab + 1) % tabs.length);
-        }, 9000); // 9 seconds
+        }, 9000);
 
         return () => clearInterval(interval);
-    }, [tabs.length]);
+    }, [mounted]);
 
     return (
         <section id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
@@ -49,9 +56,9 @@ const Showcase = () => {
                             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                             className="text-5xl md:text-[70px] font-bold leading-[1.05] tracking-[-0.03em] text-white mb-6"
                         >
-                             <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">Go from</span> script to <span className="bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">video </span>
+                             <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">Go from</span> script to <span className="bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">legendary </span>
                             
-                            faster with AI
+                            faster with OKVEVO
                         </motion.h2>
                     </div>
                     
@@ -64,7 +71,7 @@ const Showcase = () => {
                             transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                             className="text-lg md:text-[22px] text-[#a1a1aa] leading-[1.4] mb-6 font-medium max-w-lg"
                         >
-                            Streamline your video creation pipeline by turning text into high-quality social media content, bringing your digital avatars to life without a camera, and optimizing content for every platform.
+                            Streamline your creation pipeline with OKVEVO neural engines. Bring your digital twins to life without a camera and own the algorithm on every platform.
                         </motion.p>
                         <div className="pt-4">
                             <Link href="/workspace">
@@ -83,29 +90,48 @@ const Showcase = () => {
                         
                         {/* Image Container */}
                         <div className="relative z-10 w-full h-[400px] md:h-[450px] lg:h-[700px] rounded-[24px] overflow-hidden bg-[#080808] border border-[#1a1a1a] group-hover:border-white/10 shadow-[0_0_40px_rgba(255,107,53,0.1)] group-hover:shadow-[0_0_80px_rgba(255,107,53,0.2)] transition-all duration-700">
-                            <AnimatePresence mode="wait">
-                                <motion.div 
-                                    key={activeTab}
-                                    initial={{ opacity: 0, scale: 1.02 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.4, ease: "easeOut" }}
-                                    className="absolute inset-0 bg-[#080808]"
-                                >
+                            {!mounted ? (
+                                // Server-rendered static fallback — avoids hydration mismatch
+                                <div className="absolute inset-0 bg-[#080808]">
                                     <div className="relative w-full h-full">
                                         <video
-                                            src={tabs[activeTab].video}
+                                            src={tabs[0].video}
                                             autoPlay
                                             muted
                                             loop
                                             playsInline
                                             className="w-full h-full object-cover"
+                                            suppressHydrationWarning
                                         />
-                                        {/* Gradient overlay to blend edges */}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
                                     </div>
-                                </motion.div>
-                            </AnimatePresence>
+                                </div>
+                            ) : (
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={activeTab}
+                                        initial={{ opacity: 0, scale: 1.02 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.4, ease: "easeOut" }}
+                                        className="absolute inset-0 bg-[#080808]"
+                                    >
+                                        <div className="relative w-full h-full">
+                                            <video
+                                                key={tabs[activeTab].video}
+                                                src={tabs[activeTab].video}
+                                                autoPlay
+                                                muted
+                                                loop
+                                                playsInline
+                                                className="w-full h-full object-cover"
+                                                suppressHydrationWarning
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                                        </div>
+                                    </motion.div>
+                                </AnimatePresence>
+                            )}
                         </div>
                     </div>
 
