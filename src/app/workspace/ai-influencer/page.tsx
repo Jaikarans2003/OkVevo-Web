@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download, Mic2
+    RotateCcw, Play, Download, Mic2, Image, ArrowDown, ArrowUp, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
@@ -80,7 +80,7 @@ function AIInfluencerWorkstation() {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
         {
             role: 'assistant',
-            content: "Hi! I'm VEVO your creative Assistant. Let's create a professional explainer video. Start by uploading or pasting your script below.",
+            content: "Yo! OKVEVO here. Drop your script and watch the magic unfold. We don't do boring — we do OKVEVO. Paste it below or upload the file. Let's get weird.",
         },
     ]);
 
@@ -100,6 +100,19 @@ function AIInfluencerWorkstation() {
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
+
+    // ── Branding state (optional post-process — does NOT affect the pipeline) ──
+    const [brandingOpen,      setBrandingOpen]      = useState(false);
+    const [brandLogoFile,     setBrandLogoFile]     = useState<File | null>(null);
+    const [brandMarqueeText,  setBrandMarqueeText]  = useState('');
+    const [brandMarqueePos,   setBrandMarqueePos]   = useState<'top' | 'bottom'>('bottom');
+    const [brandLogoPos,      setBrandLogoPos]      = useState<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>('top-right');
+    const [brandNeedThumbnail, setBrandNeedThumbnail] = useState(false);
+    const [brandThumbnailPrompt, setBrandThumbnailPrompt] = useState('');
+    const [brandThumbnailPhotoFile, setBrandThumbnailPhotoFile] = useState<File | null>(null);
+    const [customThumbnailUrl, setCustomThumbnailUrl] = useState<string | null>(null);
+    const [isBranding,        setIsBranding]        = useState(false);
+    const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -181,7 +194,7 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
             console.log('✅ Pipeline resumed successfully');
             setWaitTaskToken(null);
-            addAssistant('🎬 Preparation complete! Moving to Lip-Sync stage...');
+            addAssistant('🎬 Avatar locked and loaded! OKVEVO is lip-syncing your masterpiece now. Hold tight.');
         } catch (err: any) {
             console.error('Failed to resume pipeline:', err);
         }
@@ -200,7 +213,7 @@ function AIInfluencerWorkstation() {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
-                addAssistant(`✅ Narrative script generated (~${selectedDuration}s). Review and edit it below, then click Continue.`);
+                addAssistant(`OKVEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
             }
 
             // 2. Check for visual assets (images)
@@ -244,12 +257,20 @@ function AIInfluencerWorkstation() {
             if (data.status === 'complete' && data.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
                 setChatStep('complete');
-                addAssistant('🎉 Your lip-synced video is ready! Watch it in the monitor on the right.');
+                addAssistant('🎉 OKVEVO DROP! Your video just landed. Watch the monitor — you are about to be iconic.');
                 setIsGenerating(false);
             } else if (data.status === 'error') {
-                addAssistant(`❌ Error: ${data.errorMessage || 'Video generation failed. Please try again.'}`);
+                addAssistant(`💀 OKVEVO system fault: ${data.errorMessage || 'Video generation failed — something broke in the pipeline. Try again.'}`);
                 setChatStep('preview-audio');
                 setIsGenerating(false);
+            }
+
+            // 5. Track post-processing results
+            if (data.customThumbnailUrl) {
+                setCustomThumbnailUrl(data.customThumbnailUrl);
+            }
+            if (data.brandedVideoUrl) {
+                setBrandedVideoUrl(data.brandedVideoUrl);
             }
         });
         return () => unsub();
@@ -266,7 +287,7 @@ function AIInfluencerWorkstation() {
         setChatStep('upload-script');
         setChatMessages([{
             role: 'assistant',
-            content: "Hi! I'm VEVO Let's create a new explainer video. Upload or paste your script below to get started.",
+            content: "OKVEVO is back and hungry. New video, new vibes. Drop that script and let's cook something OKVEVO-worthy.",
         }]);
         setRawScript('');
         setSelectedDuration(0);
@@ -282,6 +303,68 @@ function AIInfluencerWorkstation() {
         setWaitTaskToken(null);
         setIsGenerating(false);
         setImageTimeline([]);
+        // branding state reset
+        setBrandingOpen(false);
+        setBrandLogoFile(null);
+        setBrandMarqueeText('');
+        setBrandMarqueePos('bottom');
+        setBrandLogoPos('top-right');
+        setBrandNeedThumbnail(false);
+        setBrandThumbnailPrompt('');
+        setBrandThumbnailPhotoFile(null);
+        setCustomThumbnailUrl(null);
+        setIsBranding(false);
+        setBrandedVideoUrl(null);
+    };
+
+    // ── Branding handler (optional — called only when user explicitly clicks Apply) ──
+    const handleApplyBranding = async () => {
+        if (!finalVideoUrl || !jobId || !user?.uid) return;
+        if (!brandLogoFile && !brandMarqueeText.trim() && (!brandNeedThumbnail || !brandThumbnailPrompt.trim())) return;
+
+        setIsBranding(true);
+        try {
+            let logoBase64: string | undefined;
+            let logoMimeType: string | undefined;
+            if (brandLogoFile) {
+                const buf = await brandLogoFile.arrayBuffer();
+                logoBase64  = Buffer.from(buf).toString('base64');
+                logoMimeType = brandLogoFile.type;
+            }
+
+            let thumbnailPersonPhotoBase64: string | undefined;
+            if (brandNeedThumbnail && brandThumbnailPhotoFile) {
+                const thumbBuf = await brandThumbnailPhotoFile.arrayBuffer();
+                thumbnailPersonPhotoBase64 = Buffer.from(thumbBuf).toString('base64');
+            }
+
+            const res = await fetch('/api/ai-influencer/brand-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jobId,
+                    userId: user.uid,
+                    finalVideoUrl,
+                    logoBase64,
+                    logoMimeType,
+                    logoPosition:    brandLogoFile ? brandLogoPos : undefined,
+                    marqueeText:     brandMarqueeText.trim() || undefined,
+                    marqueePosition: brandMarqueeText.trim() ? brandMarqueePos : undefined,
+                    generateThumbnail: brandNeedThumbnail,
+                    thumbnailPrompt: brandNeedThumbnail ? brandThumbnailPrompt.trim() : undefined,
+                    thumbnailPersonPhotoBase64: brandNeedThumbnail ? thumbnailPersonPhotoBase64 : undefined,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Branding failed');
+            // The polling logic will catch brandedVideoUrl and customThumbnailUrl from Firestore
+            if (data.brandedVideoUrl) setBrandedVideoUrl(data.brandedVideoUrl);
+        } catch (err: any) {
+            console.error('Branding error:', err);
+            addAssistant(`💀 Branding pipeline choked: ${err.message} — logo or marquee Lambda issue.`);
+        } finally {
+            setIsBranding(false);
+        }
     };
 
     const handleRestoreInfluencerSession = useCallback((session: WorkspaceSession) => {
@@ -319,7 +402,7 @@ function AIInfluencerWorkstation() {
     const handleScriptSubmit = () => {
         if (!rawScript.trim()) return;
         addUser(`[Script uploaded — ${rawScript.trim().split(/\s+/).length} words]`);
-        addAssistant('Great! Now select how long your explainer video should be.');
+        addAssistant('🔥 Script locked in! Now tell OKVEVO — how long are we cookin\' this masterpiece?');
         setChatStep('duration');
     };
 
@@ -334,7 +417,7 @@ function AIInfluencerWorkstation() {
         addUser(`${duration === 15 ? '0 to 15' : duration === 30 ? '15 to 30' : '30 to 60'} seconds`);
         
         setChatStep('tts-pacing');
-        addAssistant('Great! Now select the pacing style for the AI voiceover.');
+        addAssistant('Duration? LOCKED. Now pick the vibe — how do you want OKVEVO to talk?');
     };
 
     // ── Step 2b: Pacing → Phase 1 Script Generation ─────
@@ -344,7 +427,7 @@ function AIInfluencerWorkstation() {
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`Analyzing your script and generating a ${selectedDuration === 15 ? '0 to 15' : selectedDuration === 30 ? '15 to 30' : '30 to 60'}-second narrative explainer with Gemini...`);
+        addAssistant(`OKVEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -361,8 +444,8 @@ function AIInfluencerWorkstation() {
 
             if (!data.success) throw new Error(data.error || 'Failed to generate script');
 
-            console.log('✅ Script generated:', data.wordCount, 'words');
-            console.log('✅ Visual moments extracted:', data.moments?.length || 0);
+            // console.log('✅ Script generated:', data.wordCount, 'words');
+            // console.log('✅ Visual moments extracted:', data.moments?.length || 0);
 
             setGeneratedScript(data.script);
             setEditableScript(data.script);
@@ -381,11 +464,11 @@ function AIInfluencerWorkstation() {
                 setImageTimeline(momentsWithLayout);
             }
 
-            addAssistant(`✨ Script generated! (~${data.wordCount} words)\n🖼️ ${data.moments?.length || 0} visual moments extracted.\n\nReview and edit your script below. When ready, click "Confirm Script" to proceed with video generation.`);
+            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
             setChatStep('edit-script');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`❌ Failed to generate script: ${err.message}`);
+            addAssistant(`💀 OKVEVO tripped up: ${err.message} — but we don't give up. Try again.`);
             setIsGenerating(false);
             setChatStep('tts-pacing');
         }
@@ -408,8 +491,8 @@ function AIInfluencerWorkstation() {
         setJobId(newJobId);
 
         addUser('[Script confirmed]');
-        addAssistant('Perfect! Your script is ready.');
-        addAssistant('Now, please upload the avatar video that will present your explainer. MP4, MOV, or WebM supported.');
+        addAssistant('Script? DONE. OKVEVO stamped it APPROVED. 🔒');
+        addAssistant('Now gimme the face. Upload your avatar video — MP4, MOV, or WebM. This is who OKVEVO speaks through.');
 
         try {
             // Save initial job state to Firestore
@@ -430,10 +513,10 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             });
 
-            console.log('✅ Script and moments saved to Firestore');
+            // console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
-            addAssistant(`❌ Failed to save script: ${err.message}`);
+            addAssistant(`💀 OKVEVO couldn't stash the script: ${err.message} — Firestore playing games.`);
         }
     };
 
@@ -444,7 +527,7 @@ function AIInfluencerWorkstation() {
 
         setAvatarVideo(file);
         addUser(`[Avatar video uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-        addAssistant('Uploading avatar video to storage…');
+        addAssistant('OKVEVO is beaming up your avatar... Firebase is doing its thing 🚀');
         setIsGenerating(true);
 
         try {
@@ -462,12 +545,12 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('✅ Avatar uploaded! Now choose the voice for your narration.');
-            addAssistant('You can either select a preset voice (Male/Female) or upload your own voice sample for cloning.');
+            addAssistant('✅ Avatar received! OKVEVO sees your face. Now let\'s give it a voice.');
+            addAssistant('Pick Richard or Aurora — or upload a voice sample for OKVEVO to clone. We go full method here.');
             setChatStep('generating-tts');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`❌ Failed to upload avatar: ${err.message}`);
+            addAssistant(`💀 Avatar upload fumbled: ${err.message} — Check file format or size. OKVEVO only takes quality.`);
             setIsGenerating(false);
         }
     };
@@ -501,8 +584,8 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('🚀 Starting AI Influencer Pipeline...');
-            addAssistant('This will generate images, audio, and create your final video. This may take 2-5 minutes.');
+            addAssistant('🚀 OKVEVO is OKVEVING. Pipeline ignited. Sit tight.');
+            addAssistant('Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — OKVEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
 
             // Start Step Function with all data
             const res = await fetch('/api/sqs/ai-influencer', {
@@ -530,12 +613,12 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
 
             console.log('✅ Step Function started:', data.executionArn);
-            addAssistant('✅ Pipeline started! Generating your AI Influencer video...');
+            addAssistant('✅ OKVEVO has entered the building. Your video is being born right now. Watch the monitor 👀');
 
             setChatStep('generating-lipsync');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`❌ Failed to start pipeline: ${err.message}`);
+            addAssistant(`💀 Pipeline choked at launch: ${err.message} — SQS or Step Function issue. Try again.`);
             setIsGenerating(false);
         }
     };
@@ -546,20 +629,20 @@ function AIInfluencerWorkstation() {
 
         // Guard: data URLs can't be fetched by the Lambda — should never reach here now
         if (audioUrl.startsWith('data:')) {
-            addAssistant('❌ Audio URL is not a remote URL. Please re-generate the voice-over.');
+            addAssistant('❌ Audio is a local blob — OKVEVO cannot use that. Regenerate the voice-over for a proper URL.');
             setChatStep('generating-tts');
             return;
         }
 
         // Require authentication
         if (!user?.uid) {
-            addAssistant('❌ Authentication required. Please sign in to generate AI influencer videos.');
+            addAssistant('❌ OKVEVO does not work for strangers. Sign in first, then we party.');
             return;
         }
 
         setIsGenerating(true);
         setChatStep('generating-lipsync');
-        addAssistant('🎬 Generating lip-synced video with Fal AI… This can take 2–5 minutes. Sit tight!');
+        addAssistant('🎬 OKVEVO is lip-syncing your avatar with Fal AI... we call this the OKVEVO Kiss. Give it 2–5 mins.');
 
         try {
             // Only pass image timeline entries that have real (non-data-URL) image URLs
@@ -582,9 +665,9 @@ function AIInfluencerWorkstation() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
-            addAssistant(`Pipeline resumed with your avatar video! Monitoring progress… (usually 1–3 min)`);
+            addAssistant(`Avatar delivered! OKVEVO is monitoring the render... usually 1–3 mins. Don't touch anything.`);
         } catch (err: any) {
-            addAssistant(`❌ Failed to progress: ${err.message}. You might need to wait a few seconds for the system to be ready for the avatar.`);
+            addAssistant(`💀 OKVEVO hit a snag: ${err.message}. The pipeline might need a few more seconds — wait and retry.`);
             setChatStep('preview-audio');
             setIsGenerating(false);
         }
@@ -685,8 +768,8 @@ function AIInfluencerWorkstation() {
                                         <div className="flex flex-col">
                                             <h1 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">AI Influencer Studio</h1>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-                                                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span>
+                                                {/* <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" /> */}
+                                                {/* <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Neural Synthesis Protocol Active</span> */}
                                             </div>
                                         </div>
                                     </div>
@@ -700,7 +783,7 @@ function AIInfluencerWorkstation() {
                                                 <div className="relative">
                                                     <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">Neural Assistant</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat Box</span>
                                             </div>
                                             <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                                 <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">
@@ -893,7 +976,7 @@ function AIInfluencerWorkstation() {
                                                                 if (file && user?.uid && jobId) {
                                                                     setAudioSampleFile(file);
                                                                     addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-                                                                    addAssistant('Uploading voice sample to storage…');
+                                                                    addAssistant('OKVEVO is sampling your voice DNA... uploading to the lab 🧬');
                                                                     setIsGenerating(true);
 
                                                                     try {
@@ -908,11 +991,11 @@ function AIInfluencerWorkstation() {
                                                                             updatedAt: new Date().toISOString(),
                                                                         }, { merge: true });
 
-                                                                        addAssistant('✅ Voice sample uploaded! Click "Generate Voice-Over" to start.');
+                                                                        addAssistant('✅ Voice DNA locked in! Hit Commit Audio Layer and OKVEVO will clone that voice.');
                                                                         setSelectedGender('');
                                                                         setIsGenerating(false);
                                                                     } catch (err: any) {
-                                                                        addAssistant(`❌ Failed to upload voice sample: ${err.message}`);
+                                                                        addAssistant(`💀 Voice clone failed at upload: ${err.message} — the lab is shook.`);
                                                                         setIsGenerating(false);
                                                                     }
                                                                 }
@@ -1005,8 +1088,8 @@ function AIInfluencerWorkstation() {
                                                             <Loader2 size={20} className="text-orange-500 animate-spin" />
                                                         </div>
                                                         <div>
-                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">Media Synthesis Active</p>
-                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">Fal AI Neural Mapping · 2-5 Min Transit</p>
+                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">OKVEVO is Lip-Syncing</p>
+                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">Fal AI is doing the OKVEVO Kiss · 2–5 Min</p>
                                                         </div>
                                                     </div>
                                                 </motion.div>
@@ -1023,9 +1106,10 @@ function AIInfluencerWorkstation() {
                                                         <CheckCircle2 size={32} className="text-green-500" strokeWidth={2.5} />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Generation Successful</h4>
-                                                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol terminated with exit code 0</p>
+                                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">OKVEVO Delivered 🔥</h4>
+                                                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">exit code: OKVEVO_CLEAN · no errors · pure fire</p>
                                                     </div>
+                                                    {/* ── Existing action buttons — untouched ── */}
                                                     <div className="flex w-full gap-3">
                                                         {finalVideoUrl && (
                                                             <a
@@ -1045,6 +1129,237 @@ function AIInfluencerWorkstation() {
                                                             <RotateCcw size={14} strokeWidth={3} /> Purge & Reset
                                                         </button>
                                                     </div>
+
+                                                    {/* ── Optional Branding Panel ── */}
+                                                    <div className="w-full">
+                                                        {/* Toggle button */}
+                                                        <button
+                                                            onClick={() => setBrandingOpen(v => !v)}
+                                                            className="w-full flex items-center justify-between px-5 py-3 rounded-2xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Sparkles size={13} className="text-orange-400" />
+                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Add Branding</span>
+                                                                <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">— Logo &amp; Marquee (Optional)</span>
+                                                            </div>
+                                                            <ChevronDown
+                                                                size={14}
+                                                                className={`text-orange-400/60 transition-transform duration-300 ${brandingOpen ? 'rotate-180' : ''}`}
+                                                            />
+                                                        </button>
+
+                                                        {/* Collapsible branding form */}
+                                                        <AnimatePresence>
+                                                            {brandingOpen && (
+                                                                <motion.div
+                                                                    key="branding-panel"
+                                                                    initial={{ opacity: 0, height: 0 }}
+                                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                                    exit={{ opacity: 0, height: 0 }}
+                                                                    transition={{ duration: 0.25 }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left">
+
+                                                                        {/* ── Marquee Section ── */}
+                                                                        <div className="space-y-2">
+                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Scrolling Marquee Text
+                                                                            </p>
+                                                                            <textarea
+                                                                                value={brandMarqueeText}
+                                                                                onChange={e => setBrandMarqueeText(e.target.value)}
+                                                                                placeholder="e.g. This video is for informational purposes only."
+                                                                                rows={2}
+                                                                                className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-white/20 leading-relaxed transition-all"
+                                                                            />
+
+                                                                            {/* Marquee position picker — shown only when text is entered */}
+                                                                            {brandMarqueeText.trim() && (
+                                                                                <div className="flex gap-2">
+                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20 self-center mr-1">Position:</p>
+                                                                                    {(['bottom', 'top'] as const).map(pos => (
+                                                                                        <button
+                                                                                            key={pos}
+                                                                                            onClick={() => {
+                                                                                                setBrandMarqueePos(pos);
+                                                                                                // Auto-set logo to the opposite edge
+                                                                                                setBrandLogoPos(pos === 'bottom' ? 'top-right' : 'bottom-right');
+                                                                                            }}
+                                                                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all active:scale-95 ${
+                                                                                                brandMarqueePos === pos
+                                                                                                    ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                    : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {pos === 'bottom'
+                                                                                                ? <ArrowDown size={11} />
+                                                                                                : <ArrowUp size={11} />
+                                                                                            }
+                                                                                            {pos}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* ── Logo Section ── */}
+                                                                        <div className="space-y-2">
+                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Logo Watermark
+                                                                            </p>
+                                                                            <label
+                                                                                htmlFor="brand-logo-upload"
+                                                                                className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                    brandLogoFile
+                                                                                        ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                                                                                        : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-orange-500/30 hover:bg-orange-500/5'
+                                                                                }`}
+                                                                            >
+                                                                                <Image size={13} strokeWidth={2.5} />
+                                                                                {brandLogoFile ? brandLogoFile.name : 'Upload Logo (PNG / JPG / WebP)'}
+                                                                            </label>
+                                                                            <input
+                                                                                id="brand-logo-upload"
+                                                                                type="file"
+                                                                                accept="image/png,image/jpeg,image/webp"
+                                                                                className="hidden"
+                                                                                onChange={e => {
+                                                                                    const f = e.target.files?.[0] ?? null;
+                                                                                    setBrandLogoFile(f);
+                                                                                    e.target.value = '';
+                                                                                }}
+                                                                            />
+
+                                                                            {/* Logo position picker — shown only when logo is chosen */}
+                                                                            {brandLogoFile && (
+                                                                                <div className="space-y-1.5">
+                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Logo Corner:</p>
+                                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                                        {([
+                                                                                            { val: 'top-left',     label: '↖ Top Left' },
+                                                                                            { val: 'top-right',    label: '↗ Top Right' },
+                                                                                            { val: 'bottom-left',  label: '↙ Bottom Left' },
+                                                                                            { val: 'bottom-right', label: '↘ Bottom Right' },
+                                                                                        ] as { val: typeof brandLogoPos; label: string }[]).map(({ val, label }) => {
+                                                                                            // Disable positions that conflict with the chosen marquee row
+                                                                                            const conflictRow = brandMarqueeText.trim() ? brandMarqueePos : null;
+                                                                                            const isConflict  = conflictRow && val.startsWith(conflictRow);
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={val}
+                                                                                                    disabled={!!isConflict}
+                                                                                                    onClick={() => setBrandLogoPos(val)}
+                                                                                                    title={isConflict ? `Marquee is already at the ${conflictRow}` : ''}
+                                                                                                    className={`py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all active:scale-95 ${
+                                                                                                        isConflict
+                                                                                                            ? 'opacity-25 cursor-not-allowed border-white/5 bg-white/[0.01] text-white/20'
+                                                                                                            : brandLogoPos === val
+                                                                                                                ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                                : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    {label}
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* ── AI Thumbnail Section ── */}
+                                                                        <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" /> AI Thumbnail (NanoBanana2)
+                                                                                </p>
+                                                                                <button
+                                                                                    onClick={() => setBrandNeedThumbnail(v => !v)}
+                                                                                    className={`w-8 h-4 rounded-full transition-colors relative ${brandNeedThumbnail ? 'bg-blue-500' : 'bg-white/10'}`}
+                                                                                >
+                                                                                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {brandNeedThumbnail && (
+                                                                                <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                                                                                    <textarea
+                                                                                        value={brandThumbnailPrompt}
+                                                                                        onChange={e => setBrandThumbnailPrompt(e.target.value)}
+                                                                                        placeholder="Describe the thumbnail you want... e.g. 'A cinematic thumbnail of an influencer holding a glowing product box, 4K'"
+                                                                                        rows={2}
+                                                                                        className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 outline-none resize-none placeholder-white/20"
+                                                                                    />
+                                                                                    
+                                                                                    <label
+                                                                                        className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                            brandThumbnailPhotoFile
+                                                                                                ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                                                                                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-blue-500/30 hover:bg-blue-500/5'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <Image size={13} strokeWidth={2.5} />
+                                                                                        {brandThumbnailPhotoFile ? brandThumbnailPhotoFile.name : 'Upload Presenter Photo (Optional reference)'}
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            accept="image/png,image/jpeg,image/webp"
+                                                                                            className="hidden"
+                                                                                            onChange={e => {
+                                                                                                const f = e.target.files?.[0] ?? null;
+                                                                                                setBrandThumbnailPhotoFile(f);
+                                                                                                e.target.value = '';
+                                                                                            }}
+                                                                                        />
+                                                                                    </label>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* ── Apply Button ── */}
+                                                                        <button
+                                                                            onClick={handleApplyBranding}
+                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
+                                                                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
+                                                                        >
+                                                                            {isBranding
+                                                                                ? <><Loader2 size={13} className="animate-spin" /> OKVEVO Branding…</>
+                                                                                : <><Sparkles size={13} /> OKVEVO-fy This Video</>
+                                                                            }
+                                                                        </button>
+
+                                                                        {/* Download branded result */}
+                                                                        {(brandedVideoUrl || customThumbnailUrl) && (
+                                                                            <div className="flex flex-col gap-2 pt-2">
+                                                                                {brandedVideoUrl && (
+                                                                                    <a
+                                                                                        href={brandedVideoUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        download
+                                                                                        className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                    >
+                                                                                        <Download size={13} strokeWidth={3} /> Download Branded Video
+                                                                                    </a>
+                                                                                )}
+                                                                                {customThumbnailUrl && (
+                                                                                    <a
+                                                                                        href={customThumbnailUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        download
+                                                                                        className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                    >
+                                                                                        <Image size={13} strokeWidth={3} /> Download 9:16 Thumbnail
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
@@ -1059,7 +1374,7 @@ function AIInfluencerWorkstation() {
                                                         {msg.role === 'assistant' && (
                                                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                                 <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Intelligence Synthesis</span>
+                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">OKVEVO SPEAKING</span>
                                                             </div>
                                                         )}
                                                         <motion.div
@@ -1080,7 +1395,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Loader2 size={10} className="text-orange-500 animate-spin" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">Processing Protocol</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">OKVEVO IS OKVEVING</span>
                                                         </div>
                                                         <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
                                                             <div className="flex gap-2 items-center">
@@ -1094,7 +1409,7 @@ function AIInfluencerWorkstation() {
                                                                         />
                                                                     ))}
                                                                 </div>
-                                                                <span className="text-[10px] text-white/30 ml-3 font-black uppercase tracking-[0.2em]">Executing...</span>
+                                                                <span className="text-[10px] text-white/30 ml-3 font-black uppercase tracking-[0.2em]">Conjuring...</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1204,14 +1519,14 @@ function AIInfluencerWorkstation() {
                                                         <div className="absolute -inset-6 rounded-full border border-orange-500/5 animate-[ping_4s_infinite]" />
                                                     </div>
                                                     <div className="text-center space-y-3">
-                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">Neural Synthesis</p>
+                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">OKVEVO is Cooking</p>
                                                         <div className="flex justify-center gap-1.5">
                                                             {[0,1,2].map(i => (
                                                                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500/20 animate-pulse" />
                                                             ))}
                                                         </div>
                                                         <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">
-                                                            {chatStep === 'generating-lipsync' ? 'Phase: Lipschitz Mapping…' : 'Phase: Lighting Protocol…'}
+                                                            {chatStep === 'generating-lipsync' ? 'OKVEVO is syncing lips… almost there' : 'OKVEVO is conjuring frames… hang tight'}
                                                         </p>
                                                     </div>
                                                 </motion.div>
@@ -1228,11 +1543,11 @@ function AIInfluencerWorkstation() {
                                                             <MonitorPlay size={36} className="text-white/[0.05] group-hover/monitor:text-orange-500/50 transition-all duration-1000 group-hover/monitor:scale-110" />
                                                         </div>
                                                     </div>
-                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">Studio Downlink</h3>
+                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">OKVEVO Monitor</h3>
                                                     <div className="flex items-center gap-3 mb-6">
                                                         <div className="w-2 h-2 rounded-full bg-white/5 animate-pulse" />
                                                         <p className="text-[10px] text-white/10 font-black uppercase tracking-[0.3em] group-hover/monitor:text-white/20 transition-colors">
-                                                            Standby Protocol
+                                                            Waiting for your drop...
                                                         </p>
                                                     </div>
                                                 </motion.div>
