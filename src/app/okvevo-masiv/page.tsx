@@ -74,8 +74,9 @@ interface CartItem {
     faceImageUrl: string | null;
 }
 
-const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHovered?: boolean }) => {
+const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClick }: { images: string[], isHovered?: boolean, isMuted?: boolean, onVideoClick?: (e: React.MouseEvent) => void }) => {
     const [index, setIndex] = useState(0);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         // ROTATION: Automatic change every 5 seconds regardless of hover
@@ -84,6 +85,13 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
         }, 5000);
         return () => clearInterval(interval);
     }, [images.length]);
+
+    useEffect(() => {
+        // Update muted state when prop changes
+        if (videoRef.current) {
+            videoRef.current.muted = isMuted;
+        }
+    }, [isMuted]);
 
     const getLabel = (idx: number) => {
         if (images.length === 2) return idx === 0 ? "MALE" : "FEMALE";
@@ -119,14 +127,16 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
                 >
                     {isMediaVideo ? (
                         <video 
+                            ref={videoRef}
                             key={sourceUrl}
                             src={sourceUrl}
                             autoPlay
-                            muted 
+                            muted={isMuted}
                             loop 
                             playsInline 
                             preload="auto"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={onVideoClick}
                             onError={(e) => {
                                 console.error('❌ Video failed to load:', sourceUrl);
                                 const error = e.currentTarget.error;
@@ -176,14 +186,26 @@ const ThumbnailScroller = memo(({ images, isHovered }: { images: string[], isHov
 
 ThumbnailScroller.displayName = 'ThumbnailScroller';
 
-const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard }: { 
+const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard, playingAudioProductId, setPlayingAudioProductId }: { 
     product: MasivProduct, 
     index: number, 
     isInCart: (id: string) => boolean,
     addToCart: (p: MasivProduct) => void,
-    setSelectedCard: (id: string) => void
+    setSelectedCard: (id: string) => void,
+    playingAudioProductId: string | null,
+    setPlayingAudioProductId: (id: string | null) => void
 }) => {
     const [isHovered, setIsHovered] = useState(false);
+    const isMuted = playingAudioProductId !== product.id;
+
+    const handleVideoClick = (e: React.MouseEvent) => {
+        // Don't stop propagation - let the card click handler open the modal
+        if (playingAudioProductId === product.id) {
+            setPlayingAudioProductId(null);
+        } else {
+            setPlayingAudioProductId(product.id);
+        }
+    };
     
     return (
         <div
@@ -220,6 +242,8 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
                     <ThumbnailScroller 
                         images={product.thumbnails} 
                         isHovered={isHovered}
+                        isMuted={isMuted}
+                        onVideoClick={handleVideoClick}
                     />
                 </div>
             </div>
@@ -285,7 +309,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             key={items[index].image}
                             src={items[index].image} 
                             autoPlay 
-                            muted 
+                            muted
                             loop 
                             playsInline 
                             preload="auto"
@@ -643,6 +667,7 @@ export default function OkvevoMasivPage() {
     const [products, setProducts] = useState<MasivProduct[]>([]);
     const [banners, setBanners] = useState<MasivBanner[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(true);
+    const [playingAudioProductId, setPlayingAudioProductId] = useState<string | null>(null);
     const [loadingBanners, setLoadingBanners] = useState(true);
 
     // Redirect to login if not authenticated
@@ -1017,6 +1042,7 @@ export default function OkvevoMasivPage() {
             
             alert('Successfully added to cart with your photos!');
             setSelectedCard(null);
+            setPlayingAudioProductId(null); // Stop audio when added to cart
         } catch (error) {
             console.error('Error adding to cart:', error);
             alert('Failed to add to cart. Please try again.');
@@ -1249,6 +1275,8 @@ export default function OkvevoMasivPage() {
                             isInCart={isInCart}
                             addToCart={addToCart}
                             setSelectedCard={setSelectedCard}
+                            playingAudioProductId={playingAudioProductId}
+                            setPlayingAudioProductId={setPlayingAudioProductId}
                         />
                     ))}
                 </section>
@@ -1265,6 +1293,7 @@ export default function OkvevoMasivPage() {
                             setSelectedCard(null);
                             setFullBodyImage(null);
                             setFaceCloseUpImage(null);
+                            setPlayingAudioProductId(null); // Stop audio when modal is closed
                         }}
                         className="fixed inset-0 bg-black/80 backdrop-blur-md z-[150] flex items-center justify-center p-4 md:p-8"
                     >
@@ -1288,6 +1317,7 @@ export default function OkvevoMasivPage() {
                                             setSelectedCard(null);
                                             setFullBodyImage(null);
                                             setFaceCloseUpImage(null);
+                                            setPlayingAudioProductId(null); // Stop audio when close button is clicked
                                         }}
                                         className="absolute top-6 right-6 z-50 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10"
                                     >
@@ -1525,6 +1555,7 @@ export default function OkvevoMasivPage() {
                                                 setActiveRequestId(null);
                                                 setIsSubmitting(false);
                                                 setSelectedCard(null);
+                                                setPlayingAudioProductId(null); // Stop audio when result modal is closed
                                             }}
                                             className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all"
                                         >
