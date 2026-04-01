@@ -243,7 +243,19 @@ exports.handler = async (event) => {
                         
                     } else if (normalizedStatus === 'ERROR' || normalizedStatus === 'FAILED') {
                         console.error(`   ❌ Fal AI job failed: ${requestId}`);
-                        console.error(`   Error details:`, res.error || 'No error details');
+                        const errorMsg = res.error || 'No error details provided by Fal AI';
+                        console.error(`   Error details:`, errorMsg);
+                        
+                        // Mark the main job as failed in Firestore
+                        await jobRef.update({
+                            status: 'error',
+                            errorMessage: `Fal AI Job Failed: ${errorMsg}`,
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            processingLock: false
+                        });
+                        
+                        console.log(`   ❌ Marked main job ${jobId} as error and released lock`);
+                        return { allAssetsComplete: false, errorDetected: true };
                         
                     } else {
                         console.log(`   ⏳ Job still in progress: ${normalizedStatus}`);

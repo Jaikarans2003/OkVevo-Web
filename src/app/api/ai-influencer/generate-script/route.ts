@@ -86,50 +86,52 @@ export async function POST(request: NextRequest) {
         const isRawScript = Boolean(script?.trim());
 
         const buildPrompt = (retryInfo?: { prevWordCount: number }) => {
+            const wps = isFast ? '3.0 to 3.5' : '2.3 to 2.8';
             const retryWarning = retryInfo
-                ? `\n\n⚠️ CRITICAL: Your previous attempt only had ${retryInfo.prevWordCount} words, which is UNACCEPTABLE. The MINIMUM is ${minWords} words. You MUST write more content this time. Expand on the ideas, add descriptive details, use richer language. Do NOT use ellipses as a substitute for actual words.\n`
+                ? `\n\n⚠️ CRITICAL: Your previous attempt only had ${retryInfo.prevWordCount} words, which is FAILING the requirement. The MUST-HAVE MINIMUM is ${minWords} words. You MUST write more content this time. Expand on the ideas, add vivid descriptive details, and use more sophisticated, complete sentences. Do NOT use ellipses as a substitute for actual words.\n`
                 : '';
 
             const baseRequirements = `
 Requirements for the output script:
 ${retryWarning}
-- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud at a natural speaking pace (~2.3 to 2.8 words/second).
-- ⚠️ MANDATORY WORD COUNT: The script MUST contain between ${minWords} and ${maxWords} words. This is NON-NEGOTIABLE.
-  * Count every word carefully before outputting.
+- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
+- Speaking Pace: The content is intended for a ${isFast ? 'fast and punchy' : 'calm and steady'} delivery (${wps} words/second).
+- ⚠️ MANDATORY WORD COUNT: The script MUST contain between ${minWords} and ${maxWords} words. This is a HARD CONSTRAINT.
+  * Count every single word carefully before outputting.
   * Scripts with fewer than ${minWords} words will be REJECTED.
-  * Do NOT pad with filler — use substantive, meaningful content.
+  * If the topic is simple, you MUST elaborate and add depth to meet the length requirement.
+  * Do NOT pad with fluff — use substantive, meaningful, and professional content.
   * Ellipses (...) do NOT count as words. You must have ${minWords}+ actual spoken words.
 - Tone: ${toneInstructions}
 - Pacing & Formatting: ${formattingInstructions}
-- Language: Conversational spoken English. No bullet points, no headers, no stage directions like "[pause]" or "(music)". Only the spoken text.
-- IMPORTANT: Write COMPLETE, FULL sentences. Do not use sentence fragments or single-word phrases separated by ellipses. Each line should be a proper sentence with subject and verb.
+- Language: Professional spoken English. No bullet points, no headers, no stage directions or meta-text. Only the spoken narration.
+- Structure: Write COMPLETE, FULL, and engaging sentences. Every line must have clear subject and verb. No fragments.
 `;
 
             if (isRawScript) {
-                return `You are an expert scriptwriter for short-form video content.
+                return `You are an elite scriptwriter for viral AI video content.
 
-The user has provided their raw script below. Your task is to analyze it, extract the core message, and transform it into a polished, professional ${duration}-second narrator script.
+Transform the user's raw script provided below into a high-tier ${duration}-second narrator script. Your job is to adapt the message while strictly adhering to the length and structure requirements.
 
 USER'S RAW SCRIPT:
 """
 ${inputSource}
 """
 ${baseRequirements}
-- Structure: Hook (first 2-3 seconds) → Core message → Conclusion
-- Preserve the key information from the original script but EXPAND it into full, rich narration.
-- Do NOT just summarize — flesh out the ideas with vivid descriptions and complete thoughts.
+- Narrative Structure: Capture attention with a strong hook (first 3s) → Deliver high-value information with clarity → Close with a powerful final statement.
+- Strategy: Expand the user's ideas with rich, evocative language. If the source material is short, you must add relevant context and "wow factor" descriptive details to reach the ${minWords} word count target.
 
-REMEMBER: You MUST write at least ${minWords} words of actual spoken content. Count your words before submitting.
+REMEMBER: You MUST write at least ${minWords} words of actual spoken content. Be bold, professional, and thorough.
 
-Output ONLY the final narration script text. No explanations, no labels.`;
+Output ONLY the final narration script text. No intro, no outbound fluff, no labels.`;
             } else {
-                return `Generate a compelling ${duration}-second video script about "${inputSource}".
+                return `Create a high-tier, viral ${duration}-second video script about "${inputSource}".
 ${baseRequirements}
-- Structure: Hook → Problem → Solution → Call to Action
+- Narrative Structure: Hook (0-3s) → Problem/Context (3-15s) → Core Message/Solution (15-50s) → Final Impact/Call to Action (50-60s). (Scale this structure accordingly for shorter durations).
 
-REMEMBER: You MUST write at least ${minWords} words of actual spoken content. Count your words before submitting.
+REMEMBER: You MUST write at least ${minWords} words of actual spoken content. Deliver a complete, insightful, and cinematic experience.
 
-Output ONLY the final narration script text. No explanations, no labels.`;
+Output ONLY the final narration script text. No intro, no labels.`;
             }
         };
 
@@ -139,7 +141,7 @@ Output ONLY the final narration script text. No explanations, no labels.`;
         console.log(`   TTS Pacing: ${ttsPacing || 'calm'}`);
         console.log(`   Input length: ${inputSource.length} chars`);
 
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = 4;
         let scriptText = '';
         let wordCount = 0;
 
@@ -153,10 +155,17 @@ Output ONLY the final narration script text. No explanations, no labels.`;
             const scriptChat = await groq.chat.completions.create({
                 messages: [{ role: 'user', content: prompt }],
                 model: 'llama-3.3-70b-versatile',
-                temperature: attempt > 1 ? 0.8 : 0.7,  // Slightly higher temp on retries
+                temperature: attempt > 1 ? 0.85 : 0.7,  // Slightly higher temp on retries
             });
 
-            scriptText = scriptChat.choices[0]?.message?.content?.trim() || '';
+            let rawOutput = scriptChat.choices[0]?.message?.content?.trim() || '';
+            
+            // Post-processing: Remove common LLM conversational filler
+            scriptText = rawOutput
+                .replace(/^(here is|sure|here's|this is|okay|alright|below is|the following is|script for).*?:/gi, '')
+                .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+                .trim();
+
             if (!scriptText || scriptText.length === 0) {
                 if (attempt === MAX_RETRIES) throw new Error('Groq did not return script text');
                 console.warn(`   ⚠️ Empty response on attempt ${attempt}, retrying...`);
@@ -173,15 +182,15 @@ Output ONLY the final narration script text. No explanations, no labels.`;
 
             console.log(`   Attempt ${attempt}: ${scriptText.length} chars, ~${wordCount} actual words`);
 
-            if (wordCount >= minWords) {
-                console.log(`✅ Script meets word count requirement (${wordCount} >= ${minWords})`);
+            if (wordCount >= minWords && wordCount <= maxWords + 5) {
+                console.log(`✅ Script meets word count requirement (${wordCount} words)`);
                 break;
             }
 
             if (attempt < MAX_RETRIES) {
-                console.warn(`   ⚠️ Script too short (${wordCount} < ${minWords}), retrying...`);
+                console.warn(`   ⚠️ Script word count out of range (${wordCount} vs target ${minWords}-${maxWords}), retrying...`);
             } else {
-                console.warn(`   ⚠️ Script still short after ${MAX_RETRIES} attempts (${wordCount} words). Proceeding anyway.`);
+                console.warn(`   ⚠️ Script still out of range after ${MAX_RETRIES} attempts (${wordCount} words). Proceeding with best attempt.`);
             }
         }
 

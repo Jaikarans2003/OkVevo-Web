@@ -4,19 +4,20 @@ import admin from 'firebase-admin';
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
     try {
-        const serviceAccount = JSON.parse(
-            process.env.FB_SERVICE_ACCOUNT_KEY || '{}'
-        );
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            storageBucket: process.env.FB_STORAGE_BUCKET,
-        });
-    } catch (error) {
-        console.error('Firebase admin initialization error:', error);
+        const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY || '';
+        if (key) {
+            const serviceAccount = JSON.parse(
+                Buffer.from(key, 'base64').toString('utf-8')
+            );
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                storageBucket: process.env.FB_STORAGE_BUCKET,
+            });
+        }
+    } catch (error: any) {
+        console.warn('Firebase admin initialization deferred:', error.message);
     }
 }
-
-const db = admin.firestore();
 
 interface CartItem {
     id: string;
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
             paidAt: null,
         };
 
+        const db = admin.firestore();
         await db.collection('masiv_orders').doc(orderId).set(orderDoc);
 
         console.log(`✅ Created MASIV order: ${orderId} with status=pending`);

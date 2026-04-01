@@ -44,8 +44,36 @@ export async function POST(request: NextRequest) {
 
         if (normalizedStatus !== 'COMPLETED') {
             console.warn(`⚠️ Job ${request_id} failed or is incomplete: ${error || status}`);
-            // We might want to notify SFN about failure here using SendTaskFailure
-            return NextResponse.json({ success: true }); // Still return 200 to Fal
+            
+            // Find the job in Firestore to update status
+            const db = admin.firestore();
+            const falJobRef = db.collection('falJobs').doc(request_id);
+            const falJobDoc = await falJobRef.get();
+
+            if (falJobDoc.exists) {
+                const { userId, jobId, type } = falJobDoc.data() || {};
+                if (userId && jobId) {
+                    const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+                    
+                    // Construct a descriptive error message
+                    let errorMessage = `Fal AI ${type} job failed with status: ${status}`;
+                    if (error) {
+                        errorMessage = `Fal AI Error: ${error}`;
+                    }
+
+                    await jobRef.update({
+                        status: 'error',
+                        errorMessage: errorMessage,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    console.log(`❌ Updated Job ${jobId} status to error due to Fal AI failure`);
+                }
+                // Cleanup the mapping
+                await falJobRef.delete();
+            }
+
+            return NextResponse.json({ success: true });
         }
 
         // 1. Find the job in Firestore to get the taskToken

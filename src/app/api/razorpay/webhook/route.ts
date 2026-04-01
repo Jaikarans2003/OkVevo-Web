@@ -10,19 +10,22 @@ export const config = {
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-    const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-    if (!saBase64) {
-        throw new Error("Missing Firebase Service Account Key");
+    try {
+        const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+        if (saBase64) {
+            const serviceAccount = JSON.parse(
+                Buffer.from(saBase64, 'base64').toString('utf-8')
+            );
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+        }
+    } catch(e: any) {
+        console.warn('Firebase init deferred:', e.message);
     }
-    const serviceAccount = JSON.parse(
-        Buffer.from(saBase64, 'base64').toString('utf-8')
-    );
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
 }
 
-const db = admin.firestore();
+const getDb = () => admin.firestore();
 const GRACE_PERIOD_DAYS = 7;
 
 /**
@@ -45,6 +48,7 @@ async function syncSubscriptionToFirestore(
     userId: string,
     data: any
 ): Promise<void> {
+    const db = getDb();
     const batch = db.batch();
     
     // Top-level collection for fast lookups
@@ -66,6 +70,7 @@ async function getSubscriptionWithFallback(
     subscriptionId: string,
     userId?: string
 ): Promise<FirebaseFirestore.DocumentSnapshot | null> {
+    const db = getDb();
     // Try direct lookup first
     let subscriptionDoc = await db.collection('razorpaySubscriptions').doc(subscriptionId).get();
     
@@ -452,6 +457,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Check if this is a MASIV order by looking for the document
+                const db = getDb();
                 const orderRef = db.collection('masiv_orders').doc(orderId);
                 const orderDoc = await orderRef.get();
 
@@ -487,6 +493,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Check if this is a MASIV order
+                const db = getDb();
                 const orderRef = db.collection('masiv_orders').doc(orderId);
                 const orderDoc = await orderRef.get();
 
