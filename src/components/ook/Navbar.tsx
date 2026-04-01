@@ -53,8 +53,9 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
 
     const navLinks = [
         { name: 'Process', href: '/#showcase' },
+        { name: 'Features', href: '/#features' },
         { name: 'Pricing', href: '/#pricing' },
-        { name: 'Masiv', href: '/okvevo-masiv' }
+        
     ];
 
     return (

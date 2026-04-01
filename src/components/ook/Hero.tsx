@@ -1,67 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Play, Sparkles, UserCheck, ChevronRight } from 'lucide-react';
+import { useRef } from 'react';
+import { motion } from 'framer-motion';
+import { Play, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 interface HeroProps {
     onJoinClick: () => void;
 }
 
-const services = [
-    {
-        id: 'product-ads',
-        title: 'AI Product Ads',
-        description: 'Create cinematic product showcases in seconds.',
-        video: '/videos/aiproduct.mp4',
-        icon: <Sparkles className="w-5 h-5" />,
-    },
-    {
-        id: 'script-video',
-        title: 'Script-to-Video',
-        description: 'Transform text stories into high-fidelity visuals.',
-        video: '/videos/script.mp4',
-        icon: <Play className="w-5 h-5" />,
-    },
-    {
-        id: 'ai-influencers',
-        title: 'AI Influencers',
-        description: 'Scale your brand with digital-human ambassadors.',
-        video: '/videos/influencer.mp4',
-        icon: <UserCheck className="w-5 h-5" />,
-    },
-];
-
-const activeFeature = {
-    name: 'AI Influencer Studio',
-    status: 'Live Now',
-    description: 'Transform your presence with hyper-realistic digital twins.',
-    icon: <UserCheck className="w-4 h-4 text-accent-orange" />
-};
-
-const upcomingFeatures = [
-    { name: 'Product Studio', icon: '🛍️' },
-    { name: 'Social Trends', icon: '🎬' },
-    { name: 'Script-to-Cinema', icon: '📝' },
-];
 
 const Hero = ({ onJoinClick }: HeroProps) => {
-    const [activeService, setActiveService] = useState(services[1]); // Default to script-to-video
     const containerRef = useRef<HTMLElement>(null);
-
-    // Auto-play videos
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveService((prev) => {
-                const currentIndex = services.findIndex(s => s.id === prev.id);
-                const nextIndex = (currentIndex + 1) % services.length;
-                return services[nextIndex];
-            });
-        }, 8000); // Change every 8 seconds
-
-        return () => clearInterval(interval);
-    }, []);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     return (
         <section ref={containerRef} className="relative min-h-[140vh] bg-black overflow-hidden flex flex-col items-center">
@@ -104,7 +55,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
             <div className="relative z-10 mt-10 pt-32 px-6 flex flex-col items-center text-center max-w-5xl mx-auto">
 
                 {/* Feature Badge/Pill */}
-                <Link href="/okvevo-masiv">
+                <Link href="/location">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 13 }}
@@ -180,43 +131,24 @@ const Hero = ({ onJoinClick }: HeroProps) => {
 
                 <div className="relative rounded-[3rem] md:rounded-[4rem] overflow-hidden border border-white/10 bg-black/60 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
                     <div className="aspect-[16/9] w-full">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeService.id}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.8 }}
-                                className="absolute inset-0"
-                            >
-                                <video
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    className="w-full h-full object-cover"
-                                    src={activeService.video}
-                                    suppressHydrationWarning
-                                />
-                                {/* Overlay Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Progress Dots/Switcher */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
-                        {services.map((s) => (
-                            <button
-                                key={s.id}
-                                onClick={() => setActiveService(s)}
-                                className={`h-1.5 rounded-full transition-all duration-500 ${activeService.id === s.id ? 'w-8 bg-accent-orange' : 'w-2 bg-white/20 hover:bg-white/40'
-                                    }`}
+                        <div className="absolute inset-0">
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="w-full h-full object-cover"
+                                src="/videos/screenrecord.webm"
+                                suppressHydrationWarning
                             />
-                        ))}
+                            {/* Overlay Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                        </div>
                     </div>
                 </div>
             </motion.div>
+
 
             <style jsx>{`
                 .mask-arc {

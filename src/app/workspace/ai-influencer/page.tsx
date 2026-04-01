@@ -752,14 +752,14 @@ function AIInfluencerWorkstation() {
                         </button>
                     )}
 
-                    <main className="flex-1 relative ml-12 z-10 px-4 md:px-10 w-full max-w-[1600px] pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
+                    <main className="flex-1 relative ml-0 md:ml-12 z-10 px-4 md:px-10 w-full max-w-[1600px] pt-8 bg-transparent mx-auto flex flex-col h-full min-h-0 overflow-hidden">
 
                         {/* Header with Professional Status */}
                         {activeTab === 'explainers' ? (
-                            <div className="flex flex-col md:flex-row gap-10 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
+                            <div className="flex flex-col lg:flex-row gap-6 md:gap-10 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
 
                                 {/* ── LEFT: Step Wizard ── */}
-                                <div className="flex-1 max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
+                                <div className="flex-1 w-full max-w-full lg:max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
                                     {/* Page Title & Status */}
                                     <div className="flex items-center gap-4 px-2 mb-2">
                                         <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
@@ -1366,6 +1366,7 @@ function AIInfluencerWorkstation() {
 
                                         {/* ── Chat Messages ── */}
                                         <div 
+                                            data-lenis-prevent
                                             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-8 space-y-8 bg-transparent custom-scrollbar rounded-[2.5rem] scroll-smooth"
                                         >
                                             {chatMessages.map((msg, i) => (
@@ -1594,7 +1595,10 @@ function AIInfluencerWorkstation() {
 
                                                 {/* Image strip */}
                                                 {imageTimeline.length > 0 && (
-                                                    <div className="flex-1 flex flex-col gap-3 overflow-y-auto pb-1 pr-1 no-scrollbar">
+                                                    <div 
+                                                        data-lenis-prevent
+                                                        className="flex-1 flex flex-col gap-3 overflow-y-auto pb-1 pr-1 no-scrollbar"
+                                                    >
                                                         {imageTimeline.map((item, i) => (
                                                             <div key={i} className="flex-shrink-0 w-full space-y-1">
                                                                 <div className="relative w-full h-[120px] rounded-lg overflow-hidden bg-gray-200/60 dark:bg-white/5">

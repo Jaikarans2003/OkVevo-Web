@@ -190,7 +190,7 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
     product: MasivProduct, 
     index: number, 
     isInCart: (id: string) => boolean,
-    addToCart: (p: MasivProduct) => void,
+    addToCart: (p: MasivProduct, e?: React.MouseEvent) => void,
     setSelectedCard: (id: string) => void,
     playingAudioProductId: string | null,
     setPlayingAudioProductId: (id: string | null) => void
@@ -268,7 +268,7 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
                         disabled={isInCart(product.id)}
                         onClick={(e) => {
                             e.stopPropagation();
-                            addToCart(product);
+                            addToCart(product, e);
                         }}
                     >
                         {isInCart(product.id) ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -662,6 +662,9 @@ export default function OkvevoMasivPage() {
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
     const [successOrderId, setSuccessOrderId] = useState('');
+    const [addedToCartNotification, setAddedToCartNotification] = useState<{ id: string; name: string } | null>(null);
+    const [flyingParticles, setFlyingParticles] = useState<{ id: number; x: number; y: number }[]>([]);
+    const cartButtonRef = useRef<HTMLButtonElement>(null);
     const router = useRouter();
 
     const [products, setProducts] = useState<MasivProduct[]>([]);
@@ -980,7 +983,7 @@ export default function OkvevoMasivPage() {
         }
     };
 
-    const addToCart = async (product: MasivProduct) => {
+    const addToCart = async (product: MasivProduct, e?: React.MouseEvent) => {
         // Validate that photos are uploaded
         if (!fullBodyImage) {
             alert('Please upload a full body photo before adding to cart.');
@@ -988,6 +991,13 @@ export default function OkvevoMasivPage() {
         }
 
         try {
+            if (e) {
+                const particleId = Date.now();
+                setFlyingParticles(prev => [...prev, { id: particleId, x: e.clientX, y: e.clientY }]);
+                setTimeout(() => {
+                    setFlyingParticles(prev => prev.filter(p => p.id !== particleId));
+                }, 1000);
+            }
             if (!user?.uid) {
                 alert('Please sign in to add items to cart.');
                 return;
@@ -995,34 +1005,29 @@ export default function OkvevoMasivPage() {
             const timestamp = Date.now();
             const userId = user.uid;
             
-            let fullBodyUrl: string;
+            let fullBodyUrl = '';
             let faceUrl = '';
 
-            // Check if fullBodyImage is already a Firebase Storage URL (from booth camera)
+            // Check if fullBodyImage is already a Firebase Storage URL (from booth camera) or data URL
             if (fullBodyImage.startsWith('https://')) {
-                // Already a Firebase Storage URL, use it directly
                 fullBodyUrl = fullBodyImage;
             } else {
-                // It's a data URL, upload it to Storage
                 const fullBodyRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_full_body.jpg`);
                 await uploadString(fullBodyRef, fullBodyImage, 'data_url');
                 fullBodyUrl = await getDownloadURL(fullBodyRef);
             }
 
-            // Handle face image similarly
             if (faceCloseUpImage) {
                 if (faceCloseUpImage.startsWith('https://')) {
-                    // Already a Firebase Storage URL
                     faceUrl = faceCloseUpImage;
                 } else {
-                    // It's a data URL, upload it
                     const faceRef = ref(storage, `masiv_orders/${userId}/${timestamp}_${product.id}_face.jpg`);
                     await uploadString(faceRef, faceCloseUpImage, 'data_url');
                     faceUrl = await getDownloadURL(faceRef);
                 }
             }
 
-            // Add to cart with photo URLs (no Firestore write yet - will be created after payment)
+            // Add to cart with photo URLs
             if (!cart.find(item => item.id === product.id)) {
                 setCart([...cart, { 
                     id: product.id, 
@@ -1040,7 +1045,12 @@ export default function OkvevoMasivPage() {
             setCapturedPhotos({ fullBody: null, face: null });
             setPhotoAttempts({ fullBody: 0, face: 0 });
             
-            alert('Successfully added to cart with your photos!');
+            // alert('Successfully added to cart with your photos!');
+            setAddedToCartNotification({ id: product.id, name: product.name });
+            
+            // Auto-hide notification after 5 seconds
+            setTimeout(() => setAddedToCartNotification(null), 5000);
+
             setSelectedCard(null);
             setPlayingAudioProductId(null); // Stop audio when added to cart
         } catch (error) {
@@ -1151,6 +1161,25 @@ export default function OkvevoMasivPage() {
 
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden relative scroll-smooth">
+            {/* Flying Particles Container */}
+            <div className="fixed inset-0 pointer-events-none z-[300]">
+                <AnimatePresence>
+                    {flyingParticles.map(p => (
+                        <motion.div
+                            key={p.id}
+                            initial={{ x: p.x, y: p.y, scale: 0.5, opacity: 1 }}
+                            animate={{ 
+                                x: [p.x, p.x + 80, window.innerWidth - 120], 
+                                y: [p.y, p.y - 250, 40],
+                                scale: [0.5, 2, 0.4],
+                                opacity: [1, 1, 0]
+                            }}
+                            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="absolute top-0 left-0 w-6 h-6 bg-[#FF6B35] rounded-full shadow-[0_0_30px_#FF6B35,0_0_10px_#fff] border-2 border-white/20"
+                        />
+                    ))}
+                </AnimatePresence>
+            </div>
             {/* Minimal Background (Non-fixed to prevent paint lag) */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#1a0a05_0%,#050505_100%)] pointer-events-none z-0" />
 
@@ -1202,15 +1231,75 @@ export default function OkvevoMasivPage() {
                     {/* Right - Cart */}
                     <div className="flex-1 flex justify-end">
                         <button
+                            ref={cartButtonRef}
                             onClick={() => setShowCart(true)}
-                            className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors shadow-lg"
+                            className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all shadow-lg relative group overflow-hidden"
                         >
-                            <ShoppingCart className="w-4 h-4 text-[#FF6B35]" />
-                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase hidden sm:block">Cart <span className="text-white/50 ml-1">({cart.length})</span></span>
-                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase sm:hidden">{cart.length}</span>
+                            <div className="absolute inset-0 bg-[#FF6B35]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            
+                            {/* Animated Cart Icon Only */}
+                            <motion.div
+                                key={cart.length}
+                                initial={{ scale: 1, y: 0, rotate: 0 }}
+                                animate={cart.length > 0 ? { 
+                                    scale: [1, 2.2, 1],
+                                    y: [0, -12, 0],
+                                    rotate: [0, -20, 20, 0]
+                                } : {}}
+                                transition={{ 
+                                    duration: 0.8,
+                                    times: [0, 0.4, 1],
+                                    ease: ["easeOut", "backIn"]
+                                }}
+                                className="relative z-10"
+                            >
+                                <ShoppingCart className="w-4 h-4 text-[#FF6B35]" />
+                            </motion.div>
+
+                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase hidden sm:block relative z-10">
+                                Cart <span className="text-white/50 ml-1">({cart.length})</span>
+                            </span>
+                            <span className="font-bold text-xs md:text-sm tracking-widest uppercase sm:hidden relative z-10">{cart.length}</span>
                         </button>
                     </div>
                 </div>
+
+                {/* Smooth Checkout Pop Notification */}
+                <AnimatePresence>
+                    {addedToCartNotification && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20, x: 20 }}
+                            animate={{ opacity: 1, y: 0, x: 0 }}
+                            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                            className="absolute top-24 right-4 md:right-8 z-[200] pointer-events-auto"
+                        >
+                            <div className="bg-[#1a1a1a] border border-[#FF6B35]/30 rounded-2xl p-5 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center gap-6 min-w-[320px] backdrop-blur-3xl">
+                                <div className="w-12 h-12 bg-[#FF6B35]/20 rounded-xl flex items-center justify-center text-[#FF6B35]">
+                                    <Check size={24} strokeWidth={3} />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Added to Cart</h4>
+                                    <p className="text-sm font-bold text-white truncate max-w-[150px]">{addedToCartNotification.name}</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setAddedToCartNotification(null);
+                                        setShowCart(true);
+                                    }}
+                                    className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF8F6B] text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg active:scale-95"
+                                >
+                                    View Cart
+                                </button>
+                                <button 
+                                    onClick={() => setAddedToCartNotification(null)}
+                                    className="absolute top-2 right-2 text-white/20 hover:text-white transition-colors"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </nav>
 
             {/* Section with persistent grid background */}
@@ -1632,101 +1721,110 @@ export default function OkvevoMasivPage() {
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                                    {cart.length === 0 ? (
-                                        <div className="text-center py-20 text-white/30 flex flex-col items-center">
-                                            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
-                                                <ShoppingCart className="w-10 h-10 text-white/20" />
-                                            </div>
-                                            <p className="font-bold text-lg">Your cart is empty</p>
-                                        </div>
-                                    ) : (
-                                        cart.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                className="flex flex-col p-5 bg-[#1a1a1a] border border-white/5 rounded-2xl relative group"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-lg text-white pr-8">{item.name}</h4>
-                                                    <button
-                                                        onClick={() => removeFromCart(item.id)}
-                                                        className="absolute top-5 right-5 p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <X className="w-3 h-3" />
-                                                    </button>
+                                {/* Single scrollable area for items + form */}
+                                <div className="flex-1 overflow-y-auto pr-2 -mr-2 custom-scrollbar space-y-8 pb-10" data-lenis-prevent>
+                                    
+                                    {/* Items List */}
+                                    <div className="space-y-4">
+                                        {cart.length === 0 ? (
+                                            <div className="text-center py-20 text-white/30 flex flex-col items-center">
+                                                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                                                    <ShoppingCart className="w-10 h-10 text-white/20" />
                                                 </div>
-                                                <p className="text-[#FF6B35] font-black text-xl">₹{item.price}</p>
+                                                <p className="font-bold text-lg">Your cart is empty</p>
                                             </div>
-                                        ))
+                                        ) : (
+                                            cart.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex flex-col p-5 bg-[#1a1a1a] border border-white/5 rounded-2xl relative group"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-bold text-lg text-white pr-8">{item.name}</h4>
+                                                        <button
+                                                            onClick={() => removeFromCart(item.id)}
+                                                            className="absolute top-5 right-5 p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-[#FF6B35] font-black text-xl">₹{item.price}</p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    
+                                    {cart.length > 0 && (
+                                        <div className="border-t border-white/10 pt-8 space-y-8">
+                                            {/* User Information Form */}
+                                            <div className="space-y-6">
+                                                <h3 className="text-sm font-black uppercase tracking-widest text-[#FF6B35]">Your Details</h3>
+                                                
+                                                <div className="space-y-4">
+                                                    {/* Name */}
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-white/40 mb-2 uppercase tracking-widest">
+                                                            Full Name
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={userName}
+                                                            onChange={(e) => setUserName(e.target.value)}
+                                                            placeholder="Enter your name"
+                                                            className="w-full px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/5 transition-all"
+                                                        />
+                                                    </div>
+
+                                                    {/* WhatsApp */}
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-white/40 mb-2 uppercase tracking-widest">
+                                                            WhatsApp Number
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            value={whatsappNumber}
+                                                            onChange={(e) => setWhatsappNumber(e.target.value)}
+                                                            placeholder="Enter WhatsApp"
+                                                            className="w-full px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/5 transition-all"
+                                                        />
+                                                    </div>
+
+                                                    {/* Email */}
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-white/40 mb-2 uppercase tracking-widest">
+                                                            Email (Optional)
+                                                        </label>
+                                                        <input
+                                                            type="email"
+                                                            value={email}
+                                                            onChange={(e) => setEmail(e.target.value)}
+                                                            placeholder="your@email.com"
+                                                            className="w-full px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/5 transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <span className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Amount</span>
+                                                    <span className="text-4xl font-black text-white italic tracking-tighter">₹{totalPrice}</span>
+                                                </div>
+                                                <button
+                                                    onClick={handleCheckout}
+                                                    disabled={!userName || !whatsappNumber || isProcessingPayment}
+                                                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all ${
+                                                        !userName || !whatsappNumber || isProcessingPayment
+                                                            ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                                                            : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_20px_40px_rgba(255,107,53,0.3)] hover:-translate-y-0.5 active:translate-y-0'
+                                                    }`}
+                                                >
+                                                    {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
-
-                                {cart.length > 0 && (
-                                    <div className="border-t border-white/10 pt-6 mt-6">
-                                        {/* User Information Form */}
-                                        <div className="mb-6 space-y-4">
-                                            <h3 className="text-sm font-black uppercase tracking-widest text-white/70 mb-4">Your Details</h3>
-                                            
-                                            {/* Name - Mandatory */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
-                                                    Name <span className="text-red-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={userName}
-                                                    onChange={(e) => setUserName(e.target.value)}
-                                                    placeholder="Enter your full name"
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
-                                                />
-                                            </div>
-
-                                            {/* WhatsApp Number - Mandatory */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
-                                                    WhatsApp Number <span className="text-red-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="tel"
-                                                    value={whatsappNumber}
-                                                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                                                    placeholder="Enter your WhatsApp number"
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
-                                                />
-                                            </div>
-
-                                            {/* Email - Optional */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">
-                                                    Email <span className="text-white/30 text-[10px]">(Optional)</span>
-                                                </label>
-                                                <input
-                                                    type="email"
-                                                    value={email}
-                                                    onChange={(e) => setEmail(e.target.value)}
-                                                    placeholder="Enter your email address"
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF6B35] transition-colors"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-end justify-between mb-6">
-                                            <span className="text-white/50 font-bold uppercase tracking-widest text-xs">Total Amount</span>
-                                            <span className="text-4xl font-black text-white">₹{totalPrice}</span>
-                                        </div>
-                                        <button
-                                            onClick={handleCheckout}
-                                            disabled={!userName || !whatsappNumber || isProcessingPayment}
-                                            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                                                !userName || !whatsappNumber || isProcessingPayment
-                                                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
-                                                    : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_0_30px_rgba(255,107,53,0.3)]'
-                                            }`}
-                                        >
-                                            {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         </motion.div>
                     </motion.div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUp, X, Mail, Phone } from 'lucide-react';
+import { ArrowUp, X, Mail, Phone, Twitter, Instagram, Linkedin } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -15,12 +15,12 @@ const Footer = () => {
 
     return (
         <footer data-section-theme="light" className="bg-black overflow-hidden">
-            <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-10 pb-20 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
+            <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-10 pb-8 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
                 {/* Decorative Pattern / Glow */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10" />
 
                 <div className="container relative z-10 flex flex-col pt-10">
-                    <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-32">
+                    <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-12">
                         <div className="max-w-sm">
                             <a href="/" className="-mt-10 text-4xl font-black tracking-tighter text-white  block transition-transform hover:scale-105 origin-left font-museo-moderno">
                                 <Image 
@@ -36,9 +36,21 @@ const Footer = () => {
                                 Zero Camera, Infinite Vision.<br />
                                 
                             </p>
-                            <p className="text-xl text-white/50 font-small leading-relaxed">
+                            <p className="text-xl text-white/50 font-small leading-relaxed mb-8">
                                 Designing the future of cinematic storytelling through the lens of artificial intelligence.
                             </p>
+
+                            <div className="flex gap-6">
+                                <a href="https://x.com/OKVEVO_AI" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="Twitter">
+                                    <Twitter size={20} strokeWidth={2.5} />
+                                </a>
+                                <a href="https://www.instagram.com/ok.vevo?igsh=MWE2dDBveTI0eGZpbw%3D%3D" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="Instagram">
+                                    <Instagram size={20} strokeWidth={2.5} />
+                                </a>
+                                <a href="https://www.linkedin.com/company/okvevo/posts/?feedView=all" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="LinkedIn">
+                                    <Linkedin size={20} strokeWidth={2.5} />
+                                </a>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-16 md:gap-32">
@@ -47,14 +59,14 @@ const Footer = () => {
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
                                     <li><a href="#features" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Features</a></li>
                                     <li><a href="#showcase" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
-                                    <li><a href="#okvevo-x-masiv" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
+                                    <li><a href="/location" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
                                 </ul>
                             </div>
 
                             <div>
                                 <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Company</h4>
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
-                                <li><a href="#" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</a></li>
+                                <li><Link href="/about" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</Link></li>
                                 <li><button onClick={(e) => { e.preventDefault(); setShowContact(true); }} className="hover:text-text-main transition-all hover:translate-x-1 inline-block uppercase text-left">Contact</button></li>
                                 <li><Link href="/legal" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Legal</Link></li>
                                 </ul>
@@ -78,13 +90,7 @@ const Footer = () => {
                         </h1>
                     </div>
 
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-8 md:pt-16 border-t border-white/20 gap-12 mt-10">
-                        <div className="flex gap-10">
-                            <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Twitter</a>
-                            <a href="https://www.instagram.com/azonovatechnologies/?utm_source=ig_web_button_share_sheet" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">Instagram</a>
-                            <a href="#" className="text-white hover:text-text-main transition-colors font-black uppercase text-[11px] tracking-widest">LinkedIn</a>
-                        </div>
-
+                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-4 md:pt-6 border-t border-white/20 gap-8 mt-2">
                         <p className="text-[11px] font-black tracking-[0.3em] uppercase text-white/60">
                             © 2026 OKVEVO. All rights reserved.
                         </p>

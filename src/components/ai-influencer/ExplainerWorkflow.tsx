@@ -124,7 +124,7 @@ export default function ExplainerWorkflow() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="max-w-4xl mx-auto w-full h-[600px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden shadow-2xl"
+                            className="max-w-4xl mx-auto w-full min-h-[500px] h-[70vh] md:h-[600px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden shadow-2xl"
                         >
                             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
                                 <div className="flex items-center gap-3">
@@ -137,7 +137,10 @@ export default function ExplainerWorkflow() {
                             </div>
 
                             {/* Scrollable Messages Container */}
-                            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar scroll-smooth">
+                            <div 
+                                data-lenis-prevent
+                                className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar scroll-smooth"
+                            >
                                 {messages.map((msg, i) => (
                                     <motion.div
                                         key={i}
@@ -181,7 +184,7 @@ export default function ExplainerWorkflow() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="max-w-4xl mx-auto w-full h-[500px] flex flex-col items-center justify-center bg-white/5 rounded-[40px] border border-white/10 p-12 text-center gap-8 shadow-2xl"
+                            className="max-w-4xl mx-auto w-full min-h-[400px] h-auto md:h-[500px] flex flex-col items-center justify-center bg-white/5 rounded-[40px] border border-white/10 p-8 md:p-12 text-center gap-8 shadow-2xl"
                         >
                             <input
                                 type="file"
@@ -221,7 +224,7 @@ export default function ExplainerWorkflow() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="max-w-4xl mx-auto w-full h-[500px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden p-12 shadow-2xl"
+                            className="max-w-4xl mx-auto w-full min-h-[400px] h-auto md:h-[500px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden p-8 md:p-12 shadow-2xl"
                         >
                             {isAnalyzing ? (
                                 <div className="h-full flex flex-col items-center justify-center gap-6">
@@ -279,7 +282,7 @@ export default function ExplainerWorkflow() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="max-w-4xl mx-auto w-full h-auto min-h-[500px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden p-12 shadow-2xl"
+                            className="max-w-4xl mx-auto w-full h-auto min-h-[400px] md:min-h-[500px] flex flex-col bg-white/5 rounded-[40px] border border-white/10 overflow-hidden p-8 md:p-12 shadow-2xl"
                         >
                             <div className="flex flex-col gap-8 h-full">
                                 <div>

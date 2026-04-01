@@ -43,7 +43,7 @@ export default function InfluencerStudio() {
             </div>
 
             {/* Tab Content */}
-            <div className="min-h-[600px]">
+            <div className="min-h-[400px] md:min-h-[600px]">
                 <AnimatePresence mode="wait">
                     {activeTab === 'Explainers' ? (
                         <motion.div
