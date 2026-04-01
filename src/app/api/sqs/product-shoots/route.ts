@@ -1,33 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { apiHandler, apiSuccess } from '@/lib/api-utils';
+import { z } from 'zod';
 
-/**
- * Product Shoots API Route — SQS Dispatch
- *
- * Dispatches product shoot photo generation jobs to a dedicated SQS FIFO queue.
- * The Lambda consumer will:
- *   1. Download the product image from Firebase Storage
- *   2. Call NANOBANANA PRO (Gemini) with the photography master prompt + product image
- *   3. Upload the generated photo to ProductShoots/{jobId}-shot-{n}.png
- */
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { jobId, masterPrompt, userId, productImageUrl, outputPath, shotName, resolution, aspectRatio } = body;
+const ProductShootsSchema = z.object({
+    jobId: z.string().min(5),
+    masterPrompt: z.string().min(10),
+    productImageUrl: z.string().url().nullish().or(z.literal('')),
+    outputPath: z.string().nullish(),
+    shotName: z.string().nullish(),
+    resolution: z.string().nullish(),
+    aspectRatio: z.string().nullish(),
+});
 
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, error: 'Authorization required: userId is missing' },
-                { status: 401 }
-            );
-        }
-
-        if (!jobId || !masterPrompt) {
-            return NextResponse.json(
-                { success: false, error: 'jobId and masterPrompt are required' },
-                { status: 400 }
-            );
-        }
+export const POST = apiHandler(
+    async (req, { userId }) => {
+        const body = await req.json();
+        const validatedData = ProductShootsSchema.parse(body);
+        const { jobId, masterPrompt, productImageUrl, outputPath, shotName, resolution, aspectRatio } = validatedData;
 
         // ── SQS Configuration ──────────────────────────────────
         const queueUrl = process.env.SQS_PRODUCT_SHOOTS_QUEUE_URL;
@@ -37,8 +27,7 @@ export async function POST(request: NextRequest) {
 
         if (!queueUrl || !awsAccessKeyId || !awsSecretAccessKey) {
             console.warn('⚠️ Product Shoots SQS not configured — running in mock mode');
-            return NextResponse.json({
-                success: true,
+            return apiSuccess({
                 jobId,
                 message: 'Product shoot job acknowledged (SQS not configured, mock mode)',
                 mock: true,
@@ -61,7 +50,7 @@ export async function POST(request: NextRequest) {
             productImageUrl: productImageUrl || null,
             outputPath: outputPath || `ProductShoots/${jobId}.png`,
             shotName: shotName || 'Unknown Shot',
-            userId,
+            userId, // Set from Auth
             resolution: resolution || '4K',
             aspectRatio: aspectRatio || '16:9',
             timestamp: new Date().toISOString(),
@@ -74,34 +63,16 @@ export async function POST(request: NextRequest) {
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
-        console.log('📸 Dispatching product-shoot job to SQS FIFO:', {
-            jobId,
-            shotName,
-            userId,
-            promptLength: masterPrompt.length,
-            hasProductImage: !!productImageUrl,
-            outputPath: outputPath || `ProductShoots/${jobId}.png`,
-            queueUrl,
-        });
-
         const result = await sqsClient.send(command);
-        console.log('✅ Product shoot SQS message sent:', result.MessageId);
+        console.log(`✅ SQS product-shoot sent: ${jobId} (shot: ${shotName}) (UID: ${userId})`);
 
-        return NextResponse.json({
-            success: true,
+        return apiSuccess({
             jobId,
             messageId: result.MessageId,
             message: 'Product shoot job dispatched to SQS FIFO queue',
         });
-
-    } catch (error) {
-        console.error('Product shoot SQS dispatch error:', error);
-        return NextResponse.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            },
-            { status: 500 }
-        );
+    },
+    {
+        limitPerMin: 5, // 5 shots per minute
     }
-}
+);

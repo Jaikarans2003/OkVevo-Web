@@ -106,7 +106,8 @@ const uploadImageToFirebase = async (
 
 const generatePhotographyPrompts = async (
     productFile: File,
-    shootScenario: string
+    shootScenario: string,
+    authToken: string
 ): Promise<{ name: string; masterPrompt: string }[]> => {
     console.log('📸 Photography Orchestrator: Converting product image to base64...');
     const productImageBase64 = await fileToBase64(productFile);
@@ -114,7 +115,10 @@ const generatePhotographyPrompts = async (
     console.log('📸 Photography Orchestrator: Sending to API...');
     const response = await fetch('/api/product-shoots', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({ productImageBase64, shootScenario }),
     });
 
@@ -138,7 +142,8 @@ const dispatchShootJob = async (
     shotName: string,
     resolution: string | undefined,
     aspectRatio: string | undefined,
-    userId: string
+    userId: string,
+    authToken: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
         // Require authentication
@@ -161,11 +166,13 @@ const dispatchShootJob = async (
             updatedAt: Timestamp.now(),
         };
         await setDoc(doc(db, COLLECTION, jobId), jobDoc);
-        console.log(`📝 Firestore doc created: ${COLLECTION}/${jobId}`);
 
         const res = await fetch('/api/sqs/product-shoots', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
             body: JSON.stringify({
                 jobId,
                 masterPrompt,
@@ -174,7 +181,6 @@ const dispatchShootJob = async (
                 shotName,
                 resolution,
                 aspectRatio,
-                userId
             }),
         });
 
@@ -184,7 +190,6 @@ const dispatchShootJob = async (
             throw new Error(data.error || 'Failed to dispatch shoot job');
         }
 
-        console.log(`📸 Shoot job dispatched: ${jobId} (${shotName})`);
         return { success: true };
 
     } catch (error) {
@@ -213,8 +218,6 @@ const pollForShootPhoto = async (
         try {
             // Try to fetch the image directly to verify it exists
             const response = await fetch(publicUrl, { method: 'HEAD', mode: 'no-cors' });
-            // If no exception thrown and we get here, file likely exists
-            console.log(`✅ Shoot photo found: ${outputPath}`);
             return publicUrl;
         } catch {
             // Not ready yet or network error
@@ -222,7 +225,6 @@ const pollForShootPhoto = async (
 
         const elapsed = ((i + 1) * INTERVAL_MS / 1000);
         onProgress?.(elapsed);
-        console.log(`⏳ Shoot poll ${i + 1}/${MAX_ATTEMPTS}: ${outputPath} not ready...`);
     }
 
     throw new Error(`Shoot photo generation timed out for ${outputPath}`);
@@ -237,10 +239,11 @@ export const runShootsPipeline = async (
     onPhotoUpdate: (photos: ShootPhoto[]) => void,
     resolution: string | undefined,
     aspectRatio: string | undefined,
-    userId: string
+    userId: string,
+    authToken: string
 ): Promise<ShootPipelineResult> => {
     // Require authentication
-    if (!userId) {
+    if (!userId || !authToken) {
         return { status: 'error', photos: [], error: 'Authentication required. Please sign in to generate product shoots.' };
     }
 
@@ -289,7 +292,7 @@ export const runShootsPipeline = async (
 
         // ── Step 1: Generate photography master prompts ──
         onStatusChange('generating-prompts', 'Analyzing product and generating photography prompts...');
-        const shotPrompts = await generatePhotographyPrompts(productFile, shootScenario);
+        const shotPrompts = await generatePhotographyPrompts(productFile, shootScenario, authToken);
 
         // ── Step 2: Upload product image to Firebase ──
         onStatusChange('uploading', 'Uploading product image...');
@@ -321,7 +324,8 @@ export const runShootsPipeline = async (
                 photo.shotName,
                 resolution,
                 aspectRatio,
-                userId
+                userId,
+                authToken
             );
 
             photo.status = result.success ? 'dispatched' : 'error';
@@ -363,7 +367,6 @@ export const runShootsPipeline = async (
         onStatusChange('error', msg);
         return { status: 'error', photos: [], error: msg };
     } finally {
-        // Remove user from active generations when done (success or error)
         activeGenerations.delete(userId);
     }
 };

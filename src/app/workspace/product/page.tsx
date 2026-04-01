@@ -8,6 +8,7 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import StudioNavbar from '@/components/workspace/StudioNavbar';
 import SubscriptionGuard from '@/components/SubscriptionGuard';
 import { useAuth } from '@/hooks/useAuth';
+import { auth } from '@/config/firebase';
 
 import { AILoader } from '@/components/ui/ai-loader';
 import {
@@ -265,6 +266,13 @@ function ProductStudio() {
         setMasterPrompt(null);
         setIsComposed(true); // Trigger resizing immediately
 
+        const authToken = await (await import('../../../config/firebase')).auth.currentUser?.getIdToken();
+        if (!authToken) {
+            alert('Authentication error. Please sign in again.');
+            setIsGenerating(false);
+            return;
+        }
+
         const result = await runPlacementPipeline(
             productImage,
             sceneImage,
@@ -275,7 +283,8 @@ function ProductStudio() {
             placementPrompt || undefined,
             resolution,
             aspectRatio,
-            userProfile.uid
+            userProfile.uid,
+            authToken
         );
 
         setIsGenerating(false);
@@ -299,6 +308,9 @@ function ProductStudio() {
         setIsGenerating(true);
         setChatMessages(prev => [...prev, { role: 'assistant', content: '🔄 Analyzing your request and generating a refined prompt...' }]);
 
+        const authToken = await (await import('../../../config/firebase')).auth.currentUser?.getIdToken();
+        if (!authToken) return;
+
         const result = await runRefinementPipeline(
             compositeImageUrl,
             userMsg,
@@ -306,7 +318,8 @@ function ProductStudio() {
                 setPlacementStatus(status);
                 setPlacementStatusDetail(detail || '');
             },
-            userProfile?.uid || ''
+            userProfile?.uid || '',
+            authToken
         );
 
         setIsGenerating(false);
@@ -332,6 +345,9 @@ function ProductStudio() {
         setIsGenerating(true);
         setGeneratedShots([]);
 
+        const authToken = await (await import('../../../config/firebase')).auth.currentUser?.getIdToken();
+        if (!authToken) return;
+
         await runShootsPipeline(
             productImage,
             shootScenario,
@@ -344,7 +360,8 @@ function ProductStudio() {
             },
             resolution,
             aspectRatio,
-            userProfile.uid
+            userProfile.uid,
+            authToken
         );
 
         setIsGenerating(false);

@@ -37,6 +37,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
 export const analyzeProductAndScene = async (
     heroFile: File,
     sceneFile: File,
+    authToken: string,
     userPrompt?: string
 ): Promise<VisionOrchestratorResponse> => {
     try {
@@ -49,7 +50,10 @@ export const analyzeProductAndScene = async (
         console.log('🔬 Vision Orchestrator: Sending to API...');
         const response = await fetch('/api/vision-orchestrator', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
             body: JSON.stringify({ heroImageBase64, sceneImageBase64, userPrompt }),
         });
 
@@ -78,7 +82,8 @@ export const analyzeProductAndScene = async (
  */
 export const refineComposition = async (
     compositeImageUrl: string,
-    refinementPrompt: string
+    refinementPrompt: string,
+    authToken: string
 ): Promise<VisionOrchestratorResponse> => {
     try {
         console.log('🔄 Vision Orchestrator: Sending refinement request to API...');
@@ -86,7 +91,10 @@ export const refineComposition = async (
         // Send the image URL to the server — it handles the fetch to avoid CORS issues
         const response = await fetch('/api/vision-orchestrator', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
             body: JSON.stringify({ referenceImageUrl: compositeImageUrl, refinementPrompt }),
         });
 

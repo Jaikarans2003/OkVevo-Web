@@ -108,9 +108,16 @@ export async function POST(request: NextRequest) {
 
             const jobData = jobDoc.data() || {};
             const expectedAssets = jobData.expectedAssets || 0;
-            const completedAssets = (jobData.completedAssets || 0) + 1;
+            const completedAssetsCount = jobData.completedAssets || 0;
             const assetResults = jobData.assetResults || [];
 
+            // Duplicate protection: if already processed → return
+            if (assetResults.some((r: any) => r.request_id === request_id)) {
+                console.warn(`[VEVO] ⚠️ Asset ${request_id} already processed, ignoring duplicate webhook`);
+                return NextResponse.json({ success: true, message: 'Already processed' });
+            }
+
+            const completedAssets = completedAssetsCount + 1;
             assetResults.push({
                 request_id,
                 output,
@@ -176,9 +183,16 @@ export async function POST(request: NextRequest) {
 
             const jobData = jobDoc.data() || {};
             const expectedLipsyncResults = jobData.expectedLipsyncResults || 1;
-            const completedLipsyncResults = (jobData.completedLipsyncResults || 0) + 1;
+            const completedLipsyncResultsCount = jobData.completedLipsyncResults || 0;
             const lipsyncResults = jobData.lipsyncResults || [];
+
+            // Duplicate protection
+            if (lipsyncResults.some((r: any) => r.request_id === request_id)) {
+                console.warn(`[VEVO] ⚠️ Job ${request_id} already processed, ignoring duplicate webhook`);
+                return NextResponse.json({ success: true, message: 'Already processed' });
+            }
             
+            const completedLipsyncResults = completedLipsyncResultsCount + 1;
             lipsyncResults.push({
                 request_id,
                 type,

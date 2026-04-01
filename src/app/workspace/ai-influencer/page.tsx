@@ -222,13 +222,16 @@ function AIInfluencerWorkstation() {
 
     const handleResumePipeline = async (token: string, videoUrl: string) => {
         try {
+            const authToken = await user.getIdToken();
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     action: 'resume',
                     jobId,
-                    userId: user.uid,
                     taskToken: token,
                     avatarVideoUrl: videoUrl,
                 }),
@@ -381,12 +384,15 @@ function AIInfluencerWorkstation() {
                 thumbnailPersonPhotoBase64 = Buffer.from(thumbBuf).toString('base64');
             }
 
+            const authToken = await user.getIdToken();
             const res = await fetch('/api/ai-influencer/brand-video', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     jobId,
-                    userId: user.uid,
                     finalVideoUrl,
                     logoBase64,
                     logoMimeType,
@@ -473,10 +479,13 @@ function AIInfluencerWorkstation() {
         addAssistant(`VEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
 
         try {
-            // Phase 1: Generate script + moments synchronously via Next.js API
+            const authToken = await user.getIdToken();
             const res = await fetch('/api/ai-influencer/generate-script', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     script: rawScript,
                     duration: selectedDuration,
@@ -631,12 +640,15 @@ function AIInfluencerWorkstation() {
             addAssistant('Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — VEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
 
             // Start Step Function with all data
+            const authToken = await user.getIdToken();
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     jobId: jobId,
-                    userId: user.uid,
                     script: editableScript,
                     duration: selectedDuration,
                     avatarVideoUrl: avatarVideoUrl,
@@ -688,19 +700,15 @@ function AIInfluencerWorkstation() {
         addAssistant('🎬 OKVEVO is lip-syncing your avatar with Fal AI... we call this the OKVEVO Kiss. Give it 2–5 mins.');
 
         try {
-            // Only pass image timeline entries that have real (non-data-URL) image URLs
-            const validTimeline = imageTimeline.filter(
-                p => p.imageUrl && !p.imageUrl.startsWith('data:')
-            );
-
-            console.log('🎬 Attempting to resume Step Function with Avatar...');
-
+            const authToken = await user.getIdToken();
             const res = await fetch('/api/sqs/ai-influencer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     jobId,
-                    userId: user.uid,
                     action: 'resume',
                     taskToken: waitTaskToken, // The token from the Human_Wait state
                     avatarVideoUrl: avatarVideoUrl,
@@ -950,16 +958,16 @@ function AIInfluencerWorkstation() {
                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
                                                             <span className="w-1 h-1 rounded-full bg-orange-500" /> Refined Narrative
                                                         </p>
-                                                        <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{editableScript.trim().split(/\s+/).length} Words</span>
+                                                        <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{(editableScript || '').trim().split(/\s+/).length} Words</span>
                                                     </div>
                                                     <textarea
-                                                        value={editableScript}
+                                                        value={editableScript || ''}
                                                         onChange={(e) => setEditableScript(e.target.value)}
                                                         className="w-full h-32 p-5 rounded-2xl border border-white/20 bg-white/[0.03] text-[13px] text-white leading-relaxed focus:border-white/40 focus:ring-1 focus:ring-white/10 outline-none resize-none shadow-inner"
                                                     />
                                                     <button
                                                         onClick={handleConfirmScript}
-                                                        disabled={!editableScript.trim()}
+                                                        disabled={!(editableScript || '').trim()}
                                                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:from-orange-500 hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 shadow-xl"
                                                     >
                                                         Finalise Script <ChevronRight size={14} strokeWidth={3} />

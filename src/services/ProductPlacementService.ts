@@ -10,7 +10,7 @@
  */
 
 import { analyzeProductAndScene, refineComposition, fileToBase64 } from './VisionOrchestratorService';
-import { storage, db } from '../config/firebase';
+import { storage, db, auth } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { checkRateLimit } from './RateLimitService';
@@ -86,16 +86,16 @@ const dispatchToSQS = async (
     masterPrompt: string,
     heroImageUrl: string,
     sceneImageUrl: string,
-    userId: string,
+    authToken: string,
     resolution: string | undefined,
     aspectRatio: string | undefined
 ): Promise<void> => {
-    // Require authentication
+    // Create Firestore document for history tracking
+    const userId = (await auth.currentUser)?.uid;
     if (!userId) {
         throw new Error('Authentication required. Please sign in to generate product placements.');
     }
 
-    // Create Firestore document for history tracking
     const jobDoc: PlacementJob = {
         jobId,
         userId,
@@ -109,17 +109,18 @@ const dispatchToSQS = async (
         updatedAt: Timestamp.now(),
     };
     await setDoc(doc(db, COLLECTION, jobId), jobDoc);
-    console.log(`📝 Firestore doc created: ${COLLECTION}/${jobId}`);
 
     const res = await fetch('/api/product-placement', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
             jobId,
             masterPrompt,
             heroImageUrl,
             sceneImageUrl,
-            userId,
             resolution,
             aspectRatio
         }),
@@ -130,8 +131,6 @@ const dispatchToSQS = async (
     if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to dispatch compositing job to SQS');
     }
-
-    console.log('📦 Job dispatched to SQS:', data);
 };
 
 /**
@@ -177,7 +176,6 @@ const pollForCompositeImage = async (
 
         const elapsed = ((i + 1) * INTERVAL_MS / 1000).toFixed(0);
         onStatusChange('polling', `Waiting for NANOBANANA PRO render... (${elapsed}s)`);
-        console.log(`⏳ Poll attempt ${i + 1}/${MAX_ATTEMPTS}: No result yet...`);
     }
 
     throw new Error('Composite image generation timed out. The image may appear in your gallery later.');
@@ -199,10 +197,11 @@ export const runPlacementPipeline = async (
     userPrompt: string | undefined,
     resolution: string | undefined,
     aspectRatio: string | undefined,
-    userId: string
+    userId: string,
+    authToken: string
 ): Promise<PlacementJobResult> => {
     // Require authentication
-    if (!userId) {
+    if (!userId || !authToken) {
         return { status: 'error', error: 'Authentication required. Please sign in to generate product placements.' };
     }
 
@@ -229,8 +228,6 @@ export const runPlacementPipeline = async (
             };
         }
 
-        const jobId = generatePlacementJobId();
-
         // Check credits (30 for Product Placement)
         const creditCheck = await checkCredits(userId, 'PRODUCT_PLACEMENT');
         if (!creditCheck.allowed) {
@@ -248,7 +245,7 @@ export const runPlacementPipeline = async (
         // ── Step 1: Vision Orchestrator ──────────────────────────
         onStatusChange('analyzing', 'Analyzing hero product & scene lighting...');
 
-        const orchestratorResult = await analyzeProductAndScene(heroFile, sceneFile, userPrompt);
+        const orchestratorResult = await analyzeProductAndScene(heroFile, sceneFile, authToken, userPrompt);
 
         if (!orchestratorResult.success || !orchestratorResult.masterPrompt) {
             throw new Error(orchestratorResult.error || 'Failed to generate master prompt');
@@ -269,12 +266,10 @@ export const runPlacementPipeline = async (
             uploadImageToFirebase(sceneBase64, `ProductPlacement/inputs/${jobId}/scene.png`),
         ]);
 
-        console.log('📤 Reference images uploaded:', { heroImageUrl, sceneImageUrl });
-
         // ── Step 3: Dispatch job to SQS ─────────────────────────
         onStatusChange('compositing', 'Dispatching composite render job...');
 
-        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, userId, resolution, aspectRatio);
+        await dispatchToSQS(jobId, masterPrompt, heroImageUrl, sceneImageUrl, authToken, resolution, aspectRatio);
 
         // ── Step 4: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');
@@ -333,10 +328,11 @@ export const runRefinementPipeline = async (
     compositeImageUrl: string,
     refinementPrompt: string,
     onStatusChange: (status: PlacementJobStatus, detail?: string) => void,
-    userId: string
+    userId: string,
+    authToken: string
 ): Promise<PlacementJobResult> => {
     // Require authentication
-    if (!userId) {
+    if (!userId || !authToken) {
         return { status: 'error', error: 'Authentication required. Please sign in to refine compositions.' };
     }
 
@@ -357,7 +353,7 @@ export const runRefinementPipeline = async (
         // ── Step 1: Vision Orchestrator (Refinement Mode) ────────
         onStatusChange('refining', 'Analyzing current image & generating refined prompt...');
 
-        const orchestratorResult = await refineComposition(compositeImageUrl, refinementPrompt);
+        const orchestratorResult = await refineComposition(compositeImageUrl, refinementPrompt, authToken);
 
         if (!orchestratorResult.success || !orchestratorResult.masterPrompt) {
             throw new Error(orchestratorResult.error || 'Failed to generate refined master prompt');
@@ -369,7 +365,7 @@ export const runRefinementPipeline = async (
         onStatusChange('compositing', 'Dispatching refined render job...');
 
         // No reference images for refinement — the prompt is self-contained
-        await dispatchToSQS(jobId, masterPrompt, '', '', userId, undefined, undefined);
+        await dispatchToSQS(jobId, masterPrompt, '', '', authToken, undefined, undefined);
 
         // ── Step 3: Poll for the result ─────────────────────────
         onStatusChange('polling', 'Waiting for NANOBANANA PRO render...');

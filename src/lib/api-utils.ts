@@ -54,7 +54,11 @@ export const checkGlobalRateLimit = (limitPerSec: number = 200): boolean => {
 
 // --- Standardized Responses ---
 export const apiError = (code: string, message: string, status: number = 400, retryAfter?: number) => {
-    const responseData: any = { success: false, error: { code, message } };
+    const responseData: any = { 
+        success: false, 
+        error: message, 
+        errorCode: code 
+    };
     
     return NextResponse.json(responseData, {
         status,
@@ -62,7 +66,12 @@ export const apiError = (code: string, message: string, status: number = 400, re
     });
 };
 
-export const apiSuccess = (data: any = {}) => NextResponse.json({ success: true, data });
+export const apiSuccess = (data: any = {}) => {
+    if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+        return NextResponse.json({ success: true, ...data });
+    }
+    return NextResponse.json({ success: true, data });
+};
 
 // --- Wrapper Types ---
 interface ApiContext {

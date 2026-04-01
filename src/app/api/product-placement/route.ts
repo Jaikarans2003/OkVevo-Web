@@ -1,35 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { apiHandler, apiSuccess } from '@/lib/api-utils';
+import { z } from 'zod';
 
-/**
- * Product Placement API Route — SQS Dispatch
- *
- * Dispatches a compositing job to the SQS FIFO queue.
- * The Lambda consumer will:
- *   1. Download hero + scene images from Firebase Storage
- *   2. Call NANOBANANA PRO (Gemini) with the master prompt + images
- *   3. Upload the composite image to ProductPlacement/{jobId}.png
- *
- * MessageGroupId = userId for per-user FIFO ordering.
- */
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { jobId, masterPrompt, userId, heroImageUrl, sceneImageUrl, resolution, aspectRatio } = body;
+const ProductPlacementSchema = z.object({
+    jobId: z.string().min(5),
+    masterPrompt: z.string().min(10),
+    heroImageUrl: z.string().url().nullish().or(z.literal('')),
+    sceneImageUrl: z.string().url().nullish().or(z.literal('')),
+    resolution: z.string().nullish(),
+    aspectRatio: z.string().nullish(),
+});
 
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, error: 'Authorization required: userId is missing' },
-                { status: 401 }
-            );
-        }
-
-        if (!jobId || !masterPrompt) {
-            return NextResponse.json(
-                { success: false, error: 'jobId and masterPrompt are required' },
-                { status: 400 }
-            );
-        }
+export const POST = apiHandler(
+    async (req, { userId }) => {
+        const body = await req.json();
+        const validatedData = ProductPlacementSchema.parse(body);
+        const { jobId, masterPrompt, heroImageUrl, sceneImageUrl, resolution, aspectRatio } = validatedData;
 
         // ── SQS Configuration ──────────────────────────────────
         const queueUrl = process.env.SQS_PLACEMENT_QUEUE_URL;
@@ -39,8 +26,7 @@ export async function POST(request: NextRequest) {
 
         if (!queueUrl || !awsAccessKeyId || !awsSecretAccessKey) {
             console.warn('⚠️ SQS not configured — running in mock mode');
-            return NextResponse.json({
-                success: true,
+            return apiSuccess({
                 jobId,
                 message: 'Compositing job acknowledged (SQS not configured, mock mode)',
                 mock: true,
@@ -62,7 +48,7 @@ export async function POST(request: NextRequest) {
             masterPrompt,
             heroImageUrl: heroImageUrl || null,
             sceneImageUrl: sceneImageUrl || null,
-            userId,
+            userId, // Set from auth token
             resolution: resolution || '4K',
             aspectRatio: aspectRatio || '16:9',
             timestamp: new Date().toISOString(),
@@ -75,32 +61,16 @@ export async function POST(request: NextRequest) {
             MessageDeduplicationId: `${jobId}-${Date.now()}`,
         });
 
-        console.log('📦 Dispatching product-placement job to SQS FIFO:', {
-            jobId,
-            userId,
-            promptLength: masterPrompt.length,
-            hasImages: !!(heroImageUrl && sceneImageUrl),
-            queueUrl,
-        });
-
         const result = await sqsClient.send(command);
-        console.log('✅ SQS message sent:', result.MessageId);
+        console.log(`✅ SQS product-placement sent: ${jobId} (UID: ${userId})`);
 
-        return NextResponse.json({
-            success: true,
+        return apiSuccess({
             jobId,
             messageId: result.MessageId,
             message: 'Compositing job dispatched to SQS FIFO queue',
         });
-
-    } catch (error) {
-        console.error('Product Placement SQS dispatch error:', error);
-        return NextResponse.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            },
-            { status: 500 }
-        );
+    },
+    {
+        limitPerMin: 5, // 5 placements per minute
     }
-}
+);

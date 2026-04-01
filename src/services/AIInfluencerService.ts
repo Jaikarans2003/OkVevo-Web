@@ -12,6 +12,7 @@ import { checkCredits, deductCredits } from './CreditsService';
 export interface AIInfluencerJobRequest {
     jobId: string;
     userId: string;
+    authToken: string; // Firebase ID Token
     topic: string;
     script?: string;
     duration: 15 | 30 | 60;
@@ -85,8 +86,8 @@ export const dispatchAIInfluencerJob = async (
 ): Promise<AIInfluencerJobResponse> => {
     try {
         // Validate required fields
-        if (!request.jobId || !request.topic || !request.duration || !request.gender || !request.avatarUrl) {
-            throw new Error('Missing required fields: jobId, topic, duration, gender, avatarUrl');
+        if (!request.jobId || !request.topic || !request.duration || !request.gender || !request.avatarUrl || !request.authToken) {
+            throw new Error('Missing required fields (jobId, topic, duration, gender, avatarUrl, or authToken)');
         }
 
         // Require authentication
@@ -145,20 +146,17 @@ export const dispatchAIInfluencerJob = async (
             updatedAt: Timestamp.now(),
         };
         await setDoc(doc(db, COLLECTION, request.jobId), jobDoc);
-        console.log(`📝 Firestore doc created: ${COLLECTION}/${request.jobId}`);
-
-        console.log('🎬 Dispatching AI Influencer job:', {
-            jobId: request.jobId,
-            topic: request.topic.substring(0, 50),
-            duration: request.duration,
-            gender: request.gender,
-            hasScript: !!request.script,
-        });
+        
+        // Prep body - remove authToken and userId to keep it clean (server gets them from headers/context)
+        const { authToken, userId, ...body } = request;
 
         const response = await fetch('/api/sqs/ai-influencer', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request),
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${request.authToken}`
+            },
+            body: JSON.stringify(body),
         });
 
         const data = await response.json();
@@ -167,7 +165,6 @@ export const dispatchAIInfluencerJob = async (
             throw new Error(data.error || 'Failed to dispatch job');
         }
 
-        console.log('✅ AI Influencer job dispatched:', data);
         return data;
 
     } catch (error) {
@@ -189,23 +186,12 @@ export const dispatchAIInfluencerJob = async (
  * This is a placeholder - actual implementation uses Firestore onSnapshot
  */
 export const pollJobStatus = async (jobId: string): Promise<AIInfluencerJobStatus | null> => {
-    try {
-        // In a real implementation, this would query Firestore
-        // For now, return null - use Firestore real-time listeners in UI
-        console.log(`Polling for job: ${jobId} - Use Firestore onSnapshot instead`);
-        return null;
-    } catch (error) {
-        console.error('Error polling job status:', error);
-        return null;
-    }
+    return null;
 };
 
 /**
  * Check if AI Influencer service is configured
  */
 export const isAIInfluencerConfigured = (): boolean => {
-    // Check if required env vars are available
-    // This is client-side, so we can't check server env vars directly
-    // Return true to assume configured, errors will show in actual API calls
     return true;
 };
