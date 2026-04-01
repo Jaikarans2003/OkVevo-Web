@@ -80,7 +80,7 @@ function AIInfluencerWorkstation() {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
         {
             role: 'assistant',
-            content: "Yo! OKVEVO here. Drop your script and watch the magic unfold. We don't do boring — we do OKVEVO. Paste it below or upload the file. Let's get weird.",
+            content: "Yo! VEVO here. Drop your script and watch the magic unfold. We don't do boring — we do VEVO. Paste it below or upload the file. Let's get weird.",
         },
     ]);
 
@@ -97,6 +97,8 @@ function AIInfluencerWorkstation() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
@@ -177,6 +179,47 @@ function AIInfluencerWorkstation() {
         }
     }, [waitTaskToken, avatarVideoUrl]);
 
+    // ── Real-time Job Listener ────────────────────────────
+    useEffect(() => {
+        if (!jobId || !user?.uid) return;
+
+        const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+        const unsub = onSnapshot(jobRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.data();
+                
+                // Track Status
+                if (data.status === 'completed' && data.finalVideoUrl) {
+                    setFinalVideoUrl(data.finalVideoUrl);
+                    setChatStep('complete');
+                    setIsGenerating(false);
+                } else if (data.status === 'error') {
+                    setErrorMessage(data.errorMessage || 'Unknown Error occurred');
+                    setErrorCode(data.errorCode || '500');
+                    setIsGenerating(false);
+                    addAssistant(`💀 VEVO Major Error [${data.errorCode || '500'}]: ${data.errorMessage || 'Something went wrong.'} — We might need to restart this run.`);
+                }
+
+                // Update assets in real-time
+                if (data.assetResults && Array.isArray(data.assetResults)) {
+                    const images = data.assetResults
+                        .filter((r: any) => r.type === 'image')
+                        .map((r: any) => r.output.images?.[0]?.url)
+                        .filter(Boolean);
+                    
+                    if (images.length > 0) {
+                        setImageTimeline(prev => prev.map((item, idx) => ({
+                            ...item,
+                            imageUrl: images[idx] || item.imageUrl
+                        })));
+                    }
+                }
+            }
+        });
+
+        return () => unsub();
+    }, [jobId, user?.uid]);
+
     const handleResumePipeline = async (token: string, videoUrl: string) => {
         try {
             const res = await fetch('/api/sqs/ai-influencer', {
@@ -194,7 +237,7 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
             console.log('✅ Pipeline resumed successfully');
             setWaitTaskToken(null);
-            addAssistant('🎬 Avatar locked and loaded! OKVEVO is lip-syncing your masterpiece now. Hold tight.');
+            addAssistant('🎬 Avatar locked and loaded! VEVO is lip-syncing your masterpiece now. Hold tight.');
         } catch (err: any) {
             console.error('Failed to resume pipeline:', err);
         }
@@ -402,7 +445,7 @@ function AIInfluencerWorkstation() {
     const handleScriptSubmit = () => {
         if (!rawScript.trim()) return;
         addUser(`[Script uploaded — ${rawScript.trim().split(/\s+/).length} words]`);
-        addAssistant('🔥 Script locked in! Now tell OKVEVO — how long are we cookin\' this masterpiece?');
+        addAssistant('🔥 Script locked in! Now tell VEVO — how long are we cookin\' this masterpiece?');
         setChatStep('duration');
     };
 
@@ -417,7 +460,7 @@ function AIInfluencerWorkstation() {
         addUser(`${duration === 15 ? '0 to 15' : duration === 30 ? '15 to 30' : '30 to 60'} seconds`);
         
         setChatStep('tts-pacing');
-        addAssistant('Duration? LOCKED. Now pick the vibe — how do you want OKVEVO to talk?');
+        addAssistant('Duration? LOCKED. Now pick the vibe — how do you want VEVO to talk?');
     };
 
     // ── Step 2b: Pacing → Phase 1 Script Generation ─────
@@ -427,7 +470,7 @@ function AIInfluencerWorkstation() {
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        addAssistant(`OKVEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
+        addAssistant(`VEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
 
         try {
             // Phase 1: Generate script + moments synchronously via Next.js API
@@ -491,8 +534,8 @@ function AIInfluencerWorkstation() {
         setJobId(newJobId);
 
         addUser('[Script confirmed]');
-        addAssistant('Script? DONE. OKVEVO stamped it APPROVED. 🔒');
-        addAssistant('Now gimme the face. Upload your avatar video — MP4, MOV, or WebM. This is who OKVEVO speaks through.');
+        addAssistant('Script? DONE. VEVO stamped it APPROVED. 🔒');
+        addAssistant('Now gimme the face. Upload your avatar video — MP4, MOV, or WebM. This is who VEVO speaks through.');
 
         try {
             // Save initial job state to Firestore
@@ -545,12 +588,12 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('✅ Avatar received! OKVEVO sees your face. Now let\'s give it a voice.');
-            addAssistant('Pick Richard or Aurora — or upload a voice sample for OKVEVO to clone. We go full method here.');
+            addAssistant('✅ Avatar received! VEVO sees your face. Now let\'s give it a voice.');
+            addAssistant('Pick Richard or Aurora — or upload a voice sample for VEVO to clone. We go full method here.');
             setChatStep('generating-tts');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 Avatar upload fumbled: ${err.message} — Check file format or size. OKVEVO only takes quality.`);
+            addAssistant(`💀 Avatar upload fumbled: ${err.message} — Check file format or size. VEVO only takes quality.`);
             setIsGenerating(false);
         }
     };
@@ -584,8 +627,8 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('🚀 OKVEVO is OKVEVING. Pipeline ignited. Sit tight.');
-            addAssistant('Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — OKVEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
+            addAssistant('🚀 VEVO is VEVOING. Pipeline ignited. Sit tight.');
+            addAssistant('Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — VEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
 
             // Start Step Function with all data
             const res = await fetch('/api/sqs/ai-influencer', {
@@ -1323,8 +1366,8 @@ function AIInfluencerWorkstation() {
                                                                             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
                                                                         >
                                                                             {isBranding
-                                                                                ? <><Loader2 size={13} className="animate-spin" /> OKVEVO Branding…</>
-                                                                                : <><Sparkles size={13} /> OKVEVO-fy This Video</>
+                                                                                ? <><Loader2 size={13} className="animate-spin" /> VEVO Branding…</>
+                                                                                : <><Sparkles size={13} /> VEVO-fy This Video</>
                                                                             }
                                                                         </button>
 
@@ -1375,7 +1418,7 @@ function AIInfluencerWorkstation() {
                                                         {msg.role === 'assistant' && (
                                                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                                 <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">OKVEVO SPEAKING</span>
+                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">VEVO SPEAKING</span>
                                                             </div>
                                                         )}
                                                         <motion.div
@@ -1396,7 +1439,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Loader2 size={10} className="text-orange-500 animate-spin" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">OKVEVO IS OKVEVING</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">VEVO IS VEVOING</span>
                                                         </div>
                                                         <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
                                                             <div className="flex gap-2 items-center">
@@ -1412,6 +1455,30 @@ function AIInfluencerWorkstation() {
                                                                 </div>
                                                                 <span className="text-[10px] text-white/30 ml-3 font-black uppercase tracking-[0.2em]">Conjuring...</span>
                                                             </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {errorMessage && (
+                                                <div className="flex justify-start">
+                                                    <div className="flex flex-col gap-2.5 items-start">
+                                                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-1 backdrop-blur-md">
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400">PIPELINE FAILURE • {errorCode}</span>
+                                                        </div>
+                                                        <div className="bg-red-500/5 rounded-[2rem] rounded-tl-none px-7 py-5 border border-red-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-red-500/10">
+                                                            <p className="text-[14px] text-red-200/80 leading-relaxed">
+                                                                {errorMessage}
+                                                            </p>
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setErrorMessage(null);
+                                                                    setErrorCode(null);
+                                                                    setChatStep('edit-script');
+                                                                }}
+                                                                className="mt-4 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-[10px] font-black uppercase tracking-widest text-red-200 hover:bg-red-500/30 transition-all"
+                                                            >
+                                                                Restart Pipeline
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1520,14 +1587,14 @@ function AIInfluencerWorkstation() {
                                                         <div className="absolute -inset-6 rounded-full border border-orange-500/5 animate-[ping_4s_infinite]" />
                                                     </div>
                                                     <div className="text-center space-y-3">
-                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">OKVEVO is Cooking</p>
+                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">VEVO is Cooking</p>
                                                         <div className="flex justify-center gap-1.5">
                                                             {[0,1,2].map(i => (
                                                                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500/20 animate-pulse" />
                                                             ))}
                                                         </div>
                                                         <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">
-                                                            {chatStep === 'generating-lipsync' ? 'OKVEVO is syncing lips… almost there' : 'OKVEVO is conjuring frames… hang tight'}
+                                                            {chatStep === 'generating-lipsync' ? 'VEVO is syncing lips… almost there' : 'VEVO is conjuring frames… hang tight'}
                                                         </p>
                                                     </div>
                                                 </motion.div>
@@ -1544,7 +1611,7 @@ function AIInfluencerWorkstation() {
                                                             <MonitorPlay size={36} className="text-white/[0.05] group-hover/monitor:text-orange-500/50 transition-all duration-1000 group-hover/monitor:scale-110" />
                                                         </div>
                                                     </div>
-                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">OKVEVO Monitor</h3>
+                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">VEVO Monitor</h3>
                                                     <div className="flex items-center gap-3 mb-6">
                                                         <div className="w-2 h-2 rounded-full bg-white/5 animate-pulse" />
                                                         <p className="text-[10px] text-white/10 font-black uppercase tracking-[0.3em] group-hover/monitor:text-white/20 transition-colors">
