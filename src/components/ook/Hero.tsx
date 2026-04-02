@@ -129,7 +129,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                 {/* Visual Accent Glow behind container */}
                 <div className="absolute -inset-4 bg-accent-orange/20 blur-3xl rounded-[4rem] group-hover:bg-accent-orange/30 transition-all duration-700 pointer-events-none transform-gpu" />
 
-                <div className="relative rounded-[3rem] md:rounded-[4rem] overflow-hidden border border-white/10 bg-black/60 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
+                <div className="relative rounded-[3rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black/60 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
                     <div className="aspect-[16/9] w-full">
                         <div className="absolute inset-0">
                             <video
@@ -139,7 +139,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                                 loop
                                 playsInline
                                 className="w-full h-full object-cover"
-                                src="https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fscreenrecord.webm?alt=media&token=9f40e7d5-82a1-4d81-ac12-d3e29dd8ad82"
+                                src="https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Ffinalvideo.webm?alt=media&token=4fa74a47-d11d-4846-8db8-69c058bb2901"
                                 suppressHydrationWarning
                             />
                             {/* Overlay Gradient */}

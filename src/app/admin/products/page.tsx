@@ -32,7 +32,8 @@ import {
     Tag,
     IndianRupee,
     Loader2,
-    Eye
+    Eye,
+    Music
 } from 'lucide-react';
 import Link from 'next/link';
 import AdminGuard from '@/components/admin/AdminGuard';
@@ -47,6 +48,8 @@ interface MasivProduct {
     badge1: string;
     badge2: string;
     level?: number;
+    audioUrl?: string;
+    audioSource?: 'original' | 'custom';
 }
 
 function ProductManager() {
@@ -65,11 +68,16 @@ function ProductManager() {
         price: 0,
         badge1: '',
         badge2: '',
-        level: 0
+        level: 0,
+        audioSource: 'original',
+        audioUrl: ''
     });
     const [uploading, setUploading] = useState(false);
+    const [audioUploading, setAudioUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [audioProgress, setAudioProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const audioInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch Products
     useEffect(() => {
@@ -140,6 +148,79 @@ function ProductManager() {
         }
     };
 
+    const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate product name exists before upload
+        if (!formData.name?.trim()) {
+            alert('Please enter a product name before uploading assets');
+            return;
+        }
+
+        setAudioUploading(true);
+        setAudioProgress(0);
+
+        try {
+            const timestamp = Date.now();
+            const sanitizedProductName = formData.name
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '');
+            
+            const storagePath = `masiv_catalog/${sanitizedProductName}/audio/${timestamp}_${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    setAudioProgress(progress);
+                },
+                (error) => {
+                    console.error("Audio upload error:", error);
+                    alert("Failed to upload audio.");
+                    setAudioUploading(false);
+                },
+                async () => {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    setFormData(prev => ({
+                        ...prev,
+                        audioUrl: downloadURL
+                    }));
+                    setAudioUploading(false);
+                    console.log('✅ Audio uploaded to:', storagePath);
+                }
+            );
+        } catch (error) {
+            console.error("Error starting audio upload:", error);
+            setAudioUploading(false);
+        }
+    };
+
+    const removeAudio = async () => {
+        if (!formData.audioUrl) return;
+
+        try {
+            const urlParts = formData.audioUrl.split('/o/')[1]?.split('?')[0];
+            if (urlParts) {
+                const storagePath = decodeURIComponent(urlParts);
+                const storageRef = ref(storage, storagePath);
+                await deleteObject(storageRef);
+                console.log('✅ Deleted audio file from storage:', storagePath);
+            }
+        } catch (error) {
+            console.error('Error deleting audio from storage:', error);
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            audioUrl: ''
+        }));
+    };
+
     const removeThumbnail = async (index: number) => {
         const thumbnailUrl = formData.thumbnails?.[index];
         if (!thumbnailUrl) return;
@@ -200,6 +281,8 @@ function ProductManager() {
                     badge1: formData.badge1 || '',
                     badge2: formData.badge2 || '',
                     level: formData.level || 0,
+                    audioUrl: formData.audioUrl || '',
+                    audioSource: formData.audioSource || 'original',
                     updatedAt: serverTimestamp()
                 });
                 console.log('✅ Product updated successfully:', editingProduct.id);
@@ -215,6 +298,8 @@ function ProductManager() {
                     badge1: formData.badge1 || '',
                     badge2: formData.badge2 || '',
                     level: formData.level || 0,
+                    audioUrl: formData.audioUrl || '',
+                    audioSource: formData.audioSource || 'original',
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 });
@@ -254,6 +339,21 @@ function ProductManager() {
                     }
                 }
             }
+
+            // Delete audio file if it exists
+            if (product?.audioUrl) {
+                try {
+                    const urlParts = product.audioUrl.split('/o/')[1]?.split('?')[0];
+                    if (urlParts) {
+                        const storagePath = decodeURIComponent(urlParts);
+                        const storageRef = ref(storage, storagePath);
+                        await deleteObject(storageRef);
+                        console.log('✅ Deleted audio file from storage:', storagePath);
+                    }
+                } catch (error) {
+                    console.error('Error deleting audio:', error);
+                }
+            }
             
             // Delete the Firestore document
             await deleteDoc(doc(db, 'masiv_products', id));
@@ -269,7 +369,11 @@ function ProductManager() {
         if (product) {
             console.log('📝 Editing product:', { id: product.id, name: product.name });
             setEditingProduct(product);
-            setFormData(product);
+            setFormData({
+                ...product,
+                audioSource: product.audioSource || 'original',
+                audioUrl: product.audioUrl || ''
+            });
         } else {
             console.log('➕ Creating new product');
             setEditingProduct(null);
@@ -281,7 +385,9 @@ function ProductManager() {
                 price: 0,
                 badge1: '',
                 badge2: '',
-                level: 0
+                level: 0,
+                audioSource: 'original',
+                audioUrl: ''
             });
         }
         setIsModalOpen(true);
@@ -298,7 +404,9 @@ function ProductManager() {
             price: 0,
             badge1: '',
             badge2: '',
-            level: 0
+            level: 0,
+            audioSource: 'original',
+            audioUrl: ''
         });
     };
 
@@ -427,8 +535,9 @@ function ProductManager() {
                         </div>
 
                         {/* Details */}
-                        <form onSubmit={handleSubmit} className="w-full md:w-1/2 p-10 flex flex-col">
-                            <div className="flex items-center justify-between mb-10">
+                        <form onSubmit={handleSubmit} className="w-full md:w-1/2 grid grid-rows-[auto_1fr_auto] h-full overflow-hidden relative bg-[#111]">
+                            {/* Header - Fixed Height */}
+                            <div className="p-8 pb-4 flex items-center justify-between border-b border-white/5 bg-[#111] z-10">
                                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                                     {editingProduct ? 'Update Product' : 'Build New Trend'}
                                 </h2>
@@ -437,7 +546,8 @@ function ProductManager() {
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto space-y-8 pr-4">
+                            {/* Content - Scrollable Region */}
+                            <div className="overflow-y-auto p-8 space-y-10 custom-scrollbar-v2">
                                 {/* Type Switch */}
                                 <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-2">
                                     <button type="button" onClick={() => setFormData({...formData, type: 'photo'})} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.type === 'photo' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/30 hover:text-white'}`}>
@@ -450,40 +560,146 @@ function ProductManager() {
 
                                 <div className="grid grid-cols-2 gap-8">
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Product Name</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Product Name</label>
                                         <input required type="text" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="e.g. Nazakat" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Price (INR)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Price (INR)</label>
                                         <input required type="number" value={formData.price || 0} onChange={e => setFormData({...formData, price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="2499" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Description</label>
-                                    <textarea required value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50 min-h-[100px] resize-none" placeholder="Capture your look..." />
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Description</label>
+                                    <textarea required value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50 min-h-[140px] resize-none" placeholder="Capture your look..." />
+                                </div>
+
+                                {/* Audio Settings Section */}
+                                <div className="space-y-8 p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                                            <Music className="w-4 h-4 text-orange-500" />
+                                        </div>
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-white underline underline-offset-8 decoration-orange-500/30">Audio Settings</h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-8">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-4">Choose Audio Source</label>
+                                            <div className="flex bg-black/60 p-2 rounded-2xl border border-white/5 gap-2">
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setFormData({...formData, audioSource: 'original'})} 
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.audioSource === 'original' ? 'bg-orange-500 text-white shadow-xl translate-y-[-2px]' : 'text-white/20 hover:text-white/40'}`}
+                                                >
+                                                    Original Video
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setFormData({...formData, audioSource: 'custom'})} 
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.audioSource === 'custom' ? 'bg-orange-500 text-white shadow-xl translate-y-[-2px]' : 'text-white/20 hover:text-white/40'}`}
+                                                >
+                                                    Custom Upload
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className={`space-y-4 pt-4 border-t border-white/5 transition-all duration-500 ${formData.audioSource === 'custom' ? 'opacity-100 scale-100' : 'opacity-20 scale-[0.98] blur-[2px] pointer-events-none'}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Custom Track</label>
+                                                <span className="text-[9px] font-bold text-orange-500/50 uppercase italic tracking-tighter">Required for custom audio</span>
+                                            </div>
+                                            
+                                            {formData.audioUrl ? (
+                                                <div className="bg-black/40 border border-white/10 rounded-3xl p-6 flex flex-col gap-4 shadow-inner">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-lg animate-pulse">
+                                                                <Music className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-widest text-white">Audio Track Ready</p>
+                                                                <p className="text-[9px] font-medium text-white/30 truncate max-w-[200px]">Cloud Storage Asset</p>
+                                                            </div>
+                                                        </div>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={removeAudio}
+                                                            className="w-10 h-10 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-full transition-all flex items-center justify-center"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                    <audio src={formData.audioUrl} controls className="h-10 w-full accent-orange-500 brightness-110" />
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => audioInputRef.current?.click()}
+                                                    disabled={audioUploading}
+                                                    className="w-full h-44 bg-black/40 hover:bg-black/60 border-2 border-dashed border-white/10 hover:border-orange-500/30 rounded-[2.5rem] flex flex-col items-center justify-center gap-6 transition-all group"
+                                                >
+                                                    {audioUploading ? (
+                                                        <div className="flex flex-col items-center gap-6">
+                                                            <div className="relative w-16 h-16">
+                                                                <div className="absolute inset-0 border-4 border-orange-500/20 rounded-full" />
+                                                                <div className="absolute inset-0 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                                    <span className="text-[10px] font-black text-orange-500">{Math.round(audioProgress)}%</span>
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-[10px] font-black tracking-widest text-orange-500/80 uppercase animate-pulse">Uploading Sound...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-white/10 group-hover:bg-orange-500 group-hover:text-white group-hover:shadow-[0_0_30px_rgba(255,102,0,0.3)] transition-all duration-500">
+                                                                <Upload className="w-10 h-10" />
+                                                            </div>
+                                                            <div className="text-center">
+                                                                <p className="text-[11px] font-black tracking-widest text-white/40 uppercase mb-1">Click to browse audio</p>
+                                                                <p className="text-[9px] font-medium text-white/20 uppercase tracking-tighter">MP3, WAV, or AAC (Max 10MB)</p>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                            <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={handleAudioUpload} />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-8">
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Badge 1 (GENDER/TYPE)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Gender/Badge 1</label>
                                         <input type="text" value={formData.badge1 || ''} onChange={e => setFormData({...formData, badge1: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="UNISEX" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Badge 2 (STYLE)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Style/Badge 2</label>
                                         <input type="text" value={formData.badge2 || ''} onChange={e => setFormData({...formData, badge2: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="Trending" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 block mb-3">Display Level</label>
-                                        <input type="number" value={formData.level || 0} onChange={e => setFormData({...formData, level: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="0" min="0" />
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-3">Display Level</label>
+                                        <input type="number" value={formData.level || 0} onChange={e => setFormData({...formData, level: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-bold outline-none focus:border-orange-500/50" placeholder="0" />
                                     </div>
                                 </div>
+
+                                {/* Extra Padding for Scroll */}
+                                <div className="h-20" />
                             </div>
 
-                            <button type="submit" disabled={uploading} className="mt-10 w-full py-5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-orange-500/20 flex items-center justify-center gap-3">
-                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingProduct ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                                {editingProduct ? 'Save Changes' : 'Publish Trend'}
-                            </button>
+                            {/* Footer - Fixed Height */}
+                            <div className="p-8 border-t border-white/5 bg-[#111] z-10">
+                                <button type="submit" disabled={uploading || audioUploading} className="w-full py-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black uppercase tracking-widest text-sm rounded-[2rem] transition-all shadow-2xl shadow-orange-500/40 flex items-center justify-center gap-4 active:scale-[0.98]">
+                                    {(uploading || audioUploading) ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : editingProduct ? (
+                                        <Check className="w-5 h-5" />
+                                    ) : (
+                                        <Plus className="w-5 h-5" />
+                                    )}
+                                    {editingProduct ? 'Update Presence' : 'Launch Trend'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

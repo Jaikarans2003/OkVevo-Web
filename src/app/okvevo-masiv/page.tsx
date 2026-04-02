@@ -37,6 +37,8 @@ interface MasivProduct {
     badge1: string;
     badge2: string;
     level?: number;
+    audioUrl?: string;
+    audioSource?: 'original' | 'custom';
 }
 
 interface MasivBanner {
@@ -79,15 +81,13 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        // ROTATION: Automatic change every 5 seconds regardless of hover
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % images.length);
-        }, 5000);
+        }, 1500);
         return () => clearInterval(interval);
     }, [images.length]);
 
     useEffect(() => {
-        // Update muted state when prop changes
         if (videoRef.current) {
             videoRef.current.muted = isMuted;
         }
@@ -100,36 +100,35 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
 
     const mediaUrl = images[index];
     const isMediaVideo = isVideo(mediaUrl);
-    // REMOVED fragment to avoid Error 208 on certain devices
-    const sourceUrl = mediaUrl;
 
-    // Debug logging
-    if (isMediaVideo) {
-        console.log('🎬 Rendering video:', {
-            url: sourceUrl,
-            isVideo: isMediaVideo,
-            urlLength: sourceUrl.length,
-            hasToken: sourceUrl.includes('token='),
-            hasAltMedia: sourceUrl.includes('alt=media')
-        });
-    }
+    // Dynamic Preloading for high performance
+    const nextIndex = (index + 1) % images.length;
+    const nextMediaUrl = images[nextIndex];
 
     return (
         <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
-            <AnimatePresence>
+             {/* Preloader for next media */}
+             <div className="hidden pointer-events-none opacity-0">
+                {isVideo(nextMediaUrl) ? (
+                    <video src={nextMediaUrl} preload="auto" muted />
+                ) : (
+                    <img src={nextMediaUrl} alt="" />
+                )}
+            </div>
+
+            <AnimatePresence initial={false}>
                 <motion.div
-                    key={sourceUrl}
+                    key={mediaUrl}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
                     className="absolute inset-0 w-full h-full flex items-center justify-center"
                 >
                     {isMediaVideo ? (
                         <video
                             ref={videoRef}
-                            key={sourceUrl}
-                            src={sourceUrl}
+                            src={mediaUrl}
                             autoPlay
                             muted={isMuted}
                             loop
@@ -137,26 +136,12 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
                             preload="auto"
                             className="w-full h-full object-cover cursor-pointer"
                             onClick={onVideoClick}
-                            onError={(e) => {
-                                console.error('❌ Video failed to load:', sourceUrl);
-                                const error = e.currentTarget.error;
-                                if (error) {
-                                    console.error('Error code:', error.code);
-                                    console.error('Error message:', error.message);
-                                }
-                            }}
-                            onLoadedData={() => {
-                                console.log('✅ Video loaded successfully:', sourceUrl);
-                            }}
-                            onCanPlay={() => {
-                                console.log('✅ Video can play:', sourceUrl);
-                            }}
                         />
                     ) : (
                         <img
-                            src={sourceUrl}
+                            src={mediaUrl}
                             alt=""
-                            loading="lazy"
+                            loading="eager"
                             className="w-full h-full object-cover"
                         />
                     )}
@@ -195,11 +180,35 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
     setPlayingAudioProductId: (id: string | null) => void
 }) => {
     const [isHovered, setIsHovered] = useState(false);
-    const isMuted = playingAudioProductId !== product.id;
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    
+    // Determine if the video should be muted
+    // It should be muted if:
+    // 1. This product is not the one playing audio
+    // 2. OR the audio source is 'custom' (because we'll play the custom audio separately)
+    const isVideoMuted = playingAudioProductId !== product.id || product.audioSource === 'custom';
 
-    const handleVideoClick = (e: React.MouseEvent) => {
-        // Don't stop propagation - let the card click handler open the modal
+    // Handle custom audio playback
+    useEffect(() => {
+        if (product.audioSource === 'custom' && product.audioUrl) {
+            if (playingAudioProductId === product.id) {
+                audioRef.current?.play().catch(err => console.error("Audio play failed:", err));
+            } else {
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                }
+            }
+        }
+    }, [playingAudioProductId, product.id, product.audioSource, product.audioUrl]);
+
+    const handleCardClick = (e: React.MouseEvent) => {
+        setSelectedCard(product.id);
+        // Toggle audio playback when clicking the card
         if (playingAudioProductId === product.id) {
+            // Already playing, maybe don't stop if we're just opening the modal?
+            // But the user said "play when clicked", which usually implies a toggle or trigger.
+            // Let's stick with the toggle behavior for consistency.
             setPlayingAudioProductId(null);
         } else {
             setPlayingAudioProductId(product.id);
@@ -210,9 +219,14 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
         <div
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={() => setSelectedCard(product.id)}
+            onClick={handleCardClick}
             className="group relative p-4 rounded-[32px] overflow-hidden cursor-pointer flex flex-col min-h-[580px] bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-300 transform-gpu hover:-translate-y-1"
         >
+            {/* Custom Audio Element */}
+            {product.audioSource === 'custom' && product.audioUrl && (
+                <audio ref={audioRef} src={product.audioUrl} loop />
+            )}
+            
             {/* ---- TOP SECTION ---- */}
             <div className="z-10 relative flex flex-col h-[85px] shrink-0 px-1 ">
                 <div className="flex gap-2 justify-between items-start mb-3 w-full">
@@ -241,8 +255,8 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
                     <ThumbnailScroller
                         images={product.thumbnails}
                         isHovered={isHovered}
-                        isMuted={isMuted}
-                        onVideoClick={handleVideoClick}
+                        isMuted={isVideoMuted}
+                        onVideoClick={handleCardClick}
                     />
                 </div>
             </div>
@@ -286,22 +300,31 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     useEffect(() => {
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % items.length);
-        }, 8000);
+        }, 1500);
         return () => clearInterval(interval);
     }, [items.length]);
 
     return (
         <div className="relative w-full h-[600px] md:h-[700px] rounded-[32px] md:rounded-[48px] overflow-hidden group shadow-[0_30px_100px_rgba(0,0,0,0.8),0_0_150px_rgba(255,107,53,0.25)] border border-white/5 bg-[#0a0a0a]">
             {/* 1. IMMERSIVE BACKGROUND LAYER */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false}>
                 <motion.div
                     key={`bg-${index}`}
-                    initial={{ opacity: 0, scale: 1.2 }}
+                    initial={{ opacity: 0, scale: 1.05 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.05 }}
-                    transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                     className="absolute inset-0 z-0"
                 >
+                    {/* Media Preloader for next banner */}
+                    <div className="hidden pointer-events-none opacity-0">
+                         {isVideo(items[(index + 1) % items.length].image) ? (
+                            <video src={items[(index + 1) % items.length].image} preload="auto" muted />
+                        ) : (
+                            <img src={items[(index + 1) % items.length].image} alt="" />
+                        )}
+                    </div>
+
                     {isVideo(items[index].image) ? (
                         <video
                             key={items[index].image}
@@ -461,7 +484,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     useEffect(() => {
         const timer = setInterval(() => {
             nextAd();
-        }, 7000);
+        }, 1500);
         return () => clearInterval(timer);
     }, [nextAd]);
 
@@ -476,16 +499,20 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
             >
                 {/* 0. Proactive Media Preloader (Zero-Latency Bridge) */}
                 <div className="hidden pointer-events-none opacity-0">
-                    <img src={banners[(currentIndex + 1) % banners.length].mediaUrl} alt="" />
+                    {isVideo(banners[(currentIndex + 1) % banners.length].mediaUrl) ? (
+                        <video src={banners[(currentIndex + 1) % banners.length].mediaUrl} preload="auto" muted />
+                    ) : (
+                        <img src={banners[(currentIndex + 1) % banners.length].mediaUrl} alt="" />
+                    )}
                 </div>
 
-                <AnimatePresence mode="wait" initial={false}>
+                <AnimatePresence initial={false}>
                     <motion.div
                         key={currentAd.mediaUrl}
                         initial={{
                             opacity: 0,
-                            clipPath: "inset(15% round 2rem)",
-                            scale: 1.12
+                            clipPath: "inset(10% round 2rem)",
+                            scale: 1.05
                         }}
                         animate={{
                             opacity: 1,
@@ -494,11 +521,11 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                         }}
                         exit={{
                             opacity: 0,
-                            scale: 1.05,
+                            scale: 1,
                             transition: { duration: 0.4 }
                         }}
                         transition={{
-                            duration: 0.85,
+                            duration: 0.5,
                             ease: [0.22, 1, 0.36, 1]
                         }}
                         className="absolute inset-0 z-0 will-change-[transform,opacity,clip-path]"
@@ -625,7 +652,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                                 key={currentIndex}
                                 initial={{ x: "-100%" }}
                                 animate={{ x: "0%" }}
-                                transition={{ duration: 7, ease: "linear" }}
+                                transition={{ duration: 1.5, ease: "linear" }}
                                 className="absolute inset-0 bg-[#FF6B35]"
                             />
                         </div>
@@ -996,7 +1023,10 @@ export default function OkvevoMasivPage() {
         }
     };
 
-    const addToCart = async (product: MasivProduct, e?: React.MouseEvent) => {
+    const isInCart = useCallback((id: string) => cart.some(item => item.id === id), [cart]);
+    const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
+
+    const addToCart = useCallback(async (product: MasivProduct, e?: React.MouseEvent) => {
         // Validate that photos are uploaded
         if (!fullBodyImage) {
             alert('Please upload a full body photo before adding to cart.');
@@ -1041,16 +1071,19 @@ export default function OkvevoMasivPage() {
             }
 
             // Add to cart with photo URLs
-            if (!cart.find(item => item.id === product.id)) {
-                setCart([...cart, {
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    trendType: product.type,
-                    fullBodyImageUrl: fullBodyUrl,
-                    faceImageUrl: faceUrl || null
-                }]);
-            }
+            setCart(prev => {
+                if (!prev.find(item => item.id === product.id)) {
+                    return [...prev, {
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        trendType: product.type,
+                        fullBodyImageUrl: fullBodyUrl,
+                        faceImageUrl: faceUrl || null
+                    }];
+                }
+                return prev;
+            });
 
             // Clear uploaded images after successful submission
             setFullBodyImage(null);
@@ -1058,7 +1091,6 @@ export default function OkvevoMasivPage() {
             setCapturedPhotos({ fullBody: null, face: null });
             setPhotoAttempts({ fullBody: 0, face: 0 });
 
-            // alert('Successfully added to cart with your photos!');
             setAddedToCartNotification({ id: product.id, name: product.name });
 
             // Auto-hide notification after 5 seconds
@@ -1070,11 +1102,11 @@ export default function OkvevoMasivPage() {
             console.error('Error adding to cart:', error);
             alert('Failed to add to cart. Please try again.');
         }
-    };
+    }, [fullBodyImage, faceCloseUpImage, user, cart]);
 
-    const removeFromCart = (id: string) => {
-        setCart(cart.filter(item => item.id !== id));
-    };
+    const removeFromCart = useCallback((id: string) => {
+        setCart(prev => prev.filter(item => item.id !== id));
+    }, []);
 
     const handleCheckout = async () => {
         // Validate inputs
@@ -1168,9 +1200,6 @@ export default function OkvevoMasivPage() {
             setIsProcessingPayment(false);
         }
     };
-
-    const isInCart = (id: string) => cart.some(item => item.id === id);
-    const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
 
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#FF6B35]/30 overflow-x-hidden relative scroll-smooth">
