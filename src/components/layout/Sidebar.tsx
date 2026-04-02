@@ -58,6 +58,7 @@ export default function Sidebar() {
                                     width={40}
                                     height={40}
                                     className="object-contain"
+                                    priority
                                 />
                             </motion.div>
                         ) : (
@@ -74,6 +75,7 @@ export default function Sidebar() {
                                     width={32}
                                     height={32}
                                     className="w-8 h-8 object-contain"
+                                    priority
                                 />
                                 <span className="text-xl font-black tracking-[-0.05em] text-white">
                                     OKVEVO<span className="w-1.5 h-1.5 rounded-full bg-accent-orange inline-block ml-1 animate-pulse" />

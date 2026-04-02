@@ -32,6 +32,7 @@ export default function FloatingSidebar({ resetConversation }: FloatingSidebarPr
                             width={24}
                             height={24}
                             className="w-6 h-6 group-hover:scale-110 transition-transform"
+                            priority
                         />
                     </div>
                 </Link>

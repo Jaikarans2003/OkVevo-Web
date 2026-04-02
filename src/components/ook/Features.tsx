@@ -138,6 +138,7 @@ const HowItWorks = () => {
                                         src={steps[activeIndex].img} 
                                         alt={steps[activeIndex].shortTitle}
                                         fill
+                                        sizes="(max-width: 768px) 100vw, 55vw"
                                         className="object-contain drop-shadow-2xl"
                                         priority
                                     />

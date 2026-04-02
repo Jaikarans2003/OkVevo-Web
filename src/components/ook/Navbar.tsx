@@ -69,6 +69,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             width={40} 
                             height={40} 
                             className="w-12 h-12 object-contain"
+                            priority
                         />
                     </Link>
 
