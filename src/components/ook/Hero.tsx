@@ -80,7 +80,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                     className="text-5xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
                 >
                     Zero Cameras, <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Pure OKVEVO.</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Infinite Vision.</span>
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -139,7 +139,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                                 loop
                                 playsInline
                                 className="w-full h-full object-cover"
-                                src="/videos/screenrecord.webm"
+                                src="https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fscreenrecord.webm?alt=media&token=9f40e7d5-82a1-4d81-ac12-d3e29dd8ad82"
                                 suppressHydrationWarning
                             />
                             {/* Overlay Gradient */}

@@ -11,13 +11,13 @@ import { useRouter } from 'next/navigation';
 import FeaturedShows from '@/components/masiv/FeaturedShows';
 import Link from 'next/link';
 import SessionStatus from '@/components/booth/SessionStatus';
-import { 
-  createPhotoRequest, 
-  listenToResponse, 
-  resetSession, 
-  joinSession,
-  isCameraConnected,
-  PhotoResponse 
+import {
+    createPhotoRequest,
+    listenToResponse,
+    resetSession,
+    joinSession,
+    isCameraConnected,
+    PhotoResponse
 } from '@/lib/boothSession';
 
 // Razorpay TypeScript declaration
@@ -49,7 +49,7 @@ interface MasivBanner {
     level: number;
 }
 
- 
+
 const isVideo = (url: string) => {
     const lowerUrl = url.toLowerCase();
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.mov');
@@ -62,7 +62,7 @@ const bgColors = [
     'bg-[#E5E5E5]',//Grey
     'bg-[#FF6A00]', // Bright Orange
     'bg-[#F5F1E8]', // Cream
-    
+
 ];
 
 interface CartItem {
@@ -102,7 +102,7 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
     const isMediaVideo = isVideo(mediaUrl);
     // REMOVED fragment to avoid Error 208 on certain devices
     const sourceUrl = mediaUrl;
-    
+
     // Debug logging
     if (isMediaVideo) {
         console.log('🎬 Rendering video:', {
@@ -116,24 +116,24 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
 
     return (
         <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
-            <AnimatePresence mode="wait">
-                <motion.div 
+            <AnimatePresence>
+                <motion.div
                     key={sourceUrl}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="absolute inset-0 w-full h-full flex items-center justify-center"
                 >
                     {isMediaVideo ? (
-                        <video 
+                        <video
                             ref={videoRef}
                             key={sourceUrl}
                             src={sourceUrl}
                             autoPlay
                             muted={isMuted}
-                            loop 
-                            playsInline 
+                            loop
+                            playsInline
                             preload="auto"
                             className="w-full h-full object-cover cursor-pointer"
                             onClick={onVideoClick}
@@ -153,11 +153,11 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
                             }}
                         />
                     ) : (
-                        <img 
+                        <img
                             src={sourceUrl}
                             alt=""
                             loading="lazy"
-                            className="w-full h-full object-cover" 
+                            className="w-full h-full object-cover"
                         />
                     )}
                 </motion.div>
@@ -166,11 +166,10 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
             {/* Pagination Dots for Thumbnails (Sleek) */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-30">
                 {images.map((_, i) => (
-                    <div 
-                        key={i} 
-                        className={`h-1 rounded-full transition-all duration-500 ${
-                            i === index ? 'w-4 bg-[#FF6B35]' : 'w-1 bg-white/20'
-                        }`} 
+                    <div
+                        key={i}
+                        className={`h-1 rounded-full transition-all duration-500 ${i === index ? 'w-4 bg-[#FF6B35]' : 'w-1 bg-white/20'
+                            }`}
                     />
                 ))}
             </div>
@@ -186,9 +185,9 @@ const ThumbnailScroller = memo(({ images, isHovered, isMuted = true, onVideoClic
 
 ThumbnailScroller.displayName = 'ThumbnailScroller';
 
-const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard, playingAudioProductId, setPlayingAudioProductId }: { 
-    product: MasivProduct, 
-    index: number, 
+const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard, playingAudioProductId, setPlayingAudioProductId }: {
+    product: MasivProduct,
+    index: number,
     isInCart: (id: string) => boolean,
     addToCart: (p: MasivProduct, e?: React.MouseEvent) => void,
     setSelectedCard: (id: string) => void,
@@ -206,7 +205,7 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
             setPlayingAudioProductId(product.id);
         }
     };
-    
+
     return (
         <div
             onMouseEnter={() => setIsHovered(true)}
@@ -239,8 +238,8 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
             {/* ---- MIDDLE THUMBNAIL ---- */}
             <div className="relative w-full h-[430px] rounded-[24px] overflow-hidden z-0 shrink-0 shadow-lg group">
                 <div className="w-full h-full relative">
-                    <ThumbnailScroller 
-                        images={product.thumbnails} 
+                    <ThumbnailScroller
+                        images={product.thumbnails}
                         isHovered={isHovered}
                         isMuted={isMuted}
                         onVideoClick={handleVideoClick}
@@ -253,18 +252,17 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
                 <p className="text-[11px] leading-relaxed font-medium text-white/40 line-clamp-2 group-hover:text-white/60 transition-colors">
                     {product.description}
                 </p>
-                
+
                 <div className="flex items-center justify-between mt-auto">
                     <div className="font-black text-xl tracking-tighter text-white/90 group-hover:text-white transition-colors">
                         {product.price === 0 ? "Free" : `₹${product.price}`}
                     </div>
 
                     <button
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                            isInCart(product.id)
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isInCart(product.id)
                                 ? 'bg-green-500/20 text-green-500 cursor-default'
                                 : 'bg-white/5 text-white/40 hover:bg-[#FF6B35] hover:text-white'
-                        }`}
+                            }`}
                         disabled={isInCart(product.id)}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -288,7 +286,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
     useEffect(() => {
         const interval = setInterval(() => {
             setIndex((prev) => (prev + 1) % items.length);
-        }, 8000); 
+        }, 8000);
         return () => clearInterval(interval);
     }, [items.length]);
 
@@ -305,13 +303,13 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                     className="absolute inset-0 z-0"
                 >
                     {isVideo(items[index].image) ? (
-                        <video 
+                        <video
                             key={items[index].image}
-                            src={items[index].image} 
-                            autoPlay 
+                            src={items[index].image}
+                            autoPlay
                             muted
-                            loop 
-                            playsInline 
+                            loop
+                            playsInline
                             preload="auto"
                             className="w-full h-full object-cover brightness-[0.9]"
                             onError={(e) => {
@@ -322,10 +320,10 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             }}
                         />
                     ) : (
-                        <img 
-                            src={items[index].image} 
-                            alt="" 
-                            className="w-full h-full object-cover brightness-[0.7]" 
+                        <img
+                            src={items[index].image}
+                            alt=""
+                            className="w-full h-full object-cover brightness-[0.7]"
                         />
                     )}
                     {/* Dark gradient overlay for readability */}
@@ -364,7 +362,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             <button className="px-8 py-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-white text-xs font-black tracking-[0.3em] uppercase hover:bg-white hover:text-black transition-all duration-500 overflow-hidden group/btn">
                                 <span className="relative z-10">Discover Project</span>
                             </button>
-                            
+
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group/play cursor-pointer hover:bg-[#FF6B35] transition-all">
                                     <Play className="w-4 h-4 text-white fill-white/10" />
@@ -387,22 +385,21 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             layout
                             layoutId={item.id}
                             initial={{ opacity: 0, x: 20 }}
-                            animate={{ 
-                                opacity: offset === 0 ? 1 : 0.4, 
-                                x: 0, 
-                                scale: offset === 0 ? 1.05 : 1, 
-                                y: offset === 0 ? -10 : 0 
+                            animate={{
+                                opacity: offset === 0 ? 1 : 0.4,
+                                x: 0,
+                                scale: offset === 0 ? 1.05 : 1,
+                                y: offset === 0 ? -10 : 0
                             }}
                             exit={{ opacity: 0, x: -20 }}
-                            transition={{ 
+                            transition={{
                                 layout: { duration: 0.8, ease: [0.16, 1, 0.3, 1] },
                                 opacity: { duration: 0.6 },
                                 scale: { duration: 0.6 }
                             }}
                             onClick={() => setIndex(itemIndex)}
-                            className={`relative w-32 md:w-52 aspect-[4/5] rounded-3xl md:rounded-[10px] overflow-hidden cursor-pointer border-2 transition-all duration-700 shadow-[0_20px_60px_rgba(0,0,0,0.8)] ${
-                                offset === 0 ? 'border-white/40' : 'border-white/5 grayscale hover:grayscale-0'
-                            }`}
+                            className={`relative w-32 md:w-52 aspect-[4/5] rounded-3xl md:rounded-[10px] overflow-hidden cursor-pointer border-2 transition-all duration-700 shadow-[0_20px_60px_rgba(0,0,0,0.8)] ${offset === 0 ? 'border-white/40' : 'border-white/5 grayscale hover:grayscale-0'
+                                }`}
                         >
                             <img src={item.image} alt="" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -418,13 +415,13 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
             <div className="absolute bottom-12 left-8 md:left-20 z-20 flex items-center gap-10">
                 {/* Arrow Nav */}
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         onClick={() => setIndex((index - 1 + items.length) % items.length)}
                         className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-white/40 hover:text-white"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <button 
+                    <button
                         onClick={() => setIndex((index + 1) % items.length)}
                         className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-white/40 hover:text-white"
                     >
@@ -441,7 +438,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
             </div>
         </div>
     );
-};const AdsSection = ({ banners }: { banners: MasivBanner[] }) => {
+}; const AdsSection = ({ banners }: { banners: MasivBanner[] }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -474,7 +471,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
 
     return (
         <div className="w-full flex justify-center px-4 md:px-10">
-            <motion.section 
+            <motion.section
                 className="w-full md:w-[92%] max-w-[1700px] h-[60vh] md:h-[75vh] relative overflow-hidden bg-black flex items-center mt-[100px] md:mt-[140px] mb-[20px] rounded-[1.5rem] md:rounded-[3rem] shadow-[0_0_80px_rgba(255,107,53,0.15)] ring-1 ring-[#FF6B35]/20 border border-white/5 px-6 md:px-10 py-10 md:py-16 mx-auto"
             >
                 {/* 0. Proactive Media Preloader (Zero-Latency Bridge) */}
@@ -483,40 +480,40 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                 </div>
 
                 <AnimatePresence mode="wait" initial={false}>
-                    <motion.div 
+                    <motion.div
                         key={currentAd.mediaUrl}
-                        initial={{ 
-                            opacity: 0, 
+                        initial={{
+                            opacity: 0,
                             clipPath: "inset(15% round 2rem)",
                             scale: 1.12
                         }}
-                        animate={{ 
-                            opacity: 1, 
+                        animate={{
+                            opacity: 1,
                             clipPath: "inset(0% round 0rem)",
                             scale: 1
                         }}
-                        exit={{ 
-                            opacity: 0, 
+                        exit={{
+                            opacity: 0,
                             scale: 1.05,
                             transition: { duration: 0.4 }
                         }}
-                        transition={{ 
-                            duration: 0.85, 
-                            ease: [0.22, 1, 0.36, 1] 
+                        transition={{
+                            duration: 0.85,
+                            ease: [0.22, 1, 0.36, 1]
                         }}
                         className="absolute inset-0 z-0 will-change-[transform,opacity,clip-path]"
                     >
                         {currentAd.type === 'video' ? (
                             /* Full-Bleed Immersive Video (Zero-Latency Bridge) */
                             <div className="absolute inset-0 bg-black">
-                                <img 
-                                    src={currentAd.mediaUrl} 
-                                    className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110" 
-                                    alt="" 
+                                <img
+                                    src={currentAd.mediaUrl}
+                                    className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110"
+                                    alt=""
                                 />
-                                <video 
-                                    src={currentAd.mediaUrl} 
-                                    autoPlay muted loop playsInline 
+                                <video
+                                    src={currentAd.mediaUrl}
+                                    autoPlay muted loop playsInline
                                     preload="auto"
                                     poster={currentAd.mediaUrl}
                                     className="relative w-full h-full object-cover z-10"
@@ -525,42 +522,42 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                                 <div className="absolute inset-0 z-20 bg-black/30" />
                             </div>
                         ) : (
-                          /* PHOTO: Portrait-to-Landscape Gradient Blur Tech */
-                        <>
-                            <div className="absolute inset-0 overflow-hidden">
-                                {/* Layer 0: Ambient Color Leaks (The 'Different Colours' Base) */}
-                                <div className="absolute top-0 -left-[10%] w-[40%] h-full bg-[#FF6B35]/20 blur-[200px] rounded-full animate-pulse" />
-                                <div className="absolute bottom-0 -right-[10%] w-[40%] h-full bg-blue-500/10 blur-[200px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+                            /* PHOTO: Portrait-to-Landscape Gradient Blur Tech */
+                            <>
+                                <div className="absolute inset-0 overflow-hidden">
+                                    {/* Layer 0: Ambient Color Leaks (The 'Different Colours' Base) */}
+                                    <div className="absolute top-0 -left-[10%] w-[40%] h-full bg-[#FF6B35]/20 blur-[200px] rounded-full animate-pulse" />
+                                    <div className="absolute bottom-0 -right-[10%] w-[40%] h-full bg-blue-500/10 blur-[200px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
 
-                                {/* Layer 1: Base sharp/slight-blur background */}
-                                <img 
-                                    src={currentAd.mediaUrl} 
-                                    className="absolute inset-0 w-full h-full object-cover scale-[1.3] brightness-[0.8] contrast-[1.1] saturate-[150%] blur-[80px]" 
-                                    alt="" 
-                                />
-                                {/* Layer 2: Deep Blur layer with gradient mask */}
-                                <img 
-                                    src={currentAd.mediaUrl} 
-                                    className="absolute inset-0 w-full h-full object-cover blur-[160px] scale-[1.5] brightness-[1.1] contrast-[1.2] saturate-[200%]" 
-                                    style={{
-                                        maskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)",
-                                        WebkitMaskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)"
-                                    }}
-                                    alt="" 
-                                />
-                                {/* Subtle vignetting to keep focus */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
-                            </div>
-                            <div className="relative h-full w-full flex justify-center items-center">
-                                <div className="h-full aspect-[9/16] relative shadow-[0_0_120px_rgba(0,0,0,0.9)] border-x border-white/10 z-10 transition-transform duration-700">
-                                    <img 
-                                        src={currentAd.mediaUrl} 
-                                        className="w-full h-full object-cover" 
-                                        alt={currentAd.title}
+                                    {/* Layer 1: Base sharp/slight-blur background */}
+                                    <img
+                                        src={currentAd.mediaUrl}
+                                        className="absolute inset-0 w-full h-full object-cover scale-[1.3] brightness-[0.8] contrast-[1.1] saturate-[150%] blur-[80px]"
+                                        alt=""
                                     />
+                                    {/* Layer 2: Deep Blur layer with gradient mask */}
+                                    <img
+                                        src={currentAd.mediaUrl}
+                                        className="absolute inset-0 w-full h-full object-cover blur-[160px] scale-[1.5] brightness-[1.1] contrast-[1.2] saturate-[200%]"
+                                        style={{
+                                            maskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)",
+                                            WebkitMaskImage: "linear-gradient(to right, black 0%, transparent 40%, transparent 60%, black 100%)"
+                                        }}
+                                        alt=""
+                                    />
+                                    {/* Subtle vignetting to keep focus */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
                                 </div>
-                            </div>
-                        </>
+                                <div className="relative h-full w-full flex justify-center items-center">
+                                    <div className="h-full aspect-[9/16] relative shadow-[0_0_120px_rgba(0,0,0,0.9)] border-x border-white/10 z-10 transition-transform duration-700">
+                                        <img
+                                            src={currentAd.mediaUrl}
+                                            className="w-full h-full object-cover"
+                                            alt={currentAd.title}
+                                        />
+                                    </div>
+                                </div>
+                            </>
                         )}
                         {/* Universal Cinematic Overlays */}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/20 to-black/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]" />
@@ -580,7 +577,7 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             <span className="text-[#FF6B35] font-black tracking-[0.4em] uppercase text-[9px] mb-2 block">OKVEVO X MASIV</span>
                             <div className="h-[1.5px] w-8 bg-white/30 mb-6" />
                         </motion.div>
-                        
+
                         <motion.h1
                             key={`title-${currentIndex}`}
                             initial={{ opacity: 0, x: -20 }}
@@ -588,13 +585,13 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                             transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
                             className="text-white text-4xl md:text-6xl font-black leading-[0.95] tracking-tighter uppercase select-none drop-shadow-2xl"
                         >
-                            <span dangerouslySetInnerHTML={{ 
-                                __html: currentAd.title.includes(' ') 
-                                    ? currentAd.title.replace(' ', '<br/>') 
-                                    : currentAd.title 
+                            <span dangerouslySetInnerHTML={{
+                                __html: currentAd.title.includes(' ')
+                                    ? currentAd.title.replace(' ', '<br/>')
+                                    : currentAd.title
                             }} />
                         </motion.h1>
-                        
+
                         <motion.p
                             key={`desc-${currentIndex}`}
                             initial={{ opacity: 0, x: -20 }}
@@ -606,46 +603,46 @@ const FeaturedCarousel = ({ items, onTryTrend }: { items: any[], onTryTrend: (pr
                         </motion.p>
                     </div>
                 </div>
-                
+
                 {/* 3. Controls & Progress Bar */}
 
 
-            <div className="absolute bottom-6 left-10 right-10 z-30 flex items-center justify-between border-t border-white/10 pt-4">
-                <div className="flex items-center gap-12">
-                    {/* Navigation Buttons */}
-                    <div className="flex gap-4">
-                        <button onClick={prevAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
-                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        </button>
-                        <button onClick={nextAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
-                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </button>
+                <div className="absolute bottom-6 left-10 right-10 z-30 flex items-center justify-between border-t border-white/10 pt-4">
+                    <div className="flex items-center gap-12">
+                        {/* Navigation Buttons */}
+                        <div className="flex gap-4">
+                            <button onClick={prevAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
+                                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            </button>
+                            <button onClick={nextAd} className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all group active:scale-95">
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </button>
+                        </div>
+
+                        {/* Progress Bar Container */}
+                        <div className="w-64 h-[2px] bg-white/10 relative overflow-hidden hidden md:block">
+                            <motion.div
+                                key={currentIndex}
+                                initial={{ x: "-100%" }}
+                                animate={{ x: "0%" }}
+                                transition={{ duration: 7, ease: "linear" }}
+                                className="absolute inset-0 bg-[#FF6B35]"
+                            />
+                        </div>
                     </div>
 
-                    {/* Progress Bar Container */}
-                    <div className="w-64 h-[2px] bg-white/10 relative overflow-hidden hidden md:block">
-                        <motion.div 
-                            key={currentIndex}
-                            initial={{ x: "-100%" }}
-                            animate={{ x: "0%" }}
-                            transition={{ duration: 7, ease: "linear" }}
-                            className="absolute inset-0 bg-[#FF6B35]" 
-                        />
+                    {/* Counter */}
+                    <div className="flex items-baseline gap-3">
+                        <span className="text-white text-3xl font-black tracking-tighter italic">0{currentIndex + 1}</span>
+                        <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em]">/ 0{banners.length}</span>
                     </div>
                 </div>
 
-                {/* Counter */}
-                <div className="flex items-baseline gap-3">
-                    <span className="text-white text-3xl font-black tracking-tighter italic">0{currentIndex + 1}</span>
-                    <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em]">/ 0{banners.length}</span>
+                {/* Animated Light Leaks Layer */}
+                <div className="absolute inset-0 pointer-events-none z-5">
+                    <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-[#FF6B35]/5 rounded-full blur-[120px] animate-pulse" />
+                    <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
                 </div>
-            </div>
-
-            {/* Animated Light Leaks Layer */}
-            <div className="absolute inset-0 pointer-events-none z-5">
-                <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-[#FF6B35]/5 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
-            </div>
             </motion.section>
         </div>
     );
@@ -686,7 +683,7 @@ export default function OkvevoMasivPage() {
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
         document.body.appendChild(script);
-        
+
         return () => {
             if (document.body.contains(script)) {
                 document.body.removeChild(script);
@@ -729,11 +726,11 @@ export default function OkvevoMasivPage() {
     const [showSessionConfig, setShowSessionConfig] = useState(false);
     const [cameraConnected, setCameraConnected] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Map<string, string>>(new Map()); // requestId -> slotId
-    const [capturedPhotos, setCapturedPhotos] = useState<{fullBody: string | null, face: string | null}>({
+    const [capturedPhotos, setCapturedPhotos] = useState<{ fullBody: string | null, face: string | null }>({
         fullBody: null,
         face: null
     });
-    const [photoAttempts, setPhotoAttempts] = useState<{fullBody: number, face: number}>({
+    const [photoAttempts, setPhotoAttempts] = useState<{ fullBody: number, face: number }>({
         fullBody: 0,
         face: 0
     });
@@ -757,14 +754,30 @@ export default function OkvevoMasivPage() {
     }, []);
 
     const filteredProducts = useMemo(() => {
-        return products
-            .filter(product => {
-                const matchesCategory = activeFilter === 'all' || product.type === activeFilter;
-                const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                      product.description.toLowerCase().includes(searchQuery.toLowerCase());
-                return matchesCategory && matchesSearch;
-            })
-            .sort((a, b) => (a.level || 0) - (b.level || 0)); // Sort by level (ascending)
+        const matches = products.filter(product => {
+            const matchesCategory = activeFilter === 'all' || product.type === activeFilter;
+            const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                product.description.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+
+        if (activeFilter !== 'all') {
+            return matches.sort((a, b) => (a.level || 0) - (b.level || 0));
+        }
+
+        // For 'all' filter, interleave Photo and Video patterns
+        const photosPool = matches.filter(p => p.type === 'photo').sort((a, b) => (a.level || 0) - (b.level || 0));
+        const videosPool = matches.filter(p => p.type === 'video').sort((a, b) => (a.level || 0) - (b.level || 0));
+
+        const interleaved = [];
+        const maxLength = Math.max(photosPool.length, videosPool.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            if (i < photosPool.length) interleaved.push(photosPool[i]);
+            if (i < videosPool.length) interleaved.push(videosPool[i]);
+        }
+
+        return interleaved;
     }, [products, activeFilter, searchQuery]);
 
     // Initialize booth session from localStorage
@@ -829,7 +842,7 @@ export default function OkvevoMasivPage() {
             }
             const timestamp = Date.now();
             const userId = user.uid;
-            
+
             // 1. Upload Full Body Image
             const fullBodyRef = ref(storage, `trend_requests/${userId}/${timestamp}_full_body.jpg`);
             await uploadString(fullBodyRef, fullBodyImage, 'data_url');
@@ -899,7 +912,7 @@ export default function OkvevoMasivPage() {
         }
 
         const attemptCount = slotId === 'fullBody' ? photoAttempts.fullBody + 1 : photoAttempts.face + 1;
-        
+
         if (attemptCount > 3) {
             alert('Maximum 3 attempts reached for this photo');
             return;
@@ -907,10 +920,10 @@ export default function OkvevoMasivPage() {
 
         try {
             const requestId = await createPhotoRequest(boothSessionId, slotId, attemptCount);
-            
+
             // Track pending request
             setPendingRequests(prev => new Map(prev).set(requestId, slotId));
-            
+
             // Update attempt count
             setPhotoAttempts(prev => ({
                 ...prev,
@@ -952,7 +965,7 @@ export default function OkvevoMasivPage() {
     // Booth Camera: Reset session
     const handleResetSession = async () => {
         if (!boothSessionId) return;
-        
+
         if (confirm('Reset booth session? This will clear all photos and start fresh.')) {
             try {
                 await resetSession(boothSessionId);
@@ -1004,7 +1017,7 @@ export default function OkvevoMasivPage() {
             }
             const timestamp = Date.now();
             const userId = user.uid;
-            
+
             let fullBodyUrl = '';
             let faceUrl = '';
 
@@ -1029,25 +1042,25 @@ export default function OkvevoMasivPage() {
 
             // Add to cart with photo URLs
             if (!cart.find(item => item.id === product.id)) {
-                setCart([...cart, { 
-                    id: product.id, 
-                    name: product.name, 
+                setCart([...cart, {
+                    id: product.id,
+                    name: product.name,
                     price: product.price,
                     trendType: product.type,
                     fullBodyImageUrl: fullBodyUrl,
                     faceImageUrl: faceUrl || null
                 }]);
             }
-            
+
             // Clear uploaded images after successful submission
             setFullBodyImage(null);
             setFaceCloseUpImage(null);
             setCapturedPhotos({ fullBody: null, face: null });
             setPhotoAttempts({ fullBody: 0, face: 0 });
-            
+
             // alert('Successfully added to cart with your photos!');
             setAddedToCartNotification({ id: product.id, name: product.name });
-            
+
             // Auto-hide notification after 5 seconds
             setTimeout(() => setAddedToCartNotification(null), 5000);
 
@@ -1132,7 +1145,7 @@ export default function OkvevoMasivPage() {
                     setCapturedPhotos({ fullBody: null, face: null });
                     setPhotoAttempts({ fullBody: 0, face: 0 });
                     setShowCart(false);
-                    
+
                     // Auto-close popup after 3 seconds
                     setTimeout(() => {
                         setShowSuccessPopup(false);
@@ -1168,8 +1181,8 @@ export default function OkvevoMasivPage() {
                         <motion.div
                             key={p.id}
                             initial={{ x: p.x, y: p.y, scale: 0.5, opacity: 1 }}
-                            animate={{ 
-                                x: [p.x, p.x + 80, window.innerWidth - 120], 
+                            animate={{
+                                x: [p.x, p.x + 80, window.innerWidth - 120],
                                 y: [p.y, p.y - 250, 40],
                                 scale: [0.5, 2, 0.4],
                                 opacity: [1, 1, 0]
@@ -1186,11 +1199,11 @@ export default function OkvevoMasivPage() {
             {/* Custom Floating Pill Navbar (Landing Page style) */}
             <nav className="fixed top-0 left-0 right-0 z-[150] px-4 md:px-6 py-4 md:py-8 transition-all duration-700 pointer-events-none">
                 <div className="max-w-[1200px] mx-auto pointer-events-auto flex items-center justify-between w-full px-4 md:px-8 py-3 md:py-5 rounded-full backdrop-blur-xl bg-gradient-to-r from-[#FF6B35]/10 via-[#0A0A0A]/80 to-[#FF6B35]/10 border border-white/10 hover:shadow-[0_0_30px_rgba(255,107,53,0.15)] transition-all">
-                    
+
                     {/* Left - Official Logo */}
                     <div className="flex-1 flex justify-start">
                         <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                            <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-6 md:h-10 w-auto object-contain" />
+                            <img src="/masiv/masivlogo.png" alt="MASIV Logo" className="h-5 md:h-8 w-auto object-contain" />
                         </Link>
                     </div>
 
@@ -1236,17 +1249,17 @@ export default function OkvevoMasivPage() {
                             className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all shadow-lg relative group overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-[#FF6B35]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            
+
                             {/* Animated Cart Icon Only */}
                             <motion.div
                                 key={cart.length}
                                 initial={{ scale: 1, y: 0, rotate: 0 }}
-                                animate={cart.length > 0 ? { 
+                                animate={cart.length > 0 ? {
                                     scale: [1, 2.2, 1],
                                     y: [0, -12, 0],
                                     rotate: [0, -20, 20, 0]
                                 } : {}}
-                                transition={{ 
+                                transition={{
                                     duration: 0.8,
                                     times: [0, 0.4, 1],
                                     ease: ["easeOut", "backIn"]
@@ -1290,7 +1303,7 @@ export default function OkvevoMasivPage() {
                                 >
                                     View Cart
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setAddedToCartNotification(null)}
                                     className="absolute top-2 right-2 text-white/20 hover:text-white transition-colors"
                                 >
@@ -1304,12 +1317,12 @@ export default function OkvevoMasivPage() {
 
             {/* Section with persistent grid background */}
             <div className="bg-transparent text-white relative z-10 transition-all">
-                <AdsSection banners={banners} />
+                {/* <AdsSection banners={banners} /> */}
             </div>
 
             {/* Dark Section for Cards */}
-            <main className="max-w-[1400px] mx-auto pb-24 relative z-0">
-                
+            <main className="max-w-[1400px] mx-auto pt-32 md:pt-40 pb-24 relative z-0">
+
                 {/* Category Grid removed at user request */}
 
                 {/* Filter & Search Control Bar */}
@@ -1320,11 +1333,10 @@ export default function OkvevoMasivPage() {
                             <button
                                 key={type}
                                 onClick={() => setActiveFilter(type as any)}
-                                className={`flex-1 md:flex-none px-4 md:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                                    activeFilter === type 
-                                    ? 'bg-[#FF6B35] text-white shadow-lg' 
-                                    : 'text-white/40 hover:text-white hover:bg-white/5'
-                                }`}
+                                className={`flex-1 md:flex-none px-4 md:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeFilter === type
+                                        ? 'bg-[#FF6B35] text-white shadow-lg'
+                                        : 'text-white/40 hover:text-white hover:bg-white/5'
+                                    }`}
                             >
                                 {type}
                             </button>
@@ -1344,7 +1356,7 @@ export default function OkvevoMasivPage() {
                             className="w-full bg-white/5 border border-white/10 text-white pl-14 pr-12 py-4 rounded-2xl outline-none focus:border-[#FF6B35]/50 focus:bg-white/10 transition-all font-bold text-sm placeholder:text-white/20"
                         />
                         {searchQuery && (
-                            <button 
+                            <button
                                 onClick={() => setSearchQuery('')}
                                 className="absolute inset-y-0 right-4 flex items-center p-2 text-white/30 hover:text-white transition-colors"
                             >
@@ -1357,7 +1369,7 @@ export default function OkvevoMasivPage() {
                 {/* Vertical Normal Grid (4 columns) */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {filteredProducts.map((product, index) => (
-                        <ProductCard 
+                        <ProductCard
                             key={product.id}
                             product={product}
                             index={index}
@@ -1419,15 +1431,15 @@ export default function OkvevoMasivPage() {
                                         {/* LEFT Part: Thumbnail */}
                                         <div className="w-full md:w-1/3 h-1/3 md:h-full p-6 pb-3 md:pb-6 pr-3 md:pr-3">
                                             <div className="w-full h-full rounded-3xl overflow-hidden relative border border-white/5">
-                                                <ThumbnailScroller 
-                                                    images={product.thumbnails} 
+                                                <ThumbnailScroller
+                                                    images={product.thumbnails}
                                                 />
                                             </div>
                                         </div>
 
                                         {/* CENTER Part: Image Uploads */}
                                         <div className="w-full md:w-1/3 h-1/3 md:h-full p-6 py-3 md:py-6 px-3 md:px-3 flex flex-col gap-5">
-                                            
+
                                             {/* Top Box: Full Body */}
                                             <div className="flex flex-col flex-1 min-h-0">
                                                 <div className="mb-2 shrink-0 flex justify-between items-center">
@@ -1436,7 +1448,7 @@ export default function OkvevoMasivPage() {
                                                         <span className="text-[#FF6B35] font-black ml-1 text-[13px]">*</span>
                                                     </div>
                                                     {fullBodyImage && (
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setFullBodyImage(null);
@@ -1448,12 +1460,11 @@ export default function OkvevoMasivPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-h-0">
-                                                    <div 
-                                                        className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
-                                                            fullBodyImage 
-                                                                ? 'border-[#FF6B35]/50 bg-[#FF6B35]/5' 
+                                                    <div
+                                                        className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${fullBodyImage
+                                                                ? 'border-[#FF6B35]/50 bg-[#FF6B35]/5'
                                                                 : 'border-[#FF6B35]/30'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {fullBodyImage ? (
                                                             <img src={fullBodyImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
@@ -1484,7 +1495,7 @@ export default function OkvevoMasivPage() {
                                                         <span className="text-white/30 ml-1 text-[13px]">(Optional)</span>
                                                     </div>
                                                     {faceCloseUpImage && (
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setFaceCloseUpImage(null);
@@ -1496,12 +1507,11 @@ export default function OkvevoMasivPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-h-0">
-                                                    <div 
-                                                        className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${
-                                                            faceCloseUpImage 
-                                                                ? 'border-white/30 bg-white/5' 
+                                                    <div
+                                                        className={`w-full relative h-full rounded-[1.5rem] bg-[#0a0a0a]/50 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all overflow-hidden ${faceCloseUpImage
+                                                                ? 'border-white/30 bg-white/5'
                                                                 : 'border-white/10'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {faceCloseUpImage ? (
                                                             <img src={faceCloseUpImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
@@ -1546,8 +1556,8 @@ export default function OkvevoMasivPage() {
                                                     </div>
                                                 </div>
 
-                                                    <div className="flex flex-col gap-3 mt-8 relative z-10">
-                                                        {/* <button 
+                                                <div className="flex flex-col gap-3 mt-8 relative z-10">
+                                                    {/* <button 
                                                             onClick={() => handleTryTrend(product)}
                                                             disabled={isSubmitting || !fullBodyImage}
                                                             className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl flex items-center justify-center gap-3 ${
@@ -1568,12 +1578,11 @@ export default function OkvevoMasivPage() {
                                                     <button
                                                         onClick={() => addToCart(product)}
                                                         disabled={alreadyInCart || !fullBodyImage || loadingProducts}
-                                                        className={`w-full py-5 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 border ${
-                                                            alreadyInCart
+                                                        className={`w-full py-5 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 border ${alreadyInCart
                                                                 ? 'bg-green-500/10 text-green-500 border-green-500/20 cursor-not-allowed'
                                                                 : !fullBodyImage
-                                                                ? 'bg-red-500/10 text-red-500 border-red-500/20 cursor-not-allowed'
-                                                                : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
+                                                                    ? 'bg-red-500/10 text-red-500 border-red-500/20 cursor-not-allowed'
+                                                                    : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
                                                             }`}
                                                     >
                                                         {alreadyInCart ? (
@@ -1608,7 +1617,7 @@ export default function OkvevoMasivPage() {
             {/* --- GENERATION LOADER / RESULT OVERLAY --- */}
             <AnimatePresence>
                 {(isSubmitting || resultImage) && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -1616,7 +1625,7 @@ export default function OkvevoMasivPage() {
                     >
                         <div className="max-w-4xl w-full text-center">
                             {resultImage ? (
-                                <motion.div 
+                                <motion.div
                                     initial={{ scale: 0.9, y: 20 }}
                                     animate={{ scale: 1, y: 0 }}
                                     className="flex flex-col items-center"
@@ -1625,20 +1634,20 @@ export default function OkvevoMasivPage() {
                                         <h2 className="text-5xl font-black tracking-tighter uppercase mb-2">Your Trend is Ready</h2>
                                         <p className="text-gray-400">Our AI has successfully crafted your unique look</p>
                                     </div>
-                                    
+
                                     <div className="relative group rounded-[32px] overflow-hidden border border-white/10 shadow-2xl mb-10 w-full max-w-lg aspect-[3/4]">
                                         <img src={resultImage} alt="AI Result" className="w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                                     </div>
 
                                     <div className="flex gap-4">
-                                        <button 
+                                        <button
                                             onClick={() => window.open(resultImage, '_blank')}
                                             className="px-8 py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all"
                                         >
                                             Download High-Res
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setResultImage(null);
                                                 setActiveRequestId(null);
@@ -1656,7 +1665,7 @@ export default function OkvevoMasivPage() {
                                 <div className="flex flex-col items-center">
                                     <div className="relative w-32 h-32 mb-10">
                                         <div className="absolute inset-0 border-4 border-[#FF6B35]/20 rounded-full" />
-                                        <motion.div 
+                                        <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                                             className="absolute inset-0 border-4 border-[#FF6B35] border-t-transparent rounded-full"
@@ -1677,7 +1686,7 @@ export default function OkvevoMasivPage() {
                                     {/* Progress simulation or steps */}
                                     <div className="mt-12 flex justify-center gap-2">
                                         {[0, 1, 2].map(i => (
-                                            <motion.div 
+                                            <motion.div
                                                 key={i}
                                                 animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
                                                 transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.4 }}
@@ -1723,7 +1732,7 @@ export default function OkvevoMasivPage() {
 
                                 {/* Single scrollable area for items + form */}
                                 <div className="flex-1 overflow-y-auto pr-2 -mr-2 custom-scrollbar space-y-8 pb-10" data-lenis-prevent>
-                                    
+
                                     {/* Items List */}
                                     <div className="space-y-4">
                                         {cart.length === 0 ? (
@@ -1753,13 +1762,13 @@ export default function OkvevoMasivPage() {
                                             ))
                                         )}
                                     </div>
-                                    
+
                                     {cart.length > 0 && (
                                         <div className="border-t border-white/10 pt-8 space-y-8">
                                             {/* User Information Form */}
                                             <div className="space-y-6">
                                                 <h3 className="text-sm font-black uppercase tracking-widest text-[#FF6B35]">Your Details</h3>
-                                                
+
                                                 <div className="space-y-4">
                                                     {/* Name */}
                                                     <div>
@@ -1813,11 +1822,10 @@ export default function OkvevoMasivPage() {
                                                 <button
                                                     onClick={handleCheckout}
                                                     disabled={!userName || !whatsappNumber || isProcessingPayment}
-                                                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all ${
-                                                        !userName || !whatsappNumber || isProcessingPayment
+                                                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all ${!userName || !whatsappNumber || isProcessingPayment
                                                             ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                                                             : 'bg-[#FF6B35] hover:bg-[#FF8F6B] text-white shadow-[0_20px_40px_rgba(255,107,53,0.3)] hover:-translate-y-0.5 active:translate-y-0'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
                                                 </button>
@@ -1931,7 +1939,7 @@ export default function OkvevoMasivPage() {
                                 <p className="text-white/70 text-lg mb-4">
                                     Your order has been placed successfully
                                 </p>
-                                
+
                                 {/* Order ID */}
                                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
                                     <p className="text-white/50 text-xs uppercase tracking-widest font-bold mb-1">

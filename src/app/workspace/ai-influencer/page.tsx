@@ -1494,10 +1494,10 @@ function AIInfluencerWorkstation() {
                                             <div ref={chatEndRef} />
                                         </div>
                                     </div>
-                                    {/* Sleek Progress Bar */}
                                     <div 
                                         ref={stepsRef}
-                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto custom-scrollbar relative group"
+                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto scrollbar-hide relative group isolate will-change-transform"
+                                        style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
                                     >
                                         {STEPS.map((step, idx) => {
                                             const done = idx < currentStepIdx;

@@ -3,18 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '../../config/firebase';
-import { onAuthStateChanged, User, updateEmail } from 'firebase/auth';
+import { onAuthStateChanged, User, updateEmail, signOut } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
-import { ArrowLeft, Loader2, Check, AlertCircle, Edit3, Activity, Phone } from 'lucide-react';
+import { ArrowLeft, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
-    const [, setUserProfile] = useState<UserProfile | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -35,12 +35,12 @@ export default function ProfilePage() {
             if (currentUser) {
                 setUser(currentUser);
                 try {
-                    const profile = await getUserProfile(currentUser.uid);
-                    setUserProfile(profile);
+                    const profileData = await getUserProfile(currentUser.uid);
+                    setProfile(profileData);
                     setFormData({
-                        email: profile?.email || currentUser.email || '',
-                        phoneNumber: profile?.phoneNumber || '',
-                        bio: profile?.bio || ''
+                        email: profileData?.email || currentUser.email || '',
+                        phoneNumber: profileData?.phoneNumber || '',
+                        bio: profileData?.bio || ''
                     });
                 } catch (error) {
                     console.error('Error fetching user data:', error);
@@ -84,7 +84,7 @@ export default function ProfilePage() {
                 updatedAt: serverTimestamp()
             });
 
-            setUserProfile(prev => prev ? { ...prev, email: formData.email, phoneNumber: formData.phoneNumber, bio: formData.bio } : null);
+            setProfile(prev => prev ? { ...prev, email: formData.email, phoneNumber: formData.phoneNumber, bio: formData.bio } : null);
             setStatus({ type: 'success', message: 'Saved seamlessly.' });
             
             setTimeout(() => {
@@ -97,6 +97,15 @@ export default function ProfilePage() {
             setStatus({ type: 'error', message: error.message || 'An error occurred.' });
         } finally {
             setSaving(false);
+        }
+    };
+    
+    const handleSignOut = async () => {
+        try {
+            await signOut(auth);
+            router.push('/login');
+        } catch (error) {
+            console.error('Sign out error:', error);
         }
     };
 
@@ -161,12 +170,21 @@ export default function ProfilePage() {
                                     <span className="text-[9px] font-black uppercase tracking-[0.4em] text-[#FF4D00]">Session Active</span>
                                     <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mt-1">{currentDate}</span>
                                 </div>
-                                <button 
-                                    onClick={() => setIsEditing(true)}
-                                    className="px-10 py-3.5 rounded-full border border-[#FF4D00]/50 bg-black/60 text-white text-[10px] font-black uppercase tracking-[0.3em] hover:bg-[#FF4D00] hover:border-[#FF4D00] transition-all duration-500 shadow-[0_0_40px_rgba(255,77,0,0.2)] backdrop-blur-xl"
-                                >
-                                    Modify Profile
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <button 
+                                        onClick={handleSignOut}
+                                        className="group w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:border-red-500 hover:bg-red-500/10 transition-all duration-500 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+                                        title="Sign Out"
+                                    >
+                                        <LogOut className="w-4 h-4 text-white/40 group-hover:text-red-500 transition-colors" />
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsEditing(true)}
+                                        className="px-10 py-3.5 rounded-full border border-[#FF4D00]/50 bg-black/60 text-white text-[10px] font-black uppercase tracking-[0.3em] hover:bg-[#FF4D00] hover:border-[#FF4D00] transition-all duration-500 shadow-[0_0_40px_rgba(255,77,0,0.2)] backdrop-blur-xl"
+                                    >
+                                        Modify Profile
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -196,12 +214,16 @@ export default function ProfilePage() {
                         </section>
 
                         {/* High-Contrast Stats & Subscription Row */}
-                        <section className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full mt-24 max-w-5xl">
+                        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-24 max-w-4xl">
                             {[
-                                { label: 'Subscription Plan', value: 'Prime Access', icon: Activity, color: '#FF4D00', detail: 'Renewed: 31 Mar' },
+                                { 
+                                    label: 'Subscription Plan', 
+                                    value: profile?.isPro ? 'Pro Access' : profile?.userType === 'organisation' ? 'Organisation' : profile?.userType === 'single' ? 'Standard' : 'No Active Plan', 
+                                    icon: Activity, 
+                                    color: '#FF4D00', 
+                                    detail: profile?.createdAt ? `Joined: ${new Date(profile.createdAt.seconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'Active Status' 
+                                },
                                 { label: 'Direct Wire', value: formData.phoneNumber || 'Unlinked', icon: Phone, color: '#A855F7', detail: 'Primary Contact' },
-                                { label: 'Deployments', value: '04 Source', icon: Edit3, color: '#3B82F6', detail: '02 active' },
-                                { label: 'Core Status', value: 'Nominal', icon: Check, color: '#10B981', detail: 'No anomalies' }
                             ].map((stat, i) => (
                                 <motion.div 
                                     key={i}
@@ -210,9 +232,7 @@ export default function ProfilePage() {
                                     transition={{ delay: 0.5 + (i * 0.1), duration: 0.8 }}
                                     className="relative group border border-white/20 bg-[#0A0A0A]/95 rounded-[32px] p-8 h-64 overflow-hidden flex flex-col items-center justify-center hover:border-[#FF4D00] transition-all duration-500 shadow-2xl"
                                 >
-                                    {/* Glass Base & Backdrop Layered to fix corner clipping */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-                                    
                                     <div className="relative z-10 flex flex-col items-center text-center gap-5">
                                         <div 
                                             className="w-14 h-14 rounded-full flex items-center justify-center bg-white/5 border border-white/10 transition-all duration-300"
@@ -230,35 +250,6 @@ export default function ProfilePage() {
                             ))}
                         </section>
 
-                        {/* Recent History / Activity Section */}
-                        <section className="w-full max-w-5xl mt-12 bg-black/60 border border-white/10 rounded-[40px] p-10 backdrop-blur-3xl relative overflow-hidden">
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,77,0,0.05)_0%,transparent_50%)]" />
-                            
-                            <div className="flex items-center gap-4 mb-10">
-                                <Activity className="w-5 h-5 text-[#FF4D00]" />
-                                <h2 className="text-lg font-black uppercase tracking-[0.4em] text-white">System History</h2>
-                            </div>
-
-                            <div className="flex flex-col gap-4">
-                                {[
-                                    { event: 'Identity Configuration Updated', time: '14 min ago', status: 'Success' },
-                                    { event: 'Prime Subscription Sync', time: '4 hours ago', status: 'Verified' },
-                                    { event: 'Source Manifest Deployment', time: 'Yesterday', status: 'Nominal' },
-                                    { event: 'Security Credentials Rotating', time: '2 days ago', status: 'Complete' }
-                                ].map((log, k) => (
-                                    <div key={k} className="flex items-center justify-between py-6 border-b border-white/5 last:border-0 hover:bg-white/[0.02] px-4 rounded-2xl transition-colors group">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-sm font-bold text-white/90 group-hover:text-white transition-colors">{log.event}</span>
-                                            <span className="text-[10px] font-medium text-white/30 uppercase tracking-widest">{log.time}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF4D00]/60">{log.status}</span>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[#FF4D00] shadow-[0_0_10px_#FF4D00]" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
 
                         {/* Simple Navigation */}
                         <div className="mt-12 opacity-30 flex items-center gap-4 hover:opacity-100 transition-all cursor-pointer">
