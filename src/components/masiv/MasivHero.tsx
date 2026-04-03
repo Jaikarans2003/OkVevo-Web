@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, Dumbbell, Plus, Zap, Activity, Eye } from 'lucide-react';
+import Image from 'next/image';
 
 const MasivHero = () => {
     return (
@@ -44,62 +45,76 @@ const MasivHero = () => {
 
                     {/* Column 1: Dual Info Cards */}
                      <div className="flex flex-col gap-4">
-                        <div className=" rounded-[30px] aspect-square flex items-center justify-center shadow-lg group">
-                            <img
+                        <div className="rounded-[30px] aspect-square flex items-center justify-center shadow-lg group relative overflow-hidden">
+                            <Image
                                 src="/yoga.jpeg"
                                 alt="MASIV Member"
-                                className="w-full h-full object-cover rounded-[30px]"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-cover rounded-[30px]"
                             />
                         </div>
-                         <div className="bg-[#FF5F1F] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group">
-                            <img
+                         <div className="bg-[#FF5F1F] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group relative overflow-hidden">
+                            <Image
                                 src="/gym-avatar.png"
                                 alt="MASIV Member"
-                                className="w-full h-full object-fit mt-2 rounded-[30px]"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-contain mt-2 rounded-[30px]"
                             />
                         </div>
                     </div>
                     {/* Column 2: Tall Action Photo */}
-                    <div className="bg-[#1A1A1A] rounded-[35px] overflow-hidden group shadow-2xl lg:h-full h-[350px]">
-                        <img
+                    <div className="bg-[#1A1A1A] rounded-[35px] overflow-hidden group shadow-2xl lg:h-full h-[350px] relative">
+                        <Image
                             src="/masiv_ai_fitness.png"
                             alt="Fitness Professional"
-                            className="w-full h-full object-cover group-hover:scale-110 transition-all duration-1000"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover group-hover:scale-110 transition-all duration-1000"
                         />
                     </div>
 
                     {/* Column 3: Red Sparkle + Tech Waveform */}
                     <div className="flex flex-col gap-4">
-                        <div className="bg-[#FF0000] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group">
-                            <img
+                        <div className="bg-[#FF0000] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group relative overflow-hidden">
+                            <Image
                                 src="/gym.png"
                                 alt="MASIV Member"
-                                className="w-full h-full object-fit rounded-[30px]"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-contain rounded-[30px]"
                             />
                         </div>
-                         <div className="bg-[#FF4D6D] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group">
-                            <img
+                         <div className="bg-[#FF4D6D] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group relative overflow-hidden">
+                            <Image
                                 src="/booth.png"
                                 alt="MASIV Member"
-                                className="w-full h-full object-fit rounded-[30px]"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-contain rounded-[30px]"
                             />
                         </div>
                     </div>
 
                     {/* Column 4: App Card + Featured Member */}
                     <div className="flex flex-col gap-4">
-                        <div className="bg-[#BF00FF] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group">
-                            <img
+                        <div className="bg-[#BF00FF] rounded-[30px] aspect-square flex items-center justify-center shadow-lg group relative overflow-hidden">
+                            <Image
                                 src="/weight.png"
                                 alt="MASIV Member"
-                                className="w-full h-full object-fit rounded-[30px]"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-contain rounded-[30px]"
                             />
                         </div>
                         <div className="bg-black/90 rounded-[30px] flex-1 overflow-hidden group relative">
-                            <img
+                            <Image
                                 src="/masiv_cyber_athlete.png"
                                 alt="MASIV Member"
-                                className="w-full h-full object-cover brightness-75 group-hover:scale-110 transition-all duration-700"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 20vw"
+                                className="object-cover brightness-75 group-hover:scale-110 transition-all duration-700"
                             />
                             {/* Purple Overlay */}
                             {/* <div className="absolute inset-0 bg-purple-600/20 mix-blend-color group-hover:bg-purple-600/10 transition-colors" /> */}
@@ -120,8 +135,8 @@ const MasivHero = () => {
                             <div className="flex items-center gap-4">
                                 <div className="flex -space-x-3">
                                     {[1, 2, 3].map(i => (
-                                        <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 overflow-hidden">
-                                            <img src={`https://i.pravatar.cc/100?u=success_${i}`} alt="user" />
+                                        <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 overflow-hidden relative">
+                                            <Image src={`https://i.pravatar.cc/100?u=success_${i}`} alt="user" fill sizes="32px" className="object-cover" />
                                         </div>
                                     ))}
                                 </div>

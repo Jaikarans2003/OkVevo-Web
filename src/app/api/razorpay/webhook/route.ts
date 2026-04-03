@@ -1,31 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { RAZORPAY_CONFIG, getPlanDetails, type PlanType } from '@/config/razorpay';
 
-// CRITICAL: Disable body parser for signature verification
-export const config = {
-    api: { bodyParser: false }
-};
+export const runtime = 'nodejs';
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    try {
-        const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-        if (saBase64) {
-            const serviceAccount = JSON.parse(
-                Buffer.from(saBase64, 'base64').toString('utf-8')
-            );
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        }
-    } catch(e: any) {
-        console.warn('Firebase init deferred:', e.message);
-    }
-}
-
-const getDb = () => admin.firestore();
+// CRITICAL: Disable Next.js body parsing for raw body access (signature verification)
+// In Next.js App Router, we read the raw body via request.text() directly
 const GRACE_PERIOD_DAYS = 7;
 
 /**
@@ -48,7 +30,6 @@ async function syncSubscriptionToFirestore(
     userId: string,
     data: any
 ): Promise<void> {
-    const db = getDb();
     const batch = db.batch();
     
     // Top-level collection for fast lookups
@@ -70,7 +51,6 @@ async function getSubscriptionWithFallback(
     subscriptionId: string,
     userId?: string
 ): Promise<FirebaseFirestore.DocumentSnapshot | null> {
-    const db = getDb();
     // Try direct lookup first
     let subscriptionDoc = await db.collection('razorpaySubscriptions').doc(subscriptionId).get();
     
@@ -152,8 +132,8 @@ export async function POST(request: NextRequest) {
                     credits: planDetails.credits,
                     initialCredits: planDetails.credits,
                     creditsUsed: 0,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    createdAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`✅ Subscription authenticated: ${subscription.id}`);
@@ -180,12 +160,12 @@ export async function POST(request: NextRequest) {
                     credits: planDetails.credits,
                     initialCredits: planDetails.credits,
                     creditsUsed: 0,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    createdAt: FieldValue.serverTimestamp(),
+                    activatedAt: FieldValue.serverTimestamp(),
                     lastPaymentId: payment?.id || null,
                     lastPaymentAmount: payment?.amount || 0,
-                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPaymentDate: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`✅ Subscription activated: ${subscription.id}`);
@@ -205,8 +185,8 @@ export async function POST(request: NextRequest) {
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     lastPaymentId: payment?.id,
                     lastPaymentAmount: payment?.amount,
-                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPaymentDate: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`✅ Subscription charged: ${subscription.id}`);
@@ -228,8 +208,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'pending',
-                    gracePeriodEndsAt: admin.firestore.Timestamp.fromDate(gracePeriodEnds),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    gracePeriodEndsAt: Timestamp.fromDate(gracePeriodEnds),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`⏳ Subscription pending (grace period: ${GRACE_PERIOD_DAYS} days): ${subscription.id}`);
@@ -247,8 +227,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'halted',
-                    haltedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    haltedAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`🛑 Subscription halted: ${subscription.id}`);
@@ -266,8 +246,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'cancelled',
-                    cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    cancelledAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`✅ Subscription cancelled: ${subscription.id}`);
@@ -285,8 +265,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'paused',
-                    pausedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    pausedAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`⏸️ Subscription paused: ${subscription.id}`);
@@ -304,8 +284,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'active',
-                    resumedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    resumedAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`▶️ Subscription resumed: ${subscription.id}`);
@@ -323,8 +303,8 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'completed',
-                    completedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    completedAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`✅ Subscription completed: ${subscription.id}`);
@@ -369,10 +349,10 @@ export async function POST(request: NextRequest) {
                     creditsUsed: 0,
                     lastPaymentId: payment?.id,
                     lastPaymentAmount: payment?.amount,
-                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-                    gracePeriodEndsAt: admin.firestore.FieldValue.delete(),
-                    lastPaymentFailure: admin.firestore.FieldValue.delete(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPaymentDate: FieldValue.serverTimestamp(),
+                    gracePeriodEndsAt: FieldValue.delete(),
+                    lastPaymentFailure: FieldValue.delete(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`💳 Invoice paid - Credits reset: ${subscriptionId}`);
@@ -410,14 +390,14 @@ export async function POST(request: NextRequest) {
                 gracePeriodEnds.setDate(gracePeriodEnds.getDate() + GRACE_PERIOD_DAYS);
 
                 await syncSubscriptionToFirestore(subscriptionId, userId, {
-                    gracePeriodEndsAt: admin.firestore.Timestamp.fromDate(gracePeriodEnds),
+                    gracePeriodEndsAt: Timestamp.fromDate(gracePeriodEnds),
                     lastPaymentFailure: {
                         paymentId: payment?.id || 'unknown',
                         errorCode: payment?.error_code || 'unknown',
                         errorDescription: payment?.error_description || 'Payment failed',
-                        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        failedAt: FieldValue.serverTimestamp(),
                     },
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`⚠️ Invoice payment failed (grace period: ${GRACE_PERIOD_DAYS} days): ${subscriptionId}`);
@@ -457,7 +437,6 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Check if this is a MASIV order by looking for the document
-                const db = getDb();
                 const orderRef = db.collection('masiv_orders').doc(orderId);
                 const orderDoc = await orderRef.get();
 
@@ -470,7 +449,7 @@ export async function POST(request: NextRequest) {
                 await orderRef.update({
                     paymentId,
                     status: 'paid',
-                    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+                    paidAt: FieldValue.serverTimestamp(),
                     paymentDetails: {
                         amount: payment.amount,
                         method: payment.method,
@@ -493,7 +472,6 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Check if this is a MASIV order
-                const db = getDb();
                 const orderRef = db.collection('masiv_orders').doc(orderId);
                 const orderDoc = await orderRef.get();
 
@@ -506,7 +484,7 @@ export async function POST(request: NextRequest) {
                 await orderRef.update({
                     status: 'failed',
                     failureReason: payment.error_description || 'Payment failed',
-                    failedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    failedAt: FieldValue.serverTimestamp(),
                 });
 
                 console.log(`❌ MASIV order payment failed: ${orderId}`);

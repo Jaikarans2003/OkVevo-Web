@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, SendTaskSuccessCommand } from '@aws-sdk/client-sfn';
-import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-    if (!saBase64) {
-        throw new Error("Missing Firebase Service Account Key (FIREBASE_SERVICE_ACCOUNT_KEY or FB_SERVICE_ACCOUNT_KEY)");
-    }
-    const serviceAccount = JSON.parse(
-        Buffer.from(saBase64, 'base64').toString('utf-8')
-    );
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
-}
+export const runtime = 'nodejs';
 
 const sfnClient = new SFNClient({
     region: process.env.AWS_REGION || 'us-east-1',
@@ -40,7 +29,6 @@ export async function POST(request: NextRequest) {
             console.warn(`[VEVO] ⚠️ Job ${request_id} failed with status ${status}: ${error || 'No specific error'}`);
             
             // Find the job in Firestore to update status
-            const db = admin.firestore();
             const falJobRef = db.collection('falJobs').doc(request_id);
             const falJobDoc = await falJobRef.get();
 
@@ -66,7 +54,7 @@ export async function POST(request: NextRequest) {
                         status: 'error',
                         errorMessage: errorMessage,
                         errorCode: errorCode,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                        updatedAt: FieldValue.serverTimestamp()
                     });
                     
                     console.log(`[VEVO] ❌ Updated Job ${jobId} status to error (${errorCode}) due to Fal AI failure`);
@@ -78,7 +66,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: true });
         }
 
-        const db = admin.firestore();
         const falJobRef = db.collection('falJobs').doc(request_id);
         const falJobDoc = await falJobRef.get();
 
@@ -127,7 +114,7 @@ export async function POST(request: NextRequest) {
             await jobRef.update({
                 completedAssets,
                 assetResults,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt: FieldValue.serverTimestamp()
             });
 
             console.log(`[VEVO] 📊 AI_Prep progress: ${completedAssets}/${expectedAssets} assets completed`);
@@ -202,7 +189,7 @@ export async function POST(request: NextRequest) {
             await jobRef.update({
                 completedLipsyncResults,
                 lipsyncResults,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt: FieldValue.serverTimestamp()
             });
 
             console.log(`[VEVO] 📊 Lipsync progress: ${completedLipsyncResults}/${expectedLipsyncResults} jobs completed`);

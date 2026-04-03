@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    try {
-        const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY || '';
-        if (key) {
-            const serviceAccount = JSON.parse(
-                Buffer.from(key, 'base64').toString('utf-8')
-            );
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-                storageBucket: process.env.FB_STORAGE_BUCKET,
-            });
-        }
-    } catch (error: any) {
-        console.warn('Firebase admin initialization deferred:', error.message);
-    }
-}
+export const runtime = 'nodejs';
 
 interface CartItem {
     id: string;
@@ -39,27 +24,44 @@ interface CreateOrderRequest {
 
 export async function POST(request: NextRequest) {
     try {
+        console.log('📦 MASIV Order API called');
+        
         const body: CreateOrderRequest = await request.json();
         const { userId, customerName, whatsappNumber, email, items, totalAmount } = body;
 
+        console.log('📦 Request body:', { userId, customerName, whatsappNumber, itemCount: items?.length, totalAmount });
+
         // Validate required fields
         if (!userId || !customerName || !whatsappNumber || !items || items.length === 0 || !totalAmount) {
+            console.error('❌ Missing required fields');
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
+        // Check environment variables
+        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+            console.error('❌ Missing Razorpay credentials in environment');
+            return NextResponse.json(
+                { error: 'Server configuration error: Missing payment credentials' },
+                { status: 500 }
+            );
+        }
+
         // Create Razorpay order using SDK
+        console.log('🔑 Initializing Razorpay SDK...');
         const Razorpay = require('razorpay');
         const razorpay = new Razorpay({
             key_id: process.env.RAZORPAY_KEY_ID,
             key_secret: process.env.RAZORPAY_KEY_SECRET,
         });
+        console.log('✅ Razorpay SDK initialized');
 
         const amountInPaise = Math.round(totalAmount * 100);
         const receipt = `masiv_${Date.now()}_${userId.substring(0, 8)}`;
 
+        console.log('💳 Creating Razorpay order...', { amountInPaise, receipt });
         const orderData = await razorpay.orders.create({
             amount: amountInPaise,
             currency: 'INR',
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
                 orderType: 'masiv',
             },
         });
+        console.log('✅ Razorpay order created:', orderData.id);
 
         const orderId = orderData.id;
 
@@ -94,13 +97,12 @@ export async function POST(request: NextRequest) {
             totalAmount,
             currency: 'INR',
             status: 'pending',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
             paidAt: null,
         };
 
-        const db = admin.firestore();
+        console.log('💾 Saving to Firestore...');
         await db.collection('masiv_orders').doc(orderId).set(orderDoc);
-
         console.log(`✅ Created MASIV order: ${orderId} with status=pending`);
 
         // Return order details to frontend
@@ -112,9 +114,15 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('Error creating MASIV order:', error);
+        console.error('❌ Error creating MASIV order:', error);
+        console.error('Error stack:', error.stack);
+        
+        // Return a proper JSON error response
         return NextResponse.json(
-            { error: error.message || 'Failed to create order' },
+            { 
+                error: error.message || 'Failed to create order',
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            },
             { status: 500 }
         );
     }

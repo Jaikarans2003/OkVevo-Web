@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    const saBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-    if (saBase64) {
-        const serviceAccount = JSON.parse(
-            Buffer.from(saBase64, 'base64').toString('utf-8')
-        );
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
-    }
-}
 
 /**
  * Subscription Check Middleware
@@ -40,8 +28,6 @@ export async function checkSubscription(userId: string): Promise<{
     }
 
     try {
-        const db = admin.firestore();
-
         // Query user's active subscriptions
         const subscriptionsSnapshot = await db
             .collection('users')

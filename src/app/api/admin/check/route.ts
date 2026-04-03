@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import admin from 'firebase-admin';
+import { auth } from '@/lib/firebase-admin';
 import { isAdmin } from '@/services/AdminService';
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-            const serviceAccount = JSON.parse(
-                Buffer.from(serviceAccountKey, 'base64').toString('utf-8')
-            );
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        }
-    } catch (error) {
-        console.error('Failed to initialize Firebase Admin:', error);
-    }
-}
+export const runtime = 'nodejs';
+
 
 export async function GET(request: NextRequest) {
     try {
@@ -28,7 +13,7 @@ export async function GET(request: NextRequest) {
         }
 
         const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await getAuth().verifyIdToken(token);
+        const decodedToken = await auth.verifyIdToken(token);
         const email = decodedToken.email;
 
         if (isAdmin(email)) {

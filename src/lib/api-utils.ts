@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import admin from 'firebase-admin';
+import { auth } from '@/lib/firebase-admin';
+import type { DecodedIdToken } from 'firebase-admin/auth';
 
-// Initialize Firebase Admin globally to avoid multiple reitialization errors
-if (!admin.apps.length) {
-    try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-            const serviceAccount = JSON.parse(
-                Buffer.from(serviceAccountKey, 'base64').toString('utf-8')
-            );
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        }
-    } catch (error) {
-        console.error('Failed to initialize Firebase Admin in API Utils:', error);
-    }
-}
 
 // --- Rate Limiting (In-Memory for MVP) ---
 // Using Map for MVP as requested instead of external Redis for simplicity
@@ -76,7 +60,7 @@ export const apiSuccess = (data: any = {}) => {
 // --- Wrapper Types ---
 interface ApiContext {
     userId: string;
-    decodedToken?: admin.auth.DecodedIdToken;
+    decodedToken?: DecodedIdToken;
 }
 
 export type ProtectedHandler = (req: NextRequest, ctx: ApiContext) => Promise<NextResponse>;
@@ -108,7 +92,7 @@ export const apiHandler = (
 
                 const token = authHeader.split('Bearer ')[1];
                 try {
-                    decodedToken = await getAuth().verifyIdToken(token);
+                    decodedToken = await auth.verifyIdToken(token);
                     userId = decodedToken.uid;
                 } catch (error) {
                     return apiError('UNAUTHORIZED', 'Invalid or expired token', 401);
