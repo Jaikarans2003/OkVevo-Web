@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Wifi, WifiOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Camera, Wifi, WifiOff, CheckCircle, XCircle, Loader2, SwitchCamera } from 'lucide-react';
 import { 
   startHeartbeat, 
   stopHeartbeat, 
@@ -21,6 +21,7 @@ export default function BoothCameraPage() {
   const [lastPingTime, setLastPingTime] = useState<number>(Date.now());
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment'); // Default to back camera
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,10 +40,10 @@ export default function BoothCameraPage() {
 
     async function initCamera() {
       try {
-        console.log('Requesting camera access...');
+        console.log('Requesting camera access with facingMode:', facingMode);
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: 'user',
+            facingMode: facingMode,
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           }
@@ -96,7 +97,7 @@ export default function BoothCameraPage() {
         cameraStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isConnected]);
+  }, [isConnected, facingMode]);
 
   // Connect to session
   useEffect(() => {
@@ -144,6 +145,20 @@ export default function BoothCameraPage() {
     };
   }, [sessionId]);
 
+  // Auto-capture when new request arrives
+  useEffect(() => {
+    if (!currentRequest || currentRequest.status !== 'pending' || !isVideoReady || isCapturing) {
+      return;
+    }
+
+    // Auto-capture after a short delay to ensure camera is ready
+    const captureTimer = setTimeout(() => {
+      capturePhoto();
+    }, 500);
+
+    return () => clearTimeout(captureTimer);
+  }, [currentRequest, isVideoReady]);
+
   const handleSessionIdSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanSessionId = sessionId.trim().toUpperCase();
@@ -153,6 +168,11 @@ export default function BoothCameraPage() {
     } else {
       alert('Invalid session ID. Please enter only letters and numbers (e.g., BOOTH1)');
     }
+  };
+
+  const toggleCamera = () => {
+    setIsVideoReady(false);
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
   const capturePhoto = async () => {
@@ -267,6 +287,18 @@ export default function BoothCameraPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Camera Switch Button */}
+          <button
+            onClick={toggleCamera}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+            title="Switch Camera"
+          >
+            <SwitchCamera className="w-4 h-4 text-[#FF6B35]" />
+            <span className="text-xs font-bold text-white/70">
+              {facingMode === 'environment' ? 'Back' : 'Front'}
+            </span>
+          </button>
+
           {/* Heartbeat indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             {pingStatus === 'active' ? (
@@ -340,31 +372,27 @@ export default function BoothCameraPage() {
         )}
       </div>
 
-      {/* Capture Button */}
+      {/* Auto-Capture Status - No Manual Button */}
       {currentRequest && currentRequest.status === 'pending' && (
         <div className="p-6 border-t border-white/10">
-          <button
-            onClick={capturePhoto}
-            disabled={isCapturing || !isVideoReady}
-            className="w-full py-6 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-black uppercase tracking-widest rounded-2xl transition-all text-lg flex items-center justify-center gap-3"
-          >
+          <div className="w-full py-6 bg-white/5 border border-white/10 text-white/50 font-bold uppercase tracking-widest rounded-2xl text-center">
             {isCapturing ? (
-              <>
-                <Loader2 className="w-6 h-6 animate-spin" />
-                Capturing...
-              </>
+              <div className="flex items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-[#FF6B35]" />
+                <span className="text-[#FF6B35]">Auto-Capturing...</span>
+              </div>
             ) : !isVideoReady ? (
-              <>
+              <div className="flex items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin" />
                 Camera Initializing...
-              </>
+              </div>
             ) : (
-              <>
-                <Camera className="w-6 h-6" />
-                Capture Photo
-              </>
+              <div className="flex items-center justify-center gap-3">
+                <Camera className="w-6 h-6 text-white/30" />
+                Waiting for Auto-Capture Trigger...
+              </div>
             )}
-          </button>
+          </div>
         </div>
       )}
     </div>

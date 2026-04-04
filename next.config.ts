@@ -4,6 +4,31 @@ const nextConfig: NextConfig = {
     outputFileTracingRoot: process.cwd(),
     serverExternalPackages: ['firebase-admin'],
     
+    webpack: (config, { isServer, webpack }) => {
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                net: false,
+                tls: false,
+                crypto: false,
+                path: false,
+                stream: false,
+                util: false,
+                buffer: false,
+            };
+            
+            // Only ignore firebase-admin on client side
+            config.plugins.push(
+                new webpack.IgnorePlugin({
+                    resourceRegExp: /^(firebase-admin|@google-cloud\/firestore|@google-cloud\/storage)$/,
+                })
+            );
+        }
+
+        return config;
+    },
+    
     async rewrites() {
         return [
             {

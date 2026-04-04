@@ -761,6 +761,14 @@ export default function OkvevoMasivPage() {
         fullBody: 0,
         face: 0
     });
+    const [countdown, setCountdown] = useState<{ fullBody: number | null, face: number | null }>({
+        fullBody: null,
+        face: null
+    });
+    const [uploadingPhoto, setUploadingPhoto] = useState<{ fullBody: boolean, face: boolean }>({
+        fullBody: false,
+        face: false
+    });
 
     // Fetch Banners from Firestore
     useEffect(() => {
@@ -924,8 +932,14 @@ export default function OkvevoMasivPage() {
         }
     };
 
-    // Booth Camera: Request photo capture
-    const requestPhotoCapture = async (slotId: 'fullBody' | 'face') => {
+    // Booth Camera: Start countdown and auto-capture
+    const startCountdownAndCapture = async (slotId: 'fullBody' | 'face') => {
+        // Prevent capture if any photo is being uploaded
+        if (uploadingPhoto.fullBody || uploadingPhoto.face) {
+            alert('Please wait for the current photo to finish uploading');
+            return;
+        }
+
         if (!boothSessionId) {
             alert('Please configure booth session first');
             setShowSessionConfig(true);
@@ -945,48 +959,74 @@ export default function OkvevoMasivPage() {
             return;
         }
 
-        try {
-            const requestId = await createPhotoRequest(boothSessionId, slotId, attemptCount);
-
-            // Track pending request
-            setPendingRequests(prev => new Map(prev).set(requestId, slotId));
-
-            // Update attempt count
-            setPhotoAttempts(prev => ({
-                ...prev,
-                [slotId]: attemptCount
-            }));
-
-            // Listen for response
-            const unsubscribe = listenToResponse(boothSessionId, requestId, (response) => {
-                if (response && response.status === 'success') {
-                    // Update captured photos
-                    setCapturedPhotos(prev => ({
-                        ...prev,
-                        [slotId]: response.imageUrl
-                    }));
-
-                    // Also set the old state for compatibility with existing cart logic
-                    if (slotId === 'fullBody') {
-                        setFullBodyImage(response.imageUrl);
-                    } else {
-                        setFaceCloseUpImage(response.imageUrl);
-                    }
-
-                    // Remove from pending
-                    setPendingRequests(prev => {
-                        const newMap = new Map(prev);
-                        newMap.delete(requestId);
-                        return newMap;
-                    });
-
-                    unsubscribe();
+        // Start 5-second countdown
+        setCountdown(prev => ({ ...prev, [slotId]: 5 }));
+        
+        // Countdown interval
+        const countdownInterval = setInterval(() => {
+            setCountdown(prev => {
+                const currentCount = prev[slotId];
+                if (currentCount === null || currentCount <= 1) {
+                    clearInterval(countdownInterval);
+                    return { ...prev, [slotId]: null };
                 }
+                return { ...prev, [slotId]: currentCount - 1 };
             });
-        } catch (error) {
-            console.error('Error requesting photo capture:', error);
-            alert('Failed to request photo capture');
-        }
+        }, 1000);
+
+        // Auto-capture after 5 seconds
+        setTimeout(async () => {
+            try {
+                const requestId = await createPhotoRequest(boothSessionId, slotId, attemptCount);
+
+                // Track pending request
+                setPendingRequests(prev => new Map(prev).set(requestId, slotId));
+
+                // Update attempt count
+                setPhotoAttempts(prev => ({
+                    ...prev,
+                    [slotId]: attemptCount
+                }));
+
+                // Listen for response
+                const unsubscribe = listenToResponse(boothSessionId, requestId, (response) => {
+                    if (response && response.status === 'success') {
+                        // Show uploading state
+                        setUploadingPhoto(prev => ({ ...prev, [slotId]: true }));
+
+                        // Update captured photos
+                        setCapturedPhotos(prev => ({
+                            ...prev,
+                            [slotId]: response.imageUrl
+                        }));
+
+                        // Also set the old state for compatibility with existing cart logic
+                        if (slotId === 'fullBody') {
+                            setFullBodyImage(response.imageUrl);
+                        } else {
+                            setFaceCloseUpImage(response.imageUrl);
+                        }
+
+                        // Hide uploading state after image is set
+                        setTimeout(() => {
+                            setUploadingPhoto(prev => ({ ...prev, [slotId]: false }));
+                        }, 800);
+
+                        // Remove from pending
+                        setPendingRequests(prev => {
+                            const newMap = new Map(prev);
+                            newMap.delete(requestId);
+                            return newMap;
+                        });
+
+                        unsubscribe();
+                    }
+                });
+            } catch (error) {
+                console.error('Error requesting photo capture:', error);
+                alert('Failed to request photo capture');
+            }
+        }, 5000);
     };
 
     // Booth Camera: Reset session
@@ -1482,9 +1522,10 @@ export default function OkvevoMasivPage() {
                                                                 e.stopPropagation();
                                                                 setFullBodyImage(null);
                                                             }}
-                                                            className="text-red-500 hover:text-red-400 transition-colors"
+                                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FF6B35]/10 hover:bg-[#FF6B35]/20 text-[#FF6B35] rounded-lg transition-colors text-[11px] font-bold"
                                                         >
-                                                            <Trash2 size={14} />
+                                                            <RotateCcw size={12} />
+                                                            <span>Re-Take</span>
                                                         </button>
                                                     )}
                                                 </div>
@@ -1495,21 +1536,59 @@ export default function OkvevoMasivPage() {
                                                                 : 'border-[#FF6B35]/30'
                                                             }`}
                                                     >
-                                                        {fullBodyImage ? (
+                                                        {(uploadingPhoto.fullBody || Array.from(pendingRequests.values()).includes('fullBody')) ? (
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <div className="relative w-20 h-20 mb-4">
+                                                                    <div className="absolute inset-0 border-4 border-[#FF6B35]/20 rounded-full" />
+                                                                    <motion.div
+                                                                        animate={{ rotate: 360 }}
+                                                                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                                                        className="absolute inset-0 border-4 border-[#FF6B35] border-t-transparent rounded-full"
+                                                                    />
+                                                                </div>
+                                                                <div className="text-lg font-black text-[#FF6B35] mb-1 animate-pulse">
+                                                                    Displaying a
+                                                                </div>
+                                                                <div className="text-2xl font-black text-white tracking-tight">
+                                                                    Masterpiece
+                                                                </div>
+                                                                <div className="flex gap-1 mt-3">
+                                                                    {[0, 1, 2].map(i => (
+                                                                        <motion.div
+                                                                            key={i}
+                                                                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                                                                            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
+                                                                            className="w-1.5 h-1.5 rounded-full bg-[#FF6B35]"
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : fullBodyImage ? (
                                                             <img src={fullBodyImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
-                                                                <button
-                                                                    onClick={() => requestPhotoCapture('fullBody')}
-                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('fullBody')}
-                                                                    className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-xs rounded-lg transition-all"
-                                                                >
-                                                                    {Array.from(pendingRequests.values()).includes('fullBody') ? 'Capturing...' : 'Tap to Capture'}
-                                                                </button>
-                                                                <span className="text-white/30 text-[11px] mt-2">
-                                                                    {photoAttempts.fullBody > 0 && `Attempt ${photoAttempts.fullBody}/3`}
-                                                                </span>
+                                                                {countdown.fullBody === null ? (
+                                                                    <>
+                                                                        <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                        <button
+                                                                            onClick={() => startCountdownAndCapture('fullBody')}
+                                                                            disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('fullBody') || uploadingPhoto.fullBody || uploadingPhoto.face}
+                                                                            className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-xs rounded-lg transition-all"
+                                                                        >
+                                                                            {Array.from(pendingRequests.values()).includes('fullBody') ? 'Capturing...' : 'Tap to Capture'}
+                                                                        </button>
+                                                                        <span className="text-white/30 text-[11px] mt-2">
+                                                                            {photoAttempts.fullBody > 0 && `Attempt ${photoAttempts.fullBody}/3`}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center justify-center">
+                                                                        <div className="text-8xl font-black text-[#FF6B35] mb-2 animate-pulse">
+                                                                            {countdown.fullBody}
+                                                                        </div>
+                                                                        <span className="text-white/60 text-sm font-bold uppercase tracking-wider">Get Ready!</span>
+                                                                    </div>
+                                                                )}
                                                             </>
                                                         )}
                                                     </div>
@@ -1529,9 +1608,10 @@ export default function OkvevoMasivPage() {
                                                                 e.stopPropagation();
                                                                 setFaceCloseUpImage(null);
                                                             }}
-                                                            className="text-red-500 hover:text-red-400 transition-colors"
+                                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-[11px] font-bold"
                                                         >
-                                                            <Trash2 size={14} />
+                                                            <RotateCcw size={12} />
+                                                            <span>Re-Take</span>
                                                         </button>
                                                     )}
                                                 </div>
@@ -1542,21 +1622,59 @@ export default function OkvevoMasivPage() {
                                                                 : 'border-white/10'
                                                             }`}
                                                     >
-                                                        {faceCloseUpImage ? (
+                                                        {(uploadingPhoto.face || Array.from(pendingRequests.values()).includes('face')) ? (
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <div className="relative w-20 h-20 mb-4">
+                                                                    <div className="absolute inset-0 border-4 border-white/20 rounded-full" />
+                                                                    <motion.div
+                                                                        animate={{ rotate: 360 }}
+                                                                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                                                        className="absolute inset-0 border-4 border-white border-t-transparent rounded-full"
+                                                                    />
+                                                                </div>
+                                                                <div className="text-lg font-black text-white/70 mb-1 animate-pulse">
+                                                                    Displaying a
+                                                                </div>
+                                                                <div className="text-2xl font-black text-white tracking-tight">
+                                                                    Masterpiece
+                                                                </div>
+                                                                <div className="flex gap-1 mt-3">
+                                                                    {[0, 1, 2].map(i => (
+                                                                        <motion.div
+                                                                            key={i}
+                                                                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                                                                            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
+                                                                            className="w-1.5 h-1.5 rounded-full bg-white"
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : faceCloseUpImage ? (
                                                             <img src={faceCloseUpImage} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[1.5rem]" />
                                                         ) : (
                                                             <>
-                                                                <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
-                                                                <button
-                                                                    onClick={() => requestPhotoCapture('face')}
-                                                                    disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('face')}
-                                                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/20 text-white font-bold text-xs rounded-lg transition-all"
-                                                                >
-                                                                    {Array.from(pendingRequests.values()).includes('face') ? 'Capturing...' : 'Tap to Capture'}
-                                                                </button>
-                                                                <span className="text-white/30 text-[11px] mt-2">
-                                                                    {photoAttempts.face > 0 && `Attempt ${photoAttempts.face}/3`}
-                                                                </span>
+                                                                {countdown.face === null ? (
+                                                                    <>
+                                                                        <Camera strokeWidth={1.5} className="w-8 h-8 text-white/40 mb-3" />
+                                                                        <button
+                                                                            onClick={() => startCountdownAndCapture('face')}
+                                                                            disabled={!boothSessionId || Array.from(pendingRequests.values()).includes('face') || uploadingPhoto.fullBody || uploadingPhoto.face}
+                                                                            className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/20 text-white font-bold text-xs rounded-lg transition-all"
+                                                                        >
+                                                                            {Array.from(pendingRequests.values()).includes('face') ? 'Capturing...' : 'Tap to Capture'}
+                                                                        </button>
+                                                                        <span className="text-white/30 text-[11px] mt-2">
+                                                                            {photoAttempts.face > 0 && `Attempt ${photoAttempts.face}/3`}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center justify-center">
+                                                                        <div className="text-8xl font-black text-white mb-2 animate-pulse">
+                                                                            {countdown.face}
+                                                                        </div>
+                                                                        <span className="text-white/60 text-sm font-bold uppercase tracking-wider">Get Ready!</span>
+                                                                    </div>
+                                                                )}
                                                             </>
                                                         )}
                                                     </div>
