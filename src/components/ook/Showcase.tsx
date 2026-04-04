@@ -9,16 +9,16 @@ import ButtonWithIconDemo from '@/components/ui/button-with-icon';
 
 const tabs = [
     {
-        name: 'Create',
-        video: '/videos/script.mp4',
+        name: 'Script',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Ffirst.mp4?alt=media&token=354873aa-d2c7-47e8-9405-6baf4e2b9910',
     },
     {
         name: 'Animate',
-        video: '/videos/influencer.mp4',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fsecond.mp4?alt=media&token=9a1e3032-3cc8-49d9-812e-0a69ffc3072a',
     },
     {
         name: 'Publish',
-        video: '/videos/aiproduct.mp4',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Ffinalvideo.webm?alt=media&token=4fa74a47-d11d-4846-8db8-69c058bb2901',
     }
 ];
 

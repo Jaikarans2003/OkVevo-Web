@@ -45,12 +45,14 @@ interface MasivOrder {
     
     // New format (multiple items)
     items?: Array<{
-        trendId: string;
-        trendName: string;
-        trendType: string;
-        price: number;
-        fullBodyImageUrl: string;
-        faceImageUrl: string | null;
+        trendId?: string;
+        id?: string;
+        trendName?: string;
+        name?: string;
+        trendType?: string;
+        price?: number;
+        fullBodyImageUrl?: string;
+        faceImageUrl?: string | null;
     }>;
     
     totalAmount?: number;
@@ -293,7 +295,7 @@ function TrendRequestsAdmin() {
                                                         </p>
                                                         <div className="text-[10px] text-gray-600 space-y-0.5">
                                                             {order.items.map((item, idx) => (
-                                                                <p key={idx}>• {item.trendName}</p>
+                                                                <p key={idx}>• {item.trendName || item.name || 'Unknown Trend'}</p>
                                                             ))}
                                                         </div>
                                                         <div className="flex gap-2 mt-2">
@@ -339,7 +341,7 @@ function TrendRequestsAdmin() {
                                                         order.items.map((item, idx) => (
                                                             <div key={idx} className="flex gap-2">
                                                                 <div 
-                                                                    onClick={() => setSelectedImage(item.fullBodyImageUrl)}
+                                                                    onClick={() => setSelectedImage(item.fullBodyImageUrl || null)}
                                                                     className="w-12 h-12 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
                                                                 >
                                                                     <img src={item.fullBodyImageUrl} alt="Full Body" className="w-full h-full object-cover" />
@@ -349,7 +351,7 @@ function TrendRequestsAdmin() {
                                                                 </div>
                                                                 {item.faceImageUrl && (
                                                                     <div 
-                                                                        onClick={() => setSelectedImage(item.faceImageUrl!)}
+                                                                        onClick={() => setSelectedImage(item.faceImageUrl || null)}
                                                                         className="w-12 h-12 rounded-lg bg-[#222] border border-white/10 overflow-hidden cursor-pointer hover:border-[#FF6B35] transition-colors relative group/img"
                                                                     >
                                                                         <img src={item.faceImageUrl} alt="Face" className="w-full h-full object-cover" />

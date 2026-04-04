@@ -1151,7 +1151,8 @@ function AIInfluencerWorkstation() {
                                                 <motion.div
                                                     key="complete"
                                                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                                                    className="px-6 py-8 border-b border-white/5 bg-green-500/5 shrink-0 space-y-5 flex flex-col items-center text-center"
+                                                    data-lenis-prevent
+                                                    className="px-6 py-8 border-b border-white/5 bg-green-500/5 shrink min-h-0 max-h-[55vh] overflow-y-auto custom-scrollbar space-y-5 flex flex-col items-center text-center"
                                                 >
                                                     <div className="w-16 h-16 rounded-[2rem] bg-green-500/10 border border-green-500/30 flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.1)]">
                                                         <CheckCircle2 size={32} className="text-green-500" strokeWidth={2.5} />
@@ -1210,7 +1211,7 @@ function AIInfluencerWorkstation() {
                                                                     transition={{ duration: 0.25 }}
                                                                     className="overflow-hidden"
                                                                 >
-                                                                    <div className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left">
+                                                                    <div data-lenis-prevent className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left max-h-[300px] overflow-y-auto custom-scrollbar">
 
                                                                         {/* ── Marquee Section ── */}
                                                                         <div className="space-y-2">
@@ -1640,14 +1641,16 @@ function AIInfluencerWorkstation() {
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="w-full bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
+                                                className="w-full shrink-0 bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
                                             >
                                                 <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest mb-2 flex items-center gap-1">
                                                     <FileText size={8} /> Script Preview
                                                 </p>
-                                                <p className="text-[10px] text-black/60 dark:text-white/50 leading-relaxed line-clamp-5">
-                                                    {editableScript}
-                                                </p>
+                                                <div data-lenis-prevent className="max-h-[100px] overflow-y-auto custom-scrollbar pr-2">
+                                                    <p className="text-[10px] text-black/60 dark:text-white/50 leading-relaxed whitespace-pre-wrap">
+                                                        {editableScript}
+                                                    </p>
+                                                </div>
                                             </motion.div>
                                         )}
 
@@ -1656,9 +1659,9 @@ function AIInfluencerWorkstation() {
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="w-full bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 space-y-3 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
+                                                className="w-full flex-1 flex flex-col min-h-0 bg-white/[0.02] border border-orange-500/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(234,88,12,0.15)] ring-1 ring-orange-500/10"
                                             >
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-center justify-between mb-3 shrink-0">
                                                     <p className="text-[8px] uppercase font-bold text-black/30 dark:text-white/30 tracking-widest flex items-center gap-1.5">
                                                         <Sparkles size={8} /> Visual Assets
                                                     </p>
@@ -1672,7 +1675,7 @@ function AIInfluencerWorkstation() {
                                                 {imageTimeline.length > 0 && (
                                                     <div 
                                                         data-lenis-prevent
-                                                        className="flex-1 flex flex-col gap-3 overflow-y-auto pb-1 pr-1 no-scrollbar"
+                                                        className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar pb-1 pr-2"
                                                     >
                                                         {imageTimeline.map((item, i) => (
                                                             <div key={i} className="flex-shrink-0 w-full space-y-1">

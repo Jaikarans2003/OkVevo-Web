@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
     outputFileTracingRoot: process.cwd(),
     serverExternalPackages: ['firebase-admin'],
+    turbopack: {},
     
     webpack: (config, { isServer, webpack }) => {
         if (!isServer) {
