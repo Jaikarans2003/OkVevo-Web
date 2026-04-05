@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -9,37 +9,45 @@ import ButtonWithIconDemo from '@/components/ui/button-with-icon';
 
 const tabs = [
     {
-        name: 'Script',
-        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Ffirst.mp4?alt=media&token=354873aa-d2c7-47e8-9405-6baf4e2b9910',
+        name: 'Concept',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2FfirstPart.mp4?alt=media&token=b733b4d7-410c-4b41-b3c0-e2408345cb8f',
     },
     {
-        name: 'Animate',
-        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fsecond.mp4?alt=media&token=9a1e3032-3cc8-49d9-812e-0a69ffc3072a',
+        name: 'Create',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fsecondddd.mp4?alt=media&token=8ddb26de-79d5-46b2-9013-c7843de5ab73',
     },
     {
-        name: 'Publish',
-        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Ffinalvideo.webm?alt=media&token=4fa74a47-d11d-4846-8db8-69c058bb2901',
+        name: 'Deliver',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fdemo.mp4?alt=media&token=5f931c70-abea-4a0d-9261-95df782d1d28',
     }
 ];
 
 const Showcase = () => {
     const [activeTab, setActiveTab] = useState(0);
     const [mounted, setMounted] = useState(false);
+    const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-
-    // Cycle through tabs automatically every 9 seconds
     useEffect(() => {
         if (!mounted) return;
-        const interval = setInterval(() => {
-            setActiveTab((prevTab) => (prevTab + 1) % tabs.length);
-        }, 9000);
-
-        return () => clearInterval(interval);
-    }, [mounted]);
+        videoRefs.current.forEach((video, index) => {
+            if (!video) return;
+            if (index === activeTab) {
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch((e) => console.log("Play interrupted:", e));
+                }
+            } else {
+                video.pause();
+                if (video.currentTime > 0) {
+                    video.currentTime = 0;
+                }
+            }
+        });
+    }, [activeTab, mounted]);
 
     return (
         <section id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
@@ -98,7 +106,6 @@ const Showcase = () => {
                                             src={tabs[0].video}
                                             autoPlay
                                             muted
-                                            loop
                                             playsInline
                                             className="w-full h-full object-cover"
                                             suppressHydrationWarning
@@ -107,30 +114,37 @@ const Showcase = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={activeTab}
-                                        initial={{ opacity: 0, scale: 1.02 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.4, ease: "easeOut" }}
-                                        className="absolute inset-0 bg-[#080808]"
-                                    >
-                                        <div className="relative w-full h-full">
-                                            <video
-                                                key={tabs[activeTab].video}
-                                                src={tabs[activeTab].video}
-                                                autoPlay
-                                                muted
-                                                loop
-                                                playsInline
-                                                className="w-full h-full object-cover"
-                                                suppressHydrationWarning
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
-                                        </div>
-                                    </motion.div>
-                                </AnimatePresence>
+                                <>
+                                    {tabs.map((tab, index) => (
+                                        <motion.div
+                                            key={tab.video}
+                                            initial={false}
+                                            animate={{ opacity: activeTab === index ? 1 : 0, scale: activeTab === index ? 1 : 1.02 }}
+                                            transition={{ duration: 0.4, ease: "easeOut" }}
+                                            className={`absolute inset-0 bg-[#080808] ${activeTab === index ? "z-10 pointer-events-auto" : "z-0 pointer-events-none"}`}
+                                        >
+                                            <div className="relative w-full h-full">
+                                                <video
+                                                    ref={(el) => {
+                                                        videoRefs.current[index] = el;
+                                                    }}
+                                                    src={tab.video}
+                                                    preload="auto"
+                                                    muted
+                                                    playsInline
+                                                    className="w-full h-full object-cover"
+                                                    suppressHydrationWarning
+                                                    onEnded={() => {
+                                                        if (activeTab === index) {
+                                                            setActiveTab((prevTab) => (prevTab + 1) % tabs.length);
+                                                        }
+                                                    }}
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </>
                             )}
                         </div>
                     </div>
