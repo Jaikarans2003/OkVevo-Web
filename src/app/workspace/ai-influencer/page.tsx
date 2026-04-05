@@ -19,6 +19,7 @@ import { generateJobId } from '../../../services/AIInfluencerService';
 import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
 import { useWorkspaceSession } from '@/hooks/useWorkspaceSession';
 import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
+import { checkCredits, deductCredits } from '@/services/CreditsService';
 
 // ─── Types ─────────────────────────────────────────────────
 type ChatStep =
@@ -471,6 +472,11 @@ function AIInfluencerWorkstation() {
 
     // ── Step 2b: Pacing → Phase 1 Script Generation ─────
     const handlePacingSelect = async (pacing: 'calm' | 'fast') => {
+        if (!user?.uid) {
+            addAssistant('❌ Please sign in to continue.');
+            return;
+        }
+
         setTtsPacing(pacing);
         addUser(`${pacing === 'calm' ? 'Calm & Steady' : 'Fast & Punchy'} style`);
 
@@ -516,7 +522,30 @@ function AIInfluencerWorkstation() {
                 setImageTimeline(momentsWithLayout);
             }
 
-            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
+            // ── DEDUCT CREDITS AFTER SUCCESSFUL SCRIPT GENERATION ──
+            // Generate jobId for credit transaction tracking
+            const newJobId = generateJobId();
+            setJobId(newJobId);
+
+            // Check if user has sufficient credits
+            const creditCheck = await checkCredits(user.uid, 'AI_INFLUENCER');
+            if (!creditCheck.allowed) {
+                addAssistant(`❌ ${creditCheck.error || 'Insufficient credits. You need 200 credits to generate an AI Influencer video.'}`);
+                setIsGenerating(false);
+                setChatStep('tts-pacing');
+                return;
+            }
+
+            // Deduct 200 credits after script is analyzed and generated
+            await deductCredits(
+                user.uid,
+                200,
+                'AI_INFLUENCER',
+                newJobId,
+                'AI Influencer video generation - script analyzed'
+            );
+
+            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n💳 200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
             setChatStep('edit-script');
             setIsGenerating(false);
         } catch (err: any) {
@@ -534,13 +563,12 @@ function AIInfluencerWorkstation() {
 
     // ── Step 4: Confirm script → Phase 2 Start Step Function ───────
     const handleConfirmScript = async () => {
-        if (!user?.uid || !editableScript || !selectedDuration) {
+        if (!user?.uid || !editableScript || !selectedDuration || !jobId) {
             addAssistant('❌ Missing required data to start video generation.');
             return;
         }
 
-        const newJobId = generateJobId();
-        setJobId(newJobId);
+        // Use existing jobId from handleScriptSubmit (where credits were deducted)
 
         addUser('[Script confirmed]');
         addAssistant('Script? DONE. VEVO stamped it APPROVED. 🔒');
@@ -548,9 +576,9 @@ function AIInfluencerWorkstation() {
 
         try {
             // Save initial job state to Firestore
-            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', newJobId);
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
             await setDoc(jobRef, {
-                jobId: newJobId,
+                jobId: jobId,
                 userId: user.uid,
                 script: editableScript,
                 moments: imageTimeline.map(m => ({

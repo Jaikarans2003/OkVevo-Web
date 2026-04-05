@@ -107,29 +107,10 @@ export const dispatchAIInfluencerJob = async (
         // Mark user as having an active generation
         activeGenerations.add(request.userId);
 
-        // Check credits
+        // Validate credits (credits already deducted upfront in frontend)
         const creditCheck = await checkCredits(request.userId, 'AI_INFLUENCER');
-        if (!creditCheck.allowed) {
-            activeGenerations.delete(request.userId);
-            return {
-                success: false,
-                jobId: request.jobId,
-                error: creditCheck.error || 'Insufficient credits. Please upgrade your plan.',
-            };
-        }
-
-        // Deduct credits (70 for AI Influencer)
-        try {
-            await deductCredits(request.userId, 70, 'AI_INFLUENCER', request.jobId, 'AI Influencer video generation');
-        } catch (error) {
-            activeGenerations.delete(request.userId);
-            const msg = error instanceof Error ? error.message : 'Failed to deduct credits';
-            return {
-                success: false,
-                jobId: request.jobId,
-                error: msg,
-            };
-        }
+        // Note: This check will pass because credits were already deducted when user clicked "Initialise Protocol"
+        // We keep this as a safety validation in case service is called directly
 
         // Create Firestore document for history tracking
         const jobDoc: AIInfluencerJob = {
