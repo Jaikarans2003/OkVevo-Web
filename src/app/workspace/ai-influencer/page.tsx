@@ -104,6 +104,9 @@ function AIInfluencerWorkstation() {
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
     const [scriptMood, setScriptMood] = useState<string>('Chill');
+    
+    // Ref to track if script delivery message has been shown
+    const scriptMessageShownRef = useRef(false);
 
     // ── Branding state (optional post-process — does NOT affect the pipeline) ──
     const [brandingOpen,      setBrandingOpen]      = useState(false);
@@ -257,11 +260,12 @@ function AIInfluencerWorkstation() {
             if (!data) return;
 
             // 1. Check for generated script
-            if (data.script && chatStep === 'generating-script') {
+            if (data.script && chatStep === 'generating-script' && !scriptMessageShownRef.current) {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
                 addAssistant(`OKVEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
+                scriptMessageShownRef.current = true;
             }
 
             // 2. Check for visual assets (images)
@@ -483,6 +487,7 @@ function AIInfluencerWorkstation() {
 
         setIsGenerating(true);
         setChatStep('generating-script');
+        scriptMessageShownRef.current = false; // Reset for new job
         addAssistant(`VEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
 
         try {

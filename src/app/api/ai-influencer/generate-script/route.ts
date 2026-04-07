@@ -112,6 +112,8 @@ export const POST = apiHandler(async (request, ctx) => {
     const isFast = ttsPacing === 'fast';
     let minWords = 0;
     let maxWords = 0;
+    let targetWords = 0;
+    let targetChars = 0;
     let momentsCount = 0;
     let minDuration = 0;
 
@@ -136,8 +138,10 @@ export const POST = apiHandler(async (request, ctx) => {
         momentsCount = 5;
     } else if (duration === 60) {
         minDuration = 57;
-        minWords = isFast ? 120 : 92;
-        maxWords = isFast ? 140 : 110;
+        targetWords = isFast ? 116 : 92;
+        targetChars = isFast ? 641 : 563;
+        minWords = targetWords - 2;
+        maxWords = targetWords + 2;
         momentsCount = 8;
     }
 
@@ -149,12 +153,19 @@ export const POST = apiHandler(async (request, ctx) => {
             ? `\n\n⚠️ CRITICAL: Your previous attempt only had ${retryInfo.prevWordCount} words, which is FAILING the requirement. The MUST-HAVE MINIMUM is ${minWords} words. You MUST write more content this time. Expand on the ideas, add vivid descriptive details, and use more sophisticated, complete sentences.\n`
             : '';
 
-        const baseRequirements = `
-Requirements for the output script:
-${retryWarning}
+        const strictRequirements = duration === 60 && targetWords > 0
+            ? `
+- ⚠️ STRICT TARGET: EXACTLY ${targetWords} words and ${targetChars} characters (±2 words tolerance).
+- Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
+`
+            : `
 - Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
 - ⚠️ MANDATORY WORD COUNT: The script MUST contain between ${minWords} and ${maxWords} words. This is a HARD CONSTRAINT.
-- Tone: ${toneInstructions}
+`;
+
+        const baseRequirements = `
+Requirements for the output script:
+${retryWarning}${strictRequirements}- Tone: ${toneInstructions}
 - Pacing & Formatting: ${formattingInstructions}
 - Language: Professional spoken English. Only the spoken narration.
 `;
@@ -207,8 +218,25 @@ Output ONLY the final narration script text. No intro, no labels.`;
             .filter(w => w.length > 0 && !/^[.…,;:!?]+$/.test(w))
             .length;
 
-        if (wordCount >= minWords && wordCount <= maxWords + 5) {
-            break;
+        const charCount = scriptText.length;
+        
+        // For 60s videos, enforce strict word and character targets
+        if (duration === 60 && targetWords > 0) {
+            const wordInRange = wordCount >= minWords && wordCount <= maxWords;
+            const charInRange = Math.abs(charCount - targetChars) <= 50; // ±50 chars tolerance
+            
+            if (wordInRange && charInRange) {
+                console.log(`✅ 60s script meets strict targets: ${wordCount} words, ${charCount} chars`);
+                break;
+            } else if (attempt === MAX_RETRIES) {
+                console.warn(`⚠️ Final attempt: ${wordCount} words (target: ${targetWords}), ${charCount} chars (target: ${targetChars})`);
+                break;
+            }
+        } else {
+            // For other durations, use word count only
+            if (wordCount >= minWords && wordCount <= maxWords + 5) {
+                break;
+            }
         }
     }
 
