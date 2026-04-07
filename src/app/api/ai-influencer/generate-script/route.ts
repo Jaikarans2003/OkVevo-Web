@@ -63,8 +63,8 @@ export const POST = apiHandler(async (request, ctx) => {
         momentsCount = 5;
     } else if (duration === 60) {
         minDuration = 57;
-        minWords = isFast ? 180 : 138;
-        maxWords = isFast ? 210 : 165;
+        minWords = isFast ? 120 : 92;
+        maxWords = isFast ? 140 : 110;
         momentsCount = 8;
     }
 
