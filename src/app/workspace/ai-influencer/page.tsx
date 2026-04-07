@@ -103,6 +103,7 @@ function AIInfluencerWorkstation() {
     const [waitTaskToken, setWaitTaskToken] = useState<string | null>(null);
     // Photo asset state
     const [imageTimeline, setImageTimeline] = useState<ImageMoment[]>([]);
+    const [scriptMood, setScriptMood] = useState<string>('Chill');
 
     // ── Branding state (optional post-process — does NOT affect the pipeline) ──
     const [brandingOpen,      setBrandingOpen]      = useState(false);
@@ -508,6 +509,12 @@ function AIInfluencerWorkstation() {
             setGeneratedScript(data.script);
             setEditableScript(data.script);
 
+            // Store mood
+            if (data.mood) {
+                setScriptMood(data.mood);
+                console.log(`🎭 Script mood: ${data.mood}`);
+            }
+
             // Store moments for later use
             if (data.moments && Array.isArray(data.moments)) {
                 const momentsWithLayout: ImageMoment[] = data.moments.map((m: any) => ({
@@ -545,7 +552,7 @@ function AIInfluencerWorkstation() {
                 'AI Influencer video generation - script analyzed'
             );
 
-            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n💳 200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
+            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n🎭 Mood: ${data.mood || 'Chill'}\n💳 200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
             setChatStep('edit-script');
             setIsGenerating(false);
         } catch (err: any) {
@@ -581,6 +588,7 @@ function AIInfluencerWorkstation() {
                 jobId: jobId,
                 userId: user.uid,
                 script: editableScript,
+                mood: scriptMood,
                 moments: imageTimeline.map(m => ({
                     start: m.start,
                     end: m.end,
@@ -683,6 +691,7 @@ function AIInfluencerWorkstation() {
                     gender: selectedGender || 'female',
                     ttsPacing: ttsPacing,
                     audioSampleUrl: audioSampleUrl,
+                    mood: scriptMood,
                     moments: imageTimeline.map(m => ({
                         start: m.start,
                         end: m.end,

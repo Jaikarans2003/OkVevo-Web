@@ -4,6 +4,79 @@ import Groq from 'groq-sdk';
 import { apiHandler, apiSuccess } from '@/lib/api-utils';
 import { z } from 'zod';
 
+// Helper function to adjust moments with proper gaps
+function adjustMomentsWithGaps(
+    rawMoments: any[],
+    duration: number,
+    expectedCount: number,
+    gapDuration: number
+): any[] {
+    if (!rawMoments || rawMoments.length === 0) {
+        throw new Error('No moments provided');
+    }
+    
+    // Sort by start time
+    const sorted = rawMoments.sort((a, b) => a.start - b.start);
+    
+    // Adjust timestamps to ensure gaps
+    const adjusted = [];
+    let currentTime = 0;
+    
+    for (let i = 0; i < Math.min(sorted.length, expectedCount); i++) {
+        const moment = sorted[i];
+        const momentDuration = Math.min(
+            Math.max(moment.end - moment.start, 2), // Min 2 seconds
+            5 // Max 5 seconds per moment
+        );
+        
+        // Ensure moment doesn't exceed video duration
+        if (currentTime + momentDuration > duration) {
+            break;
+        }
+        
+        adjusted.push({
+            start: currentTime,
+            end: currentTime + momentDuration,
+            topic: moment.topic || `Moment ${i + 1}`,
+            prompt: moment.prompt || moment.topic
+        });
+        
+        // Add gap for next moment
+        currentTime += momentDuration + gapDuration;
+    }
+    
+    return adjusted;
+}
+
+// Fallback generator for moments with gaps
+function generateFallbackMomentsWithGaps(
+    duration: number,
+    momentsCount: number,
+    gapDuration: number,
+    scriptText: string
+): any[] {
+    const moments = [];
+    const momentDuration = 3; // Default 3 seconds per moment
+    let currentTime = 0;
+    
+    for (let i = 0; i < momentsCount; i++) {
+        if (currentTime + momentDuration > duration) {
+            break;
+        }
+        
+        moments.push({
+            start: currentTime,
+            end: currentTime + momentDuration,
+            topic: i === 0 ? 'Opening' : i === momentsCount - 1 ? 'Closing' : `Moment ${i + 1}`,
+            prompt: scriptText.substring(i * 100, (i + 1) * 100) || 'Visual moment'
+        });
+        
+        currentTime += momentDuration + gapDuration;
+    }
+    
+    return moments;
+}
+
 const GenerateScriptSchema = z.object({
     script: z.string().nullish(),
     topic: z.string().nullish(),
@@ -148,12 +221,21 @@ Output ONLY the final narration script text. No intro, no labels.`;
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
+    const gapDuration = duration === 30 ? 3 : 2;
+
     const momentsPrompt = `Given this ${duration}-second video script, extract exactly ${momentsCount} key visual moments.
+
+IMPORTANT: Leave ${gapDuration}-second gaps between visual moments for smooth transitions. Visual moments should NOT be continuous.
+
 SCRIPT:
 """
 ${scriptText}
 """
-Output ONLY a JSON array with exactly ${momentsCount} objects: [ { "start": 0, "end": 5, "topic": "Opening hook", "prompt": "detailed image prompt here" } ]`;
+
+Output ONLY a JSON array with exactly ${momentsCount} objects following this pattern:
+- Each moment should have variable duration (2-5 seconds) based on content importance
+- Leave ${gapDuration}-second gaps between moments
+- Example format: [ { "start": 0, "end": 3, "topic": "Opening hook", "prompt": "detailed image prompt here" }, { "start": 5, "end": 8, "topic": "Next moment", "prompt": "..." } ]`;
 
     const momentsResult = await geminiModel.generateContent(momentsPrompt);
     const momentsResponse = await momentsResult.response;
@@ -166,19 +248,50 @@ Output ONLY a JSON array with exactly ${momentsCount} objects: [ { "start": 0, "
     }
 
     let moments = [];
+    
     try {
         moments = JSON.parse(momentsText);
+        
+        // Validate and adjust moments to ensure proper gaps
+        moments = adjustMomentsWithGaps(moments, duration, momentsCount, gapDuration);
+        
     } catch (e) {
-        moments = [
-            { start: 0, end: duration / 3, topic: 'Opening', prompt: scriptText.substring(0, 100) },
-            { start: duration / 3, end: (duration * 2) / 3, topic: 'Middle', prompt: scriptText.substring(100, 200) },
-            { start: (duration * 2) / 3, end: duration, topic: 'Closing', prompt: scriptText.substring(200, 300) },
-        ];
+        // Fallback: Generate moments with proper gaps
+        moments = generateFallbackMomentsWithGaps(duration, momentsCount, gapDuration, scriptText);
     }
+
+    // Step 3: Analyze Script Mood with Gemini
+    const moodPrompt = `Analyze the following video script and classify its overall mood/tone into EXACTLY ONE category.
+
+SCRIPT:
+"""
+${scriptText}
+"""
+
+Categories:
+- Chill: Relaxed, calm, laid-back tone
+- Dramatic: Intense, emotional, high-stakes content
+- Energetic: High-energy, exciting, fast-paced
+- Funny: Humorous, comedic, lighthearted
+- Happy: Positive, uplifting, joyful
+- Suspense: Mysterious, tense, anticipation-building
+
+Output ONLY the category name (one word). No explanation, no extra text.`;
+
+    const moodResult = await geminiModel.generateContent(moodPrompt);
+    const moodResponse = await moodResult.response;
+    let moodText = moodResponse.text().trim();
+
+    // Normalize and validate mood
+    const validMoods = ['Chill', 'Dramatic', 'Energetic', 'Funny', 'Happy', 'Suspense'];
+    let mood = validMoods.find(m => moodText.toLowerCase().includes(m.toLowerCase())) || 'Chill';
+
+    console.log(`🎭 Script mood detected: ${mood}`);
 
     return apiSuccess({
         script: scriptText,
         moments,
+        mood,
         wordCount,
         characterCount: scriptText.length,
         mode: isRawScript ? 'script-transform' : 'topic-generation',
