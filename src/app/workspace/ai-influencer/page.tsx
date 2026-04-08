@@ -202,7 +202,7 @@ function AIInfluencerWorkstation() {
                     setErrorMessage(data.errorMessage || 'Unknown Error occurred');
                     setErrorCode(data.errorCode || '500');
                     setIsGenerating(false);
-                    addAssistant(`💀 VEVO Major Error [${data.errorCode || '500'}]: ${data.errorMessage || 'Something went wrong.'} — We might need to restart this run.`);
+                    addAssistant(`💀 VEVO Major Error 500 — We might need to restart this run.`); //[${data.errorCode || '500'}]: ${data.errorMessage || 'Something went wrong.'}
                 }
 
                 // Update assets in real-time
@@ -245,7 +245,7 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
             console.log('✅ Pipeline resumed successfully');
             setWaitTaskToken(null);
-            addAssistant('🎬 Avatar locked and loaded! VEVO is lip-syncing your masterpiece now. Hold tight.');
+            addAssistant('🎬 Avatar locked and loaded! VEVO is bringing your masterpiece to life. Hold tight.');
         } catch (err: any) {
             console.error('Failed to resume pipeline:', err);
         }
@@ -312,7 +312,7 @@ function AIInfluencerWorkstation() {
                 addAssistant('🎉 OKVEVO DROP! Your video just landed. Watch the monitor — you are about to be iconic.');
                 setIsGenerating(false);
             } else if (data.status === 'error') {
-                addAssistant(`💀 OKVEVO system fault: ${data.errorMessage || 'Video generation failed — something broke in the pipeline. Try again.'}`);
+                addAssistant('💀 OKVEVO system fault: Video generation failed — something broke in the pipeline. Try again.'); //: ${data.errorMessage 
                 setChatStep('preview-audio');
                 setIsGenerating(false);
             }
@@ -416,7 +416,7 @@ function AIInfluencerWorkstation() {
             if (data.brandedVideoUrl) setBrandedVideoUrl(data.brandedVideoUrl);
         } catch (err: any) {
             console.error('Branding error:', err);
-            addAssistant(`💀 Branding pipeline choked: ${err.message} — logo or marquee Lambda issue.`);
+            addAssistant(`💀 Branding pipeline choked:  — logo or marquee Lambda issue, Try again after Sometime.`); //${err.message}
         } finally {
             setIsBranding(false);
         }
@@ -570,7 +570,7 @@ function AIInfluencerWorkstation() {
     // ── Step 3: Generate script ──────────────────────────
     // REDUNDANT - Now handled by Step Function
     const generateScript = async (duration: number, scriptToSend: string) => {
-        console.log('Skipping client-side script generation, Step Function is taking over.');
+        console.log('Sit back and Relax, Vevo is vevvoing');
     };
 
     // ── Step 4: Confirm script → Phase 2 Start Step Function ───────
@@ -609,7 +609,7 @@ function AIInfluencerWorkstation() {
             // console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO couldn't stash the script: ${err.message} — Firestore playing games.`);
+            addAssistant(`💀 OKVEVO couldn't stash the script: Try Again or Contact at info@okvevo.com`); //${err.message}
         }
     };
 
@@ -620,7 +620,7 @@ function AIInfluencerWorkstation() {
 
         setAvatarVideo(file);
         addUser(`[Avatar video uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-        addAssistant('OKVEVO is beaming up your avatar... Firebase is doing its thing 🚀');
+        addAssistant('OKVEVO is beaming up your avatar'); //Uploading AVATAR to Firebase
         setIsGenerating(true);
 
         try {
@@ -638,12 +638,12 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('✅ Avatar received! VEVO sees your face. Now let\'s give it a voice.');
+            addAssistant('VEVO sees your face. Now let\'s give it a voice.');
             addAssistant('Pick Richard or Aurora — or upload a voice sample for VEVO to clone. We go full method here.');
             setChatStep('generating-tts');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 Avatar upload fumbled: ${err.message} — Check file format or size. VEVO only takes quality.`);
+            addAssistant(`💀 Avatar upload fumbled: — Check file format or size. VEVO only takes quality.`); //${err.message}
             setIsGenerating(false);
         }
     };
@@ -677,8 +677,8 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            addAssistant('🚀 VEVO is VEVOING. Pipeline ignited. Sit tight.');
-            addAssistant('Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — VEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
+            // addAssistant('🚀 VEVO is VEVOING. Pipeline ignited. Sit tight.');
+            addAssistant('VEVO is VEVOING, Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — VEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
 
             // Start Step Function with all data
             const authToken = await user.getIdToken();
@@ -715,7 +715,7 @@ function AIInfluencerWorkstation() {
             setChatStep('generating-lipsync');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 Pipeline choked at launch: ${err.message} — SQS or Step Function issue. Try again.`);
+            addAssistant(`💀 Pipeline choked at launch: Vevo made a mistake, Try again or Contact info@okvevo.com.`); //${err.message}
             setIsGenerating(false);
         }
     };
@@ -726,20 +726,20 @@ function AIInfluencerWorkstation() {
 
         // Guard: data URLs can't be fetched by the Lambda — should never reach here now
         if (audioUrl.startsWith('data:')) {
-            addAssistant('❌ Audio is a local blob — OKVEVO cannot use that. Regenerate the voice-over for a proper URL.');
+            addAssistant('❌ Audio is a local blob — VEVO cannot use that. Regenerate the voice-over for a proper URL.');
             setChatStep('generating-tts');
             return;
         }
 
         // Require authentication
         if (!user?.uid) {
-            addAssistant('❌ OKVEVO does not work for strangers. Sign in first, then we party.');
+            addAssistant('❌ VEVO does not work for strangers. Sign in first, then we party.');
             return;
         }
 
         setIsGenerating(true);
         setChatStep('generating-lipsync');
-        addAssistant('🎬 OKVEVO is lip-syncing your avatar with Fal AI... we call this the OKVEVO Kiss. Give it 2–5 mins.');
+        addAssistant('🎬 VEVO is bringing your avatar to life, we call this the VEVO Kiss. Give it 2–5 mins.');
 
         try {
             const authToken = await user.getIdToken();
@@ -760,7 +760,7 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
             addAssistant(`Avatar delivered! OKVEVO is monitoring the render... usually 1–3 mins. Don't touch anything.`);
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO hit a snag: ${err.message}. The pipeline might need a few more seconds — wait and retry.`);
+            addAssistant(`💀 OKVEVO hit a snag: The pipeline might need a few more seconds — wait and retry.`); //${err.message}.
             setChatStep('preview-audio');
             setIsGenerating(false);
         }
@@ -855,9 +855,9 @@ function AIInfluencerWorkstation() {
                                 <div className="flex-1 w-full max-w-full lg:max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
                                     {/* Page Title & Status */}
                                     <div className="flex items-center gap-4 px-2 mb-2">
-                                        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
+                                        {/* <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
                                             <Sparkles size={20} className="text-orange-500" />
-                                        </div>
+                                        </div> */}
                                         <div className="flex flex-col">
                                             <h1 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">AI Influencer Studio</h1>
                                             <div className="flex items-center gap-2 mt-1">
@@ -876,7 +876,7 @@ function AIInfluencerWorkstation() {
                                                 <div className="relative">
                                                     <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat Box</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat</span>
                                             </div>
                                             <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                                 <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">
@@ -1084,11 +1084,11 @@ function AIInfluencerWorkstation() {
                                                                             updatedAt: new Date().toISOString(),
                                                                         }, { merge: true });
 
-                                                                        addAssistant('✅ Voice DNA locked in! Hit Commit Audio Layer and OKVEVO will clone that voice.');
+                                                                        addAssistant('✅ Voice DNA locked in! Hit Commit Audio Layer and VEVO will clone that voice.');
                                                                         setSelectedGender('');
                                                                         setIsGenerating(false);
                                                                     } catch (err: any) {
-                                                                        addAssistant(`💀 Voice clone failed at upload: ${err.message} — the lab is shook.`);
+                                                                        addAssistant(`💀 Voice clone failed at upload: — the lab is shook.`); //${err.message}
                                                                         setIsGenerating(false);
                                                                     }
                                                                 }
@@ -1366,7 +1366,8 @@ function AIInfluencerWorkstation() {
                                                                         <div className="space-y-4 pt-4 border-t border-white/5">
                                                                             <div className="flex items-center justify-between">
                                                                                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" /> AI Thumbnail (NanoBanana2)
+                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail 
+                                                                                    {/* (NanoBanana2) */}
                                                                                 </p>
                                                                                 <button
                                                                                     onClick={() => setBrandNeedThumbnail(v => !v)}
@@ -1514,7 +1515,8 @@ function AIInfluencerWorkstation() {
                                                 <div className="flex justify-start">
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-1 backdrop-blur-md">
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400">PIPELINE FAILURE • {errorCode}</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400">PIPELINE FAILURE •</span>  
+                                                            {/* {errorCode} */}
                                                         </div>
                                                         <div className="bg-red-500/5 rounded-[2rem] rounded-tl-none px-7 py-5 border border-red-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-red-500/10">
                                                             <p className="text-[14px] text-red-200/80 leading-relaxed">
@@ -1615,7 +1617,7 @@ function AIInfluencerWorkstation() {
                                                     {/* Pro Status Overlay */}
                                                     <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/60 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                                                        Cinema Mode • 4K
+                                                        VEVO Mode
                                                     </div>
                                                 </motion.div>
                                             ) : isGenerating ? (

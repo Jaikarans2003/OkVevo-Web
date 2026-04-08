@@ -302,16 +302,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 // FFmpeg Compositing
 // ────────────────────────────────────────────────────
 
-function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
+function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, bgMusicPath = null, videoDuration = null) {
     return new Promise(async (resolve, reject) => {
         const hasImages = images && images.length > 0;
 
-        if (!hasImages && !srtPath) {
+        if (!hasImages && !srtPath && !bgMusicPath) {
             fs.copyFileSync(videoPath, outputPath);
             return resolve();
         }
 
-        console.log(`🖼️ Compositing ${hasImages ? images.length : 0} images and ${srtPath ? 'subtitles' : 'no subtitles'} onto video...`);
+        console.log(`🖼️ Compositing ${hasImages ? images.length : 0} images, ${srtPath ? 'subtitles' : 'no subtitles'}, and ${bgMusicPath ? 'background music' : 'no music'} onto video...`);
 
         const args = ['-i', videoPath];
         if (hasImages) {
@@ -319,6 +319,13 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
                 const imgDuration = img.end - img.start;
                 args.push('-loop', '1', '-framerate', '30', '-t', String(imgDuration), '-i', img.localPath);
             });
+        }
+
+        // Add background music input if available
+        let bgMusicInputIdx = null;
+        if (bgMusicPath && fs.existsSync(bgMusicPath)) {
+            bgMusicInputIdx = 1 + (hasImages ? images.length : 0);
+            args.push('-i', bgMusicPath);
         }
 
         const hasSplit = hasImages && images.some(img => img.layout === 'split');
@@ -362,11 +369,19 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
         audioFilterComplex += `[0:a]volume=2.0[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
+        // Add background music to audio mix if available
+        if (bgMusicInputIdx !== null && videoDuration) {
+            // Loop background music, trim to exact video duration, apply volume, and add fade in/out (0.5s each)
+            const fadeOutStart = Math.max(0, videoDuration - 0.5);
+            audioFilterComplex += `[${bgMusicInputIdx}:a]aloop=loop=-1:size=2e+09,atrim=duration=${videoDuration},volume=-12dB,afade=t=in:st=0:d=0.5,afade=t=out:st=${fadeOutStart}:d=0.5[bgmusic];`;
+            audioInputLabels.push('[bgmusic]');
+        }
+
         if (hasImages) {
             images.forEach((img) => {
                 if (img.sfxPath) {
                     args.push('-i', img.sfxPath);
-                    const sfxInputIdx = 1 + images.length + sfxCount;
+                    const sfxInputIdx = 1 + images.length + (bgMusicInputIdx !== null ? 1 : 0) + sfxCount;
                     const delayMs = Math.floor(img.start * 1000);
                     const sfxLabel = `sfx${sfxCount}`;
                     audioFilterComplex += `[${sfxInputIdx}:a]adelay=${delayMs}|${delayMs}[${sfxLabel}];`;
@@ -388,7 +403,8 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
             filterComplex += `[${prevLabel}]copy[outv];`;
         }
 
-        if (sfxCount > 0) {
+        // Mix all audio inputs (vocal + bgmusic + sfx) if we have more than just the vocal
+        if (audioInputLabels.length > 1) {
             const mixInputs = audioInputLabels.join('');
             audioFilterComplex += `${mixInputs}amix=inputs=${audioInputLabels.length}:duration=first:dropout_transition=2[outa];`;
         }
@@ -431,7 +447,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null) {
         }
 
         const videoMap = assPath ? '[outv_subs]' : '[outv]';
-        const audioMap = sfxCount > 0 ? '[outa]' : '[base_vocal]';
+        const audioMap = audioInputLabels.length > 1 ? '[outa]' : '[base_vocal]';
 
         const ffmpegArgs = [
             ...args,
@@ -475,14 +491,23 @@ exports.handler = async (event) => {
         audioUrl,
         imageTimeline, 
         srtPath: remoteSrtPath,
-        lipSyncResult
+        lipSyncResult,
+        mood,
+        duration
     } = event;
     
     // Extract transcription from lipSyncResult with fallback
     const transcription = lipSyncResult?.transcription || '';
     const transcriptionChunks = lipSyncResult?.transcriptionChunks || [];
+    
+    // Normalize mood with fallback to 'Chill'
+    const validMoods = ['Chill', 'Dramatic', 'Energetic', 'Funny', 'Happy', 'Suspense'];
+    let normalizedMood = mood || 'Chill';
+    // Handle typo: Suspence -> Suspense
+    if (normalizedMood === 'Suspence') normalizedMood = 'Suspense';
+    if (!validMoods.includes(normalizedMood)) normalizedMood = 'Chill';
 
-    console.log(`🎬 RENDERER: Starting final assembly for Job ${jobId}`);
+    console.log(`🎬 RENDERER: Starting final assembly for Job ${jobId} | Mood: ${normalizedMood}`);
 
     try {
         await updateJobDoc(jobId, userId, { status: 'rendering' });
@@ -496,22 +521,61 @@ exports.handler = async (event) => {
         const videoBuf = await downloadFromUrl(lipSyncVideoUrl);
         fs.writeFileSync(lipSyncPath, videoBuf);
 
-        // Pre-download the two SFX files
+        // Download all SFX files from InfluencerAudio/SFX directory
         let sfxPaths = [];
         try {
-            const sfx1Buffer = await downloadFromFirebaseStorage('InfluencerAudio/Audio1.mpeg');
-            const sfx2Buffer = await downloadFromFirebaseStorage('InfluencerAudio/Audio2.mpeg');
+            const bucket = admin.storage().bucket();
+            const [files] = await bucket.getFiles({ prefix: 'InfluencerAudio/SFX/' });
+            
+            // Filter out directory markers and get only audio files
+            const audioFiles = files.filter(file => {
+                const name = file.name.toLowerCase();
+                return !name.endsWith('/') && (name.endsWith('.mp3') || name.endsWith('.mpeg') || name.endsWith('.wav'));
+            });
 
-            const sfx1Path = `/tmp/${jobId}-sfx1.mpeg`;
-            const sfx2Path = `/tmp/${jobId}-sfx2.mpeg`;
-
-            fs.writeFileSync(sfx1Path, sfx1Buffer);
-            fs.writeFileSync(sfx2Path, sfx2Buffer);
-
-            sfxPaths = [sfx1Path, sfx2Path];
-            console.log(`✅ Downloaded 2 SFX files for overlay sounds`);
+            if (audioFiles.length === 0) {
+                console.warn('⚠️ No SFX files found in InfluencerAudio/SFX/');
+            } else {
+                for (let i = 0; i < audioFiles.length; i++) {
+                    const file = audioFiles[i];
+                    const [buffer] = await file.download();
+                    const sfxPath = `/tmp/${jobId}-sfx${i}.mpeg`;
+                    fs.writeFileSync(sfxPath, buffer);
+                    sfxPaths.push(sfxPath);
+                }
+                console.log(`✅ Downloaded ${sfxPaths.length} SFX files from InfluencerAudio/SFX/`);
+            }
         } catch (err) {
             console.warn(`⚠️ Failed to download SFX files, overlays will be silent: ${err.message}`);
+        }
+
+        // Download background music based on mood
+        let bgMusicPath = null;
+        try {
+            const bucket = admin.storage().bucket();
+            const moodDirectory = `InfluencerAudio/${normalizedMood}/`;
+            console.log(`🎵 Fetching background music from ${moodDirectory}...`);
+            
+            const [files] = await bucket.getFiles({ prefix: moodDirectory });
+            
+            // Filter out directory markers and get only audio files
+            const musicFiles = files.filter(file => {
+                const name = file.name.toLowerCase();
+                return !name.endsWith('/') && (name.endsWith('.mp3') || name.endsWith('.mpeg') || name.endsWith('.wav'));
+            });
+
+            if (musicFiles.length === 0) {
+                console.warn(`⚠️ No background music found in ${moodDirectory}`);
+            } else {
+                // Select random music file
+                const randomMusic = musicFiles[Math.floor(Math.random() * musicFiles.length)];
+                const [buffer] = await randomMusic.download();
+                bgMusicPath = `/tmp/${jobId}-bgmusic.mp3`;
+                fs.writeFileSync(bgMusicPath, buffer);
+                console.log(`✅ Downloaded background music: ${randomMusic.name}`);
+            }
+        } catch (err) {
+            console.warn(`⚠️ Failed to download background music: ${err.message}`);
         }
 
         const downloadedImages = [];
@@ -644,7 +708,8 @@ exports.handler = async (event) => {
 
         // 2. FFmpeg Rendering
         const finalLocalPath = `/tmp/${jobId}-final.mp4`;
-        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localSrtPath);
+        const videoDuration = duration || (downloadedImages.length > 0 ? Math.max(...downloadedImages.map(img => img.end || 0)) : 15);
+        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localSrtPath, bgMusicPath, videoDuration);
 
         // 3. Upload to Firebase
         const finalBuffer = fs.readFileSync(finalLocalPath);
@@ -660,7 +725,7 @@ exports.handler = async (event) => {
 
         // Cleanup temp files
         const filesToCleanup = [
-            lipSyncPath, finalLocalPath, localSrtPath,
+            lipSyncPath, finalLocalPath, localSrtPath, bgMusicPath,
             ...sfxPaths,
             ...downloadedImages.map(img => img.localPath)
         ].filter(Boolean);

@@ -107,6 +107,7 @@
         "gender.$": "$.gender",
         "audioSampleUrl.$": "$.audioSampleUrl",
         "fal_mode.$": "$.fal_mode",
+        "mood.$": "$.mood",
         "aiPrepResult.$": "$.parallelResult.aiPrepResult"
       },
       "Next": "Submit_LipSync_With_Recovery"
@@ -211,6 +212,7 @@
         "gender.$": "$.gender",
         "audioSampleUrl.$": "$.audioSampleUrl",
         "fal_mode.$": "$.fal_mode",
+        "mood.$": "$.mood",
         "aiPrepResult.$": "$.aiPrepResult",
         "lipSyncResult.$": "$.parallelLipSyncResult.lipSyncResult"
       },
@@ -222,10 +224,17 @@
       "Parameters": {
         "jobId.$": "$.jobId",
         "userId.$": "$.userId",
+        "duration.$": "$.duration",
+        "mood.$": "$.mood",
         "lipSyncVideoUrl.$": "$.lipSyncResult.lipSyncVideoUrl",
         "audioUrl.$": "$.aiPrepResult.audioUrl",
         "imageTimeline.$": "$.aiPrepResult.imageTimeline",
         "lipSyncResult.$": "$.lipSyncResult"
+      },
+      "ResultPath": "$.renderResult",
+      "ResultSelector": {
+        "success.$": "$.success",
+        "finalVideoUrl.$": "$.finalVideoUrl"
       },
       "Next": "Apply_Branding",
       "Retry": [
@@ -243,7 +252,7 @@
       "Parameters": {
         "jobId.$": "$.jobId",
         "userId.$": "$.userId",
-        "finalVideoUrl.$": "$.finalVideoUrl",
+        "finalVideoUrl.$": "$.renderResult.finalVideoUrl",
         "logoUrl": "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/Assets%2Fokvevo-logo.png?alt=media",
         "logoPosition": "top-right",
         "marqueeText": "CREATED WITH OKVEVO",

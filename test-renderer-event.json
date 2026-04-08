@@ -1,43 +1,49 @@
 {
-  "jobId": "test-renderer-123",
-  "userId": "test-user-456",
-  "lipSyncVideoUrl": "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/AIInfluencer%2Fai-influencer-1774014203196-kahc89e%2Favatar.mp4?alt=media&token=f2222e30-4110-4ad1-9b9d-bab1fa504973",
-  "audioUrl": "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/AIInfluencer%2Fai-influencer-1774015371997-ey31ixt%2Fsample_audio.mp3?alt=media&token=97050201-d974-406d-ac12-6bbf9278783c",
+  "jobId": "ai-influencer-1775585041383-aejb31p",
+  "userId": "5ixbk9h82OMibLnY2FaLykbGMuC2",
+  "duration": 15,
+  "mood": "Energetic",
+  "lipSyncVideoUrl": "https://v3b.fal.media/files/b/0a955432/LVPNZHySmIyRzvJUgDFs-_tmpuc1rd_li.mp4",
+  "audioUrl": "https://v3b.fal.media/files/b/0a95542d/eKKai-gcoRCsHcTskysT1_tmpwb9_tka9.wav",
   "imageTimeline": [
     {
-      "url": "https://v3b.fal.media/files/b/0a92efff/eyVt9p2AGqL7aaEvpRebD_XINp2IgK.png",
-      "topic": "Git Protection",
       "start": 0,
-      "end": 8,
+      "end": 3,
+      "topic": "Unleashing Inner Strength",
+      "prompt": "A powerful close-up shot of a determined individual, eyes burning with focus, taking a deep breath before an intense challenge. Dynamic lighting emphasizes muscle definition and a slight blur in the background indicates imminent action. High energy, cinematic, intense.",
+      "imageUrl": "https://v3b.fal.media/files/b/0a9553eb/5qk5VyY1sKr1L90YxFWm__X312eCCo.png",
       "layout": "split"
     },
     {
-      "url": "https://v3b.fal.media/files/b/0a92efff/L6kcuSgrX5wWJmMlvqBNn_2ykE1TKj.png",
-      "topic": "File Conflicts",
-      "start": 8,
-      "end": 16,
+      "start": 5,
+      "end": 9,
+      "topic": "Pushing Boundaries",
+      "prompt": "A montage or split-screen showing someone actively pushing physical or mental limits: a runner cresting a steep hill, a climber reaching for a difficult handhold, and a person intensely focused on a complex task. Emphasize effort, progress, and a vast, inspiring environment. Dynamic camera angles, epic landscape.",
+      "imageUrl": "https://v3b.fal.media/files/b/0a9553eb/_Vyfk9c4L5w3hK6Bgmoam_qZ5lUgYI.png",
       "layout": "split"
     },
     {
-      "url": "https://v3b.fal.media/files/b/0a92efff/Z5j3JeJppVDN9iTSXjoma_NrOce4ha.png",
-      "topic": "Git Reset",
-      "start": 16,
-      "end": 24,
+      "start": 11,
+      "end": 15,
+      "topic": "Dominating with Confidence",
+      "prompt": "A triumphant, wide shot of an individual standing confidently atop a peak or in a position of accomplishment, silhouetted against a vibrant sunrise or sunset. They exude unwavering resolve and unapologetic confidence, looking towards the horizon. Inspirational, majestic, victorious, with a sense of future possibilities.",
+      "imageUrl": "https://v3b.fal.media/files/b/0a9553ec/7rWueJm5A1oKpHUzktmy3_IU4IhIDN.png",
       "layout": "split"
     }
   ],
-  "transcription": " Git is protecting your work warning of unsafe changes in next.config.ts that conflict with the testing branch updates so you can resolve the issue and prioritize the GitHub repository version If you have many modified files and want to override everything with the GitHub version you can run git reset hard origin testing but use that with caution as it wipes all local uncommitted work Would you like me to explain how to check if there are other hidden local changes before you reset?",
-  "transcriptionChunks": [
-    {
-      "timestamp": [0.03, 0.35],
-      "text": " Git",
-      "speaker": null
-    },
-    {
-      "timestamp": [0.35, 0.47],
-      "text": " is",
-      "speaker": null
-    },
+  "lipSyncResult": {
+    "transcription": " Welcome to the ultimate experience. Get ready to unleash your inner strength, fueled by unrelenting passion and unwavering dedication, pushing boundaries, reaching new heights, and dominating the journey with unapologetic confidence and fierce determination every step of the way always.",
+    "transcriptionChunks": [
+      {
+        "timestamp": [0.03, 0.43],
+        "text": " Welcome",
+        "speaker": null
+      },
+      {
+        "timestamp": [0.43, 0.65],
+        "text": " to",
+        "speaker": null
+      },
     {
       "timestamp": [0.47, 0.85],
       "text": " protecting",
@@ -459,4 +465,5 @@
       "speaker": null
     }
   ]
+}
 }
