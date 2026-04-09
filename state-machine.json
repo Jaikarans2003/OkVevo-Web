@@ -237,28 +237,6 @@
         "success.$": "$.success",
         "finalVideoUrl.$": "$.finalVideoUrl"
       },
-      "Next": "Apply_Branding",
-      "Retry": [
-        {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-          "IntervalSeconds": 5,
-          "MaxAttempts": 2,
-          "BackoffRate": 2.0
-        }
-      ]
-    },
-    "Apply_Branding": {
-      "Type": "Task",
-      "Resource": "arn:aws:lambda:us-east-1:315974965935:function:okvevo-branding",
-      "Parameters": {
-        "jobId.$": "$.jobId",
-        "userId.$": "$.userId",
-        "finalVideoUrl.$": "$.renderResult.finalVideoUrl",
-        "logoUrl": "https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/Assets%2Fokvevo-logo.png?alt=media",
-        "logoPosition": "top-right",
-        "marqueeText": "CREATED WITH OKVEVO",
-        "marqueePosition": "bottom"
-      },
       "Next": "Complete",
       "Retry": [
         {
