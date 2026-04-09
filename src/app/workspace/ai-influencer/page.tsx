@@ -307,8 +307,35 @@ function AIInfluencerWorkstation() {
                 } else if (data.status === 'error') {
                     setErrorMessage(data.errorMessage || 'Unknown Error occurred');
                     setErrorCode(data.errorCode || '500');
+                    
+                    // Preserve partial assets that were generated before failure
+                    if (data.assetResults && Array.isArray(data.assetResults)) {
+                        const images = data.assetResults
+                            .filter((r: any) => r.type === 'image')
+                            .map((r: any) => r.output.images?.[0]?.url)
+                            .filter(Boolean);
+                        
+                        if (images.length > 0) {
+                            setImageTimeline(prev => prev.map((item, idx) => ({
+                                ...item,
+                                imageUrl: images[idx] || item.imageUrl
+                            })));
+                        }
+                    }
+                    
+                    if (data.audioUrl) {
+                        setAudioUrl(data.audioUrl);
+                    }
+                    
                     setIsGenerating(false);
-                    addAssistant(`💀 VEVO Major Error 500 — We might need to restart this run.`); //[${data.errorCode || '500'}]: ${data.errorMessage || 'Something went wrong.'}
+                    
+                    // Check if we have partial assets to show
+                    const hasPartialAssets = (data.assetResults && data.assetResults.length > 0) || data.audioUrl;
+                    const partialMessage = hasPartialAssets 
+                        ? `💀 Pipeline Error ${data.errorCode || '500'} — But we saved what we generated! Check the assets panel below.`
+                        : `💀 VEVO Major Error ${data.errorCode || '500'} — We might need to restart this run.`;
+                    
+                    addAssistant(partialMessage);
                 }
 
                 // Update assets in real-time
@@ -1386,15 +1413,35 @@ function AIInfluencerWorkstation() {
                                             )}
                                             {errorMessage && (
                                                 <div className="flex justify-start">
-                                                    <div className="flex flex-col gap-2.5 items-start">
+                                                    <div className="flex flex-col gap-2.5 items-start max-w-[85%]">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-1 backdrop-blur-md">
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400">PIPELINE FAILURE •</span>  
-                                                            {/* {errorCode} */}
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400">PIPELINE FAILURE • {errorCode}</span>
                                                         </div>
-                                                        <div className="bg-red-500/5 rounded-[2rem] rounded-tl-none px-7 py-5 border border-red-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-red-500/10">
+                                                        <div className="bg-red-500/5 rounded-[2rem] rounded-tl-none px-7 py-5 border border-red-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-red-500/10 w-full space-y-4">
                                                             <p className="text-[14px] text-red-200/80 leading-relaxed">
                                                                 {errorMessage}
                                                             </p>
+                                                            
+                                                            {/* Show partial assets info if available */}
+                                                            {(imageTimeline.some(img => img.imageUrl) || audioUrl) && (
+                                                                <div className="mt-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400 mb-2">
+                                                                        ✅ Partial Assets Saved
+                                                                    </p>
+                                                                    <div className="space-y-1.5 text-[11px] text-white/60">
+                                                                        {imageTimeline.some(img => img.imageUrl) && (
+                                                                            <p>• Visual Moments: {imageTimeline.filter(img => img.imageUrl).length}/{imageTimeline.length} generated</p>
+                                                                        )}
+                                                                        {audioUrl && (
+                                                                            <p>• Audio: Generated successfully</p>
+                                                                        )}
+                                                                        <p className="text-[10px] text-green-300/80 mt-2">
+                                                                            Check the assets panel on the right to view →
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            
                                                             <button 
                                                                 onClick={() => {
                                                                     setErrorMessage(null);

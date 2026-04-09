@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SFNClient, SendTaskSuccessCommand } from '@aws-sdk/client-sfn';
+import { SFNClient, SendTaskSuccessCommand, SendTaskFailureCommand } from '@aws-sdk/client-sfn';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -33,9 +33,11 @@ export async function POST(request: NextRequest) {
             const falJobDoc = await falJobRef.get();
 
             if (falJobDoc.exists) {
-                const { userId, jobId, type } = falJobDoc.data() || {};
+                const { userId, jobId, type, taskToken } = falJobDoc.data() || {};
                 if (userId && jobId) {
                     const jobRef = db.collection('users').doc(userId).collection('aiInfluencerJobs').doc(jobId);
+                    const jobDoc = await jobRef.get();
+                    const jobData = jobDoc.exists ? jobDoc.data() || {} : {};
                     
                     // Detailed Error Code Detection (404, 500, 422, etc.)
                     let errorCode = 'UNKNOWN';
@@ -45,10 +47,21 @@ export async function POST(request: NextRequest) {
                         if (error.includes('404')) errorCode = '404 (Not Found)';
                         else if (error.includes('500')) errorCode = '500 (Internal Server Error)';
                         else if (error.includes('422')) errorCode = '422 (Unprocessable Entity - Check Input)';
+                        else if (error.includes('503')) errorCode = '503 (Service Unavailable)';
                         else if (error.includes('401') || error.includes('403')) errorCode = 'AUTH_ERROR';
                     }
 
                     const errorMessage = `[VEVO] Major Error ${errorCode}: Fal AI ${type} job failed. Details: ${errorDetails}`;
+
+                    // Collect partial assets that were generated before failure
+                    const partialAssets = {
+                        imageTimeline: jobData.imageTimeline || [],
+                        assetResults: jobData.assetResults || [],
+                        completedAssets: jobData.completedAssets || 0,
+                        expectedAssets: jobData.expectedAssets || 0,
+                        audioUrl: jobData.audioUrl || null,
+                        avatarVideoUrl: jobData.avatarVideoUrl || null
+                    };
 
                     await jobRef.update({
                         status: 'error',
@@ -58,6 +71,27 @@ export async function POST(request: NextRequest) {
                     });
                     
                     console.log(`[VEVO] ❌ Updated Job ${jobId} status to error (${errorCode}) due to Fal AI failure`);
+                    
+                    // Stop Step Function execution with partial assets
+                    if (taskToken) {
+                        try {
+                            await sfnClient.send(new SendTaskFailureCommand({
+                                taskToken: taskToken,
+                                error: errorCode,
+                                cause: JSON.stringify({
+                                    errorMessage,
+                                    errorCode,
+                                    failedJobType: type,
+                                    partialAssets
+                                })
+                            }));
+                            console.log(`[VEVO] ✅ Step Function notified of failure with partial assets`);
+                        } catch (sfnError: any) {
+                            console.error(`[VEVO] ⚠️ Failed to notify Step Function:`, sfnError.message);
+                        }
+                    } else {
+                        console.warn(`[VEVO] ⚠️ No taskToken available to stop Step Function`);
+                    }
                 }
                 // Cleanup the mapping
                 await falJobRef.delete();
