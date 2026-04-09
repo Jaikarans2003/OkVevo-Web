@@ -240,15 +240,7 @@ Output ONLY the final narration script text. No intro, no labels.`;
         }
     }
 
-    // Step 2: Extract Visual Moments with Gemini
-    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    if (!geminiApiKey) {
-        throw new Error('Server configuration error: missing Gemini key');
-    }
-
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
+    // Step 2: Extract Visual Moments with Groq (fallback to Gemini)
     const gapDuration = duration === 30 ? 3 : 2;
 
     const momentsPrompt = `Given this ${duration}-second video script, extract exactly ${momentsCount} key visual moments.
@@ -260,35 +252,93 @@ SCRIPT:
 ${scriptText}
 """
 
-Output ONLY a JSON array with exactly ${momentsCount} objects following this pattern:
+Output a JSON object with a "moments" array containing exactly ${momentsCount} objects following this pattern:
 - Each moment should have variable duration (2-5 seconds) based on content importance
 - Leave ${gapDuration}-second gaps between moments
-- Example format: [ { "start": 0, "end": 3, "topic": "Opening hook", "prompt": "detailed image prompt here" }, { "start": 5, "end": 8, "topic": "Next moment", "prompt": "..." } ]`;
-
-    const momentsResult = await geminiModel.generateContent(momentsPrompt);
-    const momentsResponse = await momentsResult.response;
-    let momentsText = momentsResponse.text().trim();
-
-    if (momentsText.startsWith('```json')) {
-        momentsText = momentsText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (momentsText.startsWith('```')) {
-        momentsText = momentsText.replace(/```\n?/g, '');
-    }
+- Example format: { "moments": [ { "start": 0, "end": 3, "topic": "Opening hook", "prompt": "detailed image prompt here" }, { "start": 5, "end": 8, "topic": "Next moment", "prompt": "..." } ] }`;
 
     let moments = [];
+    let momentsText = '';
     
     try {
-        moments = JSON.parse(momentsText);
+        // Try Groq first (Primary)
+        const groqMomentsChat = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: momentsPrompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.3,
+            response_format: { type: 'json_object' }
+        });
+
+        momentsText = groqMomentsChat.choices[0]?.message?.content?.trim() || '';
+        
+        if (momentsText.startsWith('```json')) {
+            momentsText = momentsText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        } else if (momentsText.startsWith('```')) {
+            momentsText = momentsText.replace(/```\n?/g, '');
+        }
+
+        const parsed = JSON.parse(momentsText);
+        
+        // Handle different response formats from Groq
+        if (Array.isArray(parsed)) {
+            moments = parsed;
+        } else if (parsed.moments && Array.isArray(parsed.moments)) {
+            moments = parsed.moments;
+        } else if (parsed.visual_moments && Array.isArray(parsed.visual_moments)) {
+            moments = parsed.visual_moments;
+        } else {
+            // Try to find any array in the response
+            const firstArrayKey = Object.keys(parsed).find(key => Array.isArray(parsed[key]));
+            moments = firstArrayKey ? parsed[firstArrayKey] : [];
+        }
+        
+        // Validate we have moments before adjusting
+        if (!moments || moments.length === 0) {
+            throw new Error('Groq returned empty moments array');
+        }
         
         // Validate and adjust moments to ensure proper gaps
         moments = adjustMomentsWithGaps(moments, duration, momentsCount, gapDuration);
         
-    } catch (e) {
-        // Fallback: Generate moments with proper gaps
-        moments = generateFallbackMomentsWithGaps(duration, momentsCount, gapDuration, scriptText);
+        console.log(`✅ Visual moments extracted with Groq (${moments.length} moments)`);
+        
+    } catch (groqError) {
+        console.warn('⚠️ Groq moments extraction failed, falling back to Gemini:', groqError);
+        
+        // Fallback to Gemini
+        try {
+            const geminiApiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            if (!geminiApiKey) {
+                throw new Error('Server configuration error: missing Gemini key');
+            }
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+            const momentsResult = await geminiModel.generateContent(momentsPrompt);
+            const momentsResponse = await momentsResult.response;
+            momentsText = momentsResponse.text().trim();
+
+            if (momentsText.startsWith('```json')) {
+                momentsText = momentsText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+            } else if (momentsText.startsWith('```')) {
+                momentsText = momentsText.replace(/```\n?/g, '');
+            }
+
+            moments = JSON.parse(momentsText);
+            moments = adjustMomentsWithGaps(moments, duration, momentsCount, gapDuration);
+            
+            console.log('✅ Visual moments extracted with Gemini (fallback)');
+            
+        } catch (geminiError) {
+            console.error('❌ Both Groq and Gemini failed for moments extraction:', geminiError);
+            // Final fallback: Generate moments with proper gaps
+            moments = generateFallbackMomentsWithGaps(duration, momentsCount, gapDuration, scriptText);
+            console.log('✅ Using fallback moment generation');
+        }
     }
 
-    // Step 3: Analyze Script Mood with Gemini
+    // Step 3: Analyze Script Mood with Groq (fallback to Gemini)
     const moodPrompt = `Analyze the following video script and classify its overall mood/tone into EXACTLY ONE category.
 
 SCRIPT:
@@ -306,15 +356,49 @@ Categories:
 
 Output ONLY the category name (one word). No explanation, no extra text.`;
 
-    const moodResult = await geminiModel.generateContent(moodPrompt);
-    const moodResponse = await moodResult.response;
-    let moodText = moodResponse.text().trim();
-
-    // Normalize and validate mood
     const validMoods = ['Chill', 'Dramatic', 'Energetic', 'Funny', 'Happy', 'Suspense'];
-    let mood = validMoods.find(m => moodText.toLowerCase().includes(m.toLowerCase())) || 'Chill';
+    let mood = 'Chill';
+    
+    try {
+        // Try Groq first (Primary)
+        const groqMoodChat = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: moodPrompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.2,
+        });
 
-    console.log(`🎭 Script mood detected: ${mood}`);
+        let moodText = groqMoodChat.choices[0]?.message?.content?.trim() || '';
+        mood = validMoods.find(m => moodText.toLowerCase().includes(m.toLowerCase())) || 'Chill';
+        
+        console.log(`🎭 Script mood detected with Groq: ${mood}`);
+        
+    } catch (groqError) {
+        console.warn('⚠️ Groq mood classification failed, falling back to Gemini:', groqError);
+        
+        // Fallback to Gemini
+        try {
+            const geminiApiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            if (!geminiApiKey) {
+                throw new Error('Server configuration error: missing Gemini key');
+            }
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+            const moodResult = await geminiModel.generateContent(moodPrompt);
+            const moodResponse = await moodResult.response;
+            let moodText = moodResponse.text().trim();
+
+            mood = validMoods.find(m => moodText.toLowerCase().includes(m.toLowerCase())) || 'Chill';
+            
+            console.log(`🎭 Script mood detected with Gemini (fallback): ${mood}`);
+            
+        } catch (geminiError) {
+            console.error('❌ Both Groq and Gemini failed for mood classification:', geminiError);
+            mood = 'Chill'; // Default fallback
+            console.log(`🎭 Using default mood: ${mood}`);
+        }
+    }
 
     return apiSuccess({
         script: scriptText,

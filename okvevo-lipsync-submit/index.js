@@ -50,7 +50,7 @@ function httpsRequest(url, options = {}, body = null) {
 exports.handler = async (event) => {
     // Note: 'event' here will contain the output from the 'Wait_For_Assets' state
     // Which includes the TTS URL and the original jobId/userId
-    const { jobId, userId, avatarVideoUrl, taskToken, ttsUrl } = event;
+    const { jobId, userId, avatarVideoUrl, taskToken, ttsUrl, script } = event;
     
     try {
         console.log(`🎬 Submitting LipSync job for Job: ${jobId}`);
@@ -78,7 +78,8 @@ exports.handler = async (event) => {
                 chunk_level: 'word',
                 version: '3',
                 batch_size: 64,
-                num_speakers: null
+                num_speakers: null,
+                prompt: script || ""
             },
             webhookUrl: webhookUrl
         });

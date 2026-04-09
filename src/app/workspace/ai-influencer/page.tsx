@@ -19,6 +19,7 @@ import { generateJobId } from '../../../services/AIInfluencerService';
 import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
 import { useWorkspaceSession } from '@/hooks/useWorkspaceSession';
 import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
+import { getUserWorkspaceSessions } from '@/services/WorkspaceSessionService';
 import { checkCredits, deductCredits } from '@/services/CreditsService';
 
 // ─── Types ─────────────────────────────────────────────────
@@ -34,7 +35,7 @@ type ChatStep =
     | 'generating-lipsync'   // 7. LipSync via Fal AI
     | 'complete';            // 8. Final video ready
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type ChatMessage = { role: 'user' | 'assistant'; content: string | React.ReactNode };
 
 interface ImageMoment {
     time: string;
@@ -109,7 +110,7 @@ function AIInfluencerWorkstation() {
     const scriptMessageShownRef = useRef(false);
 
     // ── Branding state (optional post-process — does NOT affect the pipeline) ──
-    const [brandingOpen,      setBrandingOpen]      = useState(false);
+    const [brandingOpen,      setBrandingOpen]      = useState(true);
     const [brandLogoFile,     setBrandLogoFile]     = useState<File | null>(null);
     const [brandMarqueeText,  setBrandMarqueeText]  = useState('');
     const [brandMarqueePos,   setBrandMarqueePos]   = useState<'top' | 'bottom'>('bottom');
@@ -134,26 +135,131 @@ function AIInfluencerWorkstation() {
     }, []);
 
     // ── Session history ───────────────────────────────────────
-    const { sessionId, initSession, saveSession, resetSession } = useWorkspaceSession('ai-influencer', user?.uid ?? null);
+    const { sessionId, initSession, saveSession, resetSession, restoreSession } = useWorkspaceSession('ai-influencer', user?.uid ?? null);
+    const isRestoringRef = useRef(false);
+
+    // ── Session restoration handler ───────────────────────────
+    const handleRestoreSession = useCallback(async (session: WorkspaceSession) => {
+        isRestoringRef.current = true;
+        
+        // Restore all state from session
+        const s = session.state;
+        if (s.chatStep) setChatStep(s.chatStep as ChatStep);
+        if (s.jobId) setJobId(s.jobId);
+        if (s.rawScript) setRawScript(s.rawScript);
+        if (s.editableScript) setEditableScript(s.editableScript);
+        if (s.generatedScript) setGeneratedScript(s.generatedScript);
+        if (s.selectedDuration) setSelectedDuration(s.selectedDuration);
+        if (s.selectedGender) setSelectedGender(s.selectedGender);
+        if (s.ttsPacing) setTtsPacing(s.ttsPacing);
+        if (s.scriptMood) setScriptMood(s.scriptMood);
+        if (s.imageTimeline) setImageTimeline(s.imageTimeline);
+        if (s.audioUrl) setAudioUrl(s.audioUrl);
+        if (s.avatarVideoUrl) setAvatarVideoUrl(s.avatarVideoUrl);
+        if (s.waitTaskToken) setWaitTaskToken(s.waitTaskToken);
+        if (s.finalVideoUrl) setFinalVideoUrl(s.finalVideoUrl);
+        if (s.brandedVideoUrl) setBrandedVideoUrl(s.brandedVideoUrl);
+        if (s.customThumbnailUrl) setCustomThumbnailUrl(s.customThumbnailUrl);
+        if (s.isGenerating !== undefined) setIsGenerating(s.isGenerating);
+        
+        // Restore chat messages
+        setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
+        
+        // The Firestore job listener will automatically reconnect when jobId changes
+        console.log('✅ Session restored:', session.id, 'JobId:', s.jobId);
+        
+        // Allow new sessions to be created after restoration
+        setTimeout(() => {
+            isRestoringRef.current = false;
+        }, 1000);
+    }, []);
+
+    // ── Auto-restore session on mount ─────────────────────────
+    useEffect(() => {
+        if (!user?.uid || sessionId) return;
+        
+        const autoRestore = async () => {
+            // Check URL params for sessionId
+            const params = new URLSearchParams(window.location.search);
+            const urlSessionId = params.get('sessionId');
+            
+            if (urlSessionId) {
+                // Restore specific session from URL
+                const session = await restoreSession(urlSessionId);
+                if (session) {
+                    await handleRestoreSession(session);
+                }
+            } else {
+                // Auto-restore most recent in-progress session
+                const sessions = await getUserWorkspaceSessions(user.uid, 'ai-influencer');
+                const inProgress = sessions.find(s => 
+                    s.state.chatStep && 
+                    s.state.chatStep !== 'complete' && 
+                    s.state.chatStep !== 'upload-script'
+                );
+                if (inProgress) {
+                    await handleRestoreSession(inProgress);
+                }
+            }
+        };
+        
+        autoRestore();
+    }, [user?.uid]);
 
     // Auto-create session when script is first submitted
     useEffect(() => {
-        if (sessionId || !user?.uid || !rawScript || chatStep === 'upload-script') return;
+        if (sessionId || !user?.uid || !rawScript || chatStep === 'upload-script' || isRestoringRef.current) return;
         initSession(
             rawScript.substring(0, 60) || 'AI Influencer Session',
             { chatStep },
-            chatMessages.map(m => ({ role: m.role, content: m.content })),
+            chatMessages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '[Rich content]' })),
         );
     }, [chatStep]);
+
+    // ── Sync sessionId to URL ─────────────────────────────────
+    useEffect(() => {
+        if (sessionId && typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('sessionId', sessionId);
+            window.history.replaceState({}, '', url.toString());
+        }
+    }, [sessionId]);
 
     // Auto-save messages & step whenever they change
     useEffect(() => {
         if (!sessionId || chatMessages.length === 0) return;
-        const state: Record<string, any> = { chatStep };
-        if (finalVideoUrl) state.finalVideoUrl = finalVideoUrl;
-        if (audioUrl) state.audioUrl = audioUrl;
-        saveSession(state, chatMessages);
-    }, [chatMessages, chatStep]);
+        const state: Record<string, any> = {
+            chatStep,
+            jobId,
+            rawScript,
+            editableScript,
+            generatedScript,
+            selectedDuration,
+            selectedGender,
+            ttsPacing,
+            scriptMood,
+            imageTimeline,
+            audioUrl,
+            avatarVideoUrl,
+            waitTaskToken,
+            finalVideoUrl,
+            brandedVideoUrl,
+            customThumbnailUrl,
+            isGenerating,
+        };
+        // Remove null/undefined values to keep Firestore clean
+        Object.keys(state).forEach(key => {
+            if (state[key] === null || state[key] === undefined || state[key] === '' || state[key] === 0) {
+                delete state[key];
+            }
+        });
+        // Convert chat messages to strings for session storage
+        const messagesForStorage = chatMessages.map(msg => ({
+            role: msg.role,
+            content: typeof msg.content === 'string' ? msg.content : '[Rich content]'
+        }));
+        saveSession(state, messagesForStorage);
+    }, [chatMessages, chatStep, jobId, imageTimeline, audioUrl, avatarVideoUrl, finalVideoUrl, brandedVideoUrl, isGenerating]);
 
     // ── Auto-scroll chat ─────────────────────────────────
     useEffect(() => {
@@ -264,7 +370,7 @@ function AIInfluencerWorkstation() {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
-                addAssistant(`OKVEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
+                addAssistant(`VEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
                 scriptMessageShownRef.current = true;
             }
 
@@ -329,17 +435,17 @@ function AIInfluencerWorkstation() {
     }, [jobId, user?.uid]);
 
     // ── Helpers ───────────────────────────────────────────
-    const addAssistant = (content: string) =>
+    const addAssistant = (content: string | React.ReactNode) =>
         setChatMessages((prev) => [...prev, { role: 'assistant', content }]);
 
-    const addUser = (content: string) =>
+    const addUser = (content: string | React.ReactNode) =>
         setChatMessages((prev) => [...prev, { role: 'user', content }]);
 
     const resetFlow = () => {
         setChatStep('upload-script');
         setChatMessages([{
             role: 'assistant',
-            content: "OKVEVO is back and hungry. New video, new vibes. Drop that script and let's cook something OKVEVO-worthy.",
+            content: "OK VEVO is back and hungry. New video, new vibes. Drop that script and let's cook something OKVEVO-worthy.",
         }]);
         setRawScript('');
         setSelectedDuration(0);
@@ -367,6 +473,8 @@ function AIInfluencerWorkstation() {
         setCustomThumbnailUrl(null);
         setIsBranding(false);
         setBrandedVideoUrl(null);
+        resetSession();
+        isRestoringRef.current = false;
     };
 
     // ── Branding handler (optional — called only when user explicitly clicks Apply) ──
@@ -422,24 +530,9 @@ function AIInfluencerWorkstation() {
         }
     };
 
-    const handleRestoreInfluencerSession = useCallback((session: WorkspaceSession) => {
-        resetFlow();
-        resetSession();
-        // Restore visible state from session
-        if (session.messages?.length) {
-            setChatMessages(session.messages);
-        }
-        if (session.state?.chatStep) {
-            setChatStep(session.state.chatStep as ChatStep);
-        }
-        if (session.state?.finalVideoUrl) setFinalVideoUrl(session.state.finalVideoUrl);
-        if (session.state?.audioUrl) setAudioUrl(session.state.audioUrl);
-    }, [resetSession]);
-
     const handleNewInfluencerSession = useCallback(() => {
         resetFlow();
-        resetSession();
-    }, [resetSession]);
+    }, []);
 
 
     // ── Step 1: Script file upload ────────────────────────
@@ -456,7 +549,18 @@ function AIInfluencerWorkstation() {
 
     const handleScriptSubmit = () => {
         if (!rawScript.trim()) return;
-        addUser(`[Script uploaded — ${rawScript.trim().split(/\s+/).length} words]`);
+        const wordCount = rawScript.trim().split(/\s+/).length;
+        addUser(
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                    <FileText size={14} className="text-white/60" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Script Uploaded • {wordCount} words</span>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 max-h-[200px] overflow-y-auto custom-scrollbar">
+                    <p className="text-[13px] text-white/80 leading-relaxed whitespace-pre-wrap">{rawScript}</p>
+                </div>
+            </div>
+        );
         addAssistant('🔥 Script locked in! Now tell VEVO — how long are we cookin\' this masterpiece?');
         setChatStep('duration');
     };
@@ -557,11 +661,11 @@ function AIInfluencerWorkstation() {
                 'AI Influencer video generation - script analyzed'
             );
 
-            addAssistant(`✨ OKVEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n🎨 ${data.moments?.length || 0} visual moments plotted.\n🎭 Mood: ${data.mood || 'Chill'}\n💳 200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
+            addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`); //\n🎨 ${data.moments?.length || 0} visual moments plotted.\n🎭 Mood: ${data.mood || 'Chill'}\n💳 
             setChatStep('edit-script');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO tripped up: ${err.message} — but we don't give up. Try again.`);
+            addAssistant(`A lot of people are generating, but we don't give up. Try again.`); //${err.message}
             setIsGenerating(false);
             setChatStep('tts-pacing');
         }
@@ -570,7 +674,7 @@ function AIInfluencerWorkstation() {
     // ── Step 3: Generate script ──────────────────────────
     // REDUNDANT - Now handled by Step Function
     const generateScript = async (duration: number, scriptToSend: string) => {
-        console.log('Sit back and Relax, Vevo is vevvoing');
+        console.log('Sit back and Relax, Vevo is Vevoing');
     };
 
     // ── Step 4: Confirm script → Phase 2 Start Step Function ───────
@@ -619,7 +723,16 @@ function AIInfluencerWorkstation() {
         if (!file || !user?.uid || !jobId) return;
 
         setAvatarVideo(file);
-        addUser(`[Avatar video uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
+        const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+        addUser(
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                    <Video size={14} className="text-white/60" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Avatar Video • {fileSizeMB}MB</span>
+                </div>
+                <div className="text-[12px] text-white/50">Uploading to VEVO servers...</div>
+            </div>
+        );
         addAssistant('OKVEVO is beaming up your avatar'); //Uploading AVATAR to Firebase
         setIsGenerating(true);
 
@@ -638,8 +751,24 @@ function AIInfluencerWorkstation() {
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
+            // Add download link for uploaded avatar
+            addUser(
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={14} className="text-green-400" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Avatar Uploaded Successfully</span>
+                    </div>
+                    <a
+                        href={`/api/download-video?url=${encodeURIComponent(videoUrl)}`}
+                        download
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/20 transition-all active:scale-95"
+                    >
+                        <Download size={12} strokeWidth={3} /> Download Avatar
+                    </a>
+                </div>
+            );
             addAssistant('VEVO sees your face. Now let\'s give it a voice.');
-            addAssistant('Pick Richard or Aurora — or upload a voice sample for VEVO to clone. We go full method here.');
+            addAssistant('Pick Richard or Aurora — or upload a voice sample. We go full method here.');
             setChatStep('generating-tts');
             setIsGenerating(false);
         } catch (err: any) {
@@ -678,7 +807,7 @@ function AIInfluencerWorkstation() {
             }, { merge: true });
 
             // addAssistant('🚀 VEVO is VEVOING. Pipeline ignited. Sit tight.');
-            addAssistant('VEVO is VEVOING, Images cooking 🖼️, audio baking 🎧, final video assembling 🎬 — VEVO is in the kitchen. ETA: 2–5 mins. Go grab a coffee.');
+            addAssistant('VEVO is Vevoing, ETA: 2–15 mins. Go grab a coffee.');
 
             // Start Step Function with all data
             const authToken = await user.getIdToken();
@@ -709,13 +838,13 @@ function AIInfluencerWorkstation() {
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
 
-            console.log('✅ Step Function started:', data.executionArn);
-            addAssistant('✅ OKVEVO has entered the building. Your video is being born right now. Watch the monitor 👀');
+            console.log('Vevo Started Execution'); //✅ Step Function started:', data.executionArn
+            addAssistant('Your video is being born right now. Watch the monitor 👀');
 
             setChatStep('generating-lipsync');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 Pipeline choked at launch: Vevo made a mistake, Try again or Contact info@okvevo.com.`); //${err.message}
+            addAssistant(`💀 Pipeline choked at launch, Try again or Contact info@okvevo.com.`); //${err.message}
             setIsGenerating(false);
         }
     };
@@ -757,10 +886,10 @@ function AIInfluencerWorkstation() {
                 }),
             });
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
+            if (!data.success) throw new Error(data.error || 'Failed to resume');
             addAssistant(`Avatar delivered! OKVEVO is monitoring the render... usually 1–3 mins. Don't touch anything.`);
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO hit a snag: The pipeline might need a few more seconds — wait and retry.`); //${err.message}.
+            addAssistant(`💀 OKVEVO hit a snag: Might need a few more seconds — wait and retry.`); //${err.message}.
             setChatStep('preview-audio');
             setIsGenerating(false);
         }
@@ -821,7 +950,7 @@ function AIInfluencerWorkstation() {
                                     feature="ai-influencer"
                                     currentSessionId={sessionId}
                                     onSelectSession={(session) => {
-                                        handleRestoreInfluencerSession(session);
+                                        handleRestoreSession(session);
                                         setIsHistoryOpen(false);
                                     }}
                                     onNewSession={() => {
@@ -897,7 +1026,7 @@ function AIInfluencerWorkstation() {
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                            <span className="w-1 h-1 rounded-full bg-orange-500" /> Initial Narrative Script
+                                                            <span className="w-1 h-1 rounded-full bg-orange-500" /> Your Script
                                                         </p>
                                                     </div>
                                                     <textarea
@@ -925,7 +1054,7 @@ function AIInfluencerWorkstation() {
                                                             disabled={!rawScript.trim()}
                                                             className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:from-orange-500 hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed shadow-xl active:scale-95"
                                                         >
-                                                            Initialise Protocol <ChevronRight size={14} strokeWidth={3} />
+                                                            Continue <ChevronRight size={14} strokeWidth={3} />
                                                         </button>
                                                     </div>
                                                 </motion.div>
@@ -1068,8 +1197,21 @@ function AIInfluencerWorkstation() {
                                                                 const file = e.target.files?.[0];
                                                                 if (file && user?.uid && jobId) {
                                                                     setAudioSampleFile(file);
-                                                                    addUser(`[Audio Reference Uploaded — ${(file.size / 1024 / 1024).toFixed(1)}MB]`);
-                                                                    addAssistant('OKVEVO is sampling your voice DNA... uploading to the lab 🧬');
+                                                                    const audioUrl = URL.createObjectURL(file);
+                                                                    const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+                                                                    addUser(
+                                                                        <div className="space-y-3">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <Volume2 size={14} className="text-white/60" />
+                                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Audio Reference • {fileSizeMB}MB</span>
+                                                                            </div>
+                                                                            <audio controls className="w-full h-10 rounded-lg" style={{ filter: 'invert(0.9) hue-rotate(180deg)' }}>
+                                                                                <source src={audioUrl} type={file.type} />
+                                                                                Your browser does not support audio playback.
+                                                                            </audio>
+                                                                        </div>
+                                                                    );
+                                                                    addAssistant('OK VEVO is sampling your voice DNA... uploading to the lab 🧬');
                                                                     setIsGenerating(true);
 
                                                                     try {
@@ -1084,7 +1226,7 @@ function AIInfluencerWorkstation() {
                                                                             updatedAt: new Date().toISOString(),
                                                                         }, { merge: true });
 
-                                                                        addAssistant('✅ Voice DNA locked in! Hit Commit Audio Layer and VEVO will clone that voice.');
+                                                                        addAssistant('✅ Voice DNA locked in! Hit Commit and Continue.');
                                                                         setSelectedGender('');
                                                                         setIsGenerating(false);
                                                                     } catch (err: any) {
@@ -1104,7 +1246,7 @@ function AIInfluencerWorkstation() {
                                                                 }`}
                                                         >
                                                             <Mic2 size={16} strokeWidth={2.5} />
-                                                            {audioSampleFile ? 'Reference DNA Linked' : 'Clone Unique Voice'}
+                                                            {audioSampleFile ? 'Reference DNA Linked' : 'Your Voice'}
                                                         </label>
                                                     </div>
 
@@ -1140,7 +1282,7 @@ function AIInfluencerWorkstation() {
                                                     >
                                                         {isGenerating
                                                             ? <><Loader2 size={14} className="animate-spin" /> Synthesizing Voice…</>
-                                                            : <><Sparkles size={14} /> Commit Audio Layer</>
+                                                            : <><Sparkles size={14} /> Commit and Continue</>
                                                         }
                                                     </button>
                                                 </motion.div>
@@ -1181,282 +1323,13 @@ function AIInfluencerWorkstation() {
                                                             <Loader2 size={20} className="text-orange-500 animate-spin" />
                                                         </div>
                                                         <div>
-                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">OKVEVO is Lip-Syncing</p>
-                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">Fal AI is doing the OKVEVO Kiss · 2–5 Min</p>
+                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">OKVEVO is bringing your AVATAR to Life</p>
+                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">We call it The VEVO Kiss</p>
                                                         </div>
                                                     </div>
                                                 </motion.div>
                                             )}
 
-                                            {/* STEP COMPLETE */}
-                                            {chatStep === 'complete' && (
-                                                <motion.div
-                                                    key="complete"
-                                                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                                                    data-lenis-prevent
-                                                    className="px-6 py-8 border-b border-white/5 bg-green-500/5 shrink min-h-0 max-h-[55vh] overflow-y-auto custom-scrollbar space-y-5 flex flex-col items-center text-center"
-                                                >
-                                                    <div className="w-16 h-16 rounded-[2rem] bg-green-500/10 border border-green-500/30 flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.1)]">
-                                                        <CheckCircle2 size={32} className="text-green-500" strokeWidth={2.5} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">OKVEVO Delivered 🔥</h4>
-                                                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">exit code: OKVEVO_CLEAN · no errors · pure fire</p>
-                                                    </div>
-                                                    {/* ── Existing action buttons — untouched ── */}
-                                                    <div className="flex w-full gap-3">
-                                                        {finalVideoUrl && (
-                                                            <a
-                                                                href={finalVideoUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                download
-                                                                className="flex-1 py-4 rounded-xl bg-green-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500 transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
-                                                            >
-                                                                <Download size={14} strokeWidth={3} /> Secure Download
-                                                            </a>
-                                                        )}
-                                                        <button
-                                                            onClick={resetFlow}
-                                                            className="flex-1 py-4 rounded-xl border border-white/5 bg-white/[0.02] text-white/60 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/[0.05] transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                        >
-                                                            <RotateCcw size={14} strokeWidth={3} /> Purge & Reset
-                                                        </button>
-                                                    </div>
-
-                                                    {/* ── Optional Branding Panel ── */}
-                                                    <div className="w-full">
-                                                        {/* Toggle button */}
-                                                        <button
-                                                            onClick={() => setBrandingOpen(v => !v)}
-                                                            className="w-full flex items-center justify-between px-5 py-3 rounded-2xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <Sparkles size={13} className="text-orange-400" />
-                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Add Branding</span>
-                                                                <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">— Logo &amp; Marquee (Optional)</span>
-                                                            </div>
-                                                            <ChevronDown
-                                                                size={14}
-                                                                className={`text-orange-400/60 transition-transform duration-300 ${brandingOpen ? 'rotate-180' : ''}`}
-                                                            />
-                                                        </button>
-
-                                                        {/* Collapsible branding form */}
-                                                        <AnimatePresence>
-                                                            {brandingOpen && (
-                                                                <motion.div
-                                                                    key="branding-panel"
-                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                                    exit={{ opacity: 0, height: 0 }}
-                                                                    transition={{ duration: 0.25 }}
-                                                                    className="overflow-hidden"
-                                                                >
-                                                                    <div data-lenis-prevent className="mt-3 space-y-4 p-5 rounded-2xl border border-white/5 bg-white/[0.02] text-left max-h-[300px] overflow-y-auto custom-scrollbar">
-
-                                                                        {/* ── Marquee Section ── */}
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Scrolling Marquee Text
-                                                                            </p>
-                                                                            <textarea
-                                                                                value={brandMarqueeText}
-                                                                                onChange={e => setBrandMarqueeText(e.target.value)}
-                                                                                placeholder="e.g. This video is for informational purposes only."
-                                                                                rows={2}
-                                                                                className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-white/20 leading-relaxed transition-all"
-                                                                            />
-
-                                                                            {/* Marquee position picker — shown only when text is entered */}
-                                                                            {brandMarqueeText.trim() && (
-                                                                                <div className="flex gap-2">
-                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20 self-center mr-1">Position:</p>
-                                                                                    {(['bottom', 'top'] as const).map(pos => (
-                                                                                        <button
-                                                                                            key={pos}
-                                                                                            onClick={() => {
-                                                                                                setBrandMarqueePos(pos);
-                                                                                                // Auto-set logo to the opposite edge
-                                                                                                setBrandLogoPos(pos === 'bottom' ? 'top-right' : 'bottom-right');
-                                                                                            }}
-                                                                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all active:scale-95 ${
-                                                                                                brandMarqueePos === pos
-                                                                                                    ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
-                                                                                                    : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
-                                                                                            }`}
-                                                                                        >
-                                                                                            {pos === 'bottom'
-                                                                                                ? <ArrowDown size={11} />
-                                                                                                : <ArrowUp size={11} />
-                                                                                            }
-                                                                                            {pos}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── Logo Section ── */}
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                <span className="w-1 h-1 rounded-full bg-orange-500" /> Logo Watermark
-                                                                            </p>
-                                                                            <label
-                                                                                htmlFor="brand-logo-upload"
-                                                                                className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
-                                                                                    brandLogoFile
-                                                                                        ? 'border-orange-500 bg-orange-500/10 text-orange-400'
-                                                                                        : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-orange-500/30 hover:bg-orange-500/5'
-                                                                                }`}
-                                                                            >
-                                                                                <Image size={13} strokeWidth={2.5} />
-                                                                                {brandLogoFile ? brandLogoFile.name : 'Upload Logo (PNG / JPG / WebP)'}
-                                                                            </label>
-                                                                            <input
-                                                                                id="brand-logo-upload"
-                                                                                type="file"
-                                                                                accept="image/png,image/jpeg,image/webp"
-                                                                                className="hidden"
-                                                                                onChange={e => {
-                                                                                    const f = e.target.files?.[0] ?? null;
-                                                                                    setBrandLogoFile(f);
-                                                                                    e.target.value = '';
-                                                                                }}
-                                                                            />
-
-                                                                            {/* Logo position picker — shown only when logo is chosen */}
-                                                                            {brandLogoFile && (
-                                                                                <div className="space-y-1.5">
-                                                                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Logo Corner:</p>
-                                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                                        {([
-                                                                                            { val: 'top-left',     label: '↖ Top Left' },
-                                                                                            { val: 'top-right',    label: '↗ Top Right' },
-                                                                                            { val: 'bottom-left',  label: '↙ Bottom Left' },
-                                                                                            { val: 'bottom-right', label: '↘ Bottom Right' },
-                                                                                        ] as { val: typeof brandLogoPos; label: string }[]).map(({ val, label }) => {
-                                                                                            // Disable positions that conflict with the chosen marquee row
-                                                                                            const conflictRow = brandMarqueeText.trim() ? brandMarqueePos : null;
-                                                                                            const isConflict  = conflictRow && val.startsWith(conflictRow);
-                                                                                            return (
-                                                                                                <button
-                                                                                                    key={val}
-                                                                                                    disabled={!!isConflict}
-                                                                                                    onClick={() => setBrandLogoPos(val)}
-                                                                                                    title={isConflict ? `Marquee is already at the ${conflictRow}` : ''}
-                                                                                                    className={`py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all active:scale-95 ${
-                                                                                                        isConflict
-                                                                                                            ? 'opacity-25 cursor-not-allowed border-white/5 bg-white/[0.01] text-white/20'
-                                                                                                            : brandLogoPos === val
-                                                                                                                ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
-                                                                                                                : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
-                                                                                                    }`}
-                                                                                                >
-                                                                                                    {label}
-                                                                                                </button>
-                                                                                            );
-                                                                                        })}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── AI Thumbnail Section ── */}
-                                                                        <div className="space-y-4 pt-4 border-t border-white/5">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                    <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail 
-                                                                                    {/* (NanoBanana2) */}
-                                                                                </p>
-                                                                                <button
-                                                                                    onClick={() => setBrandNeedThumbnail(v => !v)}
-                                                                                    className={`w-8 h-4 rounded-full transition-colors relative ${brandNeedThumbnail ? 'bg-blue-500' : 'bg-white/10'}`}
-                                                                                >
-                                                                                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {brandNeedThumbnail && (
-                                                                                <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-                                                                                    <textarea
-                                                                                        value={brandThumbnailPrompt}
-                                                                                        onChange={e => setBrandThumbnailPrompt(e.target.value)}
-                                                                                        placeholder="Describe the thumbnail you want... e.g. 'A cinematic thumbnail of an influencer holding a glowing product box, 4K'"
-                                                                                        rows={2}
-                                                                                        className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] text-white/80 focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 outline-none resize-none placeholder-white/20"
-                                                                                    />
-                                                                                    
-                                                                                    <label
-                                                                                        className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
-                                                                                            brandThumbnailPhotoFile
-                                                                                                ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                                                                                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-blue-500/30 hover:bg-blue-500/5'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <Image size={13} strokeWidth={2.5} />
-                                                                                        {brandThumbnailPhotoFile ? brandThumbnailPhotoFile.name : 'Upload Presenter Photo (Optional reference)'}
-                                                                                        <input
-                                                                                            type="file"
-                                                                                            accept="image/png,image/jpeg,image/webp"
-                                                                                            className="hidden"
-                                                                                            onChange={e => {
-                                                                                                const f = e.target.files?.[0] ?? null;
-                                                                                                setBrandThumbnailPhotoFile(f);
-                                                                                                e.target.value = '';
-                                                                                            }}
-                                                                                        />
-                                                                                    </label>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── Apply Button ── */}
-                                                                        <button
-                                                                            onClick={handleApplyBranding}
-                                                                            disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
-                                                                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
-                                                                        >
-                                                                            {isBranding
-                                                                                ? <><Loader2 size={13} className="animate-spin" /> VEVO Branding…</>
-                                                                                : <><Sparkles size={13} /> VEVO-fy This Video</>
-                                                                            }
-                                                                        </button>
-
-                                                                        {/* Download branded result */}
-                                                                        {(brandedVideoUrl || customThumbnailUrl) && (
-                                                                            <div className="flex flex-col gap-2 pt-2">
-                                                                                {brandedVideoUrl && (
-                                                                                    <a
-                                                                                        href={brandedVideoUrl}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        download
-                                                                                        className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                                    >
-                                                                                        <Download size={13} strokeWidth={3} /> Download Branded Video
-                                                                                    </a>
-                                                                                )}
-                                                                                {customThumbnailUrl && (
-                                                                                    <a
-                                                                                        href={customThumbnailUrl}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        download
-                                                                                        className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                                    >
-                                                                                        <Image size={13} strokeWidth={3} /> Download 9:16 Thumbnail
-                                                                                    </a>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </motion.div>
-                                                            )}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                </motion.div>
-                                            )}
                                         </AnimatePresence>
 
                                         {/* ── Chat Messages ── */}
@@ -1491,7 +1364,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Loader2 size={10} className="text-orange-500 animate-spin" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">VEVO IS VEVOING</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">VEVO IS Vevoing</span>
                                                         </div>
                                                         <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
                                                             <div className="flex gap-2 items-center">
@@ -1535,6 +1408,260 @@ function AIInfluencerWorkstation() {
                                                         </div>
                                                     </div>
                                                 </div>
+                                            )}
+                                            {chatStep === 'complete' && finalVideoUrl && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, scale: 0.95 }} 
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="flex justify-start"
+                                                >
+                                                    <div className="flex flex-col gap-2.5 items-start max-w-[80%]">
+                                                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 mb-1 backdrop-blur-md">
+                                                            <CheckCircle2 size={10} className="text-green-400" />
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-green-400">VEVO DELIVERED 🔥</span>
+                                                        </div>
+                                                        <div className="bg-green-500/5 rounded-[2rem] rounded-tl-none px-7 py-6 border border-green-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-green-500/10 space-y-4">
+                                                            <p className="text-[14px] text-green-200/80 leading-relaxed">
+                                                                Your video is ready! Download it now.
+                                                            </p>
+                                                            <a
+                                                                href={`/api/download-video?url=${encodeURIComponent(finalVideoUrl)}`}
+                                                                download
+                                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-green-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500 transition-all shadow-xl active:scale-95 cursor-pointer"
+                                                            >
+                                                                <Download size={14} strokeWidth={3} /> Secure Download
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                            {chatStep === 'complete' && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, scale: 0.95 }} 
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="flex justify-start"
+                                                >
+                                                    <div className="flex flex-col gap-2.5 items-start max-w-[85%]">
+                                                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
+                                                            <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">VEVO SPEAKING</span>
+                                                        </div>
+                                                        <div className="bg-white/[0.02] rounded-[2rem] rounded-tl-none px-7 py-6 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5 w-full">
+                                                            <button
+                                                                onClick={() => setBrandingOpen(v => !v)}
+                                                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all"
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                   
+                                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-300">Add Custom Branding and Thumbnail</span>
+                                                                    <span className="text-[8px] text-white/20 font-bold uppercase">Optional</span>
+                                                                </div>
+                                                                <ChevronDown
+                                                                    size={13}
+                                                                    className={`text-green-400/60 transition-transform duration-300 ${brandingOpen ? 'rotate-180' : ''}`}
+                                                                />
+                                                            </button>
+
+                                                            <AnimatePresence>
+                                                                {brandingOpen && (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                        transition={{ duration: 0.25 }}
+                                                                        className="overflow-hidden"
+                                                                    >
+                                                                        <div className="mt-4 space-y-4 p-4 rounded-xl border border-white/5 bg-white/[0.02] max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                                            {/* Logo and Marquee Side by Side */}
+                                                                            <div className="grid grid-cols-2 gap-4">
+                                                                                {/* Logo Section */}
+                                                                                <div className="space-y-2">
+                                                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Logo
+                                                                                    </p>
+                                                                                    <label
+                                                                                        htmlFor="brand-logo-upload-chat"
+                                                                                        className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                            brandLogoFile
+                                                                                                ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                                                                                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-orange-500/30 hover:bg-orange-500/5'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <Image size={13} strokeWidth={2.5} />
+                                                                                        {brandLogoFile ? brandLogoFile.name : 'Upload Logo'}
+                                                                                    </label>
+                                                                                    <input
+                                                                                        id="brand-logo-upload-chat"
+                                                                                        type="file"
+                                                                                        accept="image/png,image/jpeg,image/webp"
+                                                                                        className="hidden"
+                                                                                        onChange={e => {
+                                                                                            const f = e.target.files?.[0] ?? null;
+                                                                                            setBrandLogoFile(f);
+                                                                                            e.target.value = '';
+                                                                                        }}
+                                                                                    />
+                                                                                    {brandLogoFile && (
+                                                                                        <div className="space-y-1.5">
+                                                                                            <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Corner:</p>
+                                                                                            <div className="grid grid-cols-2 gap-2">
+                                                                                                {([
+                                                                                                    { val: 'top-left',     label: '↖ TL' },
+                                                                                                    { val: 'top-right',    label: '↗ TR' },
+                                                                                                    { val: 'bottom-left',  label: '↙ BL' },
+                                                                                                    { val: 'bottom-right', label: '↘ BR' },
+                                                                                                ] as { val: typeof brandLogoPos; label: string }[]).map(({ val, label }) => {
+                                                                                                    const conflictRow = brandMarqueeText.trim() ? brandMarqueePos : null;
+                                                                                                    const isConflict  = conflictRow && val.startsWith(conflictRow);
+                                                                                                    return (
+                                                                                                        <button
+                                                                                                            key={val}
+                                                                                                            disabled={!!isConflict}
+                                                                                                            onClick={() => setBrandLogoPos(val)}
+                                                                                                            className={`py-2 px-2 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all active:scale-95 ${
+                                                                                                                isConflict
+                                                                                                                    ? 'opacity-25 cursor-not-allowed border-white/5 bg-white/[0.01] text-white/20'
+                                                                                                                    : brandLogoPos === val
+                                                                                                                        ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                                        : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            {label}
+                                                                                                        </button>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {/* Marquee Section */}
+                                                                                <div className="space-y-2">
+                                                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                        <span className="w-1 h-1 rounded-full bg-orange-500" /> Marquee
+                                                                                    </p>
+                                                                                    <textarea
+                                                                                        value={brandMarqueeText}
+                                                                                        onChange={e => setBrandMarqueeText(e.target.value)}
+                                                                                        placeholder="Scrolling text..."
+                                                                                        rows={2}
+                                                                                        className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] text-white/80 focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 outline-none resize-none placeholder-white/20"
+                                                                                    />
+                                                                                    {brandMarqueeText.trim() && (
+                                                                                        <div className="flex gap-2">
+                                                                                            <p className="text-[8px] font-black uppercase tracking-widest text-white/20 self-center">Pos:</p>
+                                                                                            {(['bottom', 'top'] as const).map(pos => (
+                                                                                                <button
+                                                                                                    key={pos}
+                                                                                                    onClick={() => {
+                                                                                                        setBrandMarqueePos(pos);
+                                                                                                        setBrandLogoPos(pos === 'bottom' ? 'top-right' : 'bottom-right');
+                                                                                                    }}
+                                                                                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all active:scale-95 ${
+                                                                                                        brandMarqueePos === pos
+                                                                                                            ? 'bg-orange-600/20 border-orange-500/40 text-orange-300'
+                                                                                                            : 'bg-white/[0.02] border-white/5 text-white/30 hover:border-white/20'
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    {pos === 'bottom' ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
+                                                                                                    {pos}
+                                                                                                </button>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Thumbnail Section */}
+                                                                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                        <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail
+                                                                                    </p>
+                                                                                    <button
+                                                                                        onClick={() => setBrandNeedThumbnail(v => !v)}
+                                                                                        className={`w-8 h-4 rounded-full transition-colors relative ${brandNeedThumbnail ? 'bg-blue-500' : 'bg-white/10'}`}
+                                                                                    >
+                                                                                        <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                                                    </button>
+                                                                                </div>
+                                                                                {brandNeedThumbnail && (
+                                                                                    <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                                                                                        <textarea
+                                                                                            value={brandThumbnailPrompt}
+                                                                                            onChange={e => setBrandThumbnailPrompt(e.target.value)}
+                                                                                            placeholder="Describe the thumbnail..."
+                                                                                            rows={2}
+                                                                                            className="w-full p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] text-white/80 focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 outline-none resize-none placeholder-white/20"
+                                                                                        />
+                                                                                        <label
+                                                                                            className={`w-full py-3 rounded-xl border border-dashed flex justify-center items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] cursor-pointer transition-all active:scale-[0.98] ${
+                                                                                                brandThumbnailPhotoFile
+                                                                                                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                                                                                                    : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-blue-500/30 hover:bg-blue-500/5'
+                                                                                            }`}
+                                                                                        >
+                                                                                            <Image size={13} strokeWidth={2.5} />
+                                                                                            {brandThumbnailPhotoFile ? brandThumbnailPhotoFile.name : 'Upload Photo (Optional)'}
+                                                                                            <input
+                                                                                                type="file"
+                                                                                                accept="image/png,image/jpeg,image/webp"
+                                                                                                className="hidden"
+                                                                                                onChange={e => {
+                                                                                                    const f = e.target.files?.[0] ?? null;
+                                                                                                    setBrandThumbnailPhotoFile(f);
+                                                                                                    e.target.value = '';
+                                                                                                }}
+                                                                                            />
+                                                                                        </label>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Apply Button */}
+                                                                            <button
+                                                                                onClick={handleApplyBranding}
+                                                                                disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
+                                                                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
+                                                                            >
+                                                                                {isBranding
+                                                                                    ? <><Loader2 size={13} className="animate-spin" /> VEVO Branding…</>
+                                                                                    : <><Sparkles size={13} /> VEVO-fy This Video</>
+                                                                                }
+                                                                            </button>
+
+                                                                            {/* Download Results */}
+                                                                            {(brandedVideoUrl || customThumbnailUrl) && (
+                                                                                <div className="flex flex-col gap-2 pt-2">
+                                                                                    {brandedVideoUrl && (
+                                                                                        <a
+                                                                                            href={`/api/download-video?url=${encodeURIComponent(brandedVideoUrl)}`}
+                                                                                            download
+                                                                                            className="w-full py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                        >
+                                                                                            <Download size={13} strokeWidth={3} /> Download Branded Video
+                                                                                        </a>
+                                                                                    )}
+                                                                                    {customThumbnailUrl && (
+                                                                                        <a
+                                                                                            href={customThumbnailUrl}
+                                                                                            target="_blank"
+                                                                                            rel="noopener noreferrer"
+                                                                                            download
+                                                                                            className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                        >
+                                                                                            <Image size={13} strokeWidth={3} /> Download Thumbnail
+                                                                                        </a>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
                                             )}
                                             <div ref={chatEndRef} />
                                         </div>

@@ -130,6 +130,7 @@
                   "fal_mode.$": "$.fal_mode",
                   "ttsUrl.$": "$.aiPrepResult.audioUrl",
                   "avatarVideoUrl.$": "$.avatarVideoUrl",
+                  "script.$": "$.script",
                   "taskToken.$": "$$.Task.Token"
                 }
               },
