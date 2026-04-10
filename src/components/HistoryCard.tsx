@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Download, ExternalLink, ImageIcon, Sparkles, Wand2, Camera, Compass, X, Film, Loader2, Clock, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { Play, Download, ExternalLink, ImageIcon, Sparkles, Wand2, Camera, Compass, X, Film, Loader2, Clock, AlertCircle, CheckCircle, Trash2, MessageSquare } from 'lucide-react';
 import type { UserGeneration } from '../services/HistoryService';
 import type { TrendGeneration, PipelineStatus } from '../services/TrendGenerationService';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import type { WorkspaceSession } from '../services/WorkspaceSessionService';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import Link from 'next/link';
 
 interface HistoryCardProps {
     generation: UserGeneration;
@@ -332,6 +334,30 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
         return <TrendGenerationCard generation={generation} />;
     }
 
+    // AI Influencer session state
+    const [aiSession, setAiSession] = useState<WorkspaceSession | null>(null);
+    const [loadingSession, setLoadingSession] = useState(false);
+
+    // Fetch AI Influencer session
+    useEffect(() => {
+        if (generation.type === 'AI_INFLUENCER') {
+            setLoadingSession(true);
+            // Find session where state.jobId matches this generation.id
+            const q = query(
+                collection(db, 'workspace_sessions'),
+                where('feature', '==', 'ai-influencer'),
+                where('state.jobId', '==', generation.id)
+            );
+            getDocs(q).then(snap => {
+                if (!snap.empty) {
+                    const doc = snap.docs[0];
+                    setAiSession({ id: doc.id, ...doc.data() } as WorkspaceSession);
+                }
+                setLoadingSession(false);
+            }).catch(() => setLoadingSession(false));
+        }
+    }, [generation.id, generation.type]);
+
     const isCompleted = generation.status === 'complete';
     const isProcessing = !isCompleted && generation.status !== 'error' && generation.status !== 'failed';
     const isFailed = generation.status === 'error' || generation.status === 'failed';
@@ -381,6 +407,12 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
     };
 
     const handleView = () => {
+        // For AI Influencer with a session, navigate to the chat
+        if (generation.type === 'AI_INFLUENCER' && aiSession) {
+            window.location.href = `/workspace/ai-influencer?sessionId=${aiSession.id}`;
+            return;
+        }
+        // For others, open the video/image
         const urlToView = generation.videoUrl || generation.imageUrl;
         if (urlToView) {
             window.open(urlToView, '_blank');
@@ -394,9 +426,18 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                     bg-white/5 border-white/10 hover:bg-white/10 hover:border-accent-orange/50 cursor-pointer text-text-main`}
                 onClick={handleView}
             >
-                {/* Thumbnail */}
-                <div className="w-full sm:w-48 aspect-video sm:aspect-square relative rounded-xl overflow-hidden bg-black/20 flex-shrink-0">
-                    {generation.thumbnailUrl ? (
+                {/* Video/Thumbnail - 9:16 Ratio */}
+                <div className="w-full sm:w-36 aspect-[9/16] relative rounded-xl overflow-hidden bg-black/20 flex-shrink-0">
+                    {generation.videoUrl ? (
+                        <video
+                            src={generation.videoUrl}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            muted
+                            playsInline
+                            onMouseEnter={(e) => e.currentTarget.play()}
+                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                        />
+                    ) : generation.thumbnailUrl ? (
                         <img
                             src={generation.thumbnailUrl}
                             alt={generation.title}
@@ -408,8 +449,12 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                         </div>
                     )}
 
-                    {/* Video Indicator */}
-                    {generation.videoUrl && (
+                    {/* Video/Chat Indicator */}
+                    {generation.type === 'AI_INFLUENCER' && aiSession ? (
+                        <div className="absolute top-2 right-2 p-1.5 bg-accent-orange/20 backdrop-blur-md rounded-lg text-accent-orange border border-accent-orange/30">
+                            <MessageSquare className="w-3 h-3" />
+                        </div>
+                    ) : generation.videoUrl && (
                         <div className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur-md rounded-lg text-white">
                             <Play className="w-3 h-3" />
                         </div>
@@ -420,7 +465,11 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                 <div className="flex-1 flex flex-col justify-between py-2">
                     <div>
                         <div className="flex items-start justify-between gap-4 mb-2">
-                            <h3 className="text-xl font-bold line-clamp-2">{generation.title}</h3>
+                            <h3 className="text-xl font-bold line-clamp-2 text-white">
+                                {generation.type === 'AI_INFLUENCER' && aiSession
+                                    ? aiSession.title || 'AI Influencer Chat'
+                                    : generation.title}
+                            </h3>
                             <div className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor()}`}>
                                 {generation.status.toUpperCase()}
                             </div>
@@ -433,26 +482,48 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                             </div>
                             <span className="opacity-50">•</span>
                             <span>{new Date(generation.createdAt).toLocaleDateString()}</span>
+                            {generation.type === 'AI_INFLUENCER' && aiSession && (
+                                <>
+                                    <span className="opacity-50">•</span>
+                                    <span className="text-accent-orange flex items-center gap-1">
+                                        <MessageSquare className="w-3 h-3" />
+                                        Chat Session
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Actions */}
                     {isCompleted && (
                         <div className="flex gap-2 mt-4 sm:mt-0 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                                onClick={handleDownload}
-                                className="p-2 rounded-lg bg-black/5 hover:bg-black/10 text-white transition-colors"
-                                title="Download"
-                            >
-                                <Download className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={handleView}
-                                className="p-2 rounded-lg bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white transition-colors"
-                                title="Open externally"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </button>
+                            {generation.type === 'AI_INFLUENCER' && aiSession ? (
+                                <Link
+                                    href={`/workspace/ai-influencer?sessionId=${aiSession.id}`}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white transition-colors font-medium text-sm"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    Continue Chat
+                                </Link>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={handleDownload}
+                                        className="p-2 rounded-lg bg-black/5 hover:bg-black/10 text-white transition-colors"
+                                        title="Download"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={handleView}
+                                        className="p-2 rounded-lg bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white transition-colors"
+                                        title="Open externally"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -466,9 +537,20 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
             className="group flex flex-col bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-accent-orange/50 transition-all duration-300 cursor-pointer text-text-main"
             onClick={handleView}
         >
-            {/* Thumbnail */}
-            <div className="relative aspect-video w-full bg-black/20 overflow-hidden">
-                {generation.thumbnailUrl ? (
+            {/* Video/Thumbnail Container - 9:16 Ratio */}
+            <div className="relative aspect-[9/16] w-full bg-black/20 overflow-hidden">
+                {generation.videoUrl ? (
+                    // Show actual video if available
+                    <video
+                        src={generation.videoUrl}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        muted
+                        playsInline
+                        onMouseEnter={(e) => e.currentTarget.play()}
+                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                    />
+                ) : generation.thumbnailUrl ? (
+                    // Fallback to thumbnail
                     <img
                         src={generation.thumbnailUrl}
                         alt={generation.title}
@@ -488,7 +570,11 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
                         {getTypeIcon()}
                         <span>{getTypeLabel()}</span>
                     </div>
-                    {generation.videoUrl && (
+                    {generation.type === 'AI_INFLUENCER' && aiSession ? (
+                        <div className="p-1.5 rounded-lg bg-accent-orange/20 backdrop-blur-md text-accent-orange border border-accent-orange/30">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                        </div>
+                    ) : generation.videoUrl && (
                         <div className="p-1.5 rounded-lg bg-black/50 backdrop-blur-md text-white border border-white/10">
                             <Play className="w-3.5 h-3.5" />
                         </div>
@@ -508,27 +594,50 @@ export default function HistoryCard({ generation, viewMode }: HistoryCardProps) 
 
             {/* Content info */}
             <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-lg font-bold mb-2 line-clamp-1 group-hover:text-accent-orange transition-colors">
-                    {generation.title}
+                <h3 className="text-lg font-bold mb-2 line-clamp-1 text-white group-hover:text-accent-orange transition-colors">
+                    {generation.type === 'AI_INFLUENCER' && aiSession
+                        ? aiSession.title || 'AI Influencer Chat'
+                        : generation.title}
                 </h3>
 
                 <div className="flex items-center justify-between text-sm text-text-dim mt-auto">
-                    <span>{new Date(generation.createdAt).toLocaleDateString()}</span>
+                    <div className="flex items-center gap-2">
+                        <span>{new Date(generation.createdAt).toLocaleDateString()}</span>
+                        {generation.type === 'AI_INFLUENCER' && aiSession && (
+                            <span className="text-accent-orange flex items-center gap-1 text-xs">
+                                <MessageSquare className="w-3 h-3" />
+                                Chat
+                            </span>
+                        )}
+                    </div>
 
                     {isCompleted && (
                         <div className="flex gap-1.5">
-                            <button
-                                onClick={handleDownload}
-                                className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
-                            >
-                                <Download className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={handleView}
-                                className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </button>
+                            {generation.type === 'AI_INFLUENCER' && aiSession ? (
+                                <Link
+                                    href={`/workspace/ai-influencer?sessionId=${aiSession.id}`}
+                                    className="p-1.5 rounded-md bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white transition-colors"
+                                    title="Continue Chat"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                </Link>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={handleDownload}
+                                        className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={handleView}
+                                        className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

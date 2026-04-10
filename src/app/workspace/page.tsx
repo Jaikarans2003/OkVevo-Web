@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { auth } from '../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 // Modular Redesign Components (WGMI Style)
 import WorkspaceBento from '../../components/workspace/WorkspaceBento';
@@ -12,6 +13,14 @@ import DashNavbar from '../../components/workspace/WorkspaceNavbar';
 export default function WorkspacePage() {
     const [user, setUser] = useState<any>(null);
     const router = useRouter();
+    const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !isAuthenticated()) {
+            router.push('/login');
+        }
+    }, [authLoading, isAuthenticated, router]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {

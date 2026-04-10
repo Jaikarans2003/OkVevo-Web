@@ -7,6 +7,7 @@ import { onAuthStateChanged, User, updateEmail, signOut } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
+import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../services/SubscriptionService';
 import { ArrowLeft, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +16,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -35,8 +37,12 @@ export default function ProfilePage() {
             if (currentUser) {
                 setUser(currentUser);
                 try {
-                    const profileData = await getUserProfile(currentUser.uid);
+                    const [profileData, subData] = await Promise.all([
+                        getUserProfile(currentUser.uid),
+                        getUserSubscription(currentUser.uid)
+                    ]);
                     setProfile(profileData);
+                    setSubscription(subData);
                     setFormData({
                         email: profileData?.email || currentUser.email || '',
                         phoneNumber: profileData?.phoneNumber || '',
@@ -216,12 +222,12 @@ export default function ProfilePage() {
                         {/* High-Contrast Stats & Subscription Row */}
                         <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-24 max-w-4xl">
                             {[
-                                { 
-                                    label: 'Subscription Plan', 
-                                    value: profile?.isPro ? 'Pro Access' : profile?.userType === 'organisation' ? 'Organisation' : profile?.userType === 'single' ? 'Standard' : 'No Active Plan', 
-                                    icon: Activity, 
-                                    color: '#FF4D00', 
-                                    detail: profile?.createdAt ? `Joined: ${new Date(profile.createdAt.seconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'Active Status' 
+                                {
+                                    label: 'Subscription Plan',
+                                    value: subscription?.planDetails?.name || 'No Active Plan',
+                                    icon: Activity,
+                                    color: '#FF4D00',
+                                    detail: subscription?.status ? `Status: ${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}` : 'Active Status'
                                 },
                                 { label: 'Direct Wire', value: formData.phoneNumber || 'Unlinked', icon: Phone, color: '#A855F7', detail: 'Primary Contact' },
                             ].map((stat, i) => (

@@ -12,6 +12,7 @@ import { auth, googleProvider } from '../config/firebase';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 export default function AuthForm() {
     const [isLogin, setIsLogin] = useState(true);
@@ -111,11 +112,15 @@ export default function AuthForm() {
             <div className="glass-card p-10 rounded-[40px] shadow-premium border border-text-main/10">
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block mb-6 group">
-                        <span className="text-4xl font-black tracking-tighter text-text-main group-hover:text-accent-orange transition-colors">
-                            OKVEVO<span className="text-accent-orange">.</span>
-                        </span>
+                        <Image
+                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            alt="OKVEVO"
+                            width={225}
+                            height={75}
+                            className="h-12 w-auto object-contain group-hover:scale-105 transition-transform"
+                        />
                     </Link>
-                    <h2 className="text-3xl font-bold text-text-main mb-3 tracking-tight">
+                    <h2 className="text-3xl font-bold text-white text-text-main mb-3 tracking-tight">
                         {isLogin ? 'Welcome Back' : 'Create Account'}
                     </h2>
                     <p className="text-text-dim text-base">
@@ -178,7 +183,7 @@ export default function AuthForm() {
 
                 <div className="my-8 flex items-center gap-4">
                     <div className="h-px bg-text-main/10 flex-1" />
-                    <span className="text-text-dim/60 text-xs font-bold tracking-widest uppercase">OR CONTINUE WITH</span>
+                    <span className="text-white text-xs font-bold tracking-widest uppercase">OR CONTINUE WITH</span>
                     <div className="h-px bg-text-main/10 flex-1" />
                 </div>
 

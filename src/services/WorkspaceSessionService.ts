@@ -43,7 +43,8 @@ export interface WorkspaceSession {
 // Firestore helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const COLLECTION = 'workspace_sessions';
+const USERS_COLLECTION = 'users';
+const SESSIONS_SUBCOLLECTION = 'workspace_sessions';
 
 /** Generate a quick unique ID */
 function newId(prefix: string): string {
@@ -92,7 +93,7 @@ export async function createWorkspaceSession(
     initialMessages: WorkspaceMessage[] = [],
 ): Promise<string> {
     const id = newId(feature);
-    const ref = doc(db, COLLECTION, id);
+    const ref = doc(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION, id);
 
     const data: Omit<WorkspaceSession, 'id'> = {
         userId,
@@ -120,8 +121,16 @@ export async function updateWorkspaceSession(
         state?: Record<string, any>;
         messages?: WorkspaceMessage[];
     },
+    userId?: string,
 ): Promise<void> {
-    const ref = doc(db, COLLECTION, sessionId);
+    // Extract userId from sessionId if not provided (backward compatibility)
+    if (!userId) {
+        console.warn('updateWorkspaceSession: userId not provided, this may cause issues');
+        // Try to extract from sessionId pattern: feature_timestamp_random
+        // This is a fallback and should be avoided
+        throw new Error('userId is required for updateWorkspaceSession');
+    }
+    const ref = doc(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION, sessionId);
     const updateData: Record<string, any> = {
         updatedAt: serverTimestamp(),
     };
@@ -147,9 +156,9 @@ export async function updateWorkspaceSession(
 /**
  * Fetch a single session by ID.
  */
-export async function getWorkspaceSession(sessionId: string): Promise<WorkspaceSession | null> {
+export async function getWorkspaceSession(sessionId: string, userId: string): Promise<WorkspaceSession | null> {
     try {
-        const snap = await getDoc(doc(db, COLLECTION, sessionId));
+        const snap = await getDoc(doc(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION, sessionId));
         if (!snap.exists()) return null;
         return { id: snap.id, ...snap.data() } as WorkspaceSession;
     } catch {
@@ -166,8 +175,7 @@ export async function getUserWorkspaceSessions(
 ): Promise<WorkspaceSession[]> {
     try {
         const q = query(
-            collection(db, COLLECTION),
-            where('userId', '==', userId),
+            collection(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION),
             where('feature', '==', feature),
             orderBy('updatedAt', 'desc'),
         );
@@ -182,6 +190,6 @@ export async function getUserWorkspaceSessions(
 /**
  * Delete a session.
  */
-export async function deleteWorkspaceSession(sessionId: string): Promise<void> {
-    await deleteDoc(doc(db, COLLECTION, sessionId));
+export async function deleteWorkspaceSession(sessionId: string, userId: string): Promise<void> {
+    await deleteDoc(doc(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION, sessionId));
 }

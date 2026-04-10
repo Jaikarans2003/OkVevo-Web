@@ -66,7 +66,7 @@ const Footer = () => {
                             <div>
                                 <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Company</h4>
                                 <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
-                                <li><Link href="/about" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</Link></li>
+                                {/* <li><Link href="/about" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</Link></li> */}
                                 <li><button onClick={(e) => { e.preventDefault(); setShowContact(true); }} className="hover:text-text-main transition-all hover:translate-x-1 inline-block uppercase text-left">Contact</button></li>
                                 <li><Link href="/legal" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Legal</Link></li>
                                 </ul>
@@ -143,9 +143,11 @@ const Footer = () => {
                                     </div>
                                 </a>
 
-                                {/* Phone Action */}
-                                <a 
-                                    href="tel:+919876543210"
+                                {/* WhatsApp Action */}
+                                <a
+                                    href="https://wa.me/917204273604"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="flex items-center gap-5 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
                                 >
                                     <div className="w-12 h-12 rounded-full bg-accent-orange/10 flex items-center justify-center group-hover:bg-accent-orange/20 transition-colors">

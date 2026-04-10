@@ -96,7 +96,8 @@ exports.handler = async (event) => {
         // Submit TTS job using Fal AI SDK
         const ttsInput = {
             text: scriptText,
-            voice: gender === 'male' ? 'Richard' : 'Aurora' // Map male to Richard, default to Aurora for female/unknown
+            voice: gender === 'male' ? 'Richard' : 'Aurora', // Map male to Richard, default to Aurora for female/unknown
+            high_quality_audio: true
         };
         
         // Apply Settings for specific TTS pacing / styles based on ChatterboxHD specs

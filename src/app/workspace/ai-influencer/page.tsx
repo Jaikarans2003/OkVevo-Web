@@ -122,6 +122,7 @@ function AIInfluencerWorkstation() {
     const [thumbnailAlreadyGenerated, setThumbnailAlreadyGenerated] = useState(false);
     const [isBranding,        setIsBranding]        = useState(false);
     const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
+    const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -138,12 +139,46 @@ function AIInfluencerWorkstation() {
     // ── Session history ───────────────────────────────────────
     const { sessionId, initSession, saveSession, resetSession, restoreSession } = useWorkspaceSession('ai-influencer', user?.uid ?? null);
     const isRestoringRef = useRef(false);
+    const activeSessionIdRef = useRef<string | null>(null);
 
     // ── Session restoration handler ───────────────────────────
     const handleRestoreSession = useCallback(async (session: WorkspaceSession) => {
         isRestoringRef.current = true;
         
-        // Restore all state from session
+        // Update sessionId in the hook to highlight the selected session
+        await restoreSession(session.id);
+        
+        // First, reset all state to defaults to prevent pollution from previous session
+        setChatStep('upload-script');
+        setJobId(null);
+        setRawScript('');
+        setEditableScript('');
+        setGeneratedScript('');
+        setSelectedDuration(0);
+        setSelectedGender('');
+        setTtsPacing('');
+        setScriptMood('');
+        setImageTimeline([]);
+        setAudioUrl(null);
+        setAvatarVideoUrl(null);
+        setAvatarVideo(null);
+        setWaitTaskToken(null);
+        setFinalVideoUrl(null);
+        setBrandedVideoUrl(null);
+        setCustomThumbnailUrl(null);
+        setThumbnailAlreadyGenerated(false);
+        setIsGenerating(false);
+        setBrandingOpen(true);
+        setBrandLogoFile(null);
+        setBrandMarqueeText('');
+        setBrandMarqueePos('bottom');
+        setBrandLogoPos('top-right');
+        setBrandNeedThumbnail(false);
+        setBrandThumbnailPrompt('');
+        setBrandThumbnailPhotoFile(null);
+        setIsBranding(false);
+        
+        // Now restore all state from session
         const s = session.state;
         if (s.chatStep) setChatStep(s.chatStep as ChatStep);
         if (s.jobId) setJobId(s.jobId);
@@ -170,7 +205,7 @@ function AIInfluencerWorkstation() {
         setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
         
         // The Firestore job listener will automatically reconnect when jobId changes
-        console.log('✅ Session restored:', session.id, 'JobId:', s.jobId);
+        console.log('Loaded your Previous Chat'); //✅ Session restored:', session.id, 'JobId:', s.jobId
         
         // Allow new sessions to be created after restoration
         setTimeout(() => {
@@ -188,22 +223,24 @@ function AIInfluencerWorkstation() {
             const urlSessionId = params.get('sessionId');
             
             if (urlSessionId) {
-                // Restore specific session from URL
-                const session = await restoreSession(urlSessionId);
-                if (session) {
-                    await handleRestoreSession(session);
+                // Check if this is a page reload (type 1) or navigation (type 0)
+                const navigationType = typeof window !== 'undefined' && window.performance?.getEntriesByType 
+                    ? (window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)?.type 
+                    : null;
+                
+                // Only restore if NOT a reload (i.e., user clicked from history)
+                if (navigationType !== 'reload') {
+                    const session = await restoreSession(urlSessionId);
+                    if (session) {
+                        await handleRestoreSession(session);
+                        return;
+                    }
                 }
-            } else {
-                // Auto-restore most recent in-progress session
-                const sessions = await getUserWorkspaceSessions(user.uid, 'ai-influencer');
-                const inProgress = sessions.find(s => 
-                    s.state.chatStep && 
-                    s.state.chatStep !== 'complete' && 
-                    s.state.chatStep !== 'upload-script'
-                );
-                if (inProgress) {
-                    await handleRestoreSession(inProgress);
-                }
+                
+                // Clear sessionId from URL if it was a reload
+                const url = new URL(window.location.href);
+                url.searchParams.delete('sessionId');
+                window.history.replaceState({}, '', url.toString());
             }
         };
         
@@ -220,18 +257,21 @@ function AIInfluencerWorkstation() {
         );
     }, [chatStep]);
 
-    // ── Sync sessionId to URL ─────────────────────────────────
+    // ── Sync sessionId to URL and track active session ───────
     useEffect(() => {
         if (sessionId && typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             url.searchParams.set('sessionId', sessionId);
             window.history.replaceState({}, '', url.toString());
         }
+        // Track the active session ID
+        activeSessionIdRef.current = sessionId;
     }, [sessionId]);
 
     // Auto-save messages & step whenever they change
     useEffect(() => {
-        if (!sessionId || chatMessages.length === 0) return;
+        // Don't auto-save during session restoration
+        if (!sessionId || chatMessages.length === 0 || isRestoringRef.current) return;
         const state: Record<string, any> = {
             chatStep,
             jobId,
@@ -258,12 +298,55 @@ function AIInfluencerWorkstation() {
             }
         });
         // Convert chat messages to strings for session storage
-        const messagesForStorage = chatMessages.map(msg => ({
-            role: msg.role,
-            content: typeof msg.content === 'string' ? msg.content : '[Rich content]'
-        }));
+        const messagesForStorage = chatMessages.map(msg => {
+            let content: string;
+            if (typeof msg.content === 'string') {
+                content = msg.content;
+            } else {
+                // For rich content, check if it's a script upload message
+                // Use the current rawScript state if available
+                const contentStr = JSON.stringify(msg.content);
+                if (contentStr.includes('Script Uploaded') && rawScript) {
+                    content = `Script Uploaded:\n${rawScript}`;
+                } else {
+                    content = '[Rich content]';
+                }
+            }
+            return { role: msg.role, content };
+        });
         saveSession(state, messagesForStorage);
-    }, [chatMessages, chatStep, jobId, imageTimeline, audioUrl, avatarVideoUrl, finalVideoUrl, brandedVideoUrl, isGenerating]);
+    }, [chatMessages, chatStep, jobId, imageTimeline, audioUrl, avatarVideoUrl, finalVideoUrl, brandedVideoUrl, isGenerating, rawScript, isRestoringRef.current]);
+
+    // ── Cooldown timer ───────────────────────────────────
+    useEffect(() => {
+        if (!user?.uid) return;
+        
+        const updateCooldown = async () => {
+            try {
+                const sessions = await getUserWorkspaceSessions(user.uid, 'ai-influencer');
+                if (sessions.length === 0) return;
+                
+                // Get the most recent session's createdAt
+                const mostRecent = sessions[0];
+                const createdAtMs = mostRecent.createdAt?.toMillis ? mostRecent.createdAt.toMillis() : 
+                                   mostRecent.createdAt?.seconds ? mostRecent.createdAt.seconds * 1000 : null;
+                
+                if (!createdAtMs) return;
+                
+                const timeSinceCreation = Date.now() - createdAtMs;
+                const cooldownMs = 60000; // 1 minute
+                const remaining = Math.max(0, cooldownMs - timeSinceCreation);
+                setCooldownRemaining(Math.ceil(remaining / 1000));
+            } catch (error) {
+                console.error('Error updating cooldown:', error);
+            }
+        };
+        
+        updateCooldown();
+        const interval = setInterval(updateCooldown, 1000);
+        
+        return () => clearInterval(interval);
+    }, [user?.uid, sessionId]);
 
     // ── Auto-scroll chat ─────────────────────────────────
     useEffect(() => {
@@ -391,10 +474,21 @@ function AIInfluencerWorkstation() {
     // ── Firestore polling ────────────────────────────────
     useEffect(() => {
         if (!jobId || !user?.uid) return;
+        
+        // Store the current jobId to prevent race conditions
+        const currentJobId = jobId;
+        
         // Poll from user-specific subcollection: users/{userId}/aiInfluencerJobs/{jobId}
         const unsub = onSnapshot(doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId), (snap) => {
             const data = snap.data();
             if (!data) return;
+            
+            // Don't update UI if we're restoring a different session
+            if (isRestoringRef.current) return;
+            
+            // Don't update UI if this job doesn't belong to the currently active session
+            // This prevents background jobs from updating the wrong session's UI
+            if (data.sessionId && data.sessionId !== activeSessionIdRef.current) return;
 
             // 1. Check for generated script
             if (data.script && chatStep === 'generating-script' && !scriptMessageShownRef.current) {
@@ -478,6 +572,8 @@ function AIInfluencerWorkstation() {
         setChatMessages((prev) => [...prev, { role: 'user', content }]);
 
     const resetFlow = () => {
+        // Reset to fresh state - no cooldown check here
+        // Cooldown will be checked when user submits script
         setChatStep('upload-script');
         setChatMessages([{
             role: 'assistant',
@@ -584,8 +680,42 @@ function AIInfluencerWorkstation() {
         reader.readAsText(file);
     };
 
-    const handleScriptSubmit = () => {
+    const handleScriptSubmit = async () => {
         if (!rawScript.trim()) return;
+        
+        // Check cooldown by fetching previous session's Firestore createdAt timestamp
+        if (user?.uid) {
+            try {
+                const sessions = await getUserWorkspaceSessions(user.uid, 'ai-influencer');
+                // Find the most recent session that's not the current one
+                const previousSession = sessions
+                    .filter(s => s.id !== sessionId && s.createdAt)
+                    .sort((a, b) => {
+                        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+                        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+                        return bTime - aTime;
+                    })[0];
+                
+                if (previousSession?.createdAt) {
+                    const createdAtMs = previousSession.createdAt.toMillis ? previousSession.createdAt.toMillis() : 
+                                       previousSession.createdAt.seconds ? previousSession.createdAt.seconds * 1000 : null;
+                    
+                    if (createdAtMs) {
+                        const timeSinceLastSession = Date.now() - createdAtMs;
+                        const cooldownMs = 60000; // 1 minute
+                        
+                        if (timeSinceLastSession < cooldownMs) {
+                            const remainingSeconds = Math.ceil((cooldownMs - timeSinceLastSession) / 1000);
+                            addAssistant(`⏱️ Slow down! You can start a new generation in ${remainingSeconds} seconds. VEVO is still cooking your last one.`);
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking session cooldown:', error);
+            }
+        }
+        
         const wordCount = rawScript.trim().split(/\s+/).length;
         addUser(
             <div className="space-y-3">
@@ -695,7 +825,7 @@ function AIInfluencerWorkstation() {
                 200,
                 'AI_INFLUENCER',
                 newJobId,
-                'AI Influencer video generation - script analyzed'
+                'AI-Influencer Generation'
             );
 
             addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`); //\n🎨 ${data.moments?.length || 0} visual moments plotted.\n🎭 Mood: ${data.mood || 'Chill'}\n💳 
@@ -733,6 +863,7 @@ function AIInfluencerWorkstation() {
             await setDoc(jobRef, {
                 jobId: jobId,
                 userId: user.uid,
+                sessionId: sessionId, // Link job to session for isolation
                 script: editableScript,
                 mood: scriptMood,
                 moments: imageTimeline.map(m => ({
@@ -1043,11 +1174,6 @@ function AIInfluencerWorkstation() {
                                                     <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                                                 </div>
                                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat</span>
-                                            </div>
-                                            <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                                                <span className="text-[9px] text-white/40 font-black uppercase tracking-[0.1em]">
-                                                    Protocol Phase {Math.min(currentStepIdx + 1, STEPS.length)} <span className="text-white/10 mx-1">/</span> {STEPS.length}
-                                                </span>
                                             </div>
                                         </div>
 

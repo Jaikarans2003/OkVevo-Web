@@ -3,7 +3,7 @@ import NoiseOverlay from '../../components/NoiseOverlay';
 
 export default function LoginPage() {
     return (
-        <main className="min-h-screen w-full flex items-center justify-center p-4 bg-bg-main relative overflow-hidden">
+        <main className="min-h-screen w-full flex items-center justify-center p-4 bg-black relative overflow-hidden">
             <NoiseOverlay />
 
             {/* Background Decorative Gradients */}

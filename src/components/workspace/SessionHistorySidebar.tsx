@@ -95,9 +95,10 @@ export default function SessionHistorySidebar({
 
     const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
         e.stopPropagation();
+        if (!userId) return;
         setDeletingId(sessionId);
         try {
-            await deleteWorkspaceSession(sessionId);
+            await deleteWorkspaceSession(sessionId, userId);
             setSessions(prev => prev.filter(s => s.id !== sessionId));
         } finally {
             setDeletingId(null);

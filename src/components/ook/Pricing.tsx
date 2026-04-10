@@ -39,10 +39,10 @@ const Pricing = ({ user }: PricingProps) => {
             '50 AI Influencer Videos OR 30 minutes generation',
             'Unlimited custom avatar uploads',
             'Unlimited custom voice uploads',
-            'Up to 50 thumbnail generations'
+            'Up to 50 thumbnail generations',
+            'Custom logo & marquee overlay'
         ],
         notIncluded: [
-            'Logo overlay / branding',
             'Priority support',
             'High-volume generation'
         ],

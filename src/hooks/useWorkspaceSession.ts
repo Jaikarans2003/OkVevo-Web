@@ -58,7 +58,7 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
         title?: string,
         debounceMs = 1500,
     ) => {
-        if (!sessionId) return;
+        if (!sessionId || !userId) return;
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(async () => {
             setIsSaving(true);
@@ -67,14 +67,14 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
                     state,
                     messages,
                     ...(title ? { title: title.substring(0, 80), preview: title.substring(0, 120) } : {}),
-                });
+                }, userId);
             } catch (err) {
                 console.error('[useWorkspaceSession] saveSession error:', err);
             } finally {
                 setIsSaving(false);
             }
         }, debounceMs);
-    }, [sessionId]);
+    }, [sessionId, userId]);
 
     /**
      * Immediately flush any pending save (e.g., on unmount or step change).
@@ -84,7 +84,7 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
         messages: WorkspaceMessage[],
         title?: string,
     ) => {
-        if (!sessionId) return;
+        if (!sessionId || !userId) return;
         if (saveTimer.current) {
             clearTimeout(saveTimer.current);
             saveTimer.current = null;
@@ -95,21 +95,22 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
                 state,
                 messages,
                 ...(title ? { title: title.substring(0, 80), preview: title.substring(0, 120) } : {}),
-            });
+            }, userId);
         } catch (err) {
             console.error('[useWorkspaceSession] flushSave error:', err);
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId]);
+    }, [sessionId, userId]);
 
     /**
      * Load a session from Firestore and return its data.
      * The caller is responsible for restoring local state from the returned session.
      */
     const restoreSession = useCallback(async (id: string): Promise<WorkspaceSession | null> => {
+        if (!userId) return null;
         try {
-            const session = await getWorkspaceSession(id);
+            const session = await getWorkspaceSession(id, userId);
             if (session) {
                 setSessionId(id);
             }
@@ -118,7 +119,7 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
             console.error('[useWorkspaceSession] restoreSession error:', err);
             return null;
         }
-    }, []);
+    }, [userId]);
 
     /**
      * Reset — clear the session ID so the next meaningful input creates a new session.

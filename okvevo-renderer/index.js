@@ -93,6 +93,34 @@ function parseSrtTime(timeStr) {
     return secs || 0;
 }
 
+// Helper to get actual video duration using ffprobe
+function getVideoDuration(videoPath) {
+    return new Promise((resolve, reject) => {
+        const ffprobe = spawn('/opt/bin/ffprobe', [
+            '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            videoPath
+        ]);
+        
+        let output = '';
+        ffprobe.stdout.on('data', (data) => { output += data.toString(); });
+        ffprobe.on('close', (code) => {
+            if (code === 0) {
+                const duration = parseFloat(output.trim());
+                if (!isNaN(duration) && duration > 0) {
+                    resolve(duration);
+                } else {
+                    reject(new Error(`Invalid duration: ${output}`));
+                }
+            } else {
+                reject(new Error(`ffprobe exited with code ${code}`));
+            }
+        });
+        ffprobe.on('error', reject);
+    });
+}
+
 // Helper to format seconds to SRT time format (HH:MM:SS,mmm)
 function formatSrtTime(seconds) {
     const hours = Math.floor(seconds / 3600);
@@ -366,7 +394,7 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
 
         let sfxCount = 0;
         let audioFilterComplex = '';
-        audioFilterComplex += `[0:a]volume=2.0[base_vocal];`;
+        audioFilterComplex += `[0:a]volume=2.0,loudnorm=I=-14:TP=-1.5:LRA=11[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
         // Add background music to audio mix if available
@@ -461,7 +489,6 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
             '-c:a', 'aac',
             '-b:a', '192k',
             '-movflags', '+faststart',
-            '-shortest',
             '-y',
             outputPath
         ];
@@ -520,6 +547,16 @@ exports.handler = async (event) => {
         const lipSyncPath = `/tmp/${jobId}-lipsync.mp4`;
         const videoBuf = await downloadFromUrl(lipSyncVideoUrl);
         fs.writeFileSync(lipSyncPath, videoBuf);
+
+        // Detect actual video duration using ffprobe
+        let actualVideoDuration;
+        try {
+            actualVideoDuration = await getVideoDuration(lipSyncPath);
+            console.log(`🎬 Detected actual lipsync video duration: ${actualVideoDuration.toFixed(2)}s (expected: ${duration}s)`);
+        } catch (err) {
+            console.warn(`⚠️ FFprobe failed, using expected duration: ${err.message}`);
+            actualVideoDuration = duration || 15;
+        }
 
         // Download all SFX files from InfluencerAudio/SFX directory
         let sfxPaths = [];
@@ -610,14 +647,11 @@ exports.handler = async (event) => {
         //   15–30s → 2 fullscreen
         //   30–60s → 3 fullscreen
         if (downloadedImages.length > 0) {
-            // Infer duration from event.duration or from the max end time of images
-            const maxEndTime = Math.max(...downloadedImages.map(img => img.end || 0));
-            const videoDuration = event.duration || maxEndTime || 15;
-
+            // Use actual detected duration for fullscreen count
             let fullscreenCount;
-            if (videoDuration <= 15) {
+            if (actualVideoDuration <= 15) {
                 fullscreenCount = 1;
-            } else if (videoDuration <= 30) {
+            } else if (actualVideoDuration <= 30) {
                 fullscreenCount = 2;
             } else {
                 fullscreenCount = 3;
@@ -708,8 +742,8 @@ exports.handler = async (event) => {
 
         // 2. FFmpeg Rendering
         const finalLocalPath = `/tmp/${jobId}-final.mp4`;
-        const videoDuration = duration || (downloadedImages.length > 0 ? Math.max(...downloadedImages.map(img => img.end || 0)) : 15);
-        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localSrtPath, bgMusicPath, videoDuration);
+        // Use actual detected duration instead of expected duration
+        await compositeImagesOnVideo(lipSyncPath, downloadedImages, finalLocalPath, localSrtPath, bgMusicPath, actualVideoDuration);
 
         // 3. Upload to Firebase
         const finalBuffer = fs.readFileSync(finalLocalPath);

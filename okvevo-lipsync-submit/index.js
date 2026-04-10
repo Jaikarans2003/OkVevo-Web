@@ -76,7 +76,6 @@ exports.handler = async (event) => {
                 audio_url: ttsUrl,
                 task: 'transcribe',
                 chunk_level: 'word',
-                version: '3',
                 batch_size: 64,
                 num_speakers: null,
                 prompt: script || ""
