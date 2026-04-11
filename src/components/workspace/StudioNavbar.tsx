@@ -62,6 +62,15 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                         <div className="absolute -bottom-2 left-0 right-0 h-[1px] bg-accent-orange opacity-40" />
                     )}
                 </Link>
+                <Link
+                    href="/workspace/user-manual"
+                    className={`relative text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === '/workspace/user-manual' ? 'text-accent-orange' : 'text-accent-orange/60 hover:text-accent-orange'}`}
+                >
+                    User Manual
+                    {pathname === '/workspace/user-manual' && (
+                        <div className="absolute -bottom-2 left-0 right-0 h-[1px] bg-accent-orange opacity-40" />
+                    )}
+                </Link>
                 
                 {/* {rightContent} */}
             </div>

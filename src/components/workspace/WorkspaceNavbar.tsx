@@ -51,6 +51,7 @@ const DashNavbar = () => {
     const navLinks = [
         { name: 'History', href: '/history', icon: <History size={16} /> },
         { name: 'Billing', href: '/billing', icon: <CreditCard size={16} /> },
+        { name: 'User Manual', href: '/workspace/user-manual', icon: <CreditCard size={16} /> },
         { name: 'Profile', href: '/profile', icon: <User size={16} /> },
     ];
 

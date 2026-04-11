@@ -1206,7 +1206,7 @@ function AIInfluencerWorkstation() {
                                             </div>
 
                                             <Link 
-                                                href="/workspace/ai-influencer/guide"
+                                                href="/workspace/user-manual"
                                                 className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
                                             >
                                                 <HelpCircle size={12} className="text-orange-500 group-hover:scale-110 transition-transform" />
@@ -1906,7 +1906,7 @@ function AIInfluencerWorkstation() {
                                         {/* Disclaimer */}
                                         <div className="px-6 py-3 text-center">
                                             <p className="text-[8px] text-white/50 leading-relaxed">
-                                                OKVEVO can make mistakes. Re-check every generation. Contact: <a href="mailto:info@okvevo.com" className="text-green-400/70 hover:text-orange-400/60 transition-colors">info@okvevo.com</a>
+                                                OKVEVO can make mistakes. For best results study User Manual. Contact: <a href="mailto:info@okvevo.com" className="text-green-400/70 hover:text-orange-400/60 transition-colors">info@okvevo.com</a>
                                             </p>
                                         </div>
                                     </div>
