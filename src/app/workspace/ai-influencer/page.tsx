@@ -76,6 +76,7 @@ function AIInfluencerWorkstation() {
     const [activeTab, setActiveTab] = useState<'explainers' | 'motion-control'>('explainers');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [activeMobileTab, setActiveMobileTab] = useState<'workstation' | 'monitor' | 'assets'>('workstation');
 
     // Step state
     const [chatStep, setChatStep] = useState<ChatStep>('upload-script');
@@ -1095,7 +1096,7 @@ function AIInfluencerWorkstation() {
     return (
         <section
             data-section-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-            className="relative h-screen bg-[#FAFAFA] dark:bg-transparent text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
+            className="relative h-screen bg-black text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
         >
             <StudioNavbar
                 rightContent={
@@ -1120,16 +1121,16 @@ function AIInfluencerWorkstation() {
                     muted
                     playsInline
                     className="fixed inset-0 w-full h-full object-cover opacity-50"
-                    style={{ filter: 'hue-rotate(145deg) saturate(1.6) brightness(1.1)' }}
+                    style={{ filter: 'hue-rotate(145deg) saturate(1.4) brightness(0.7)' }}
                 >
                     <source src="/videos/bg-blue.mp4" type="video/mp4" />
                 </video>
 
                 {/* Global Textural Dot Grid (Stitch Aesthetic) */}
-                <div className="fixed inset-0 bg-[radial-gradient(#ffffff1a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40 z-0" />
+                <div className="fixed inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-20 z-0" />
 
                 {/* Orange Ambient Light Overlay */}
-                <div className="fixed inset-0 bg-orange-500/10 pointer-events-none z-0 mix-blend-overlay" />
+                <div className="fixed inset-0 bg-orange-600/5 pointer-events-none z-0 mix-blend-overlay" />
 
 
 
@@ -1175,7 +1176,7 @@ function AIInfluencerWorkstation() {
                             <div className="flex flex-col lg:flex-row gap-6 md:gap-10 items-stretch justify-center flex-1 h-full max-h-full overflow-hidden pb-8 min-h-0 relative">
 
                                 {/* ── LEFT: Step Wizard ── */}
-                                <div className="flex-1 w-full max-w-full lg:max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0">
+                                <div className={`flex-1 w-full max-w-full lg:max-w-[750px] flex flex-col gap-6 h-full max-h-full overflow-hidden min-h-0 ${activeMobileTab === 'workstation' ? 'flex' : 'hidden lg:flex'}`}>
                                     {/* Page Title & Status */}
                                     <div className="flex items-center gap-4 px-2 mb-2">
                                         {/* <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.15)] backdrop-blur-3xl shrink-0">
@@ -1191,7 +1192,7 @@ function AIInfluencerWorkstation() {
                                     </div>
 
                                     {/* ── Chat Panel ── */}
-                                    <div className="flex flex-col flex-1 min-h-0 bg-white/[0.04] border border-white/20 rounded-[2.5rem] overflow-hidden backdrop-blur-[80px] relative">
+                                    <div className="flex flex-col flex-1 min-h-0 glass-studio-panel border border-white/20 rounded-[2.5rem] overflow-hidden relative">
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none rounded-[2.5rem]" />
                                         {/* Chat header */}
                                         <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
@@ -1901,7 +1902,7 @@ function AIInfluencerWorkstation() {
                                     </div>
                                     <div 
                                         ref={stepsRef}
-                                        className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto scrollbar-hide relative group isolate will-change-transform"
+                                        className="hidden lg:flex items-center gap-1 bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-3 overflow-x-auto scrollbar-hide relative group isolate will-change-transform"
                                         style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
                                     >
                                         {STEPS.map((step, idx) => {
@@ -1936,14 +1937,15 @@ function AIInfluencerWorkstation() {
                                 </div>
                                 
 
-                                {/* ── RIGHT: Monitor Output ── */}
-                                <div className="flex-1 flex gap-6 items-stretch h-full max-h-full overflow-hidden min-h-0">
+                                {/* ── RIGHT: Monitor Output & Assets ── */}
+                                <div className={`flex-1 flex flex-col lg:flex-row gap-6 items-stretch h-full max-h-full overflow-hidden min-h-0 ${(activeMobileTab === 'monitor' || activeMobileTab === 'assets') ? 'flex' : 'hidden lg:flex'}`}>
                                     {/* Monitor Column */}
                                     <div
-                                        className="h-full w-full max-w-[420px] shrink-0 bg-white/[0.04] backdrop-blur-[80px] rounded-[2.5rem] border border-white/20 overflow-hidden relative  group/monitor transition-all duration-700 hover:border-white/30"
+                                        className={`h-full w-full max-w-[420px] mx-auto lg:mx-0 shrink-0 glass-studio-panel rounded-[2.5rem] border border-white/20 overflow-hidden relative group/monitor transition-all duration-700 hover:border-white/30 ${activeMobileTab === 'assets' ? 'hidden lg:block' : 'block'}`}
                                         style={{
                                             aspectRatio: '9/16',
-                                            maxHeight: 'min(calc(100vh - 12rem), 750px)'
+                                            maxHeight: 'min(calc(100vh - 10rem), 750px)',
+                                            width: 'min(100%, 420px)'
                                         }}
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none z-10 rounded-[2.5rem]" />
@@ -1986,7 +1988,7 @@ function AIInfluencerWorkstation() {
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
                                                     exit={{ opacity: 0 }}
-                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-white/[0.02] backdrop-blur-3xl z-20 rounded-[2.5rem]"
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-8 glass-studio-panel z-20 rounded-[2.5rem]"
                                                 >
                                                     <div className="relative">
                                                         <div className="w-24 h-24 rounded-[3rem] bg-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_60px_rgba(234,88,12,0.1)]">
@@ -2039,7 +2041,7 @@ function AIInfluencerWorkstation() {
                                     </div>
 
                                     {/* Right Side Sidebar (Script + Assets) */}
-                                    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                                    <div className={`flex-1 flex flex-col gap-4 overflow-hidden ${activeMobileTab === 'monitor' ? 'hidden lg:flex' : 'flex'}`}>
                                         {/* Script quick-view panel (shown after step 4) */}
                                         {editableScript && getStepIndex(chatStep) >= getStepIndex('avatar-video') && (
                                             <motion.div
@@ -2122,6 +2124,36 @@ function AIInfluencerWorkstation() {
                                 </button>
                             </div>
                         )}
+                        {/* Mobile Tab Switcher */}
+                        <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] p-1.5 glass-studio-panel border border-white/20 rounded-2xl shadow-2xl flex items-center gap-1 w-[90%] max-w-[400px]">
+                            <button
+                                onClick={() => setActiveMobileTab('workstation')}
+                                className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5 ${activeMobileTab === 'workstation' 
+                                    ? 'bg-orange-600 text-white shadow-[0_5px_15px_rgba(234,88,12,0.3)]' 
+                                    : 'text-white/40 hover:text-white/60'
+                                }`}
+                            >
+                                <Edit3 size={12} /> Studio
+                            </button>
+                            <button
+                                onClick={() => setActiveMobileTab('monitor')}
+                                className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5 ${activeMobileTab === 'monitor' 
+                                    ? 'bg-orange-600 text-white shadow-[0_5px_15px_rgba(234,88,12,0.3)]' 
+                                    : 'text-white/40 hover:text-white/60'
+                                }`}
+                            >
+                                <MonitorPlay size={12} /> Monitor
+                            </button>
+                            <button
+                                onClick={() => setActiveMobileTab('assets')}
+                                className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5 ${activeMobileTab === 'assets' 
+                                    ? 'bg-orange-600 text-white shadow-[0_5px_15px_rgba(234,88,12,0.3)]' 
+                                    : 'text-white/40 hover:text-white/60'
+                                }`}
+                            >
+                                <Sparkles size={12} /> Assets
+                            </button>
+                        </div>
                     </main>
                     
                     {/* Disclaimer */}

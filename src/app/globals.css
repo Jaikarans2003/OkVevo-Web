@@ -121,6 +121,20 @@
   .font-changa {
     font-family: var(--font-changa-one), sans-serif !important;
   }
+
+  .glass-studio-panel {
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(40px) saturate(150%);
+    -webkit-backdrop-filter: blur(40px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Support for browsers that don't support backdrop-filter */
+  @supports not (backdrop-filter: blur(10px)) {
+    .glass-studio-panel {
+      background-color: rgba(10, 10, 10, 0.8);
+    }
+  }
 }
 
 /* Custom Utilities */
@@ -203,6 +217,14 @@
     border-style: solid;
     transition: all 0.5s ease-in-out;
   }
+
+  /* Global Backdrop Blur Fixes for Safari/iOS and Older Devices */
+  .backdrop-blur-sm   { -webkit-backdrop-filter: blur(4px);   backdrop-filter: blur(4px); }
+  .backdrop-blur-md   { -webkit-backdrop-filter: blur(8px);   backdrop-filter: blur(8px); }
+  .backdrop-blur-lg   { -webkit-backdrop-filter: blur(16px);  backdrop-filter: blur(16px); }
+  .backdrop-blur-xl   { -webkit-backdrop-filter: blur(24px);  backdrop-filter: blur(24px); }
+  .backdrop-blur-2xl  { -webkit-backdrop-filter: blur(40px);  backdrop-filter: blur(40px); }
+  .backdrop-blur-3xl  { -webkit-backdrop-filter: blur(64px);  backdrop-filter: blur(64px); }
 
   @keyframes write-text {
     0% {

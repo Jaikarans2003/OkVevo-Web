@@ -35,7 +35,7 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                 />
             </Link>
 
-            <div className="flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+            <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
                 {navLinks.map((item) => (
                     <Link
                         key={item.name}
