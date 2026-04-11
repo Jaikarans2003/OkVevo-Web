@@ -227,6 +227,7 @@
         "userId.$": "$.userId",
         "duration.$": "$.duration",
         "mood.$": "$.mood",
+        "script.$": "$.script",
         "lipSyncVideoUrl.$": "$.lipSyncResult.lipSyncVideoUrl",
         "audioUrl.$": "$.aiPrepResult.audioUrl",
         "imageTimeline.$": "$.aiPrepResult.imageTimeline",

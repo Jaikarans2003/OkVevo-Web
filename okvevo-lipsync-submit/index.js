@@ -22,6 +22,79 @@ fal.config({
     credentials: process.env.FAL_API_VIDEO || process.env.FAL_API_KEY
 });
 
+/**
+ * Extract key terms from script for Whisper prompt
+ * Whisper only uses the last 224 tokens of the prompt
+ * Focus on: brand names, proper nouns, technical terms, capitalized words
+ * Filters common words and prioritizes multi-word phrases
+ */
+function extractWhisperPrompt(script) {
+    if (!script || script.trim().length === 0) return "";
+
+    const words = script.split(/\s+/);
+    const phrases = new Set();
+    const singleTerms = new Set();
+
+    // Common words to ignore even if capitalized
+    const skipWords = new Set([
+        'You', 'Now', 'The', 'And', 'But', 'Not', 'So', 'This', 'That',
+        'For', 'Are', 'Was', 'Has', 'Had', 'Its', 'With', 'From', 'Into',
+        'Your', 'Our', 'Their', 'Have', 'Will', 'Just', 'Like', 'Been',
+        'When', 'What', 'Who', 'How', 'All', 'Can', 'More', 'Also', 'Any'
+    ]);
+
+    // Extract multi-word capitalized phrases (2 and 3 word)
+    for (let i = 0; i < words.length - 1; i++) {
+        const w1 = words[i].replace(/[^a-zA-Z0-9]/g, '');
+        const w2 = words[i + 1].replace(/[^a-zA-Z0-9]/g, '');
+        const w3 = words[i + 2]?.replace(/[^a-zA-Z0-9]/g, '') || '';
+
+        const w1Cap = /^[A-Z]/.test(w1) && w1.length > 1 && !skipWords.has(w1);
+        const w2Cap = /^[A-Z]/.test(w2) && w2.length > 1 && !skipWords.has(w2);
+        const w3Cap = w3 && /^[A-Z]/.test(w3) && w3.length > 1 && !skipWords.has(w3);
+
+        // 3-word phrase
+        if (w1Cap && w2Cap && w3Cap) {
+            phrases.add(`${w1} ${w2} ${w3}`);
+        }
+        // 2-word phrase
+        else if (w1Cap && w2Cap) {
+            phrases.add(`${w1} ${w2}`);
+        }
+        // Single important term
+        else if (w1Cap) {
+            singleTerms.add(w1);
+        }
+    }
+
+    // Check last word
+    const lastWord = words[words.length - 1]?.replace(/[^a-zA-Z0-9]/g, '') || '';
+    if (/^[A-Z]/.test(lastWord) && lastWord.length > 1 && !skipWords.has(lastWord)) {
+        singleTerms.add(lastWord);
+    }
+
+    // Remove single terms already covered by phrases
+    const phraseWords = new Set(
+        [...phrases].flatMap(p => p.split(' '))
+    );
+    const filteredSingles = [...singleTerms].filter(t => !phraseWords.has(t));
+
+    // Prioritize longer phrases first (more specific = more useful for Whisper)
+    const sortedPhrases = [...phrases].sort((a, b) => b.length - a.length);
+    const allTerms = [...sortedPhrases, ...filteredSingles];
+
+    // Build prompt under 200 chars
+    let prompt = '';
+    for (const term of allTerms) {
+        const addition = prompt.length === 0 ? term : `, ${term}`;
+        if (prompt.length + addition.length > 200) break;
+        prompt += addition;
+    }
+
+    console.log(`📝 Whisper prompt (${prompt.length} chars): ${prompt}`);
+    return prompt;
+}
+
 function httpsRequest(url, options = {}, body = null) {
     return new Promise((resolve, reject) => {
         const parsedUrl = new URL(url);
@@ -71,14 +144,18 @@ exports.handler = async (event) => {
         console.log(`✅ LipSync job submitted: ${lipsyncRequestId}`);
 
         // Submit Whisper transcription job to Fal AI using SDK
+        // Extract key terms from script for prompt (Whisper only uses last 224 tokens)
+        const whisperPrompt = extractWhisperPrompt(script);
+        
         const whisperResult = await fal.queue.submit('fal-ai/whisper', {
             input: {
                 audio_url: ttsUrl,
                 task: 'transcribe',
                 chunk_level: 'word',
+                language: 'en',
+                diarize: false,
                 batch_size: 64,
-                num_speakers: null,
-                prompt: script || ""
+                prompt: whisperPrompt
             },
             webhookUrl: webhookUrl
         });

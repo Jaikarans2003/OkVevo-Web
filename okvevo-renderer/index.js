@@ -141,6 +141,170 @@ function getTimestamps(chunk) {
     return [0, 0];
 }
 
+// Map script words to Whisper word timestamps
+function mapScriptToWhisperChunks(scriptText, whisperChunks, videoDuration = null) {
+    if (!whisperChunks || whisperChunks.length === 0) return [];
+    if (!scriptText || scriptText.trim().length === 0) return [];
+
+    // Clean script and split into words
+    const scriptWords = scriptText
+        .replace(/\n/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(w => w.length > 0);
+
+    // Get all word-level timestamps from Whisper with cleaned text for matching
+    const whisperWords = whisperChunks.map(chunk => {
+        const [start, end] = getTimestamps(chunk);
+        return {
+            text: chunk.text.trim(),
+            clean: chunk.text.trim().toLowerCase().replace(/[^a-z0-9]/g, ''),
+            start,
+            end
+        };
+    });
+
+    // ── Detect Whisper failure (< 20% coverage) ──
+    const whisperCoverageRatio = whisperWords.length / scriptWords.length;
+    const MINIMUM_COVERAGE = 0.20;
+    
+    console.log(`📊 Whisper coverage: ${whisperWords.length} chunks / ${scriptWords.length} script words = ${(whisperCoverageRatio * 100).toFixed(1)}%`);
+    
+    if (whisperCoverageRatio < MINIMUM_COVERAGE) {
+        console.warn(`⚠️ Whisper coverage too low (${(whisperCoverageRatio * 100).toFixed(1)}%) — using full duration interpolation`);
+        return interpolateAllWords(scriptWords, videoDuration);
+    }
+
+    // ── Step 1: Calculate average word duration from Whisper data ──
+    const totalWhisperDuration = whisperWords[whisperWords.length - 1].end - whisperWords[0].start;
+    const avgWordDuration = totalWhisperDuration / whisperWords.length;
+    console.log(`📊 Avg word duration from Whisper: ${avgWordDuration.toFixed(3)}s (${whisperWords.length} words over ${totalWhisperDuration.toFixed(2)}s)`);
+
+    // ── Step 2: Find alignment point (where script matches Whisper) ──
+    const cleanScript = scriptWords.map(w =>
+        w.toLowerCase().replace(/[^a-z0-9]/g, '')
+    );
+
+    let alignIndex = -1;
+    for (let w = 0; w < Math.min(5, whisperWords.length); w++) {
+        const searchWord = whisperWords[w].clean;
+        const found = cleanScript.findIndex(s => s === searchWord);
+        if (found !== -1) {
+            alignIndex = found - w;
+            alignIndex = Math.max(0, alignIndex);
+            console.log(`🎯 Alignment found: script[${found}]="${scriptWords[found]}" matches whisper[${w}]="${whisperWords[w].text}"`);
+            break;
+        }
+    }
+
+    // ── Alignment failure fallback ──
+    if (alignIndex === -1) {
+        console.warn('⚠️ Could not align script to Whisper — falling back to full interpolation');
+        return interpolateAllWords(scriptWords, videoDuration);
+    }
+
+    const result = [];
+
+    // ── Step 3: Back-calculate missing words using avg word duration ──
+    if (alignIndex > 0) {
+        const missingWords = scriptWords.slice(0, alignIndex);
+        const firstWhisperStart = whisperWords[0].start;
+
+        // Estimate where missing words START based on avg duration
+        const estimatedMissingDuration = missingWords.length * avgWordDuration;
+
+        console.log(`⚠️ ${missingWords.length} missing words at start`);
+        console.log(`📊 Estimated missing duration: ${estimatedMissingDuration.toFixed(2)}s`);
+        console.log(`📊 Actual gap available: ${firstWhisperStart.toFixed(2)}s`);
+
+        // If estimated duration fits within gap — use avg duration per word
+        // If not — compress to fit within available gap
+        const actualTimePerWord = Math.min(avgWordDuration, firstWhisperStart / missingWords.length);
+        
+        // Place words ending exactly at firstWhisperStart (back-fill)
+        const wordsStart = firstWhisperStart - (missingWords.length * actualTimePerWord);
+        const paddedStart = Math.max(0, wordsStart); // never go below 0
+
+        console.log(`📊 Missing words start at: ${paddedStart.toFixed(2)}s using ${actualTimePerWord.toFixed(3)}s/word`);
+
+        missingWords.forEach((word, i) => {
+            result.push({
+                text: word,
+                timestamp: [
+                    parseFloat((paddedStart + i * actualTimePerWord).toFixed(2)),
+                    parseFloat((paddedStart + (i + 1) * actualTimePerWord).toFixed(2))
+                ]
+            });
+        });
+    }
+
+    // ── Step 4: Map remaining words to Whisper 1:1 ──
+    const remainingScript = scriptWords.slice(alignIndex);
+
+    remainingScript.forEach((word, i) => {
+        if (i < whisperWords.length) {
+            // Use exact Whisper timestamps
+            result.push({
+                text: word,
+                timestamp: [whisperWords[i].start, whisperWords[i].end]
+            });
+        } else {
+            // Tail words beyond Whisper — use avg duration
+            const lastEnd = whisperWords[whisperWords.length - 1].end;
+            result.push({
+                text: word,
+                timestamp: [
+                    parseFloat((lastEnd + (i - whisperWords.length) * avgWordDuration).toFixed(2)),
+                    parseFloat((lastEnd + (i - whisperWords.length + 1) * avgWordDuration).toFixed(2))
+                ]
+            });
+        }
+    });
+
+    console.log(`✅ Mapped ${result.length} total words (${alignIndex} estimated, ${Math.min(remainingScript.length, whisperWords.length)} exact, ${Math.max(0, remainingScript.length - whisperWords.length)} tail)`);
+
+    return result;
+}
+
+// Full interpolation when Whisper coverage is too low or alignment fails
+function interpolateAllWords(scriptWords, totalDuration) {
+    // Default to 0.3s/word if no duration available
+    const duration = totalDuration || (scriptWords.length * 0.3);
+    const timePerWord = duration / scriptWords.length;
+
+    console.log(`📊 Full interpolation: ${scriptWords.length} words over ${duration.toFixed(2)}s = ${timePerWord.toFixed(3)}s/word`);
+
+    return scriptWords.map((word, i) => ({
+        text: word,
+        timestamp: [
+            parseFloat((i * timePerWord).toFixed(2)),
+            parseFloat(((i + 1) * timePerWord).toFixed(2))
+        ]
+    }));
+}
+
+// Group mapped words into SRT subtitle chunks
+function scriptChunksToSrt(mappedWords, wordsPerChunk = 1) {
+    if (!mappedWords || mappedWords.length === 0) return null;
+    
+    let srtContent = '';
+    let idx = 1;
+
+    for (let i = 0; i < mappedWords.length; i += wordsPerChunk) {
+        const group = mappedWords.slice(i, i + wordsPerChunk);
+        const start = group[0].timestamp[0];
+        const end = group[group.length - 1].timestamp[1];
+        const text = group.map(w => w.text).join(' ');
+
+        srtContent += `${idx}\n`;
+        srtContent += `${formatSrtTime(start)} --> ${formatSrtTime(end)}\n`;
+        srtContent += `${text}\n\n`;
+        idx++;
+    }
+
+    return srtContent;
+}
+
 // Convert Whisper transcription chunks to SRT format
 function whisperChunksToSrt(chunks) {
     if (!chunks || chunks.length === 0) return null;
@@ -540,12 +704,20 @@ exports.handler = async (event) => {
         srtPath: remoteSrtPath,
         lipSyncResult,
         mood,
-        duration
+        duration,
+        script: eventScript
     } = event;
     
     // Extract transcription from lipSyncResult with fallback
     const transcription = lipSyncResult?.transcription || '';
     const transcriptionChunks = lipSyncResult?.transcriptionChunks || [];
+    
+    // DEBUG: Verify script is being passed from Step Function
+    console.log(`📝 Script in event: ${eventScript ? eventScript.substring(0, 80) + '...' : 'NOT FOUND - using transcription fallback'}`);
+    
+    // Extract script - use transcription as fallback if no separate script field
+    const script = eventScript || transcription;
+    console.log(`📝 Script source: ${eventScript ? 'event.script' : 'transcription fallback'} (${script.length} chars)`);
     
     // Normalize mood with fallback to 'Chill'
     const validMoods = ['Chill', 'Dramatic', 'Energetic', 'Funny', 'Happy', 'Suspense'];
@@ -764,18 +936,36 @@ exports.handler = async (event) => {
             }
         }
         
-        // Option 2: Use Whisper transcription (NEW - PREFERRED)
+        // Option 2: Map script to Whisper timestamps (PREFERRED)
+        if (!localSrtPath && transcriptionChunks && transcriptionChunks.length > 0 && script) {
+            try {
+                console.log(`📝 Mapping script to Whisper timestamps (${transcriptionChunks.length} chunks)`);
+                
+                const mappedWords = mapScriptToWhisperChunks(script, transcriptionChunks, actualVideoDuration);
+                const srtContent = scriptChunksToSrt(mappedWords, 1);
+                
+                if (srtContent) {
+                    localSrtPath = `/tmp/${jobId}-captions.srt`;
+                    fs.writeFileSync(localSrtPath, srtContent, 'utf8');
+                    console.log(`✅ Script-mapped SRT written (${mappedWords.length} words)`);
+                }
+            } catch (err) {
+                console.warn('⚠️ Failed to map script to Whisper chunks:', err.message);
+            }
+        }
+        
+        // Fallback: Use raw Whisper text if script mapping fails
         if (!localSrtPath && transcriptionChunks && transcriptionChunks.length > 0) {
             try {
-                console.log(`📝 Using Whisper transcription for subtitles (${transcriptionChunks.length} chunks)`);
+                console.log(`📝 Fallback: Using raw Whisper transcription`);
                 const srtContent = whisperChunksToSrt(transcriptionChunks);
                 if (srtContent) {
                     localSrtPath = `/tmp/${jobId}-captions.srt`;
                     fs.writeFileSync(localSrtPath, srtContent, 'utf8');
-                    console.log(`✅ Whisper SRT written to ${localSrtPath}`);
+                    console.log(`✅ Whisper SRT written (fallback)`);
                 }
             } catch (err) {
-                console.warn('⚠️ Failed to convert Whisper to SRT:', err.message);
+                console.warn('⚠️ Whisper fallback failed:', err.message);
             }
         }
 
