@@ -13,20 +13,40 @@ import NoiseOverlay from '../../components/NoiseOverlay';
 
 const BOOTH_IMAGES = [
     {
-        src: "/masiv/Modern Mafia Male.png",
+        src: "/okvevoimg/ok1.jpeg",
         title: "Main Entrance",
         desc: "The holographic welcome portal of the OKVEVO Booth."
     },
     {
-        src: "/masiv/apex2.png",
+        src: "/okvevoimg/ok2.jpeg",
         title: "Creation Node",
         desc: "Experience zero-latency generative cinematography real-time."
     },
     {
-        src: "/masiv/Vantaged Male 1.png",
+        src: "/okvevoimg/ok3.jpeg",
         title: "Portrait Studio",
         desc: "Professional AI-driven lighting rigs for stunning avatars."
-    }
+    },
+    {
+        src: "/okvevoimg/ok4.jpeg",
+        title: "Main Entrance",
+        desc: "The holographic welcome portal of the OKVEVO Booth."
+    },
+    {
+        src: "/okvevoimg/ok5.png",
+        title: "Portrait Studio",
+        desc: "Professional AI-driven lighting rigs for stunning avatars."
+    },
+    {
+        src: "/okvevoimg/ok6.jpeg",
+        title: "Portrait Studio",
+        desc: "Professional AI-driven lighting rigs for stunning avatars."
+    },
+    {
+        src: "/okvevoimg/ok7.jpeg",
+        title: "Main Entrance",
+        desc: "The holographic welcome portal of the OKVEVO Booth."
+    },
 ];
 
 const ADDRESS = "Century Corbel Commercial, Sahakara Nagar, Bengaluru, KA 560092";
@@ -88,7 +108,7 @@ export default function LocationPage() {
                                     src={BOOTH_IMAGES[currentIndex].src}
                                     alt={BOOTH_IMAGES[currentIndex].title}
                                     fill
-                                    className="object-cover opacity-50 group-hover:scale-105 transition-transform duration-[4s]"
+                                    className="object-contain opacity-80 group-hover:scale-105 transition-transform duration-[4s]"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                             </motion.div>

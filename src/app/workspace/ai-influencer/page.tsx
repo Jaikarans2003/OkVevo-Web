@@ -12,8 +12,10 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
     FileText, Move3d, MonitorPlay, Loader2, Sparkles, Clock,
     Upload, Video, Volume2, Edit3, Users, CheckCircle2, ChevronRight,
-    RotateCcw, Play, Download, Mic2, Image, ArrowDown, ArrowUp, ChevronDown
+    RotateCcw, Play, Download, Mic2, Image, ArrowDown, ArrowUp, ChevronDown,
+    HelpCircle
 } from 'lucide-react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateJobId } from '../../../services/AIInfluencerService';
 import SessionHistorySidebar from '@/components/workspace/SessionHistorySidebar';
@@ -1202,6 +1204,14 @@ function AIInfluencerWorkstation() {
                                                 </div>
                                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">VEVO Chat</span>
                                             </div>
+
+                                            <Link 
+                                                href="/workspace/ai-influencer/guide"
+                                                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all group"
+                                            >
+                                                <HelpCircle size={12} className="text-orange-500 group-hover:scale-110 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-[0.1em] text-orange-500/80 group-hover:text-orange-500">How to Use</span>
+                                            </Link>
                                         </div>
 
                                         {/* ── Inline Step Controls ── */}
