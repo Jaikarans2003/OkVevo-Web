@@ -167,7 +167,7 @@ export async function getWorkspaceSession(sessionId: string, userId: string): Pr
 }
 
 /**
- * List all sessions for a user+feature, newest first.
+ * List all sessions for a user+feature, sorted by creation date (oldest first, newest at bottom).
  */
 export async function getUserWorkspaceSessions(
     userId: string,
@@ -177,7 +177,7 @@ export async function getUserWorkspaceSessions(
         const q = query(
             collection(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION),
             where('feature', '==', feature),
-            orderBy('updatedAt', 'desc'),
+            orderBy('createdAt', 'asc'),
         );
         const snap = await getDocs(q);
         return snap.docs.map(d => ({ id: d.id, ...d.data() }) as WorkspaceSession);

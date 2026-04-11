@@ -394,14 +394,15 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
 
         let sfxCount = 0;
         let audioFilterComplex = '';
-        audioFilterComplex += `[0:a]volume=2.0,loudnorm=I=-14:TP=-1.5:LRA=11[base_vocal];`;
+        audioFilterComplex += `[0:a]volume=2.0[base_vocal];`;
         const audioInputLabels = ['[base_vocal]'];
 
         // Add background music to audio mix if available
         if (bgMusicInputIdx !== null && videoDuration) {
-            // Loop background music, trim to exact video duration, apply volume, and add fade in/out (0.5s each)
-            const fadeOutStart = Math.max(0, videoDuration - 0.5);
-            audioFilterComplex += `[${bgMusicInputIdx}:a]aloop=loop=-1:size=2e+09,atrim=duration=${videoDuration},volume=-12dB,afade=t=in:st=0:d=0.5,afade=t=out:st=${fadeOutStart}:d=0.5[bgmusic];`;
+            // Loop background music, extend by 2s for musical tail, fade out over last 2s
+            const extendedDuration = videoDuration + 2;
+            const fadeOutStart = Math.max(0, extendedDuration - 2); // fade starts at video end
+            audioFilterComplex += `[${bgMusicInputIdx}:a]aloop=loop=-1:size=2e+09,atrim=duration=${extendedDuration},asetpts=PTS-STARTPTS,volume=-12dB,afade=t=in:st=0:d=0.5,afade=t=out:st=${fadeOutStart}:d=2[bgmusic];`;
             audioInputLabels.push('[bgmusic]');
         }
 
@@ -409,7 +410,9 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
             images.forEach((img) => {
                 if (img.sfxPath) {
                     args.push('-i', img.sfxPath);
-                    const sfxInputIdx = 1 + images.length + (bgMusicInputIdx !== null ? 1 : 0) + sfxCount;
+                    const sfxInputIdx = bgMusicInputIdx !== null
+                        ? bgMusicInputIdx + 1 + sfxCount
+                        : 1 + images.length + sfxCount;
                     const delayMs = Math.floor(img.start * 1000);
                     const sfxLabel = `sfx${sfxCount}`;
                     audioFilterComplex += `[${sfxInputIdx}:a]adelay=${delayMs}|${delayMs}[${sfxLabel}];`;
@@ -431,12 +434,20 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
             filterComplex += `[${prevLabel}]copy[outv];`;
         }
 
-        // Mix all audio inputs (vocal + bgmusic + sfx) if we have more than just the vocal
+        // Mix or trim audio — decide final audio label BEFORE building finalFilterComplex
+        let audioMap;
         if (audioInputLabels.length > 1) {
             const mixInputs = audioInputLabels.join('');
-            audioFilterComplex += `${mixInputs}amix=inputs=${audioInputLabels.length}:duration=first:dropout_transition=2[outa];`;
+            audioFilterComplex += `${mixInputs}amix=inputs=${audioInputLabels.length}:duration=longest:dropout_transition=0[outa_mixed];`;
+            audioFilterComplex += `[outa_mixed]atrim=duration=${videoDuration + 2},asetpts=PTS-STARTPTS[outa];`;
+            audioMap = '[outa]';
+        } else {
+            // Trim single audio input to exact video duration
+            audioFilterComplex += `[base_vocal]atrim=duration=${videoDuration},asetpts=PTS-STARTPTS[outa_single];`;
+            audioMap = '[outa_single]';
         }
 
+        // NOW build finalFilterComplex — after audio is fully decided
         let finalFilterComplex = filterComplex.replace(/;$/, '');
         if (audioFilterComplex) {
             finalFilterComplex += ';' + audioFilterComplex.replace(/;$/, '');
@@ -474,8 +485,15 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
             finalFilterComplex += `;[outv]subtitles=${assPath}:fontsdir=/tmp[outv_subs]`;
         }
 
-        const videoMap = assPath ? '[outv_subs]' : '[outv]';
-        const audioMap = audioInputLabels.length > 1 ? '[outa]' : '[base_vocal]';
+        // Apply fade-out to the final video output (after all overlays and subtitles)
+        // Fade starts at videoDuration and completes over 2 seconds to black
+        const preFadeLabel = assPath ? '[outv_subs]' : '[outv]';
+        // Use tpad to add 2 seconds of black frames BEFORE fading, then fade the extended video
+        finalFilterComplex += `;${preFadeLabel}tpad=stop_duration=2:stop_mode=add:color=black[outv_extended]`;
+        finalFilterComplex += `;[outv_extended]fade=t=out:st=${videoDuration}:d=2:c=black[outv_final]`;
+        const videoMap = '[outv_final]';
+
+        console.log(`🎨 Video: plays ${videoDuration}s, then fades to black over 2s`);
 
         const ffmpegArgs = [
             ...args,
@@ -489,11 +507,13 @@ function compositeImagesOnVideo(videoPath, images, outputPath, srtPath = null, b
             '-c:a', 'aac',
             '-b:a', '192k',
             '-movflags', '+faststart',
+            '-t', String(videoDuration + 2),  // Hard cap at lipsync duration + 2s for bgmusic tail
             '-y',
             outputPath
         ];
 
         console.log('🎬 Running ffmpeg compositor...');
+        console.log(`📋 Filter complex (last 500 chars): ...${finalFilterComplex.slice(-500)}`);
         const ffmpeg = spawn(FFMPEG, ffmpegArgs, { cwd: '/tmp' });
 
         let stderr = '';
@@ -554,8 +574,23 @@ exports.handler = async (event) => {
             actualVideoDuration = await getVideoDuration(lipSyncPath);
             console.log(`🎬 Detected actual lipsync video duration: ${actualVideoDuration.toFixed(2)}s (expected: ${duration}s)`);
         } catch (err) {
-            console.warn(`⚠️ FFprobe failed, using expected duration: ${err.message}`);
-            actualVideoDuration = duration || 15;
+            console.warn(`⚠️ FFprobe failed: ${err.message}`);
+            
+            // Try deriving from Whisper chunks as fallback
+            if (transcriptionChunks && transcriptionChunks.length > 0) {
+                const lastChunk = transcriptionChunks[transcriptionChunks.length - 1];
+                const [, lastEnd] = getTimestamps(lastChunk);
+                if (lastEnd > 0) {
+                    actualVideoDuration = lastEnd + 0.5; // small buffer
+                    console.log(`📝 Using Whisper-derived duration: ${actualVideoDuration.toFixed(2)}s`);
+                } else {
+                    actualVideoDuration = duration || 15;
+                    console.warn(`⚠️ Falling back to expected duration: ${actualVideoDuration}s`);
+                }
+            } else {
+                actualVideoDuration = duration || 15;
+                console.warn(`⚠️ Falling back to expected duration: ${actualVideoDuration}s`);
+            }
         }
 
         // Download all SFX files from InfluencerAudio/SFX directory
@@ -689,6 +724,26 @@ exports.handler = async (event) => {
                 .map(img => img.topic || `${img.start}-${img.end}s`);
             console.log(`🎲 Randomly assigned ${fullscreenCount} fullscreen photo(s): [${fsNames.join(', ')}]`);
             console.log(`   Layout map: ${downloadedImages.map((img, i) => `#${i}=${img.layout}`).join(', ')}`);
+        }
+
+        // ── Clamp image timestamps to actual video duration ──
+        // Images must never extend beyond the lipsync video length
+        if (downloadedImages.length > 0) {
+            const originalCount = downloadedImages.length; // Capture BEFORE mutating
+
+            downloadedImages.forEach(img => {
+                img.start = Math.min(img.start, actualVideoDuration);
+                img.end   = Math.min(img.end,   actualVideoDuration);
+            });
+
+            const clampedImages = downloadedImages.filter(img => img.start < img.end);
+            downloadedImages.length = 0;
+            clampedImages.forEach(img => downloadedImages.push(img));
+
+            if (clampedImages.length < originalCount) {
+                console.log(`⚠️ Removed ${originalCount - clampedImages.length} image(s) that exceeded video duration (${actualVideoDuration.toFixed(2)}s)`);
+            }
+            console.log(`✅ Images clamped: ${clampedImages.length} remaining`);
         }
 
         // Handle subtitles — priority: remoteSrtPath > Whisper > Gemini

@@ -148,70 +148,77 @@ function AIInfluencerWorkstation() {
         // Update sessionId in the hook to highlight the selected session
         await restoreSession(session.id);
         
-        // First, reset all state to defaults to prevent pollution from previous session
-        setChatStep('upload-script');
-        setJobId(null);
-        setRawScript('');
-        setEditableScript('');
-        setGeneratedScript('');
-        setSelectedDuration(0);
-        setSelectedGender('');
-        setTtsPacing('');
-        setScriptMood('');
-        setImageTimeline([]);
-        setAudioUrl(null);
-        setAvatarVideoUrl(null);
-        setAvatarVideo(null);
-        setWaitTaskToken(null);
-        setFinalVideoUrl(null);
-        setBrandedVideoUrl(null);
-        setCustomThumbnailUrl(null);
-        setThumbnailAlreadyGenerated(false);
-        setIsGenerating(false);
-        setBrandingOpen(true);
-        setBrandLogoFile(null);
-        setBrandMarqueeText('');
-        setBrandMarqueePos('bottom');
-        setBrandLogoPos('top-right');
-        setBrandNeedThumbnail(false);
-        setBrandThumbnailPrompt('');
-        setBrandThumbnailPhotoFile(null);
-        setIsBranding(false);
+        // Update the active session ref immediately for proper highlighting
+        activeSessionIdRef.current = session.id;
         
-        // Now restore all state from session
-        const s = session.state;
-        if (s.chatStep) setChatStep(s.chatStep as ChatStep);
-        if (s.jobId) setJobId(s.jobId);
-        if (s.rawScript) setRawScript(s.rawScript);
-        if (s.editableScript) setEditableScript(s.editableScript);
-        if (s.generatedScript) setGeneratedScript(s.generatedScript);
-        if (s.selectedDuration) setSelectedDuration(s.selectedDuration);
-        if (s.selectedGender) setSelectedGender(s.selectedGender);
-        if (s.ttsPacing) setTtsPacing(s.ttsPacing);
-        if (s.scriptMood) setScriptMood(s.scriptMood);
-        if (s.imageTimeline) setImageTimeline(s.imageTimeline);
-        if (s.audioUrl) setAudioUrl(s.audioUrl);
-        if (s.avatarVideoUrl) setAvatarVideoUrl(s.avatarVideoUrl);
-        if (s.waitTaskToken) setWaitTaskToken(s.waitTaskToken);
-        if (s.finalVideoUrl) setFinalVideoUrl(s.finalVideoUrl);
-        if (s.brandedVideoUrl) setBrandedVideoUrl(s.brandedVideoUrl);
-        if (s.customThumbnailUrl) setCustomThumbnailUrl(s.customThumbnailUrl);
-        if (s.thumbnailGeneratedBy === 'nano-banana-2' || s.thumbnailGeneratedBy === 'flux-2/turbo') {
-            setThumbnailAlreadyGenerated(true);
-        }
-        if (s.isGenerating !== undefined) setIsGenerating(s.isGenerating);
-        
-        // Restore chat messages
-        setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
-        
-        // The Firestore job listener will automatically reconnect when jobId changes
-        console.log('Loaded your Previous Chat'); //✅ Session restored:', session.id, 'JobId:', s.jobId
-        
-        // Allow new sessions to be created after restoration
+        // Use setTimeout to ensure state updates happen after sessionId is set
         setTimeout(() => {
-            isRestoringRef.current = false;
-        }, 1000);
-    }, []);
+            // First, reset all state to defaults to prevent pollution from previous session
+            setChatStep('upload-script');
+            setJobId(null);
+            setRawScript('');
+            setEditableScript('');
+            setGeneratedScript('');
+            setSelectedDuration(0);
+            setSelectedGender('');
+            setTtsPacing('');
+            setScriptMood('');
+            setImageTimeline([]);
+            setAudioUrl(null);
+            setAvatarVideoUrl(null);
+            setAvatarVideo(null);
+            setWaitTaskToken(null);
+            setFinalVideoUrl(null);
+            setBrandedVideoUrl(null);
+            setCustomThumbnailUrl(null);
+            setThumbnailAlreadyGenerated(false);
+            setIsGenerating(false);
+            setBrandingOpen(true);
+            setBrandLogoFile(null);
+            setBrandMarqueeText('');
+            setBrandMarqueePos('bottom');
+            setBrandLogoPos('top-right');
+            setBrandNeedThumbnail(false);
+            setBrandThumbnailPrompt('');
+            setBrandThumbnailPhotoFile(null);
+            setIsBranding(false);
+            
+            // Now restore all state from session
+            const s = session.state;
+            if (s.chatStep) setChatStep(s.chatStep as ChatStep);
+            if (s.jobId) setJobId(s.jobId);
+            if (s.rawScript) setRawScript(s.rawScript);
+            if (s.editableScript) setEditableScript(s.editableScript);
+            if (s.generatedScript) setGeneratedScript(s.generatedScript);
+            if (s.selectedDuration) setSelectedDuration(s.selectedDuration);
+            if (s.selectedGender) setSelectedGender(s.selectedGender);
+            if (s.ttsPacing) setTtsPacing(s.ttsPacing);
+            if (s.scriptMood) setScriptMood(s.scriptMood);
+            if (s.imageTimeline) setImageTimeline(s.imageTimeline);
+            if (s.audioUrl) setAudioUrl(s.audioUrl);
+            if (s.avatarVideoUrl) setAvatarVideoUrl(s.avatarVideoUrl);
+            if (s.waitTaskToken) setWaitTaskToken(s.waitTaskToken);
+            if (s.finalVideoUrl) setFinalVideoUrl(s.finalVideoUrl);
+            if (s.brandedVideoUrl) setBrandedVideoUrl(s.brandedVideoUrl);
+            if (s.customThumbnailUrl) setCustomThumbnailUrl(s.customThumbnailUrl);
+            if (s.thumbnailGeneratedBy === 'nano-banana-2' || s.thumbnailGeneratedBy === 'flux-2/turbo') {
+                setThumbnailAlreadyGenerated(true);
+            }
+            if (s.isGenerating !== undefined) setIsGenerating(s.isGenerating);
+            
+            // Restore chat messages
+            setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
+            
+            // The Firestore job listener will automatically reconnect when jobId changes
+            console.log('Loaded your Previous Chat'); //✅ Session restored:', session.id, 'JobId:', s.jobId
+            
+            // Allow new sessions to be created after restoration
+            // Delay longer to ensure all state updates complete before auto-save can run
+            setTimeout(() => {
+                isRestoringRef.current = false;
+            }, 1500);
+        }, 100);
+    }, [restoreSession]);
 
     // ── Auto-restore session on mount ─────────────────────────
     useEffect(() => {
@@ -572,6 +579,10 @@ function AIInfluencerWorkstation() {
         setChatMessages((prev) => [...prev, { role: 'user', content }]);
 
     const resetFlow = () => {
+        // Reset session FIRST to clear sessionId and prevent auto-save pollution
+        resetSession();
+        activeSessionIdRef.current = null;
+        
         // Reset to fresh state - no cooldown check here
         // Cooldown will be checked when user submits script
         setChatStep('upload-script');
@@ -606,7 +617,6 @@ function AIInfluencerWorkstation() {
         setThumbnailAlreadyGenerated(false);
         setIsBranding(false);
         setBrandedVideoUrl(null);
-        resetSession();
         isRestoringRef.current = false;
     };
 
@@ -753,12 +763,18 @@ function AIInfluencerWorkstation() {
             return;
         }
 
+        if (!rawScript || rawScript.trim().length === 0) {
+            addAssistant('❌ Please upload a script first.');
+            setChatStep('upload-script');
+            return;
+        }
+
         setTtsPacing(pacing);
         addUser(`${pacing === 'calm' ? 'Calm & Steady' : 'Fast & Punchy'} style`);
 
         setIsGenerating(true);
         setChatStep('generating-script');
-        scriptMessageShownRef.current = false; // Reset for new job
+        scriptMessageShownRef.current = false;
         addAssistant(`VEVO is thinking... conjuring a ${selectedDuration === 15 ? '0–15s' : selectedDuration === 30 ? '15–30s' : '30–60s'} script from your raw material. This hits different.`);
 
         try {
@@ -779,16 +795,12 @@ function AIInfluencerWorkstation() {
 
             if (!data.success) throw new Error(data.error || 'Failed to generate script');
 
-            // console.log('✅ Script generated:', data.wordCount, 'words');
-            // console.log('✅ Visual moments extracted:', data.moments?.length || 0);
-
             setGeneratedScript(data.script);
             setEditableScript(data.script);
 
             // Store mood
             if (data.mood) {
                 setScriptMood(data.mood);
-                console.log(`🎭 Script mood: ${data.mood}`);
             }
 
             // Store moments for later use
@@ -806,7 +818,6 @@ function AIInfluencerWorkstation() {
             }
 
             // ── DEDUCT CREDITS AFTER SUCCESSFUL SCRIPT GENERATION ──
-            // Generate jobId for credit transaction tracking
             const newJobId = generateJobId();
             setJobId(newJobId);
 
@@ -828,13 +839,28 @@ function AIInfluencerWorkstation() {
                 'AI-Influencer Generation'
             );
 
-            addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`); //\n🎨 ${data.moments?.length || 0} visual moments plotted.\n🎭 Mood: ${data.mood || 'Chill'}\n💳 
+            addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
             setChatStep('edit-script');
             setIsGenerating(false);
+
         } catch (err: any) {
-            addAssistant(`A lot of people are generating, but we don't give up. Try again.`); //${err.message}
+            console.error('Script generation error:', err);
+            const errorMsg = err.message || 'Unknown error';
+            
+            if (errorMsg.includes('Missing required field')) {
+                addAssistant(`❌ Script data missing. Please upload your script again.`);
+                setChatStep('upload-script');
+            } else if (errorMsg.includes('Insufficient credits')) {
+                addAssistant(`❌ ${errorMsg}`);
+            } else if (errorMsg.includes('high demand') || errorMsg.includes('503')) {
+                addAssistant(`⚠️ Vevo is experiencing high demand. Trying again...`);
+                setChatStep('tts-pacing');
+            } else {
+                addAssistant(`❌ Generation failed: ${errorMsg}. Try again.`);
+                setChatStep('tts-pacing');
+            }
+            
             setIsGenerating(false);
-            setChatStep('tts-pacing');
         }
     };
 
