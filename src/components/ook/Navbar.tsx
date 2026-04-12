@@ -109,35 +109,101 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        className="absolute top-full left-4 right-4 mt-4 glass-card p-12 rounded-[40px] md:hidden flex flex-col gap-8 text-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[150] md:hidden"
                     >
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.name}
-                                href={link.href}
-                                className="text-2xl text-text-main hover:text-accent-orange"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {link.name}
-                            </Link>
-                        ))}
-                        <div className="flex flex-col gap-6">
-                            <button
-                                onClick={() => {
-                                    setIsMobileMenuOpen(false);
-                                    onJoinClick();
+                        {/* Backdrop Blur Layer */}
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-3xl" onClick={() => setIsMobileMenuOpen(false)} />
+                        
+                        {/* Content Layer */}
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="absolute inset-y-0 right-0 w-full max-w-[400px] bg-[#0A0A0A]/95 backdrop-blur-md border-l border-white/5 flex flex-col p-10 pt-32 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+                        >
+                            {/* Accent Glow */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-orange/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+                            
+                            <motion.div 
+                                className="flex flex-col gap-10"
+                                initial="closed"
+                                animate="open"
+                                variants={{
+                                    open: {
+                                        transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+                                    },
+                                    closed: {
+                                        transition: { staggerChildren: 0.05, staggerDirection: -1 }
+                                    }
                                 }}
-                                className="btn-premium w-full py-5 text-center justify-center !bg-accent-orange cursor-pointer"
                             >
-                                {user ? 'Go to Workspace' : 'Join Platform'}
+                                {navLinks.map((link, idx) => (
+                                    <motion.div
+                                        key={link.name}
+                                        variants={{
+                                            open: { opacity: 1, x: 0 },
+                                            closed: { opacity: 0, x: 20 }
+                                        }}
+                                    >
+                                        <Link
+                                            href={link.href}
+                                            className="group flex items-end gap-4"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            <span className="text-[10px] font-black text-accent-orange/40 mb-2 font-mono group-hover:text-accent-orange transition-colors">
+                                                0{idx + 1}
+                                            </span>
+                                            <span className="text-5xl md:text-6xl font-black text-white/50 group-hover:text-white transition-all duration-500 tracking-tighter">
+                                                {link.name}
+                                            </span>
+                                        </Link>
+                                    </motion.div>
+                                ))}
+
+                                <motion.div
+                                    variants={{
+                                        open: { opacity: 1, y: 0 },
+                                        closed: { opacity: 0, y: 20 }
+                                    }}
+                                    className="pt-10 border-t border-white/5 mt-10"
+                                >
+                                    <button
+                                        onClick={() => {
+                                            setIsMobileMenuOpen(false);
+                                            onJoinClick();
+                                        }}
+                                        className="w-full py-6 rounded-2xl bg-gradient-to-r from-accent-orange to-[#FF8000] text-white font-black uppercase tracking-[0.2em] text-[13px] hover:scale-[1.02] transition-transform active:scale-95 shadow-[0_20px_40px_rgba(255,102,0,0.3)] flex items-center justify-center gap-3"
+                                    >
+                                        {user ? 'Launch Dashboard' : 'Join Platform'}
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.8 }}
+                                className="mt-auto flex flex-col gap-4"
+                            >
+                                <div className="flex justify-between items-center text-[9px] font-bold text-white/10 uppercase tracking-[0.4em] py-6 border-t border-white/5">
+                                    <span>© 2026 OKVEVO</span>
+                                    <span>V2.4.0</span>
+                                </div>
+                            </motion.div>
+
+                            {/* Close Button Inside Drawer */}
+                            <button
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="absolute top-10 right-10 p-4 rounded-full bg-white/5 text-white/40 hover:text-white transition-all hover:bg-white/10 border border-white/5"
+                            >
+                                <X size={20} />
                             </button>
-                            <div className="flex justify-center">
-                                <ThemeToggle />
-                            </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>

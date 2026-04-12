@@ -101,24 +101,36 @@ const DashNavbar = () => {
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        className="absolute top-full left-4 right-4 mt-4 glass-card p-12 rounded-[40px] md:hidden flex flex-col gap-8 text-center"
+                        className="fixed inset-0 top-[100px] bg-[#0A0A0A] md:hidden flex flex-col items-center justify-start py-20 px-10 z-[100] gap-10"
                     >
                         {userProfile && (
-                            <div className="mb-4">
+                            <div className="mb-8 w-full flex justify-center scale-110">
                                 <CreditsDisplay userId={userProfile.uid} variant="navbar" showLink={false} />
                             </div>
                         )}
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.name}
-                                href={link.href}
-                                className="flex items-center justify-center gap-3 text-2xl text-text-main hover:text-accent-orange"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {link.icon}
-                                {link.name}
-                            </Link>
-                        ))}
+                        
+                        <div className="flex flex-col items-center gap-10 w-full overflow-y-auto pb-20 no-scrollbar">
+                            {navLinks.map((link) => (
+                                <Link
+                                    key={link.name}
+                                    href={link.href}
+                                    className="flex items-center gap-4 text-3xl font-bold text-white/50 hover:text-accent-orange transition-all duration-300"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    <span className="p-3 bg-white/5 rounded-2xl text-accent-orange">
+                                        {link.icon}
+                                    </span>
+                                    <span className="tracking-tight">{link.name}</span>
+                                </Link>
+                            ))}
+                        </div>
+                        
+                        <button 
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="mt-auto px-10 py-4 bg-white/5 border border-white/10 rounded-full text-white/40 font-bold uppercase tracking-widest text-[10px]"
+                        >
+                            Close Menu
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
