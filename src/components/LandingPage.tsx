@@ -8,14 +8,13 @@ import { useRouter } from 'next/navigation';
 import NoiseOverlay from './NoiseOverlay';
 import Navbar from './ook/Navbar';
 import Hero from './ook/Hero';
-
-
 import Demo from './ook/Demo';
 import HowItWorks from './ook/Features';
 import Pricing from './ook/Pricing';
 import MasivCollaboration from './ook/MasivCollaboration';
 import FeaturesGrid from './ook/FeaturesGrid';
 import Footer from './ook/Footer';
+import SEOKeywords from './SEOKeywords';
 
 export default function LandingPage() {
     const [user, setUser] = useState<any>(null);
@@ -56,6 +55,8 @@ export default function LandingPage() {
                 {/* <Quotes onJoinClick={handleJoinClick} /> */}
             </main>
             <Footer />
+            {/* SEO Keywords - Hidden but indexed by search engines */}
+            <SEOKeywords />
         </div>
     );
 }

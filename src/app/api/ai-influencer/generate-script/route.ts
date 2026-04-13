@@ -4,6 +4,41 @@ import Groq from 'groq-sdk';
 import { apiHandler, apiSuccess } from '@/lib/api-utils';
 import { z } from 'zod';
 
+// Helper function to count words accurately
+function countWords(text: string): number {
+    return text
+        .replace(/\.{2,}/g, ' ')      // Replace ellipses with space
+        .replace(/[—–-]{2,}/g, ' ')   // Replace dashes with space
+        .replace(/[^\w\s']/g, ' ')    // Remove punctuation except apostrophes
+        .split(/\s+/)
+        .filter(w => w.length > 0)
+        .length;
+}
+
+// Helper function to truncate text to word limit at sentence boundaries
+function truncateToWordLimit(text: string, maxWords: number): string {
+    const words = text.split(/\s+/);
+    if (words.length <= maxWords) return text;
+    
+    // Truncate to maxWords
+    const truncated = words.slice(0, maxWords).join(' ');
+    
+    // Try to end at a sentence boundary
+    const lastPeriod = truncated.lastIndexOf('.');
+    const lastExclamation = truncated.lastIndexOf('!');
+    const lastQuestion = truncated.lastIndexOf('?');
+    
+    const lastSentenceEnd = Math.max(lastPeriod, lastExclamation, lastQuestion);
+    
+    // If we found a sentence ending in the last 20% of text, use it
+    if (lastSentenceEnd > truncated.length * 0.8) {
+        return truncated.substring(0, lastSentenceEnd + 1);
+    }
+    
+    // Otherwise, just add ellipsis
+    return truncated + '...';
+}
+
 // Helper function to adjust moments with proper gaps
 function adjustMomentsWithGaps(
     rawMoments: any[],
@@ -153,12 +188,22 @@ export const POST = apiHandler(async (request, ctx) => {
             ? `\n\n⚠️ CRITICAL: Your previous attempt only had ${retryInfo.prevWordCount} words, which is FAILING the requirement. The MUST-HAVE MINIMUM is ${minWords} words. You MUST write more content this time. Expand on the ideas, add vivid descriptive details, and use more sophisticated, complete sentences.\n`
             : '';
 
+        const strictLimitWarning = `
+🚨 ABSOLUTE HARD LIMIT: Your script MUST NOT exceed ${maxWords} words.
+- If you write ${maxWords + 1} words or more, your script will be REJECTED and TRUNCATED.
+- Target range: ${minWords}-${maxWords} words
+- Ideal target: ${Math.floor((minWords + maxWords) / 2)} words
+- This is NON-NEGOTIABLE. Quality over quantity. Stay within limits.
+`;
+
         const strictRequirements = duration === 60 && targetWords > 0
             ? `
+${strictLimitWarning}
 - ⚠️ STRICT TARGET: EXACTLY ${targetWords} words and ${targetChars} characters (±2 words tolerance).
 - Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
 `
             : `
+${strictLimitWarning}
 - Duration Target: MUST take strictly between ${minDuration} and ${duration} seconds to read aloud.
 - ⚠️ MANDATORY WORD COUNT: The script MUST contain between ${minWords} and ${maxWords} words. This is a HARD CONSTRAINT.
 `;
@@ -211,14 +256,16 @@ Output ONLY the final narration script text. No intro, no labels.`;
             continue;
         }
 
-        wordCount = scriptText
-            .replace(/\.{2,}/g, ' ')
-            .replace(/[—–-]{2,}/g, ' ')
-            .split(/\s+/)
-            .filter(w => w.length > 0 && !/^[.…,;:!?]+$/.test(w))
-            .length;
-
+        wordCount = countWords(scriptText);
         const charCount = scriptText.length;
+        
+        // Check if exceeds hard maximum - if so, retry or truncate
+        if (wordCount > maxWords + 5) {
+            console.warn(`⚠️ Attempt ${attempt}: ${wordCount} words exceeds limit (max: ${maxWords})`);
+            if (attempt < MAX_RETRIES) {
+                continue; // Retry with stricter prompt
+            }
+        }
         
         // For 60s videos, enforce strict word and character targets
         if (duration === 60 && targetWords > 0) {
@@ -238,6 +285,17 @@ Output ONLY the final narration script text. No intro, no labels.`;
                 break;
             }
         }
+    }
+
+    // Post-generation validation and truncation
+    const originalWordCount = wordCount;
+    let wasTruncated = false;
+    
+    if (wordCount > maxWords) {
+        console.log(`🔪 Truncating script from ${wordCount} to ${maxWords} words`);
+        scriptText = truncateToWordLimit(scriptText, maxWords);
+        wordCount = countWords(scriptText);
+        wasTruncated = true;
     }
 
     // Step 2: Extract Visual Moments with Groq (fallback to Gemini)
@@ -407,6 +465,9 @@ Output ONLY the category name (one word). No explanation, no extra text.`;
         wordCount,
         characterCount: scriptText.length,
         mode: isRawScript ? 'script-transform' : 'topic-generation',
+        wasTruncated,
+        originalWordCount,
+        maxAllowed: maxWords
     });
 }, { limitPerMin: 10 }); // Layer 1 per-user limit as requested in section 3
 

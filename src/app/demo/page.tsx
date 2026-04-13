@@ -3,9 +3,20 @@ import PublicLayout from '@/components/layouts/PublicLayout';
 import Demo from '@/components/ook/Demo';
 
 export const metadata: Metadata = {
-    title: 'Demo - See OKVEVO in Action | AI Video Generation',
-    description: 'Watch how OKVEVO transforms your concepts into stunning videos. See our AI-powered video generation in action from concept to result.',
-    keywords: ['AI video demo', 'video generation demo', 'OKVEVO demo', 'text to video example'],
+    title: 'OKVEVO Demo - AI Video Generator in Action | Create Reels Without Camera',
+    description: 'Watch OKVEVO AI create viral Instagram reels and YouTube shorts automatically. Best AI video generator demo - text to video in seconds. No camera needed for faceless content creation.',
+    keywords: [
+        'OKVEVO demo', 'OKVEVO AI demo', 'AI video generator demo', 'text to video AI demo',
+        'AI reel generator demo', 'faceless video creator demo', 'AI video maker in action',
+        'how to create videos using AI without camera', 'AI tool to create reels automatically',
+        'best AI video generator for Instagram reels demo', 'AI influencer generator demo',
+        'create viral reels using AI', 'automated video creation demo', 'AI content creator tool demo',
+        'AI video generator India demo', 'OKVEVO platform demo', 'AI storytelling video generator',
+    ],
+    openGraph: {
+        title: 'OKVEVO AI Demo - See AI Video Generation in Action',
+        description: 'Watch how OKVEVO creates viral reels and videos using AI. Perfect for Instagram, YouTube & faceless content.',
+    },
 };
 
 export default function DemoPage() {

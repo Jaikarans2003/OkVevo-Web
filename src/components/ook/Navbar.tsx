@@ -55,7 +55,7 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         { name: 'Demo', href: '/demo' },
         { name: 'Features', href: '/features' },
         { name: 'Pricing', href: '/pricing' },
-        // { name: 'Showcase', href: '/Showcase' },
+        { name: 'Blog', href: '/blogs' },
     ];
 
     return (

@@ -35,7 +35,7 @@ const MasivCollaboration = () => {
                             "Enter the booth and <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-red-600 to-red-800">transform yourself</span> with AI."
                         </p>
-                        <Link href="/location">
+                        <Link href="/Showcase">
                         <button className=" mt-10 px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]">
                             See Our Location
                         </button>

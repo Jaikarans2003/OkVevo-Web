@@ -10,7 +10,7 @@ import UserTable from '@/components/admin/UserTable';
 import CreditEditModal from '@/components/admin/CreditEditModal';
 import DeleteUserModal from '@/components/admin/DeleteUserModal';
 import AuditLogPanel from '@/components/admin/AuditLogPanel';
-import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight, LayoutGrid, Image as ImageIcon } from 'lucide-react';
+import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight, LayoutGrid, Image as ImageIcon, FileText } from 'lucide-react';
 import Link from 'next/link';
 import AdminGuard from '@/components/admin/AdminGuard';
 
@@ -313,6 +313,27 @@ function AdminDashboard() {
                                 className="w-full px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
                             >
                                 Manage Affiliates <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Blog Management Quick Access */}
+                    <div className="p-1 bg-gradient-to-r from-green-500/20 to-transparent rounded-[24px]">
+                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                                    <FileText className="w-7 h-7 text-green-500" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black tracking-tighter uppercase">Blog</h2>
+                                    <p className="text-gray-400 text-sm">Create, edit, and manage blog posts with SEO.</p>
+                                </div>
+                            </div>
+                            <Link 
+                                href="/admin/blogs"
+                                className="w-full px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
+                            >
+                                Manage Blog <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Link>
                         </div>
                     </div>

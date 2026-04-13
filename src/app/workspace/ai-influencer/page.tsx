@@ -842,7 +842,16 @@ function AIInfluencerWorkstation() {
                 'AI-Influencer Generation'
             );
 
-            addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
+            // Check if script was truncated and show appropriate message
+            if (data.wasTruncated) {
+                addAssistant(
+                    `✨ VEVO cooked! Generated ${data.wordCount} words (trimmed from ${data.originalWordCount} to fit ${selectedDuration}s duration).\n\n` +
+                    `200 credits deducted.\n\n` +
+                    `Your input was longer than optimal, so VEVO condensed it to pure essence. Read it. Edit it. Then hit Finalise Script.`
+                );
+            } else {
+                addAssistant(`✨VEVO cooked! ${data.wordCount} words of pure OKVEVO energy.\n\n200 credits deducted.\n\nRead it. Live it. Edit it if you dare. Then hit Finalise Script.`);
+            }
             setChatStep('edit-script');
             setIsGenerating(false);
 
