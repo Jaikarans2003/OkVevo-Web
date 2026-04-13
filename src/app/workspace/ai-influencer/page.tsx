@@ -85,7 +85,7 @@ function AIInfluencerWorkstation() {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
         {
             role: 'assistant',
-            content: "Yo! VEVO here. Drop your script and watch the magic unfold. We don't do boring — we do VEVO. Paste it below or upload the file. Let's get weird.",
+            content: "Ok VEVO here. Drop your script and watch the magic unfold. We don't do boring — we do Ok VEVO. Paste it below or upload the file. Let's get weird.",
         },
     ]);
 
@@ -429,8 +429,8 @@ function AIInfluencerWorkstation() {
                     // Check if we have partial assets to show
                     const hasPartialAssets = (data.assetResults && data.assetResults.length > 0) || data.audioUrl;
                     const partialMessage = hasPartialAssets 
-                        ? `💀 Pipeline Error ${data.errorCode || '500'} — But we saved what we generated! Check the assets panel below.`
-                        : `💀 VEVO Major Error ${data.errorCode || '500'} — We might need to restart this run.`;
+                        ? `💀 Pipeline Error But we saved what we generated! Check the assets panel below.`//${data.errorCode || '500'} — 
+                        : `💀 Ok VEVO Major Error We might need to restart this run.`; //${data.errorCode || '500'} — 
                     
                     addAssistant(partialMessage);
                 }
@@ -475,7 +475,7 @@ function AIInfluencerWorkstation() {
             if (!data.success) throw new Error(data.error || 'Failed to resume pipeline');
             console.log('✅ Pipeline resumed successfully');
             setWaitTaskToken(null);
-            addAssistant('🎬 Avatar locked and loaded! VEVO is bringing your masterpiece to life. Hold tight.');
+            addAssistant('🎬 Avatar locked and loaded! Ok VEVO is bringing your masterpiece to life. Hold tight.');
         } catch (err: any) {
             console.error('Failed to resume pipeline:', err);
         }
@@ -505,7 +505,7 @@ function AIInfluencerWorkstation() {
                 setGeneratedScript(data.script);
                 setEditableScript(data.script);
                 setChatStep('edit-script');
-                addAssistant(`VEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
+                addAssistant(`Ok VEVO brain just delivered a fresh ~${selectedDuration}s script. Edit it below, then keep it moving.`);
                 scriptMessageShownRef.current = true;
             }
 
@@ -550,10 +550,10 @@ function AIInfluencerWorkstation() {
             if (data.status === 'complete' && data.finalVideoUrl) {
                 setFinalVideoUrl(data.finalVideoUrl);
                 setChatStep('complete');
-                addAssistant('🎉 OKVEVO DROP! Your video just landed. Watch the monitor — you are about to be iconic.');
+                addAssistant('🎉 OK VEVO DROP! Your video just landed. Watch the monitor — you are about to be iconic.');
                 setIsGenerating(false);
             } else if (data.status === 'error') {
-                addAssistant('💀 OKVEVO system fault: Video generation failed — something broke in the pipeline. Try again.'); //: ${data.errorMessage 
+                addAssistant('💀 OK VEVO system fault: Video generation failed — something broke in the pipeline. Try again.'); //: ${data.errorMessage 
                 setChatStep('preview-audio');
                 setIsGenerating(false);
             }
@@ -1523,8 +1523,8 @@ function AIInfluencerWorkstation() {
                                                             <Loader2 size={20} className="text-orange-500 animate-spin" />
                                                         </div>
                                                         <div>
-                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">VEVO is bringing your AVATAR to Life</p>
-                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">We call it The VEVO Kiss</p>
+                                                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-white">Ok VEVO is bringing your AVATAR to Life</p>
+                                                            <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">We call it The Ok VEVO Kiss</p>
                                                         </div>
                                                     </div>
                                                 </motion.div>
@@ -1543,7 +1543,7 @@ function AIInfluencerWorkstation() {
                                                         {msg.role === 'assistant' && (
                                                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                                 <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">VEVO SPEAKING</span>
+                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Ok VEVO SPEAKING</span>
                                                             </div>
                                                         )}
                                                         <motion.div
@@ -1564,7 +1564,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Loader2 size={10} className="text-orange-500 animate-spin" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">VEVO IS Vevoing</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">OkVEVO IS Vevoing</span>
                                                         </div>
                                                         <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
                                                             <div className="flex gap-2 items-center">
@@ -1638,7 +1638,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start max-w-[80%]">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 mb-1 backdrop-blur-md">
                                                             <CheckCircle2 size={10} className="text-green-400" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-green-400">VEVO DELIVERED 🔥</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-green-400">Ok VEVO DELIVERED 🔥</span>
                                                         </div>
                                                         <div className="bg-green-500/5 rounded-[2rem] rounded-tl-none px-7 py-6 border border-green-500/20 backdrop-blur-2xl shadow-2xl ring-1 ring-green-500/10 space-y-4">
                                                             <p className="text-[14px] text-green-200/80 leading-relaxed">
@@ -1664,7 +1664,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start max-w-[85%]">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Sparkles size={10} className="text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">VEVO SPEAKING</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Ok VEVO SPEAKING</span>
                                                         </div>
                                                         <div className="bg-white/[0.02] rounded-[2rem] rounded-tl-none px-7 py-6 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5 w-full">
                                                             <button
@@ -1862,7 +1862,7 @@ function AIInfluencerWorkstation() {
                                                                                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
                                                                             >
                                                                                 {isBranding
-                                                                                    ? <><Loader2 size={13} className="animate-spin" /> VEVO Branding…</>
+                                                                                    ? <><Loader2 size={13} className="animate-spin" /> Ok VEVO Branding…</>
                                                                                     : <><Sparkles size={13} /> VEVO-fy This Video</>
                                                                                 }
                                                                             </button>
@@ -1989,7 +1989,7 @@ function AIInfluencerWorkstation() {
                                                     {/* Pro Status Overlay */}
                                                     <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl text-[9px] font-black text-white/60 uppercase tracking-[0.2em] z-20 pointer-events-none flex items-center gap-2">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                                                        VEVO Mode
+                                                        Ok VEVO Mode
                                                     </div>
                                                 </motion.div>
                                             ) : isGenerating ? (
@@ -2012,14 +2012,14 @@ function AIInfluencerWorkstation() {
                                                         <div className="absolute -inset-6 rounded-full border border-orange-500/5 animate-[ping_4s_infinite]" />
                                                     </div>
                                                     <div className="text-center space-y-3">
-                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">VEVO is Cooking</p>
+                                                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white/80">Ok VEVO is Cooking</p>
                                                         <div className="flex justify-center gap-1.5">
                                                             {[0,1,2].map(i => (
                                                                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500/20 animate-pulse" />
                                                             ))}
                                                         </div>
                                                         <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">
-                                                            {chatStep === 'generating-lipsync' ? 'VEVO is syncing lips… almost there' : 'VEVO is conjuring frames… hang tight'}
+                                                            {chatStep === 'generating-lipsync' ? 'Ok VEVO is almost there' : 'Ok VEVO is conjuring frames… hang tight'}
                                                         </p>
                                                     </div>
                                                 </motion.div>
@@ -2036,7 +2036,7 @@ function AIInfluencerWorkstation() {
                                                             <MonitorPlay size={36} className="text-white/[0.05] group-hover/monitor:text-orange-500/50 transition-all duration-1000 group-hover/monitor:scale-110" />
                                                         </div>
                                                     </div>
-                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">VEVO Monitor</h3>
+                                                    <h3 className="text-2xl font-black text-white/10 mb-3 tracking-tighter group-hover/monitor:text-white/40 transition-colors duration-700">Ok VEVO Monitor</h3>
                                                     <div className="flex items-center gap-3 mb-6">
                                                         <div className="w-2 h-2 rounded-full bg-white/5 animate-pulse" />
                                                         <p className="text-[10px] text-white/10 font-black uppercase tracking-[0.3em] group-hover/monitor:text-white/20 transition-colors">

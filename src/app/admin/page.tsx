@@ -295,6 +295,27 @@ function AdminDashboard() {
                             </Link>
                         </div>
                     </div>
+
+                    {/* Affiliate Partners Quick Access */}
+                    <div className="p-1 bg-gradient-to-r from-purple-500/20 to-transparent rounded-[24px]">
+                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                                    <Users className="w-7 h-7 text-purple-500" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black tracking-tighter uppercase">Affiliates</h2>
+                                    <p className="text-gray-400 text-sm">Manage affiliate partners and track commissions.</p>
+                                </div>
+                            </div>
+                            <Link 
+                                href="/admin/affiliates"
+                                className="w-full px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
+                            >
+                                Manage Affiliates <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                        </div>
+                    </div>
                 </div>
 
 

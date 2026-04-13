@@ -445,6 +445,8 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: true });
                 }
 
+                const orderData = orderDoc.data();
+                
                 // Update the order with payment details
                 await orderRef.update({
                     paymentId,
@@ -459,6 +461,41 @@ export async function POST(request: NextRequest) {
                 });
 
                 console.log(`✅ MASIV order paid: ${orderId}, payment: ${paymentId}`);
+
+                // Handle coupon usage tracking
+                if (orderData?.couponCode && orderData?.whatsappNumber) {
+                    const couponUsageData = {
+                        userId: orderData.userId,
+                        phoneNumber: orderData.whatsappNumber,
+                        couponCode: orderData.couponCode,
+                        orderId,
+                        discountApplied: orderData.discountAmount || 0,
+                        usedAt: FieldValue.serverTimestamp(),
+                    };
+                    
+                    await db.collection('couponUsage').add(couponUsageData);
+                    console.log(`📋 Coupon usage recorded: ${orderData.couponCode}`);
+                }
+
+                // Handle affiliate commission
+                // Note: Sales sub-collection is created via "Sync Stats" button in admin panel
+                if (orderData?.affiliateId && orderData?.affiliateCommission) {
+                    const affiliateRef = db.collection('affiliates').doc(orderData.affiliateId);
+                    await affiliateRef.update({
+                        totalSales: FieldValue.increment(1),
+                        totalEarnings: FieldValue.increment(orderData.affiliateCommission),
+                        updatedAt: FieldValue.serverTimestamp(),
+                    });
+                    console.log(`💰 Affiliate commission updated: ${orderData.affiliateId}, +₹${orderData.affiliateCommission}`);
+                    console.log(`ℹ️ Sales sub-collection will be created when admin clicks "Sync Stats"`);
+                }
+
+                // Purchase history already updated when order was created
+                // No need to update again on payment success
+                if (orderData?.whatsappNumber) {
+                    console.log(`📊 Purchase history already tracked for: ${orderData.whatsappNumber}`);
+                }
+
                 break;
             }
 
@@ -480,6 +517,8 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: true });
                 }
 
+                const orderData = orderDoc.data();
+
                 // Update the order status to failed
                 await orderRef.update({
                     status: 'failed',
@@ -488,6 +527,23 @@ export async function POST(request: NextRequest) {
                 });
 
                 console.log(`❌ MASIV order payment failed: ${orderId}`);
+
+                // Rollback purchase history
+                if (orderData?.whatsappNumber) {
+                    const historyRef = db.collection('userPurchaseHistory').doc(orderData.whatsappNumber);
+                    const updates: any = {
+                        purchaseCount: FieldValue.increment(-1),
+                        orders: FieldValue.arrayRemove(orderId),
+                    };
+
+                    if (orderData.couponCode) {
+                        updates.usedCoupons = FieldValue.arrayRemove(orderData.couponCode);
+                    }
+
+                    await historyRef.update(updates);
+                    console.log(`🔄 Rolled back purchase history for: ${orderData.whatsappNumber}`);
+                }
+
                 break;
             }
 

@@ -52,10 +52,10 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
     const textColorDim = 'text-white/70';
 
     const navLinks = [
-        { name: 'Process', href: '/#showcase' },
-        { name: 'Features', href: '/#features' },
-        { name: 'Pricing', href: '/#pricing' },
-        
+        { name: 'Demo', href: '/demo' },
+        { name: 'Features', href: '/features' },
+        { name: 'Pricing', href: '/pricing' },
+        // { name: 'Showcase', href: '/Showcase' },
     ];
 
     return (

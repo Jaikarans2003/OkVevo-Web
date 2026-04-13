@@ -11,8 +11,13 @@ const ubuntu = Ubuntu({
 });
 
 export const metadata: Metadata = {
-    title: "OKVEVO - Text to Video",
-    description: "Transform your words into motion",
+    title: "OKVEVO - Transform your words into motion",
+    description: "Supercharge your visual storytelling and reach the world instantly.",
+    icons: {
+        icon: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
+        shortcut: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
+        apple: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
+    },
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";

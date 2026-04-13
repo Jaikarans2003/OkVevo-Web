@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '../../config/firebase';
 import { onAuthStateChanged, User, updateEmail, signOut } from 'firebase/auth';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
 import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../services/SubscriptionService';
@@ -17,6 +17,7 @@ export default function ProfilePage() {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
+    const [affiliateData, setAffiliateData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -43,6 +44,19 @@ export default function ProfilePage() {
                     ]);
                     setProfile(profileData);
                     setSubscription(subData);
+                    
+                    // Check if user is an affiliate by email
+                    const affiliatesRef = collection(db, 'affiliates');
+                    const affiliateQuery = query(affiliatesRef, where('email', '==', currentUser.email));
+                    const affiliateSnapshot = await getDocs(affiliateQuery);
+                    
+                    if (!affiliateSnapshot.empty) {
+                        const affiliateDoc = affiliateSnapshot.docs[0];
+                        setAffiliateData({
+                            id: affiliateDoc.id,
+                            ...affiliateDoc.data()
+                        });
+                    }
                     setFormData({
                         email: profileData?.email || currentUser.email || '',
                         phoneNumber: profileData?.phoneNumber || '',
@@ -220,7 +234,7 @@ export default function ProfilePage() {
                         </section>
 
                         {/* High-Contrast Stats & Subscription Row */}
-                        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-24 max-w-4xl">
+                        <section className={`grid grid-cols-1 ${affiliateData ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 w-full mt-24 max-w-6xl`}>
                             {[
                                 {
                                     label: 'Subscription Plan',
@@ -230,6 +244,13 @@ export default function ProfilePage() {
                                     detail: subscription?.status ? `Status: ${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}` : 'Active Status'
                                 },
                                 { label: 'Direct Wire', value: formData.phoneNumber || 'Unlinked', icon: Phone, color: '#A855F7', detail: 'Primary Contact' },
+                                ...(affiliateData ? [{
+                                    label: 'Affiliate Earnings',
+                                    value: `₹${affiliateData.totalEarnings || 0}`,
+                                    icon: Activity,
+                                    color: '#10B981',
+                                    detail: `${affiliateData.totalSales || 0} Sales • ${affiliateData.couponCode || 'N/A'}`
+                                }] : [])
                             ].map((stat, i) => (
                                 <motion.div 
                                     key={i}

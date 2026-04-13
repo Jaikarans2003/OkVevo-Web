@@ -50,7 +50,7 @@ const Showcase = () => {
     }, [activeTab, mounted]);
 
     return (
-        <section id="showcase" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
+        <section id="demo" className="relative py-24 bg-[#020202] text-white selection:bg-orange-500/30">
             <div className="max-w-[1300px] mx-auto px-6 md:px-12 relative z-10">
                 
                 {/* Header Grid */}

@@ -20,6 +20,9 @@ interface CreateOrderRequest {
     email: string | null;
     items: CartItem[];
     totalAmount: number;
+    couponCode?: string;
+    discountAmount?: number;
+    affiliateId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -27,9 +30,9 @@ export async function POST(request: NextRequest) {
         console.log('📦 MASIV Order API called');
         
         const body: CreateOrderRequest = await request.json();
-        const { userId, customerName, whatsappNumber, email, items, totalAmount } = body;
+        const { userId, customerName, whatsappNumber, email, items, totalAmount, couponCode, discountAmount, affiliateId } = body;
 
-        console.log('📦 Request body:', { userId, customerName, whatsappNumber, itemCount: items?.length, totalAmount });
+        console.log('📦 Request body:', { userId, customerName, whatsappNumber, itemCount: items?.length, totalAmount, couponCode, discountAmount });
 
         // Validate required fields
         if (!userId || !customerName || !whatsappNumber || !items || items.length === 0 || !totalAmount) {
@@ -58,7 +61,9 @@ export async function POST(request: NextRequest) {
         });
         console.log('✅ Razorpay SDK initialized');
 
-        const amountInPaise = Math.round(totalAmount * 100);
+        // Calculate final amount after discount
+        const finalAmount = discountAmount ? totalAmount - discountAmount : totalAmount;
+        const amountInPaise = Math.round(finalAmount * 100);
         const receipt = `masiv_${Date.now()}_${userId.substring(0, 8)}`;
 
         console.log('💳 Creating Razorpay order...', { amountInPaise, receipt });
@@ -78,6 +83,9 @@ export async function POST(request: NextRequest) {
 
         const orderId = orderData.id;
 
+        // Calculate affiliate commission if applicable (10% of total amount user pays)
+        const affiliateCommission = affiliateId ? Math.round(finalAmount * 0.10) : 0;
+
         // Create Firestore document immediately
         const orderDoc = {
             orderId,
@@ -95,6 +103,11 @@ export async function POST(request: NextRequest) {
                 faceImageUrl: item.faceImageUrl,
             })),
             totalAmount,
+            discountAmount: discountAmount || 0,
+            finalAmount,
+            couponCode: couponCode || null,
+            affiliateId: affiliateId || null,
+            affiliateCommission,
             currency: 'INR',
             status: 'pending',
             createdAt: FieldValue.serverTimestamp(),
@@ -104,6 +117,38 @@ export async function POST(request: NextRequest) {
         console.log('💾 Saving to Firestore...');
         await db.collection('masiv_orders').doc(orderId).set(orderDoc);
         console.log(`✅ Created MASIV order: ${orderId} with status=pending`);
+
+        // Create/update userPurchaseHistory immediately
+        console.log('📊 Updating purchase history...');
+        const historyRef = db.collection('userPurchaseHistory').doc(whatsappNumber);
+        const historyDoc = await historyRef.get();
+
+        if (historyDoc.exists) {
+            // Existing user - increment count and add coupon
+            const updates: any = {
+                purchaseCount: FieldValue.increment(1),
+                orders: FieldValue.arrayUnion(orderId),
+                lastOrderDate: FieldValue.serverTimestamp(),
+            };
+
+            if (couponCode) {
+                updates.usedCoupons = FieldValue.arrayUnion(couponCode.toUpperCase());
+            }
+
+            await historyRef.update(updates);
+            console.log(`📊 Updated purchase history for: ${whatsappNumber}`);
+        } else {
+            // New user - create document
+            await historyRef.set({
+                phoneNumber: whatsappNumber,
+                purchaseCount: 1,
+                orders: [orderId],
+                usedCoupons: couponCode ? [couponCode.toUpperCase()] : [],
+                lastOrderDate: FieldValue.serverTimestamp(),
+                createdAt: FieldValue.serverTimestamp(),
+            });
+            console.log(`📊 Created purchase history for new user: ${whatsappNumber}`);
+        }
 
         // Return order details to frontend
         return NextResponse.json({

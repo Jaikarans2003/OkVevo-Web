@@ -684,6 +684,15 @@ export default function OkvevoMasivPage() {
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [email, setEmail] = useState('');
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState<{
+        code: string;
+        discount: number;
+        type: string;
+        affiliateId?: string;
+    } | null>(null);
+    const [couponError, setCouponError] = useState('');
+    const [validatingCoupon, setValidatingCoupon] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
     const [successOrderId, setSuccessOrderId] = useState('');
     const [addedToCartNotification, setAddedToCartNotification] = useState<{ id: string; name: string } | null>(null);
@@ -1148,6 +1157,60 @@ export default function OkvevoMasivPage() {
         setCart(prev => prev.filter(item => item.id !== id));
     }, []);
 
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) {
+            setCouponError('Please enter a coupon code');
+            return;
+        }
+
+        if (!whatsappNumber) {
+            setCouponError('Please enter your WhatsApp number first');
+            return;
+        }
+
+        setValidatingCoupon(true);
+        setCouponError('');
+
+        try {
+            const response = await fetch('/api/coupons/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    couponCode: couponCode.trim(),
+                    phoneNumber: whatsappNumber,
+                    totalAmount: totalPrice,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.valid) {
+                setAppliedCoupon({
+                    code: couponCode.toUpperCase(),
+                    discount: data.discountAmount,
+                    type: data.type,
+                    affiliateId: data.affiliateId,
+                });
+                setCouponError('');
+            } else {
+                setCouponError(data.message || 'Invalid coupon code');
+                setAppliedCoupon(null);
+            }
+        } catch (error) {
+            console.error('Coupon validation error:', error);
+            setCouponError('Failed to validate coupon. Please try again.');
+            setAppliedCoupon(null);
+        } finally {
+            setValidatingCoupon(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode('');
+        setCouponError('');
+    };
+
     const handleCheckout = async () => {
         // Validate inputs
         if (!userName || !whatsappNumber) {
@@ -1174,6 +1237,9 @@ export default function OkvevoMasivPage() {
                     email: email || null,
                     items: cart,
                     totalAmount: totalPrice,
+                    couponCode: appliedCoupon?.code || null,
+                    discountAmount: appliedCoupon?.discount || 0,
+                    affiliateId: appliedCoupon?.affiliateId || null,
                 }),
             });
 
@@ -1208,12 +1274,15 @@ export default function OkvevoMasivPage() {
                 handler: function (response: any) {
                     // Payment successful
                     console.log('Payment successful:', response);
+                    setIsProcessingPayment(false);
                     setSuccessOrderId(orderId);
                     setShowSuccessPopup(true);
                     setCart([]);
                     setUserName('');
                     setWhatsappNumber('');
                     setEmail('');
+                    setAppliedCoupon(null);
+                    setCouponCode('');
                     setCapturedPhotos({ fullBody: null, face: null });
                     setPhotoAttempts({ fullBody: 0, face: 0 });
                     setShowCart(false);
@@ -1225,8 +1294,18 @@ export default function OkvevoMasivPage() {
                 },
                 modal: {
                     ondismiss: function () {
+                        // Reset everything when user cancels payment
                         setIsProcessingPayment(false);
-                        console.log('Payment modal closed');
+                        setCart([]);
+                        setUserName('');
+                        setWhatsappNumber('');
+                        setEmail('');
+                        setAppliedCoupon(null);
+                        setCouponCode('');
+                        setCapturedPhotos({ fullBody: null, face: null });
+                        setPhotoAttempts({ fullBody: 0, face: 0 });
+                        setShowCart(false);
+                        console.log('Payment cancelled - cart cleared');
                     },
                 },
             };
@@ -1958,14 +2037,87 @@ export default function OkvevoMasivPage() {
                                                             className="w-full px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/5 transition-all"
                                                         />
                                                     </div>
+
+                                                    {/* Coupon Code */}
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-white/40 mb-2 uppercase tracking-widest">
+                                                            Coupon or Affiliate Code
+                                                        </label>
+                                                        {appliedCoupon ? (
+                                                            <div className={`flex items-center justify-between px-5 py-4 rounded-2xl ${
+                                                                appliedCoupon.type === 'affiliate' 
+                                                                    ? 'bg-purple-500/10 border border-purple-500/30' 
+                                                                    : 'bg-green-500/10 border border-green-500/30'
+                                                            }`}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Check className={`w-4 h-4 ${appliedCoupon.type === 'affiliate' ? 'text-purple-500' : 'text-green-500'}`} />
+                                                                    <span className={`font-bold text-sm ${appliedCoupon.type === 'affiliate' ? 'text-purple-500' : 'text-green-500'}`}>
+                                                                        {appliedCoupon.code}
+                                                                    </span>
+                                                                    {appliedCoupon.type === 'affiliate' ? (
+                                                                        <span className="text-white/60 text-xs">Supporting partner</span>
+                                                                    ) : (
+                                                                        <span className="text-white/60 text-xs">-₹{appliedCoupon.discount}</span>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    onClick={handleRemoveCoupon}
+                                                                    className="text-white/40 hover:text-white transition-colors"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={couponCode}
+                                                                    onChange={(e) => {
+                                                                        setCouponCode(e.target.value.toUpperCase());
+                                                                        setCouponError('');
+                                                                    }}
+                                                                    placeholder="Enter code"
+                                                                    className="flex-1 px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/5 transition-all uppercase"
+                                                                />
+                                                                <button
+                                                                    onClick={handleApplyCoupon}
+                                                                    disabled={validatingCoupon || !couponCode.trim() || !whatsappNumber}
+                                                                    className="px-6 py-4 bg-[#FF6B35] hover:bg-[#FF8F6B] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-xs rounded-2xl transition-all whitespace-nowrap"
+                                                                >
+                                                                    {validatingCoupon ? 'Checking...' : 'Apply'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        {couponError && (
+                                                            <p className="text-red-400 text-xs mt-2">{couponError}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 
                                             <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <span className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Amount</span>
-                                                    <span className="text-4xl font-black text-white italic tracking-tighter">₹{totalPrice}</span>
-                                                </div>
+                                                {appliedCoupon && appliedCoupon.type !== 'affiliate' && appliedCoupon.discount > 0 ? (
+                                                    <div className="space-y-3 mb-6">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-white/40 font-bold text-sm">Subtotal</span>
+                                                            <span className="text-white/60 text-lg">₹{totalPrice}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-green-500 font-bold text-sm">Discount ({appliedCoupon.code})</span>
+                                                            <span className="text-green-500 text-lg">-₹{appliedCoupon.discount}</span>
+                                                        </div>
+                                                        <div className="h-px bg-white/10"></div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Final Amount</span>
+                                                            <span className="text-4xl font-black text-white italic tracking-tighter">₹{totalPrice - appliedCoupon.discount}</span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-between mb-6">
+                                                        <span className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Amount</span>
+                                                        <span className="text-4xl font-black text-white italic tracking-tighter">₹{totalPrice}</span>
+                                                    </div>
+                                                )}
                                                 <button
                                                     onClick={handleCheckout}
                                                     disabled={!userName || !whatsappNumber || isProcessingPayment}
