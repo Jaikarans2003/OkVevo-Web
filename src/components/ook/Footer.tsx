@@ -83,11 +83,10 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    {/* Giant Watermark Typography */}
                     <div className="w-full flex justify-center -mt-16 leading-none select-none pointer-events-none">
-                        <h1 className="text-[15vw] lg:text-[13vw] font-black leading-[0.75] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white/30 to-transparent uppercase relative z-0">
+                        <div className="text-[15vw] lg:text-[13vw] font-black leading-[0.75] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white/30 to-transparent uppercase relative z-0">
                             OKVEVO
-                        </h1>
+                        </div>
                     </div>
 
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-4 md:pt-6 border-t border-white/20 gap-8 mt-2">

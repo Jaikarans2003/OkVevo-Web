@@ -23,7 +23,7 @@ export default function BlogContent({ content }: BlogContentProps) {
             
             // Regular paragraph
             return (
-                <p key={index} className="text-lg leading-relaxed mb-6 text-white/90">
+                <p key={index} className="text-lg leading-relaxed mb-6 text-white/80">
                     {section}
                 </p>
             );
@@ -55,19 +55,19 @@ function renderTable(tableText: string, key: number) {
             <div className="inline-block min-w-full align-middle">
                 <div className="overflow-hidden border border-white/10 rounded-xl">
                     <table className="min-w-full divide-y divide-white/10">
-                        <thead className="bg-orange-600/10">
+                        <thead className="bg-white/5">
                             <tr>
                                 {headerCells.map((header, i) => (
                                     <th
                                         key={i}
-                                        className="px-6 py-4 text-left text-sm font-bold text-orange-400 uppercase tracking-wider"
+                                        className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider"
                                     >
                                         {header}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="bg-white/5 divide-y divide-white/5">
+                        <tbody className="bg-transparent divide-y divide-white/5">
                             {dataRows.map((row, rowIndex) => (
                                 <tr key={rowIndex} className="hover:bg-white/5 transition-colors">
                                     {row.map((cell, cellIndex) => (
@@ -98,16 +98,16 @@ function renderGraphPlaceholder(graphText: string, key: number) {
     return (
         <div
             key={key}
-            className="my-8 p-8 bg-gradient-to-br from-orange-600/10 to-purple-600/10 border border-white/10 rounded-xl"
+            className="my-8 p-8 bg-white/5 border border-white/10 rounded-xl"
         >
             <div className="flex items-center gap-3 mb-4">
                 <div className="w-3 h-3 bg-orange-600 rounded-full animate-pulse" />
                 <h3 className="text-lg font-bold text-white">{type}: {description}</h3>
             </div>
-            <div className="aspect-video bg-white/5 rounded-lg flex items-center justify-center border border-white/5">
+            <div className="aspect-video bg-black/20 rounded-lg flex items-center justify-center border border-white/5 shadow-sm">
                 <div className="text-center">
                     <svg
-                        className="w-16 h-16 mx-auto mb-3 text-orange-600/50"
+                        className="w-16 h-16 mx-auto mb-3 text-white/20"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

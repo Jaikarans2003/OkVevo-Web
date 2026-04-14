@@ -1,0 +1,3 @@
+A default Open Graph image is required for SEO metadata on this site.
+Please upload a 1200x630px image to this location: `public/og-image.jpg`
+This will be used as the default fallback image when links are shared on social media.

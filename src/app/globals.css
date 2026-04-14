@@ -152,6 +152,12 @@
   transform: translateZ(0); /* Add hardware acceleration */
 }
 
+@media (max-width: 768px) {
+  .noise-overlay {
+    display: none;
+  }
+}
+
 .mask-fade {
   mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);

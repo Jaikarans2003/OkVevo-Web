@@ -14,9 +14,27 @@ export const metadata: Metadata = {
         'creator AI tools pricing', 'business AI video pricing', 'enterprise AI video plans',
         'AI video generator free trial', 'affordable AI video creation', 'AI reel maker India pricing',
     ],
+    authors: [{ name: 'Okvevo Team', url: 'https://okvevo.com' }],
     openGraph: {
         title: 'OKVEVO Pricing - Affordable AI Video Generator for All Creators',
         description: 'Flexible plans for Instagram, YouTube & business. Best AI video generator in India. Start free.',
+        url: 'https://okvevo.com/pricing',
+        siteName: 'Okvevo',
+        images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'OKVEVO Pricing Plans' }],
+        type: 'website',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'OKVEVO Pricing - Affordable AI Video Generator for All Creators',
+        description: 'Flexible plans for Instagram, YouTube & business. Best AI video generator in India. Start free.',
+        images: ['/og-image.jpg'],
+    },
+    alternates: {
+        canonical: 'https://okvevo.com/pricing',
+    },
+    robots: {
+        index: true,
+        follow: true,
     },
 };
 

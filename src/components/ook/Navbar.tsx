@@ -10,9 +10,10 @@ import Link from 'next/link';
 interface NavbarProps {
     user?: any;
     onJoinClick: () => void;
+    theme?: 'light' | 'dark';
 }
 
-const Navbar = ({ user, onJoinClick }: NavbarProps) => {
+const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [currentSectionTheme, setCurrentSectionTheme] = useState<'light' | 'dark'>('light');
@@ -48,23 +49,27 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
         };
     }, []);
 
-    const textColor = 'text-white';
-    const textColorDim = 'text-white/70';
+    const textColor = theme === 'light' ? 'text-[#111111]' : 'text-white';
+    const textColorDim = theme === 'light' ? 'text-[#111111]/70' : 'text-white/70';
+    const containerClasses = theme === 'light' 
+        ? 'flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out bg-white/40 shadow-[0_4px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl border border-black/5 hover:bg-white/60 group/nav'
+        : 'flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10 hover:shadow-[0_0_30px_rgba(255,102,0,0.15)] group/nav';
+
 
     const navLinks = [
-        { name: 'Demo', href: '/demo' },
-        { name: 'Features', href: '/features' },
-        { name: 'Pricing', href: '/pricing' },
+        { name: 'Demo', href: '/#demo' },
+        { name: 'Features', href: '/#features' },
+        { name: 'Pricing', href: '/#pricing' },
         { name: 'Blog', href: '/blogs' },
     ];
 
     return (
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
-                <div className="flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10 hover:shadow-[0_0_30px_rgba(255,102,0,0.15)] group/nav">
-                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
+                <div className={containerClasses}>
+                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>
                         <Image 
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg" 
+                            src={theme === 'light' ? "/OKVEVO WithOut BackGrounds/Black.svg" : "/OKVEVO WithOut BackGrounds/Orange.svg"}
                             alt="OKVEVO Logo" 
                             width={40} 
                             height={40} 
@@ -88,7 +93,13 @@ const Navbar = ({ user, onJoinClick }: NavbarProps) => {
                             {/* <ThemeToggle forceColor={isNavbarDark ? 'white' : 'black'} /> */}
                             <button
                                 onClick={onJoinClick}
-                                className={`px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${isScrolled ? 'bg-accent-orange text-white hover:bg-text-main hover:text-bg-main' : `bg-text-main/10 ${textColor} border border-text-main/20 hover:bg-text-main hover:text-bg-main`}`}
+                                className={`px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${
+                                    isScrolled 
+                                    ? 'bg-accent-orange text-white hover:bg-[#111111] hover:text-white' 
+                                    : theme === 'light'
+                                        ? 'border border-[#111111]/20 text-[#111111] hover:bg-[#111111] hover:text-white'
+                                        : `bg-text-main/10 text-white border border-text-main/20 hover:bg-white hover:text-black`
+                                }`}
                             >
                                 {user ? 'Workspace' : 'Join'}
                             </button>

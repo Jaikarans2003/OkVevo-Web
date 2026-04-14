@@ -91,7 +91,10 @@ const Pricing = ({ user }: PricingProps) => {
     return (
         <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
             {/* Top Fade to blend with previous section seamlessly */}
-            <div className="absolute top-0 inset-x-0 h-64 bg-gradient-to-b from-black via-black/80 to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 inset-x-0 h-48 md:h-64 bg-gradient-to-b from-black via-black/80 to-transparent z-10 pointer-events-none" />
+            
+            {/* Bottom Fade to blend seamlessly with the FAQ section */}
+            <div className="absolute bottom-0 inset-x-0 h-32 md:h-48 bg-gradient-to-t from-black via-black/80 to-transparent z-10 pointer-events-none" />
 
             {/* Premium Background Layer */}
             <div className="absolute inset-0 z-0 pointer-events-none mt-32">

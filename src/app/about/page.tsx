@@ -11,6 +11,8 @@ import Image from 'next/image';
 import NoiseOverlay from '../../components/NoiseOverlay';
 import Navbar from '../../components/ook/Navbar';
 import Footer from '../../components/ook/Footer';
+import Breadcrumb from '../../components/Breadcrumb';
+import JsonLd from '../../components/JsonLd';
 
 const Counter = ({ value, label }: { value: string, label: string }) => {
     const ref = useRef(null);
@@ -148,8 +150,16 @@ export default function AboutPage() {
 
     return (
         <div ref={containerRef} className="min-h-screen bg-[#020202] overflow-x-hidden text-white selection:bg-orange-500/30">
+            <JsonLd data={{
+                "@context": "https://schema.org",
+                "@type": "AboutPage",
+                "name": "About OKVEVO",
+                "description": "Learn about OKVEVO, our mission, and how we are building the future of generative cinematic creation."
+            }} />
             <NoiseOverlay />
             <Navbar user={user} onJoinClick={handleJoinClick} />
+            <main>
+                <Breadcrumb crumbs={[{ label: 'Home', href: '/' }, { label: 'About', href: '/about' }]} />
 
             <section className="relative pt-48 pb-32 px-6 overflow-hidden">
                 <motion.div 
@@ -196,9 +206,9 @@ export default function AboutPage() {
                             transition={{ delay: 0.8 }}
                             className="relative"
                         >
-                            <h2 className="text-5xl md:text-[120px] font-black tracking-[-0.04em] leading-none uppercase text-transparent [-webkit-text-stroke:1px_rgba(255,255,255,0.2)]">
+                            <h1 className="text-5xl md:text-[120px] font-black tracking-[-0.04em] leading-none uppercase text-transparent [-webkit-text-stroke:1px_rgba(255,255,255,0.2)]">
                                 Cinematic Studio
-                            </h2>
+                            </h1>
                             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 bg-orange-600 px-4 py-1 rounded-full text-[10px] font-black tracking-[0.2em] uppercase">
                                 Est. 2024
                             </div>
@@ -466,6 +476,7 @@ export default function AboutPage() {
                 </motion.div>
             </section>
 
+            </main>
             <Footer />
         </div>
     );

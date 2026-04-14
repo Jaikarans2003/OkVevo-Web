@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Ubuntu } from "next/font/google";
+import { Ubuntu, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 
@@ -10,7 +10,15 @@ const ubuntu = Ubuntu({
     display: "swap",
 });
 
+const dancingScript = Dancing_Script({
+    subsets: ["latin"],
+    weight: ["700"],
+    variable: "--font-dancing",
+    display: "swap",
+});
+
 export const metadata: Metadata = {
+    metadataBase: new URL('https://okvevo.com'),
     title: "OKVEVO - AI Video Generator | Create Videos from Text Instantly",
     description: "OKVEVO AI - Best AI video generator for Instagram reels, YouTube shorts & faceless content. Create viral videos using AI without camera. Text to video AI tool for creators in India.",
     keywords: [
@@ -88,7 +96,7 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${ubuntu.className} ${ubuntu.variable} font-sans antialiased`} suppressHydrationWarning>
+            <body className={`${ubuntu.className} ${ubuntu.variable} ${dancingScript.variable} font-sans antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
                     <SmoothScroll />
                     {children}
