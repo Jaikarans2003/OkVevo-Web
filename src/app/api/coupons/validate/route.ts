@@ -6,7 +6,7 @@ import type { CouponValidationRequest, CouponValidationResponse } from '@/types/
 export async function POST(request: NextRequest) {
     try {
         const body: CouponValidationRequest = await request.json();
-        const { couponCode, phoneNumber, totalAmount } = body;
+        const { couponCode, phoneNumber, totalAmount, billingPeriod, userId } = body;
 
         if (!couponCode || !phoneNumber || !totalAmount) {
             return NextResponse.json(
@@ -52,13 +52,26 @@ export async function POST(request: NextRequest) {
             } as CouponValidationResponse);
         }
 
-        // Check if coupon already used by this phone number
+        // Check if coupon already used by this user (one-time use per user)
         const usageRef = collection(db, 'couponUsage');
-        const usageQuery = query(
-            usageRef,
-            where('phoneNumber', '==', phoneNumber),
-            where('couponCode', '==', couponCode.toUpperCase())
-        );
+        let usageQuery;
+        
+        if (userId) {
+            // Check by userId if available (more reliable)
+            usageQuery = query(
+                usageRef,
+                where('userId', '==', userId),
+                where('couponCode', '==', couponCode.toUpperCase())
+            );
+        } else {
+            // Fallback to phoneNumber
+            usageQuery = query(
+                usageRef,
+                where('phoneNumber', '==', phoneNumber),
+                where('couponCode', '==', couponCode.toUpperCase())
+            );
+        }
+        
         const usageSnapshot = await getDocs(usageQuery);
 
         if (!usageSnapshot.empty) {
@@ -70,8 +83,19 @@ export async function POST(request: NextRequest) {
             } as CouponValidationResponse);
         }
 
-        // For flat discount coupon, check purchase history
+        // For flat discount coupon, check billing period and purchase history
         if (coupon.type === 'flat') {
+            // Flat coupons only valid for monthly subscriptions (if billingPeriod is provided)
+            // For MASIV orders (no billingPeriod), flat coupons are allowed
+            if (billingPeriod === 'annual') {
+                return NextResponse.json({
+                    valid: false,
+                    message: 'This coupon is only valid for monthly subscriptions',
+                    discountAmount: 0,
+                    type: null,
+                } as CouponValidationResponse);
+            }
+            
             // Read single document from userPurchaseHistory
             const historyRef = doc(db, 'userPurchaseHistory', phoneNumber);
             const historyDoc = await getDoc(historyRef);
@@ -116,15 +140,33 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Calculate discount
+        // Calculate discount based on coupon type and billing period
         let discountAmount = 0;
-        // For affiliate coupons, NO discount to customer - only commission tracking
+        let message = '';
+        
         if (coupon.type === 'affiliate') {
-            discountAmount = 0; // Customer pays full price
-        } else if (coupon.discountType === 'fixed') {
-            discountAmount = coupon.discountAmount;
-        } else if (coupon.discountType === 'percentage') {
-            discountAmount = Math.round((totalAmount * coupon.discountAmount) / 100);
+            // Affiliate codes:
+            // - For subscriptions: ₹100 discount for monthly, no discount for annual
+            // - For MASIV orders (no billingPeriod): NO discount, just track affiliate
+            if (!billingPeriod) {
+                // MASIV order - NO discount, just track affiliate for commission
+                discountAmount = 0;
+                message = 'Supporting affiliate partner';
+            } else if (billingPeriod === 'monthly') {
+                discountAmount = 10000; // ₹100 in paise
+                message = '₹100 off first month + Supporting affiliate partner';
+            } else {
+                discountAmount = 0;
+                message = 'Supporting affiliate partner';
+            }
+        } else if (coupon.type === 'flat') {
+            // Flat coupons: Apply configured discount
+            if (coupon.discountType === 'fixed') {
+                discountAmount = coupon.discountAmount;
+            } else if (coupon.discountType === 'percentage') {
+                discountAmount = Math.round((totalAmount * coupon.discountAmount) / 100);
+            }
+            message = 'Coupon applied successfully';
         }
 
         // Ensure discount doesn't exceed total amount
@@ -134,13 +176,12 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             valid: true,
-            message: coupon.type === 'affiliate' 
-                ? 'Affiliate code applied - Your purchase supports this partner!'
-                : 'Coupon applied successfully',
+            message,
             discountAmount,
             type: coupon.type,
             affiliateId: coupon.affiliateId || undefined,
             finalAmount,
+            couponCode: couponCode.toUpperCase(),
         } as CouponValidationResponse);
 
     } catch (error) {

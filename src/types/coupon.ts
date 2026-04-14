@@ -33,6 +33,8 @@ export interface CouponValidationRequest {
     couponCode: string;
     phoneNumber: string;
     totalAmount: number;
+    billingPeriod?: 'monthly' | 'annual'; // Optional - not needed for MASIV orders
+    userId?: string;
 }
 
 export interface CouponValidationResponse {
@@ -42,4 +44,5 @@ export interface CouponValidationResponse {
     affiliateId?: string;
     message: string;
     finalAmount?: number;
+    couponCode?: string;
 }

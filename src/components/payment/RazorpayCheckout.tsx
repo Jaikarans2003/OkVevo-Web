@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import type { CouponValidationResponse } from '@/types/coupon';
 
 interface RazorpayCheckoutProps {
     planType: 'hobby' | 'pro';
     billingPeriod?: 'monthly' | 'annual';
+    couponData?: CouponValidationResponse | null;
     onSuccess?: (subscriptionId: string) => void;
     onError?: (error: string) => void;
 }
@@ -16,7 +18,7 @@ declare global {
     }
 }
 
-const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', onSuccess, onError }: RazorpayCheckoutProps) => {
+const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, onSuccess, onError }: RazorpayCheckoutProps) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -60,6 +62,7 @@ const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', onSuccess, onEr
                     userId: user.uid,
                     userEmail: user.email,
                     userName: user.displayName || 'User',
+                    couponCode: couponData?.valid ? couponData : undefined,
                 }),
             });
 

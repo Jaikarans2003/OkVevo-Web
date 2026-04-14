@@ -45,33 +45,34 @@ export async function POST(request: NextRequest) {
             console.log(`📊 Processing affiliate: ${affiliateId}`);
 
             try {
-                // Get all paid orders for this affiliate
+                const affiliateRef = db.collection('affiliates').doc(affiliateId);
+
+                // ========== 1. SYNC MASIV ORDERS ==========
                 const ordersSnapshot = await db.collection('masiv_orders')
                     .where('affiliateId', '==', affiliateId)
                     .where('status', '==', 'paid')
                     .get();
 
-                let totalSales = 0;
-                let totalEarnings = 0;
+                let masivSales = 0;
+                let masivEarnings = 0; // in Rupees
 
-                // Group orders by customer phone number
+                // Group MASIV orders by customer phone number
                 const customerSales: { [phone: string]: any } = {};
 
                 ordersSnapshot.forEach(doc => {
                     const order = doc.data();
                     const customerPhone = order.whatsappNumber;
                     
-                    totalSales++;
-                    totalEarnings += order.affiliateCommission || 0;
+                    masivSales++;
+                    masivEarnings += order.affiliateCommission || 0;
 
-                    // Group by customer
                     if (!customerSales[customerPhone]) {
                         customerSales[customerPhone] = {
                             customerPhone,
                             totalPurchases: 0,
                             totalAmountPaid: 0,
                             totalCommissionEarned: 0,
-                            orders: [],
+                            orderIds: [], // Collect order IDs to append
                             firstPurchaseDate: order.paidAt,
                             lastPurchaseDate: order.paidAt,
                         };
@@ -80,40 +81,100 @@ export async function POST(request: NextRequest) {
                     customerSales[customerPhone].totalPurchases++;
                     customerSales[customerPhone].totalAmountPaid += order.finalAmount || 0;
                     customerSales[customerPhone].totalCommissionEarned += order.affiliateCommission || 0;
-                    customerSales[customerPhone].orders.push(doc.id);
+                    customerSales[customerPhone].orderIds.push(doc.id);
                     customerSales[customerPhone].lastPurchaseDate = order.paidAt;
                     customerSales[customerPhone].lastOrderId = doc.id;
                     customerSales[customerPhone].lastAmountPaid = order.finalAmount || 0;
                     customerSales[customerPhone].lastCommission = order.affiliateCommission || 0;
                 });
 
-                // Update affiliate stats
-                const affiliateRef = db.collection('affiliates').doc(affiliateId);
+                // Write sales_masiv subcollection - use transactions to properly merge
+                const masivPromises = Object.keys(customerSales).map(async (customerPhone) => {
+                    const saleData = customerSales[customerPhone];
+                    const saleRef = affiliateRef.collection('sales_masiv').doc(customerPhone);
+                    
+                    await db.runTransaction(async (t) => {
+                        const existingDoc = await t.get(saleRef);
+                        
+                        if (existingDoc.exists) {
+                            // Document exists - increment counters and append new orders
+                            const existing = existingDoc.data() || {};
+                            t.update(saleRef, {
+                                totalPurchases: (existing.totalPurchases || 0) + saleData.totalPurchases,
+                                totalAmountPaid: (existing.totalAmountPaid || 0) + saleData.totalAmountPaid,
+                                totalCommissionEarned: (existing.totalCommissionEarned || 0) + saleData.totalCommissionEarned,
+                                orders: FieldValue.arrayUnion(...saleData.orderIds),
+                                lastPurchaseDate: saleData.lastPurchaseDate,
+                                lastOrderId: saleData.lastOrderId,
+                                lastAmountPaid: saleData.lastAmountPaid,
+                                lastCommission: saleData.lastCommission,
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                        } else {
+                            // New document - create with initial data
+                            t.set(saleRef, {
+                                customerPhone,
+                                totalPurchases: saleData.totalPurchases,
+                                totalAmountPaid: saleData.totalAmountPaid,
+                                totalCommissionEarned: saleData.totalCommissionEarned,
+                                orders: saleData.orderIds,
+                                firstPurchaseDate: saleData.firstPurchaseDate,
+                                lastPurchaseDate: saleData.lastPurchaseDate,
+                                lastOrderId: saleData.lastOrderId,
+                                lastAmountPaid: saleData.lastAmountPaid,
+                                lastCommission: saleData.lastCommission,
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                        }
+                    });
+                });
+                await Promise.all(masivPromises);
+
+                // ========== 2. SYNC SUBSCRIPTION SALES ==========
+                const subsSnapshot = await affiliateRef.collection('sales_subscriptions').get();
+
+                let subSales = 0;
+                let subEarnings = 0; // in Rupees (converted from paise)
+
+                // Re-write each subscription sale doc with consistent Rupee values
+                const subPromises = subsSnapshot.docs.map(async (saleDoc) => {
+                    const sale = saleDoc.data();
+                    subSales++;
+                    // commissionEarned from webhook is in paise, convert to Rupees
+                    const commissionInRupees = Math.round((sale.commissionEarned || 0) / 100);
+                    subEarnings += commissionInRupees;
+
+                    // Update the doc with Rupee values for consistent display
+                    await saleDoc.ref.set({
+                        commissionEarnedRupees: commissionInRupees,
+                        planAmountRupees: Math.round((sale.planAmount || 0) / 100),
+                        discountGivenRupees: Math.round((sale.discountGiven || 0) / 100),
+                    }, { merge: true });
+                });
+                await Promise.all(subPromises);
+
+                // ========== 3. UPDATE AFFILIATE TOTALS (all in Rupees) ==========
+                const totalSales = masivSales + subSales;
+                const totalEarnings = masivEarnings + subEarnings;
+
                 await affiliateRef.update({
                     totalSales,
-                    totalEarnings,
+                    totalEarnings, // Now consistently in Rupees
+                    masivSales,
+                    masivEarnings,
+                    subscriptionSales: subSales,
+                    subscriptionEarnings: subEarnings,
                     updatedAt: FieldValue.serverTimestamp(),
                 });
 
-                // Create/update sales sub-collection for each customer
-                const salesPromises = Object.keys(customerSales).map(async (customerPhone) => {
-                    const saleData = customerSales[customerPhone];
-                    const saleRef = affiliateRef.collection('sales').doc(customerPhone);
-                    
-                    await saleRef.set({
-                        ...saleData,
-                        updatedAt: FieldValue.serverTimestamp(),
-                    }, { merge: true });
-                });
-
-                await Promise.all(salesPromises);
-
-                console.log(`✅ Synced ${affiliateId}: ${totalSales} sales, ${Object.keys(customerSales).length} customers, ₹${totalEarnings}`);
+                console.log(`✅ Synced ${affiliateId}: ${masivSales} MASIV + ${subSales} subscriptions = ${totalSales} total, ₹${totalEarnings}`);
 
                 results.push({
                     affiliateId,
                     totalSales,
                     totalEarnings,
+                    masivSales,
+                    subscriptionSales: subSales,
                     totalCustomers: Object.keys(customerSales).length,
                     success: true,
                 });

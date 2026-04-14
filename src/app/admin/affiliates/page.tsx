@@ -150,7 +150,7 @@ function AffiliatesPage() {
             }
 
             const data = await response.json();
-            alert(`✅ Stats synced!\nSales: ${data.totalSales}\nEarnings: ₹${data.totalEarnings}`);
+            alert(`✅ Stats synced!\n\nMASIV: ${data.masivSales || 0} sales\nSubscriptions: ${data.subscriptionSales || 0} sales\nTotal Sales: ${data.totalSales}\nTotal Earnings: ₹${data.totalEarnings}`);
         } catch (err: any) {
             console.error('Error syncing stats:', err);
             alert(`❌ Error: ${err.message}`);
@@ -200,7 +200,8 @@ function AffiliatesPage() {
         if (!authToken) return;
 
         const confirmed = confirm(
-            'This will sync stats and create sales sub-collections for ALL affiliates.\n\n' +
+            'This will sync stats for ALL affiliates.\n' +
+            'Syncs both MASIV orders and Subscription sales.\n\n' +
             'Continue?'
         );
 
@@ -221,12 +222,15 @@ function AffiliatesPage() {
             }
 
             const data = await response.json();
+            const details = (data.results || []).filter((r: any) => r.success).map((r: any) =>
+                `${r.affiliateId}: ${r.masivSales || 0} MASIV + ${r.subscriptionSales || 0} subs = ₹${r.totalEarnings}`
+            ).join('\n');
             alert(
                 `✅ Sync Complete!\n\n` +
                 `Total Affiliates: ${data.totalAffiliates}\n` +
                 `Success: ${data.successCount}\n` +
                 `Errors: ${data.errorCount}\n\n` +
-                `${data.message}`
+                `${details}`
             );
         } catch (err: any) {
             console.error('Error syncing:', err);
@@ -343,7 +347,7 @@ function AffiliatesPage() {
                             <span className="text-2xl">💰</span>
                             <span className="text-white/60 text-sm font-bold uppercase tracking-wider">Total Earnings</span>
                         </div>
-                        <p className="text-4xl font-black text-green-500">₹{totalEarnings.toFixed(2)}</p>
+                        <p className="text-4xl font-black text-green-500">₹{totalEarnings}</p>
                     </div>
                 </div>
 
@@ -395,7 +399,7 @@ function AffiliatesPage() {
                         <div>
                             <h3 className="text-xl font-black mb-2">Sync All Affiliates</h3>
                             <p className="text-white/60 text-sm mb-4">
-                                Update stats and create sales sub-collections for all affiliates
+                                Sync MASIV orders + Subscription sales for all affiliates
                             </p>
                             <button
                                 onClick={handleSyncAllAffiliates}

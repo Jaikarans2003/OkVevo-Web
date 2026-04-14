@@ -85,7 +85,7 @@ export default function AffiliateTable({ affiliates, onToggleStatus }: Affiliate
                                     <span className="font-bold text-white">{affiliate.totalSales}</span>
                                 </td>
                                 <td className="py-4 px-4 text-right">
-                                    <span className="font-bold text-green-500">₹{affiliate.totalEarnings.toFixed(2)}</span>
+                                    <span className="font-bold text-green-500">₹{affiliate.totalEarnings}</span>
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                     <span

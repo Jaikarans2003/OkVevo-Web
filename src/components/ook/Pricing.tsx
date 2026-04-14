@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, Zap, Crown } from 'lucide-react';
+import { Check, Sparkles, Zap, Crown, Tag, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
+import type { CouponValidationResponse } from '@/types/coupon';
 
 interface PricingProps {
     user?: any;
@@ -14,6 +15,11 @@ const Pricing = ({ user }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
     const [mounted, setMounted] = useState(false);
     const router = useRouter();
+    
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResponse | null>(null);
+    const [couponLoading, setCouponLoading] = useState(false);
+    const [couponError, setCouponError] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -21,11 +27,61 @@ const Pricing = ({ user }: PricingProps) => {
 
     const handlePlanClick = (planName: string) => {
         if (!user) {
-            // Store the intended plan in sessionStorage to redirect after login
             sessionStorage.setItem('returnToPlan', planName.toLowerCase());
             router.push('/login');
         }
-        // If user is logged in, the payment component will handle it
+    };
+    
+    const handleApplyCoupon = async (planType: 'hobby' | 'pro') => {
+        if (!couponCode.trim()) {
+            setCouponError('Please enter a coupon code');
+            return;
+        }
+        
+        setCouponLoading(true);
+        setCouponError('');
+        
+        try {
+            const planPrices = {
+                hobby: { annual: 509900, monthly: 599900 },
+                pro: { annual: 1529900, monthly: 1799900 }
+            };
+            
+            const totalAmount = isAnnual ? planPrices[planType].annual : planPrices[planType].monthly;
+            
+            const response = await fetch('/api/coupons/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    couponCode: couponCode.trim(),
+                    phoneNumber: user?.phoneNumber || user?.email || '',
+                    totalAmount,
+                    billingPeriod: isAnnual ? 'annual' : 'monthly',
+                    userId: user?.uid
+                })
+            });
+            
+            const data: CouponValidationResponse = await response.json();
+            
+            if (data.valid) {
+                setAppliedCoupon(data);
+                setCouponError('');
+            } else {
+                setCouponError(data.message);
+                setAppliedCoupon(null);
+            }
+        } catch (error) {
+            setCouponError('Failed to validate coupon. Please try again.');
+            setAppliedCoupon(null);
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+    
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode('');
+        setCouponError('');
     };
 
    const plans = [
@@ -34,9 +90,10 @@ const Pricing = ({ user }: PricingProps) => {
         icon: Sparkles,
         annualPrice: '₹5,099',
         monthlyPrice: '₹5,999',
-        description: 'Perfect for getting started with AI-powered influencer content',
+        description: 'Perfect for getting started with AI-powered content',
         features: [
-            '50 AI Influencer Videos OR 30 minutes generation',
+            '30 AI Influencer Videos + 20 Bonus (Early Bird Offer)',
+            'Upto 30 Minutes generation time',
             'Unlimited custom avatar uploads',
             'Unlimited custom voice uploads',
             'Up to 50 thumbnail generations',
@@ -56,8 +113,8 @@ const Pricing = ({ user }: PricingProps) => {
         monthlyPrice: '₹17,999',
         description: 'For creators and brands scaling AI content production',
         features: [
-            '180 AI Influencer Videos',
-            '105 minutes generation time',
+            '150 AI Influencer Videos + 20 Bonus (Early Bird Offer)',
+            'Upto 105 Minutes generation time',
             'Unlimited custom avatar uploads',
             'Unlimited custom voice uploads',
             'Up to 180 thumbnail generations',
@@ -178,7 +235,7 @@ const Pricing = ({ user }: PricingProps) => {
                         transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-[#a1a1aa] text-xl md:text-2xl max-w-2xl mx-auto font-light leading-relaxed"
                     >
-                        Choose your Creative Power
+                        Choose your Creative Power <br /> <span className="text-orange-500 text-sm md:text-base">(AI-Influencer Suite)</span>
                     </motion.p>
 
                     {/* Centralized Toggle Button */}
@@ -269,14 +326,23 @@ const Pricing = ({ user }: PricingProps) => {
                                         <p className="text-orange-500/80 text-xs mb-4 font-bold uppercase tracking-widest">Everything from Pro, plus:</p>
                                     )}
                                     
-                                    {plan.features.map((feature, i) => (
-                                        <div key={i} className="flex items-start gap-4 group/item">
-                                            <div className="mt-1 flex-shrink-0 transition-transform group-hover/item:rotate-12">
-                                                <Check className={`w-4 h-4 ${plan.highlighted ? 'text-orange-500' : 'text-white/80'}`} strokeWidth={3} />
+                                    {plan.features.map((feature, i) => {
+                                        const isBonus = feature.includes('Bonus (Early Bird Offer)');
+                                        return (
+                                            <div key={i} className="flex items-start gap-4 group/item">
+                                                <div className="mt-1 flex-shrink-0 transition-transform group-hover/item:rotate-12">
+                                                    <Check className={`w-4 h-4 ${plan.highlighted ? 'text-orange-500' : 'text-white/80'}`} strokeWidth={3} />
+                                                </div>
+                                                <span className={`text-[15px] leading-snug group-hover/item:text-white transition-colors ${
+                                                    isBonus 
+                                                        ? 'text-orange-400 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20' 
+                                                        : 'text-[#a1a1aa]'
+                                                }`}>
+                                                    {feature}
+                                                </span>
                                             </div>
-                                            <span className="text-[#a1a1aa] text-[15px] leading-snug group-hover/item:text-white transition-colors">{feature}</span>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {plan.notIncluded.length > 0 && plan.notIncluded.map((feature, i) => (
                                         <div key={i} className="flex items-start gap-4 opacity-30">
                                             <div className="mt-1 w-4 h-4 flex items-center justify-center flex-shrink-0">
@@ -287,6 +353,62 @@ const Pricing = ({ user }: PricingProps) => {
                                     ))}
                                 </div>
 
+                                {/* Coupon/Affiliate Code Section - Only for logged-in users and non-Enterprise plans */}
+                                {user && plan.name !== 'Enterprise' && (
+                                    <div className="w-full mb-6 relative z-10">
+                                        {!appliedCoupon ? (
+                                            <div className="space-y-3">
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                        <input
+                                                            type="text"
+                                                            value={couponCode}
+                                                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                                            placeholder="Enter Coupon/Affiliate Code"
+                                                            className="w-full pl-10 pr-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50 transition-colors"
+                                                            disabled={couponLoading}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleApplyCoupon(plan.name.toLowerCase() as 'hobby' | 'pro')}
+                                                        disabled={couponLoading || !couponCode.trim()}
+                                                        className="px-6 py-3 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg text-orange-400 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                    >
+                                                        {couponLoading ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            'Apply'
+                                                        )}
+                                                    </button>
+                                                </div>
+                                                {couponError && (
+                                                    <p className="text-red-400 text-xs">{couponError}</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-green-400 text-sm font-semibold">{appliedCoupon.message}</p>
+                                                        {appliedCoupon.discountAmount > 0 && (
+                                                            <p className="text-green-400/80 text-xs mt-1">
+                                                                Discount: ₹{appliedCoupon.discountAmount / 100}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        onClick={handleRemoveCoupon}
+                                                        className="text-red-400 hover:text-red-300 text-xs font-semibold"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Button Section */}
                                 <div className="w-full mt-auto relative z-10">
                                     {plan.name === 'Hobby' ? (
@@ -294,6 +416,7 @@ const Pricing = ({ user }: PricingProps) => {
                                             <RazorpayCheckout
                                                 planType="hobby"
                                                 billingPeriod={isAnnual ? 'annual' : 'monthly'}
+                                                couponData={appliedCoupon}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
                                                     router.push('/workspace');
@@ -316,6 +439,7 @@ const Pricing = ({ user }: PricingProps) => {
                                             <RazorpayCheckout
                                                 planType="pro"
                                                 billingPeriod={isAnnual ? 'annual' : 'monthly'}
+                                                couponData={appliedCoupon}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
                                                     router.push('/workspace');

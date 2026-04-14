@@ -10,6 +10,32 @@ export const runtime = 'nodejs';
 // In Next.js App Router, we read the raw body via request.text() directly
 const GRACE_PERIOD_DAYS = 7;
 
+// Status priority hierarchy to prevent race conditions
+const STATUS_PRIORITY: Record<string, number> = {
+    active: 5,
+    authenticated: 4,
+    pending: 3,
+    halted: 2,
+    paused: 2,
+    cancelled: 1,
+    completed: 1,
+};
+
+const TERMINAL_STATES = ['cancelled', 'completed'];
+
+function shouldUpdateStatus(currentStatus: string | undefined, newStatus: string): boolean {
+    if (!currentStatus) return true;
+    
+    // Never overwrite terminal states
+    if (TERMINAL_STATES.includes(currentStatus)) return false;
+    
+    const currentPriority = STATUS_PRIORITY[currentStatus] || 0;
+    const newPriority = STATUS_PRIORITY[newStatus] || 0;
+    
+    // Strict greater than — same-priority events don't overwrite
+    return newPriority > currentPriority;
+}
+
 /**
  * Verify Razorpay webhook signature
  */
@@ -114,6 +140,9 @@ export async function POST(request: NextRequest) {
             // ========== SUBSCRIPTION STATE EVENTS ==========
             
             case 'subscription.authenticated': {
+                // subscription.authenticated is NOT trusted for status.
+                // It fires at the same time as subscription.activated and causes race conditions.
+                // We only use it to seed coupon fields if activated hasn't written them yet.
                 const subscription = payload.subscription.entity;
                 const { userId, planType } = subscription.notes || {};
 
@@ -122,21 +151,37 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                const planDetails = getPlanDetails(planType as PlanType);
-                
-                await syncSubscriptionToFirestore(subscription.id, userId, {
-                    userId,
-                    planType,
-                    subscriptionId: subscription.id,
-                    status: 'authenticated',
-                    credits: planDetails.credits,
-                    initialCredits: planDetails.credits,
-                    creditsUsed: 0,
-                    createdAt: FieldValue.serverTimestamp(),
-                    updatedAt: FieldValue.serverTimestamp(),
-                });
+                const notes = subscription.notes || {};
 
-                console.log(`✅ Subscription authenticated: ${subscription.id}`);
+                // Only write coupon fields — NEVER write status from this event
+                if (notes.couponCode) {
+                    const subscriptionRef = db.collection('razorpaySubscriptions').doc(subscription.id);
+                    
+                    await db.runTransaction(async (t) => {
+                        const doc = await t.get(subscriptionRef);
+                        const data = doc.data();
+                        
+                        // Only seed coupon fields if not already written
+                        if (!data?.couponCode) {
+                            const couponFields = {
+                                couponCode: notes.couponCode,
+                                couponType: notes.couponType || '',
+                                affiliateId: notes.affiliateId || '',
+                                discountAmount: notes.discountAmount || '0',
+                                couponApplied: 'true',
+                            };
+                            
+                            t.set(subscriptionRef, couponFields, { merge: true });
+                            t.set(
+                                db.collection('users').doc(userId).collection('subscriptions').doc(subscription.id),
+                                couponFields,
+                                { merge: true }
+                            );
+                        }
+                    });
+                }
+
+                console.log(`✅ Subscription authenticated (no status write): ${subscription.id}`);
                 break;
             }
 
@@ -150,46 +195,186 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
+                const existingDoc = await getSubscriptionWithFallback(subscription.id, userId);
+                const existingData = existingDoc?.data();
+                const currentStatus = existingData?.status;
+
                 const planDetails = getPlanDetails(planType as PlanType);
+                const notes = subscription.notes || {};
                 
-                await syncSubscriptionToFirestore(subscription.id, userId, {
+                console.log(`📝 Subscription notes:`, JSON.stringify(notes));
+
+                const updates: any = {
                     userId,
                     planType,
                     subscriptionId: subscription.id,
-                    status: 'active',
                     credits: planDetails.credits,
                     initialCredits: planDetails.credits,
                     creditsUsed: 0,
-                    createdAt: FieldValue.serverTimestamp(),
                     activatedAt: FieldValue.serverTimestamp(),
                     lastPaymentId: payment?.id || null,
                     lastPaymentAmount: payment?.amount || 0,
                     lastPaymentDate: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
-                });
+                };
 
-                console.log(`✅ Subscription activated: ${subscription.id}`);
+                // Status update — gated by priority
+                if (shouldUpdateStatus(currentStatus, 'active')) {
+                    updates.status = 'active';
+                }
+
+                // Coupon fields — always write if coupon was applied
+                if (notes.couponApplied === 'true') {
+                    updates.couponApplied = 'true';
+                    updates.couponCode = notes.couponCode || '';
+                    updates.couponType = notes.couponType || '';
+                    updates.affiliateId = notes.affiliateId || '';
+                    updates.discountAmount = notes.discountAmount || '0';
+                }
+
+                // Only set createdAt if new document
+                if (!existingDoc?.exists) {
+                    updates.createdAt = FieldValue.serverTimestamp();
+                }
+
+                await syncSubscriptionToFirestore(subscription.id, userId, updates);
+
+                console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
+
+                // Record coupon usage in UserSubscription collection (first payment only)
+                if (notes.couponApplied === 'true' && notes.couponCode) {
+                    try {
+                        const couponDocRef = db.collection('UserSubscription').doc(notes.couponCode);
+                        const userEmail = notes.userEmail || '';
+                        
+                        await couponDocRef.set({
+                            [`users.${userId}`]: {
+                                email: userEmail,
+                                planType,
+                                subscriptionId: subscription.id,
+                                subscribedAt: FieldValue.serverTimestamp(),
+                            },
+                            lastUsedAt: FieldValue.serverTimestamp(),
+                            usageCount: FieldValue.increment(1),
+                        }, { merge: true });
+
+                        console.log(`🎫 Coupon usage recorded: ${notes.couponCode} → ${userEmail}`);
+                    } catch (error) {
+                        console.error('❌ Failed to record coupon usage:', error);
+                    }
+                }
+
+                // Track affiliate commission for first payment only
+                const affiliateId = notes.affiliateId;
+                const couponCode = notes.couponCode;
+
+                if (affiliateId && couponCode && payment?.amount) {
+                    try {
+                        const affiliateRef = db.collection('affiliates').doc(affiliateId);
+                        const commissionRate = 10; // 10%
+                        const planAmount = payment.amount; // in paise
+                        const commissionEarnedPaise = Math.round((planAmount * commissionRate) / 100);
+                        const commissionEarnedRupees = Math.round(commissionEarnedPaise / 100); // Convert to Rupees
+                        const discountGiven = parseInt(notes.discountAmount || '0');
+
+                        // Fetch user details
+                        const userDoc = await db.collection('users').doc(userId).get();
+                        const userData = userDoc.data();
+
+                        // Use subscriptionId alone — only one commission per subscription
+                        // Stored in sales_subscriptions subcollection (separate from MASIV orders)
+                        const saleRef = affiliateRef.collection('sales_subscriptions').doc(subscription.id);
+
+                        await db.runTransaction(async (t) => {
+                            const existingSale = await t.get(saleRef);
+                            if (existingSale.exists) {
+                                console.log(`⚠️ Commission already recorded for ${subscription.id}, skipping`);
+                                return;
+                            }
+
+                            t.set(saleRef, {
+                                userId,
+                                userEmail: userData?.email || notes.userEmail || '',
+                                userName: userData?.displayName || userData?.name || notes.userName || '',
+                                planType,
+                                planAmount, // in paise
+                                discountGiven, // in paise
+                                commissionRate,
+                                commissionEarned: commissionEarnedPaise, // in paise
+                                commissionEarnedRupees, // in Rupees (for display)
+                                couponCode,
+                                subscriptionId: subscription.id,
+                                status: 'pending',
+                                cycleNumber: 1,
+                                chargedAt: FieldValue.serverTimestamp(),
+                            });
+
+                            t.update(affiliateRef, {
+                                totalSales: FieldValue.increment(1),
+                                totalEarnings: FieldValue.increment(commissionEarnedRupees), // Store in Rupees
+                                subscriptionSales: FieldValue.increment(1),
+                                subscriptionEarnings: FieldValue.increment(commissionEarnedRupees),
+                                lastSaleAt: FieldValue.serverTimestamp(),
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                        });
+
+                        console.log(`💰 First payment commission: ${affiliateId} earned ₹${commissionEarnedRupees} from ${userData?.email || userId}`);
+                    } catch (error) {
+                        console.error('❌ Failed to track affiliate commission:', error);
+                    }
+                }
+
                 break;
             }
 
             case 'subscription.charged': {
                 const subscription = payload.subscription.entity;
                 const payment = payload.payment?.entity;
-                const { userId } = subscription.notes || {};
+                const notes = subscription.notes || {};
+                const userId = notes.userId;
 
                 if (!userId) {
                     console.error('❌ Missing userId');
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                await syncSubscriptionToFirestore(subscription.id, userId, {
-                    lastPaymentId: payment?.id,
-                    lastPaymentAmount: payment?.amount,
-                    lastPaymentDate: FieldValue.serverTimestamp(),
-                    updatedAt: FieldValue.serverTimestamp(),
-                });
+                // Atomically increment charge count using transaction
+                const subscriptionRef = db.collection('razorpaySubscriptions').doc(subscription.id);
+                let cycleNumber = 0;
 
-                console.log(`✅ Subscription charged: ${subscription.id}`);
+                try {
+                    await db.runTransaction(async (transaction) => {
+                        const doc = await transaction.get(subscriptionRef);
+                        cycleNumber = (doc.data()?.chargeCount ?? 0) + 1;
+                        
+                        transaction.update(subscriptionRef, {
+                            chargeCount: cycleNumber,
+                            lastPaymentId: payment?.id,
+                            lastPaymentAmount: payment?.amount,
+                            lastPaymentDate: FieldValue.serverTimestamp(),
+                            updatedAt: FieldValue.serverTimestamp(),
+                        });
+                    });
+
+                    // Also update user's subscription subcollection
+                    await db.collection('users').doc(userId)
+                        .collection('subscriptions').doc(subscription.id)
+                        .update({
+                            chargeCount: cycleNumber,
+                            lastPaymentId: payment?.id,
+                            lastPaymentAmount: payment?.amount,
+                            lastPaymentDate: FieldValue.serverTimestamp(),
+                            updatedAt: FieldValue.serverTimestamp(),
+                        });
+
+                    console.log(`✅ Renewal charged (cycle ${cycleNumber}): ${subscription.id}`);
+                } catch (error) {
+                    console.error('❌ Failed to increment charge count:', error);
+                    return NextResponse.json({ success: false }, { status: 500 });
+                }
+
+                // No affiliate commission — renewals are full price, no discount
                 break;
             }
 
@@ -334,6 +519,7 @@ export async function POST(request: NextRequest) {
                 const subscriptionData = subscriptionDoc.data();
                 const userId = subscriptionData?.userId;
                 const planType = subscriptionData?.planType;
+                const currentStatus = subscriptionData?.status;
 
                 if (!userId || !planType) {
                     console.error('❌ Missing userId or planType in subscription');
@@ -342,20 +528,26 @@ export async function POST(request: NextRequest) {
 
                 const planDetails = getPlanDetails(planType as PlanType);
 
-                // PRIMARY: Reset credits on successful payment
-                await syncSubscriptionToFirestore(subscriptionId, userId, {
-                    status: 'active',
+                // Build updates object
+                const updates: any = {
                     credits: planDetails.credits,
                     creditsUsed: 0,
                     lastPaymentId: payment?.id,
-                    lastPaymentAmount: payment?.amount,
+                    lastPaymentAmount: payment?.amount || 0,
                     lastPaymentDate: FieldValue.serverTimestamp(),
                     gracePeriodEndsAt: FieldValue.delete(),
                     lastPaymentFailure: FieldValue.delete(),
                     updatedAt: FieldValue.serverTimestamp(),
-                });
+                };
 
-                console.log(`💳 Invoice paid - Credits reset: ${subscriptionId}`);
+                // Only update status if priority allows (don't reactivate cancelled subs)
+                if (shouldUpdateStatus(currentStatus, 'active')) {
+                    updates.status = 'active';
+                }
+
+                await syncSubscriptionToFirestore(subscriptionId, userId, updates);
+
+                console.log(`� Invoice paid - Credits reset: ${subscriptionId}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
                 break;
             }
 
@@ -477,8 +669,8 @@ export async function POST(request: NextRequest) {
                     console.log(`📋 Coupon usage recorded: ${orderData.couponCode}`);
                 }
 
-                // Handle affiliate commission
-                // Note: Sales sub-collection is created via "Sync Stats" button in admin panel
+                // Handle affiliate commission for MASIV orders
+                // Note: sales_masiv sub-collection is created via "Sync Stats" button in admin panel
                 if (orderData?.affiliateId && orderData?.affiliateCommission) {
                     const affiliateRef = db.collection('affiliates').doc(orderData.affiliateId);
                     await affiliateRef.update({
@@ -486,8 +678,8 @@ export async function POST(request: NextRequest) {
                         totalEarnings: FieldValue.increment(orderData.affiliateCommission),
                         updatedAt: FieldValue.serverTimestamp(),
                     });
-                    console.log(`💰 Affiliate commission updated: ${orderData.affiliateId}, +₹${orderData.affiliateCommission}`);
-                    console.log(`ℹ️ Sales sub-collection will be created when admin clicks "Sync Stats"`);
+                    console.log(`💰 MASIV affiliate commission updated: ${orderData.affiliateId}, +₹${orderData.affiliateCommission}`);
+                    console.log(`ℹ️ sales_masiv sub-collection will be created when admin clicks "Sync Stats"`);
                 }
 
                 // Purchase history already updated when order was created

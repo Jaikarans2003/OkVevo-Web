@@ -845,7 +845,7 @@ function AIInfluencerWorkstation() {
             // Check if script was truncated and show appropriate message
             if (data.wasTruncated) {
                 addAssistant(
-                    `✨ VEVO cooked! Generated ${data.wordCount} words (trimmed from ${data.originalWordCount} to fit ${selectedDuration}s duration).\n\n` +
+                    `✨ Ok VEVO cooked! Generated ${data.wordCount} words (trimmed from ${data.originalWordCount} to fit ${selectedDuration}s duration).\n\n` +
                     `200 credits deducted.\n\n` +
                     `Your input was longer than optimal, so VEVO condensed it to pure essence. Read it. Edit it. Then hit Finalise Script.`
                 );
@@ -865,7 +865,7 @@ function AIInfluencerWorkstation() {
             } else if (errorMsg.includes('Insufficient credits')) {
                 addAssistant(`❌ ${errorMsg}`);
             } else if (errorMsg.includes('high demand') || errorMsg.includes('503')) {
-                addAssistant(`⚠️ Vevo is experiencing high demand. Trying again...`);
+                addAssistant(`⚠️ Ok Vevo is experiencing high demand. Trying again...`);
                 setChatStep('tts-pacing');
             } else {
                 addAssistant(`❌ Generation failed: ${errorMsg}. Try again.`);
@@ -879,7 +879,7 @@ function AIInfluencerWorkstation() {
     // ── Step 3: Generate script ──────────────────────────
     // REDUNDANT - Now handled by Step Function
     const generateScript = async (duration: number, scriptToSend: string) => {
-        console.log('Sit back and Relax, Vevo is Vevoing');
+        console.log('Sit back and Relax, Ok Vevo is Vevoing');
     };
 
     // ── Step 4: Confirm script → Phase 2 Start Step Function ───────
@@ -919,7 +919,7 @@ function AIInfluencerWorkstation() {
             // console.log('✅ Script and moments saved to Firestore');
             setChatStep('avatar-video');
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO couldn't stash the script: Try Again or Contact at info@okvevo.com`); //${err.message}
+            addAssistant(`💀 OK VEVO couldn't stash the script: Try Again or Contact at info@okvevo.com`); //${err.message}
         }
     };
 
@@ -936,10 +936,10 @@ function AIInfluencerWorkstation() {
                     <Video size={14} className="text-white/60" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Avatar Video • {fileSizeMB}MB</span>
                 </div>
-                <div className="text-[12px] text-white/50">Uploading to VEVO servers...</div>
+                <div className="text-[12px] text-white/50">Uploading to Ok VEVO servers...</div>
             </div>
         );
-        addAssistant('OKVEVO is beaming up your avatar'); //Uploading AVATAR to Firebase
+        addAssistant('OK VEVO is beaming up your avatar'); //Uploading AVATAR to Firebase
         setIsGenerating(true);
 
         try {
@@ -1013,7 +1013,7 @@ function AIInfluencerWorkstation() {
             }, { merge: true });
 
             // addAssistant('🚀 VEVO is VEVOING. Pipeline ignited. Sit tight.');
-            addAssistant('VEVO is Vevoing, ETA: 2–15 mins. Go grab a coffee.');
+            addAssistant('Ok VEVO is Vevoing, ETA: 2–15 mins. Go grab a coffee.');
 
             // Start Step Function with all data
             const authToken = await user.getIdToken();
@@ -1044,7 +1044,7 @@ function AIInfluencerWorkstation() {
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to start pipeline');
 
-            console.log('Vevo Started Execution'); //✅ Step Function started:', data.executionArn
+            console.log('Ok Vevo Started Execution'); //✅ Step Function started:', data.executionArn
             addAssistant('Your video is being born right now. Watch the monitor 👀');
 
             setChatStep('generating-lipsync');
@@ -1068,7 +1068,7 @@ function AIInfluencerWorkstation() {
 
         // Require authentication
         if (!user?.uid) {
-            addAssistant('❌ VEVO does not work for strangers. Sign in first, then we party.');
+            addAssistant('❌ Ok VEVO does not work for strangers. Sign in first, then we party.');
             return;
         }
 
@@ -1093,9 +1093,9 @@ function AIInfluencerWorkstation() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to resume');
-            addAssistant(`Avatar delivered! OKVEVO is monitoring the render... usually 1–3 mins. Don't touch anything.`);
+            addAssistant(`Avatar delivered! OK VEVO is monitoring the render... usually 1–3 mins. Don't touch anything.`);
         } catch (err: any) {
-            addAssistant(`💀 OKVEVO hit a snag: Might need a few more seconds — wait and retry.`); //${err.message}.
+            addAssistant(`💀 OK VEVO hit a snag: Might need a few more seconds — wait and retry.`); //${err.message}.
             setChatStep('preview-audio');
             setIsGenerating(false);
         }
@@ -1573,7 +1573,7 @@ function AIInfluencerWorkstation() {
                                                     <div className="flex flex-col gap-2.5 items-start">
                                                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 mb-1 backdrop-blur-md">
                                                             <Loader2 size={10} className="text-orange-500 animate-spin" />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">OkVEVO IS Vevoing</span>
+                                                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">Ok VEVO IS Vevoing</span>
                                                         </div>
                                                         <div className="bg-white/[0.01] rounded-[2rem] rounded-tl-none px-6 py-4 border border-white/5 backdrop-blur-2xl shadow-2xl ring-1 ring-white/5">
                                                             <div className="flex gap-2 items-center">
@@ -1801,37 +1801,27 @@ function AIInfluencerWorkstation() {
                                                                                 </div>
                                                                             </div>
 
-                                                                            {/* Thumbnail Section */}
-                                                                            <div className="space-y-4 pt-4 border-t border-white/5">
-                                                                                <div className="flex items-center justify-between">
-                                                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
-                                                                                        <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail
-                                                                                    </p>
-                                                                                    <button
-                                                                                        onClick={() => !thumbnailAlreadyGenerated && setBrandNeedThumbnail(v => !v)}
-                                                                                        disabled={thumbnailAlreadyGenerated}
-                                                                                        className={`w-8 h-4 rounded-full transition-colors relative ${
-                                                                                            thumbnailAlreadyGenerated 
-                                                                                                ? 'bg-green-500/30 cursor-not-allowed' 
-                                                                                                : brandNeedThumbnail 
+                                                                            {/* Thumbnail Section - Only show if not already generated */}
+                                                                            {!thumbnailAlreadyGenerated && (
+                                                                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                                    <div className="flex items-center justify-between">
+                                                                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
+                                                                                            <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail
+                                                                                        </p>
+                                                                                        <button
+                                                                                            onClick={() => setBrandNeedThumbnail(v => !v)}
+                                                                                            className={`w-8 h-4 rounded-full transition-colors relative ${
+                                                                                                brandNeedThumbnail 
                                                                                                     ? 'bg-blue-500' 
                                                                                                     : 'bg-white/10'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
-                                                                                            thumbnailAlreadyGenerated || brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'
-                                                                                        }`} />
-                                                                                    </button>
-                                                                                </div>
-                                                                                {thumbnailAlreadyGenerated && (
-                                                                                    <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-                                                                                        <CheckCircle2 size={12} className="text-green-400" />
-                                                                                        <span className="text-[9px] text-green-300 font-bold uppercase tracking-wider">
-                                                                                            Thumbnail Already Generated ✓
-                                                                                        </span>
+                                                                                            }`}
+                                                                                        >
+                                                                                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+                                                                                                brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'
+                                                                                            }`} />
+                                                                                        </button>
                                                                                     </div>
-                                                                                )}
-                                                                                {brandNeedThumbnail && !thumbnailAlreadyGenerated && (
+                                                                                    {brandNeedThumbnail && (
                                                                                     <div className="space-y-3 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
                                                                                         <textarea
                                                                                             value={brandThumbnailPrompt}
@@ -1862,7 +1852,8 @@ function AIInfluencerWorkstation() {
                                                                                         </label>
                                                                                     </div>
                                                                                 )}
-                                                                            </div>
+                                                                                </div>
+                                                                            )}
 
                                                                             {/* Apply Button */}
                                                                             <button

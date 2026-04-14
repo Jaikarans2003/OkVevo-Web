@@ -33,3 +33,18 @@ export interface AffiliateStats {
         earnings: number;
     }[];
 }
+
+export interface AffiliateCommission {
+    id: string;
+    affiliateId: string;
+    subscriptionId: string;
+    paymentId: string;
+    paymentAmount: number;
+    commissionAmount: number;
+    commissionRate: number;
+    billingPeriod: 'monthly' | 'annual';
+    couponCode: string;
+    userId: string;
+    paidAt: Date;
+    createdAt: Date;
+}
