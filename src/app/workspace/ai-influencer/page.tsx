@@ -1149,7 +1149,7 @@ function AIInfluencerWorkstation() {
                 <div className="flex-1 flex relative z-10 overflow-hidden">
                     {/* Session History Sidebar Overlay */}
                     {user?.uid && (
-                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-500 ease-in-out ${isHistoryOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-[calc(100%-48px)] pointer-events-auto'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10 backdrop-blur-3xl`}>
+                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-500 ease-in-out ${isHistoryOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-[calc(100%-12px)] md:-translate-x-[calc(100%-48px)] pointer-events-auto'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10 backdrop-blur-3xl`}>
                             <div className="relative h-full">
                                 <SessionHistorySidebar
                                     userId={user.uid}
@@ -1175,7 +1175,7 @@ function AIInfluencerWorkstation() {
                     {user?.uid && (
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`fixed left-0 top-1/2 -translate-y-1/2 z-[60] flex flex-col items-center gap-2 py-5 px-3 bg-orange-600/90 backdrop-blur-md text-white rounded-r-2xl shadow-[0_0_30px_rgba(234,88,12,0.4)] transition-all duration-500 hover:pr-5 group ${isHistoryOpen ? 'translate-x-[288px]' : 'translate-x-0'}`}
+                            className={`fixed left-0 top-1/2 -translate-y-1/2 z-[60] flex flex-col items-center gap-2 py-4 md:py-5 px-2 md:px-3 bg-orange-600/90 backdrop-blur-md text-white rounded-r-2xl shadow-[0_0_30px_rgba(234,88,12,0.4)] transition-all duration-500 hover:pr-5 group ${isHistoryOpen ? 'translate-x-[260px] md:translate-x-[288px]' : 'translate-x-0'}`}
                             title={isHistoryOpen ? "Close History" : "Open History"}
                         >
                             {isHistoryOpen ? (
@@ -2144,7 +2144,7 @@ function AIInfluencerWorkstation() {
                             </div>
                         )}
                         {/* Mobile Tab Switcher */}
-                        <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] p-1.5 glass-studio-panel border border-white/20 rounded-2xl shadow-2xl flex items-center gap-1 w-[90%] max-w-[400px]">
+                        <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] p-1.5 bg-[#0B0B0D] border border-white/20 rounded-2xl shadow-2xl flex items-center gap-1 w-[90%] max-w-[400px]">
                             <button
                                 onClick={() => setActiveMobileTab('workstation')}
                                 className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5 ${activeMobileTab === 'workstation' 

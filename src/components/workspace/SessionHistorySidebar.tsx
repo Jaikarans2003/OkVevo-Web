@@ -168,7 +168,7 @@ export default function SessionHistorySidebar({
         <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-72 flex-shrink-0 flex flex-col bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full overflow-hidden shadow-2xl rounded-r-[2.5rem]"
+            className="w-[260px] md:w-72 flex-shrink-0 flex flex-col bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full overflow-hidden shadow-2xl rounded-r-[2.5rem]"
         >
             {/* Header */}
             <div className="px-4 py-4 border-b border-white/5 flex items-center justify-between">
