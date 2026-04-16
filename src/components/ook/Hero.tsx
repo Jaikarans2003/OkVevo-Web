@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Play, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 
 interface HeroProps {
@@ -21,11 +22,14 @@ const Hero = ({ onJoinClick }: HeroProps) => {
 
             {/* Background Image Layer */}
             <div className="absolute inset-0 z-0 pointer-events-none opacity-70">
-                <img
+                <Image
                     src="/images/herobg.png"
                     alt="OKVEVO Cinematic Background"
+                    fill
+                    priority
                     fetchPriority="high"
-                    className="w-full h-full object-cover"
+                    sizes="100vw"
+                    className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
             </div>

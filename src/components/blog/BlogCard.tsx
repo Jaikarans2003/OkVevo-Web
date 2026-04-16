@@ -19,7 +19,7 @@ export default function BlogCard({ blog, featured = false }: BlogCardProps) {
                     <img
                         src={blog.featuredImage}
                         alt={blog.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-[transition-timing-function:cubic-bezier(0.25,0.46,0.45,0.94)]"
                         loading="lazy"
                     />
                     {/* Inner image shadow/vignette */}

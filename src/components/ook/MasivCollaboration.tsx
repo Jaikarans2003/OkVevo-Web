@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 
 const MasivCollaboration = () => {
@@ -8,10 +9,12 @@ const MasivCollaboration = () => {
         <section id="okvevo-x-masiv" className="relative h-screen bg-black overflow-hidden flex flex-col items-center justify-center font-sans">
             {/* Background Image with Black Filter */}
             <div className="absolute inset-0 z-0 transform-gpu">
-                <img
+                <Image
                     src="/bgimage.png"
                     alt="OKVEVO X MASIV Background"
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
                     loading="lazy"
                 />
                 {/* Black Filter (Overlay) */}

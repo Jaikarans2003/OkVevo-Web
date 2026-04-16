@@ -108,7 +108,8 @@ export default function LocationPage() {
                                     src={BOOTH_IMAGES[currentIndex].src}
                                     alt={BOOTH_IMAGES[currentIndex].title}
                                     fill
-                                    className="object-contain opacity-80 group-hover:scale-105 transition-transform duration-[4s]"
+                                    sizes="(max-width: 1024px) 100vw, 60vw"
+                                    className="object-contain opacity-80 group-hover:scale-105 transition-transform duration-[transition-duration:4s]"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                             </motion.div>

@@ -148,8 +148,8 @@ export default function ProfilePage() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,77,0,0.5)_0%,rgba(0,0,0,1)_95%)]" />
                 
                 {/* Dynamic Accent Lights */}
-                <div className="absolute top-[-15%] right-[-10%] w-[700px] h-[700px] bg-[#FF4D00]/20 rounded-full blur-[150px] animate-pulse duration-[8s]" />
-                <div className="absolute bottom-[-15%] left-[-10%] w-[800px] h-[800px] bg-[#FF4D00]/10 rounded-full blur-[180px] animate-pulse duration-[12s]" />
+                <div className="absolute top-[-15%] right-[-10%] w-[700px] h-[700px] bg-[#FF4D00]/20 rounded-full blur-[150px] animate-pulse duration-[animation-duration:8s]" />
+                <div className="absolute bottom-[-15%] left-[-10%] w-[800px] h-[800px] bg-[#FF4D00]/10 rounded-full blur-[180px] animate-pulse duration-[animation-duration:12s]" />
 
                 {/* Dot Grid Layer */}
                 <div className="absolute inset-0 opacity-[0.4]" 

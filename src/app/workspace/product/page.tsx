@@ -405,8 +405,8 @@ function ProductStudio() {
                         alt="Background"
                         className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] bg-orange-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[12s] z-20" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] bg-blue-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[15s] delay-1000 z-20" />
+                    <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] bg-orange-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[animation-duration:12s] z-20" />
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] bg-blue-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[animation-duration:15s] delay-1000 z-20" />
                     <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.04] mix-blend-overlay z-30"></div>
                 </div>
 

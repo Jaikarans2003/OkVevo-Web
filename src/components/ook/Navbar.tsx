@@ -75,6 +75,7 @@ const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
                             height={40} 
                             className="w-12 h-12 object-contain"
                             priority
+                            fetchPriority="high"
                         />
                     </Link>
 

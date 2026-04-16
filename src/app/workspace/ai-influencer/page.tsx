@@ -1149,7 +1149,7 @@ function AIInfluencerWorkstation() {
                 <div className="flex-1 flex relative z-10 overflow-hidden">
                     {/* Session History Sidebar Overlay */}
                     {user?.uid && (
-                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out ${isHistoryOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10`}>
+                        <div className={`absolute top-0 left-0 h-full z-50 transition-transform duration-500 ease-in-out ${isHistoryOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-[calc(100%-48px)] pointer-events-auto'} rounded-r-[2rem] overflow-hidden shadow-2xl border-y border-r border-white/10 backdrop-blur-3xl`}>
                             <div className="relative h-full">
                                 <SessionHistorySidebar
                                     userId={user.uid}
@@ -1164,7 +1164,8 @@ function AIInfluencerWorkstation() {
                                         setIsHistoryOpen(false);
                                     }}
                                     accentColor="orange"
-                                    initiallyCollapsed={false}
+                                    isCollapsed={!isHistoryOpen}
+                                    onCollapseChange={(collapsed) => setIsHistoryOpen(!collapsed)}
                                 />
                             </div>
                         </div>
@@ -1174,9 +1175,17 @@ function AIInfluencerWorkstation() {
                     {user?.uid && (
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`fixed left-0 top-1/2 -translate-y-1/2 z-[60] p-3 bg-orange-600/90 backdrop-blur-md text-white rounded-r-2xl shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all duration-500 hover:pr-5 group ${isHistoryOpen ? 'translate-x-[288px]' : 'translate-x-0'}`}
+                            className={`fixed left-0 top-1/2 -translate-y-1/2 z-[60] flex flex-col items-center gap-2 py-5 px-3 bg-orange-600/90 backdrop-blur-md text-white rounded-r-2xl shadow-[0_0_30px_rgba(234,88,12,0.4)] transition-all duration-500 hover:pr-5 group ${isHistoryOpen ? 'translate-x-[288px]' : 'translate-x-0'}`}
+                            title={isHistoryOpen ? "Close History" : "Open History"}
                         >
-                            {isHistoryOpen ? <ChevronRight size={18} className="rotate-180 transition-transform duration-500" /> : <Clock size={18} className="group-hover:rotate-12 transition-transform" />}
+                            {isHistoryOpen ? (
+                                <ChevronRight size={18} className="rotate-180 transition-transform duration-500" />
+                            ) : (
+                                <>
+                                    <Clock size={18} className="group-hover:rotate-12 transition-transform animate-pulse" />
+                                    <span className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-black uppercase tracking-[0.3em] py-1 opacity-80 group-hover:opacity-100 transition-opacity">History</span>
+                                </>
+                            )}
                         </button>
                     )}
 

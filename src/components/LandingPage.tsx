@@ -9,21 +9,30 @@ import NoiseOverlay from './NoiseOverlay';
 import Navbar from './ook/Navbar';
 import Hero from './ook/Hero';
 import JsonLd from './JsonLd';
-import Faq from './Faq';
-
-import Demo from './ook/Demo';
-import HowItWorks from './ook/Features';
-import Pricing from './ook/Pricing';
-import MasivCollaboration from './ook/MasivCollaboration';
-import FeaturesGrid from './ook/FeaturesGrid';
 import Footer from './ook/Footer';
+import dynamic from 'next/dynamic';
+
+const Demo = dynamic(() => import('./ook/Demo'));
+const HowItWorks = dynamic(() => import('./ook/Features'));
+const MasivCollaboration = dynamic(() => import('./ook/MasivCollaboration'));
+const Pricing = dynamic(() => import('./ook/Pricing'));
+const Faq = dynamic(() => import('./Faq'));
+const SmoothScroll = dynamic(() => import('./SmoothScroll'), { ssr: false });
+
 import SEOKeywords from './SEOKeywords';
 
 const websiteSchema = {
   "@context": "https://schema.org",
-  "@type": ["WebSite", "Organization"],
+  "@type": "Organization",
   "name": "Okvevo",
   "url": "https://okvevo.com",
+  "logo": "https://okvevo.com/OKVEVO%20With%20BackGrounds/OrangeBackGround.svg",
+  "sameAs": [
+    "https://instagram.com/okvevo",
+    "https://linkedin.com/company/okvevo",
+    "https://youtube.com/@okvevo",
+    "https://x.com/okvevo"
+  ],
   "potentialAction": {
     "@type": "SearchAction",
     "target": "https://okvevo.com/search?q={search_term_string}",
@@ -65,6 +74,7 @@ export default function LandingPage() {
     return (
         <div className="min-h-screen bg-bg-main">
             <JsonLd data={websiteSchema} />
+            <SmoothScroll />
             <NoiseOverlay />
             <Navbar user={user} onJoinClick={handleJoinClick} />
             <main>

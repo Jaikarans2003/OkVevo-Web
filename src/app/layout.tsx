@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Ubuntu, Dancing_Script } from "next/font/google";
 import "./globals.css";
-import SmoothScroll from "@/components/SmoothScroll";
+// SmoothScroll will be moved to LandingPage for better optimization control
 
 const ubuntu = Ubuntu({
     subsets: ["latin"],
@@ -63,6 +63,20 @@ export const metadata: Metadata = {
         title: 'OKVEVO AI - AI Video Generator India',
         description: 'Best AI video generator for Instagram reels, YouTube shorts. Create faceless videos with AI.',
     },
+    alternates: {
+        canonical: 'https://okvevo.com',
+    },
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            'max-video-preview': -1,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+        },
+    },
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -76,9 +90,6 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
                 <StructuredData />
                 <script
                     dangerouslySetInnerHTML={{
@@ -98,7 +109,6 @@ export default function RootLayout({
             </head>
             <body className={`${ubuntu.className} ${ubuntu.variable} ${dancingScript.variable} font-sans antialiased`} suppressHydrationWarning>
                 <ThemeProvider>
-                    <SmoothScroll />
                     {children}
                 </ThemeProvider>
             </body>

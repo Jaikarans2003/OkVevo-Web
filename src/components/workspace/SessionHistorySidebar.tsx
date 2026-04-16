@@ -25,6 +25,10 @@ interface SessionHistorySidebarProps {
     accentColor?: 'purple' | 'orange' | 'cyan' | 'pink';
     /** Whether the sidebar should start collapsed. Defaults to true. */
     initiallyCollapsed?: boolean;
+    /** Controlled collapsed state from parent */
+    isCollapsed?: boolean;
+    /** Callback when collapse state changes */
+    onCollapseChange?: (collapsed: boolean) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,11 +74,21 @@ export default function SessionHistorySidebar({
     onNewSession,
     accentColor = 'purple',
     initiallyCollapsed = true,
+    isCollapsed,
+    onCollapseChange,
 }: SessionHistorySidebarProps) {
     const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
     const [loading, setLoading] = useState(false);
-    const [collapsed, setCollapsed] = useState(initiallyCollapsed); 
+    const [internalCollapsed, setInternalCollapsed] = useState(initiallyCollapsed); 
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const collapsed = isCollapsed !== undefined ? isCollapsed : internalCollapsed;
+
+    const toggleCollapse = (val: boolean) => {
+        setInternalCollapsed(val);
+        onCollapseChange?.(val);
+    };
+
 
     const accent = ACCENT[accentColor] ?? ACCENT.purple;
 
@@ -114,7 +128,7 @@ export default function SessionHistorySidebar({
                 className="flex flex-col items-center gap-3 w-12 py-4 px-1 bg-[#0B0B0D]/95 dark:bg-black/95 backdrop-blur-3xl border-r border-white/10 h-full shadow-2xl rounded-r-2xl"
             >
                 <button
-                    onClick={() => setCollapsed(false)}
+                    onClick={() => toggleCollapse(false)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
                     title="Expand history"
                 >
@@ -127,7 +141,12 @@ export default function SessionHistorySidebar({
                 >
                     <Plus size={16} className="text-white/40" />
                 </button>
-                {sessions.slice(0, 6).map(s => (
+                <div className="flex-1 flex flex-col items-center justify-center pointer-events-none opacity-20 group">
+                    <span className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-black uppercase tracking-[0.4em] py-4 text-white">
+                        
+                    </span>
+                </div>
+                {sessions.slice(0, 3).map(s => (
                     <button
                         key={s.id}
                         onClick={() => onSelectSession(s)}
@@ -168,7 +187,7 @@ export default function SessionHistorySidebar({
                         <Plus size={13} className="text-white/50 hover:text-white transition-colors" />
                     </button>
                     <button
-                        onClick={() => setCollapsed(true)}
+                        onClick={() => toggleCollapse(true)}
                         className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                         title="Collapse"
                     >

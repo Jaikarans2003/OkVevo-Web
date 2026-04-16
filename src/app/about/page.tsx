@@ -277,7 +277,7 @@ export default function AboutPage() {
                                     src="/ai-engine.png"
                                     alt="OKVEVO Visual Engine"
                                     fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-[2000ms] brightness-90 grayscale-[0.5] group-hover:grayscale-0"
+                                    className="object-cover group-hover:scale-105 transition-transform duration-[transition-duration:2000ms] brightness-90 grayscale-[0.5] group-hover:grayscale-0"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                                 
@@ -339,7 +339,7 @@ export default function AboutPage() {
                             src="/movie-scene.png"
                             alt="Cinematic Preview"
                             fill
-                            className="object-cover group-hover:scale-[1.05] transition-transform duration-[3000ms] brightness-50"
+                            className="object-cover group-hover:scale-[1.05] transition-transform duration-[transition-duration:3000ms] brightness-50"
                         />
                         
                         <div className="absolute inset-0 flex items-center justify-center z-20">
