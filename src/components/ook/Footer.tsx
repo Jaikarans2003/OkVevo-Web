@@ -60,6 +60,7 @@ const Footer = () => {
                                     <li><a href="#features" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Features</a></li>
                                     <li><a href="#showcase" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
                                     <li><a href="/location" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
+                                    <li><a href="/blogs" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Blog</a></li>
                                 </ul>
                             </div>
 

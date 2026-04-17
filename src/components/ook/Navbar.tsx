@@ -60,7 +60,7 @@ const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
         { name: 'Demo', href: '/#demo' },
         { name: 'Features', href: '/#features' },
         { name: 'Pricing', href: '/#pricing' },
-        { name: 'Blog', href: '/blogs' },
+        // { name: 'Blog', href: '/blogs' },
     ];
 
     return (
