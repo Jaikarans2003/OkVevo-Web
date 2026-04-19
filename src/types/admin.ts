@@ -6,14 +6,17 @@ import { Timestamp } from 'firebase/firestore';
 export interface UserWithStats {
     uid: string;
     email: string;
-    userType?: 'single' | 'organisation' | 'pro';
+    displayName?: string;
+    userType: 'single' | 'organisation' | 'pro';
     planType?: 'hobby' | 'pro';
     creditsAllocated: number;
     creditsSpent: number;
     creditsRemaining: number;
+    adminCredits: number;
     lastActivity?: Date;
     createdAt: Date;
     subscriptionStatus?: 'active' | 'cancelled' | 'paused' | 'completed' | 'pending';
+    proOrganisationId?: string;
 }
 
 /**

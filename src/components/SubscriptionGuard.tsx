@@ -33,6 +33,13 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
             }
 
             try {
+                // Pro Team members always get access via the shared pool — no personal subscription needed
+                if (userProfile.proOrganisationId) {
+                    setHasSubscription(true);
+                    setChecking(false);
+                    return;
+                }
+
                 const subscription = await getUserSubscription(userProfile.uid);
                 const isActive = subscription?.status === 'active' || (userProfile as any)?.isPro === true;
                 setHasSubscription(isActive);

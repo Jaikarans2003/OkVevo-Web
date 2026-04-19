@@ -8,7 +8,7 @@ import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } fr
 import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
 import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../services/SubscriptionService';
-import { ArrowLeft, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail, Crown, Building2, Users, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -234,14 +234,29 @@ export default function ProfilePage() {
                         </section>
 
                         {/* High-Contrast Stats & Subscription Row */}
-                        <section className={`grid grid-cols-1 ${affiliateData ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 w-full mt-24 max-w-6xl`}>
-                            {[
+                        {(() => {
+                            const userTypeConfig = {
+                                single:       { label: 'Individual',    icon: Users,     color: '#A855F7', detail: 'Single User Account' },
+                                pro:          { label: 'Pro Team',      icon: Crown,     color: '#F59E0B', detail: '5-Seat Team Account' },
+                                organisation: { label: 'Organisation',  icon: Building2, color: '#3B82F6', detail: 'Organisation Account' },
+                            };
+                            const typeKey = (profile?.userType || 'single') as keyof typeof userTypeConfig;
+                            const typeInfo = userTypeConfig[typeKey] || userTypeConfig.single;
+
+                            const stats = [
                                 {
                                     label: 'Subscription Plan',
                                     value: subscription?.planDetails?.name || 'No Active Plan',
                                     icon: Activity,
                                     color: '#FF4D00',
                                     detail: subscription?.status ? `Status: ${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}` : 'Active Status'
+                                },
+                                {
+                                    label: 'Account Type',
+                                    value: typeInfo.label,
+                                    icon: typeInfo.icon,
+                                    color: typeInfo.color,
+                                    detail: typeInfo.detail
                                 },
                                 { label: 'Direct Wire', value: formData.phoneNumber || 'Unlinked', icon: Phone, color: '#A855F7', detail: 'Primary Contact' },
                                 ...(affiliateData ? [{
@@ -251,31 +266,112 @@ export default function ProfilePage() {
                                     color: '#10B981',
                                     detail: `${affiliateData.totalSales || 0} Sales • ${affiliateData.couponCode || 'N/A'}`
                                 }] : [])
-                            ].map((stat, i) => (
-                                <motion.div 
-                                    key={i}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.5 + (i * 0.1), duration: 0.8 }}
-                                    className="relative group border border-white/20 bg-[#0A0A0A]/95 rounded-[32px] p-8 h-64 overflow-hidden flex flex-col items-center justify-center hover:border-[#FF4D00] transition-all duration-500 shadow-2xl"
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-                                    <div className="relative z-10 flex flex-col items-center text-center gap-5">
-                                        <div 
-                                            className="w-14 h-14 rounded-full flex items-center justify-center bg-white/5 border border-white/10 transition-all duration-300"
-                                            style={{ borderColor: `${stat.color}44` }}
+                            ];
+
+                            return (
+                                <>
+                                    <section className={`grid grid-cols-1 md:grid-cols-${Math.min(stats.length, 4)} gap-6 w-full mt-24 max-w-6xl`}>
+                                        {stats.map((stat, i) => (
+                                            <motion.div
+                                                key={i}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.5 + (i * 0.1), duration: 0.8 }}
+                                                className="relative group border border-white/20 bg-[#0A0A0A]/95 rounded-[32px] p-8 h-64 overflow-hidden flex flex-col items-center justify-center hover:border-[#FF4D00] transition-all duration-500 shadow-2xl"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+                                                <div className="relative z-10 flex flex-col items-center text-center gap-5">
+                                                    <div
+                                                        className="w-14 h-14 rounded-full flex items-center justify-center bg-white/5 border border-white/10 transition-all duration-300"
+                                                        style={{ borderColor: `${stat.color}44` }}
+                                                    >
+                                                        <stat.icon className="w-5 h-5 transition-all duration-500" style={{ color: stat.color }} />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover:text-white transition-colors">{stat.label}</span>
+                                                        <span className="text-lg font-bold text-white tracking-widest leading-tight">{stat.value}</span>
+                                                        <span className="text-[8px] font-medium text-white/20 mt-1 uppercase tracking-[0.1em]">{stat.detail}</span>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </section>
+
+                                    {/* Incomplete Pro Setup Banner */}
+                                    {subscription?.planType === 'pro' && !profile?.proOrganisationId && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.75, duration: 0.6 }}
+                                            className="w-full max-w-6xl mt-6"
                                         >
-                                            <stat.icon className="w-5 h-5 transition-all duration-500" style={{ color: stat.color }} />
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover:text-white transition-colors">{stat.label}</span>
-                                            <span className="text-lg font-bold text-white tracking-widest leading-tight">{stat.value}</span>
-                                            <span className="text-[8px] font-medium text-white/20 mt-1 uppercase tracking-[0.1em]">{stat.detail}</span>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </section>
+                                            <div className="relative w-full border border-[#FF4D00]/40 bg-[#FF4D00]/5 rounded-[32px] px-10 py-8 overflow-hidden shadow-[0_0_60px_rgba(255,77,0,0.08)]">
+                                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_50%,rgba(255,77,0,0.08),transparent_60%)] pointer-events-none" />
+                                                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                                    <div className="flex items-start gap-5">
+                                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-[#FF4D00]/15 border border-[#FF4D00]/30">
+                                                            <Crown className="w-5 h-5 text-[#FF4D00]" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FF4D00] mb-1">Action Required</p>
+                                                            <p className="text-sm font-bold text-white">Complete Your Pro Team Setup</p>
+                                                            <p className="text-[11px] text-white/40 mt-1 font-medium tracking-wide">You have an active Pro plan — create or join your Pro team to unlock all features.</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => router.push('/onboarding/pro')}
+                                                        className="group flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-full bg-[#FF4D00] hover:bg-[#FF4D00]/90 text-white text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 shadow-[0_0_30px_rgba(255,77,0,0.3)] hover:shadow-[0_0_50px_rgba(255,77,0,0.5)] hover:scale-[1.03]"
+                                                    >
+                                                        Set Up Pro Team
+                                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* Team Dashboard CTA — Pro & Organisation only */}
+                                    {(profile?.userType === 'pro' || profile?.userType === 'organisation') && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.8, duration: 0.6 }}
+                                            className="w-full max-w-6xl mt-6"
+                                        >
+                                            <Link
+                                                href={profile.userType === 'pro' ? '/pro-dashboard' : '/organisation'}
+                                                className="group flex items-center justify-between w-full border border-white/10 hover:border-[#FF4D00]/60 bg-[#0A0A0A]/95 hover:bg-[#FF4D00]/5 rounded-[32px] px-10 py-7 transition-all duration-500 shadow-2xl"
+                                            >
+                                                <div className="flex items-center gap-5">
+                                                    <div
+                                                        className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                                                        style={{ background: `${typeInfo.color}22`, border: `1px solid ${typeInfo.color}44` }}
+                                                    >
+                                                        <typeInfo.icon className="w-5 h-5" style={{ color: typeInfo.color }} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">
+                                                            {profile.userType === 'pro' ? 'Pro Team' : 'Organisation'}
+                                                        </p>
+                                                        <p className="text-sm font-bold text-white mt-0.5">
+                                                            {profile.userType === 'pro'
+                                                                ? profile.proOrganisationName || 'Manage Your Pro Team'
+                                                                : profile.organisationName || 'Manage Your Organisation'
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[#FF4D00] text-[10px] font-black uppercase tracking-[0.3em] group-hover:gap-4 transition-all">
+                                                    Open Dashboard
+                                                    <ExternalLink className="w-4 h-4" />
+                                                </div>
+                                            </Link>
+                                        </motion.div>
+                                    )}
+                                </>
+                            );
+                        })()}
+
 
 
                         {/* Simple Navigation */}

@@ -9,9 +9,12 @@ import type { CouponValidationResponse } from '@/types/coupon';
 
 interface PricingProps {
     user?: any;
+    onSuccessHobby?: (subscriptionId: string) => void;
+    onSuccessPro?: (subscriptionId: string) => void;
+    showOnlyPlan?: 'Hobby' | 'Pro' | 'Enterprise';
 }
 
-const Pricing = ({ user }: PricingProps) => {
+const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
     const [mounted, setMounted] = useState(false);
     const router = useRouter();
@@ -275,8 +278,12 @@ const Pricing = ({ user }: PricingProps) => {
                 </div>
 
                 {/* Pricing Cards */}
-                <div className="grid md:grid-cols-3 gap-8 max-w-[1100px] mx-auto">
-                    {plans.map((plan, index) => {
+                <div className={`grid gap-8 mx-auto ${
+                    showOnlyPlan
+                        ? 'max-w-[420px]'
+                        : 'md:grid-cols-3 max-w-[1100px]'
+                }`}>
+                    {plans.filter(p => !showOnlyPlan || p.name === showOnlyPlan).map((plan, index) => {
                         return (
                             <motion.div
                                 key={plan.name}
@@ -419,7 +426,8 @@ const Pricing = ({ user }: PricingProps) => {
                                                 couponData={appliedCoupon}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
-                                                    router.push('/workspace');
+                                                    if (onSuccessHobby) onSuccessHobby(subscriptionId);
+                                                    else router.push('/workspace');
                                                 }}
                                                 onError={(error) => {
                                                     console.error('Subscription error:', error);
@@ -442,7 +450,8 @@ const Pricing = ({ user }: PricingProps) => {
                                                 couponData={appliedCoupon}
                                                 onSuccess={(subscriptionId) => {
                                                     console.log('Subscription successful:', subscriptionId);
-                                                    router.push('/workspace');
+                                                    if (onSuccessPro) onSuccessPro(subscriptionId);
+                                                    else router.push('/workspace');
                                                 }}
                                                 onError={(error) => {
                                                     console.error('Subscription error:', error);

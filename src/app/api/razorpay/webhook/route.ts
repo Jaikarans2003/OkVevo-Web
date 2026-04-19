@@ -547,7 +547,28 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscriptionId, userId, updates);
 
-                console.log(`� Invoice paid - Credits reset: ${subscriptionId}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
+                // If this user is a Pro Team admin, reset the shared credits pool too
+                try {
+                    const userDoc = await db.collection('users').doc(userId).get();
+                    const userData = userDoc.data();
+                    if (
+                        userData?.proOrganisationId &&
+                        userData?.proOrganisationRole === 'admin'
+                    ) {
+                        await db.collection('proOrganisations').doc(userData.proOrganisationId).update({
+                            credits: planDetails.credits,
+                            initialCredits: planDetails.credits,
+                            creditsUsed: 0,
+                            lastRenewalAt: FieldValue.serverTimestamp(),
+                            updatedAt: FieldValue.serverTimestamp(),
+                        });
+                        console.log(`🔄 Pro Team pool reset: ${userData.proOrganisationId} → ${planDetails.credits} credits`);
+                    }
+                } catch (proErr) {
+                    console.error('❌ Failed to reset Pro Team pool on renewal:', proErr);
+                }
+
+                console.log(`💳 Invoice paid - Credits reset: ${subscriptionId}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
                 break;
             }
 

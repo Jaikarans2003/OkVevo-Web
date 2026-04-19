@@ -1,0 +1,1062 @@
+{
+ "Description": "OkVevo AI Influencer Pipeline — DEV",
+ "Resources": {
+  "okvevoaiprepServiceRole31E42E65": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-ai-prep/ServiceRole/Resource"
+   }
+  },
+  "okvevoaiprep49966F5D": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "66ddb4474809771599330f14f91eb9325c42068e386679e26fd7cfb4924c2149.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-ai-prep (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live",
+      "NEXT_PUBLIC_BASE_URL": "https://okvevo-testing.cloudfunctions.net"
+     }
+    },
+    "FunctionName": "okvevo-ai-prep",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevoaiprepServiceRole31E42E65",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "okvevoaiprepServiceRole31E42E65"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-ai-prep/Resource",
+    "aws:asset:path": "asset.66ddb4474809771599330f14f91eb9325c42068e386679e26fd7cfb4924c2149",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevoaiprepInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOcFFFF6506": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevoaiprep49966F5D",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-ai-prep/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevolipsyncsubmitServiceRole1A0A1A11": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-submit/ServiceRole/Resource"
+   }
+  },
+  "okvevolipsyncsubmitB9DD3320": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "3ba4843040ff1495da6eefa851856d77752524cd06c660f5af406e37abf686f1.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-lipsync-submit (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live",
+      "NEXT_PUBLIC_BASE_URL": "https://okvevo-testing.cloudfunctions.net"
+     }
+    },
+    "FunctionName": "okvevo-lipsync-submit",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevolipsyncsubmitServiceRole1A0A1A11",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "okvevolipsyncsubmitServiceRole1A0A1A11"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-submit/Resource",
+    "aws:asset:path": "asset.3ba4843040ff1495da6eefa851856d77752524cd06c660f5af406e37abf686f1",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevolipsyncsubmitInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOcDE4ACB1E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevolipsyncsubmitB9DD3320",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-submit/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevofalrecoveryServiceRole3CB60FA4": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-fal-recovery/ServiceRole/Resource"
+   }
+  },
+  "okvevofalrecovery4A6E30D9": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "550b78bd6108e2595931300f0787c2cbb0973a3118459ec0d19cf9225b596b3c.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-fal-recovery (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live"
+     }
+    },
+    "FunctionName": "okvevo-fal-recovery",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevofalrecoveryServiceRole3CB60FA4",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "okvevofalrecoveryServiceRole3CB60FA4"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-fal-recovery/Resource",
+    "aws:asset:path": "asset.550b78bd6108e2595931300f0787c2cbb0973a3118459ec0d19cf9225b596b3c",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevofalrecoveryInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOcD14E6C46": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevofalrecovery4A6E30D9",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-fal-recovery/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevolipsyncrecoveryServiceRole3F7726F7": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-recovery/ServiceRole/Resource"
+   }
+  },
+  "okvevolipsyncrecovery5841BFB3": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "d38c81fd16b468754ce040d972c869e994d479317e7e15b40d5de2ae7ea2c690.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-lipsync-recovery (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live"
+     }
+    },
+    "FunctionName": "okvevo-lipsync-recovery",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevolipsyncrecoveryServiceRole3F7726F7",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "okvevolipsyncrecoveryServiceRole3F7726F7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-recovery/Resource",
+    "aws:asset:path": "asset.d38c81fd16b468754ce040d972c869e994d479317e7e15b40d5de2ae7ea2c690",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevolipsyncrecoveryInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOc14372387": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevolipsyncrecovery5841BFB3",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-lipsync-recovery/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevorendererServiceRoleC94B4DDB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-renderer/ServiceRole/Resource"
+   }
+  },
+  "okvevorenderer0410E401": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "f7da9eb31f744bdab86ae94982c607d7918fdcca2ec2c6cbe343ac16ac3599fc.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-renderer (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live"
+     }
+    },
+    "FunctionName": "okvevo-renderer",
+    "Handler": "index.handler",
+    "Layers": [
+     "arn:aws:lambda:us-east-1:315974965935:layer:ffmpeg-with-ffprobe:2"
+    ],
+    "MemorySize": 3008,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevorendererServiceRoleC94B4DDB",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "okvevorendererServiceRoleC94B4DDB"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-renderer/Resource",
+    "aws:asset:path": "asset.f7da9eb31f744bdab86ae94982c607d7918fdcca2ec2c6cbe343ac16ac3599fc",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevorendererInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOc9042F20F": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevorenderer0410E401",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-renderer/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevobrandingServiceRole9DEDE231": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-branding/ServiceRole/Resource"
+   }
+  },
+  "okvevobrandingBC1A1D85": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "c4a9331498af5afc2b11954ad134f48839943d33706b91e25a6bb80b1aa925e4.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-branding (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live"
+     }
+    },
+    "FunctionName": "okvevo-branding",
+    "Handler": "index.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevobrandingServiceRole9DEDE231",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "okvevobrandingServiceRole9DEDE231"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-branding/Resource",
+    "aws:asset:path": "asset.c4a9331498af5afc2b11954ad134f48839943d33706b91e25a6bb80b1aa925e4",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevobrandingInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOcDF9BC8D8": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevobrandingBC1A1D85",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-branding/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "okvevonoopServiceRoleB7473D69": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-noop/ServiceRole/Resource"
+   }
+  },
+  "okvevonoopD1DEF97C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-052120999576-us-east-1",
+     "S3Key": "50bc965c7905655da67cb34165575dc9c8908d24f131956d50e90eca88e5c9c2.zip"
+    },
+    "Description": "AI Influencer Pipeline — okvevo-noop (dev)",
+    "Environment": {
+     "Variables": {
+      "FIREBASE_SERVICE_ACCOUNT_KEY": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAib2t2ZXZvLXRlc3RpbmciLAogICJwcml2YXRlX2tleV9pZCI6ICI1MTViYTU2MGE3ZWZmMmM2YTM2NjYwZjZlOTY2ZWQ1NDVjMDlhYjI4IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUURaNGRuT2NWd21KMUtjXG5LNXNqZEVMZ1REc0swS3NrU2Y0dCthWHYxSlBlRjdKb1VMaTNLU3hGOUpRaFk0SnFsNDB1NVh5NlVyY24xVU1iXG53MmJXaFM2QzVwMDFjR0F1OE9BNDJOSHNZL3BBTUZycG9NS0VRK0JUYjQ2YmN0c1JYZG90OVpqSUQ2Q3lCaEhEXG5DSEJXN3pnS3NZamg5MXVSVEhwMWZiZ0drWllSOFJXeDU2VU9VQVhubldwazN4cjUzaEJTdTlrcmtPQmNaQW5SXG44V3R5azJoZzF1UzhwTG41L1JzTHozeHljOHZaOVR2dm9iTkE4WkYxVGtkaWVzTXB3ZG1ZL2lkOGVnZTdJRm1aXG5JbUlsQ2xxNkM0RkNUb0dxMElVUTg0T2orcHdyV3FaRW4raU5GUzJYZjBFY0todG5IdUZJL01IeUVsU0lXVlJsXG5DcEd1aVVvNUFnTUJBQUVDZ2dFQUVIZHlONWozcHVhSDVzZWc1UEFQY2RZeERDTXpHLzMvbU1mcVU1TFVUZytxXG5heG5XcS9rUG9JWFlnQ0YrSk1JcGFHYnRvME5IRmxxV3hNMWl3MG16ZHk4b3FIWkN2cWx6dUxnaVBXUmM4R2IzXG5KL3IvV0hHc3pZRjczS0cwanI1eUU5RWc1OVhPaGtYUko5VkdjRHVLRjd6TkpJN0dPOWYwMVZaWUJ4OFBvWEZjXG5Sdmp3djh2a2xNb1dXZ3NLMzZ0OXZzbWFhVDZEeGdXbS9XNHI5ZGZLVkhUUGVZNWVXOE5EM0hCUUVSY0d6MlVUXG5pZldpeWZqZWdKT3V2ckZsN080NnNPK2RNTXRKTmlGZDZWN09ZQnkvRzJFMHVsV2k5MmluY1BCZVZESmRYeVJ5XG5nMHVlSFZXOW05REJaV21heFlPbkxxSnZNUklIeVRCbTFzSFo0RzhZUlFLQmdRRHdwcUNHdUlqR1RDdWVtWmZrXG4vNTFjMTNDKzBOUlB0cktNeHpSUzR6TTBHbVlva1JEeHJndGdMTklEaDNnZDk1RmxseU5IQW05dDNXZW1DUGlTXG5BWjMwUG1kMGJHcTJHU3hESWFGbWNPcCs2ZXhNWE1tdXp0K3o4WDNsWk8vNXNGRGkrcGZLUmZyNFAyaUhTZ28vXG40alVHSmh2RFVOTk1sMGFhTmZyOVJYNGYrd0tCZ1FEbngzUm80VEdMOXEvcVNDNjNUM2ErTjhZTnBjbkxza2hiXG4ydmo2eWNzdldpMVhHdjZFb2hLRXF2dzBxL2ttMis5a2V0c2J5aUVtNE5Id2RoVmNnUlZrU1NlZXVxWnlzS2R2XG5lOEcxQUdnTmJNUDV2WEdIZjdONU9lNjBTWEk4UllBK24vcUE4czlyLzcwa3NzMkRMcE9CTUNGYVBpY28ycTc0XG4zdHhHVEZ3RVd3S0JnRWpFaWR2UzV3RFhQWVZhdWxSemVyajlLRWw2eWdoRW5WNzJTWHNhMm52UjA3eEdpVkliXG5KN053T2h6NUZMZ3pDUk1vRFhIR2FiMVY2cWFKSmVpNGRuUEpmdXowYjV3YXBvaXlIYVRsVmZNRWR3QnNPa3dTXG5vQkJBWUtwQnlGSy9IdVpUa2h5RzVxbTBPcjVXQkIxbklGTjRxSUo1NlRyS3IzMm4vdm9nemsrTEFvR0JBSy9FXG5KcmcrUmhlUS9IaWJRcW9LbmM3RWR2SDBqcUpsVWRBdXIyOW54aWpqcHN5T2tRSzk4WE1nUTJBaUpqQmN5eDhVXG50OEpNTjNYSE9nMnpUcUcyMWlVV0FQQ3pOUFIybUpMSGMrOHlIclpIakJxQW1tNlozZDJKbkVhbUIvWkM4bTBMXG5YcW1ZK01rNnlCSGpja3dQN3hZaURMamx0MGFaQitWOUEraGZrY3hQQW9HQVl4QlFzOHZ1d0QxeDBVd3dsMEZLXG5vS3ZRVFZnSTNCK2FGRVhEMjkzcXc2UHA4MnF6N2h1Q2ROTHFHWkc5ajJzbFl4b3NPOC9EZnR5ZU5DVDJNK29sXG5qRDlXVE12TjVERUN1MnJOb3AzVFpWTFJpOW5WdUJ4T1dRNkRKSlNqRDFtVmdUWmhJNk80ZTJpSnhhTGwySnNlXG5Oekw5M1R0ZWRRWkdlR2dRSGlPV1pCWT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bva3Zldm8tdGVzdGluZy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDYzNzYxMDIwODE3NDc3OTEzMTkiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwb2t2ZXZvLXRlc3RpbmcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K",
+      "FIREBASE_STORAGE_BUCKET": "okvevo-testing.firebasestorage.app",
+      "FAL_API_KEY": "87a072b0-fc7d-40fe-b96c-dd9979ea8d3a:9ab79d052e639e31eaecc553a6ed2c15",
+      "FAL_MODE": "live"
+     }
+    },
+    "FunctionName": "okvevo-noop",
+    "Handler": "index.handler",
+    "MemorySize": 128,
+    "Role": {
+     "Fn::GetAtt": [
+      "okvevonoopServiceRoleB7473D69",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 10
+   },
+   "DependsOn": [
+    "okvevonoopServiceRoleB7473D69"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-noop/Resource",
+    "aws:asset:path": "asset.50bc965c7905655da67cb34165575dc9c8908d24f131956d50e90eca88e5c9c2",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "okvevonoopInvoketnlpEgfIKpZyEIAINyVhXFSIfV5EJ7IaMp0cNGOc8C1BA2F6": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "okvevonoopD1DEF97C",
+      "Arn"
+     ]
+    },
+    "Principal": "states.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/okvevo-noop/Invoke--tnlpEgfIKpZyEIAINy+VhXFS+IfV5EJ7IaMp0cNGOc="
+   }
+  },
+  "StepFunctionRoleC4BAB6F8": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "states.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Step Function execution role for AI Influencer pipeline"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/StepFunctionRole/Resource"
+   }
+  },
+  "StepFunctionRoleDefaultPolicy94322EE6": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevoaiprep49966F5D",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevoaiprep49966F5D",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevolipsyncsubmitB9DD3320",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevolipsyncsubmitB9DD3320",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevofalrecovery4A6E30D9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevofalrecovery4A6E30D9",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevolipsyncrecovery5841BFB3",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevolipsyncrecovery5841BFB3",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevorenderer0410E401",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevorenderer0410E401",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevobrandingBC1A1D85",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevobrandingBC1A1D85",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "okvevonoopD1DEF97C",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "okvevonoopD1DEF97C",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "StepFunctionRoleDefaultPolicy94322EE6",
+    "Roles": [
+     {
+      "Ref": "StepFunctionRoleC4BAB6F8"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/StepFunctionRole/DefaultPolicy/Resource"
+   }
+  },
+  "AiInfluencerPipeline6728BB71": {
+   "Type": "AWS::StepFunctions::StateMachine",
+   "Properties": {
+    "DefinitionString": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"Comment\":\"AI Influencer Video Generation Pipeline with Webhook Recovery\",\"StartAt\":\"AI_Prep_With_Recovery\",\"States\":{\"AI_Prep_With_Recovery\":{\"Type\":\"Parallel\",\"Comment\":\"Run webhook wait and recovery timeout in parallel\",\"Branches\":[{\"StartAt\":\"AI_Prep\",\"States\":{\"AI_Prep\":{\"Type\":\"Task\",\"Resource\":\"arn:aws:states:::lambda:invoke.waitForTaskToken\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::GetAtt": [
+         "okvevoaiprep49966F5D",
+         "Arn"
+        ]
+       },
+       "\",\"Payload\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\",\"topic.$\":\"$.topic\",\"duration.$\":\"$.duration\",\"avatarVideoUrl.$\":\"$.avatarVideoUrl\",\"script.$\":\"$.script\",\"moments.$\":\"$.moments\",\"gender.$\":\"$.gender\",\"audioSampleUrl.$\":\"$.audioSampleUrl\",\"fal_mode.$\":\"$.fal_mode\",\"taskToken.$\":\"$$.Task.Token\"}},\"ResultPath\":\"$.aiPrepResult\",\"TimeoutSeconds\":31622400,\"End\":true}}},{\"StartAt\":\"Wait_For_Webhooks_Or_Timeout\",\"States\":{\"Wait_For_Webhooks_Or_Timeout\":{\"Type\":\"Wait\",\"Seconds\":30,\"Comment\":\"Wait 30 seconds before checking for recovery to bypass broken webhooks fast\",\"Next\":\"Recovery_Loop\"},\"Recovery_Loop\":{\"Type\":\"Task\",\"Resource\":\"",
+       {
+        "Fn::GetAtt": [
+         "okvevofalrecovery4A6E30D9",
+         "Arn"
+        ]
+       },
+       "\",\"Parameters\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\"},\"ResultPath\":\"$.recoveryResult\",\"Comment\":\"Recovery Lambda polls Fal AI for missing assets\",\"Next\":\"Check_If_Complete\",\"Retry\":[{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":30,\"MaxAttempts\":3,\"BackoffRate\":1.5}]},\"Check_If_Complete\":{\"Type\":\"Choice\",\"Comment\":\"Check if recovery found all assets\",\"Choices\":[{\"Variable\":\"$.recoveryResult.allAssetsComplete\",\"BooleanEquals\":true,\"Next\":\"Recovery_Success\"}],\"Default\":\"Wait_For_Webhooks_Or_Timeout\"},\"Recovery_Success\":{\"Type\":\"Succeed\",\"Comment\":\"Recovery completed, Parallel will end\"}}}],\"ResultSelector\":{\"aiPrepResult.$\":\"$[0].aiPrepResult\"},\"ResultPath\":\"$.parallelResult\",\"Next\":\"Extract_AI_Prep_Result\",\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"Next\":\"Handle_Failure\"}]},\"Extract_AI_Prep_Result\":{\"Type\":\"Pass\",\"Comment\":\"Extract aiPrepResult from parallel output\",\"Parameters\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\",\"topic.$\":\"$.topic\",\"duration.$\":\"$.duration\",\"avatarVideoUrl.$\":\"$.avatarVideoUrl\",\"script.$\":\"$.script\",\"moments.$\":\"$.moments\",\"gender.$\":\"$.gender\",\"audioSampleUrl.$\":\"$.audioSampleUrl\",\"fal_mode.$\":\"$.fal_mode\",\"mood.$\":\"$.mood\",\"aiPrepResult.$\":\"$.parallelResult.aiPrepResult\"},\"Next\":\"Submit_LipSync_With_Recovery\"},\"Submit_LipSync_With_Recovery\":{\"Type\":\"Parallel\",\"Comment\":\"Run lipsync webhook wait and recovery timeout in parallel\",\"Branches\":[{\"StartAt\":\"Submit_LipSync\",\"States\":{\"Submit_LipSync\":{\"Type\":\"Task\",\"Resource\":\"arn:aws:states:::lambda:invoke.waitForTaskToken\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::GetAtt": [
+         "okvevolipsyncsubmitB9DD3320",
+         "Arn"
+        ]
+       },
+       "\",\"Payload\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\",\"fal_mode.$\":\"$.fal_mode\",\"ttsUrl.$\":\"$.aiPrepResult.audioUrl\",\"avatarVideoUrl.$\":\"$.avatarVideoUrl\",\"script.$\":\"$.script\",\"taskToken.$\":\"$$.Task.Token\"}},\"ResultPath\":\"$.lipSyncResult\",\"TimeoutSeconds\":3600,\"End\":true}}},{\"StartAt\":\"Wait_For_LipSync_Webhooks\",\"States\":{\"Wait_For_LipSync_Webhooks\":{\"Type\":\"Wait\",\"Seconds\":30,\"Comment\":\"Wait 30 seconds before checking for lipsync recovery\",\"Next\":\"LipSync_Recovery_Loop\"},\"LipSync_Recovery_Loop\":{\"Type\":\"Task\",\"Resource\":\"",
+       {
+        "Fn::GetAtt": [
+         "okvevolipsyncrecovery5841BFB3",
+         "Arn"
+        ]
+       },
+       "\",\"Parameters\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\"},\"ResultPath\":\"$.recoveryResult\",\"Comment\":\"Recovery Lambda polls Fal AI for missing lipsync/Whisper jobs\",\"Next\":\"Check_LipSync_Complete\",\"Retry\":[{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":30,\"MaxAttempts\":3,\"BackoffRate\":1.5}]},\"Check_LipSync_Complete\":{\"Type\":\"Choice\",\"Comment\":\"Check if recovery found all lipsync jobs\",\"Choices\":[{\"Variable\":\"$.recoveryResult.allJobsComplete\",\"BooleanEquals\":true,\"Next\":\"LipSync_Recovery_Success\"}],\"Default\":\"Wait_For_LipSync_Webhooks\"},\"LipSync_Recovery_Success\":{\"Type\":\"Succeed\",\"Comment\":\"Lipsync recovery completed, Parallel will end\"}}}],\"ResultSelector\":{\"lipSyncResult.$\":\"$[0].lipSyncResult\"},\"ResultPath\":\"$.parallelLipSyncResult\",\"Next\":\"Extract_LipSync_Result\",\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"Next\":\"Handle_Failure\"}]},\"Extract_LipSync_Result\":{\"Type\":\"Pass\",\"Comment\":\"Extract lipSyncResult from parallel output\",\"Parameters\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\",\"topic.$\":\"$.topic\",\"duration.$\":\"$.duration\",\"avatarVideoUrl.$\":\"$.avatarVideoUrl\",\"script.$\":\"$.script\",\"moments.$\":\"$.moments\",\"gender.$\":\"$.gender\",\"audioSampleUrl.$\":\"$.audioSampleUrl\",\"fal_mode.$\":\"$.fal_mode\",\"mood.$\":\"$.mood\",\"aiPrepResult.$\":\"$.aiPrepResult\",\"lipSyncResult.$\":\"$.parallelLipSyncResult.lipSyncResult\"},\"Next\":\"Render_Video\"},\"Render_Video\":{\"Type\":\"Task\",\"Resource\":\"",
+       {
+        "Fn::GetAtt": [
+         "okvevorenderer0410E401",
+         "Arn"
+        ]
+       },
+       "\",\"Parameters\":{\"jobId.$\":\"$.jobId\",\"userId.$\":\"$.userId\",\"duration.$\":\"$.duration\",\"mood.$\":\"$.mood\",\"script.$\":\"$.script\",\"lipSyncVideoUrl.$\":\"$.lipSyncResult.lipSyncVideoUrl\",\"audioUrl.$\":\"$.aiPrepResult.audioUrl\",\"imageTimeline.$\":\"$.aiPrepResult.imageTimeline\",\"lipSyncResult.$\":\"$.lipSyncResult\"},\"ResultPath\":\"$.renderResult\",\"ResultSelector\":{\"success.$\":\"$.success\",\"finalVideoUrl.$\":\"$.finalVideoUrl\"},\"Next\":\"Complete\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}]},\"Handle_Failure\":{\"Type\":\"Fail\",\"Error\":\"JobFailed\",\"Cause\":\"The AI Influencer pipeline failed or timed out.\"},\"Complete\":{\"Type\":\"Succeed\"}}}"
+      ]
+     ]
+    },
+    "RoleArn": {
+     "Fn::GetAtt": [
+      "StepFunctionRoleC4BAB6F8",
+      "Arn"
+     ]
+    },
+    "StateMachineName": "okvevo-ai-influencer-pipeline",
+    "StateMachineType": "STANDARD",
+    "TracingConfiguration": {
+     "Enabled": true
+    }
+   },
+   "DependsOn": [
+    "StepFunctionRoleDefaultPolicy94322EE6",
+    "StepFunctionRoleC4BAB6F8"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/AiInfluencerPipeline/Resource"
+   }
+  },
+  "AIInfluencerService1DC86E15": {
+   "Type": "AWS::IAM::User",
+   "Properties": {
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/AWSStepFunctionsFullAccess"
+       ]
+      ]
+     },
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/AWSLambda_FullAccess"
+       ]
+      ]
+     },
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/CloudWatchLogsFullAccess"
+       ]
+      ]
+     }
+    ],
+    "UserName": "AIInfluencerService"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/AIInfluencerService/Resource"
+   }
+  },
+  "AIInfluencerServiceDefaultPolicy32A70D2E": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "states:StartExecution",
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "AiInfluencerPipeline6728BB71"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "AIInfluencerServiceDefaultPolicy32A70D2E",
+    "Users": [
+     {
+      "Ref": "AIInfluencerService1DC86E15"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/AIInfluencerService/DefaultPolicy/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02OQQvCMAyFf4v3Ls6JgkcVvIky8Sy1ixq3tbKkioz+d9fqwdN7X17ISwHFLId8pF+cmarOGjpDfxBtalUiO98ZVEN26hvdnisN/cZbI+SsWl/sv99j1xLzQEGRbqEvXYMxSLp3DZl32vu6I2MXMWpQPD1pZhSGZZSBYeVNjbLSjIoFH5dfFafvBLfa3Mimgn8OQaULw+xK9hrjnZeHl6CsqxDuPH4WOUwWMB/dmSjrvBVqEcqvfgB9UNAnDwEAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "OkVevo-AiInfluencer-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "StateMachineArn": {
+   "Description": "SFN_AI_INFLUENCER_ARN — add this to .env or .env.dev",
+   "Value": {
+    "Ref": "AiInfluencerPipeline6728BB71"
+   },
+   "Export": {
+    "Name": "OkVevo-SfnArn-dev"
+   }
+  },
+  "IAMUserArn": {
+   "Description": "IAM runtime user ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "AIInfluencerService1DC86E15",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

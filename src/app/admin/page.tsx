@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/config/firebase';
-import { collection, query, orderBy, onSnapshot, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, Timestamp, getDocs, where } from 'firebase/firestore';
 import type { UserWithStats, AdminAction, CreditOperation, UserStats } from '@/types/admin';
 import UserTable from '@/components/admin/UserTable';
 import CreditEditModal from '@/components/admin/CreditEditModal';
 import DeleteUserModal from '@/components/admin/DeleteUserModal';
 import AuditLogPanel from '@/components/admin/AuditLogPanel';
-import { RefreshCw, Users, Activity, Shield, Sparkles, ArrowRight, LayoutGrid, Image as ImageIcon, FileText } from 'lucide-react';
-import Link from 'next/link';
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import { RefreshCw, Users, Activity } from 'lucide-react';
 import AdminGuard from '@/components/admin/AdminGuard';
 
 function AdminDashboard() {
@@ -37,14 +37,15 @@ function AdminDashboard() {
         return () => unsubscribe();
     }, []);
 
-    // Real-time Users from razorpaySubscriptions collection
+    // Real-time Users - combine razorpaySubscriptions + users collections
     useEffect(() => {
         if (loading) return;
 
         const q = query(collection(db, 'razorpaySubscriptions'), orderBy('updatedAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
             const subscriptionsMap = new Map<string, UserWithStats>();
             
+            // First pass: collect all subscription data
             snapshot.docs.forEach(doc => {
                 const data = doc.data();
                 const userId = data.userId;
@@ -63,15 +64,97 @@ function AdminDashboard() {
                 subscriptionsMap.set(userId, {
                     uid: userId,
                     email: data.email || 'No email',
+                    userType: 'single',
                     creditsAllocated: data.initialCredits || data.credits || 0,
                     creditsSpent: data.creditsUsed || 0,
                     creditsRemaining: data.credits || 0,
+                    adminCredits: 0,
                     planType: data.planType || 'hobby',
                     subscriptionStatus: data.status || 'active',
                     createdAt: data.createdAt?.toDate() || data.updatedAt?.toDate() || new Date(),
                     lastActivity: data.updatedAt?.toDate(),
                 } as UserWithStats);
             });
+            
+            // Second pass: fetch user profile data from users collection
+            const userIds = Array.from(subscriptionsMap.keys());
+            
+            for (const userId of userIds) {
+                try {
+                    const userDocRef = collection(db, 'users');
+                    const userDoc = await getDocs(query(userDocRef, where('__name__', '==', userId), limit(1)));
+                    
+                    if (!userDoc.empty) {
+                        const userData = userDoc.docs[0].data();
+                        const updatedUser = subscriptionsMap.get(userId);
+                        if (updatedUser) {
+                            updatedUser.email = userData.email || updatedUser.email;
+                            updatedUser.displayName = userData.displayName;
+                            updatedUser.userType = userData.userType || 'single';
+                            updatedUser.proOrganisationId = userData.proOrganisationId;
+                            if (userData.createdAt) {
+                                updatedUser.createdAt = userData.createdAt.toDate();
+                            }
+                            subscriptionsMap.set(userId, updatedUser);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch profile for user ${userId}:`, err);
+                }
+            }
+
+            // Third pass: fetch admin credit adjustments
+            for (const userId of userIds) {
+                try {
+                    const adminCreditsDoc = await getDocs(query(collection(db, 'adminCreditAdjustments'), where('__name__', '==', userId), limit(1)));
+                    
+                    if (!adminCreditsDoc.empty) {
+                        const adminCreditsData = adminCreditsDoc.docs[0].data();
+                        const updatedUser = subscriptionsMap.get(userId);
+                        if (updatedUser) {
+                            updatedUser.adminCredits = adminCreditsData.totalAdjustment || 0;
+                            subscriptionsMap.set(userId, updatedUser);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch admin credits for user ${userId}:`, err);
+                }
+            }
+
+            // Fourth pass: fetch LATEST ACTIVE credits from users/{userId}/subscriptions
+            // using updatedAt || createdAt fallback in code for robustness
+            for (const userId of userIds) {
+                try {
+                    const userSubsRef = collection(db, 'users', userId, 'subscriptions');
+                    const latestSubSnap = await getDocs(userSubsRef);
+                    
+                    if (!latestSubSnap.empty) {
+                        const latestActiveSub = latestSubSnap.docs
+                            .filter((subDoc) => (subDoc.data().status || '') === 'active')
+                            .sort((a, b) => {
+                                const aData = a.data();
+                                const bData = b.data();
+                                const aMillis = aData.updatedAt?.toMillis?.() ?? aData.createdAt?.toMillis?.() ?? 0;
+                                const bMillis = bData.updatedAt?.toMillis?.() ?? bData.createdAt?.toMillis?.() ?? 0;
+                                return bMillis - aMillis;
+                            })[0];
+
+                        if (latestActiveSub) {
+                            const latestSubData = latestActiveSub.data();
+                            const updatedUser = subscriptionsMap.get(userId);
+                            if (updatedUser) {
+                                // Override with latest credits from subcollection
+                                updatedUser.creditsRemaining = latestSubData.credits || 0;
+                                updatedUser.creditsSpent = latestSubData.creditsUsed || 0;
+                                updatedUser.creditsAllocated = latestSubData.initialCredits || latestSubData.credits || 0;
+                                subscriptionsMap.set(userId, updatedUser);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch latest subscription for user ${userId}:`, err);
+                }
+            }
             
             setUsers(Array.from(subscriptionsMap.values()));
         }, (err) => {
@@ -179,10 +262,10 @@ function AdminDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#141413] flex items-center justify-center">
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-400">Loading admin dashboard...</p>
+                    <div className="w-16 h-16 border-4 border-white/20 border-t-white/60 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-white/40">Loading admin dashboard...</p>
                 </div>
             </div>
         );
@@ -190,10 +273,10 @@ function AdminDashboard() {
 
     if (error && !users.length) {
         return (
-            <div className="min-h-screen bg-[#141413] flex items-center justify-center p-4">
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
                 <div className="max-w-md w-full bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
-                    <Shield className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-white mb-2">Access Denied</h2>
+                    <Activity className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold text-white mb-2">Error</h2>
                     <p className="text-red-400">{error}</p>
                 </div>
             </div>
@@ -201,203 +284,88 @@ function AdminDashboard() {
     }
 
     const totalCreditsAllocated = users.reduce((sum, u) => sum + u.creditsAllocated, 0);
-    const totalCreditsSpent = users.reduce((sum, u) => sum + u.creditsSpent, 0);
     const totalCreditsRemaining = users.reduce((sum, u) => sum + u.creditsRemaining, 0);
     const activeSubscriptions = users.filter(u => u.subscriptionStatus === 'active').length;
 
     return (
-        <div className="min-h-screen bg-[#141413] text-white">
-            {/* Header */}
-            <div className="border-b border-gray-800 bg-[#1a1a1a]">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Shield className="w-8 h-8 text-blue-400" />
+        <div className="flex min-h-screen bg-[#0A0A0A] text-white">
+            {/* Sidebar */}
+            <AdminSidebar />
+
+            {/* Main Content */}
+            <div className="flex-1">
+                {/* Header */}
+                <div className="border-b border-white/5 bg-[#111]">
+                    <div className="px-8 py-6">
+                        <div className="flex items-center justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                                <p className="text-sm text-gray-400">User Management & Analytics</p>
+                                <h1 className="text-2xl font-black uppercase tracking-tight">User Management</h1>
+                                <p className="text-sm text-white/40 mt-1">Monitor users, credits, and subscriptions</p>
                             </div>
-                        </div>
-                        <button
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Quick Access Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                    {/* Trend Requests Quick Access */}
-                    <div className="p-1 bg-gradient-to-r from-[#FF6B35]/20 to-transparent rounded-[24px]">
-                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-2xl bg-[#FF6B35]/10 flex items-center justify-center border border-[#FF6B35]/20">
-                                    <Sparkles className="w-7 h-7 text-[#FF6B35]" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Trend Requests</h2>
-                                    <p className="text-gray-400 text-sm">Manage manual AI generation and student outputs.</p>
-                                </div>
-                            </div>
-                            <Link 
-                                href="/admin/trend-requests"
-                                className="w-full px-8 py-4 bg-[#FF6B35] hover:bg-[#FF8B55] text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
+                            <button
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors disabled:opacity-50"
                             >
-                                Open Queue <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Banner Management Quick Access */}
-                    <div className="p-1 bg-gradient-to-r from-orange-500/20 to-transparent rounded-[24px]">
-                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-                                    <ImageIcon className="w-7 h-7 text-orange-500" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Banners</h2>
-                                    <p className="text-gray-400 text-sm">Manage hero carousel ads, titles, and descriptions.</p>
-                                </div>
-                            </div>
-                            <Link 
-                                href="/admin/banners"
-                                className="w-full px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
-                            >
-                                Manage Banners <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Product Catalog Quick Access */}
-                    <div className="p-1 bg-gradient-to-r from-blue-500/20 to-transparent rounded-[24px]">
-                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                                    <LayoutGrid className="w-7 h-7 text-blue-500" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Products</h2>
-                                    <p className="text-gray-400 text-sm">Update trends, change prices, and upload thumbnails.</p>
-                                </div>
-                            </div>
-                            <Link 
-                                href="/admin/products"
-                                className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
-                            >
-                                Manage Catalog <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Affiliate Partners Quick Access */}
-                    <div className="p-1 bg-gradient-to-r from-purple-500/20 to-transparent rounded-[24px]">
-                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                                    <Users className="w-7 h-7 text-purple-500" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Affiliates</h2>
-                                    <p className="text-gray-400 text-sm">Manage affiliate partners and track commissions.</p>
-                                </div>
-                            </div>
-                            <Link 
-                                href="/admin/affiliates"
-                                className="w-full px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
-                            >
-                                Manage Affiliates <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Blog Management Quick Access */}
-                    <div className="p-1 bg-gradient-to-r from-green-500/20 to-transparent rounded-[24px]">
-                        <div className="bg-[#1a1a1a] border border-white/5 rounded-[22px] p-6 flex flex-col items-start justify-between h-full gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                                    <FileText className="w-7 h-7 text-green-500" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black tracking-tighter uppercase">Blog</h2>
-                                    <p className="text-gray-400 text-sm">Create, edit, and manage blog posts with SEO.</p>
-                                </div>
-                            </div>
-                            <Link 
-                                href="/admin/blogs"
-                                className="w-full px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group"
-                            >
-                                Manage Blog <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </Link>
+                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </button>
                         </div>
                     </div>
                 </div>
-
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Users className="w-5 h-5 text-blue-400" />
-                            <span className="text-sm text-gray-400">Total Users</span>
+                <div className="px-8 py-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Users className="w-5 h-5 text-blue-400" />
+                                <span className="text-sm text-white/60 uppercase tracking-wider font-bold">Total Users</span>
+                            </div>
+                            <div className="text-3xl font-black">{users.length}</div>
+                            <div className="text-xs text-white/40 mt-1">
+                                {activeSubscriptions} active subscriptions
+                            </div>
                         </div>
-                        <div className="text-3xl font-bold">{users.length}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                            {activeSubscriptions} active subscriptions
+
+                        <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Activity className="w-5 h-5 text-green-400" />
+                                <span className="text-sm text-white/60 uppercase tracking-wider font-bold">Credits Allocated</span>
+                            </div>
+                            <div className="text-3xl font-black">{totalCreditsAllocated.toLocaleString()}</div>
+                        </div>
+
+                        <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Activity className="w-5 h-5 text-yellow-400" />
+                                <span className="text-sm text-white/60 uppercase tracking-wider font-bold">Credits Remaining</span>
+                            </div>
+                            <div className="text-3xl font-black">{totalCreditsRemaining.toLocaleString()}</div>
                         </div>
                     </div>
 
-                    <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Activity className="w-5 h-5 text-green-400" />
-                            <span className="text-sm text-gray-400">Credits Allocated</span>
+                    {/* Main Content Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Users Table */}
+                        <div className="lg:col-span-2">
+                            <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                                <h2 className="text-lg font-black uppercase tracking-wider mb-6">All Users</h2>
+                                <UserTable
+                                    users={users}
+                                    onEditCredits={handleEditCredits}
+                                    onDeleteUser={handleDeleteUser}
+                                />
+                            </div>
                         </div>
-                        <div className="text-3xl font-bold">{totalCreditsAllocated.toLocaleString()}</div>
-                    </div>
 
-                    <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Activity className="w-5 h-5 text-red-400" />
-                            <span className="text-sm text-gray-400">Credits Spent</span>
-                        </div>
-                        <div className="text-3xl font-bold">{totalCreditsSpent.toLocaleString()}</div>
-                    </div>
-
-                    <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Activity className="w-5 h-5 text-yellow-400" />
-                            <span className="text-sm text-gray-400">Credits Remaining</span>
-                        </div>
-                        <div className="text-3xl font-bold">{totalCreditsRemaining.toLocaleString()}</div>
-                    </div>
-                </div>
-
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Users Table */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6">
-                            <h2 className="text-xl font-semibold mb-6">All Users</h2>
-                            <UserTable
-                                users={users}
-                                onEditCredits={handleEditCredits}
-                                onDeleteUser={handleDeleteUser}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Audit Logs */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg p-6 sticky top-6">
-                            <h2 className="text-xl font-semibold mb-6">Recent Activity</h2>
-                            <div className="max-h-[600px] overflow-y-auto pr-2">
-                                <AuditLogPanel logs={auditLogs} />
+                        {/* Audit Logs */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-[#111] border border-white/5 rounded-xl p-6 sticky top-6">
+                                <h2 className="text-lg font-black uppercase tracking-wider mb-6">Recent Activity</h2>
+                                <div className="max-h-[600px] overflow-y-auto pr-2">
+                                    <AuditLogPanel logs={auditLogs} />
+                                </div>
                             </div>
                         </div>
                     </div>

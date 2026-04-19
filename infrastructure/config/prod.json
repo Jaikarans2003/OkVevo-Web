@@ -1,0 +1,14 @@
+{
+  "accountId": "315974965935",
+  "region": "us-east-1",
+  "firebase": {
+    "projectId": "text2video-16cbf",
+    "storageBucket": "text2video-16cbf.firebasestorage.app",
+    "databaseUrl": "https://text2video-16cbf-default-rtdb.firebaseio.com"
+  },
+  "lambdaEnv": {
+    "NEXT_PUBLIC_BASE_URL": "https://us-central1-text2video-16cbf.cloudfunctions.net",
+    "FAL_MODE": "live"
+  },
+  "ffmpegLayerArn": "arn:aws:lambda:us-east-1:315974965935:layer:ffmpeg-with-ffprobe:2"
+}

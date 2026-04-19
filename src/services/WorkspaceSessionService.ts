@@ -28,6 +28,8 @@ export interface WorkspaceMessage {
 export interface WorkspaceSession {
     id: string;
     userId: string;
+    userEmail?: string;
+    proOrgId?: string;
     feature: WorkspaceFeature;
     title: string;
     preview: string;
@@ -192,4 +194,98 @@ export async function getUserWorkspaceSessions(
  */
 export async function deleteWorkspaceSession(sessionId: string, userId: string): Promise<void> {
     await deleteDoc(doc(db, USERS_COLLECTION, userId, SESSIONS_SUBCOLLECTION, sessionId));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pro Organisation shared session CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PRO_ORGS_COLLECTION = 'proOrganisations';
+
+export async function createProOrgWorkspaceSession(
+    proOrgId: string,
+    userId: string,
+    userEmail: string,
+    feature: WorkspaceFeature,
+    title: string,
+    initialState: Record<string, any> = {},
+    initialMessages: WorkspaceMessage[] = [],
+): Promise<string> {
+    const id = newId(feature);
+    const ref = doc(db, PRO_ORGS_COLLECTION, proOrgId, SESSIONS_SUBCOLLECTION, id);
+    await setDoc(ref, {
+        id,
+        userId,
+        userEmail,
+        proOrgId,
+        feature,
+        title: title.substring(0, 80),
+        preview: title.substring(0, 120),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        state: initialState,
+        messages: initialMessages,
+    });
+    return id;
+}
+
+export async function updateProOrgWorkspaceSession(
+    proOrgId: string,
+    sessionId: string,
+    patch: {
+        title?: string;
+        preview?: string;
+        state?: Record<string, any>;
+        messages?: WorkspaceMessage[];
+    },
+): Promise<void> {
+    const ref = doc(db, PRO_ORGS_COLLECTION, proOrgId, SESSIONS_SUBCOLLECTION, sessionId);
+    const updateData: Record<string, any> = { updatedAt: serverTimestamp() };
+    if (patch.title !== undefined) updateData.title = patch.title.substring(0, 80);
+    if (patch.preview !== undefined) updateData.preview = patch.preview.substring(0, 120);
+    if (patch.state !== undefined) {
+        const cleaned: Record<string, any> = {};
+        Object.entries(patch.state).forEach(([k, v]) => { if (v !== undefined) cleaned[k] = v; });
+        updateData.state = cleaned;
+    }
+    if (patch.messages !== undefined) updateData.messages = patch.messages;
+    await updateDoc(ref, updateData);
+}
+
+export async function getProOrgWorkspaceSession(
+    proOrgId: string,
+    sessionId: string,
+): Promise<WorkspaceSession | null> {
+    try {
+        const snap = await getDoc(doc(db, PRO_ORGS_COLLECTION, proOrgId, SESSIONS_SUBCOLLECTION, sessionId));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() } as WorkspaceSession;
+    } catch {
+        return null;
+    }
+}
+
+export async function getProOrgWorkspaceSessions(
+    proOrgId: string,
+    feature: WorkspaceFeature,
+): Promise<WorkspaceSession[]> {
+    try {
+        const q = query(
+            collection(db, PRO_ORGS_COLLECTION, proOrgId, SESSIONS_SUBCOLLECTION),
+            where('feature', '==', feature),
+            orderBy('createdAt', 'asc'),
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }) as WorkspaceSession);
+    } catch (err) {
+        console.error('Error fetching pro org workspace sessions:', err);
+        return [];
+    }
+}
+
+export async function deleteProOrgWorkspaceSession(
+    proOrgId: string,
+    sessionId: string,
+): Promise<void> {
+    await deleteDoc(doc(db, PRO_ORGS_COLLECTION, proOrgId, SESSIONS_SUBCOLLECTION, sessionId));
 }

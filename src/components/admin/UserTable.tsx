@@ -77,6 +77,22 @@ export default function UserTable({ users, onEditCredits, onDeleteUser }: UserTa
         );
     };
 
+    const getAccountTypeBadge = (userType: string) => {
+        const colors = {
+            single: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+            organisation: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+            pro: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+        };
+
+        const color = colors[userType as keyof typeof colors] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+
+        return (
+            <span className={`px-2 py-1 rounded-full text-xs border ${color} uppercase`}>
+                {userType}
+            </span>
+        );
+    };
+
     return (
         <div className="space-y-4">
             {/* Search Bar */}
@@ -87,49 +103,42 @@ export default function UserTable({ users, onEditCredits, onDeleteUser }: UserTa
                     placeholder="Search by email or user ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-[#1a1a1a] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="w-full pl-10 pr-4 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-white/20"
                 />
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto rounded-lg border border-gray-700">
+            <div className="overflow-x-auto rounded-lg border border-white/5">
                 <table className="w-full text-sm text-left">
-                    <thead className="text-xs uppercase bg-[#1a1a1a] border-b border-gray-700">
+                    <thead className="text-xs uppercase bg-[#111] border-b border-white/5">
                         <tr>
                             <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800"
+                                className="px-6 py-3 cursor-pointer hover:bg-white/5"
                                 onClick={() => handleSort('email')}
                             >
                                 Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800"
+                                className="px-6 py-3 cursor-pointer hover:bg-white/5"
                                 onClick={() => handleSort('userType')}
                             >
-                                Type {sortField === 'userType' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                Account Type {sortField === 'userType' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th className="px-6 py-3">Plan</th>
-                            <th className="px-6 py-3">Status</th>
                             <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800 text-right"
+                                className="px-6 py-3 cursor-pointer hover:bg-white/5 text-right"
                                 onClick={() => handleSort('creditsAllocated')}
                             >
-                                Allocated {sortField === 'creditsAllocated' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                Total Credits {sortField === 'creditsAllocated' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800 text-right"
-                                onClick={() => handleSort('creditsSpent')}
+                                className="px-6 py-3 cursor-pointer hover:bg-white/5 text-right"
+                                onClick={() => handleSort('adminCredits')}
                             >
-                                Spent {sortField === 'creditsSpent' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                Admin Credits {sortField === 'adminCredits' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800 text-right"
-                                onClick={() => handleSort('creditsRemaining')}
-                            >
-                                Remaining {sortField === 'creditsRemaining' && (sortDirection === 'asc' ? '↑' : '↓')}
-                            </th>
-                            <th
-                                className="px-6 py-3 cursor-pointer hover:bg-gray-800"
+                                className="px-6 py-3 cursor-pointer hover:bg-white/5"
                                 onClick={() => handleSort('createdAt')}
                             >
                                 Joined {sortField === 'createdAt' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -141,7 +150,7 @@ export default function UserTable({ users, onEditCredits, onDeleteUser }: UserTa
                         {sortedUsers.map((user) => (
                             <tr
                                 key={user.uid}
-                                className="bg-[#141413] border-b border-gray-700 hover:bg-[#1a1a1a] transition-colors"
+                                className="bg-[#0A0A0A] border-b border-white/5 hover:bg-white/5 transition-colors"
                             >
                                 <td className="px-6 py-4 font-medium text-white">
                                     <div className="flex flex-col">
@@ -149,23 +158,19 @@ export default function UserTable({ users, onEditCredits, onDeleteUser }: UserTa
                                         <span className="text-xs text-gray-500">{user.uid}</span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-gray-300">
-                                    {user.userType || 'single'}
+                                <td className="px-6 py-4">
+                                    {getAccountTypeBadge(user.userType)}
                                 </td>
                                 <td className="px-6 py-4">
                                     {getPlanBadge(user.planType)}
                                 </td>
-                                <td className="px-6 py-4">
-                                    {getStatusBadge(user.subscriptionStatus)}
-                                </td>
-                                <td className="px-6 py-4 text-right text-gray-300">
+                                <td className="px-6 py-4 text-right font-medium text-white">
                                     {user.creditsAllocated.toLocaleString()}
                                 </td>
-                                <td className="px-6 py-4 text-right text-gray-300">
-                                    {user.creditsSpent.toLocaleString()}
-                                </td>
-                                <td className="px-6 py-4 text-right font-medium text-white">
-                                    {user.creditsRemaining.toLocaleString()}
+                                <td className="px-6 py-4 text-right font-medium">
+                                    <span className={user.adminCredits > 0 ? 'text-green-400' : user.adminCredits < 0 ? 'text-red-400' : 'text-white/40'}>
+                                        {user.adminCredits > 0 ? '+' : ''}{user.adminCredits.toLocaleString()}
+                                    </span>
                                 </td>
                                 <td className="px-6 py-4 text-gray-400 text-sm">
                                     {new Date(user.createdAt).toLocaleDateString()}

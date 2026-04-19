@@ -35,9 +35,9 @@ function HistoryContent() {
     // Filter categories
     const FILTER_TABS = [
         { id: 'ALL', label: 'All History' },
-        { id: 'AI_INFLUENCER', label: 'AI Influencer' },
+        // { id: 'AI_INFLUENCER', label: 'AI Influencer' },
        // { id: 'PRODUCT_SHOOTS', label: 'Product Shoots' },
-        { id: 'TRENDS', label: 'Trends' },
+        // { id: 'TRENDS', label: 'Trends' },
        // { id: 'PRODUCT_PLACEMENT', label: 'Placements' }
     ];
 

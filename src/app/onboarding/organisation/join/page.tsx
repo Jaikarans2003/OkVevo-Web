@@ -60,7 +60,7 @@ function JoinOrganisationPageContent() {
             if (result) {
                 setSuccess(true);
                 setTimeout(() => {
-                    router.push('/profile');
+                    router.push('/onboarding/intro');
                 }, 2000);
             } else {
                 setError('Failed to join organisation. Please try again.');

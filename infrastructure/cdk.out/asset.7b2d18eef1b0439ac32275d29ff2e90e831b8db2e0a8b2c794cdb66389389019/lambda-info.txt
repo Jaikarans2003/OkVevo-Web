@@ -1,0 +1,2 @@
+ROLE=arn:aws:iam::315974965935:role/okvevo-lambda-role
+LAYER=arn:aws:lambda:us-east-1:315974965935:layer:ffmpeg-brick2brick:1

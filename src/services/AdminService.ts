@@ -83,7 +83,8 @@ export async function getAllUsers(): Promise<UserWithStats[]> {
             users.push({
                 uid: userDoc.id,
                 email: userData.email,
-                userType: userData.userType,
+                userType: (userData.userType as 'single' | 'organisation' | 'pro') || 'single',
+                adminCredits: 0,
                 planType,
                 creditsAllocated,
                 creditsSpent,
@@ -172,26 +173,53 @@ export async function updateUserCredits(
     }
 
     try {
+        // Fetch latest active subscription from users/{userId}/subscriptions
+        // using updatedAt || createdAt fallback to avoid missing-timestamp query edge cases
+        const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
+        const snapshot = await getDocs(subscriptionsRef);
+
+        if (snapshot.empty) {
+            throw new Error('No subscription found for user');
+        }
+
+        const latestActiveDoc = snapshot.docs
+            .filter((subDoc) => (subDoc.data().status || '') === 'active')
+            .sort((a, b) => {
+                const aData = a.data();
+                const bData = b.data();
+                const aMillis = aData.updatedAt?.toMillis?.() ?? aData.createdAt?.toMillis?.() ?? 0;
+                const bMillis = bData.updatedAt?.toMillis?.() ?? bData.createdAt?.toMillis?.() ?? 0;
+                return bMillis - aMillis;
+            })[0];
+
+        if (!latestActiveDoc) {
+            throw new Error('No active subscription found for user');
+        }
+
+        const subscriptionDocRef = latestActiveDoc.ref;
+
+        // Also get razorpaySubscriptions doc ref (for admin page sync)
+        const razorpayRef = collection(db, 'razorpaySubscriptions');
+        const razorpayQuery = query(razorpayRef, where('userId', '==', userId), limit(1));
+        const razorpaySnap = await getDocs(razorpayQuery);
+        const razorpayDocRef = !razorpaySnap.empty ? razorpaySnap.docs[0].ref : null;
+
         await runTransaction(db, async (transaction) => {
-            // Get active subscription
-            const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
-            const q = query(
-                subscriptionsRef,
-                where('status', '==', 'active'),
-                limit(1)
-            );
+            // ALL READS FIRST — fetch latest remaining credits
+            const subscriptionSnap = await transaction.get(subscriptionDocRef);
+            const adminCreditsRef = doc(db, 'adminCreditAdjustments', userId);
+            const adminCreditsSnap = await transaction.get(adminCreditsRef);
 
-            const snapshot = await getDocs(q);
-
-            if (snapshot.empty) {
-                throw new Error('No active subscription found for user');
+            if (!subscriptionSnap.exists()) {
+                throw new Error('Subscription not found');
             }
 
-            const subscriptionDoc = snapshot.docs[0];
-            const subscriptionData = subscriptionDoc.data();
-            const currentCredits = subscriptionData.credits || 0;
-            const creditsUsed = subscriptionData.creditsUsed || 0;
+            const subscriptionData = subscriptionSnap.data();
+            // `credits` = remaining balance (decremented on each use), NOT initialCredits
+            const currentCredits: number = subscriptionData.credits ?? 0;
+            const creditsUsed: number = subscriptionData.creditsUsed ?? 0;
 
+            // Calculate new credits based on latest values
             let newCredits: number;
             let newCreditsUsed = creditsUsed;
 
@@ -210,14 +238,34 @@ export async function updateUserCredits(
                     throw new Error('Invalid operation');
             }
 
-            // Update subscription
-            transaction.update(subscriptionDoc.ref, {
+            // Get current admin credits
+            const currentAdminCredits = adminCreditsSnap.exists() ? (adminCreditsSnap.data().totalAdjustment || 0) : 0;
+            
+            let adjustmentDelta = 0;
+            if (operation === 'add') {
+                adjustmentDelta = amount;
+            } else if (operation === 'deduct') {
+                adjustmentDelta = -amount;
+            }
+
+            // ALL WRITES AFTER READS
+            // Update the subscription document with new credits
+            transaction.update(subscriptionDocRef, {
                 credits: newCredits,
                 creditsUsed: newCreditsUsed,
-                lastUpdated: serverTimestamp(),
+                updatedAt: serverTimestamp(),
             });
 
-            // Update userStats
+            // Also update razorpaySubscriptions (for admin page display)
+            if (razorpayDocRef) {
+                transaction.update(razorpayDocRef, {
+                    credits: newCredits,
+                    creditsUsed: newCreditsUsed,
+                    updatedAt: serverTimestamp(),
+                });
+            }
+
+            // Keep userStats in sync
             const statsRef = doc(db, 'userStats', userId);
             transaction.set(statsRef, {
                 creditsRemaining: newCredits,
@@ -243,13 +291,33 @@ export async function updateUserCredits(
                 adminEmail,
                 createdAt: serverTimestamp(),
             });
+
+            // Update admin credit adjustments tracking
+            if (adjustmentDelta !== 0) {
+                transaction.set(adminCreditsRef, {
+                    userId,
+                    totalAdjustment: currentAdminCredits + adjustmentDelta,
+                    lastUpdated: serverTimestamp(),
+                    lastAdminEmail: adminEmail,
+                }, { merge: true });
+            }
         });
+
+        // Get user email for audit log
+        let targetUserEmail = 'Unknown';
+        try {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+                targetUserEmail = userDoc.data().email || 'Unknown';
+            }
+        } catch {}
 
         // Log admin action
         await logAdminAction({
             adminEmail,
             action: 'update_credits',
             targetUserId: userId,
+            targetUserEmail,
             details: {
                 operation,
                 amount,

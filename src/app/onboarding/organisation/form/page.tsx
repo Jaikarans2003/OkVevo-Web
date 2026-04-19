@@ -78,7 +78,7 @@ function FormOrganisationPageContent() {
 
             // Redirect after showing success message
             setTimeout(() => {
-                router.push('/profile');
+                router.push('/onboarding/intro');
             }, 5000);
         } catch (err: any) {
             console.error('Error creating organisation:', err);

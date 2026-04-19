@@ -404,14 +404,8 @@ async function generateWithNanoBanana(thumbnailPrompt, personImageUrl = null, pe
                 console.log(`🔄 Flux-2/Turbo status (attempt ${attempts}): ${status.status}`);
 
                 if (status.status === 'COMPLETED') {
-                    const resultResponse = await httpsRequest(status.response_url, {
-                        method: 'GET',
-                        headers: { 'Authorization': `Key ${apiKey}` }
-                    });
-
-                    if (resultResponse.statusCode !== 200) throw new Error('Failed to fetch Flux-2/Turbo result');
-                    
-                    const result = resultResponse.body;
+                    // Result is already in the status response, no need to fetch again
+                    const result = status.result || status;
                     
                     imageUrl = result.images?.[0]?.url || result.data?.images?.[0]?.url;
                     if (!imageUrl) throw new Error(`Could not find image URL. Full result: ${JSON.stringify(result)}`);

@@ -23,6 +23,7 @@ import { useWorkspaceSession } from '@/hooks/useWorkspaceSession';
 import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 import { getUserWorkspaceSessions } from '@/services/WorkspaceSessionService';
 import { checkCredits, deductCredits } from '@/services/CreditsService';
+import { getUserProfile } from '@/services/userService';
 
 // ─── Types ─────────────────────────────────────────────────
 type ChatStep =
@@ -75,6 +76,8 @@ function getStepIndex(step: ChatStep) {
 // ─── Component ─────────────────────────────────────────────
 function AIInfluencerWorkstation() {
     const [user, setUser] = useState<any>(null);
+    const [proOrgId, setProOrgId] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'explainers' | 'motion-control'>('explainers');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -123,6 +126,8 @@ function AIInfluencerWorkstation() {
     const [brandThumbnailPhotoFile, setBrandThumbnailPhotoFile] = useState<File | null>(null);
     const [customThumbnailUrl, setCustomThumbnailUrl] = useState<string | null>(null);
     const [thumbnailAlreadyGenerated, setThumbnailAlreadyGenerated] = useState(false);
+    const [thumbnailGeneratedBy, setThumbnailGeneratedBy] = useState<string | null>(null);
+    const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
     const [isBranding,        setIsBranding]        = useState(false);
     const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
     const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
@@ -135,12 +140,24 @@ function AIInfluencerWorkstation() {
 
     // ── Auth ──────────────────────────────────────────────
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+        const unsub = onAuthStateChanged(auth, async (u) => {
+            setUser(u);
+            if (u) {
+                setUserEmail(u.email ?? null);
+                try {
+                    const profile = await getUserProfile(u.uid);
+                    setProOrgId(profile?.proOrganisationId ?? null);
+                } catch {}
+            } else {
+                setProOrgId(null);
+                setUserEmail(null);
+            }
+        });
         return () => unsub();
     }, []);
 
     // ── Session history ───────────────────────────────────────
-    const { sessionId, initSession, saveSession, resetSession, restoreSession } = useWorkspaceSession('ai-influencer', user?.uid ?? null);
+    const { sessionId, initSession, saveSession, resetSession, restoreSession } = useWorkspaceSession('ai-influencer', user?.uid ?? null, proOrgId, userEmail);
     const isRestoringRef = useRef(false);
     const activeSessionIdRef = useRef<string | null>(null);
 
@@ -175,6 +192,8 @@ function AIInfluencerWorkstation() {
             setBrandedVideoUrl(null);
             setCustomThumbnailUrl(null);
             setThumbnailAlreadyGenerated(false);
+            setThumbnailGeneratedBy(null);
+            setIsGeneratingThumbnail(false);
             setIsGenerating(false);
             setBrandingOpen(true);
             setBrandLogoFile(null);
@@ -204,9 +223,16 @@ function AIInfluencerWorkstation() {
             if (s.finalVideoUrl) setFinalVideoUrl(s.finalVideoUrl);
             if (s.brandedVideoUrl) setBrandedVideoUrl(s.brandedVideoUrl);
             if (s.customThumbnailUrl) setCustomThumbnailUrl(s.customThumbnailUrl);
-            if (s.thumbnailGeneratedBy === 'nano-banana-2' || s.thumbnailGeneratedBy === 'flux-2/turbo') {
-                setThumbnailAlreadyGenerated(true);
+            if (s.thumbnailGeneratedBy) {
+                setThumbnailGeneratedBy(s.thumbnailGeneratedBy);
+                // Only disable retry if Fal AI models succeeded (not Gemini)
+                if (s.thumbnailGeneratedBy === 'nano-banana-2' || s.thumbnailGeneratedBy === 'flux-2/turbo') {
+                    setThumbnailAlreadyGenerated(true);
+                } else {
+                    setThumbnailAlreadyGenerated(false);
+                }
             }
+            if (s.isGeneratingThumbnail !== undefined) setIsGeneratingThumbnail(s.isGeneratingThumbnail);
             if (s.isGenerating !== undefined) setIsGenerating(s.isGenerating);
             
             // Restore chat messages
@@ -299,6 +325,8 @@ function AIInfluencerWorkstation() {
             finalVideoUrl,
             brandedVideoUrl,
             customThumbnailUrl,
+            thumbnailGeneratedBy,
+            isGeneratingThumbnail,
             isGenerating,
         };
         // Remove null/undefined values to keep Firestore clean
@@ -561,10 +589,18 @@ function AIInfluencerWorkstation() {
             // 5. Track post-processing results
             if (data.customThumbnailUrl) {
                 setCustomThumbnailUrl(data.customThumbnailUrl);
+                setIsGeneratingThumbnail(false);
                 
-                // Check if generated by Fal AI models (not Gemini)
-                if (data.thumbnailGeneratedBy === 'nano-banana-2' || data.thumbnailGeneratedBy === 'flux-2/turbo') {
-                    setThumbnailAlreadyGenerated(true);
+                // Track which model generated the thumbnail
+                if (data.thumbnailGeneratedBy) {
+                    setThumbnailGeneratedBy(data.thumbnailGeneratedBy);
+                    // Only disable retry if Fal AI models succeeded (not Gemini)
+                    if (data.thumbnailGeneratedBy === 'nano-banana-2' || data.thumbnailGeneratedBy === 'flux-2/turbo') {
+                        setThumbnailAlreadyGenerated(true);
+                    } else {
+                        // Gemini fallback allows retry
+                        setThumbnailAlreadyGenerated(false);
+                    }
                 }
             }
             if (data.brandedVideoUrl) {
@@ -618,6 +654,8 @@ function AIInfluencerWorkstation() {
         setBrandThumbnailPhotoFile(null);
         setCustomThumbnailUrl(null);
         setThumbnailAlreadyGenerated(false);
+        setThumbnailGeneratedBy(null);
+        setIsGeneratingThumbnail(false);
         setIsBranding(false);
         setBrandedVideoUrl(null);
         isRestoringRef.current = false;
@@ -629,6 +667,9 @@ function AIInfluencerWorkstation() {
         if (!brandLogoFile && !brandMarqueeText.trim() && (!brandNeedThumbnail || !brandThumbnailPrompt.trim())) return;
 
         setIsBranding(true);
+        if (brandNeedThumbnail) {
+            setIsGeneratingThumbnail(true);
+        }
         try {
             let logoBase64: string | undefined;
             let logoMimeType: string | undefined;
@@ -671,8 +712,25 @@ function AIInfluencerWorkstation() {
         } catch (err: any) {
             console.error('Branding error:', err);
             addAssistant(`💀 Branding pipeline choked:  — logo or marquee Lambda issue, Try again after Sometime.`); //${err.message}
+            setIsGeneratingThumbnail(false);
         } finally {
             setIsBranding(false);
+        }
+    };
+
+    const handleDownloadThumbnail = async () => {
+        if (!customThumbnailUrl) return;
+        try {
+            const response = await fetch(customThumbnailUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thumbnail-${jobId}.png`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download thumbnail:', error);
         }
     };
 
@@ -1107,7 +1165,7 @@ function AIInfluencerWorkstation() {
     return (
         <section
             data-section-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-            className="relative h-screen bg-black text-black dark:text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
+            className="relative h-screen bg-black text-white font-sans selection:bg-[#E2FF4D]/30 overflow-hidden transition-colors duration-500"
         >
             <StudioNavbar
                 rightContent={
@@ -1166,6 +1224,7 @@ function AIInfluencerWorkstation() {
                                     accentColor="orange"
                                     isCollapsed={!isHistoryOpen}
                                     onCollapseChange={(collapsed) => setIsHistoryOpen(!collapsed)}
+                                    proOrgId={proOrgId}
                                 />
                             </div>
                         </div>
@@ -1816,17 +1875,26 @@ function AIInfluencerWorkstation() {
                                                                                     <div className="flex items-center justify-between">
                                                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
                                                                                             <span className="w-1 h-1 rounded-full bg-blue-500" />Thumbnail
+                                                                                            {thumbnailAlreadyGenerated && thumbnailGeneratedBy && (
+                                                                                                <span className="text-[8px] text-green-400/60">
+                                                                                                    ✓ by {thumbnailGeneratedBy}
+                                                                                                </span>
+                                                                                            )}
                                                                                         </p>
                                                                                         <button
-                                                                                            onClick={() => setBrandNeedThumbnail(v => !v)}
+                                                                                            onClick={() => !thumbnailAlreadyGenerated && setBrandNeedThumbnail(v => !v)}
+                                                                                            disabled={thumbnailAlreadyGenerated}
+                                                                                            title={thumbnailAlreadyGenerated ? `Thumbnail already generated by ${thumbnailGeneratedBy}` : 'Toggle thumbnail generation'}
                                                                                             className={`w-8 h-4 rounded-full transition-colors relative ${
-                                                                                                brandNeedThumbnail 
-                                                                                                    ? 'bg-blue-500' 
-                                                                                                    : 'bg-white/10'
+                                                                                                thumbnailAlreadyGenerated
+                                                                                                    ? 'bg-green-500/30 cursor-not-allowed opacity-50'
+                                                                                                    : brandNeedThumbnail 
+                                                                                                        ? 'bg-blue-500' 
+                                                                                                        : 'bg-white/10'
                                                                                             }`}
                                                                                         >
                                                                                             <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
-                                                                                                brandNeedThumbnail ? 'translate-x-4' : 'translate-x-0'
+                                                                                                (brandNeedThumbnail || thumbnailAlreadyGenerated) ? 'translate-x-4' : 'translate-x-0'
                                                                                             }`} />
                                                                                         </button>
                                                                                     </div>
@@ -1864,17 +1932,23 @@ function AIInfluencerWorkstation() {
                                                                                 </div>
                                                                             )}
 
-                                                                            {/* Apply Button */}
-                                                                            <button
-                                                                                onClick={handleApplyBranding}
-                                                                                disabled={isBranding || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
-                                                                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
-                                                                            >
-                                                                                {isBranding
-                                                                                    ? <><Loader2 size={13} className="animate-spin" /> Ok VEVO Branding…</>
-                                                                                    : <><Sparkles size={13} /> VEVO-fy This Video</>
-                                                                                }
-                                                                            </button>
+                                                                            {/* Apply Button or Loading State */}
+                                                                            {isGeneratingThumbnail && !customThumbnailUrl ? (
+                                                                                <div className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg">
+                                                                                    <Loader2 size={13} className="animate-spin" /> Generating Thumbnail…
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={handleApplyBranding}
+                                                                                    disabled={isBranding || isGeneratingThumbnail || (!brandLogoFile && !brandMarqueeText.trim() && !brandNeedThumbnail)}
+                                                                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg"
+                                                                                >
+                                                                                    {isBranding
+                                                                                        ? <><Loader2 size={13} className="animate-spin" /> Ok VEVO Branding…</>
+                                                                                        : <><Sparkles size={13} /> VEVO-fy This Video</>
+                                                                                    }
+                                                                                </button>
+                                                                            )}
 
                                                                             {/* Download Results */}
                                                                             {(brandedVideoUrl || customThumbnailUrl) && (
@@ -1889,15 +1963,27 @@ function AIInfluencerWorkstation() {
                                                                                         </a>
                                                                                     )}
                                                                                     {customThumbnailUrl && (
-                                                                                        <a
-                                                                                            href={customThumbnailUrl}
-                                                                                            target="_blank"
-                                                                                            rel="noopener noreferrer"
-                                                                                            download
-                                                                                            className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                                                        >
-                                                                                            <Image size={13} strokeWidth={3} /> Download Thumbnail
-                                                                                        </a>
+                                                                                        <>
+                                                                                            <button
+                                                                                                onClick={handleDownloadThumbnail}
+                                                                                                className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                                                            >
+                                                                                                <Download size={13} strokeWidth={3} /> Download Thumbnail
+                                                                                            </button>
+                                                                                            {/* Show retry button if Gemini fallback was used */}
+                                                                                            {thumbnailGeneratedBy === 'gemini' && (
+                                                                                                <button
+                                                                                                    onClick={() => {
+                                                                                                        setBrandNeedThumbnail(true);
+                                                                                                        handleApplyBranding();
+                                                                                                    }}
+                                                                                                    disabled={isGeneratingThumbnail}
+                                                                                                    className="w-full py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-500/20 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                                                >
+                                                                                                    <RotateCcw size={13} strokeWidth={3} /> Retry with Fal AI
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </>
                                                                                     )}
                                                                                 </div>
                                                                             )}

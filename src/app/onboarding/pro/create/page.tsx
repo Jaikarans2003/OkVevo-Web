@@ -5,18 +5,13 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../../../config/firebase';
 import { createProOrganisation } from '../../../../services/userService';
-import { Building2, ArrowLeft, Loader2, CheckCircle, Copy, Sun, Moon } from 'lucide-react';
+import { Building2, ArrowLeft, Loader2, CheckCircle, Copy } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ThemeProvider, useTheme } from '../../../../contexts/ThemeContext';
-import { getThemeClasses } from '../../../../utils/themeUtils';
-import NoiseOverlay from '../../../../components/NoiseOverlay';
 import { motion } from 'framer-motion';
 
-function CreateProOrganisationPageContent() {
+export default function CreateProOrganisationPage() {
     const router = useRouter();
-    const { theme, resolvedTheme, setTheme } = useTheme();
-    const tc = getThemeClasses(resolvedTheme);
 
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -73,12 +68,12 @@ function CreateProOrganisationPageContent() {
     };
 
     const handleContinue = () => {
-        router.push('/profile');
+        router.push('/onboarding/intro');
     };
 
     if (loading) {
         return (
-            <div className={`min-h-screen ${tc.bg} flex items-center justify-center`}>
+            <div className="min-h-screen bg-black text-white flex items-center justify-center">
                 <Loader2 className="w-12 h-12 text-accent-orange animate-spin" />
             </div>
         );
@@ -87,12 +82,12 @@ function CreateProOrganisationPageContent() {
     // Success state - show organization ID
     if (orgId) {
         return (
-            <div className={`min-h-screen ${tc.bg} ${tc.text} flex flex-col items-center justify-center p-6 relative overflow-hidden`}>
-                {resolvedTheme === 'light' && <NoiseOverlay />}
+            <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
 
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
+                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[28rem] h-[28rem] bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute -bottom-16 -right-20 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,102,0,0.14),transparent_48%)]" />
                 </div>
 
                 <motion.div
@@ -101,7 +96,7 @@ function CreateProOrganisationPageContent() {
                     transition={{ duration: 0.5 }}
                     className="relative z-10 w-full max-w-2xl"
                 >
-                    <div className={`${tc.card} rounded-3xl p-10 text-center`}>
+                    <div className="rounded-3xl p-8 md:p-10 text-center border border-accent-orange/25 bg-white/[0.04] backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
                         <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full mb-6">
                             <CheckCircle className="w-10 h-10 text-white" />
                         </div>
@@ -109,15 +104,15 @@ function CreateProOrganisationPageContent() {
                         <h1 className="text-3xl md:text-4xl font-bold mb-4 text-accent-orange">
                             Pro Organisation Created!
                         </h1>
-                        <p className={tc.textDim + " mb-8"}>
+                        <p className="text-white/70 mb-8">
                             Your Pro organization <span className="text-accent-orange font-bold">{name}</span> has been successfully created.
                         </p>
 
                         {/* Organisation ID */}
-                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-custom-cream/5 border border-accent-orange/20'} rounded-xl p-6 mb-8`}>
-                            <p className={`text-sm ${tc.textDim} mb-2`}>Organisation ID</p>
+                        <div className="bg-accent-orange/10 border border-accent-orange/30 rounded-xl p-6 mb-8">
+                            <p className="text-sm text-white/60 mb-2">Organisation ID</p>
                             <div className="flex items-center gap-3 justify-center">
-                                <code className={`text-accent-orange font-mono text-lg ${resolvedTheme === 'light' ? 'bg-white' : 'bg-custom-bg/50'} px-4 py-2 rounded-lg`}>
+                                <code className="text-accent-orange font-mono text-lg bg-black/40 px-4 py-2 rounded-lg border border-accent-orange/20">
                                     {orgId}
                                 </code>
                                 <button
@@ -131,7 +126,7 @@ function CreateProOrganisationPageContent() {
                                     )}
                                 </button>
                             </div>
-                            <p className={`text-xs ${tc.textDim} mt-3`}>
+                            <p className="text-xs text-white/60 mt-3">
                                 Share this ID with team members to invite them (max 4 more members)
                             </p>
                         </div>
@@ -150,34 +145,14 @@ function CreateProOrganisationPageContent() {
 
     // Form state
     return (
-        <div className={`min-h-screen ${tc.bg} ${tc.text} flex flex-col items-center justify-center p-6 relative overflow-hidden`}>
-            {resolvedTheme === 'light' && <NoiseOverlay />}
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
 
             {/* Animated Background Orbs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1000ms' }} />
-            </div>
-
-            {/* Theme Toggle */}
-            <div className="absolute top-6 right-6 z-50">
-                <button
-                    onClick={() => {
-                        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-                        setTheme(nextTheme);
-                    }}
-                    className={`p-3 ${tc.sidebar} rounded-2xl hover:scale-110 transition-all duration-300 shadow-lg`}
-                >
-                    {theme === 'light' ? (
-                        <Moon className={`w-5 h-5 ${tc.text}`} />
-                    ) : theme === 'dark' ? (
-                        <svg className={`w-5 h-5 ${tc.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    ) : (
-                        <Sun className={`w-5 h-5 ${tc.text}`} />
-                    )}
-                </button>
+                <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[30rem] h-[30rem] bg-accent-orange/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute top-2/3 -left-24 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '800ms' }} />
+                <div className="absolute -bottom-16 -right-20 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1400ms' }} />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,102,0,0.16),transparent_48%)]" />
             </div>
 
             <div className="relative z-10 w-full max-w-2xl">
@@ -189,7 +164,7 @@ function CreateProOrganisationPageContent() {
                 >
                     <Link
                         href="/onboarding/pro"
-                        className={`inline-flex items-center gap-2 ${tc.textDim} hover:text-accent-orange transition-colors mb-8`}
+                        className="inline-flex items-center gap-2 text-white/60 hover:text-accent-orange transition-colors mb-8"
                     >
                         <ArrowLeft className="w-5 h-5" />
                         Back
@@ -215,7 +190,7 @@ function CreateProOrganisationPageContent() {
                     <h1 className="text-3xl md:text-4xl font-bold mb-3 text-accent-orange">
                         Create Pro Organisation
                     </h1>
-                    <p className={tc.textDim}>
+                    <p className="text-white/70">
                         Set up your Pro organization and invite your team
                     </p>
                 </motion.div>
@@ -226,7 +201,7 @@ function CreateProOrganisationPageContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.1 }}
                     onSubmit={handleSubmit}
-                    className={`${tc.card} rounded-3xl p-8`}
+                    className="rounded-3xl p-6 md:p-8 border border-accent-orange/25 bg-white/[0.04] backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.45)]"
                 >
                     <div className="space-y-6">
                         {/* Organisation Icon */}
@@ -238,7 +213,7 @@ function CreateProOrganisationPageContent() {
 
                         {/* Organisation Name */}
                         <div>
-                            <label htmlFor="name" className={`block text-sm font-medium ${tc.text} mb-2`}>
+                            <label htmlFor="name" className="block text-sm font-medium text-white mb-2">
                                 Organisation Name *
                             </label>
                             <input
@@ -247,14 +222,14 @@ function CreateProOrganisationPageContent() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g., Creative Team Pro"
-                                className={`w-full ${tc.input} px-4 py-3.5 rounded-xl`}
+                                className="w-full px-4 py-3.5 rounded-xl bg-black/50 border border-accent-orange/30 text-white placeholder:text-white/35 focus:outline-none focus:border-accent-orange"
                                 required
                             />
                         </div>
 
                         {/* Description */}
                         <div>
-                            <label htmlFor="description" className={`block text-sm font-medium ${tc.text} mb-2`}>
+                            <label htmlFor="description" className="block text-sm font-medium text-white mb-2">
                                 Description *
                             </label>
                             <textarea
@@ -263,14 +238,14 @@ function CreateProOrganisationPageContent() {
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Brief description of your Pro organization"
                                 rows={4}
-                                className={`w-full ${tc.input} px-4 py-3.5 rounded-xl resize-none`}
+                                className="w-full px-4 py-3.5 rounded-xl resize-none bg-black/50 border border-accent-orange/30 text-white placeholder:text-white/35 focus:outline-none focus:border-accent-orange"
                                 required
                             />
                         </div>
 
                         {/* Info Box */}
-                        <div className={`${resolvedTheme === 'light' ? 'bg-accent-orange/10 border-2 border-accent-orange/30' : 'bg-accent-orange/10 border border-accent-orange/30'} rounded-xl p-4`}>
-                            <p className={`text-sm ${tc.text}`}>
+                        <div className="bg-accent-orange/10 border border-accent-orange/30 rounded-xl p-4">
+                            <p className="text-sm text-white/90">
                                 <strong className="text-accent-orange">Note:</strong> You can invite up to 4 additional members to your Pro organization (5 total including you).
                             </p>
                         </div>
@@ -304,13 +279,5 @@ function CreateProOrganisationPageContent() {
                 </motion.form>
             </div>
         </div>
-    );
-}
-
-export default function CreateProOrganisationPage() {
-    return (
-        <ThemeProvider>
-            <CreateProOrganisationPageContent />
-        </ThemeProvider>
     );
 }

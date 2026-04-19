@@ -107,7 +107,7 @@ function JoinProOrganisationPageContent() {
     };
 
     const handleContinue = () => {
-        router.push('/profile');
+        router.push('/onboarding/intro');
     };
 
     if (loading) {

@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export interface UserProfile {
@@ -7,6 +7,13 @@ export interface UserProfile {
     photoURL?: string;
     userType?: 'single' | 'organisation' | 'pro';
     onboardingComplete: boolean;
+    introComplete?: boolean;
+    onboardingData?: {
+        userRole?: string;
+        referralSource?: string;
+        mainGoal?: string;
+        completedAt?: any;
+    };
     createdAt: any;
     updatedAt: any;
     bio?: string;
@@ -45,6 +52,7 @@ export interface ProOrganisation {
     id: string;
     name: string;
     description: string;
+    sector?: string;
     adminEmail: string;
     adminUid: string;
     createdAt: any;
@@ -276,11 +284,25 @@ export async function createProOrganisation(
     const proOrgId = `pro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const proOrgRef = doc(db, 'proOrganisations', proOrgId);
 
+    // Seed shared credits pool from admin's active subscription
+    let initialCredits = 0;
+    try {
+        const subsRef = collection(db, 'users', organisationData.adminUid, 'subscriptions');
+        const subsQ = query(subsRef, where('status', 'in', ['active', 'authenticated']), limit(1));
+        const subsSnap = await getDocs(subsQ);
+        if (!subsSnap.empty) {
+            initialCredits = subsSnap.docs[0].data().credits ?? 0;
+        }
+    } catch (_) {}
+
     await setDoc(proOrgRef, {
         ...organisationData,
         id: proOrgId,
         members: [organisationData.adminUid],
         maxMembers: 5,
+        credits: initialCredits,
+        initialCredits: initialCredits,
+        creditsUsed: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
@@ -438,6 +460,17 @@ export async function checkProMemberLimit(proOrganisationId: string): Promise<{ 
     const canJoin = currentCount < 5;
 
     return { canJoin, currentCount, maxCount: 5 };
+}
+
+/**
+ * Find a user by email address
+ */
+export async function getUserByEmail(email: string): Promise<UserProfile | null> {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    return snapshot.docs[0].data() as UserProfile;
 }
 
 /**

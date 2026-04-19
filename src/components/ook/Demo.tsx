@@ -18,7 +18,7 @@ const tabs = [
     // },
     {
         name: 'Concept to Result',
-        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fdemo.mp4?alt=media&token=5f931c70-abea-4a0d-9261-95df782d1d28',
+        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2FOkVevo%20Demos.mp4?alt=media&token=42d539e8-f646-4f3d-93eb-9caf9c61488b',
     }
 ];
 

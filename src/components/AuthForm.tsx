@@ -50,9 +50,34 @@ export default function AuthForm() {
             if (returnToPlan) {
                 sessionStorage.removeItem('returnToPlan');
                 router.push('/#pricing');
-            } else {
-                router.push('/workspace');
+                return;
             }
+
+            // Redirect based on onboarding status
+            if (!userProfile || !userProfile.onboardingComplete) {
+                router.push('/onboarding');
+                return;
+            }
+
+            // Check if user has completed intro questions
+            if (!userProfile.introComplete) {
+                router.push('/onboarding/intro');
+                return;
+            }
+
+            // Check if user should see pro-prompt (hobby monthly plan only)
+            if (!userProfile.proPromptShown && userProfile.userType === 'single') {
+                // Check subscription plan
+                const { getActiveSubscription } = await import('../services/SubscriptionService');
+                const subscription = await getActiveSubscription(userCredential.user.uid);
+                
+                if (subscription && subscription.planType === 'hobby' && subscription.billingCycle === 'monthly') {
+                    router.push('/pro-prompt');
+                    return;
+                }
+            }
+
+            router.push('/workspace');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -87,9 +112,34 @@ export default function AuthForm() {
             if (returnToPlan) {
                 sessionStorage.removeItem('returnToPlan');
                 router.push('/#pricing');
-            } else {
-                router.push('/workspace');
+                return;
             }
+
+            // Redirect based on onboarding status
+            if (!userProfile || !userProfile.onboardingComplete) {
+                router.push('/onboarding');
+                return;
+            }
+
+            // Check if user has completed intro questions
+            if (!userProfile.introComplete) {
+                router.push('/onboarding/intro');
+                return;
+            }
+
+            // Check if user should see pro-prompt (hobby monthly plan only)
+            if (!userProfile.proPromptShown && userProfile.userType === 'single') {
+                // Check subscription plan
+                const { getActiveSubscription } = await import('../services/SubscriptionService');
+                const subscription = await getActiveSubscription(result.user.uid);
+                
+                if (subscription && subscription.planType === 'hobby' && subscription.billingCycle === 'monthly') {
+                    router.push('/pro-prompt');
+                    return;
+                }
+            }
+
+            router.push('/workspace');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/popup-closed-by-user') {

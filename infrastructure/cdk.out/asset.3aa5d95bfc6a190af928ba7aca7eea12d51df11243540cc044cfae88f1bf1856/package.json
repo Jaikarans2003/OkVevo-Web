@@ -1,0 +1,14 @@
+{
+  "name": "okvevo-lipsync-recovery",
+  "version": "1.0.0",
+  "description": "Recovery Lambda for polling Fal AI lipsync and Whisper jobs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "@fal-ai/client": "^1.1.1",
+    "@aws-sdk/client-sfn": "^3.0.0"
+  }
+}

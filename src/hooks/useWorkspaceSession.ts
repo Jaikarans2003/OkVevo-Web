@@ -3,6 +3,9 @@ import {
     createWorkspaceSession,
     updateWorkspaceSession,
     getWorkspaceSession,
+    createProOrgWorkspaceSession,
+    updateProOrgWorkspaceSession,
+    getProOrgWorkspaceSession,
     WorkspaceSession,
     WorkspaceFeature,
     WorkspaceMessage,
@@ -18,19 +21,28 @@ import {
  * A thin wrapper around WorkspaceSessionService that gives any feature page
  * create / restore / autosave capabilities.
  *
+ * When proOrgId is supplied all session data is stored in the shared
+ * proOrganisations/{proOrgId}/workspace_sessions subcollection so every
+ * Pro Team member sees the same history.
+ *
  * Usage:
  *   const { sessionId, initSession, saveSession, restoreSession, resetSession } =
- *       useWorkspaceSession('director', userId);
+ *       useWorkspaceSession('ai-influencer', userId, proOrgId, userEmail);
  */
-export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | null) {
+export function useWorkspaceSession(
+    feature: WorkspaceFeature,
+    userId: string | null,
+    proOrgId?: string | null,
+    userEmail?: string | null,
+) {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    // Debounce timer ref so we don't hammer Firestore on every keystroke
     const saveTimer = useRef<NodeJS.Timeout | null>(null);
+
+    const isProTeam = !!(proOrgId && userId);
 
     /**
      * Create a new session and return its ID.
-     * Call this when the user submits their first meaningful input.
      */
     const initSession = useCallback(async (
         title: string,
@@ -39,18 +51,19 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
     ): Promise<string | null> => {
         if (!userId) return null;
         try {
-            const id = await createWorkspaceSession(userId, feature, title, initialState, initialMessages);
+            const id = isProTeam
+                ? await createProOrgWorkspaceSession(proOrgId!, userId, userEmail || '', feature, title, initialState, initialMessages)
+                : await createWorkspaceSession(userId, feature, title, initialState, initialMessages);
             setSessionId(id);
             return id;
         } catch (err) {
             console.error('[useWorkspaceSession] initSession error:', err);
             return null;
         }
-    }, [feature, userId]);
+    }, [feature, userId, proOrgId, userEmail, isProTeam]);
 
     /**
      * Save (debounced) current state + messages to the active session.
-     * Call whenever important state changes.
      */
     const saveSession = useCallback((
         state: Record<string, any>,
@@ -63,21 +76,26 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
         saveTimer.current = setTimeout(async () => {
             setIsSaving(true);
             try {
-                await updateWorkspaceSession(sessionId, {
+                const patch = {
                     state,
                     messages,
                     ...(title ? { title: title.substring(0, 80), preview: title.substring(0, 120) } : {}),
-                }, userId);
+                };
+                if (isProTeam) {
+                    await updateProOrgWorkspaceSession(proOrgId!, sessionId, patch);
+                } else {
+                    await updateWorkspaceSession(sessionId, patch, userId);
+                }
             } catch (err) {
                 console.error('[useWorkspaceSession] saveSession error:', err);
             } finally {
                 setIsSaving(false);
             }
         }, debounceMs);
-    }, [sessionId, userId]);
+    }, [sessionId, userId, proOrgId, isProTeam]);
 
     /**
-     * Immediately flush any pending save (e.g., on unmount or step change).
+     * Immediately flush any pending save.
      */
     const flushSave = useCallback(async (
         state: Record<string, any>,
@@ -91,35 +109,39 @@ export function useWorkspaceSession(feature: WorkspaceFeature, userId: string | 
         }
         setIsSaving(true);
         try {
-            await updateWorkspaceSession(sessionId, {
+            const patch = {
                 state,
                 messages,
                 ...(title ? { title: title.substring(0, 80), preview: title.substring(0, 120) } : {}),
-            }, userId);
+            };
+            if (isProTeam) {
+                await updateProOrgWorkspaceSession(proOrgId!, sessionId, patch);
+            } else {
+                await updateWorkspaceSession(sessionId, patch, userId);
+            }
         } catch (err) {
             console.error('[useWorkspaceSession] flushSave error:', err);
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId, userId]);
+    }, [sessionId, userId, proOrgId, isProTeam]);
 
     /**
      * Load a session from Firestore and return its data.
-     * The caller is responsible for restoring local state from the returned session.
      */
     const restoreSession = useCallback(async (id: string): Promise<WorkspaceSession | null> => {
         if (!userId) return null;
         try {
-            const session = await getWorkspaceSession(id, userId);
-            if (session) {
-                setSessionId(id);
-            }
+            const session = isProTeam
+                ? await getProOrgWorkspaceSession(proOrgId!, id)
+                : await getWorkspaceSession(id, userId);
+            if (session) setSessionId(id);
             return session;
         } catch (err) {
             console.error('[useWorkspaceSession] restoreSession error:', err);
             return null;
         }
-    }, [userId]);
+    }, [userId, proOrgId, isProTeam]);
 
     /**
      * Reset — clear the session ID so the next meaningful input creates a new session.

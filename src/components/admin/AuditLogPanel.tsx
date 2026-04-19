@@ -75,9 +75,9 @@ export default function AuditLogPanel({ logs, loading }: AuditLogPanelProps) {
         return (
             <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-4 bg-[#1a1a1a] rounded-lg border border-gray-700 animate-pulse">
-                        <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                    <div key={i} className="p-4 bg-[#0A0A0A] rounded-lg border border-white/5 animate-pulse">
+                        <div className="h-4 bg-white/5 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-white/5 rounded w-1/2"></div>
                     </div>
                 ))}
             </div>
@@ -86,7 +86,7 @@ export default function AuditLogPanel({ logs, loading }: AuditLogPanelProps) {
 
     if (logs.length === 0) {
         return (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-white/40">
                 <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No audit logs yet</p>
             </div>
@@ -98,8 +98,7 @@ export default function AuditLogPanel({ logs, loading }: AuditLogPanelProps) {
             {logs.map((log) => (
                 <div
                     key={log.id}
-                    className="p-4 bg-[#1a1a1a] rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
-                >
+                    className="p-4 bg-[#0A0A0A] rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3 flex-1">
                             <div className={`p-2 rounded-lg border ${getActionColor(log.action)}`}>
@@ -107,24 +106,26 @@ export default function AuditLogPanel({ logs, loading }: AuditLogPanelProps) {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-medium text-white">
+                                    <span className="font-bold text-white text-sm">
                                         {getActionLabel(log.action)}
                                     </span>
                                     {log.targetUserEmail && (
-                                        <span className="text-sm text-gray-400">
+                                        <span className="text-xs text-white/60">
                                             → {log.targetUserEmail}
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-xs text-white/40">
                                     by {log.adminEmail}
                                 </div>
                                 {log.details && Object.keys(log.details).length > 0 && (
-                                    <div className="mt-2 text-xs text-gray-400 font-mono bg-[#141413] p-2 rounded border border-gray-700 overflow-x-auto">
+                                    <div className="mt-2 text-xs text-white/60 bg-white/5 p-2 rounded border border-white/5 overflow-x-auto">
                                         {log.action === 'update_credits' && log.details.operation && (
                                             <div>
-                                                {log.details.operation}: {log.details.amount} credits
-                                                {log.details.reason && ` - ${log.details.reason}`}
+                                                <span className={log.details.operation === 'add' ? 'text-green-400 font-bold' : log.details.operation === 'deduct' ? 'text-red-400 font-bold' : 'text-white'}>
+                                                    {log.details.operation === 'add' ? '+' : log.details.operation === 'deduct' ? '-' : ''}{log.details.amount} credits
+                                                </span>
+                                                {log.details.reason && <span className="text-white/40"> - {log.details.reason}</span>}
                                             </div>
                                         )}
                                         {log.action === 'delete_user' && (
@@ -141,7 +142,7 @@ export default function AuditLogPanel({ logs, loading }: AuditLogPanelProps) {
                                 )}
                             </div>
                         </div>
-                        <div className="text-xs text-gray-500 whitespace-nowrap">
+                        <div className="text-xs text-white/40 whitespace-nowrap">
                             {formatTimestamp(log.timestamp)}
                         </div>
                     </div>

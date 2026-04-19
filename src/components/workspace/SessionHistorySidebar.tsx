@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { History, Plus, Trash2, ChevronRight, Clock, X, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import {
     getUserWorkspaceSessions,
+    getProOrgWorkspaceSessions,
     deleteWorkspaceSession,
+    deleteProOrgWorkspaceSession,
     formatSessionDate,
     WorkspaceSession,
     WorkspaceFeature,
@@ -29,6 +31,8 @@ interface SessionHistorySidebarProps {
     isCollapsed?: boolean;
     /** Callback when collapse state changes */
     onCollapseChange?: (collapsed: boolean) => void;
+    /** Pro Team org ID — when set, loads shared team history */
+    proOrgId?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +80,7 @@ export default function SessionHistorySidebar({
     initiallyCollapsed = true,
     isCollapsed,
     onCollapseChange,
+    proOrgId,
 }: SessionHistorySidebarProps) {
     const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
     const [loading, setLoading] = useState(false);
@@ -93,27 +98,32 @@ export default function SessionHistorySidebar({
     const accent = ACCENT[accentColor] ?? ACCENT.purple;
 
     const loadSessions = useCallback(async () => {
-        if (!userId) return;
+        if (!userId && !proOrgId) return;
         setLoading(true);
         try {
-            const result = await getUserWorkspaceSessions(userId, feature);
+            const result = proOrgId
+                ? await getProOrgWorkspaceSessions(proOrgId, feature)
+                : await getUserWorkspaceSessions(userId!, feature);
             setSessions(result);
         } finally {
             setLoading(false);
         }
-    }, [userId, feature]);
+    }, [userId, feature, proOrgId]);
 
     useEffect(() => {
         loadSessions();
     }, [loadSessions, currentSessionId]); // Refresh when session changes
 
-    const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
+    const handleDelete = async (e: React.MouseEvent, session: WorkspaceSession) => {
         e.stopPropagation();
-        if (!userId) return;
-        setDeletingId(sessionId);
+        setDeletingId(session.id);
         try {
-            await deleteWorkspaceSession(sessionId, userId);
-            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            if (proOrgId) {
+                await deleteProOrgWorkspaceSession(proOrgId, session.id);
+            } else if (userId) {
+                await deleteWorkspaceSession(session.id, userId);
+            }
+            setSessions(prev => prev.filter(s => s.id !== session.id));
         } finally {
             setDeletingId(null);
         }
@@ -247,19 +257,28 @@ export default function SessionHistorySidebar({
                                             </p>
                                         </div>
 
-                                        {/* Delete button on hover */}
-                                        <button
-                                            onClick={e => handleDelete(e, session.id)}
-                                            disabled={deletingId === session.id}
-                                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 hover:text-red-400 text-white/30"
-                                            title="Delete session"
-                                        >
-                                            {deletingId === session.id ? (
-                                                <div className="w-3 h-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-                                            ) : (
-                                                <Trash2 size={10} />
-                                            )}
-                                        </button>
+                                        {/* Member attribution for shared history */}
+                                        {proOrgId && session.userEmail && session.userId !== userId && (
+                                            <span className="flex-shrink-0 text-[9px] font-bold text-white/20 truncate max-w-[60px]">
+                                                {session.userEmail.split('@')[0]}
+                                            </span>
+                                        )}
+
+                                        {/* Delete button on hover — hidden for shared Pro Team history */}
+                                        {!proOrgId && (
+                                            <button
+                                                onClick={e => handleDelete(e, session)}
+                                                disabled={deletingId === session.id}
+                                                className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 hover:text-red-400 text-white/30"
+                                                title="Delete session"
+                                            >
+                                                {deletingId === session.id ? (
+                                                    <div className="w-3 h-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                ) : (
+                                                    <Trash2 size={10} />
+                                                )}
+                                            </button>
+                                        )}
                                     </div>
                                 </motion.div>
                             );

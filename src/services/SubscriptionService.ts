@@ -199,3 +199,39 @@ export function getStatusLabel(status: string): string {
             return 'Unknown';
     }
 }
+
+/**
+ * Get active subscription with billing period from razorpaySubscriptions collection
+ */
+export async function getActiveSubscription(userId: string): Promise<{ planType: 'hobby' | 'pro'; billingCycle: 'monthly' | 'annual'; status: string } | null> {
+    if (!userId) return null;
+
+    try {
+        // Query razorpaySubscriptions collection for active subscription
+        const subscriptionsRef = collection(db, 'razorpaySubscriptions');
+        const q = query(
+            subscriptionsRef,
+            where('userId', '==', userId),
+            where('status', '==', 'active'),
+            orderBy('updatedAt', 'desc'),
+            limit(1)
+        );
+
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            return null;
+        }
+
+        const data = snapshot.docs[0].data();
+        
+        return {
+            planType: data.planType || 'hobby',
+            billingCycle: data.billingPeriod || 'monthly',
+            status: data.status || 'active'
+        };
+    } catch (error) {
+        console.error('Failed to fetch active subscription:', error);
+        return null;
+    }
+}

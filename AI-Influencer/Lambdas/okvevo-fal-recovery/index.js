@@ -65,9 +65,53 @@ exports.handler = async (event) => {
         console.log('   Job Status:', status);
         console.log('   Processing Lock:', processingLock);
         
-        // 2. Check if already completed (prevent duplicate SendTaskSuccess)
+        // 2. Check if already completed - still attempt SendTaskSuccess as fallback
+        // Webhook may have set status='completed' in Firestore but failed to call SendTaskSuccess
         if (status === 'completed') {
-            console.log('\n✅ Job already completed by webhook. Skipping recovery.');
+            console.log('\n✅ Job status is completed. Attempting SendTaskSuccess as fallback in case webhook missed it...');
+            
+            if (taskToken) {
+                const images = assetResults
+                    .filter(r => r.type === 'image')
+                    .map(r => r.output?.images?.[0]?.url)
+                    .filter(Boolean);
+                
+                const audioResult = assetResults.find(r => r.type === 'audio');
+                const audioUrl = audioResult?.output?.audio?.url || audioResult?.output?.audio_file?.url || '';
+                
+                const imageTimeline = moments.map((moment, idx) => ({
+                    start: moment.start,
+                    end: moment.end,
+                    topic: moment.topic || `Moment ${idx + 1}`,
+                    prompt: moment.prompt || '',
+                    imageUrl: images[idx] || null,
+                    layout: moment.layout || 'split'
+                }));
+                
+                console.log(`   Images found: ${images.length}, Audio URL: ${audioUrl ? 'yes' : 'missing'}`);
+                
+                const stepFunctionOutput = {
+                    imageTimeline,
+                    audioUrl,
+                    jobId,
+                    userId,
+                    status: 'COMPLETED'
+                };
+                
+                try {
+                    await sfnClient.send(new SendTaskSuccessCommand({
+                        taskToken: taskToken,
+                        output: JSON.stringify(stepFunctionOutput),
+                    }));
+                    console.log('✅ Step Function resumed successfully via fallback!');
+                } catch (err) {
+                    // Expected if token was already used or expired — safe to ignore
+                    console.log(`ℹ️ SendTaskSuccess skipped (token already used or expired): ${err.message}`);
+                }
+            } else {
+                console.warn('⚠️ No taskToken found in job — cannot resume Step Function.');
+            }
+            
             return { allAssetsComplete: true, alreadyCompleted: true };
         }
         
