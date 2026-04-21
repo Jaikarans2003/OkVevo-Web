@@ -202,18 +202,40 @@ export default function GuidePage() {
                     </aside>
 
                     {/* Content Area */}
-                    <main className="flex-1">
+                    <main className="flex-1 space-y-32">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTab}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                                transition={{ duration: 0.3 }}
                             >
-                                {activeTab === 'ai-influencer' ? (
+                                {activeTab === 'ai-influencer' && (
                                     <div className="space-y-24">
-                                        <h1 className="text-3xl font-black mb-16 uppercase tracking-tight">AI Influencer Guide</h1>
+                                        {/* YouTube Video Tutorial */}
+                                        <div>
+                                            <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-6 flex items-center gap-3">
+                                                <div className="p-3 bg-orange-500/10 rounded-xl border border-orange-500/20">
+                                                    <Video className="w-5 h-5 text-orange-500" />
+                                                </div>
+                                                Video Tutorial
+                                            </h2>
+                                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                                                <iframe
+                                                    width="100%"
+                                                    height="100%"
+                                                    src="https://www.youtube.com/embed/jwO-JdGpQQ4"
+                                                    title="AI-Influencer Tutorial"
+                                                    frameBorder="0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                    allowFullScreen
+                                                    className="absolute inset-0"
+                                                ></iframe>
+                                            </div>
+                                        </div>
+
+                                        <h1 className="text-3xl font-black uppercase tracking-tight">AI Influencer Guide</h1>
                                         {AI_INFLUENCER_STEPS.map((step) => (
                                             <div key={step.number} className="space-y-8">
                                                 <h2 className="text-xl font-medium text-white/90">
@@ -223,7 +245,8 @@ export default function GuidePage() {
                                             </div>
                                         ))}
                                     </div>
-                                ) : (
+                                )}
+                                {activeTab === 'best-result' && (
                                     <div className="space-y-32">
                                         <h1 className="text-3xl font-black mb-16 uppercase tracking-tight">Best Result Guide</h1>
                                         {BEST_RESULT_STEPS.map((section, idx) => (

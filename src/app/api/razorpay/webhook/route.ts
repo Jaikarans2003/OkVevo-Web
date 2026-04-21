@@ -691,16 +691,66 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Handle affiliate commission for MASIV orders
-                // Note: sales_masiv sub-collection is created via "Sync Stats" button in admin panel
                 if (orderData?.affiliateId && orderData?.affiliateCommission) {
-                    const affiliateRef = db.collection('affiliates').doc(orderData.affiliateId);
-                    await affiliateRef.update({
-                        totalSales: FieldValue.increment(1),
-                        totalEarnings: FieldValue.increment(orderData.affiliateCommission),
-                        updatedAt: FieldValue.serverTimestamp(),
-                    });
-                    console.log(`💰 MASIV affiliate commission updated: ${orderData.affiliateId}, +₹${orderData.affiliateCommission}`);
-                    console.log(`ℹ️ sales_masiv sub-collection will be created when admin clicks "Sync Stats"`);
+                    try {
+                        const affiliateRef = db.collection('affiliates').doc(orderData.affiliateId);
+                        const customerPhone = orderData.whatsappNumber;
+                        const commission = orderData.affiliateCommission;
+                        const saleRef = affiliateRef.collection('sales_masiv').doc(customerPhone);
+
+                        await db.runTransaction(async (t) => {
+                            const existingSale = await t.get(saleRef);
+
+                            if (existingSale.exists) {
+                                const existing = existingSale.data() || {};
+                                const existingOrders: string[] = existing.orders || [];
+
+                                // Idempotency: skip if this orderId was already recorded
+                                if (existingOrders.includes(orderId)) {
+                                    console.log(`⚠️ MASIV commission already recorded for ${orderId}, skipping`);
+                                    return;
+                                }
+
+                                t.update(saleRef, {
+                                    totalPurchases: (existing.totalPurchases || 0) + 1,
+                                    totalAmountPaid: (existing.totalAmountPaid || 0) + (orderData.finalAmount || 0),
+                                    totalCommissionEarned: (existing.totalCommissionEarned || 0) + commission,
+                                    orders: FieldValue.arrayUnion(orderId),
+                                    lastPurchaseDate: FieldValue.serverTimestamp(),
+                                    lastOrderId: orderId,
+                                    lastAmountPaid: orderData.finalAmount || 0,
+                                    lastCommission: commission,
+                                    updatedAt: FieldValue.serverTimestamp(),
+                                });
+                            } else {
+                                t.set(saleRef, {
+                                    customerPhone,
+                                    totalPurchases: 1,
+                                    totalAmountPaid: orderData.finalAmount || 0,
+                                    totalCommissionEarned: commission,
+                                    orders: [orderId],
+                                    firstPurchaseDate: FieldValue.serverTimestamp(),
+                                    lastPurchaseDate: FieldValue.serverTimestamp(),
+                                    lastOrderId: orderId,
+                                    lastAmountPaid: orderData.finalAmount || 0,
+                                    lastCommission: commission,
+                                    updatedAt: FieldValue.serverTimestamp(),
+                                });
+                            }
+
+                            t.update(affiliateRef, {
+                                totalSales: FieldValue.increment(1),
+                                totalEarnings: FieldValue.increment(commission),
+                                masivSales: FieldValue.increment(1),
+                                masivEarnings: FieldValue.increment(commission),
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                        });
+
+                        console.log(`💰 MASIV affiliate commission updated: ${orderData.affiliateId}, +₹${commission}`);
+                    } catch (error) {
+                        console.error('❌ Failed to track MASIV affiliate commission:', error);
+                    }
                 }
 
                 // Purchase history already updated when order was created

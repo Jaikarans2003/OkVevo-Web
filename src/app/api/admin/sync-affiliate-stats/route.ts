@@ -34,22 +34,17 @@ export async function POST(request: NextRequest) {
         const affiliateRef = db.collection('affiliates').doc(affiliateId);
 
         // ========== 1. SYNC MASIV ORDERS ==========
+        // Query for both 'paid' (new webhook) and 'completed' (old webhook) statuses
         const ordersSnapshot = await db.collection('masiv_orders')
             .where('affiliateId', '==', affiliateId)
-            .where('status', '==', 'paid')
+            .where('status', 'in', ['paid', 'completed'])
             .get();
-
-        let masivSales = 0;
-        let masivEarnings = 0; // in Rupees
 
         const customerSales: { [phone: string]: any } = {};
 
         ordersSnapshot.forEach(doc => {
             const order = doc.data();
             const customerPhone = order.whatsappNumber;
-            
-            masivSales++;
-            masivEarnings += order.affiliateCommission || 0;
 
             if (!customerSales[customerPhone]) {
                 customerSales[customerPhone] = {
@@ -79,24 +74,7 @@ export async function POST(request: NextRequest) {
             const saleRef = affiliateRef.collection('sales_masiv').doc(customerPhone);
             
             await db.runTransaction(async (t) => {
-                const existingDoc = await t.get(saleRef);
-                
-                if (existingDoc.exists) {
-                    // Document exists - increment counters and append new orders
-                    const existing = existingDoc.data() || {};
-                    t.update(saleRef, {
-                        totalPurchases: (existing.totalPurchases || 0) + saleData.totalPurchases,
-                        totalAmountPaid: (existing.totalAmountPaid || 0) + saleData.totalAmountPaid,
-                        totalCommissionEarned: (existing.totalCommissionEarned || 0) + saleData.totalCommissionEarned,
-                        orders: FieldValue.arrayUnion(...saleData.orderIds),
-                        lastPurchaseDate: saleData.lastPurchaseDate,
-                        lastOrderId: saleData.lastOrderId,
-                        lastAmountPaid: saleData.lastAmountPaid,
-                        lastCommission: saleData.lastCommission,
-                        updatedAt: FieldValue.serverTimestamp(),
-                    });
-                } else {
-                    // New document - create with initial data
+                // Always overwrite with values derived from masiv_orders to prevent double-counting
                     t.set(saleRef, {
                         customerPhone,
                         totalPurchases: saleData.totalPurchases,
@@ -110,7 +88,6 @@ export async function POST(request: NextRequest) {
                         lastCommission: saleData.lastCommission,
                         updatedAt: FieldValue.serverTimestamp(),
                     });
-                }
             });
         });
         await Promise.all(masivPromises);
@@ -135,7 +112,20 @@ export async function POST(request: NextRequest) {
         });
         await Promise.all(subPromises);
 
-        // ========== 3. UPDATE AFFILIATE TOTALS (all in Rupees) ==========
+        // ========== 3. RE-READ sales_masiv TO COMPUTE MASIV TOTALS ==========
+        // Read from the subcollection (source of truth) rather than the masiv_orders query count.
+        // This prevents the sync from wiping valid webhook-written data when the masiv_orders
+        // query returns 0 (e.g. order has null affiliateId or is still 'pending').
+        const masivSalesSnapshot = await affiliateRef.collection('sales_masiv').get();
+        let masivSales = 0;
+        let masivEarnings = 0;
+        masivSalesSnapshot.forEach(doc => {
+            const data = doc.data();
+            masivSales += data.totalPurchases || 0;
+            masivEarnings += data.totalCommissionEarned || 0;
+        });
+
+        // ========== 4. UPDATE AFFILIATE TOTALS (all in Rupees) ==========
         const totalSales = masivSales + subSales;
         const totalEarnings = masivEarnings + subEarnings;
 
@@ -158,7 +148,7 @@ export async function POST(request: NextRequest) {
             totalEarnings,
             masivSales,
             subscriptionSales: subSales,
-            totalCustomers: Object.keys(customerSales).length,
+            totalCustomers: masivSalesSnapshot.size,
             message: `MASIV: ${masivSales} sales (₹${masivEarnings}) + Subscriptions: ${subSales} sales (₹${subEarnings}) = Total: ₹${totalEarnings}`,
         });
 

@@ -106,6 +106,7 @@ const Showcase = () => {
                                             src={tabs[0].video}
                                             autoPlay
                                             muted
+                                            loop
                                             playsInline
                                             className="w-full h-full object-cover"
                                             suppressHydrationWarning
@@ -131,14 +132,10 @@ const Showcase = () => {
                                                     src={tab.video}
                                                     preload="auto"
                                                     muted
+                                                    loop
                                                     playsInline
                                                     className="w-full h-full object-cover"
                                                     suppressHydrationWarning
-                                                    onEnded={() => {
-                                                        if (activeTab === index) {
-                                                            setActiveTab((prevTab) => (prevTab + 1) % tabs.length);
-                                                        }
-                                                    }}
                                                 />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
                                             </div>

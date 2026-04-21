@@ -718,22 +718,6 @@ function AIInfluencerWorkstation() {
         }
     };
 
-    const handleDownloadThumbnail = async () => {
-        if (!customThumbnailUrl) return;
-        try {
-            const response = await fetch(customThumbnailUrl);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `thumbnail-${jobId}.png`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Failed to download thumbnail:', error);
-        }
-    };
-
     const handleNewInfluencerSession = useCallback(() => {
         resetFlow();
     }, []);
@@ -1964,12 +1948,13 @@ function AIInfluencerWorkstation() {
                                                                                     )}
                                                                                     {customThumbnailUrl && (
                                                                                         <>
-                                                                                            <button
-                                                                                                onClick={handleDownloadThumbnail}
+                                                                                            <a
+                                                                                                href={`/api/download-video?url=${encodeURIComponent(customThumbnailUrl)}`}
+                                                                                                download
                                                                                                 className="w-full py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
                                                                                             >
                                                                                                 <Download size={13} strokeWidth={3} /> Download Thumbnail
-                                                                                            </button>
+                                                                                            </a>
                                                                                             {/* Show retry button if Gemini fallback was used */}
                                                                                             {thumbnailGeneratedBy === 'gemini' && (
                                                                                                 <button

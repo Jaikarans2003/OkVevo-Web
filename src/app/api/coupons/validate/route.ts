@@ -53,34 +53,35 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if coupon already used by this user (one-time use per user)
-        const usageRef = collection(db, 'couponUsage');
-        let usageQuery;
-        
-        if (userId) {
-            // Check by userId if available (more reliable)
-            usageQuery = query(
-                usageRef,
-                where('userId', '==', userId),
-                where('couponCode', '==', couponCode.toUpperCase())
-            );
-        } else {
-            // Fallback to phoneNumber
-            usageQuery = query(
-                usageRef,
-                where('phoneNumber', '==', phoneNumber),
-                where('couponCode', '==', couponCode.toUpperCase())
-            );
-        }
-        
-        const usageSnapshot = await getDocs(usageQuery);
+        // Affiliate coupons are exempt — no usage limits, any customer can use them repeatedly
+        if (coupon.type !== 'affiliate') {
+            const usageRef = collection(db, 'couponUsage');
+            let usageQuery;
 
-        if (!usageSnapshot.empty) {
-            return NextResponse.json({
-                valid: false,
-                message: 'You have already used this coupon',
-                discountAmount: 0,
-                type: null,
-            } as CouponValidationResponse);
+            if (userId) {
+                usageQuery = query(
+                    usageRef,
+                    where('userId', '==', userId),
+                    where('couponCode', '==', couponCode.toUpperCase())
+                );
+            } else {
+                usageQuery = query(
+                    usageRef,
+                    where('phoneNumber', '==', phoneNumber),
+                    where('couponCode', '==', couponCode.toUpperCase())
+                );
+            }
+
+            const usageSnapshot = await getDocs(usageQuery);
+
+            if (!usageSnapshot.empty) {
+                return NextResponse.json({
+                    valid: false,
+                    message: 'You have already used this coupon',
+                    discountAmount: 0,
+                    type: null,
+                } as CouponValidationResponse);
+            }
         }
 
         // For flat discount coupon, check billing period and purchase history

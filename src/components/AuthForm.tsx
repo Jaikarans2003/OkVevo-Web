@@ -6,7 +6,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInWithPopup,
-    GoogleAuthProvider
+    GoogleAuthProvider,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
@@ -20,6 +21,7 @@ export default function AuthForm() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resetEmailSent, setResetEmailSent] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +154,34 @@ export default function AuthForm() {
         }
     };
 
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError('Please enter your email address first.');
+            return;
+        }
+        
+        setLoading(true);
+        setError('');
+        setResetEmailSent(false);
+        
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setResetEmailSent(true);
+            setError('');
+        } catch (err: any) {
+            console.error(err);
+            if (err.code === 'auth/user-not-found') {
+                setError('No account found with this email.');
+            } else if (err.code === 'auth/invalid-email') {
+                setError('Invalid email address.');
+            } else {
+                setError('Failed to send reset email. Please try again.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -204,6 +234,29 @@ export default function AuthForm() {
                             />
                         </div>
                     </div>
+
+                    {isLogin && (
+                        <div className="flex justify-end -mt-2">
+                            <button
+                                type="button"
+                                onClick={handleForgotPassword}
+                                disabled={loading}
+                                className="text-sm text-accent-orange hover:text-text-main font-medium hover:underline transition-all disabled:opacity-50"
+                            >
+                                Forgot Password?
+                            </button>
+                        </div>
+                    )}
+
+                    {resetEmailSent && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-4 bg-green-50 border-2 border-green-200 rounded-2xl text-green-600 text-sm text-center font-medium"
+                        >
+                            Password reset email sent! Check your inbox.
+                        </motion.div>
+                    )}
 
                     {error && (
                         <motion.div

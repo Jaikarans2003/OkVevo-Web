@@ -28,19 +28,26 @@ export async function GET(request: NextRequest) {
             throw new Error(`Failed to fetch video: ${videoResponse.statusText}`);
         }
 
-        // Get the video blob
-        const videoBlob = await videoResponse.blob();
-        const buffer = await videoBlob.arrayBuffer();
+        // Get the file blob
+        const contentType = videoResponse.headers.get('content-type') || 'application/octet-stream';
+        const fileBlob = await videoResponse.blob();
+        const buffer = await fileBlob.arrayBuffer();
 
-        // Generate filename with timestamp
+        // Determine file extension from content type
         const timestamp = Date.now();
-        const filename = `okvevo-video-${timestamp}.mp4`;
+        let ext = 'mp4';
+        let prefix = 'okvevo-video';
+        if (contentType.includes('image/png')) { ext = 'png'; prefix = 'okvevo-thumbnail'; }
+        else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) { ext = 'jpg'; prefix = 'okvevo-thumbnail'; }
+        else if (contentType.includes('image/webp')) { ext = 'webp'; prefix = 'okvevo-thumbnail'; }
+        else if (contentType.includes('image/')) { ext = 'png'; prefix = 'okvevo-thumbnail'; }
+        const filename = `${prefix}-${timestamp}.${ext}`;
 
-        // Return the video with download headers
+        // Return the file with download headers
         return new NextResponse(buffer, {
             status: 200,
             headers: {
-                'Content-Type': 'video/mp4',
+                'Content-Type': contentType,
                 'Content-Disposition': `attachment; filename="${filename}"`,
                 'Content-Length': buffer.byteLength.toString(),
                 'Cache-Control': 'no-cache',
