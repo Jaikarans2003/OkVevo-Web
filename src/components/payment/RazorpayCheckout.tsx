@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { CouponValidationResponse } from '@/types/coupon';
 
 interface RazorpayCheckoutProps {
-    planType: 'hobby' | 'pro';
+    planType: 'starter' | 'hobby' | 'pro';
     billingPeriod?: 'monthly' | 'annual';
     couponData?: CouponValidationResponse | null;
     onSuccess?: (subscriptionId: string) => void;

@@ -8,7 +8,7 @@ export const RAZORPAY_CONFIG = {
     keySecret: process.env.RAZORPAY_KEY_SECRET || '',
 };
 
-export type PlanType = 'hobby' | 'pro' | 'enterprise';
+export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
 
 /**
  * Razorpay Subscription Plan IDs
@@ -16,6 +16,10 @@ export type PlanType = 'hobby' | 'pro' | 'enterprise';
  * Format: plan_XXXXXXXXXXXXX
  */
 export const RAZORPAY_PLAN_IDS = {
+    starter: {
+        monthly: process.env.RAZORPAY_STARTER_PLAN_ID || '',
+        annual: process.env.RAZORPAY_STARTER_ANNUAL_PLAN_ID || '',
+    },
     hobby: {
         monthly: process.env.RAZORPAY_HOBBY_PLAN_ID || '',
         annual: process.env.RAZORPAY_HOBBY_ANNUAL_PLAN_ID || '',
@@ -30,6 +34,22 @@ export const RAZORPAY_PLAN_IDS = {
  * Subscription Plan Details
  */
 export const SUBSCRIPTION_PLANS = {
+    starter: {
+        name: 'Starter',
+        monthly: {
+            price: 149900, // ₹1,499 in paise
+            currency: 'INR',
+            period: 'monthly',
+            interval: 1,
+        },
+        annual: {
+            price: 127415, // ₹1,274.15 in paise
+            currency: 'INR',
+            period: 'annual',
+            interval: 12,
+        },
+        credits: 1400, // 10 videos or 10 min generation
+    },
     hobby: {
         name: 'Hobby',
         monthly: {
@@ -83,6 +103,7 @@ export function getPlanDetails(planType: PlanType) {
  * Get Razorpay plan ID by plan type and billing period
  */
 export function getRazorpayPlanId(planType: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly'): string {
+    if (planType === 'starter') return RAZORPAY_PLAN_IDS.starter[billingPeriod];
     if (planType === 'hobby') return RAZORPAY_PLAN_IDS.hobby[billingPeriod];
     if (planType === 'pro') return RAZORPAY_PLAN_IDS.pro[billingPeriod];
     throw new Error(`No Razorpay plan ID configured for ${planType}`);

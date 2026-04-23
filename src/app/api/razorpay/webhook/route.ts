@@ -204,21 +204,31 @@ export async function POST(request: NextRequest) {
                 
                 console.log(`📝 Subscription notes:`, JSON.stringify(notes));
 
+                // SOURCE OF TRUTH: invoice.paid is the single source of truth for credits.
+                // It stamps invoicePaidAt when it runs. If that sentinel is present,
+                // invoice.paid already ran — do NOT overwrite credits.
+                // If absent, invoice.paid hasn't run yet — seed credits as a fallback
+                // so the user is never left with 0. When invoice.paid eventually arrives,
+                // it will unconditionally overwrite everything.
+                const invoicePaidAlready = !!existingData?.invoicePaidAt;
+
                 const updates: any = {
                     userId,
                     planType,
                     subscriptionId: subscription.id,
-                    credits: planDetails.credits,
-                    initialCredits: planDetails.credits,
-                    creditsUsed: 0,
                     activatedAt: FieldValue.serverTimestamp(),
-                    lastPaymentId: payment?.id || null,
-                    lastPaymentAmount: payment?.amount || 0,
-                    lastPaymentDate: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
+                    ...(!invoicePaidAlready && {
+                        credits: planDetails.credits,
+                        initialCredits: planDetails.credits,
+                        creditsUsed: 0,
+                        lastPaymentId: payment?.id || null,
+                        lastPaymentAmount: payment?.amount || 0,
+                        lastPaymentDate: FieldValue.serverTimestamp(),
+                    }),
                 };
 
-                // Status update — gated by priority
+                // Status update — gated by priority (completed is terminal, cannot be overwritten)
                 if (shouldUpdateStatus(currentStatus, 'active')) {
                     updates.status = 'active';
                 }
@@ -479,20 +489,26 @@ export async function POST(request: NextRequest) {
 
             case 'subscription.completed': {
                 const subscription = payload.subscription.entity;
-                const { userId } = subscription.notes || {};
+                const { userId, billingPeriod } = subscription.notes || {};
 
                 if (!userId) {
                     console.error('❌ Missing userId');
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
+                // For annual plans, keep access valid for 1 year from completion
+                const expiresAt = billingPeriod === 'annual'
+                    ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+                    : null;
+
                 await syncSubscriptionToFirestore(subscription.id, userId, {
                     status: 'completed',
                     completedAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
+                    ...(expiresAt && { expiresAt }),
                 });
 
-                console.log(`✅ Subscription completed: ${subscription.id}`);
+                console.log(`✅ Subscription completed: ${subscription.id}${expiresAt ? ` (annual - expires ${expiresAt.toISOString()})` : ''}`);
                 break;
             }
 
@@ -528,10 +544,13 @@ export async function POST(request: NextRequest) {
 
                 const planDetails = getPlanDetails(planType as PlanType);
 
-                // Build updates object
+                // SOURCE OF TRUTH — invoice.paid unconditionally owns credits.
+                // Stamps invoicePaidAt so all other events know not to overwrite after this.
                 const updates: any = {
                     credits: planDetails.credits,
+                    initialCredits: planDetails.credits,
                     creditsUsed: 0,
+                    invoicePaidAt: FieldValue.serverTimestamp(),
                     lastPaymentId: payment?.id,
                     lastPaymentAmount: payment?.amount || 0,
                     lastPaymentDate: FieldValue.serverTimestamp(),

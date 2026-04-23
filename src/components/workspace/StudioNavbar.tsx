@@ -52,6 +52,16 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
 
             <div className="flex items-center gap-4">
                 {userProfile && <CreditsDisplay userId={userProfile.uid} variant="navbar" />}
+                {/* Avatar Profiles Link */}
+                <Link
+                    href="/workspace/avatar-profiles"
+                    className={`relative text-[10px] font-black uppercase tracking-[0.2em] transition-all ${pathname === '/workspace/avatar-profiles' ? 'text-accent-orange' : 'text-accent-orange/60 hover:text-accent-orange'}`}
+                >
+                    Avatars
+                    {pathname === '/workspace/avatar-profiles' && (
+                        <div className="absolute -bottom-2 left-0 right-0 h-[1px] bg-accent-orange opacity-40" />
+                    )}
+                </Link>
                 {/* Profile Link - Orange Color */}
                 <Link
                     href="/profile"

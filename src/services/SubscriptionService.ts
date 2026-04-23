@@ -52,6 +52,7 @@ export interface SubscriptionData {
     cancelledAt?: Timestamp;
     pausedAt?: Timestamp;
     resumedAt?: Timestamp;
+    expiresAt?: Timestamp | Date;
     completedAt?: Timestamp;
     haltedAt?: Timestamp;
 }
@@ -95,11 +96,11 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionW
     }
 
     try {
-        // Query the user's active subscription from subcollection
+        // Query the user's active or completed (annual) subscription
         const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
         const q = query(
             subscriptionsRef,
-            where('status', '==', 'active'),
+            where('status', 'in', ['active', 'completed']),
             limit(1)
         );
 
@@ -110,6 +111,13 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionW
         }
 
         const data = snapshot.docs[0].data() as SubscriptionData;
+
+        // If completed, only valid if expiresAt is in the future (annual plans)
+        if (data.status === 'completed') {
+            if (!data.expiresAt) return null;
+            const expiry = data.expiresAt instanceof Date ? data.expiresAt : (data.expiresAt as any).toDate();
+            if (expiry < new Date()) return null;
+        }
         const planDetails = SUBSCRIPTION_PLANS[data.planType];
 
         // Calculate next billing date (approximate - 1 month from last payment or creation)

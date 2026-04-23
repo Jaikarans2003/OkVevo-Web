@@ -35,7 +35,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         }
     };
     
-    const handleApplyCoupon = async (planType: 'hobby' | 'pro') => {
+    const handleApplyCoupon = async (planType: 'starter' | 'hobby' | 'pro') => {
         if (!couponCode.trim()) {
             setCouponError('Please enter a coupon code');
             return;
@@ -46,6 +46,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         
         try {
             const planPrices = {
+                starter: { annual: 127415, monthly: 149900 },
                 hobby: { annual: 509900, monthly: 599900 },
                 pro: { annual: 1529900, monthly: 1799900 }
             };
@@ -88,6 +89,27 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
     };
 
    const plans = [
+    {
+        name: 'Starter',
+        icon: Sparkles,
+        annualPrice: '₹1,274',
+        monthlyPrice: '₹1,499',
+        description: 'Perfect for trying out AI-powered content creation',
+        features: [
+            '10 AI Influencer Videos + 5 Bonus (Early Bird Offer)',
+            'Upto 10 Minutes generation time',
+            'Unlimited custom avatar uploads',
+            'Unlimited custom voice uploads',
+            'Up to 20 thumbnail generations',
+            'Custom logo & marquee overlay'
+        ],
+        notIncluded: [
+            'Priority support',
+            'High-volume generation'
+        ],
+        highlighted: false,
+        cta: 'Get Plan',
+    },
     {
         name: 'Hobby',
         icon: Sparkles,
@@ -281,7 +303,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                 <div className={`grid gap-8 mx-auto ${
                     showOnlyPlan
                         ? 'max-w-[420px]'
-                        : 'md:grid-cols-3 max-w-[1100px]'
+                        : 'md:grid-cols-2 lg:grid-cols-4 max-w-[1400px]'
                 }`}>
                     {plans.filter(p => !showOnlyPlan || p.name === showOnlyPlan).map((plan, index) => {
                         return (
@@ -378,7 +400,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                                                         />
                                                     </div>
                                                     <button
-                                                        onClick={() => handleApplyCoupon(plan.name.toLowerCase() as 'hobby' | 'pro')}
+                                                        onClick={() => handleApplyCoupon(plan.name.toLowerCase() as 'starter' | 'hobby' | 'pro')}
                                                         disabled={couponLoading || !couponCode.trim()}
                                                         className="px-6 py-3 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg text-orange-400 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                     >
@@ -418,7 +440,30 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
 
                                 {/* Button Section */}
                                 <div className="w-full mt-auto relative z-10">
-                                    {plan.name === 'Hobby' ? (
+                                    {plan.name === 'Starter' ? (
+                                        user ? (
+                                            <RazorpayCheckout
+                                                planType="starter"
+                                                billingPeriod={isAnnual ? 'annual' : 'monthly'}
+                                                couponData={appliedCoupon}
+                                                onSuccess={(subscriptionId) => {
+                                                    console.log('Subscription successful:', subscriptionId);
+                                                    router.push('/workspace');
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Subscription error:', error);
+                                                    alert(`Subscription failed: ${error}`);
+                                                }}
+                                            />
+                                        ) : (
+                                            <button 
+                                                onClick={() => handlePlanClick('Starter')}
+                                                className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444] uppercase tracking-widest"
+                                            >
+                                                {plan.cta}
+                                            </button>
+                                        )
+                                    ) : plan.name === 'Hobby' ? (
                                         user ? (
                                             <RazorpayCheckout
                                                 planType="hobby"

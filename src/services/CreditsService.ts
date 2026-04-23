@@ -46,6 +46,14 @@ function isSubscriptionValid(subscriptionData: any): boolean {
         return true;
     }
     
+    // Completed annual subscription — valid until expiresAt
+    if (status === 'completed') {
+        const expiresAt = subscriptionData.expiresAt;
+        if (!expiresAt) return false;
+        const expiry = expiresAt instanceof Date ? expiresAt : expiresAt.toDate();
+        return new Date() < expiry;
+    }
+    
     // Pending or authenticated - check grace period
     if (status === 'pending' || status === 'authenticated') {
         const gracePeriodEndsAt = subscriptionData.gracePeriodEndsAt;
@@ -239,7 +247,7 @@ export async function getUserCredits(userId: string): Promise<number> {
         const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
         const q = query(
             subscriptionsRef,
-            where('status', 'in', ['active', 'pending', 'authenticated']),
+            where('status', 'in', ['active', 'completed', 'pending', 'authenticated']),
             limit(1)
         );
 

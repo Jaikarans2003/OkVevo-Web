@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserSubscription } from '@/services/SubscriptionService';
-import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 interface SubscriptionGuardProps {
     children: React.ReactNode;
@@ -41,7 +41,7 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
                 }
 
                 const subscription = await getUserSubscription(userProfile.uid);
-                const isActive = subscription?.status === 'active' || (userProfile as any)?.isPro === true;
+                const isActive = subscription?.status === 'active' || subscription?.status === 'completed' || (userProfile as any)?.isPro === true;
                 setHasSubscription(isActive);
 
                 if (!isActive) {
@@ -67,10 +67,18 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
 
     if (authLoading || checking) {
         return (
-            <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+            <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-[#FF6B35] mx-auto mb-4" />
-                    <p className="text-white/60">Checking subscription...</p>
+                    <div className="mb-6 animate-pulse">
+                        <Image
+                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            alt="OKVEVO Logo"
+                            width={80}
+                            height={80}
+                            className="mx-auto"
+                        />
+                    </div>
+                    <p className="text-sm font-black uppercase tracking-[0.2em] text-white/60">Loading your Canvas</p>
                 </div>
             </div>
         );

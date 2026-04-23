@@ -24,6 +24,8 @@ import type { WorkspaceSession } from '@/services/WorkspaceSessionService';
 import { getUserWorkspaceSessions } from '@/services/WorkspaceSessionService';
 import { checkCredits, deductCredits } from '@/services/CreditsService';
 import { getUserProfile } from '@/services/userService';
+import AvatarSelectionModal from '@/components/workspace/AvatarSelectionModal';
+import type { AvatarProfile } from '@/services/AvatarProfileService';
 
 // ─── Types ─────────────────────────────────────────────────
 type ChatStep =
@@ -131,6 +133,7 @@ function AIInfluencerWorkstation() {
     const [isBranding,        setIsBranding]        = useState(false);
     const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
     const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -1143,6 +1146,111 @@ function AIInfluencerWorkstation() {
         }
     };
 
+    // ── Avatar Selection Modal Handlers ────────────────────
+    const handleSelectSavedAvatar = async (profile: AvatarProfile) => {
+        if (!user?.uid || !jobId) return;
+
+        setIsGenerating(true);
+        addUser(`[Selected saved avatar: ${profile.name}]`);
+        addAssistant('OK VEVO is loading your saved avatar profile...');
+
+        try {
+            // Set avatar video and audio from saved profile
+            setAvatarVideoUrl(profile.videoUrl);
+            setAudioSampleFile(new File([], 'saved_audio.mp3')); // Placeholder to indicate audio is set
+
+            // Update Firestore with avatar and audio URLs
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+            await setDoc(jobRef, {
+                avatarVideoUrl: profile.videoUrl,
+                audioSampleUrl: profile.audioSampleUrl,
+                status: 'awaiting-voice',
+                updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            addUser(
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={14} className="text-green-400" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Avatar Profile Loaded</span>
+                    </div>
+                    <div className="text-[12px] text-white/50">Video and voice sample ready</div>
+                </div>
+            );
+            addAssistant('VEVO sees your face and voice. Pipeline ready to roll.');
+            addAssistant('Hit Commit and Continue to start the magic.');
+            
+            setChatStep('generating-tts');
+            setIsGenerating(false);
+        } catch (err: any) {
+            addAssistant(`💀 Failed to load avatar profile: ${err.message}`);
+            setIsGenerating(false);
+        }
+    };
+
+    const handleUploadNewAvatar = async (videoFile: File, audioFile: File) => {
+        if (!user?.uid || !jobId) return;
+
+        setIsGenerating(true);
+        const videoSizeMB = (videoFile.size / 1024 / 1024).toFixed(1);
+        const audioSizeMB = (audioFile.size / 1024 / 1024).toFixed(1);
+
+        addUser(
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                    <Video size={14} className="text-white/60" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Avatar Video • {videoSizeMB}MB</span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Volume2 size={14} className="text-white/60" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Voice Sample • {audioSizeMB}MB</span>
+                </div>
+                <div className="text-[12px] text-white/50">Uploading to Ok VEVO servers...</div>
+            </div>
+        );
+        addAssistant('OK VEVO is beaming up your avatar and voice...');
+
+        try {
+            // Upload video
+            const videoRef = ref(storage, `AIInfluencer/${jobId}/avatar.mp4`);
+            await uploadBytes(videoRef, videoFile);
+            const videoUrl = await getDownloadURL(videoRef);
+            setAvatarVideoUrl(videoUrl);
+
+            // Upload audio
+            const audioRef = ref(storage, `AIInfluencer/${jobId}/sample_audio.mp3`);
+            await uploadBytes(audioRef, audioFile);
+            const audioUrl = await getDownloadURL(audioRef);
+            setAudioSampleFile(audioFile);
+
+            // Update Firestore
+            const jobRef = doc(db, 'users', user.uid, 'aiInfluencerJobs', jobId);
+            await setDoc(jobRef, {
+                avatarVideoUrl: videoUrl,
+                audioSampleUrl: audioUrl,
+                status: 'awaiting-voice',
+                updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            addUser(
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={14} className="text-green-400" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Upload Complete</span>
+                    </div>
+                </div>
+            );
+            addAssistant('VEVO sees your face and voice. Pipeline ready to roll.');
+            addAssistant('Hit Commit and Continue to start the magic.');
+            
+            setChatStep('generating-tts');
+            setIsGenerating(false);
+        } catch (err: any) {
+            addAssistant(`💀 Upload failed: ${err.message}`);
+            setIsGenerating(false);
+        }
+    };
+
     // ─── Render ─────────────────────────────────────────────
     const currentStepIdx = getStepIndex(chatStep);
 
@@ -1425,15 +1533,15 @@ function AIInfluencerWorkstation() {
                                                         className="hidden"
                                                     />
                                                     <button
-                                                        onClick={() => avatarFileInputRef.current?.click()}
+                                                        onClick={() => setShowAvatarModal(true)}
                                                         className="w-full py-8 rounded-[2rem] border-2 border-dashed border-white/10 bg-white/[0.02] hover:border-orange-500/50 hover:bg-orange-600/5 transition-all flex flex-col items-center justify-center gap-3 group active:scale-[0.98]"
                                                     >
                                                         <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-orange-500/20 transition-all duration-500 shadow-2xl">
                                                             <Upload size={24} className="text-orange-500" strokeWidth={2.5} />
                                                         </div>
                                                         <div className="text-center">
-                                                            <p className="text-[12px] font-black uppercase tracking-[0.1em] text-white/80">Upload Avatar Media</p>
-                                                            <p className="text-[9px] text-white/20 mt-1 uppercase font-bold tracking-widest">MP4 / MOV / WEBM · Standard HD</p>
+                                                            <p className="text-[12px] font-black uppercase tracking-[0.1em] text-white/80">Select Avatar</p>
+                                                            <p className="text-[9px] text-white/20 mt-1 uppercase font-bold tracking-widest">Choose Saved or Upload New</p>
                                                         </div>
                                                     </button>
                                                 </motion.div>
@@ -2250,6 +2358,15 @@ function AIInfluencerWorkstation() {
                     
                 </div>
             </div>
+
+            {/* Avatar Selection Modal */}
+            <AvatarSelectionModal
+                isOpen={showAvatarModal}
+                onClose={() => setShowAvatarModal(false)}
+                onSelectSaved={handleSelectSavedAvatar}
+                onUploadNew={handleUploadNewAvatar}
+                userId={user?.uid || ''}
+            />
         </section>
     );
 }

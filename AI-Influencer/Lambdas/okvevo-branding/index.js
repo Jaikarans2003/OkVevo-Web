@@ -172,7 +172,7 @@ async function applyBranding(inputPath, outputPath, opts = {}) {
     // Step 1: Scale logo to 1:1 aspect ratio and exactly 1/12th of the video width
     if (hasLogo) {
         // Simple scale2ref without any complex math to guarantee it doesn't break parsing.
-        filterParts.push(`[1:v][${currentLabel}]scale2ref=w='main_w/12':h='main_w/12'[logo_scaled][video_ref]`);
+        filterParts.push(`[1:v][${currentLabel}]scale2ref=w='main_w/18':h='main_w/18'[logo_scaled][video_ref]`);
         
         const pad = 12; 
         let overlayX, overlayY;

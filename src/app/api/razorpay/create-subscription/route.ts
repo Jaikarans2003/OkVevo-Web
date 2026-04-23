@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (planType !== 'hobby' && planType !== 'pro') {
+        if (planType !== 'starter' && planType !== 'hobby' && planType !== 'pro') {
             return NextResponse.json(
-                { success: false, error: 'Invalid plan type. Must be "hobby" or "pro"' },
+                { success: false, error: 'Invalid plan type. Must be "starter", "hobby" or "pro"' },
                 { status: 400 }
             );
         }
