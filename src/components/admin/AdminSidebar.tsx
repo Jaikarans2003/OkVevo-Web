@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Image as ImageIcon, LayoutGrid, Users, FileText, Shield } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, LayoutGrid, Users, FileText, Shield, ShoppingBag } from 'lucide-react';
 
 const NAVIGATION_ITEMS = [
     {
@@ -49,6 +49,15 @@ const NAVIGATION_ITEMS = [
         iconBg: 'bg-green-500/10',
         iconBorder: 'border-green-500/20',
         iconColor: 'text-green-500',
+    },
+    {
+        href: '/admin/sales',
+        label: 'Sales',
+        icon: ShoppingBag,
+        color: 'from-emerald-500/20',
+        iconBg: 'bg-emerald-500/10',
+        iconBorder: 'border-emerald-500/20',
+        iconColor: 'text-emerald-400',
     },
 ];
 

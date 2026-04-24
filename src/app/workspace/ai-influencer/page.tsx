@@ -26,6 +26,7 @@ import { checkCredits, deductCredits } from '@/services/CreditsService';
 import { getUserProfile } from '@/services/userService';
 import AvatarSelectionModal from '@/components/workspace/AvatarSelectionModal';
 import type { AvatarProfile } from '@/services/AvatarProfileService';
+import ContactUsModal from '@/components/ContactUsModal';
 
 // ─── Types ─────────────────────────────────────────────────
 type ChatStep =
@@ -134,6 +135,8 @@ function AIInfluencerWorkstation() {
     const [brandedVideoUrl,   setBrandedVideoUrl]   = useState<string | null>(null);
     const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [contactOpen, setContactOpen] = useState(false);
+    const [contactDefaultCategory, setContactDefaultCategory] = useState<'' | 'problemTicket'>('problemTicket');
 
     const { resolvedTheme } = useTheme();
     const scriptFileInputRef = useRef<HTMLInputElement>(null);
@@ -1095,7 +1098,7 @@ function AIInfluencerWorkstation() {
             setChatStep('generating-lipsync');
             setIsGenerating(false);
         } catch (err: any) {
-            addAssistant(`💀 Pipeline choked at launch, Try again or Contact info@okvevo.com.`); //${err.message}
+            addAssistant(`💀 Pipeline choked at launch, Try again or Contact Us.`); //${err.message}
             setIsGenerating(false);
         }
     };
@@ -1268,6 +1271,7 @@ function AIInfluencerWorkstation() {
                         </span>
                     </div>
                 }
+                onHelpClick={() => { setContactDefaultCategory(''); setContactOpen(true); }}
             />
 
             {/* Workstation Area with Video Background */}
@@ -2094,7 +2098,7 @@ function AIInfluencerWorkstation() {
                                         {/* Disclaimer */}
                                         <div className="px-6 py-3 text-center">
                                             <p className="text-[8px] text-white/50 leading-relaxed">
-                                                OKVEVO can make mistakes. For best results study User Manual. Contact: <a href="mailto:info@okvevo.com" className="text-green-400/70 hover:text-orange-400/60 transition-colors">info@okvevo.com</a>
+                                                OKVEVO can make mistakes. For best results study User Manual. Click This to Reach Out: <button onClick={() => { setContactDefaultCategory('problemTicket'); setContactOpen(true); }} className="text-green-400/70 hover:text-orange-400/60 transition-colors underline cursor-pointer">Contact</button>
                                             </p>
                                         </div>
                                     </div>
@@ -2366,6 +2370,11 @@ function AIInfluencerWorkstation() {
                 onSelectSaved={handleSelectSavedAvatar}
                 onUploadNew={handleUploadNewAvatar}
                 userId={user?.uid || ''}
+            />
+            <ContactUsModal
+                isOpen={contactOpen}
+                onClose={() => setContactOpen(false)}
+                defaultCategory={contactDefaultCategory}
             />
         </section>
     );

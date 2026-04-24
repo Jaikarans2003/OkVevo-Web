@@ -39,16 +39,39 @@ const websiteSchema = {
     "query-input": "required name=search_term_string"
   }
 };
-
 const faqItems = [
-    { question: "What is OkVevo and what does it offer?", answer: "OkVevo is an AI content creation platform that offers an AI influencer video generator and a physical Trend Booth in Bangalore. It helps users create high-quality, lip-synced videos and trending content quickly for platforms like Instagram Reels and YouTube Shorts." },
-    { question: "How does the AI influencer video generator work?", answer: "Users upload a video, script, and audio. OkVevo refines the script, synchronizes lip movements using AI, and enhances the video with captions, visuals, and effects to create professional short-form content ready for social media." },
-    { question: "Can I create AI reels using my own content?", answer: "Yes, you can upload your own video, script, and audio to create AI reels. OkVevo processes your inputs and generates engaging, polished videos optimized for platforms like Instagram and YouTube." },
-    { question: "Does OkVevo support accurate AI lip sync?", answer: "Yes, OkVevo uses advanced AI lip sync technology to match speech with facial expressions precisely, ensuring your videos look natural, professional, and highly engaging." },
-    { question: "Can I add my logo or disclaimers to the videos?", answer: "Yes, OkVevo allows users to add custom branding such as logos, disclaimers, and overlays. This ensures your content maintains brand identity and is suitable for professional or promotional use." },
-    { question: "What is the OkVevo Trend Booth in Bangalore?", answer: "The OkVevo Trend Booth is an AI-powered setup located in a major gym in Bangalore where users can create trending videos and images instantly using AI, without needing any editing skills." },
-    { question: "How does the Trend Booth create videos?", answer: "Users select a trend or style, and the AI generates personalized content on the spot. The system creates ready-to-share videos or images tailored for social media trends like reels and shorts." },
-    { question: "Who should use OkVevo?", answer: "OkVevo is ideal for content creators, influencers, businesses, and gym visitors who want to create high-quality AI-generated videos quickly and easily, whether online or through the Trend Booth." }
+  {
+    question: "What is OkVevo and what does it offer?",
+    answer: "OkVevo is an AI content creation platform that enables users to generate high-quality, Instagram-ready videos in minutes. It eliminates the need for shoots, editing, and retakes through its AI Influencer Suite. OkVevo also offers a physical experience called 'Your AI Adda' located in MASIV Shakarnagar, Bangalore, where users can explore AI-powered content creation in a real-world setting."
+  },
+  {
+    question: "How does the AI Influencer Suite work?",
+    answer: "Users simply upload a script or idea, choose or upload custom avatars and voice samples, and OkVevo takes care of the rest. The platform refines the script, synchronizes lip movements, and enhances the video with captions, visuals, and effects to produce professional short-form content ready for social media."
+  },
+  {
+    question: "Can I create AI reels using my own content?",
+    answer: "Yes, you can upload your own scripts, videos, and audio. OkVevo processes your inputs to generate engaging, polished videos optimized for platforms like Instagram and YouTube."
+  },
+  {
+    question: "Does OkVevo support accurate AI lip sync?",
+    answer: "Yes, OkVevo uses advanced AI lip-sync technology to precisely match speech with facial expressions, ensuring your videos look natural, professional, and highly engaging."
+  },
+  {
+    question: "Can I add my logo or disclaimers to the videos?",
+    answer: "Yes, OkVevo allows full customization with branding elements such as logos, disclaimers, and overlays, ensuring your content aligns with your brand identity."
+  },
+  {
+    question: "What is the OkVevo 'Your AI Adda' in Bangalore?",
+    answer: "'Your AI Adda' is an AI-powered experience booth located in an ultra-luxury wellness centerMASIV in Shakarnagar, Bangalore. It allows users to create trending videos and images instantly using AI, without any editing skills."
+  },
+  {
+    question: "How does the 'Your AI Adda' create videos?",
+    answer: "Users select a trend or style, and the system captures their visuals. AI then generates ready-to-share videos or images instantly, tailored for trending formats like reels and shorts."
+  },
+  {
+    question: "Who should use OkVevo AI Influencer Suite?",
+    answer: "OkVevo is ideal for content creators, influencers, startups, and enterprises who want to create high-quality AI-generated videos that look, sound, and behave like them—quickly, easily, and at scale."
+  }
 ];
 
 export default function LandingPage() {

@@ -13,39 +13,29 @@ import NoiseOverlay from '../../components/NoiseOverlay';
 
 const BOOTH_IMAGES = [
     {
-        src: "/okvevoimg/ok1.jpeg",
+        src: "/okvevoimg/ok8.jpeg",
         title: "Main Entrance",
         desc: "The holographic welcome portal of the OKVEVO Booth."
     },
     {
-        src: "/okvevoimg/ok2.jpeg",
+        src: "/okvevoimg/ok7.jpeg",
         title: "Creation Node",
         desc: "Experience zero-latency generative cinematography real-time."
     },
     {
-        src: "/okvevoimg/ok3.jpeg",
-        title: "Portrait Studio",
-        desc: "Professional AI-driven lighting rigs for stunning avatars."
-    },
-    {
         src: "/okvevoimg/ok4.jpeg",
-        title: "Main Entrance",
-        desc: "The holographic welcome portal of the OKVEVO Booth."
-    },
-    {
-        src: "/okvevoimg/ok5.png",
         title: "Portrait Studio",
         desc: "Professional AI-driven lighting rigs for stunning avatars."
     },
     {
-        src: "/okvevoimg/ok6.jpeg",
-        title: "Portrait Studio",
-        desc: "Professional AI-driven lighting rigs for stunning avatars."
-    },
-    {
-        src: "/okvevoimg/ok7.jpeg",
+        src: "/okvevoimg/ok3.jpeg",
         title: "Main Entrance",
         desc: "The holographic welcome portal of the OKVEVO Booth."
+    },
+    {
+        src: "/okvevoimg/ok2.png",
+        title: "Portrait Studio",
+        desc: "Professional AI-driven lighting rigs for stunning avatars."
     },
 ];
 

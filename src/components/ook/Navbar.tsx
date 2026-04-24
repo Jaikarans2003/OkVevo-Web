@@ -14,7 +14,7 @@ interface NavbarProps {
 }
 
 const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
-    const [isScrolled, setIsScrolled] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(() => typeof window !== 'undefined' ? window.scrollY > 50 : false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [currentSectionTheme, setCurrentSectionTheme] = useState<'light' | 'dark'>('light');
 
@@ -60,11 +60,12 @@ const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
         { name: 'Demo', href: '/#demo' },
         { name: 'Features', href: '/#features' },
         { name: 'Pricing', href: '/#pricing' },
+        { name: 'AboutUs', href: '/about' },
         // { name: 'Blog', href: '/blogs' },
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${isScrolled ? 'py-4' : 'py-10'}`}>
+        <nav className={`fixed top-0 left-0 right-0 z-[100] transition-[padding] duration-500 ease-in-out ${isScrolled ? 'py-4' : 'py-10'}`}>
             <div className="centering-container flex-row items-center justify-between !py-0">
                 <div className={containerClasses}>
                     <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>

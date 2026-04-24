@@ -5,7 +5,8 @@ import { motion, AnimatePresence, useScroll, useTransform, useInView, useSpring 
 import { auth } from '../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Play, Sparkles, Zap, Eye, Target, ArrowUpRight, Clapperboard, MonitorPlay } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, ArrowLeft, Play, Sparkles, Zap, Eye, Target, ArrowUpRight, Clapperboard, MonitorPlay, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
 import NoiseOverlay from '../../components/NoiseOverlay';
@@ -110,6 +111,8 @@ export default function AboutPage() {
     const [user, setUser] = useState<any>(null);
     const router = useRouter();
     const containerRef = useRef(null);
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const totalSlides = 2;
     
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -126,6 +129,7 @@ export default function AboutPage() {
         return () => unsubscribe();
     }, []);
 
+
     const handleJoinClick = () => {
         if (user) {
             router.push('/workspace');
@@ -134,19 +138,39 @@ export default function AboutPage() {
         }
     };
 
-    const stats = [
-        { label: "AI Models Trained", val: "500+" },
-        { label: "Frames Generated", val: "10M+" },
-        { label: "Studio Partners", val: "25+" },
-        { label: "Creator Hours Saved", val: "100k+" }
-    ];
+    // const stats = [
+    //     { label: "Videos Generated", val: "10k+" },
+    //     { label: "Active Creators", val: "500+" },
+    //     { label: "AI Avatars Created", val: "1k+" },
+    //     { label: "Hours Saved Daily", val: "2k+" }
+    // ];
 
     const philosophies = [
-        { id: "01", title: "ZERO GRAVITY VELOCITY", desc: "Render cinematics at the speed of thought. No rendering farms, just pure creation." },
-        { id: "02", title: "VISION-FIRST DESIGN", desc: "We build tools that augment human creativity, not replace it. Your director's eye, amplified by AI." },
-        { id: "03", title: "INFINITE PRECISION", desc: "Control every frame, every gesture, and every word." },
-        { id: "04", title: "NEURAL CINEMATOGRAPHY", desc: "Advanced diffusion models merged with high-fidelity production." }
-    ];
+  {
+    id: "01",
+    title: "INSTANT AI VIDEO CREATION",
+    desc: "Generate reels, ads, and short-form videos instantly using AI. No shoots, no editing, no delays—just high-quality content ready to publish.",
+    href: "/workspace/user-manual"
+  },
+  {
+    id: "02",
+    title: "AI INFLUENCER SUITE",
+    desc: "Create AI avatars with your face, voice, and personality. Build your digital twin and scale content across platforms without being on camera.",
+    href: "/workspace/user-manual"
+  },
+  {
+    id: "03",
+    title: "FULL CREATIVE CONTROL",
+    desc: "Customize every video with branding, logos, captions, and overlays. Maintain consistency across all your social media and marketing content.",
+    href: "/workspace/user-manual"
+  },
+  {
+    id: "04",
+    title: "INSTANT TREND VIRALITY",
+    desc: "Your AI Adda is built for viral content creation. Pick trending formats, create instantly, and generate scroll-stopping reels designed for maximum reach and engagement.",
+    href: "/Showcase"
+  }
+];
 
     return (
         <div ref={containerRef} className="min-h-screen bg-[#020202] overflow-x-hidden text-white selection:bg-orange-500/30">
@@ -154,14 +178,22 @@ export default function AboutPage() {
                 "@context": "https://schema.org",
                 "@type": "AboutPage",
                 "name": "About OKVEVO",
-                "description": "Learn about OKVEVO, our mission, and how we are building the future of generative cinematic creation."
+                "description": "OkVevo is an AI video generation platform offering an AI Influencer Suite to create reels, ads, and social media content instantly. Build digital avatars, generate videos with lip-sync, and create viral content using AI."
             }} />
             <NoiseOverlay />
             <Navbar user={user} onJoinClick={handleJoinClick} />
-            <main>
-                <Breadcrumb crumbs={[{ label: 'Home', href: '/' }, { label: 'About', href: '/about' }]} />
+            <main className="pt-36">
+                <div className="max-w-[1400px] mx-auto px-6 mb-4 relative z-50">
+                    <button
+                        onClick={() => router.push('/')}
+                        className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-[0.3em] text-white/60 hover:bg-orange-500 hover:border-orange-500 hover:text-white transition-all duration-300 group backdrop-blur-sm cursor-pointer"
+                    >
+                        <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+                        Back to Home
+                    </button>
+                </div>
 
-            <section className="relative pt-48 pb-32 px-6 overflow-hidden">
+            <section className="relative pt-8 pb-32 px-6 overflow-hidden">
                 <motion.div 
                     style={{ y: yHero, opacity: opacityHero }}
                     className="max-w-[1400px] mx-auto text-center z-10 relative"
@@ -169,7 +201,7 @@ export default function AboutPage() {
                     <div className="flex flex-col items-center">
                         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 mb-4">
                             <AnimatedText 
-                                text="CREATIVE" 
+                                text="REDEFINING" 
                                 className="text-7xl md:text-[160px] font-black tracking-[-0.05em] leading-none uppercase mix-blend-difference" 
                             />
                             
@@ -195,7 +227,7 @@ export default function AboutPage() {
                             </motion.div>
                             
                             <AnimatedText 
-                                text="DIGITAL" 
+                                text="CONTENT" 
                                 className="text-7xl md:text-[160px] font-black tracking-[-0.05em] leading-none uppercase mix-blend-difference" 
                             />
                         </div>
@@ -207,10 +239,10 @@ export default function AboutPage() {
                             className="relative"
                         >
                             <h1 className="text-5xl md:text-[120px] font-black tracking-[-0.04em] leading-none uppercase text-transparent [-webkit-text-stroke:1px_rgba(255,255,255,0.2)]">
-                                Cinematic Studio
+                                Creation
                             </h1>
                             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 bg-orange-600 px-4 py-1 rounded-full text-[10px] font-black tracking-[0.2em] uppercase">
-                                Est. 2024
+                                Est. 2026
                             </div>
                         </motion.div>
                         
@@ -221,8 +253,8 @@ export default function AboutPage() {
                             className="mt-16 flex flex-col items-center gap-6"
                         >
                             <div className="w-px h-24 bg-gradient-to-b from-orange-500 to-transparent" />
-                            <p className="text-xs md:text-sm tracking-[0.5em] uppercase font-black text-white/50 max-w-xl text-center leading-loose">
-                                We are bridging the gap between <br /> imagination and execution
+                           <p className="text-xs md:text-sm tracking-[0.5em] uppercase font-black text-white/50 max-w-xl text-center leading-loose">
+                            AI VIDEO CREATION. CONTENT THAT DRIVES GROWTH. INSTANT SCALE.
                             </p>
                         </motion.div>
                     </div>
@@ -244,15 +276,17 @@ export default function AboutPage() {
                             >
                                 <div className="flex items-center gap-4 mb-12">
                                     <Clapperboard className="text-orange-500" size={20} />
-                                    <span className="text-xs font-black uppercase tracking-[0.4em] text-orange-500">The Genesis</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.4em] text-orange-500">About OkVevo</span>
                                 </div>
                                 <h3 className="text-4xl md:text-6xl font-black leading-[0.9] tracking-tight text-white mb-10">
-                                    CREATION <br />
-                                    <span className="text-white/20">WITHOUT</span> <br />
-                                    LIMITS.
+                                    CONTENT <br />
+                                    <span className="text-white/20">EVOLUTION</span> <br />
+                                    STARTS HERE.
                                 </h3>
-                                <p className="text-lg md:text-xl font-medium leading-relaxed text-white/40 mb-12 border-l border-white/5 pl-8">
-                                    OKVEVO wasn't born in a lab; it was born on the creator's desk. The biggest bottleneck to creation wasn't talent — it was the friction of traditional production.
+                                <p className="text-lg md:text-xl font-medium leading-relaxed text-white/40 mb-12 border-l border-white/5 pl-8 text-left">
+                                    OkVevo is an AI video generation platform built for creators, brands, and enterprises to produce high-quality social media content instantly. With our AI Influencer Suite, you can create reels, ads, and short-form videos using digital avatars, realistic voiceovers, and precise lip-sync—without shoots, editing, or production delays.
+                                    <br/><br/>
+                                    Beyond digital creation, OkVevo introduces "Your AI Adda"—a real-world AI content experience where users can step in, pick trending formats, and instantly generate viral-ready videos and images, making content creation fun, accessible, and built for shareability.
                                 </p>
                                 <motion.button 
                                     whileHover={{ scale: 1.05 }}
@@ -267,43 +301,107 @@ export default function AboutPage() {
                         </div>
 
                         <div className="flex-1 relative">
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                className="aspect-[4/5] md:aspect-auto md:h-[800px] rounded-[60px] overflow-hidden border border-white/10 relative group"
-                            >
-                                <Image
-                                    src="/ai-engine.png"
-                                    alt="OKVEVO Visual Engine"
-                                    fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-[transition-duration:2000ms] brightness-90 grayscale-[0.5] group-hover:grayscale-0"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                
-                                <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
-                                
-                                <div className="absolute bottom-16 left-16 right-16">
-                                    <div className="flex flex-col gap-8">
-                                        <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-3xl flex items-center justify-center border border-white/20">
-                                            <Sparkles className="text-orange-500" size={24} />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">Neural Architecture</h4>
-                                            <p className="text-white/60 text-sm max-w-sm leading-relaxed">
-                                                Our engine operates on production-grade diffusion models optimized for professional cinematography.
-                                            </p>
-                                        </div>
-                                    </div>
+                            <div className="relative aspect-[4/5] md:aspect-auto md:h-[800px]">
+                                <AnimatePresence mode="wait">
+                                    {currentSlide === 0 && (
+                                        <motion.div
+                                            key="video-slide"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.5 }}
+                                            className="absolute inset-0 rounded-[60px] overflow-hidden border border-white/10 group"
+                                        >
+                                            <iframe
+                                                src="https://www.youtube.com/embed/Cc4JRa5lBaM?autoplay=1&mute=1&loop=1&playlist=Cc4JRa5lBaM&controls=0&rel=0&modestbranding=1&showinfo=0"
+                                                title="OkVevo AI Influencer Suite"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                                className="absolute inset-0 w-full h-full pointer-events-none"
+                                                style={{ transform: 'scale(1.5)' }}
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                            <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
+                                            
+                                            <div className="absolute bottom-16 left-16 right-16 z-10">
+                                                <div className="flex flex-col gap-8">
+                                                    <div>
+                                                        <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">AI Influencer Suite</h4>
+                                                        <p className="text-white/60 text-sm max-w-sm leading-relaxed">
+                                                            Create AI influencers that look, talk, and behave like you. Turn scripts into high-performing reels and ads with avatars, voice cloning, and advanced lip-sync—optimized for Instagram, YouTube, and social media growth.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {currentSlide === 1 && (
+                                        <motion.div
+                                            key="image-slide"
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{ duration: 0.5 }}
+                                            className="absolute inset-0 rounded-[60px] overflow-hidden border border-white/10 group"
+                                        >
+                                            <Image
+                                                src="/okvevoimg/ok7.jpeg"
+                                                alt="Your AI Adda Experience"
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                            <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
+                                            
+                                            <div className="absolute bottom-16 left-16 right-16">
+                                                <div className="flex flex-col gap-8">
+                                                    <div>
+                                                        <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">Your AI Adda</h4>
+                                                        <p className="text-white/60 text-sm max-w-sm leading-relaxed">
+                                                            Experience AI content creation in the real world. Step into our physical booth, pick trending formats, and instantly generate viral-ready videos and images designed for maximum shareability.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Navigation Buttons */}
+                                <button
+                                    onClick={() => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides)}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-orange-500 hover:border-orange-500 transition-all"
+                                >
+                                    <ChevronLeft size={24} />
+                                </button>
+                                <button
+                                    onClick={() => setCurrentSlide((prev) => (prev + 1) % totalSlides)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-orange-500 hover:border-orange-500 transition-all"
+                                >
+                                    <ChevronRight size={24} />
+                                </button>
+
+                                {/* Slide Indicators */}
+                                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                                    {[0, 1].map((index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setCurrentSlide(index)}
+                                            className={`w-2 h-2 rounded-full transition-all ${
+                                                currentSlide === index ? 'bg-orange-500 w-8' : 'bg-white/30'
+                                            }`}
+                                        />
+                                    ))}
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
 
-                        <div className="w-full lg:w-auto flex flex-col justify-center gap-16">
+                        {/* <div className="w-full lg:w-auto flex flex-col justify-center gap-16">
                             {stats.map((stat, i) => (
                                 <Counter key={i} value={stat.val} label={stat.label} />
                             ))}
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </section>
@@ -319,9 +417,9 @@ export default function AboutPage() {
                         <div className="space-y-4">
                             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-orange-500">Live Preview</span>
                             <h2 className="text-5xl md:text-8xl font-black tracking-[-0.06em] leading-[0.8] uppercase">
-                                DESIGNING <br />
-                                FOR <span className="text-transparent [-webkit-text-stroke:1px_#FF6600]">TOMORROW'S</span> <br />
-                                SUCCESS
+                                YOUR AI, <br />
+                                YOUR <span className="text-transparent [-webkit-text-stroke:1px_#FF6600]">IDENTITY</span> <br />
+                                YOUR CONTENT
                             </h2>
                         </div>
                         <div className="mt-12 md:mt-0 max-w-md">
@@ -329,39 +427,20 @@ export default function AboutPage() {
                                 {[1,2,3,4,5].map(i => <div key={i} className="w-1 h-3 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: `${i*0.2}s` }} />)}
                             </div>
                             <p className="text-white/30 text-xs font-black uppercase tracking-[0.3em] leading-relaxed">
-                                Creating brands that stand out <br /> with neural-accelerated <br /> visual narratives
+                                Build your AI influencer <br /> with your face, voice, <br /> and content style
                             </p>
                         </div>
                     </div>
 
-                    <div className="relative aspect-video w-full overflow-hidden">
-                        <Image
-                            src="/movie-scene.png"
-                            alt="Cinematic Preview"
-                            fill
-                            className="object-cover group-hover:scale-[1.05] transition-transform duration-[transition-duration:3000ms] brightness-50"
+                    <div className="relative w-full max-w-3xl mx-auto overflow-hidden rounded-2xl aspect-video">
+                        <iframe
+                            src="https://www.youtube.com/embed/jwO-JdGpQQ4?autoplay=0&controls=1&rel=0&modestbranding=1"
+                            title="OkVevo AI Content Creation"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="absolute inset-0 w-full h-full rounded-2xl"
                         />
                         
-                        <div className="absolute inset-0 flex items-center justify-center z-20">
-                            <motion.button 
-                                whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 102, 0, 1)', color: '#fff' }}
-                                whileTap={{ scale: 0.95 }}
-                                className="w-32 h-32 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_80px_rgba(255,102,0,0.4)] backdrop-blur-xl transition-all"
-                            >
-                                <Play fill="currentColor" size={40} className="ml-2" />
-                            </motion.button>
-                        </div>
-
-                        <div className="absolute top-12 left-12 flex gap-4 pointer-events-none">
-                            <div className="px-4 py-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-3">
-                                <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                                <span className="text-[10px] font-black tracking-widest text-white/80">REC: NEURAL_RENDER.mp4</span>
-                            </div>
-                            <div className="px-4 py-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full">
-                                <span className="text-[10px] font-black tracking-widest text-white/50">4K | HDR | 120 FPS</span>
-                            </div>
-                        </div>
-
                         <div className="absolute bottom-12 right-12">
                             <motion.div 
                                 animate={{ rotate: 360 }}
@@ -393,22 +472,22 @@ export default function AboutPage() {
                         <div>
                             <div className="flex items-center gap-3 mb-6">
                                 <MonitorPlay className="text-orange-500" size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500">How we work</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500">What Makes Us Different</span>
                             </div>
                             <h2 className="text-4xl md:text-7xl font-black tracking-[-0.05em] uppercase leading-[0.9]">
                                 THE <span className="text-white/20">OKVEVO</span> <br />
-                                PROTOCOL.
+                                ADVANTAGE.
                             </h2>
                         </div>
                         <p className="max-w-xs text-sm text-white/30 font-medium uppercase tracking-[0.2em] leading-relaxed text-right">
-                            Innovative cinematic solutions tailored for the digital vanguard
+                            From AI influencers to viral reels, OkVevo helps you create, scale, and dominate content with speed and precision
                         </p>
                     </div>
 
                     <div className="flex flex-col">
                         {philosophies.map((p, i) => (
+                            <Link href={p.href} key={p.id} className="block">
                             <motion.div
-                                key={p.id}
                                 initial={{ opacity: 0, x: i % 2 === 0 ? -100 : 100 }}
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true }}
@@ -422,7 +501,7 @@ export default function AboutPage() {
                                         {p.id}
                                     </span>
                                     <h3 
-                                        className="text-4xl md:text-[100px] font-black tracking-[-0.04em] uppercase transition-all duration-700 group-hover:translate-x-8 group-hover:text-orange-500"
+                                        className="text-3xl md:text-6xl lg:text-7xl font-black tracking-[-0.04em] uppercase transition-all duration-700 group-hover:translate-x-8 group-hover:text-orange-500 leading-tight"
                                     >
                                         {p.title}
                                     </h3>
@@ -437,6 +516,7 @@ export default function AboutPage() {
                                     </div>
                                 </div>
                             </motion.div>
+                            </Link>
                         ))}
                     </div>
                 </div>
@@ -462,7 +542,7 @@ export default function AboutPage() {
 
                     <div className="relative z-10">
                         <h2 className="text-6xl md:text-[120px] font-black tracking-[-0.06em] uppercase leading-[0.8] mb-12">
-                            Ready to <br/> <span className="text-transparent [-webkit-text-stroke:1px_rgba(255,102,0,0.5)] group-hover:[-webkit-text-stroke:1px_#FF6600] transition-all duration-700">Direct?</span>
+                            Create Viral <br/> <span className="text-transparent [-webkit-text-stroke:1px_rgba(255,102,0,0.5)] group-hover:[-webkit-text-stroke:1px_#FF6600] transition-all duration-700">Content with AI</span>
                         </h2>
                         <motion.button 
                             whileHover={{ scale: 1.1, backgroundColor: '#FF6600', color: '#fff', boxShadow: '0 0 50px rgba(255,102,0,0.5)' }}
@@ -470,7 +550,7 @@ export default function AboutPage() {
                             onClick={handleJoinClick}
                             className="bg-white text-black px-20 py-8 rounded-full font-black uppercase tracking-[0.4em] text-xs transition-all duration-700"
                         >
-                            Enter Workspace
+                            Start Creating with AI
                         </motion.button>
                     </div>
                 </motion.div>

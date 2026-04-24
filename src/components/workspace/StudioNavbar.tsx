@@ -9,9 +9,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface StudioNavbarProps {
     rightContent?: ReactNode;
+    onHelpClick?: () => void;
 }
 
-export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
+export default function StudioNavbar({ rightContent, onHelpClick }: StudioNavbarProps) {
     const pathname = usePathname();
     const { userProfile } = useAuth();
 
@@ -82,6 +83,14 @@ export default function StudioNavbar({ rightContent }: StudioNavbarProps) {
                     )}
                 </Link>
                 
+                {onHelpClick && (
+                    <button
+                        onClick={onHelpClick}
+                        className="relative text-[10px] font-black uppercase tracking-[0.2em] transition-all text-white/40 hover:text-accent-orange"
+                    >
+                        Help
+                    </button>
+                )}
                 {/* {rightContent} */}
             </div>
         </nav>
