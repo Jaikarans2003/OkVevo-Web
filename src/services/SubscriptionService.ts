@@ -1,9 +1,16 @@
 import { db } from '../config/firebase';
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 
-export type PlanType = 'hobby' | 'pro' | 'enterprise';
+export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
 
 export const SUBSCRIPTION_PLANS = {
+    starter: {
+        name: 'Starter',
+        price: 149900,
+        currency: 'INR',
+        period: 'monthly',
+        interval: 1
+    },
     hobby: {
         name: 'Hobby',
         price: 599900,
@@ -50,11 +57,29 @@ export interface SubscriptionData {
         failedAt: Timestamp;
     };
     cancelledAt?: Timestamp;
+    cancelAtCycleEnd?: boolean;
+    willCancelAt?: Timestamp;
     pausedAt?: Timestamp;
     resumedAt?: Timestamp;
     expiresAt?: Timestamp | Date;
     completedAt?: Timestamp;
     haltedAt?: Timestamp;
+    
+    // Payment method tracking
+    payment_method?: 'card' | 'netbanking' | 'upi' | 'emandate';
+    last_payment_method?: string;
+    payment_method_updated_at?: Timestamp;
+    
+    // Scheduled changes (Card/Netbanking)
+    has_scheduled_changes?: boolean;
+    change_scheduled_at?: Timestamp;
+    scheduled_plan_id?: string;
+    scheduled_plan_type?: PlanType;
+    
+    // UPI upgrade flow
+    replacing_subscription_id?: string; // New sub replacing old
+    being_replaced_by?: string; // Old sub being replaced
+    will_activate_at?: Timestamp; // When new sub activates
 }
 
 export interface SubscriptionWithPlanDetails extends SubscriptionData {
@@ -118,7 +143,13 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionW
             const expiry = data.expiresAt instanceof Date ? data.expiresAt : (data.expiresAt as any).toDate();
             if (expiry < new Date()) return null;
         }
+        
+        // Validate plan type exists in SUBSCRIPTION_PLANS
         const planDetails = SUBSCRIPTION_PLANS[data.planType];
+        if (!planDetails) {
+            console.error(`Unknown plan type: ${data.planType}`);
+            return null;
+        }
 
         // Calculate next billing date (approximate - 1 month from last payment or creation)
         let nextBillingDate: Date | undefined;

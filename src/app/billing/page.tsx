@@ -39,6 +39,9 @@ export default function BillingPage() {
     const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -89,6 +92,42 @@ export default function BillingPage() {
             month: 'long',
             year: 'numeric',
         });
+    };
+
+    const handleCancelSubscription = async () => {
+        if (!userProfile || !subscription) return;
+        
+        setCancelling(true);
+        setCancelError(null);
+        
+        try {
+            const response = await fetch('/api/razorpay/cancel-subscription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userProfile.uid,
+                    subscriptionId: subscription.subscriptionId,
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to cancel subscription');
+            }
+            
+            // Reload subscription data
+            const updatedSub = await getUserSubscription(userProfile.uid);
+            setSubscription(updatedSub);
+            setShowCancelModal(false);
+        } catch (err: any) {
+            console.error('Failed to cancel subscription:', err);
+            setCancelError(err.message || 'Failed to cancel subscription. Please try again.');
+        } finally {
+            setCancelling(false);
+        }
     };
 
     // Animation Configs
@@ -191,6 +230,117 @@ export default function BillingPage() {
                     ) : (
                         // Subscription details
                         <div className="space-y-8">
+                            {/* Scheduled Plan Change Banner (Card/Netbanking) */}
+                            {subscription.has_scheduled_changes && !subscription.cancelAtCycleEnd && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.7, duration: 0.5 }}
+                                    className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-3xl p-6 shadow-xl"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3 bg-blue-500/20 rounded-full flex-shrink-0">
+                                            <Calendar className="w-6 h-6 text-blue-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-black text-blue-400 mb-2">Plan Change Scheduled</h3>
+                                            <p className="text-white/80 mb-3">
+                                                Your plan will change from <span className="font-bold text-white">{subscription.planDetails.name}</span> to{' '}
+                                                <span className="font-bold text-white capitalize">{subscription.scheduled_plan_type}</span> on{' '}
+                                                <span className="font-bold text-white">{formatDate(subscription.change_scheduled_at)}</span>
+                                            </p>
+                                            <div className="flex gap-3 mt-4">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!userProfile) return;
+                                                        try {
+                                                            const response = await fetch('/api/razorpay/cancel-scheduled-change', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    userId: userProfile.uid,
+                                                                    subscriptionId: subscription.subscriptionId,
+                                                                }),
+                                                            });
+                                                            if (response.ok) {
+                                                                const updatedSub = await getUserSubscription(userProfile.uid);
+                                                                setSubscription(updatedSub);
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Failed to cancel scheduled change:', err);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-xs font-bold uppercase tracking-widest transition-colors"
+                                                >
+                                                    Cancel Change
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* UPI Upgrade in Progress Banner */}
+                            {subscription.being_replaced_by && subscription.status === 'active' && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.7, duration: 0.5 }}
+                                    className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-3xl p-6 shadow-xl"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3 bg-green-500/20 rounded-full flex-shrink-0">
+                                            <RefreshCw className="w-6 h-6 text-green-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-black text-green-400 mb-2">Upgrade in Progress</h3>
+                                            <p className="text-white/80 mb-3">
+                                                Your new plan will activate on <span className="font-bold text-white">{formatDate(subscription.willCancelAt)}</span> when your current billing cycle ends.
+                                            </p>
+                                            <p className="text-sm text-white/60">
+                                                Your current plan remains active until then. Both subscriptions will be visible until the transition completes.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Cancellation Scheduled Banner */}
+                            {subscription.cancelAtCycleEnd && subscription.status === 'active' && !subscription.being_replaced_by && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.7, duration: 0.5 }}
+                                    className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/30 rounded-3xl p-6 shadow-xl"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3 bg-orange-500/20 rounded-full flex-shrink-0">
+                                            <AlertCircle className="w-6 h-6 text-orange-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-black text-orange-400 mb-2">Subscription Cancellation Scheduled</h3>
+                                            <p className="text-white/80 mb-3">
+                                                Your subscription will end on <span className="font-bold text-white">{formatDate(subscription.willCancelAt)}</span>.
+                                            </p>
+                                            <div className="space-y-1.5 text-sm text-white/70">
+                                                <p className="flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                                    You can continue using all features until then
+                                                </p>
+                                                <p className="flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                                    Your credits remain available until the end date
+                                                </p>
+                                                <p className="flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                                    You will not be charged from your next billing cycle
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             {/* Current Plan Card */}
                             <motion.div
                                 initial={{ opacity: 0, y: 30 }}
@@ -448,17 +598,122 @@ export default function BillingPage() {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex justify-center pt-8">
+                            <div className="flex justify-center gap-4 pt-8 flex-wrap">
                                 <Link
                                     href="/#pricing"
                                     className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest transition-colors shadow-xl"
                                 >
                                     Change Plan
                                 </Link>
+                                
+                                {subscription.status === 'active' && !subscription.cancelAtCycleEnd && (
+                                    <button
+                                        onClick={() => setShowCancelModal(true)}
+                                        className="px-8 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-full text-xs font-black uppercase tracking-widest transition-colors shadow-xl text-red-400 hover:text-red-300"
+                                    >
+                                        Cancel Subscription
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
+
+                {/* Cancel Subscription Modal */}
+                <AnimatePresence>
+                    {showCancelModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                            onClick={() => !cancelling && setShowCancelModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                transition={{ type: 'spring', damping: 20 }}
+                                className="bg-[#111] border border-white/10 rounded-3xl p-8 max-w-lg w-full shadow-2xl relative"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <button
+                                    onClick={() => !cancelling && setShowCancelModal(false)}
+                                    disabled={cancelling}
+                                    className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                                >
+                                    <X className="w-5 h-5 text-white/50" />
+                                </button>
+
+                                <div className="mb-6">
+                                    <div className="inline-block p-4 bg-red-500/20 rounded-full mb-4">
+                                        <AlertCircle className="w-8 h-8 text-red-400" />
+                                    </div>
+                                    <h2 className="text-3xl font-black text-white mb-2">Cancel Subscription?</h2>
+                                    <p className="text-white/70">
+                                        Your subscription will be cancelled at the end of your current billing cycle.
+                                    </p>
+                                </div>
+
+                                {subscription && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-white/50">Current Plan</span>
+                                            <span className="text-sm font-bold text-white">{subscription.planDetails.name}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-white/50">Subscription Ends On</span>
+                                            <span className="text-sm font-bold text-white">{formatDate(subscription.nextBillingDate)}</span>
+                                        </div>
+                                        <div className="border-t border-white/10 pt-3 mt-3">
+                                            <div className="space-y-2 text-sm">
+                                                <p className="flex items-start gap-2 text-white/70">
+                                                    <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                                    <span>You will continue to have access to all features and credits until <span className="font-bold text-white">{formatDate(subscription.nextBillingDate)}</span></span>
+                                                </p>
+                                                <p className="flex items-start gap-2 text-white/70">
+                                                    <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                                    <span>You will not be charged from your next billing cycle</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {cancelError && (
+                                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-4 flex items-center gap-3">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                        <p className="text-sm">{cancelError}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowCancelModal(false)}
+                                        disabled={cancelling}
+                                        className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+                                    >
+                                        Keep Subscription
+                                    </button>
+                                    <button
+                                        onClick={handleCancelSubscription}
+                                        disabled={cancelling}
+                                        className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 rounded-full text-sm font-black uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {cancelling ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Cancelling...
+                                            </>
+                                        ) : (
+                                            'Yes, Cancel'
+                                        )}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </main>
         </div>
     );

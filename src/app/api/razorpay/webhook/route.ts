@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { RAZORPAY_CONFIG, getPlanDetails, type PlanType } from '@/config/razorpay';
@@ -250,6 +251,52 @@ export async function POST(request: NextRequest) {
                 await syncSubscriptionToFirestore(subscription.id, userId, updates);
 
                 console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
+
+                // Handle UPI upgrade flow - cancel old subscription after new one is confirmed
+                if (notes.replacing_subscription_id && notes.upgrade_flow === 'true') {
+                    const oldSubId = notes.replacing_subscription_id;
+                    
+                    console.log(`🔄 UPI Upgrade Flow: New subscription ${subscription.id} activated, cancelling old ${oldSubId}`);
+                    
+                    try {
+                        const razorpay = new Razorpay({
+                            key_id: RAZORPAY_CONFIG.keyId,
+                            key_secret: RAZORPAY_CONFIG.keySecret,
+                        });
+                        
+                        // Cancel old subscription at cycle end
+                        await razorpay.subscriptions.cancel(oldSubId, 1); // 1 = cycle_end
+                        
+                        // Fetch old subscription to get next billing date
+                        const oldSubDoc = await getSubscriptionWithFallback(oldSubId, userId);
+                        const oldSubData = oldSubDoc?.data();
+                        
+                        // Calculate when old subscription will end
+                        let willCancelAt = oldSubData?.nextBillingDate 
+                            ? Timestamp.fromDate(new Date(oldSubData.nextBillingDate))
+                            : Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+                        
+                        // Update old subscription in Firestore
+                        await syncSubscriptionToFirestore(oldSubId, userId, {
+                            cancelAtCycleEnd: true,
+                            cancelledAt: FieldValue.serverTimestamp(),
+                            being_replaced_by: subscription.id,
+                            willCancelAt: willCancelAt,
+                            updatedAt: FieldValue.serverTimestamp(),
+                        });
+                        
+                        // Update new subscription with activation date
+                        await syncSubscriptionToFirestore(subscription.id, userId, {
+                            replacing_subscription_id: oldSubId,
+                            will_activate_at: willCancelAt,
+                        });
+                        
+                        console.log(`✅ Old subscription ${oldSubId} cancelled at cycle end (${willCancelAt.toDate().toISOString()})`);
+                    } catch (error) {
+                        console.error(`❌ Failed to cancel old subscription ${oldSubId}:`, error);
+                        // Don't fail the webhook - log for manual review
+                    }
+                }
 
                 // Record coupon usage in UserSubscription collection (first payment only)
                 if (notes.couponApplied === 'true' && notes.couponCode) {
@@ -544,6 +591,9 @@ export async function POST(request: NextRequest) {
 
                 const planDetails = getPlanDetails(planType as PlanType);
 
+                // Track payment method from payment entity (reliable source)
+                const paymentMethod = payment?.method; // 'card', 'upi', 'netbanking', 'emandate'
+
                 // SOURCE OF TRUTH — invoice.paid unconditionally owns credits.
                 // Stamps invoicePaidAt so all other events know not to overwrite after this.
                 const updates: any = {
@@ -557,6 +607,12 @@ export async function POST(request: NextRequest) {
                     gracePeriodEndsAt: FieldValue.delete(),
                     lastPaymentFailure: FieldValue.delete(),
                     updatedAt: FieldValue.serverTimestamp(),
+                    // Track payment method (reliable source from payment entity)
+                    ...(paymentMethod && {
+                        payment_method: paymentMethod,
+                        last_payment_method: paymentMethod,
+                        payment_method_updated_at: FieldValue.serverTimestamp(),
+                    }),
                 };
 
                 // Only update status if priority allows (don't reactivate cancelled subs)

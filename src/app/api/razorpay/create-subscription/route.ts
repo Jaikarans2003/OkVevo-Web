@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
+import { db } from '@/lib/firebase-admin';
 import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
 
 /**
@@ -8,8 +9,9 @@ import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, type PlanTy
  * 
  * Flow:
  * 1. Validate user and plan type
- * 2. Create Razorpay subscription
- * 3. Return subscription ID and checkout URL
+ * 2. Check for existing active subscriptions (auto-detect upgrade flow)
+ * 3. Create Razorpay subscription
+ * 4. Return subscription ID and checkout URL
  */
 export async function POST(request: NextRequest) {
     try {
@@ -47,6 +49,36 @@ export async function POST(request: NextRequest) {
         const planDetails = getPlanDetailsByPeriod(planType as PlanType, billingPeriod as 'monthly' | 'annual');
         const razorpayPlanId = getRazorpayPlanId(planType as PlanType, billingPeriod as 'monthly' | 'annual');
 
+        // Check for existing active subscriptions (auto-detect upgrade/downgrade flow)
+        let existingSubscription = null;
+        let isUpgradeFlow = false;
+        
+        try {
+            const subscriptionsSnapshot = await db
+                .collection('users')
+                .doc(userId)
+                .collection('subscriptions')
+                .where('status', '==', 'active')
+                .limit(1)
+                .get();
+            
+            if (!subscriptionsSnapshot.empty) {
+                existingSubscription = subscriptionsSnapshot.docs[0].data();
+                const existingSubId = existingSubscription.subscriptionId;
+                
+                // Check if user is changing plans (upgrade/downgrade)
+                if (existingSubscription.planType !== planType) {
+                    isUpgradeFlow = true;
+                    console.log(`🔄 Upgrade/Downgrade detected: ${existingSubscription.planType} → ${planType}`);
+                    console.log(`   Existing subscription: ${existingSubId}`);
+                    console.log(`   This will be marked as upgrade flow`);
+                }
+            }
+        } catch (error) {
+            console.error('⚠️ Error checking existing subscriptions:', error);
+            // Continue with subscription creation even if check fails
+        }
+
         console.log(`📦 Creating ${billingPeriod} subscription for user ${userId}, plan: ${planType}`);
 
         // Apply Razorpay Offer for affiliate referral codes on monthly plans
@@ -70,6 +102,11 @@ export async function POST(request: NextRequest) {
                 billingPeriod,
                 userEmail: userEmail || '',
                 userName: userName || '',
+                // CRITICAL: Mark as upgrade flow if existing subscription detected
+                ...(isUpgradeFlow && existingSubscription && {
+                    replacing_subscription_id: existingSubscription.subscriptionId,
+                    upgrade_flow: 'true',
+                }),
                 ...(couponCode?.valid && {
                     couponApplied: 'true',
                     couponCode: couponCode.couponCode || '',

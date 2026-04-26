@@ -102,8 +102,8 @@ exports.handler = async (event) => {
         
         // Apply Settings for specific TTS pacing / styles based on ChatterboxHD specs
         if (ttsPacing === 'fast') {
-            ttsInput.exaggeration = 0.8;
-            ttsInput.cfg = 0.5;
+            ttsInput.exaggeration = 1.2;
+            ttsInput.cfg = 0.3;
         } else {
             // Calm defaults or general pacing
             ttsInput.exaggeration = 0.3;
