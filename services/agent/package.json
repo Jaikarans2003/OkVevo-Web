@@ -1,0 +1,31 @@
+{
+  "name": "okvevo-agent",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "TS_NODE_TRANSPILE_ONLY=true ts-node -r dotenv/config src/server.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.js --external:firebase-admin --external:express --external:cors --external:groq-sdk --external:node-fetch",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "^2.0.0",
+    "ai": "^6.0.206",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "firebase-admin": "^12.0.0",
+    "groq-sdk": "^0.7.0",
+    "node-fetch": "^3.3.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.28.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,180 @@
+<template id="captions-overlay-template">
+  <div
+    data-composition-id="captions-overlay"
+    data-start="0"
+    data-width="1920"
+    data-height="1080"
+    data-duration="{{TOTAL_DURATION}}"
+  >
+    <style>
+      {{BRAND_CSS_VARS}}
+
+      [data-composition-id="captions-overlay"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: visible;
+        background: transparent;
+        pointer-events: none;
+      }
+
+      /* caption-highlight catalog patterns */
+      [data-composition-id="captions-overlay"] #hl-container {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      [data-composition-id="captions-overlay"] .hl-group {
+        position: absolute;
+        bottom: 96px;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 1600px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 8px;
+        padding: 0;
+        font-size: 52px;
+        line-height: 1.15;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      [data-composition-id="captions-overlay"] .hl-word {
+        font-family: var(--brand-font, 'Inter', system-ui, sans-serif);
+        font-weight: 800;
+        font-size: inherit;
+        text-transform: uppercase;
+        color: #ffffff;
+        display: inline-block;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+        position: relative;
+        padding: 6px 12px 8px;
+        text-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        transform-origin: 50% 58%;
+        will-change: transform, filter;
+      }
+
+      [data-composition-id="captions-overlay"] .hl-word-bg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          var(--brand-accent, #ff1745) 0%,
+          var(--brand-primary, #df1238) 100%
+        );
+        border-radius: 10px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+        opacity: 0;
+        transform: scaleX(0);
+        transform-origin: 0% 50%;
+        z-index: -1;
+      }
+
+      [data-composition-id="captions-overlay"] .hl-word-text {
+        position: relative;
+        z-index: 1;
+      }
+    </style>
+
+    <div id="hl-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+
+        var _fitCanvas = document.createElement('canvas');
+        var _fitCtx = _fitCanvas.getContext('2d');
+        function fitFontSize(text, baseFontSize, fontWeight, fontFamily, maxWidth) {
+          var size = baseFontSize;
+          var minSize = Math.floor(baseFontSize * 0.45);
+          while (size > minSize) {
+            _fitCtx.font = fontWeight + ' ' + size + 'px ' + fontFamily;
+            if (_fitCtx.measureText(text).width <= maxWidth) return size;
+            size -= 2;
+          }
+          return minSize;
+        }
+
+        var GROUPS = {{CAPTIONS_JSON}};
+        var TOTAL_DURATION = {{TOTAL_DURATION}};
+        var container = document.querySelector('[data-composition-id="captions-overlay"] #hl-container');
+        var brandFont = getComputedStyle(document.querySelector('[data-composition-id="captions-overlay"]'))
+          .getPropertyValue('--brand-font')
+          .trim() || 'Inter, system-ui, sans-serif';
+        var tl = gsap.timeline({ paused: true });
+
+        GROUPS.forEach(function (g, gi) {
+          var words = g.words || [];
+          if (!words.length) return;
+
+          var grp = document.createElement('div');
+          grp.className = 'clip hl-group';
+          grp.id = 'hl-grp-' + gi;
+          grp.setAttribute('data-start', String(g.start));
+          grp.setAttribute('data-duration', String(Math.max(g.end - g.start, 0.01)));
+          grp.setAttribute('data-track-index', '10');
+
+          var groupText = words
+            .map(function (w) {
+              return String(w.text || '').toUpperCase();
+            })
+            .join(' ');
+          var computedSize = fitFontSize(groupText, 52, '800', brandFont, 1600);
+
+          words.forEach(function (w, wi) {
+            var wordEl = document.createElement('span');
+            wordEl.className = 'hl-word';
+            wordEl.id = 'hl-w-' + gi + '-' + wi;
+            wordEl.style.fontSize = computedSize + 'px';
+
+            var bgEl = document.createElement('span');
+            bgEl.className = 'hl-word-bg';
+            bgEl.id = 'hl-bg-' + gi + '-' + wi;
+
+            var textEl = document.createElement('span');
+            textEl.className = 'hl-word-text';
+            textEl.textContent = String(w.text || '').toUpperCase();
+
+            wordEl.appendChild(bgEl);
+            wordEl.appendChild(textEl);
+            grp.appendChild(wordEl);
+          });
+
+          container.appendChild(grp);
+
+          tl.set(grp, { visibility: 'visible' }, g.start);
+          tl.fromTo(grp, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: 'power2.out' }, g.start);
+
+          words.forEach(function (w, wi) {
+            var bgEl = document.getElementById('hl-bg-' + gi + '-' + wi);
+            var wordEl = document.getElementById('hl-w-' + gi + '-' + wi);
+            if (!bgEl || !wordEl) return;
+
+            tl.to(bgEl, { opacity: 1, scaleX: 1, duration: 0.15, ease: 'power2.out' }, w.start);
+            tl.to(wordEl, { filter: 'brightness(1.05)', duration: 0.08, ease: 'power2.out' }, w.start);
+            tl.to(wordEl, { filter: 'brightness(1)', duration: 0.16, ease: 'power2.out' }, w.start + 0.08);
+            tl.to(bgEl, { opacity: 0, scaleX: 1.02, duration: 0.1, ease: 'power2.in' }, w.end);
+            tl.set(bgEl, { scaleX: 0 }, w.end + 0.1);
+          });
+
+          tl.to(grp, { opacity: 0, duration: 0.1, ease: 'power2.in' }, g.end - 0.1);
+          tl.set(grp, { opacity: 0, visibility: 'hidden' }, g.end);
+        });
+
+        tl.set({}, {}, TOTAL_DURATION);
+        tl.seek(0);
+        window.__timelines['captions-overlay'] = tl;
+      })();
+    </script>
+  </div>
+</template>

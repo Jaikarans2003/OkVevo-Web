@@ -1,0 +1,79 @@
+<template id="seg-mode-a-template">
+  <div
+    data-composition-id="{{SEGMENT_ID}}"
+    data-start="0"
+    data-width="1920"
+    data-height="1080"
+    data-duration="{{SEGMENT_DURATION}}"
+  >
+    <div id="brand-bg"></div>
+    <div id="speaker-pip" class="glass-panel liquid-glass"></div>
+
+    <style>
+      {{BRAND_CSS_VARS}}
+
+      [data-composition-id="{{SEGMENT_ID}}"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      [data-composition-id="{{SEGMENT_ID}}"] #brand-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background: linear-gradient(
+          135deg,
+          var(--brand-bg-dark, #0a0a0f) 0%,
+          var(--brand-primary, #1a1a2e) 45%,
+          var(--brand-secondary, var(--brand-primary, #1a1a2e)) 100%
+        );
+      }
+
+      /* PiP marker — liquid-glass shell (catalog: liquid-glass-widgets) */
+      [data-composition-id="{{SEGMENT_ID}}"] #speaker-pip {
+        position: absolute;
+        bottom: 64px;
+        right: 24px;
+        width: 422px;
+        height: 237px;
+        border-radius: 16px;
+        overflow: hidden;
+        z-index: -1;
+        pointer-events: none;
+        background: rgba(255, 255, 255, 0.025);
+        --lg-blur: 0.42;
+        --lg-refraction: 0.82;
+        --lg-corner-radius: 16;
+        --lg-z-radius: 32;
+        --lg-specular: 0.34;
+        --lg-fresnel: 1.25;
+        --lg-edge-highlight: 0.26;
+        --lg-chrom-aberration: 0.08;
+        --lg-shadow-opacity: 0.35;
+        --lg-shadow-spread: 12;
+        --lg-shadow-offset-y: 8;
+        --lg-saturation: 0.38;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        const SEGMENT_DURATION = {{SEGMENT_DURATION}};
+        const tl = gsap.timeline({ paused: true });
+
+        {{MODE_GSAP}}
+
+        tl.set({}, {}, SEGMENT_DURATION);
+        window.__timelines = window.__timelines || {};
+        window.__timelines['{{SEGMENT_ID}}'] = tl;
+      })();
+    </script>
+  </div>
+</template>

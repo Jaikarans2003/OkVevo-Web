@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../src/pipelines/edu-video/retry.ts"],
+  "sourcesContent": ["export async function withRetry<T>(\n  fn: () => Promise<T>,\n  options: { maxAttempts?: number; label?: string; delayMs?: number } = {}\n): Promise<T> {\n  const { maxAttempts = 3, label = 'operation', delayMs = 1000 } = options\n  let lastError: unknown\n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    try {\n      return await fn()\n    } catch (err) {\n      lastError = err\n      if (attempt < maxAttempts) {\n        const wait = delayMs * Math.pow(2, attempt - 1)\n        console.warn(`[${label}] attempt ${attempt}/${maxAttempts} failed, retrying in ${wait}ms`)\n        await new Promise((r) => setTimeout(r, wait))\n      }\n    }\n  }\n  throw lastError\n}\n"],
+  "mappings": ";;;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,eAAsB,UACpB,IACA,UAAsE,CAAC,GAC3D;AACZ,QAAM,EAAE,cAAc,GAAG,QAAQ,aAAa,UAAU,IAAK,IAAI;AACjE,MAAI;AACJ,WAAS,UAAU,GAAG,WAAW,aAAa,WAAW;AACvD,QAAI;AACF,aAAO,MAAM,GAAG;AAAA,IAClB,SAAS,KAAK;AACZ,kBAAY;AACZ,UAAI,UAAU,aAAa;AACzB,cAAM,OAAO,UAAU,KAAK,IAAI,GAAG,UAAU,CAAC;AAC9C,gBAAQ,KAAK,IAAI,KAAK,aAAa,OAAO,IAAI,WAAW,wBAAwB,IAAI,IAAI;AACzF,cAAM,IAAI,QAAQ,CAAC,MAAM,WAAW,GAAG,IAAI,CAAC;AAAA,MAC9C;AAAA,IACF;AAAA,EACF;AACA,QAAM;AACR;",
+  "names": []
+}
