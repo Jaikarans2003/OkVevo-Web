@@ -1,142 +1,501 @@
-# Brick2Brick - AI Video Generation Platform
+OkVevo
 
-A Next.js application that generates and stitches AI-created videos using AWS SQS FIFO queues, Firebase Storage, and AWS Lambda with FFmpeg. Features deterministic video ordering, automatic polling, and seamless stitching with crossfade transitions.
+OkVevo is an AI video platform for educators and creators. Teachers upload lecture recordings; the platform turns them into polished educational videos with animations, HyperFrames compositions, and narration. V2 adds a dedicated AI Studio with a streaming agent, skill-driven workflows, and separate render services.
 
-## Features
+Repository: https://github.com/Jaikarans2003/OKVEVO-V2
 
-### ✨ Core Functionality
-- **AI Narration Pipeline**: Single-shot generation of 1-minute narration scripts + cinematic scene descriptions using Google Gemini.
-- **Smart Fallback System**: Automatically handles AI quota limits (Error 429) by falling back to scene description narration, ensuring the demo flow never breaks.
-- **AI Voice Generation**: High-quality TTS audio using OpenAI (Shimmer/Coral voice).
-- **SQS FIFO Queue**: Deterministic video stitching with guaranteed ordering.
-- **Client-Side Polling**: Direct, secure polling of Firebase Storage to detect finished videos without CORS issues.
-- **Auto-Display**: Automatic display of stitched videos when ready.
 
-### 🎬 Video Stitching Features
-- **FIFO Ordering**: Strict scene order preservation via SQS FIFO queues.
-- **Audio Overlay**: Merges TTS narration with stitched video.
-- **Resolution Normalization**: Automatically scales videos to consistent 360x640 resolution.
-- **Crossfade Transitions**: Smooth 1.5-second fade transitions between clips.
-- **Demo Mode**: Includes a robust "Demo Mode" that uses pre-stored high-quality videos (`MockAIGeneratedVideos`) to demonstrate the full stitching pipeline without waiting for new generation.
 
-## Architecture
+What’s in this codebase
 
-### Enhanced AI Narration & Stitching Pipeline
+The repo is organized around five major areas (from the project knowledge graph — ~4,000 OkVevo nodes across Skills/, src/, services/, infrastructure/, and AI-Influencer/):
 
-```mermaid
+
+
+
+
+
+
+Area
+
+
+
+Role
+
+
+
+
+
+src/
+
+
+
+Next.js 15 app — workspace UI, API routes, Firebase client, billing
+
+
+
+
+
+services/agent/
+
+
+
+Node.js agent microservice — chat, tools, OpenRouter, Firestore sessions
+
+
+
+
+
+Skills/
+
+
+
+Agent instructions (AGENT.md, edu-video, hyperframes, manim-video)
+
+
+
+
+
+services/hyperframes-renderer/
+
+
+
+HyperFrames HTML → video render API
+
+
+
+
+
+services/manim-renderer/
+
+
+
+Manim Python animation render API
+
+
+
+
+
+AI-Influencer/
+
+
+
+AWS Lambdas + Step Functions for influencer video pipelines
+
+
+
+
+
+infrastructure/
+
+
+
+AWS CDK / deployment assets
+
+
+
+
+
+functions/
+
+
+
+Firebase Cloud Functions
+
+
+
+Workspace products (src/app/workspace/)
+
+
+
+
+
+AI Studio — chat-first edu-video creation (agent + skills)
+
+
+
+AI Influencer — scripted avatar / lipsync pipelines via SQS + Step Functions
+
+
+
+Director — photo/video generation workflows
+
+
+
+Product — product placement and shoots
+
+
+
+Avatar profiles, Social, User manual — supporting flows
+
+
+
+
+
+Architecture
+
+
+
+AI Studio chat flow
+
+The graph centers on Community 353 (AI Studio UI) talking to Community 2665 (agent core) and Community 407 (agent tools).
+
 graph TD
-    A[User Input: @Script] -->|Single Call| B[Gemini AI]
-    B -->|Generates| C[1-Min Narration Script]
-    C -->|Fallback if Quota Exceeded| C2[Scene Descriptions]
-    C -->|Normal| E[OpenAI TTS]
-    E -->|Audio File| F[Firebase Storage]
-    F --> I[SQS FIFO Queue]
-    G[Storage: Mock Videos] --> I
-    I -->|Audio URL + Video URLs| J[AWS Lambda]
-    J -->|FFmpeg Stitching| K[Final Video in Storage]
-    K -->|Client-Side Poll| L[Frontend Auto-Play]
-```
+    subgraph Frontend ["Next.js — Community 353"]
+        UI[AiStudioShell]
+        Transport[DefaultChatTransport]
+        Proxy["/api/agent"]
+    end
 
-### Flow Details
+    subgraph Agent ["services/agent — Community 2665"]
+        Server[server.ts POST /chat]
+        Run[runAgent]
+        Skills[skills.ts + systemPromptCache]
+        Session[session.ts Firestore]
+        Tools[createTools — Community 407]
+    end
 
-1. **User Input**
-   - User types `@Script [story]`.
-   - Triggers single-shot Gemini generation.
+    subgraph External
+        OR[OpenRouter LLM]
+        FS[(Firebase Firestore + Storage)]
+        Groq[Groq transcription]
+    end
 
-2. **AI Generation (Optimized)**
-   - **One API Call** generating narration and scene descriptions.
-   - **Automatic Fallback**: If Gemini hits a rate limit, the system gracefully uses the recognized scene visuals as the narration script.
+    UI --> Transport --> Proxy --> Server --> Run
+    Run --> Skills
+    Run --> Session
+    Run --> Tools
+    Run --> OR
+    Session --> FS
+    Tools --> FS
+    Tools --> Groq
+    Tools --> Manim[Manim CLI in container]
+    Tools --> HF[HyperFrames CLI]
 
-3. **Audio Production**
-   - Narration sent to OpenAI TTS (`tts-1-hd`).
-   - Generated MP3 uploaded to Firebase Storage.
+Request path: AiStudioShell → useChat → POST /api/agent (edge proxy) → services/agent POST /chat → runAgent() → streamText() → streamed UI response. The Next.js route only proxies; it does not call the model.
 
-4. **Stitching Process (AWS Lambda via SQS)**
-   - Triggered via SQS with `audioUrl` payload.
-   - Downloads 3 videos (from `MockAIGeneratedVideos` in Demo Mode).
-   - Mutes original video audio & overlays TTS track.
-   - Stitches with crossfade transitions.
+Agent internals (runAgent): ensure Firestore session → load history → resolve skill → build system prompt from Skills/AGENT.md + skill SKILL.md → register tools → stream from OpenRouter (default anthropic/claude-sonnet-4-5, UI often uses Haiku).
 
-5. **Client-Side Polling**
-   - Frontend directly polls Firebase Storage (`videos/` folder) for the specific stitched filename.
-   - Bypasses complex proxy requirements, eliminating CORS errors.
+Edu-video pipeline (agent tools)
 
-## Prerequisites
+When the edu-video skill is active, the agent runs this pipeline autonomously:
 
-- **Node.js** 18+ and npm
-- **Firebase Project** with Storage enabled
-- **AWS Account** with SQS and Lambda access
-- **Google Gemini API** key (for narration)
-- **OpenAI API** key (for TTS)
-- **Storage Setup**: A folder named `MockAIGeneratedVideos` in Firebase Storage containing source videos (e.g., `1.mp4`, `2.mp4`, `3.mp4`) is required for Demo Mode.
+transcribe_video → extract_concepts → generate_manim_script → render_manim_clips
+  → plan_hf_segments → scaffold_hf_project → render_hyperframes
 
-## Setup Instructions
+Supporting tools: read_file, write_file, search_files, run_command (Manim, HyperFrames, ffmpeg inside the agent container).
 
-### 1. Clone and Install
+Outputs are uploaded to Firebase Storage; the agent returns public URLs, not local paths.
 
-```bash
-git clone <your-repo-url>
-cd Brick2Brick
+Legacy / parallel pipelines (Community 324)
+
+Director and older chat flows still use SQS, Lambda stitch services, and Gemini narration (useDirectorFlow, SQSStitchService, LambdaStitchService). These coexist with AI Studio; they are separate subgraphs in the codebase.
+
+
+
+
+
+Directory structure
+
+OKVEVO V2/
+├── src/                          # Next.js app
+│   ├── app/workspace/ai-studio/  # AI Studio pages
+│   ├── app/api/agent/            # Agent proxy + session APIs
+│   ├── components/workspace/     # AiStudioShell, timeline, chat bar
+│   ├── hooks/                    # useAuth, usePipelineState, useChatFlow, …
+│   └── services/                 # Firebase, SQS, Razorpay, generation helpers
+├── services/
+│   ├── agent/                    # Express agent (src/agent.ts, tools.ts, …)
+│   ├── hyperframes-renderer/
+│   └── manim-renderer/
+├── Skills/
+│   ├── AGENT.md                  # Base agent identity (Nia)
+│   ├── edu-video/                # Edu-video skill + HTML templates
+│   ├── hyperframes/
+│   └── manim-video/
+├── AI-Influencer/                # Lambdas, state machines
+├── infrastructure/               # CDK
+├── functions/                    # Firebase functions
+├── docker-compose.yml            # Local agent service
+├── .env.example                  # Root env template (safe to commit)
+└── services/agent/.env.example   # Agent env template
+
+
+
+
+
+Prerequisites
+
+
+
+
+
+Node.js 20+
+
+
+
+npm
+
+
+
+Firebase project (Auth, Firestore, Storage)
+
+
+
+OpenRouter API key (agent LLM)
+
+
+
+Groq API key (video transcription in agent tools)
+
+
+
+Docker (optional, for agent + Manim + HyperFrames in one image)
+
+For full platform features you may also need: AWS (SQS, Lambda, Step Functions), Razorpay, Fal.ai, Gemini — see .env.example.
+
+
+
+
+
+Setup
+
+
+
+1. Clone and install
+
+git clone https://github.com/Jaikarans2003/OKVEVO-V2.git
+cd OKVEVO-V2
 npm install
-```
 
-### 2. Environment Variables
 
-Create a `.env` file in the root directory:
 
-```env
-# Google Gemini API
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+2. Environment files
 
-# AWS Configuration for SQS
-AWS_ACCESS_KEY_ID=your_id
-AWS_SECRET_ACCESS_KEY=your_key
-AWS_REGION=us-east-1
-SQS_STITCHING_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/ACCOUNT/brick2brick-stitching.fifo
-```
+Copy templates and fill in credentials. Never commit real .env files.
 
-### 3. Firebase Setup
+cp .env.example .env
+cp services/agent/.env.example services/agent/.env
 
-1. Create a project at [Firebase Console](https://console.firebase.google.com/).
-2. Enable **Storage**.
-3. Set Rules to allow public read/write for development.
-4. **Upload Mock Videos**: Create a folder `MockAIGeneratedVideos` and upload 3 clips.
+Key variables:
 
-### 4. AWS SQS Setup
 
-1. Create a **Standard FIFO Queue** named `brick2brick-stitching.fifo`.
-2. Enable "Content-based deduplication".
-3. Copy the URL to `.env`.
 
-### 5. AWS Lambda Setup
 
-1. Create a Node.js 18 function `brick2brick-video-stitcher`.
-2. Add the **FFmpeg Layer**.
-3. Add **SQS Trigger** pointing to your FIFO queue.
-4. Set Environment Variables: `FIREBASE_SERVICE_ACCOUNT_KEY` (Base64 JSON), `FIREBASE_STORAGE_BUCKET`.
 
-## Troubleshooting
 
-### "Quota Exceeded" (Gemini 429)
-**Symptom**: AI generation fails with a red error.
-**Solution**: Use the built-in fallback! The app will automatically detect this and switch to using scene descriptions for narration. You can continue the flow without interruption.
 
-### Lambda Path / CORS Errors
-**Symptom**: "Wrong path" or "CORS blocked" in console.
-**Solution**: The app now uses **SQS** for triggering and **Client-Side Storage** for polling.
-- Ensure `fetchStitchedVideos` in `StorageService.ts` is used (checks `videos/` folder).
-- Ensure the "Stitch" button calls `stitchStorageVideos` (SQS) not the legacy Lambda function.
+Variable
 
-### FFmpeg Errors
-**Check CloudWatch Logs**. Common issues:
-- Input videos not found (check `MockAIGeneratedVideos` path).
-- Memory limit exceeded (ensure Lambda has 2GB+ RAM).
 
-## Performance
 
-- **Video Stitching**: 30-40 seconds for 3 clips.
-- **Total Workflow**: ~1-2 minutes.
+Where
 
-## License
+
+
+Purpose
+
+
+
+
+
+OPENROUTER_API_KEY
+
+
+
+root + agent
+
+
+
+LLM for app and agent
+
+
+
+
+
+AGENT_URL
+
+
+
+root .env
+
+
+
+Agent service URL (http://localhost:3001)
+
+
+
+
+
+GROQ_API_KEY
+
+
+
+agent .env
+
+
+
+Lecture transcription
+
+
+
+
+
+FIREBASE_* / FB_*
+
+
+
+root + agent
+
+
+
+Firebase client + Admin SDK
+
+
+
+
+
+NEXT_PUBLIC_FIREBASE_*
+
+
+
+root
+
+
+
+Browser Firebase config
+
+
+
+3. Run locally
+
+Next.js (frontend + API proxy):
+
+npm run dev
+
+Agent service (required for AI Studio chat):
+
+cd services/agent
+npm install
+npm run dev
+
+Or with Docker (includes Manim, Chromium, HyperFrames CLI):
+
+docker compose up agent
+
+Open AI Studio at /workspace/ai-studio. A simple “hi” still goes through the agent service — the Next.js /api/agent route only proxies to services/agent.
+
+4. Optional render services
+
+cd services/manim-renderer && npm install && npm start
+cd services/hyperframes-renderer && npm install && npm start
+
+Point MANIM_RENDERER_URL in services/agent/.env if using external renderers instead of in-container CLI.
+
+
+
+
+
+Agent skills
+
+Skills live under Skills/ as SKILL.md files. The agent loads AGENT.md for every session and appends a skill file when:
+
+
+
+
+
+The user selects a skill in AI Studio, or
+
+
+
+The message matches triggers (e.g. “edu video”, /edu-video)
+
+
+
+
+
+
+
+Skill
+
+
+
+Purpose
+
+
+
+
+
+edu-video
+
+
+
+Full lecture → edu video pipeline
+
+
+
+
+
+hyperframes
+
+
+
+HyperFrames HTML compositions
+
+
+
+
+
+manim-video
+
+
+
+Manim animation scripts
+
+
+
+
+
+Deployment
+
+
+
+
+
+Frontend: npm run build → Firebase Hosting (firebase deploy --only hosting)
+
+
+
+Agent: services/agent/Dockerfile — Node 22 + Python 3.11 + Manim + Chromium + HyperFrames
+
+
+
+AWS / Influencer: see infrastructure/ and AI-Influencer/
+
+
+
+
+
+Development notes
+
+
+
+
+
+Secrets: .env and services/agent/.env are gitignored. Example files (.env.example, .Env File Example) are committed as templates.
+
+
+
+Excluded from git: Refference/, .cursor/, graphify-out/, .firebase/, node_modules/
+
+
+
+Knowledge graph: Run .venv/bin/graphify update . after code changes to refresh graphify-out/ for architecture queries (graphify explain runAgent, etc.)
+
+
+
+
+
+License
 
 MIT License
