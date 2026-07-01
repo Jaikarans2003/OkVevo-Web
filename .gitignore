@@ -38,13 +38,12 @@ lerna-debug.log*
 
 # Env files (never commit secrets)
 .env
+.env.*
+!.env.example
 **/.env
-services/agent/.env
-.env.dev
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
+**/.env.*
+!**/.env.example
+!.Env File Example
 
 # Vercel
 .vercel
@@ -85,5 +84,3 @@ function*.zip
 okvevo-ai-prep.zip
 okvevo-ai-prep-*.zip
 
-# Env examples with secrets
-.Env File Example
