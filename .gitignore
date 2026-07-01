@@ -36,8 +36,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Env files
+# Env files (never commit secrets)
 .env
+**/.env
+services/agent/.env
 .env.dev
 .env*.local
 .env.development.local
