@@ -86,7 +86,7 @@ exports.handler = async (event) => {
                     image_size: "square",
                     num_inference_steps: 4,
                     num_images: 1,
-                    enable_safety_checker: true,
+                    enable_safety_checker: false,
                     enable_prompt_expansion: true
                 },
                 webhookUrl: webhookUrl

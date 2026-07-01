@@ -1,0 +1,31 @@
+{
+  "source": "Demo.mp4",
+  "transcript": "edit/transcripts/Demo.json",
+  "edl": "edit/edl.json",
+  "rendered_output": "edit/edited.mp4",
+  "edl_schema_version": 1,
+  "segment_count": 6,
+  "ranges": [
+    {"index": 0, "beat": "HOOK", "start": 0.98, "end": 2.62, "duration_s": 1.64},
+    {"index": 1, "beat": "SETUP", "start": 3.48, "end": 5.48, "duration_s": 2.0},
+    {"index": 2, "beat": "PILLAR", "start": 6.78, "end": 9.4, "duration_s": 2.62},
+    {"index": 3, "beat": "VALUE", "start": 10.84, "end": 12.32, "duration_s": 1.48},
+    {"index": 4, "beat": "BRIDGE", "start": 13.3, "end": 13.8, "duration_s": 0.5},
+    {"index": 5, "beat": "OUTRO", "start": 14.44, "end": 16.96, "duration_s": 2.52}
+  ],
+  "edl_nominal_output_duration_s": 10.76,
+  "source_duration_s": 17.067,
+  "approx_silence_and_dead_air_removed_s": 6.307,
+  "base_concat_duration_ffprobe_s": 10.854329,
+  "edited_container_duration_ffprobe_s": 10.941,
+  "edited_video_stream_duration_s": 10.833333,
+  "edited_audio_stream_duration_s": 10.941,
+  "audio_video_delta_s": 0.107667,
+  "subtitle_cues": 14,
+  "grade_mode": "auto",
+  "per_segment_grade_filter": "eq=contrast=1.030:saturation=1.040",
+  "render_wall_clock_s": 29.54,
+  "loudnorm_measured_input_i_lufs": -22.97,
+  "loudnorm_measured_tp_db": -1.97,
+  "loudnorm_measured_lra": 5.2
+}

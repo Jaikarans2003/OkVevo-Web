@@ -80,7 +80,7 @@ const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, onS
                 subscription_id: subscriptionId,
                 name: 'OKVEVO',
                 description: `${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan Subscription`,
-                image: '/OKVEVO WithOut BackGrounds/White.svg',
+                image: '/OKVEVO Logos WithOut BackGrounds/White.svg',
                 prefill: {
                     name: user.displayName || '',
                     email: user.email || '',

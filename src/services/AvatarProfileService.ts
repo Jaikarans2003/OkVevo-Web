@@ -11,6 +11,7 @@ import {
     Timestamp 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from 'firebase/storage';
+import { getUserSubscription, type PlanType } from './SubscriptionService';
 
 export interface AvatarProfile {
     id: string;
@@ -22,7 +23,40 @@ export interface AvatarProfile {
     updatedAt: string;
 }
 
-const MAX_PROFILES = 5;
+const MAX_PROFILES = 5; // Legacy fallback
+
+/**
+ * Get maximum avatar profiles allowed for a plan type
+ */
+export function getMaxProfilesForPlan(planType: PlanType | null): number {
+    if (!planType) return 0; // No subscription = 0 avatars
+    
+    switch (planType) {
+        case 'starter':
+            return 1;
+        case 'hobby':
+            return 5;
+        case 'pro':
+        case 'enterprise':
+            return 15;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Get user's avatar limit based on their subscription
+ */
+export async function getUserAvatarLimit(userId: string): Promise<number> {
+    try {
+        const subscription = await getUserSubscription(userId);
+        if (!subscription) return 0;
+        return getMaxProfilesForPlan(subscription.planType);
+    } catch (error) {
+        console.error('Error fetching user avatar limit:', error);
+        return 0;
+    }
+}
 
 /**
  * Generate a thumbnail from video file using canvas
@@ -79,10 +113,18 @@ export async function createAvatarProfile(
     audioFile: File,
     onProgress?: (progress: UploadProgress) => void
 ): Promise<AvatarProfile> {
-    // Check if user already has max profiles
-    const existingProfiles = await getUserAvatarProfiles(userId);
-    if (existingProfiles.length >= MAX_PROFILES) {
-        throw new Error(`Maximum ${MAX_PROFILES} avatar profiles allowed`);
+    // Check if user already has max profiles based on their plan
+    const [existingProfiles, maxProfiles] = await Promise.all([
+        getUserAvatarProfiles(userId),
+        getUserAvatarLimit(userId)
+    ]);
+    
+    if (maxProfiles === 0) {
+        throw new Error('No subscription found. Please subscribe to a plan to create avatar profiles.');
+    }
+    
+    if (existingProfiles.length >= maxProfiles) {
+        throw new Error(`Maximum ${maxProfiles} avatar profile${maxProfiles > 1 ? 's' : ''} allowed for your plan. Please upgrade or delete existing profiles.`);
     }
 
     // Check if name already exists
@@ -264,29 +306,45 @@ export async function deleteAvatarProfile(userId: string, profileId: string): Pr
     const storagePath = `avatarProfiles/${userId}/${profileId}`;
 
     try {
-        // Delete from Storage
+        // Delete from Storage (best effort - files might not exist)
         const videoRef = ref(storage, `${storagePath}/video.mp4`);
-        await deleteObject(videoRef).catch(() => {});
+        await deleteObject(videoRef).catch((err) => {
+            console.warn('Failed to delete video:', err.code);
+        });
         
         const audioRef = ref(storage, `${storagePath}/audio.mp3`);
-        await deleteObject(audioRef).catch(() => {});
+        await deleteObject(audioRef).catch((err) => {
+            console.warn('Failed to delete audio:', err.code);
+        });
         
         const thumbnailRef = ref(storage, `${storagePath}/thumbnail.jpg`);
-        await deleteObject(thumbnailRef).catch(() => {});
+        await deleteObject(thumbnailRef).catch((err) => {
+            console.warn('Failed to delete thumbnail:', err.code);
+        });
 
-        // Delete from Firestore
+        // Delete from Firestore (critical - must succeed)
         const profileRef = doc(db, 'users', userId, 'avatarProfiles', profileId);
         await deleteDoc(profileRef);
-    } catch (error) {
+        
+        console.log('Successfully deleted avatar profile:', profileId);
+    } catch (error: any) {
         console.error('Error deleting avatar profile:', error);
-        throw new Error('Failed to delete avatar profile');
+        throw new Error(`Failed to delete avatar profile: ${error.message || 'Unknown error'}`);
     }
 }
 
 /**
- * Check if user can add more profiles
+ * Check if user can add more profiles based on their subscription plan
  */
 export async function canAddProfile(userId: string): Promise<boolean> {
-    const profiles = await getUserAvatarProfiles(userId);
-    return profiles.length < MAX_PROFILES;
+    try {
+        const [profiles, maxProfiles] = await Promise.all([
+            getUserAvatarProfiles(userId),
+            getUserAvatarLimit(userId)
+        ]);
+        return profiles.length < maxProfiles;
+    } catch (error) {
+        console.error('Error checking if user can add profile:', error);
+        return false;
+    }
 }

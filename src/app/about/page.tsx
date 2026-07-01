@@ -217,7 +217,7 @@ export default function AboutPage() {
                                     className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"
                                 />
                                 <Image
-                                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                    src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                                     alt="OKVEVO"
                                     width={100}
                                     height={100}

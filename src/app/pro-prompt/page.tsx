@@ -94,7 +94,7 @@ export default function ProPromptPage() {
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-block mb-6 group">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/White.svg"
                             alt="OKVEVO Logo"
                             width={60}
                             height={60}

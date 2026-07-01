@@ -39,6 +39,69 @@ function truncateToWordLimit(text: string, maxWords: number): string {
     return truncated + '...';
 }
 
+// Helper function to sanitize prompts by replacing flagged words with safe alternatives
+function sanitizePrompt(prompt: string): string {
+    // Map of flagged words to safe contextual replacements
+    const wordReplacements: Record<string, string> = {
+        // Body parts -> Safe alternatives
+        'hips': 'posture',
+        'hip': 'posture',
+        'curves': 'silhouette',
+        'curve': 'silhouette',
+        'curvy': 'graceful',
+        'curvaceous': 'graceful',
+        'thighs': 'lower body',
+        'legs': 'lower body',
+        'skin': 'complexion',
+        'flesh': 'form',
+        'body': 'figure',
+        'belly': 'midsection',
+        'stomach': 'midsection',
+        'abdomen': 'midsection',
+        'chest': 'torso',
+        'bust': 'upper body',
+        'breasts': 'upper body',
+        'bosom': 'upper body',
+        'cleavage': 'neckline',
+        'waist': 'torso',
+        'midriff': 'torso',
+        
+        // Suggestive descriptors -> Professional alternatives
+        'tight': 'fitted',
+        'revealing': 'stylish',
+        'bare': 'minimal',
+        'exposed': 'visible',
+        'naked': 'natural',
+        'nude': 'natural',
+        'intimate': 'personal',
+        'sensual': 'elegant',
+        'sexy': 'attractive',
+        'seductive': 'captivating',
+        'provocative': 'bold',
+        
+        // Camera angles with body focus -> Safe alternatives
+        'close-up of body': 'medium shot',
+        'close-up body': 'medium shot',
+        'body close-up': 'medium shot',
+        'detailed body': 'full frame',
+        'body detail': 'full frame',
+        'body shot': 'full-body view'
+    };
+    
+    let sanitized = prompt;
+    
+    // Replace flagged words with safe alternatives (case-insensitive)
+    Object.entries(wordReplacements).forEach(([flagged, safe]) => {
+        const regex = new RegExp(`\\b${flagged}\\b`, 'gi');
+        sanitized = sanitized.replace(regex, safe);
+    });
+    
+    // Clean up multiple spaces
+    sanitized = sanitized.replace(/\s+/g, ' ').trim();
+    
+    return sanitized;
+}
+
 // Helper function to adjust moments with proper gaps
 function adjustMomentsWithGaps(
     rawMoments: any[],
@@ -69,11 +132,15 @@ function adjustMomentsWithGaps(
             break;
         }
         
+        // Sanitize the prompt to remove flagged words
+        const originalPrompt = moment.prompt || moment.topic;
+        const sanitizedPrompt = sanitizePrompt(originalPrompt);
+        
         adjusted.push({
             start: currentTime,
             end: currentTime + momentDuration,
             topic: moment.topic || `Moment ${i + 1}`,
-            prompt: moment.prompt || moment.topic
+            prompt: sanitizedPrompt
         });
         
         // Add gap for next moment
@@ -310,10 +377,24 @@ SCRIPT:
 ${scriptText}
 """
 
+CRITICAL SAFETY RULES FOR IMAGE PROMPTS:
+- Prompts MUST be RELEVANT to the script content while being safe for AI image generation
+- STAY CONTEXTUAL: Include key topics from the script (e.g., pregnancy, yoga, fitness, health, etc.)
+- AVOID FLAGGED WORDS: Never use suggestive combinations like "close-up of hips", "tight clothing on body", "revealing curves", "bare skin", "intimate body parts"
+- SAFE BODY REFERENCES: You CAN mention "pregnant woman", "belly", "back support", "posture" in medical/educational contexts
+- CAMERA ANGLES: "close-up of face/expression" is OK, but avoid "close-up of body/hips/curves"
+- FOCUS ON: Activity, setting, medical/educational context, facial expressions, full-body scenes, objects, environment
+- For pregnancy topics: "pregnant woman doing yoga", "pregnancy support pillow", "prenatal exercise scene"
+- For fitness topics: "person in workout attire doing exercise", "gym training scene", "athletic activity"
+- For fashion topics: "person wearing [style] outfit", "fashion portrait", "styled look"
+- Keep prompts SPECIFIC to script content, not generic stock photos
+- Examples of GOOD prompts: "pregnant woman practicing gentle yoga on mat", "prenatal yoga instructor demonstrating pose", "pregnancy support pillow on bed"
+- Examples of BAD prompts: "close-up of pregnant belly curves", "tight yoga pants detail", "revealing maternity wear"
+
 Output a JSON object with a "moments" array containing exactly ${momentsCount} objects following this pattern:
 - Each moment should have variable duration (2-5 seconds) based on content importance
 - Leave ${gapDuration}-second gaps between moments
-- Example format: { "moments": [ { "start": 0, "end": 3, "topic": "Opening hook", "prompt": "detailed image prompt here" }, { "start": 5, "end": 8, "topic": "Next moment", "prompt": "..." } ] }`;
+- Example format: { "moments": [ { "start": 0, "end": 3, "topic": "Opening hook", "prompt": "safe, professional image prompt here" }, { "start": 5, "end": 8, "topic": "Next moment", "prompt": "..." } ] }`;
 
     let moments = [];
     let momentsText = '';

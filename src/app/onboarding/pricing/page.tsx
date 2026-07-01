@@ -88,7 +88,7 @@ function OnboardingPricingContent() {
 
                     <Link href="/" className="inline-block">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/White.svg"
                             alt="OKVEVO"
                             width={40}
                             height={40}

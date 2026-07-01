@@ -240,7 +240,7 @@ const ProductCard = memo(({ product, index, isInCart, addToCart, setSelectedCard
                     </div>
 
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/5 transition-colors group-hover:border-white/10">
-                        <img src="/OKVEVO WithOut BackGrounds/White.svg" alt="" className="h-2.5 object-contain opacity-30 group-hover:opacity-60 transition-opacity" />
+                        <img src="/OKVEVO Logos WithOut BackGrounds/White.svg" alt="" className="h-2.5 object-contain opacity-30 group-hover:opacity-60 transition-opacity" />
                     </div>
                 </div>
 

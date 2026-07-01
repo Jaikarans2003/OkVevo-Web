@@ -1,0 +1,17 @@
+{
+  "name": "okvevo-manim-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "python3.13 -m venv .venv && .venv/bin/pip install --upgrade pip && PKG_CONFIG_PATH=\"/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig\" .venv/bin/pip install manim",
+    "dev": "PATH=\"$(pwd)/.venv/bin:$PATH\" node --watch src/index.js",
+    "start": "PATH=\"$(pwd)/.venv/bin:$PATH\" node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0"
+  }
+}

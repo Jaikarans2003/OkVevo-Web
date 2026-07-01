@@ -103,10 +103,9 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
             'Unlimited custom avatar uploads',
             'Unlimited custom voice uploads',
             'Up to 7 thumbnail generations',
-            
+            '1 AVATAR Profile Stored',
         ],
         notIncluded: [
-            'AVATAR Profiles Stored',
             'Custom logo & marquee overlay',
             'Priority support',
             'High-volume generation'

@@ -24,9 +24,11 @@ import {
     createAvatarProfile,
     deleteAvatarProfile,
     canAddProfile,
+    getUserAvatarLimit,
     type AvatarProfile,
     type UploadProgress,
 } from '@/services/AvatarProfileService';
+import { getUserSubscription } from '@/services/SubscriptionService';
 
 export default function AvatarProfilesPage() {
     const router = useRouter();
@@ -35,6 +37,8 @@ export default function AvatarProfilesPage() {
     const [loading, setLoading] = useState(true);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [canAdd, setCanAdd] = useState(true);
+    const [maxProfiles, setMaxProfiles] = useState(5);
+    const [planType, setPlanType] = useState<string | null>(null);
     
     // Upload state
     const [uploading, setUploading] = useState(false);
@@ -70,12 +74,16 @@ export default function AvatarProfilesPage() {
     const loadProfiles = async (userId: string) => {
         setLoading(true);
         try {
-            const [userProfiles, canAddMore] = await Promise.all([
+            const [userProfiles, canAddMore, limit, subscription] = await Promise.all([
                 getUserAvatarProfiles(userId),
                 canAddProfile(userId),
+                getUserAvatarLimit(userId),
+                getUserSubscription(userId),
             ]);
             setProfiles(userProfiles);
             setCanAdd(canAddMore);
+            setMaxProfiles(limit);
+            setPlanType(subscription?.planType || null);
         } catch (err) {
             console.error('Failed to load profiles:', err);
         } finally {
@@ -84,6 +92,12 @@ export default function AvatarProfilesPage() {
     };
 
     const handleOpenUploadModal = () => {
+        // Redirect to pricing if no subscription
+        if (maxProfiles === 0) {
+            router.push('/#pricing');
+            return;
+        }
+        
         setShowUploadModal(true);
         setError(null);
         setAvatarName('');
@@ -159,7 +173,7 @@ export default function AvatarProfilesPage() {
             );
             
             setProfiles(prev => [newProfile, ...prev]);
-            setCanAdd(profiles.length + 1 < 5);
+            setCanAdd(profiles.length + 1 < maxProfiles);
             handleCloseUploadModal();
         } catch (err: any) {
             setError(err.message || 'Failed to create avatar profile');
@@ -174,10 +188,13 @@ export default function AvatarProfilesPage() {
         setDeletingId(profileId);
         try {
             await deleteAvatarProfile(user.uid, profileId);
-            setProfiles(prev => prev.filter(p => p.id !== profileId));
-            setCanAdd(true);
+            const updatedProfiles = profiles.filter(p => p.id !== profileId);
+            setProfiles(updatedProfiles);
+            // Recalculate canAdd based on new profile count and user's limit
+            setCanAdd(updatedProfiles.length < maxProfiles);
         } catch (err) {
             console.error('Failed to delete profile:', err);
+            alert('Failed to delete avatar profile. Please try again.');
         } finally {
             setDeletingId(null);
         }
@@ -189,7 +206,7 @@ export default function AvatarProfilesPage() {
                 <div className="text-center">
                     <div className="mb-6 animate-pulse">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                             alt="OKVEVO Logo"
                             width={80}
                             height={80}
@@ -240,11 +257,17 @@ export default function AvatarProfilesPage() {
                     <div className="mb-8">
                         <button
                             onClick={handleOpenUploadModal}
-                            disabled={!canAdd}
+                            disabled={!canAdd && maxProfiles > 0}
                             className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:from-orange-500 hover:shadow-[0_0_25px_rgba(234,88,12,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-xl"
                         >
                             <Plus size={16} />
-                            Add New Avatar {!canAdd && '(Max 5 reached)'}
+                            {maxProfiles === 0 ? (
+                                'Subscribe to Create Avatars'
+                            ) : !canAdd ? (
+                                `Add New Avatar (Max ${maxProfiles} reached)`
+                            ) : (
+                                `Add New Avatar (${profiles.length}/${maxProfiles})`
+                            )}
                         </button>
                     </div>
 
@@ -253,7 +276,7 @@ export default function AvatarProfilesPage() {
                         <div className="flex flex-col items-center justify-center py-20">
                             <div className="mb-6 animate-pulse">
                                 <Image
-                                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                    src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                                     alt="OKVEVO Logo"
                                     width={64}
                                     height={64}

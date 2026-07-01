@@ -110,32 +110,50 @@ export default function AvatarProfileCard({
                 </div>
             </div>
 
-            {/* Delete Button */}
-            {onDelete && !selectable && (
+            {/* Delete Button - initial hover state */}
+            {onDelete && !selectable && !showDeleteConfirm && (
                 <button
                     onClick={handleDeleteClick}
                     disabled={isDeleting}
-                    className={`absolute top-2 right-2 p-2 rounded-lg transition-all ${
-                        showDeleteConfirm
-                            ? 'bg-red-500 text-white opacity-100'
-                            : 'bg-black/60 text-white/60 opacity-0 group-hover:opacity-100'
-                    } hover:bg-red-500 hover:text-white disabled:opacity-50`}
-                    title={showDeleteConfirm ? 'Click again to confirm' : 'Delete profile'}
+                    className="absolute top-2 right-2 z-10 p-2 rounded-lg transition-all bg-black/60 text-white/60 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white disabled:opacity-50"
+                    title="Delete profile"
                 >
-                    {isDeleting ? (
-                        <div className="w-3 h-3 border border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : (
-                        <Trash2 size={12} />
-                    )}
+                    <Trash2 size={12} />
                 </button>
             )}
 
-            {/* Cancel delete on mouse leave */}
-            {showDeleteConfirm && (
+            {/* Delete Confirm Overlay - button lives INSIDE so mouseleave doesn't fire on hover */}
+            {onDelete && !selectable && showDeleteConfirm && (
                 <div
-                    className="absolute inset-0"
+                    className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 backdrop-blur-sm rounded-2xl"
                     onMouseLeave={() => setShowDeleteConfirm(false)}
-                />
+                >
+                    <div className="text-center space-y-3 px-4">
+                        <p className="text-xs font-bold text-white uppercase tracking-wider">Delete Avatar?</p>
+                        <div className="flex gap-2 justify-center">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
+                                className="px-3 py-1.5 text-[10px] font-black uppercase rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteClick}
+                                disabled={isDeleting}
+                                className="px-3 py-1.5 text-[10px] font-black uppercase rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50 flex items-center gap-1"
+                            >
+                                {isDeleting ? (
+                                    <div className="w-3 h-3 border border-white/20 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <Trash2 size={10} />
+                                        Delete
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </motion.div>
     );

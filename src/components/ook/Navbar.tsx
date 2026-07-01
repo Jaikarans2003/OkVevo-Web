@@ -70,7 +70,7 @@ const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
                 <div className={containerClasses}>
                     <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>
                         <Image 
-                            src={theme === 'light' ? "/OKVEVO WithOut BackGrounds/Black.svg" : "/OKVEVO WithOut BackGrounds/Orange.svg"}
+                            src={theme === 'light' ? "/OKVEVO Logos WithOut BackGrounds/Black.svg" : "/OKVEVO Logos WithOut BackGrounds/Orange.svg"}
                             alt="OKVEVO Logo" 
                             width={40} 
                             height={40} 

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "sources": {
+    "Demo": "/Users/karan/Documents/Codex/untitled folder/Version2/N8N/OKVEVO/services/hyperframes/examples/Demo.mp4"
+  },
+  "ranges": [
+    {
+      "source": "Demo",
+      "start": 0.98,
+      "end": 2.62,
+      "beat": "HOOK",
+      "quote": "I'm the founder of Okvivo",
+      "reason": "Phrase 1; trims trailing silence before next clause"
+    },
+    {
+      "source": "Demo",
+      "start": 3.48,
+      "end": 5.48,
+      "beat": "SETUP",
+      "quote": "and I am trying to build",
+      "reason": "Phrase 2; jump cut removes ~0.86s dead air after Okvivo"
+    },
+    {
+      "source": "Demo",
+      "start": 6.78,
+      "end": 9.4,
+      "beat": "PILLAR",
+      "quote": "AI systems",
+      "reason": "Phrase 3; removes pause after build"
+    },
+    {
+      "source": "Demo",
+      "start": 10.84,
+      "end": 12.32,
+      "beat": "VALUE",
+      "quote": "that work autonomously",
+      "reason": "Phrase 4; tight pacing into payoff"
+    },
+    {
+      "source": "Demo",
+      "start": 13.3,
+      "end": 13.8,
+      "beat": "BRIDGE",
+      "quote": "for you",
+      "reason": "Short beat; removes gap before style line"
+    },
+    {
+      "source": "Demo",
+      "start": 14.44,
+      "end": 16.96,
+      "beat": "OUTRO",
+      "quote": "in your style, in your voice.",
+      "reason": "Final clause pair; trims tail silence of source"
+    }
+  ],
+  "grade": "auto",
+  "overlays": [],
+  "subtitles": null,
+  "total_duration_s": 10.76
+}

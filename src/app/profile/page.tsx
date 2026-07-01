@@ -216,7 +216,7 @@ export default function ProfilePage() {
                                 className="w-20 h-20 rounded-full p-[3px] bg-[#FF4D00] shadow-[0_0_50px_rgba(255,77,0,0.5)]"
                             >
                                 <div className="w-full h-full bg-black rounded-full flex items-center justify-center overflow-hidden">
-                                    <img src="/OKVEVO WithOut BackGrounds/Orange.svg" className="w-10 h-10" alt="Identity" />
+                                    <img src="/OKVEVO Logos WithOut BackGrounds/Orange.svg" className="w-10 h-10" alt="Identity" />
                                 </div>
                             </motion.div>
                             
@@ -377,7 +377,7 @@ export default function ProfilePage() {
                         {/* Simple Navigation */}
                         <div className="mt-12 opacity-30 flex items-center gap-4 hover:opacity-100 transition-all cursor-pointer">
                             <span className="text-[10px] font-black uppercase tracking-[0.4em]">Powered by</span>
-                            <img src="/OKVEVO WithOut BackGrounds/Orange.svg" className="w-10 h-10" alt="Logo" />
+                            <img src="/OKVEVO Logos WithOut BackGrounds/Orange.svg" className="w-10 h-10" alt="Logo" />
                         </div>
                     </motion.div>
 

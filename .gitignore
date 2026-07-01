@@ -1,3 +1,16 @@
+# Python (graphify)
+.venv/
+graphify-out/
+.graphify_*.json
+
+# Local dev / reference (not shipped)
+.cursor/
+Refference/
+Reference/
+.agent/
+.windsurf/
+services/Untitled
+
 # Dependencies
 /node_modules
 /.pnp
@@ -68,3 +81,7 @@ lambda-stitch-function/ffmpeg-layer/bin/
 lambda-*.zip
 function*.zip
 okvevo-ai-prep.zip
+okvevo-ai-prep-*.zip
+
+# Env examples with secrets
+.Env File Example

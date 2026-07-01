@@ -24,11 +24,11 @@ const Footer = () => {
                         <div className="max-w-sm">
                             <a href="/" className="-mt-10 text-4xl font-black tracking-tighter text-white  block transition-transform hover:scale-105 origin-left font-museo-moderno">
                                 <Image 
-                                    src="/OKVEVO WithOut BackGrounds/black.svg" 
+                                    src="/OKVEVO Logos WithOut BackGrounds/White.svg" 
                                     alt="OKVEVO Logo" 
                                     width={92} 
                                     height={92} 
-                                    className="w-25 h-25 object-contain"
+                                    className="w-[92px] h-[92px] object-contain"
                                 />
                                 {/* OKVEVO<span className="text-text-main">.</span> */}
                             </a>

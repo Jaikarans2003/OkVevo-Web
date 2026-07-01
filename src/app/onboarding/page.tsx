@@ -78,7 +78,7 @@ export default function OnboardingPage() {
                 >
                     <Link href="/" className="inline-block mb-6">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/White.svg"
                             alt="OKVEVO Logo"
                             width={80}
                             height={80}

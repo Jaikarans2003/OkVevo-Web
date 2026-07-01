@@ -36,7 +36,7 @@ export default function OnboardingWelcomePage() {
                 >
                     <div className="inline-flex items-center gap-2.5 bg-white/5 backdrop-blur-sm border border-white/10 px-5 py-2.5 rounded-full">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                             alt="Logo"
                             width={24}
                             height={24}

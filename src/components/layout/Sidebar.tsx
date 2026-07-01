@@ -53,7 +53,7 @@ export default function Sidebar() {
                                 className="w-10 h-10 flex items-center justify-center shrink-0"
                             >
                                 <Image
-                                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                    src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                                     alt="OKVEVO O"
                                     width={40}
                                     height={40}
@@ -70,7 +70,7 @@ export default function Sidebar() {
                                 className="flex items-center gap-2"
                             >
                                 <Image
-                                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                    src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                                     alt="OKVEVO Logo"
                                     width={32}
                                     height={32}

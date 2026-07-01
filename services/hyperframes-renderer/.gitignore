@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+tmp/rendering/**
+!tmp/rendering/.gitkeep
+output/**
+!output/.gitkeep
+examples/project-zip-workflow/example-project.zip
+*.log
+.DS_Store

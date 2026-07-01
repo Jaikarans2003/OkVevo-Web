@@ -271,7 +271,7 @@ export default function ContactUsModal({ isOpen, onClose, defaultCategory = 'gen
                                         <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-xl" />
                                         <div className="relative w-20 h-20 bg-orange-500/10 border border-orange-500/30 rounded-full flex items-center justify-center">
                                             <Image
-                                                src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                                                src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                                                 alt="OkVevo"
                                                 width={48}
                                                 height={48}

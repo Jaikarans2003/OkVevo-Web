@@ -26,7 +26,7 @@ const websiteSchema = {
   "@type": "Organization",
   "name": "Okvevo",
   "url": "https://okvevo.com",
-  "logo": "https://okvevo.com/OKVEVO%20With%20BackGrounds/OrangeBackGround.svg",
+  "logo": "https://okvevo.com/OKVEVO%20Logos%20With%20BackGrounds/OrangeBackGround.svg",
   "sameAs": [
     "https://instagram.com/okvevo",
     "https://linkedin.com/company/okvevo",

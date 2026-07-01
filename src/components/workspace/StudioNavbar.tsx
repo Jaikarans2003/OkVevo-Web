@@ -27,7 +27,7 @@ export default function StudioNavbar({ rightContent, onHelpClick }: StudioNavbar
         <nav className="h-16 px-6 md:px-8 flex items-center justify-between border border-white/10 fixed top-5 left-1/2 -translate-x-1/2 bg-white/[0.02] backdrop-blur-2xl z-[90] w-[95%] max-w-[1200px] rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
             <Link href="/workspace" className="flex items-center gap-2 group transition-all duration-300">
                 <Image
-                    src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                    src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                     alt="OKVEVO Logo"
                     width={40}
                     height={40}

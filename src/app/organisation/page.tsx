@@ -149,7 +149,7 @@ export default function OrganisationPage() {
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block mb-6">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/White.svg"
                             alt="OKVEVO"
                             width={52}
                             height={52}

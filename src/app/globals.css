@@ -260,6 +260,11 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.ai-studio-timeline-scroll {
+  overscroll-behavior-y: none;
+  overflow-anchor: auto;
+}
+
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

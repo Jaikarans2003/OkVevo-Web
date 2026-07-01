@@ -27,7 +27,7 @@ export default function FloatingSidebar({ resetConversation }: FloatingSidebarPr
                 <Link href="/chat" className="group relative">
                     <div className={`p-3 ${theme === 'light' ? 'bg-black hover:bg-black/80' : 'bg-accent-orange/10 hover:bg-accent-orange/20'} rounded-full transition-all duration-300`}>
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                             alt="OKVEVO Logo"
                             width={24}
                             height={24}

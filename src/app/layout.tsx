@@ -47,9 +47,9 @@ export const metadata: Metadata = {
         'faceless Instagram growth AI', 'AI influencer creation tool', 'automate content creation AI',
     ],
     icons: {
-        icon: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
-        shortcut: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
-        apple: '/OKVEVO With BackGrounds/OrangeBackGround.svg',
+        icon: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
+        shortcut: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
+        apple: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
     },
     openGraph: {
         title: 'OKVEVO AI - Best AI Video Generator for Creators',

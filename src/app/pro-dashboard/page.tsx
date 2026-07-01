@@ -288,7 +288,7 @@ export default function ProDashboardPage() {
                     </Link>
                     <Link href="/">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/White.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/White.svg"
                             alt="OKVEVO"
                             width={40}
                             height={40}

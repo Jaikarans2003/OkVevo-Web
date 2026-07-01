@@ -71,7 +71,7 @@ export default function SubscriptionGuard({ children, fallback }: SubscriptionGu
                 <div className="text-center">
                     <div className="mb-6 animate-pulse">
                         <Image
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg"
+                            src="/OKVEVO Logos WithOut BackGrounds/Orange.svg"
                             alt="OKVEVO Logo"
                             width={80}
                             height={80}

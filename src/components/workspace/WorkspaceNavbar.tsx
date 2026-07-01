@@ -61,7 +61,7 @@ const DashNavbar = () => {
                 <div className={`flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-700 ${isScrolled ? 'glass-navbar' : 'bg-[#0A0A0A]/40 backdrop-blur-xl border border-white/5'}`}>
                     <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-colors duration-500 ${textColor}`}>
                         <Image 
-                            src="/OKVEVO WithOut BackGrounds/Orange.svg" 
+                            src="/OKVEVO Logos WithOut BackGrounds/Orange.svg" 
                             alt="OKVEVO Logo" 
                             width={40} 
                             height={40} 
