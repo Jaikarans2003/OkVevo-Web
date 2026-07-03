@@ -40,6 +40,9 @@ export function summarizeToolPart(part: ToolLikePart): string {
       if (typeof text === 'string') {
         return `Transcribed lecture (${text.length.toLocaleString()} chars)`;
       }
+      if (part.errorText) {
+        return `Transcription failed — ${part.errorText}`;
+      }
       return 'Transcribed lecture';
     }
     case 'extract_concepts': {

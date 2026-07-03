@@ -54,9 +54,11 @@ export function getSessionWorkdir(sessionId: string): string {
 }
 
 function resolveToolPath(sessionId: string, inputPath: string): string {
-  return path.isAbsolute(inputPath)
-    ? inputPath
-    : path.join(getSessionWorkdir(sessionId), inputPath);
+  if (path.isAbsolute(inputPath)) return inputPath;
+  if (inputPath.startsWith('Skills/')) {
+    return path.join(SKILLS_DIR, inputPath.slice('Skills/'.length));
+  }
+  return path.join(getSessionWorkdir(sessionId), inputPath);
 }
 
 function globToRegex(pattern: string): RegExp {
@@ -82,7 +84,6 @@ export async function execCommand(
       maxBuffer: 50 * 1024 * 1024,
       killSignal: 'SIGKILL',
     });
-    reference
     return {
       stdout: stdout ?? '',
       stderr: stderr ?? '',
@@ -908,6 +909,7 @@ Paths are relative to the session work directory unless absolute.`,
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
+        console.error('[transcribe_video]', ctx.sessionId, message);
         throw new Error(`Transcription failed: ${message}`);
       }
     },
@@ -1281,9 +1283,6 @@ ${transcript_text}`;
       const brandCss = buildBrandCssVars(colors);
       const projectDir = path.join(getSessionWorkdir(ctx.sessionId), 'hf-project');
 
-      if (fs.existsSync(projectDir)) {
-        fs.rmSync(projectDir, { recursive: true, force: true });
-      }
       fs.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
 
       const sectionMeta: SectionMeta[] = [];
@@ -1296,6 +1295,26 @@ ${transcript_text}`;
           throw new Error(`Segment ${index + 1} mode A requires manim_index`);
         }
 
+        const nn = padSegmentNum(index);
+        const segmentId = buildSegmentId(index, seg.mode);
+        const duration = seg.end - seg.start;
+        let conceptName: string;
+        if (seg.mode === 'A' && seg.manim_index != null) {
+          conceptName = slugConceptName(
+            manim_clips[seg.manim_index]?.concept_name ?? '',
+            `segment-${nn}`
+          );
+        } else {
+          conceptName = `segment-${nn}`;
+        }
+        const filename = `${nn}-${conceptName}.html`;
+        const sectionPath = path.join(sectionsDir, filename);
+
+        if (fs.existsSync(sectionPath)) {
+          sectionMeta.push({ filename, segmentId, duration });
+          continue;
+        }
+
         const built = buildSegmentSection(
           seg,
           index,
@@ -1304,7 +1323,7 @@ ${transcript_text}`;
           projectDir
         );
         sectionMeta.push(built.meta);
-        fs.writeFileSync(path.join(sectionsDir, built.meta.filename), built.html, 'utf-8');
+        fs.writeFileSync(sectionPath, built.html, 'utf-8');
       }
 
       const segmentWiring = buildSegmentWiring(segments, sectionMeta);
@@ -1431,7 +1450,7 @@ ${transcript_text}`;
           process.env.HYPERFRAMES_CLI ??
           '/opt/hyperframes/packages/cli/dist/cli.js';
 
-        const hfCliSkill = loadSkillFile('hyperframes/skills/hyperframes-cli/SKILL.md');
+        const hfCliSkill = loadSkillFile('hyperframes/hyperframes-cli/SKILL.md');
         console.log(
           `[render_hyperframes] HyperFrames CLI guidance loaded (${hfCliSkill.length} chars)`
         );

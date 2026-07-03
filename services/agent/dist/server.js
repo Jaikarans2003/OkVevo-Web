@@ -34381,7 +34381,11 @@ function getSessionWorkdir(sessionId) {
   return dir;
 }
 function resolveToolPath(sessionId, inputPath) {
-  return import_path4.default.isAbsolute(inputPath) ? inputPath : import_path4.default.join(getSessionWorkdir(sessionId), inputPath);
+  if (import_path4.default.isAbsolute(inputPath)) return inputPath;
+  if (inputPath.startsWith("Skills/")) {
+    return import_path4.default.join(SKILLS_DIR3, inputPath.slice("Skills/".length));
+  }
+  return import_path4.default.join(getSessionWorkdir(sessionId), inputPath);
 }
 function globToRegex(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -34999,6 +35003,7 @@ Paths are relative to the session work directory unless absolute.`,
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          console.error("[transcribe_video]", ctx.sessionId, message);
           throw new Error(`Transcription failed: ${message}`);
         }
       }
@@ -35322,9 +35327,6 @@ ${transcript_text}`;
         const colors = brand_colors ?? DEFAULT_BRAND_COLORS;
         const brandCss = buildBrandCssVars(colors);
         const projectDir = import_path4.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
-        if (import_fs4.default.existsSync(projectDir)) {
-          import_fs4.default.rmSync(projectDir, { recursive: true, force: true });
-        }
         import_fs4.default.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
         const sectionMeta = [];
         const sectionsDir = import_path4.default.join(projectDir, "compositions", "sections");
@@ -35334,6 +35336,24 @@ ${transcript_text}`;
           if (seg.mode === "A" && seg.manim_index == null) {
             throw new Error(`Segment ${index + 1} mode A requires manim_index`);
           }
+          const nn = padSegmentNum(index);
+          const segmentId = buildSegmentId(index, seg.mode);
+          const duration3 = seg.end - seg.start;
+          let conceptName;
+          if (seg.mode === "A" && seg.manim_index != null) {
+            conceptName = slugConceptName(
+              manim_clips[seg.manim_index]?.concept_name ?? "",
+              `segment-${nn}`
+            );
+          } else {
+            conceptName = `segment-${nn}`;
+          }
+          const filename = `${nn}-${conceptName}.html`;
+          const sectionPath = import_path4.default.join(sectionsDir, filename);
+          if (import_fs4.default.existsSync(sectionPath)) {
+            sectionMeta.push({ filename, segmentId, duration: duration3 });
+            continue;
+          }
           const built = buildSegmentSection(
             seg,
             index,
@@ -35342,7 +35362,7 @@ ${transcript_text}`;
             projectDir
           );
           sectionMeta.push(built.meta);
-          import_fs4.default.writeFileSync(import_path4.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
+          import_fs4.default.writeFileSync(sectionPath, built.html, "utf-8");
         }
         const segmentWiring = buildSegmentWiring(segments, sectionMeta);
         const manimClipsHtml = buildManimClipsHtml(manim_clips);
@@ -35451,7 +35471,7 @@ ${transcript_text}`;
             }
           }
           const cliPath = process.env.HYPERFRAMES_CLI ?? "/opt/hyperframes/packages/cli/dist/cli.js";
-          const hfCliSkill = loadSkillFile("hyperframes/skills/hyperframes-cli/SKILL.md");
+          const hfCliSkill = loadSkillFile("hyperframes/hyperframes-cli/SKILL.md");
           console.log(
             `[render_hyperframes] HyperFrames CLI guidance loaded (${hfCliSkill.length} chars)`
           );
@@ -35603,6 +35623,7 @@ function getTextFromParts(parts) {
 }
 function pipeAgentStream(result, response, params) {
   result.pipeUIMessageStreamToResponse(response, {
+    onError: (error40) => error40 instanceof Error ? error40.message : "An error occurred.",
     onFinish: async ({ responseMessage }) => {
       const text2 = getTextFromParts(responseMessage.parts);
       if (!text2.trim() && responseMessage.parts.length === 0) {

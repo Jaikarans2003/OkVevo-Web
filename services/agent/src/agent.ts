@@ -96,6 +96,8 @@ export function pipeAgentStream(
   params: { sessionId: string; userId: string }
 ) {
   result.pipeUIMessageStreamToResponse(response, {
+    onError: (error) =>
+      error instanceof Error ? error.message : 'An error occurred.',
     onFinish: async ({ responseMessage }) => {
       const text = getTextFromParts(responseMessage.parts);
       if (!text.trim() && responseMessage.parts.length === 0) {
