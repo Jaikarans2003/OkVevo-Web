@@ -34444,9 +34444,9 @@ var SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../Skills");
 var EDU_VIDEO_TEMPLATE_DIR = process.env.EDU_VIDEO_TEMPLATE_DIR ?? import_path4.default.join(SKILLS_DIR3, "edu-video/templates");
 var TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
 var DEFAULT_BRAND_COLORS = {
-  primary: "#1a1a2e",
-  accent: "#37bdf8",
-  bg_dark: "#0a0a0f"
+  primary: "#f97316",
+  accent: "#fb923c",
+  bg_dark: "#0a0a0a"
 };
 function resolveBrandColors(input) {
   return input ?? DEFAULT_BRAND_COLORS;

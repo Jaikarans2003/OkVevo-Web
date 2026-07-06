@@ -68,7 +68,7 @@ Never mention tool names, file paths, or technical details to the user.
 For **each** concept from extract_concepts:
 
 1. Read `Skills/manim-video/SKILL.md` before the first `generate_manim_script` for that concept
-2. `generate_manim_script` — pass concept_name, explanation, duration_seconds=(end_seconds - start_seconds), and the same optional `brand_colors` you will pass to `scaffold_hf_project` (omit to use template defaults: primary #1a1a2e, accent #37bdf8, bg_dark #0a0a0f)
+2. `generate_manim_script` — pass concept_name, explanation, duration_seconds=(end_seconds - start_seconds), and the same optional `brand_colors` you will pass to `scaffold_hf_project` (omit to use template defaults: primary #f97316 orange, accent #fb923c, bg_dark #0a0a0a black; caption text is white)
 3. `render_manim_clip` — pass script_path (from generate_manim_script), class_name, concept_name, start_seconds, end_seconds
 4. Collect successful results into manim_clips[] for Phase 3
 
@@ -107,7 +107,7 @@ Pass:
 - `segments[]` — from plan_segments, with manim_index for Mode A segments
 - `transcript_words[]` — array from transcribe_video (for karaoke captions). You may pass an empty array `[]`: scaffold automatically loads the full word list persisted by transcribe_video
 - `total_duration` — duration_seconds from transcribe_video (scaffold extends this to the real video duration via ffprobe if whisper undershot)
-- `brand_colors` — optional, defaults: primary #1a1a2e, accent #37bdf8, bg_dark #0a0a0f
+- `brand_colors` — optional, defaults: primary `#f97316` (orange), accent `#fb923c` (light orange), bg_dark `#0a0a0a` (black); captions use white text
 
 What scaffold_hf_project does (deterministic, zero LLM calls):
 

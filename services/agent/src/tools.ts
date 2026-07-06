@@ -42,9 +42,9 @@ const TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? 'anthropic/claude-sonnet-4-5'
 type BrandColors = { primary: string; accent: string; bg_dark: string };
 
 const DEFAULT_BRAND_COLORS: BrandColors = {
-  primary: '#1a1a2e',
-  accent: '#37bdf8',
-  bg_dark: '#0a0a0f',
+  primary: '#f97316',
+  accent: '#fb923c',
+  bg_dark: '#0a0a0a',
 };
 
 function resolveBrandColors(input?: BrandColors): BrandColors {

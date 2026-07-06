@@ -69,7 +69,7 @@ PLAN --> CODE --> RENDER --> STITCH --> AUDIO (optional) --> REVIEW
 
 ### Edu-video integration
 
-When used inside the edu-video pipeline, each concept gets one `generate_manim_script` call. Colors come from `brand_colors` (or edu-video template defaults: bg `#0a0a0f`, accent `#37bdf8`, primary `#1a1a2e`) — not Classic 3B1B. On `render_manim_clip` failure, patch the persisted script via `read_file` + `write_file` and re-render with `script_path` — see `references/troubleshooting.md` (Edu-Video Patch Loop). Full regeneration is the exception, not the default.
+When used inside the edu-video pipeline, each concept gets one `generate_manim_script` call. Colors come from `brand_colors` (or edu-video template defaults: bg `#0a0a0a`, accent `#fb923c`, primary `#f97316`) — not Classic 3B1B. On `render_manim_clip` failure, patch the persisted script via `read_file` + `write_file` and re-render with `script_path` — see `references/troubleshooting.md` (Edu-Video Patch Loop). Full regeneration is the exception, not the default.
 
 ## Project Structure
 
