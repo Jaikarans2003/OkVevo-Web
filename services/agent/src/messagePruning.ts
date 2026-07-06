@@ -76,7 +76,7 @@ function summarizeToolName(toolName: string, output: unknown): string | null {
   switch (toolName) {
     case 'generate_manim_script':
       return `[manim script generated for ${String(data.concept_name ?? 'unknown')} — truncated]`;
-    case 'render_manim_clips':
+    case 'render_manim_clip':
       return `[clip rendered: ${String(data.concept_name ?? 'unknown')} → ${String(data.clip_url ?? '?')}]`;
     case 'run_command':
       return `[command ran — exit ${String(data.exit_code ?? '?')}]`;

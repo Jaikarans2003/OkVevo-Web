@@ -23,10 +23,12 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function conceptNeedsAnimation(concept: unknown): boolean {
+function conceptVisual(concept: unknown): string | undefined {
   const item = asRecord(concept);
-  if (!item) return false;
-  return item.needs_animation === true || item.needsAnimation === true;
+  if (!item) return undefined;
+  if (typeof item.visual === 'string') return item.visual;
+  if (item.needs_animation === true || item.needsAnimation === true) return 'manim';
+  return undefined;
 }
 
 export function summarizeToolPart(part: ToolLikePart): string {
@@ -48,8 +50,9 @@ export function summarizeToolPart(part: ToolLikePart): string {
     case 'extract_concepts': {
       const concepts = output?.concepts;
       if (Array.isArray(concepts)) {
-        const animationCount = concepts.filter(conceptNeedsAnimation).length;
-        return `Found ${concepts.length} concepts · ${animationCount} need animation`;
+        const manimCount = concepts.filter((c) => conceptVisual(c) === 'manim').length;
+        const hfCount = concepts.filter((c) => conceptVisual(c) === 'hyperframes').length;
+        return `Found ${concepts.length} concepts · ${manimCount} Manim · ${hfCount} HyperFrames`;
       }
       return 'Extracted concepts';
     }
@@ -60,7 +63,7 @@ export function summarizeToolPart(part: ToolLikePart): string {
         'concept';
       return `Generated Manim scene for "${conceptName}"`;
     }
-    case 'render_manim_clips': {
+    case 'render_manim_clip': {
       const conceptName =
         (typeof output?.concept_name === 'string' && output.concept_name) ||
         (typeof input?.concept_name === 'string' && input.concept_name) ||

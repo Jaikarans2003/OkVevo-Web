@@ -8,6 +8,13 @@ import { tool } from 'ai';
 import Groq from 'groq-sdk';
 import { z } from 'zod';
 import {
+  buildDeterministicSegments,
+  enforceMandatoryVisuals,
+  resolveNonOverlappingConcepts,
+  type TimedConcept,
+  type VisualKind,
+} from './skills/eduVideo/planning';
+import {
   downloadStoragePrefixToDir,
   getAssetUrl,
   getTempPath,
@@ -18,6 +25,14 @@ import {
   writeAssetUrl,
   writeHfSegmentsPlan,
 } from './storage';
+
+export {
+  buildDeterministicSegments,
+  enforceMandatoryVisuals,
+  resolveNonOverlappingConcepts,
+  segmentsCoverTimeline,
+  segmentsIncludeAllModes,
+} from './skills/eduVideo/planning';
 
 const execAsync = promisify(exec);
 
@@ -213,6 +228,28 @@ function stripCodeFences(text: string): string {
 
 type TranscriptWord = { word: string; start: number; end: number };
 
+// Words persisted by transcribe_video beat the agent-couriered array, which
+// historically arrived truncated and cut captions/concepts short.
+function loadSessionTranscriptWords(
+  sessionId: string,
+  fallback: TranscriptWord[]
+): TranscriptWord[] {
+  const transcriptPath = path.join(getSessionWorkdir(sessionId), 'transcript.json');
+  if (fs.existsSync(transcriptPath)) {
+    try {
+      const saved = JSON.parse(fs.readFileSync(transcriptPath, 'utf-8')) as {
+        words?: TranscriptWord[];
+      };
+      if (Array.isArray(saved.words) && saved.words.length > fallback.length) {
+        return saved.words;
+      }
+    } catch {
+      // fall through to the passed array
+    }
+  }
+  return fallback;
+}
+
 function normalizeTokens(text: string): string[] {
   return text
     .toLowerCase()
@@ -271,115 +308,106 @@ const conceptSchema = z.object({
   concept_name: z.string(),
   explanation: z.string(),
   excerpt: z.string(),
-  needs_animation: z.boolean().optional(),
+  visual: z.enum(['manim', 'hyperframes', 'none']).optional(),
 });
 
 const conceptsArraySchema = z.array(conceptSchema);
 
-const HF_SEGMENT_EPSILON = 0.5;
-
-const manimClipTimestampSchema = z.object({
+const hfConceptSchema = z.object({
   concept_name: z.string(),
+  explanation: z.string(),
   start_seconds: z.number(),
   end_seconds: z.number(),
 });
 
-const elementTypeSchema = z.enum([
-  'comparison_table',
-  'timeline_steps',
-  'data_chart',
-  'process_flow',
-  'bullet_list',
-  'stat_callout',
-]);
-
-const hfSegmentSchema = z.object({
+const plannedSegmentSchema = z.object({
   start: z.number(),
   end: z.number(),
   mode: z.enum(['A', 'B', 'C']),
   manim_index: z.number().optional(),
-  element_type: elementTypeSchema.optional(),
-  content_data: z.record(z.unknown()).optional(),
+  concept_name: z.string().optional(),
+  explanation: z.string().optional(),
 });
 
-const hfSegmentsArraySchema = z.array(hfSegmentSchema).superRefine((segments, ctx) => {
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    if (seg.mode === 'A' && seg.manim_index == null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Segment ${i + 1}: mode A requires manim_index`,
-        path: [i, 'manim_index'],
-      });
-    }
-    if (seg.mode === 'B') {
-      if (!seg.element_type) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Segment ${i + 1}: mode B requires element_type`,
-          path: [i, 'element_type'],
-        });
-      }
-      if (!seg.content_data) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Segment ${i + 1}: mode B requires content_data`,
-          path: [i, 'content_data'],
-        });
-      }
-    }
-  }
-});
+function formatWordTimedTranscript(words: TranscriptWord[]): string {
+  return words.map((w) => `[${w.start.toFixed(1)}s] ${w.word}`).join(' ');
+}
 
-const HF_SEGMENTS_SYSTEM_PROMPT = `You are a video segment planner. Given a transcript and existing Manim clip timestamps, assign each second of the video to Mode A (Manim active), Mode B (HyperFrames motion graphic needed), or Mode C (speaker teaching). Return JSON only — an array of segments with fields: start, end, mode, and for Mode A segments also: manim_index (0-based index into the provided manim_clips array, matching which clip plays during that segment). For Mode B segments also include: element_type (one of: comparison_table, timeline_steps, data_chart, process_flow, bullet_list, stat_callout) and content_data (object with the actual content to display). Mode A segments must exactly match the provided manim_clips timestamps. Mode B only when the transcript strongly suggests visual data. Default to Mode C.`;
+function snapConceptsFromLlm(
+  parsedConcepts: z.infer<typeof conceptSchema>[],
+  snapWords: TranscriptWord[],
+  duration_seconds?: number
+): TimedConcept[] {
+  return parsedConcepts.map((concept) => {
+    let visual: VisualKind = concept.visual ?? 'none';
+    const snap = snapToWords(concept.excerpt, snapWords, duration_seconds);
 
-function validateHfSegmentsAgainstManimClips(
-  segments: z.infer<typeof hfSegmentSchema>[],
-  manimClips: z.infer<typeof manimClipTimestampSchema>[]
-): void {
-  const modeASegments = segments.filter((s) => s.mode === 'A');
-  const usedIndices = new Set<number>();
+    let start_seconds = snap.start_seconds;
+    let end_seconds = snap.end_seconds;
+    if (!snap.matched) {
+      visual = 'none';
+    }
 
-  for (let i = 0; i < manimClips.length; i++) {
-    const clip = manimClips[i];
-    const match = modeASegments.find(
-      (s) =>
-        s.manim_index === i &&
-        Math.abs(s.start - clip.start_seconds) <= HF_SEGMENT_EPSILON &&
-        Math.abs(s.end - clip.end_seconds) <= HF_SEGMENT_EPSILON
-    );
-    if (!match) {
-      throw new Error(
-        `No Mode A segment matches manim_clips[${i}] (${clip.start_seconds}s–${clip.end_seconds}s) with manim_index=${i}`
-      );
+    end_seconds = Math.min(end_seconds, duration_seconds ?? end_seconds);
+    if (end_seconds <= start_seconds) {
+      visual = 'none';
     }
-    usedIndices.add(i);
-  }
 
-  for (const seg of modeASegments) {
-    const idx = seg.manim_index!;
-    const clip = manimClips[idx];
-    if (!clip) {
-      throw new Error(`Mode A segment has invalid manim_index ${idx}`);
-    }
-    if (
-      Math.abs(seg.start - clip.start_seconds) > HF_SEGMENT_EPSILON ||
-      Math.abs(seg.end - clip.end_seconds) > HF_SEGMENT_EPSILON
-    ) {
-      throw new Error(
-        `Mode A segment manim_index=${idx} timestamps don't match clip (${clip.start_seconds}s–${clip.end_seconds}s)`
-      );
-    }
-    if (!usedIndices.has(idx)) {
-      throw new Error(`manim_index ${idx} does not correspond to a provided manim clip`);
-    }
-  }
+    return {
+      concept_name: concept.concept_name,
+      explanation: concept.explanation,
+      start_seconds,
+      end_seconds,
+      visual,
+    };
+  });
+}
 
-  if (usedIndices.size !== manimClips.length) {
-    throw new Error(
-      `manim_index values must cover each clip index 0..${manimClips.length - 1} exactly once`
-    );
-  }
+function finalizeExtractedConcepts(concepts: TimedConcept[]): TimedConcept[] {
+  return enforceMandatoryVisuals(resolveNonOverlappingConcepts(concepts));
+}
+
+function buildExtractConceptsSystemPrompt(manimSkill: string, scenePlanning: string): string {
+  return `You extract teaching concepts from lecture transcripts for educational video production.
+
+${manimSkill}
+
+## Scene Planning (topic selection)
+${scenePlanning}
+
+The user message includes the video duration and a word-timed transcript. Use those timings — never invent timestamps.
+
+Extract only as many visual concepts as genuinely fit and help for this video length. Do NOT fill or clutter the timeline; zero extra concepts is fine beyond the mandatory minimum below.
+
+For each concept, provide an excerpt field containing the exact contiguous words from the transcript where this concept is spoken. Do NOT return start_seconds or end_seconds.
+
+Classify each concept with a visual field:
+- "manim" — math, equations, geometry, algorithmic step-by-step animation
+- "hyperframes" — charts, comparisons, timelines, flows, stats, AND general visual reinforcement of an explanation (not only data-heavy visuals)
+- "none" — the speaker's words alone carry it; no added visual needed
+
+Hard rules:
+- Excerpts must NOT overlap in time. Two concepts may never share the same spoken words or time window.
+- Every video must include at least one "manim" and at least one "hyperframes" concept. If nothing is an obvious fit, pick the best candidate for each medium.
+
+Return JSON array with fields: concept_name, explanation, excerpt, visual.
+Return a JSON array only. No explanation text. No markdown. Just the raw JSON array.`;
+}
+
+function buildExtractConceptsUserMessage(
+  transcript_text: string,
+  transcript_words: TranscriptWord[],
+  duration_seconds?: number
+): string {
+  const durationLine =
+    duration_seconds != null
+      ? `Video duration: ${duration_seconds} seconds`
+      : 'Video duration: unknown';
+  const timed =
+    transcript_words.length > 0
+      ? `\n\nWord-timed transcript:\n${formatWordTimedTranscript(transcript_words)}`
+      : '';
+  return `${durationLine}\n\nTranscript:\n${transcript_text}${timed}`;
 }
 
 function extractSceneClassName(script: string, fallback: string): string {
@@ -399,7 +427,8 @@ type SegmentInput = {
   end: number;
   mode: 'A' | 'B' | 'C';
   manim_index?: number;
-  element_type?: z.infer<typeof elementTypeSchema>;
+  concept_name?: string;
+  explanation?: string;
 };
 type SectionMeta = { filename: string; segmentId: string; duration: number };
 
@@ -444,22 +473,20 @@ function buildSegmentSection(
       manimClips[seg.manim_index]?.concept_name ?? '',
       `segment-${nn}`
     );
+  } else if (seg.concept_name) {
+    conceptName = slugConceptName(seg.concept_name, `segment-${nn}`);
   } else {
     conceptName = `segment-${nn}`;
   }
   const filename = `${nn}-${conceptName}.html`;
 
-  let modeGsap = '';
-  if (seg.mode === 'A' && seg.manim_index != null) {
-    modeGsap = `tl.set('#manim-${seg.manim_index}', { autoAlpha: 1, display: 'block' }, 0);
-        tl.set('#manim-${seg.manim_index}', { autoAlpha: 0, display: 'none' }, SEGMENT_DURATION);`;
-  }
-
+  // Manim show/hide lives on the root timeline (MANIM_GSAP) — the #manim-N
+  // elements are in index.html, out of reach of segment sub-composition scope.
   html = html
     .replace(/\{\{SEGMENT_ID\}\}/g, segmentId)
     .replace(/\{\{SEGMENT_DURATION\}\}/g, String(duration))
     .replace(/\{\{BRAND_CSS_VARS\}\}/g, brandCss)
-    .replace(/\{\{MODE_GSAP\}\}/g, modeGsap)
+    .replace(/\{\{MODE_GSAP\}\}/g, '')
     .replace(/\{\{CATALOG_BLOCK_WIRING\}\}/g, '')
     .replace(/\{\{VIZ_GSAP\}\}/g, '');
 
@@ -486,9 +513,28 @@ function buildManimClipsHtml(manimClips: ManimClipInput[]): string {
   return manimClips
     .map((clip, index) => {
       const duration = clip.end_seconds - clip.start_seconds;
-      return `<video id="manim-${index}" class="clip" data-start="${clip.start_seconds}" data-duration="${duration}" data-track-index="2" src="${clip.clip_url}" muted playsinline style="opacity:0;visibility:hidden"></video>`;
+      // Local asset src (downloaded by scaffold) — remote URLs are unreliable at
+      // render time. No inline hidden style: the runtime manages <video>
+      // visibility from data-start/data-duration; root MANIM_GSAP is the
+      // explicit show/hide layer on top.
+      return `<video id="manim-${index}" class="clip" data-start="${clip.start_seconds}" data-duration="${duration}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
     })
     .join('\n      ');
+}
+
+function buildManimGsap(segments: SegmentInput[]): string {
+  const lines: string[] = [];
+  for (const seg of segments) {
+    if (seg.mode === 'A' && seg.manim_index != null) {
+      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 1 }, ${seg.start});`);
+      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 0 }, ${seg.end});`);
+    }
+  }
+  if (lines.length > 0) {
+    // Clips start hidden so a clip whose data-start window opens early never flashes.
+    lines.unshift(`tl.set('#manim-stage video', { autoAlpha: 0 }, 0);`);
+  }
+  return lines.join('\n    ');
 }
 
 const SPEAKER_PRESETS = {
@@ -555,7 +601,7 @@ function buildCompositionManifest({
         seg.mode === 'A' && seg.manim_index != null
           ? (manim_clips[seg.manim_index]?.clip_url ?? null)
           : null,
-      element_type: seg.mode === 'B' ? (seg.element_type ?? null) : null,
+      concept_name: seg.mode === 'B' ? (seg.concept_name ?? null) : null,
     })),
   };
 }
@@ -612,7 +658,9 @@ function substitutePlaceholders(
 ): string {
   let result = template;
   for (const [key, value] of Object.entries(replacements)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    // Function replacement so `$` in values (e.g. "$100" in captions JSON)
+    // is not treated as a String.replace substitution pattern.
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), () => value);
   }
   return result;
 }
@@ -897,6 +945,13 @@ Paths are relative to the session work directory unless absolute.`,
         const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
         fs.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
 
+        // Persist full word list in the session workdir so scaffold_hf_project can
+        // load it directly instead of relying on the agent to courier the array.
+        fs.writeFileSync(
+          path.join(getSessionWorkdir(ctx.sessionId), 'transcript.json'),
+          JSON.stringify(transcriptData, null, 2)
+        );
+
         const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
         const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
         await writeAssetUrl(ctx.userId, ctx.sessionId, 'transcript', transcriptUrl);
@@ -904,6 +959,7 @@ Paths are relative to the session work directory unless absolute.`,
         return {
           transcript_url: transcriptUrl,
           transcript_text: transcription.text,
+          transcript_words: verbose.words ?? [],
           duration_seconds: verbose.duration ?? 0,
           word_count: verbose.words?.length ?? 0,
         };
@@ -916,7 +972,7 @@ Paths are relative to the session work directory unless absolute.`,
   }),
 
   extract_concepts: tool({
-    description: `Extract key teaching concepts and moments from the transcript. Returns a structured list of concepts with timestamps and whether each needs a visual animation. Call this after transcribe_video.`,
+    description: `Extract teaching concepts from the transcript and classify each for Manim (manim), HyperFrames motion graphics (hyperframes), or no visual (none). Returns snapped timestamps. Call after transcribe_video.`,
     inputSchema: z.object({
       transcript_text: z.string(),
       transcript_words: z
@@ -934,56 +990,45 @@ Paths are relative to the session work directory unless absolute.`,
       try {
         const manimSkill = loadSkillFile('manim-video/SKILL.md');
         const scenePlanning = loadSkillFile('manim-video/references/scene-planning.md');
-
-        const responseText = await callOpenRouter(
-          'anthropic/claude-haiku-4-5',
-          `You extract teaching concepts from lecture transcripts for educational video production.
-
-${manimSkill}
-
-## Scene Planning (topic selection)
-${scenePlanning}
-
-Identify 2–6 key concepts that would benefit from a visual diagram, flowchart, comparison, or animated explanation — not only math or equations. Business, consulting, history, and process lectures often have concepts that need animation (frameworks, timelines, before/after comparisons, step-by-step flows).
-
-For each concept, provide an excerpt field containing the exact contiguous words from the transcript where this concept is spoken. Do NOT return start_seconds or end_seconds — those will be computed from the transcript. Return JSON array with fields: concept_name, explanation, excerpt, needs_animation.
-
-Return a JSON array only. No explanation text. No markdown. Just the raw JSON array.`,
-          transcript_text
+        const systemPrompt = buildExtractConceptsSystemPrompt(manimSkill, scenePlanning);
+        const snapWords = loadSessionTranscriptWords(ctx.sessionId, transcript_words ?? []);
+        const userMessage = buildExtractConceptsUserMessage(
+          transcript_text,
+          snapWords,
+          duration_seconds
         );
 
-        const cleaned = stripCodeFences(responseText);
-        const parsed = JSON.parse(cleaned) as unknown;
+        const runExtraction = async (retryHint?: string) => {
+          const responseText = await callOpenRouter(
+            'anthropic/claude-haiku-4-5',
+            systemPrompt,
+            retryHint ? `${userMessage}\n\n${retryHint}` : userMessage
+          );
+          const cleaned = stripCodeFences(responseText);
+          const parsed = JSON.parse(cleaned) as unknown;
+          if (!Array.isArray(parsed)) {
+            throw new Error('Response was not a JSON array');
+          }
+          const parsedConcepts = conceptsArraySchema.parse(parsed);
+          return finalizeExtractedConcepts(
+            snapConceptsFromLlm(parsedConcepts, snapWords, duration_seconds)
+          );
+        };
 
-        if (!Array.isArray(parsed)) {
-          throw new Error('Response was not a JSON array');
+        let concepts = await runExtraction();
+        const needsRetry =
+          !concepts.some((c) => c.visual === 'manim') ||
+          !concepts.some((c) => c.visual === 'hyperframes');
+
+        if (needsRetry) {
+          concepts = await runExtraction(
+            'Your previous response did not include at least one concept with visual "manim" and at least one with visual "hyperframes". Fix this while keeping excerpts non-overlapping.'
+          );
+          concepts = finalizeExtractedConcepts(concepts);
         }
 
-        const parsedConcepts = conceptsArraySchema.parse(parsed);
-        const concepts = parsedConcepts.map((concept) => {
-          let needs_animation = concept.needs_animation ?? false;
-          const snap = snapToWords(concept.excerpt, transcript_words ?? [], duration_seconds);
-
-          let start_seconds = snap.start_seconds;
-          let end_seconds = snap.end_seconds;
-          if (!snap.matched) {
-            needs_animation = false;
-          }
-
-          end_seconds = Math.min(end_seconds, duration_seconds ?? end_seconds);
-          if (end_seconds <= start_seconds) {
-            needs_animation = false;
-          }
-
-          return {
-            concept_name: concept.concept_name,
-            explanation: concept.explanation,
-            start_seconds,
-            end_seconds,
-            needs_animation,
-          };
-        });
-        const animation_count = concepts.filter((c) => c.needs_animation).length;
+        const manim_count = concepts.filter((c) => c.visual === 'manim').length;
+        const hyperframes_count = concepts.filter((c) => c.visual === 'hyperframes').length;
 
         const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
         fs.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
@@ -995,7 +1040,8 @@ Return a JSON array only. No explanation text. No markdown. Just the raw JSON ar
         return {
           concepts_url: conceptsUrl,
           concepts,
-          animation_count,
+          manim_count,
+          hyperframes_count,
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -1005,7 +1051,7 @@ Return a JSON array only. No explanation text. No markdown. Just the raw JSON ar
   }),
 
   generate_manim_script: tool({
-    description: `Generate a valid Manim Python script for a single teaching concept. Call this BEFORE render_manim_clips for each concept that needs_animation: true. Returns a validated Python script string ready to render.`,
+    description: `Generate a valid Manim Python script for a single teaching concept. Call this BEFORE render_manim_clip for each concept with visual: manim. Returns a validated Python script string ready to render.`,
     inputSchema: z.object({
       concept_name: z.string().describe('Name of the teaching concept to animate'),
       explanation: z.string().describe('Full explanation of the concept from extract_concepts'),
@@ -1094,8 +1140,8 @@ Fix these specific issues and return corrected Python only.`;
     },
   }),
 
-  render_manim_clips: tool({
-    description: `Render a Manim Python script to an MP4 clip. Call this after generate_manim_script for each concept. Takes the script string and class name from generate_manim_script, renders it with the manim CLI, and uploads the MP4 to Firebase Storage.`,
+  render_manim_clip: tool({
+    description: `Render a Manim Python script to an MP4 clip. Call this after generate_manim_script for each concept with visual: manim. Takes the script string and class name from generate_manim_script, renders it with the manim CLI, and uploads the MP4 to Firebase Storage.`,
     inputSchema: z.object({
       script: z.string().describe('Validated Python script string from generate_manim_script'),
       class_name: z.string().describe('Scene class name from generate_manim_script e.g. SceneMyTopic'),
@@ -1183,46 +1229,37 @@ Fix these specific issues and return corrected Python only.`;
     },
   }),
 
-  plan_hf_segments: tool({
-    description: `Plan video display modes per segment. Assigns Mode A (Manim), Mode B (HyperFrames motion graphic), or Mode C (speaker teaching) across the full video duration. Call after all Manim clips are rendered.`,
+  plan_segments: tool({
+    description: `Deterministically plan video display modes: Mode A at Manim clip timestamps, Mode B at HyperFrames concept timestamps, Mode C fills all remaining gaps. Call after Manim clips are rendered.`,
     inputSchema: z.object({
-      transcript_text: z.string(),
-      manim_clips: z.array(manimClipTimestampSchema),
+      manim_clips: z.array(
+        z.object({
+          concept_name: z.string(),
+          start_seconds: z.number(),
+          end_seconds: z.number(),
+        })
+      ),
+      hf_concepts: z.array(hfConceptSchema),
       total_duration: z.number(),
     }),
-    execute: async ({ transcript_text, manim_clips, total_duration }) => {
+    execute: async ({ manim_clips, hf_concepts, total_duration }) => {
       try {
-        const indexedClips = manim_clips.map((clip, i) => ({ manim_index: i, ...clip }));
-        const userMessage = `Total duration: ${total_duration} seconds
+        const segments = buildDeterministicSegments(manim_clips, hf_concepts, total_duration);
 
-Manim clips (Mode A — timestamps must be preserved exactly; use manim_index to reference clip by array position):
-${JSON.stringify(indexedClips, null, 2)}
-
-Transcript:
-${transcript_text}`;
-
-        const responseText = await callOpenRouter(
-          TOOL_MODEL,
-          HF_SEGMENTS_SYSTEM_PROMPT,
-          userMessage
-        );
-
-        const cleaned = stripCodeFences(responseText);
-        const parsed = JSON.parse(cleaned) as unknown;
-
-        if (!Array.isArray(parsed)) {
-          throw new Error('Response was not a JSON array');
+        for (const seg of segments) {
+          if (seg.mode === 'A' && seg.manim_index == null) {
+            throw new Error('Internal error: Mode A segment missing manim_index');
+          }
         }
 
-        const segments = hfSegmentsArraySchema.parse(parsed);
-        validateHfSegmentsAgainstManimClips(segments, manim_clips);
+        const parsed = z.array(plannedSegmentSchema).parse(segments);
 
         await writeHfSegmentsPlan(ctx.userId, ctx.sessionId, {
-          segments,
+          segments: parsed,
           total_duration,
         });
 
-        return { segments };
+        return { segments: parsed };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         throw new Error(`Segment planning failed: ${message}`);
@@ -1231,7 +1268,7 @@ ${transcript_text}`;
   }),
 
   scaffold_hf_project: tool({
-    description: `Scaffold the HyperFrames project from edu-video templates: copies templates, injects segment wiring, captions, speaker GSAP, downloads speaker media, and uploads the full project to Firebase Storage. Call this after render_manim_clips and segment planning.`,
+    description: `Scaffold the HyperFrames project from edu-video templates: copies templates, injects segment wiring, captions, speaker GSAP, downloads speaker media, and uploads the full project to Firebase Storage. Call this after render_manim_clip and plan_segments.`,
     inputSchema: z.object({
       speaker_video_url: z.string().describe('Firebase Storage URL of the original teacher video'),
       speaker_audio_url: z
@@ -1252,7 +1289,8 @@ ${transcript_text}`;
           end: z.number(),
           mode: z.enum(['A', 'B', 'C']),
           manim_index: z.number().optional(),
-          element_type: elementTypeSchema.optional(),
+          concept_name: z.string().optional(),
+          explanation: z.string().optional(),
         })
       ),
       transcript_words: z.array(
@@ -1285,6 +1323,33 @@ ${transcript_text}`;
 
       fs.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
 
+      const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
+
+      // Media downloads happen before HTML generation so the real video
+      // duration (ffprobe) can drive TOTAL_DURATION.
+      const assetsDir = path.join(projectDir, 'assets');
+      fs.mkdirSync(assetsDir, { recursive: true });
+
+      const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
+      await downloadFile(speaker_video_url, speakerVideoPath);
+
+      // A2: captions were cut short when whisper's duration undershot the video.
+      const ffprobe = await execCommand(
+        `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
+        { timeoutSeconds: 60 }
+      );
+      const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+      const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
+      const effectiveDuration = Math.max(total_duration, probedDuration, lastWordEnd);
+
+      // A3: manim clips must be local files at render time.
+      for (let index = 0; index < manim_clips.length; index++) {
+        await downloadFile(
+          manim_clips[index].clip_url,
+          path.join(assetsDir, `manim-${index}.mp4`)
+        );
+      }
+
       const sectionMeta: SectionMeta[] = [];
       const sectionsDir = path.join(projectDir, 'compositions', 'sections');
       fs.mkdirSync(sectionsDir, { recursive: true });
@@ -1315,6 +1380,15 @@ ${transcript_text}`;
           continue;
         }
 
+        // A4: Mode B has no deterministic fallback — an empty mode-b template
+        // renders as a bare gradient. Fail loud so the agent writes the Phase 3
+        // file or re-plans the segment as Mode C.
+        if (seg.mode === 'B') {
+          throw new Error(
+            `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Complete Phase 3 (write the sub-composition via write_file) before calling scaffold_hf_project, or re-plan this segment as Mode C.`
+          );
+        }
+
         const built = buildSegmentSection(
           seg,
           index,
@@ -1329,14 +1403,16 @@ ${transcript_text}`;
       const segmentWiring = buildSegmentWiring(segments, sectionMeta);
       const manimClipsHtml = buildManimClipsHtml(manim_clips);
       const speakerGsap = buildSpeakerGsap(segments);
-      const captionsJson = JSON.stringify(groupCaptionWords(transcript_words));
+      const manimGsap = buildManimGsap(segments);
+      const captionsJson = JSON.stringify(groupCaptionWords(words));
 
       const indexRootPath = path.join(projectDir, 'index-root.html');
       const indexHtml = substitutePlaceholders(fs.readFileSync(indexRootPath, 'utf-8'), {
-        TOTAL_DURATION: String(total_duration),
+        TOTAL_DURATION: String(effectiveDuration),
         SEGMENT_WIRING: segmentWiring,
         MANIM_CLIPS: manimClipsHtml,
         SPEAKER_GSAP: speakerGsap,
+        MANIM_GSAP: manimGsap,
         LIQUID_GLASS_INIT: '',
         TRANSITION_WIRING: '',
       });
@@ -1345,28 +1421,32 @@ ${transcript_text}`;
       const captionsPath = path.join(projectDir, 'compositions', 'captions-overlay.html');
       const captionsHtml = substitutePlaceholders(fs.readFileSync(captionsPath, 'utf-8'), {
         CAPTIONS_JSON: captionsJson,
-        TOTAL_DURATION: String(total_duration),
+        TOTAL_DURATION: String(effectiveDuration),
         BRAND_CSS_VARS: brandCss,
       });
       fs.writeFileSync(captionsPath, captionsHtml, 'utf-8');
 
-      const assetsDir = path.join(projectDir, 'assets');
-      fs.mkdirSync(assetsDir, { recursive: true });
       fs.writeFileSync(path.join(assetsDir, 'brand-tokens.css'), brandCss, 'utf-8');
       fs.writeFileSync(
         path.join(assetsDir, 'transcript.json'),
-        JSON.stringify({ words: transcript_words }, null, 2),
+        JSON.stringify({ words }, null, 2),
         'utf-8'
       );
 
       const meta = {
         id: `edu-${ctx.sessionId.slice(0, 8)}`,
-        total_duration,
+        total_duration: effectiveDuration,
         width: 1920,
         height: 1080,
         fps: 30,
       };
       fs.writeFileSync(path.join(projectDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf-8');
+
+      // A5: remove raw templates so lint only sees processed, placeholder-free files.
+      fs.rmSync(path.join(projectDir, 'index-root.html'), { force: true });
+      for (const m of ['a', 'b', 'c']) {
+        fs.rmSync(path.join(projectDir, 'compositions', `mode-${m}.html`), { force: true });
+      }
 
       const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
       const indexUrl = await uploadToStorage(
@@ -1376,9 +1456,6 @@ ${transcript_text}`;
       await writeAssetUrl(ctx.userId, ctx.sessionId, 'composition', indexUrl);
       // ponytail: uploadToStorage deletes the local file; restore before full-project upload
       fs.writeFileSync(path.join(projectDir, 'index.html'), indexHtml, 'utf-8');
-
-      const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
-      await downloadFile(speaker_video_url, speakerVideoPath);
 
       const audioPath = path.join(assetsDir, 'audio.mp3');
       const ffmpeg = await execCommand(
@@ -1391,7 +1468,7 @@ ${transcript_text}`;
 
       const manifest = buildCompositionManifest({
         projectDir,
-        total_duration,
+        total_duration: effectiveDuration,
         colors,
         segments,
         sectionMeta,

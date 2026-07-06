@@ -68,7 +68,8 @@
         const SEGMENT_DURATION = {{SEGMENT_DURATION}};
         const tl = gsap.timeline({ paused: true });
 
-        {{MODE_GSAP}}
+        /* Manim clip show/hide lives on the root timeline (index.html) —
+           the video elements are outside this sub-composition's scope */
 
         tl.set({}, {}, SEGMENT_DURATION);
         window.__timelines = window.__timelines || {};
