@@ -2,32 +2,29 @@
 
 ## name: edu-video
 
-description: Transform a teacher video recording into an educational video with Manim animations, HyperFrames motion graphics, karaoke captions, and automatic speaker layout. Orchestrates the manim-video skill (concept animations) and hyperframes skill (motion graphic overlays). Three display modes switch automatically per segment. Use when asked to generate an educational video from a recording.
+description: Transform a teacher video recording into an educational video with Manim animations, karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only. Two display modes switch automatically per segment. Use when asked to generate an educational video from a recording.
 
 # Edu-Video Pipeline — Orchestration Skill
 
 ## What This Does
 
 Transforms a teacher's video recording into a 1920×1080 educational video.
-Coordinates two sub-skills: manim-video (mathematical animations) and
-hyperframes (motion graphic overlays for data, comparisons, timelines, and general visual reinforcement).
+Every extracted concept is animated with Manim. HyperFrames assembles and renders the final composite — no per-segment creative HTML generation.
 
-Three display modes, auto-assigned per transcript segment:
+Two display modes, auto-assigned per transcript segment:
 
-- **Mode A:** Manim animation full canvas + speaker PIP bottom-right (422×237px) + karaoke captions
-- **Mode B:** Ambient gradient background + HyperFrames motion graphic overlay (agent-written) + speaker PIP bottom-right + karaoke captions
+- **Mode A:** Ambient gradient background + Manim animation centered 85% canvas + speaker circular PIP bottom-right (237px) + karaoke captions
 - **Mode C:** Ambient gradient background + speaker video centered 65% canvas + karaoke captions
 
-Every finished video includes all three modes. The agent decides how many concepts fit the lecture length — do not over-clutter short videos.
+Mode C covers intros, transitions, narrative, and any time not covered by a successful Manim clip. Zero concepts on a very short or meta-only recording is valid (all Mode C).
 
 ## UI Activity Trace vs User Text
 
 Activity trace shows each step as collapsible cards. Keep text responses brief.
 
 - After transcription: title and duration only, one sentence
-- After concept extraction: how many Manim vs HyperFrames concepts found, one sentence
-- After segment planning: confirm all three modes are present, one sentence
-- After Mode B generation: confirm motion graphics ready, one sentence
+- After concept extraction: how many Manim concepts found, one sentence
+- After segment planning: confirm timeline ready, one sentence
 - After animations: "animations ready", one sentence
 - After final render: show video URL prominently, ask if they want changes
 
@@ -36,113 +33,85 @@ Never mention tool names, file paths, or technical details to the user.
 ## Tools Available
 
 - `transcribe_video` — transcribes speaker video, returns transcript_text, transcript_words[], duration_seconds, word_count
-- `extract_concepts` — classifies concepts as visual manim, hyperframes, or none; returns snapped timestamps, manim_count, hyperframes_count
-- `generate_manim_script` — writes Python Manim script for one concept, validates syntax
-- `render_manim_clip` — renders one Manim script to MP4, returns clip_url, start_seconds, end_seconds
-- `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode B at HyperFrames concepts, Mode C fills gaps
-- `generate_hyperframes_html` — generates and writes one Mode B sub-composition HTML file (loads HyperFrames skills internally)
-- `scaffold_hf_project` — deterministic template injector, no LLM, writes full HyperFrames project to disk and Firebase Storage, returns project_dir and composition_url
+- `extract_concepts` — extracts Manim-worthy concepts; returns snapped timestamps and concept_count
+- `generate_manim_script` — writes Python Manim script for one concept, validates syntax, persists script_path on disk
+- `render_manim_clip` — renders one Manim script to MP4; accepts script_path for patch-and-re-render
+- `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode C fills gaps
+- `scaffold_hf_project` — deterministic template injector, no LLM, writes full HyperFrames project to disk and Firebase Storage
 - `render_hyperframes` — runs hyperframes lint then render, returns structured lint errors on failure or video_url on success
-- `run_command` — run shell commands (used for patches, ffmpeg, etc.)
-- `write_file` — write files to disk (used for lint patches and small targeted edits)
-- `read_file` — read any file from disk (used before patching, reading manifest)
+- `run_command` — run shell commands (used for ffmpeg, etc.)
+- `write_file` — write files to disk (used for Manim script patches and lint fixes)
+- `read_file` — read any file from disk (used before patching scripts or manifest)
 - `search_files` — find files by name or content (used when manifest is missing)
-
-
 
 ## Tool Sequence
 
-
-
-### Phase 1 — Transcription and Concept Classification
+### Phase 1 — Transcription and Concept Extraction
 
 **Step 1:** `transcribe_video`
 
 - Pass: video_url from context
 - Returns: transcript_url, transcript_text, transcript_words[], duration_seconds, word_count
 - transcript_words[] contains word-level timestamps from Groq Whisper — use these always, never estimate timestamps
-- Save transcript_words[] — needed for Phase 3 and Phase 4
+- Save transcript_words[] — needed for Phase 3
 
 **Step 2:** `extract_concepts`
 
 - Pass: transcript_text, transcript_words (full array from step 1), duration_seconds
-- LLM returns concepts with excerpt field and visual classification (manim / hyperframes / none)
-- Tool snaps excerpts to word-level timestamps deterministically and enforces non-overlap
-- Returns: concepts[] each with concept_name, explanation, start_seconds, end_seconds, visual
-- Also returns manim_count and hyperframes_count — both must be at least 1
+- LLM returns concepts with excerpt field; every concept is implicitly Manim
+- Tool snaps excerpts to word-level timestamps deterministically, drops failed snaps and overlaps
+- Returns: concepts[] each with concept_name, explanation, start_seconds, end_seconds, concept_count
+- Zero concepts is valid for very short or meta-only recordings
 
-**Step 3: For each concept where visual=manim (run sequentially)**
+### Phase 2 — Manim (all extracted concepts, run sequentially)
 
-- Read `Skills/manim-video/SKILL.md` before writing any Manim script
-- `generate_manim_script` — pass concept_name, explanation, duration_seconds=(end_seconds - start_seconds)
-- `render_manim_clip` — pass script, class_name, concept_name, start_seconds, end_seconds
-- Returns: clip_url, concept_name, start_seconds, end_seconds
-- Collect all results into manim_clips[] for Phase 2
-- **On Manim render failure:** reclassify that concept as hyperframes (add to hf_concepts[] for Phase 2) instead of skipping it
+For **each** concept from extract_concepts:
 
+1. Read `Skills/manim-video/SKILL.md` before the first `generate_manim_script` for that concept
+2. `generate_manim_script` — pass concept_name, explanation, duration_seconds=(end_seconds - start_seconds), and the same optional `brand_colors` you will pass to `scaffold_hf_project` (omit to use template defaults: primary #1a1a2e, accent #37bdf8, bg_dark #0a0a0f)
+3. `render_manim_clip` — pass script_path (from generate_manim_script), class_name, concept_name, start_seconds, end_seconds
+4. Collect successful results into manim_clips[] for Phase 3
 
+**On Manim render failure — patch, do NOT regenerate:**
 
-### Phase 2 — Segment Planning
+1. Read `Skills/manim-video/references/troubleshooting.md` (and the relevant concept ref if domain-specific)
+2. `read_file` the failed script using script_path from generate_manim_script — not memory
+3. Identify the specific line(s) from stderr (traceback, LaTeX error, TypeError, etc.)
+4. `write_file` a minimal patch — change only the broken lines/blocks; preserve class name, imports, scene structure, and working animations
+5. `render_manim_clip` again with script_path — do not re-paste the full script through context
 
-**Step 4:** `plan_segments`
+**Patch by default for:** LaTeX/raw-string issues, VGroup vs Group errors, invalid Text() kwargs, missing self.wait(), buff/FadeOut issues, any localized traceback.
+
+**Full regenerate via `generate_manim_script` only when:** 3 patch cycles exhausted and error persists, script is structurally wrong (wrong scene class, empty construct, fundamentally wrong approach), or error spans most of the file.
+
+**After 3 failed patch cycles + optional one full regen:** drop that clip from manim_clips[]; that window becomes Mode C at plan_segments time; one plain sentence to user.
+
+### Phase 3 — Segment Planning
+
+**Step 3:** `plan_segments`
 
 - Pass:
-  - manim_clips[] — rendered clips from Phase 1 (concept_name, start_seconds, end_seconds; clip_url only needed for scaffold)
-  - hf_concepts[] — concepts where visual=hyperframes from extract_concepts, plus any Manim failures reclassified in Step 3 (concept_name, explanation, start_seconds, end_seconds)
+  - manim_clips[] — successfully rendered clips (concept_name, start_seconds, end_seconds; clip_url only needed for scaffold)
   - total_duration — duration_seconds from transcribe_video
 - Deterministic — succeeds on first call, no retry loop
-- Returns: segments[] with mode (A/B/C), start, end, manim_index (for A), concept_name + explanation (for B)
-
-
-
-### Phase 3 — Mode B Sub-Compositions
-
-**Runs on every video** — at least one Mode B segment is mandatory. This phase is BLOCKING: scaffold_hf_project fails if any Mode B segment file is missing. Never call scaffold_hf_project until every Mode B segment has its file written, or has been re-planned as Mode C (last resort only).
-
-For each segment where mode=B:
-
-1. Filter `transcript_words` where `word.start >= segment.start` and `word.end <= segment.end`, join into `transcript_excerpt`
-2. `generate_hyperframes_html` — pass:
-  - `segment_number` — 1-based position in the FULL segments[] array (counting Mode A and C segments too): first segment = 1
-  - `concept_name` — from segment
-  - `explanation` — from segment
-  - `transcript_excerpt` — filtered words from step 1 (meaning only — tool visualizes, does not subtitle)
-  - `duration_seconds` — `segment.end - segment.start`
-3. The tool loads creative refs + diagram blueprint + animation rules internally; generates SVG/icon diagrams (not kinetic typography — captions carry spoken words); validates HTML; writes to `hf-project/compositions/sections/{NN}-segment-{NN}.html`
-4. Tool returns `archetype`, `blueprint_used`, and `rules_used`
-
-**On tool failure after internal retry:** fall back to Mode C for that segment only — change that segment's `mode` to `"C"` in the segments array you pass to scaffold_hf_project. Tell the user one plain sentence that one motion graphic could not be included.
-
-Then proceed to Phase 4 (`scaffold_hf_project`).
-
-**Contract enforced by the tool** (for reference — you do not write this HTML manually):
-
-- Wrapped in `<template id="seg-{NN}-b-template">`
-- Inner div: `data-composition-id="seg-{NN}-b"` `data-start="0"` `data-width="1920"` `data-height="1080"` `data-duration="{segment.end - segment.start}"`
-- Root div: `id="seg-{NN}-b"` + `data-composition-id="seg-{NN}-b"`; CSS root via `#seg-{NN}-b`, descendants via plain classes — never `[data-composition-id="..."]` in CSS (HyperFrames double-scopes it)
-- GSAP CDN, paused timeline, `tl.set({}, {}, DURATION)` padding
-- Visual content in left 65% of canvas — right 35% reserved for speaker PIP
-- Brand CSS variables, no video/audio elements, no infinite repeats
-
-
+- Returns: segments[] with mode (A/C), start, end, manim_index (for A)
 
 ### Phase 4 — Assembly and Render
 
-**Step 5:** `scaffold_hf_project`
+**Step 4:** `scaffold_hf_project`
 
 Pass:
 
 - `speaker_video_url` — original video URL from context
-- `manim_clips[]` — all clips from Phase 1 with clip_url, concept_name, start_seconds, end_seconds
+- `manim_clips[]` — all clips from Phase 2 with clip_url, concept_name, start_seconds, end_seconds
 - `segments[]` — from plan_segments, with manim_index for Mode A segments
-- `transcript_words[]` — array from transcribe_video (for karaoke captions). You may pass an empty array `[]`: scaffold automatically loads the full word list persisted by transcribe_video, which is more reliable than re-passing 1000+ words through context
+- `transcript_words[]` — array from transcribe_video (for karaoke captions). You may pass an empty array `[]`: scaffold automatically loads the full word list persisted by transcribe_video
 - `total_duration` — duration_seconds from transcribe_video (scaffold extends this to the real video duration via ffprobe if whisper undershot)
 - `brand_colors` — optional, defaults: primary #1a1a2e, accent #37bdf8, bg_dark #0a0a0f
 
 What scaffold_hf_project does (deterministic, zero LLM calls):
 
 - Copies template scaffold from Skills/edu-video/templates/
-- For Mode B segments: uses the agent-written file from Phase 3 — does not overwrite. **Fails with an error if any Mode B segment's file is missing** (see Phase 3)
 - For Mode A and C segments: uses mode-a.html / mode-c.html templates
 - Injects all segment wiring, Manim clip HTML, speaker GSAP transitions, Manim show/hide on the root timeline, karaoke captions
 - Downloads speaker video and all Manim clips to assets/, extracts audio via ffmpeg
@@ -151,7 +120,7 @@ What scaffold_hf_project does (deterministic, zero LLM calls):
 - Uploads full project directory to Firebase Storage
 - Returns: project_dir, composition_url
 
-**Step 6:** `render_hyperframes`
+**Step 5:** `render_hyperframes`
 
 Pass: composition_url from scaffold_hf_project
 
@@ -175,56 +144,44 @@ Behavior:
 - Returns: `{ success: true, video_url: "..." }`
 - Show video_url prominently to user
 
-
-
 ## Karaoke Captions
 
 Always enabled on every mode. scaffold_hf_project receives transcript_words and generates
 word-level karaoke caption groups injected into compositions/captions-overlay.html.
 Caption position: bottom 96px, centered. Karaoke highlight animates per word group.
 Captions are always on top of everything — z-index 10+.
-Caption right edge stops at 1550px to avoid PIP overlap in Mode A and B.
+Caption right edge stops at 1550px to avoid PIP overlap in Mode A.
 
 ## Deterministic vs Agent-Generated
 
-
-| Element                                      | Who generates it                                           |
-| -------------------------------------------- | ---------------------------------------------------------- |
-| Speaker video position and PIP transitions   | Deterministic — GSAP presets in scaffold_hf_project        |
-| Manim clip placement (full canvas)           | Deterministic — injected by scaffold_hf_project            |
-| Mode B safe zone enforcement (left 65%)      | Agent responsibility — follow content placement rules      |
-| Caption layer position and structure         | Deterministic — captions-overlay.html template             |
-| index-root.html wiring and audio track       | Deterministic — scaffold_hf_project                        |
-| All timestamps                               | Always from Groq Whisper word-level data — never estimated |
-| Mode B sub-composition HTML/CSS/GSAP         | `generate_hyperframes_html` tool — Phase 3                 |
-| Visual type decision for Mode B              | Agent — based on transcript understanding                  |
-| Manim Python scripts                         | Agent — generate_manim_script                              |
-| Concept count and manim vs hyperframes split | Agent — extract_concepts, guided by duration and content   |
-| Mode A/B/C timeline partition                | Deterministic — plan_segments                              |
-
-
-
+| Element                            | Who generates it                                           |
+| ---------------------------------- | ---------------------------------------------------------- |
+| Speaker video position and PIP     | Deterministic — GSAP presets in scaffold_hf_project        |
+| Manim clip placement (85% float)   | Deterministic — injected by scaffold_hf_project            |
+| Caption layer position             | Deterministic — captions-overlay.html template             |
+| index-root.html wiring             | Deterministic — scaffold_hf_project                        |
+| All timestamps                     | Always from Groq Whisper word-level data — never estimated |
+| Manim Python scripts               | Agent — generate_manim_script; patch via read_file/write_file on failure |
+| Concept count and selection        | Agent — extract_concepts, guided by duration and content   |
+| Mode A/C timeline partition        | Deterministic — plan_segments                              |
+| Final composite render             | Deterministic — render_hyperframes (HyperFrames CLI)         |
 
 ## Sub-Skill Reference
 
 Always read the relevant skill file before using that tool:
 
 - Before `generate_manim_script`: read `Skills/manim-video/SKILL.md`
+- On Manim render failure: read `Skills/manim-video/references/troubleshooting.md`
 - Before `render_hyperframes`: read `Skills/hyperframes/hyperframes-cli/SKILL.md`
-
-
 
 ## On Failure
 
 One plain sentence to the user. Never mention tool names, file paths, or technical details.
 
-- Mode B segment fails after retry → fall back to Mode C for that segment, continue (mention one graphic was skipped)
-- Manim clip fails → reclassify concept as hyperframes for plan_segments; do not drop it
-- extract_concepts may return visual=none for overlap-dropped concepts — only render/plan manim and hyperframes entries
+- Manim clip fails after patch cycles → drop clip, Mode C fills that window; continue
+- extract_concepts may return zero concepts on short/meta recordings — all-C timeline is valid
 - Lint fails → patch and retry (max 3 attempts), then tell user one plain sentence
 - Any other failure → tell user one plain sentence, continue with what worked
-
-
 
 ## On Edit Requests
 
@@ -247,8 +204,6 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 - `write_file` to patch `tl.set('#speaker-wrap', ...)` and `tl.to('#speaker-wrap', ...)` in index.html
 - `render_hyperframes`
 
-
-
 ### Caption style edits
 
 "bigger captions" / "different color" / "move captions up" / "smaller text":
@@ -257,28 +212,14 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 - `write_file` to patch those values in `compositions/captions-overlay.html`
 - `render_hyperframes`
 
-
-
-### Mode B content edits
-
-"change that chart" / "use a comparison table" / "make the diagram different":
-
-- Re-call `generate_hyperframes_html` for that segment (same path overwrites)
-- `render_hyperframes` — skip re-scaffold if only section content changed
-
-
-
 ### Segment edits
 
-"add an animation at 30s" / "remove the last animation" / "add a chart at 45s":
+"add an animation at 30s" / "remove the last animation":
 
 - Adding Manim: `generate_manim_script` + `render_manim_clip` for new concept
-- `plan_segments` with updated clip list and hf_concepts
-- `generate_hyperframes_html` for any new Mode B segments
+- `plan_segments` with updated clip list
 - `scaffold_hf_project` with updated segments
 - `render_hyperframes`
-
-
 
 ### Brand/color edits
 
@@ -286,4 +227,3 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 
 - `scaffold_hf_project` with updated brand_colors
 - `render_hyperframes`
-

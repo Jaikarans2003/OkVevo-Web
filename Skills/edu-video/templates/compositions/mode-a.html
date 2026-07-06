@@ -8,6 +8,7 @@
     data-duration="{{SEGMENT_DURATION}}"
   >
     <div id="brand-bg"></div>
+    <div id="manim-float"></div>
     <div id="speaker-pip" class="glass-panel liquid-glass"></div>
 
     <style>
@@ -32,21 +33,39 @@
         );
       }
 
-      /* PiP marker — liquid-glass shell (catalog: liquid-glass-widgets) */
+      /* Float marker — same frame as mode-c #speaker-float */
+      #{{SEGMENT_ID}} #manim-float {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 85%;
+        aspect-ratio: 16 / 9;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      /* PiP marker — circular liquid-glass shell (catalog: liquid-glass-widgets) */
       #{{SEGMENT_ID}} #speaker-pip {
         position: absolute;
         bottom: 64px;
         right: 24px;
-        width: 422px;
+        width: 237px;
         height: 237px;
-        border-radius: 16px;
+        border-radius: 50%;
         overflow: hidden;
         z-index: -1;
         pointer-events: none;
         background: rgba(255, 255, 255, 0.025);
         --lg-blur: 0.42;
         --lg-refraction: 0.82;
-        --lg-corner-radius: 16;
+        --lg-corner-radius: 118;
         --lg-z-radius: 32;
         --lg-specular: 0.34;
         --lg-fresnel: 1.25;

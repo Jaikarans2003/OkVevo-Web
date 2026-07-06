@@ -42,7 +42,6 @@ const captionKeys = new Set(['CAPTIONS_JSON', 'TOTAL_DURATION', 'BRAND_CSS_VARS'
 const checks = [
   ['index-root.html', indexKeys],
   ['compositions/mode-a.html', sectionKeys],
-  ['compositions/mode-b.html', sectionKeys],
   ['compositions/mode-c.html', sectionKeys],
   ['compositions/captions-overlay.html', captionKeys],
 ];

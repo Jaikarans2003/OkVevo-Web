@@ -31,11 +31,27 @@
       z-index: 2;
       pointer-events: none;
     }
-    #manim-stage video {
+    /* Float frame — matches mode-c #speaker-float / mode-a #manim-float */
+    #manim-wrap {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 85%;
+      aspect-ratio: 16 / 9;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      pointer-events: none;
+    }
+    #manim-wrap video {
       position: absolute;
       inset: 0;
-      width: 1920px;
-      height: 1080px;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
       display: block;
       background: transparent;
@@ -101,7 +117,9 @@
     {{TRANSITION_WIRING}}
 
     <div id="manim-stage">
-      {{MANIM_CLIPS}}
+      <div id="manim-wrap">
+        {{MANIM_CLIPS}}
+      </div>
     </div>
 
     <div id="speaker-wrap" class="liquid-glass">
@@ -136,8 +154,8 @@
     const tl = gsap.timeline({ paused: true });
 
     const FS = { top: 68, left: 120, xPercent: 0, yPercent: 0, width: 1680, height: 945, borderRadius: 22 };
-    // shell: bottom 64 + right 24 → top = 1080-64-237, left = 1920-24-422
-    const PIP_MANIM = { top: 779, left: 1474, xPercent: 0, yPercent: 0, width: 422, height: 237, borderRadius: 18 };
+    // circular PiP: bottom 64 + right 24 → top = 1080-64-237, left = 1920-24-237
+    const PIP_MANIM = { top: 779, left: 1659, xPercent: 0, yPercent: 0, width: 237, height: 237, borderRadius: 118 };
     const PIP_VIZ = { top: 160, left: 1500, xPercent: 0, yPercent: 0, width: 380, height: 214, borderRadius: 18 };
 
     /* {{SPEAKER_GSAP}} — stamp at Gate 2, e.g.:

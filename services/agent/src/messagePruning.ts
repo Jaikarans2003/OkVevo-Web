@@ -76,8 +76,6 @@ function summarizeToolName(toolName: string, output: unknown): string | null {
   switch (toolName) {
     case 'generate_manim_script':
       return `[manim script generated for ${String(data.concept_name ?? 'unknown')} — truncated]`;
-    case 'generate_hyperframes_html':
-      return `[Mode B sub-composition: ${String(data.concept_name ?? 'unknown')} → ${String(data.file_path ?? '?')}]`;
     case 'render_manim_clip':
       return `[clip rendered: ${String(data.concept_name ?? 'unknown')} → ${String(data.clip_url ?? '?')}]`;
     case 'run_command':

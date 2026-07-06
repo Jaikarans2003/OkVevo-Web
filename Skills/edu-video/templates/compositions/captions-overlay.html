@@ -29,19 +29,19 @@
 
       #captions-overlay .hl-group {
         position: absolute;
-        bottom: 96px;
+        bottom: 56px;
         left: 0;
         right: 0;
         width: 100%;
-        max-width: 1600px;
+        max-width: 1400px;
         margin: 0 auto;
         display: flex;
         flex-wrap: nowrap;
         align-items: flex-end;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
         padding: 0;
-        font-size: 52px;
+        font-size: 42px;
         line-height: 1.15;
         white-space: nowrap;
         opacity: 0;
@@ -58,7 +58,7 @@
         letter-spacing: 0.02em;
         line-height: 1.15;
         position: relative;
-        padding: 6px 12px 8px;
+        padding: 5px 10px 7px;
         text-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
         transform-origin: 50% 58%;
         will-change: transform, filter;
@@ -78,6 +78,16 @@
         transform: scaleX(0);
         transform-origin: 0% 50%;
         z-index: -1;
+        transition: none;
+      }
+
+      #captions-overlay .hl-word.is-active .hl-word-bg {
+        opacity: 1;
+        transform: scaleX(1);
+      }
+
+      #captions-overlay .hl-word.is-spoken .hl-word-text {
+        opacity: 0.88;
       }
 
       #captions-overlay .hl-word-text {
@@ -130,7 +140,7 @@
               return String(w.text || '').toUpperCase();
             })
             .join(' ');
-          var computedSize = fitFontSize(groupText, 52, '800', brandFont, 1600);
+          var computedSize = fitFontSize(groupText, 42, '800', brandFont, 1400);
 
           words.forEach(function (w, wi) {
             var wordEl = document.createElement('span');
@@ -156,17 +166,31 @@
           tl.set(grp, { visibility: 'visible' }, g.start);
           tl.fromTo(grp, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: 'power2.out' }, g.start);
 
+          // Seek-safe karaoke: exactly one active word — demote on NEXT word start, not w.end.
+          // (Tweening bg at w.end overlaps the next word when timestamps are tight.)
           words.forEach(function (w, wi) {
-            var bgEl = document.getElementById('hl-bg-' + gi + '-' + wi);
             var wordEl = document.getElementById('hl-w-' + gi + '-' + wi);
-            if (!bgEl || !wordEl) return;
-
-            tl.to(bgEl, { opacity: 1, scaleX: 1, duration: 0.15, ease: 'power2.out', overwrite: 'auto' }, w.start);
-            tl.to(wordEl, { filter: 'brightness(1.05)', duration: 0.08, ease: 'power2.out', overwrite: 'auto' }, w.start);
-            tl.to(wordEl, { filter: 'brightness(1)', duration: 0.16, ease: 'power2.out', overwrite: 'auto' }, w.start + 0.08);
-            tl.to(bgEl, { opacity: 0, scaleX: 1.02, duration: 0.1, ease: 'power2.in', overwrite: 'auto' }, w.end);
-            tl.set(bgEl, { scaleX: 0 }, w.end + 0.1);
+            if (!wordEl) return;
+            tl.set(wordEl, { className: 'hl-word' }, g.start);
           });
+
+          words.forEach(function (w, wi) {
+            var wordEl = document.getElementById('hl-w-' + gi + '-' + wi);
+            if (!wordEl) return;
+            var at = Math.max(g.start, Number(w.start));
+            tl.set(wordEl, { className: 'hl-word is-active' }, at);
+            if (wi + 1 < words.length) {
+              var nextAt = Math.max(g.start, Number(words[wi + 1].start));
+              tl.set(wordEl, { className: 'hl-word is-spoken' }, nextAt);
+            }
+          });
+
+          if (words.length) {
+            var lastIdx = words.length - 1;
+            var lastEl = document.getElementById('hl-w-' + gi + '-' + lastIdx);
+            var lastSpoken = Math.min(g.end, Number(words[lastIdx].end) + 0.05);
+            if (lastEl) tl.set(lastEl, { className: 'hl-word is-spoken' }, lastSpoken);
+          }
 
           tl.to(grp, { opacity: 0, duration: 0.1, ease: 'power2.in' }, g.end - 0.1);
           tl.set(grp, { opacity: 0, visibility: 'hidden' }, g.end);

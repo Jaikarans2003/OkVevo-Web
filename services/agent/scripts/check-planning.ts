@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import { partitionTimeline, resolveNonOverlapping } from '../src/lib/timelinePlanning';
 import {
   buildDeterministicSegments,
+  MIN_CONCEPT_SECONDS,
   resolveNonOverlappingConcepts,
   segmentsCoverTimeline,
-  segmentsIncludeAllModes,
+  segmentsHaveRequiredModes,
 } from '../src/skills/eduVideo/planning';
 
 // --- generic timelinePlanning ---
@@ -28,67 +29,61 @@ for (let i = 0; i < kept.length; i++) {
 }
 
 const partitioned = partitionTimeline(
-  [
-    { start: 3, end: 10, type: 'A' },
-    { start: 15, end: 20, type: 'B' },
-  ],
+  [{ start: 3, end: 10, type: 'A' }],
   25,
-  'gap'
+  'C'
 );
-assert.equal(partitioned.length, 5);
+assert.equal(partitioned.length, 3);
 assert.deepEqual(
   partitioned.map((s) => [s.start, s.end, s.type]),
   [
-    [0, 3, 'gap'],
+    [0, 3, 'C'],
     [3, 10, 'A'],
-    [10, 15, 'gap'],
-    [15, 20, 'B'],
-    [20, 25, 'gap'],
+    [10, 25, 'C'],
   ]
 );
 
 // --- edu-video wrappers ---
 
-// 4 overlapping concepts from the failed 30s session → 2 kept, none overlapping
+// 4 overlapping concepts → trim-to-abut; drop only if window too short
 const sessionFixture = resolveNonOverlappingConcepts([
   {
     concept_name: 'Problem Identification Framework',
     explanation: '',
     start_seconds: 3.28,
     end_seconds: 16.1,
-    visual: 'manim',
   },
   {
     concept_name: "The Consultant's Dilemma",
     explanation: '',
     start_seconds: 9.58,
     end_seconds: 26.1,
-    visual: 'manim',
   },
   {
     concept_name: 'The Scope Expansion Fear',
     explanation: '',
     start_seconds: 19.38,
     end_seconds: 25.8,
-    visual: 'hyperframes',
   },
   {
     concept_name: 'The Cost of Hesitation',
     explanation: '',
     start_seconds: 25.62,
     end_seconds: 30.36,
-    visual: 'manim',
   },
 ]);
 
-const keptVisual = sessionFixture.filter(
-  (c) => c.visual === 'manim' || c.visual === 'hyperframes'
-);
-assert.equal(keptVisual.length, 2, 'expected 2 non-overlapping visual concepts');
-for (let i = 0; i < keptVisual.length; i++) {
-  for (let j = i + 1; j < keptVisual.length; j++) {
-    const a = keptVisual[i];
-    const b = keptVisual[j];
+assert.equal(sessionFixture.length, 3, 'expected 3 concepts after trim-to-abut');
+for (const c of sessionFixture) {
+  assert(
+    c.end_seconds - c.start_seconds >= MIN_CONCEPT_SECONDS,
+    'each kept concept must be at least MIN_CONCEPT_SECONDS'
+  );
+}
+for (let i = 0; i < sessionFixture.length; i++) {
+  for (let j = i + 1; j < sessionFixture.length; j++) {
+    const a = sessionFixture[i];
+    const b = sessionFixture[j];
     assert(
       a.end_seconds <= b.start_seconds || b.end_seconds <= a.start_seconds,
       'overlap resolver left overlapping windows'
@@ -96,22 +91,18 @@ for (let i = 0; i < keptVisual.length; i++) {
   }
 }
 
-// 1 manim clip + 1 hf concept + duration → full partition with A, B, C
+// 1 manim clip + duration → full partition with A and C
 const totalDuration = 30.4;
 const segments = buildDeterministicSegments(
   [{ concept_name: 'Framework', start_seconds: 3.28, end_seconds: 16.1 }],
-  [
-    {
-      concept_name: 'Scope Fear',
-      explanation: 'Fear of expanding scope',
-      start_seconds: 16.5,
-      end_seconds: 25.0,
-    },
-  ],
   totalDuration
 );
 
 assert(segmentsCoverTimeline(segments, totalDuration), 'segments must cover full timeline');
-assert(segmentsIncludeAllModes(segments), 'segments must include modes A, B, and C');
+assert(segmentsHaveRequiredModes(segments, true), 'segments with Manim must include A and C');
+
+const allC = buildDeterministicSegments([], totalDuration);
+assert(segmentsCoverTimeline(allC, totalDuration), 'all-C timeline must cover full duration');
+assert(segmentsHaveRequiredModes(allC, false), 'zero clips → all-C is valid');
 
 console.log('check-planning: OK');

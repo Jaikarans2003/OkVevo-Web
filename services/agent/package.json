@@ -9,7 +9,6 @@
     "start": "echo 'Agent is Docker-only. Run: docker compose up agent --build' >&2 && exit 1",
     "typecheck": "tsc --noEmit",
     "check-planning": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-planning.ts",
-    "check-hf-gen": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-hf-gen.ts",
     "check-templates": "node scripts/check-templates.mjs"
   },
   "dependencies": {

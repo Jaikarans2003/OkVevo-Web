@@ -9,21 +9,9 @@ import Groq from 'groq-sdk';
 import { z } from 'zod';
 import {
   buildDeterministicSegments,
-  enforceMandatoryVisuals,
   resolveNonOverlappingConcepts,
   type TimedConcept,
-  type VisualKind,
 } from './skills/eduVideo/planning';
-import {
-  buildModeBBrief,
-  buildSegmentId,
-  detectModeBArchetype,
-  sectionRelativePath,
-  selectHfBlueprint,
-  selectHfRules,
-  stripHtmlFences,
-  validateHfSubcomposition,
-} from './skills/eduVideo/hfGeneration';
 import {
   downloadStoragePrefixToDir,
   getAssetUrl,
@@ -38,10 +26,9 @@ import {
 
 export {
   buildDeterministicSegments,
-  enforceMandatoryVisuals,
   resolveNonOverlappingConcepts,
   segmentsCoverTimeline,
-  segmentsIncludeAllModes,
+  segmentsHaveRequiredModes,
 } from './skills/eduVideo/planning';
 
 const execAsync = promisify(exec);
@@ -52,11 +39,47 @@ const EDU_VIDEO_TEMPLATE_DIR =
   path.join(SKILLS_DIR, 'edu-video/templates');
 const TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? 'anthropic/claude-sonnet-4-5';
 
-const DEFAULT_BRAND_COLORS = {
+type BrandColors = { primary: string; accent: string; bg_dark: string };
+
+const DEFAULT_BRAND_COLORS: BrandColors = {
   primary: '#1a1a2e',
   accent: '#37bdf8',
   bg_dark: '#0a0a0f',
 };
+
+function resolveBrandColors(input?: BrandColors): BrandColors {
+  return input ?? DEFAULT_BRAND_COLORS;
+}
+
+function buildManimPalettePrompt(colors: BrandColors): string {
+  return `Color constants (MUST use exactly — ignore other palettes in reference docs):
+BG = "${colors.bg_dark}"
+PRIMARY = "${colors.accent}"
+SECONDARY = "${colors.primary}"
+ACCENT = "${colors.accent}"
+PROBLEM_DIM = "#444444"`;
+}
+
+const brandColorsSchema = z.object({
+  primary: z.string(),
+  accent: z.string(),
+  bg_dark: z.string(),
+});
+
+function manimCoverageRatio(concepts: TimedConcept[], duration_seconds?: number): number {
+  if (duration_seconds == null || duration_seconds <= 0) return 0;
+  const span = concepts.reduce((s, c) => s + (c.end_seconds - c.start_seconds), 0);
+  return span / duration_seconds;
+}
+
+function needsExtractionRetry(concepts: TimedConcept[], duration_seconds?: number): boolean {
+  if (duration_seconds == null || duration_seconds < 20) return false;
+  return (
+    concepts.length === 0 ||
+    concepts.length < 2 ||
+    manimCoverageRatio(concepts, duration_seconds) < 0.35
+  );
+}
 
 const DEFAULT_HYPERFRAMES_JSON = JSON.stringify(
   {
@@ -318,25 +341,16 @@ const conceptSchema = z.object({
   concept_name: z.string(),
   explanation: z.string(),
   excerpt: z.string(),
-  visual: z.enum(['manim', 'hyperframes', 'none']).optional(),
 });
 
 const conceptsArraySchema = z.array(conceptSchema);
 
-const hfConceptSchema = z.object({
-  concept_name: z.string(),
-  explanation: z.string(),
-  start_seconds: z.number(),
-  end_seconds: z.number(),
-});
-
 const plannedSegmentSchema = z.object({
   start: z.number(),
   end: z.number(),
-  mode: z.enum(['A', 'B', 'C']),
+  mode: z.enum(['A', 'C']),
   manim_index: z.number().optional(),
   concept_name: z.string().optional(),
-  explanation: z.string().optional(),
 });
 
 function formatWordTimedTranscript(words: TranscriptWord[]): string {
@@ -348,59 +362,71 @@ function snapConceptsFromLlm(
   snapWords: TranscriptWord[],
   duration_seconds?: number
 ): TimedConcept[] {
-  return parsedConcepts.map((concept) => {
-    let visual: VisualKind = concept.visual ?? 'none';
+  const snapped: TimedConcept[] = [];
+
+  for (const concept of parsedConcepts) {
     const snap = snapToWords(concept.excerpt, snapWords, duration_seconds);
+    if (!snap.matched) continue;
 
-    let start_seconds = snap.start_seconds;
-    let end_seconds = snap.end_seconds;
-    if (!snap.matched) {
-      visual = 'none';
-    }
+    const end_seconds = Math.min(snap.end_seconds, duration_seconds ?? snap.end_seconds);
+    if (end_seconds <= snap.start_seconds) continue;
 
-    end_seconds = Math.min(end_seconds, duration_seconds ?? end_seconds);
-    if (end_seconds <= start_seconds) {
-      visual = 'none';
-    }
-
-    return {
+    snapped.push({
       concept_name: concept.concept_name,
       explanation: concept.explanation,
-      start_seconds,
+      start_seconds: snap.start_seconds,
       end_seconds,
-      visual,
-    };
-  });
+    });
+  }
+
+  return snapped;
 }
 
 function finalizeExtractedConcepts(concepts: TimedConcept[]): TimedConcept[] {
-  return enforceMandatoryVisuals(resolveNonOverlappingConcepts(concepts));
+  return resolveNonOverlappingConcepts(concepts);
 }
 
-function buildExtractConceptsSystemPrompt(manimSkill: string, scenePlanning: string): string {
-  return `You extract teaching concepts from lecture transcripts for educational video production.
+function buildExtractConceptsSystemPrompt(scenePlanning: string): string {
+  return `You extract Manim animation moments from lecture transcripts for educational video production.
 
-${manimSkill}
+Mode B (HTML overlays) is removed — Manim is the only visual layer besides speaker-only Mode C. Extract aggressively so conceptual teaching is visualized, not left as long uninterrupted speaker-only stretches.
 
 ## Scene Planning (topic selection)
 ${scenePlanning}
 
-The user message includes the video duration and a word-timed transcript. Use those timings — never invent timestamps.
+Work in two phases within this single response:
+1. Understand the whole lecture — read the full transcript and word timings; infer topic, audience, and narrative arc before picking excerpts.
+2. Extract Manim moments — for each teachable concept, return concept_name, explanation, and excerpt.
 
-Extract only as many visual concepts as genuinely fit and help for this video length. Do NOT fill or clutter the timeline; zero extra concepts is fine beyond the mandatory minimum below.
+Every returned concept will be animated with Manim. Do NOT extract moments that should stay as speaker-only (Mode C).
 
-For each concept, provide an excerpt field containing the exact contiguous words from the transcript where this concept is spoken. Do NOT return start_seconds or end_seconds.
+Leave as speaker-only (do NOT extract):
+- Intro/outro, greetings, housekeeping
+- Simple narrative connectors ("so today we'll…")
+- Personal anecdotes with no teachable structure
+- Brief transitions between topics
 
-Classify each concept with a visual field:
-- "manim" — math, equations, geometry, algorithmic step-by-step animation
-- "hyperframes" — charts, comparisons, timelines, process diagrams, icons, visual metaphors — anything that explains WITHOUT repeating spoken words (captions handle narration)
-- "none" — the speaker's words alone carry it; no added visual needed
+Extract as Manim concept:
+- Formulas, algorithms, geometry, step-by-step processes
+- Comparisons, frameworks, diagrams, cause-effect chains
+- Definitions, derivations, "how it works" explanations
+- Comparison layouts, framework diagrams, before/after, scope diagrams, emotional tension visuals
+- Dense conceptual blocks that would leave too long a speaker-only stretch unvisualized
 
-Hard rules:
-- Excerpts must NOT overlap in time. Two concepts may never share the same spoken words or time window.
-- Every video must include at least one "manim" and at least one "hyperframes" concept. If nothing is an obvious fit, pick the best candidate for each medium.
+Density guidance:
+- Target short, focused excerpts (5–15s each) — one visual idea per concept
+- For ~30s videos: 2–4 concepts when content has distinct teachable beats (frameworks, comparisons, cause-effect, dilemmas, process steps)
+- Scale concept count to video length; avoid long stretches of conceptual teaching without a visual
+- Excerpts must not overlap in transcript text — pick non-overlapping windows for each beat
 
-Return JSON array with fields: concept_name, explanation, excerpt, visual.
+For each concept:
+- concept_name — short label
+- explanation — what to animate; use full-lecture context, not excerpt text alone
+- excerpt — exact contiguous words from the transcript where the speaker teaches it (used only for timestamp snapping)
+
+The user message includes video duration and a word-timed transcript. Use those timings — never invent timestamps. Do NOT return start_seconds or end_seconds.
+
+Return JSON array with fields: concept_name, explanation, excerpt.
 Return a JSON array only. No explanation text. No markdown. Just the raw JSON array.`;
 }
 
@@ -425,7 +451,6 @@ function extractSceneClassName(script: string, fallback: string): string {
   return match?.[1] ?? fallback;
 }
 
-type BrandColors = { primary: string; accent: string; bg_dark: string };
 type ManimClipInput = {
   concept_name: string;
   clip_url: string;
@@ -435,10 +460,9 @@ type ManimClipInput = {
 type SegmentInput = {
   start: number;
   end: number;
-  mode: 'A' | 'B' | 'C';
+  mode: 'A' | 'C';
   manim_index?: number;
   concept_name?: string;
-  explanation?: string;
 };
 type SectionMeta = { filename: string; segmentId: string; duration: number };
 
@@ -459,7 +483,7 @@ function padSegmentNum(index: number): string {
   return String(index + 1).padStart(2, '0');
 }
 
-function buildSegmentId(index: number, mode: 'A' | 'B' | 'C'): string {
+function buildSegmentId(index: number, mode: 'A' | 'C'): string {
   return `seg-${padSegmentNum(index)}-${mode.toLowerCase()}`;
 }
 
@@ -549,7 +573,7 @@ function buildManimGsap(segments: SegmentInput[]): string {
 
 const SPEAKER_PRESETS = {
   FS: { top: 68, left: 120, width: 1680, height: 945, borderRadius: 22 },
-  PIP_MANIM: { top: 779, left: 1474, width: 422, height: 237, borderRadius: 18 },
+  PIP_MANIM: { top: 779, left: 1659, width: 237, height: 237, borderRadius: 118 },
   TOP_RIGHT: { top: 80, left: 1474, width: 422, height: 237, borderRadius: 18 },
   CENTER: { top: 202, left: 360, width: 1200, height: 676, borderRadius: 22 },
   CIRCLE: { top: 340, left: 760, width: 400, height: 400, borderRadius: 200 },
@@ -593,10 +617,10 @@ function buildCompositionManifest({
       file: 'compositions/captions-overlay.html',
       element_class: 'hl-group',
       current: {
-        font_size: 52,
+        font_size: 42,
         font_weight: 800,
         color: '#ffffff',
-        position_bottom: 96,
+        position_bottom: 56,
       },
     },
     segments: segments.map((seg, index) => ({
@@ -611,7 +635,7 @@ function buildCompositionManifest({
         seg.mode === 'A' && seg.manim_index != null
           ? (manim_clips[seg.manim_index]?.clip_url ?? null)
           : null,
-      concept_name: seg.mode === 'B' ? (seg.concept_name ?? null) : null,
+      concept_name: seg.mode === 'A' ? (seg.concept_name ?? null) : null,
     })),
   };
 }
@@ -620,7 +644,7 @@ function buildSpeakerGsap(segments: SegmentInput[]): string {
   const lines = ["tl.set('#speaker-wrap', FS, 0);"];
 
   for (const seg of segments) {
-    if (seg.mode === 'A' || seg.mode === 'B') {
+    if (seg.mode === 'A') {
       lines.push(
         `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: 0.35, ease: 'power2.inOut' }, ${seg.start});`
       );
@@ -643,11 +667,12 @@ function groupCaptionWords(
     end: number;
     words: { text: string; start: number; end: number }[];
   }[] = [];
-  const chunkSize = 4;
+  const maxWords = 4;
+  const pauseGap = 0.15;
+  let chunk: TranscriptWord[] = [];
 
-  for (let index = 0; index < words.length; index += chunkSize) {
-    const chunk = words.slice(index, index + chunkSize);
-    if (chunk.length === 0) continue;
+  const flush = () => {
+    if (chunk.length === 0) return;
     groups.push({
       start: chunk[0].start,
       end: chunk[chunk.length - 1].end,
@@ -657,7 +682,17 @@ function groupCaptionWords(
         end: word.end,
       })),
     });
+    chunk = [];
+  };
+
+  for (const word of words) {
+    if (chunk.length > 0) {
+      const gap = word.start - chunk[chunk.length - 1].end;
+      if (gap >= pauseGap || chunk.length >= maxWords) flush();
+    }
+    chunk.push(word);
   }
+  flush();
 
   return groups;
 }
@@ -982,7 +1017,7 @@ Paths are relative to the session work directory unless absolute.`,
   }),
 
   extract_concepts: tool({
-    description: `Extract teaching concepts from the transcript and classify each for Manim (manim), HyperFrames motion graphics (hyperframes), or no visual (none). Returns snapped timestamps. Call after transcribe_video.`,
+    description: `Extract Manim-worthy teaching concepts from the transcript. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
     inputSchema: z.object({
       transcript_text: z.string(),
       transcript_words: z
@@ -998,9 +1033,8 @@ Paths are relative to the session work directory unless absolute.`,
     }),
     execute: async ({ transcript_text, transcript_words, duration_seconds }) => {
       try {
-        const manimSkill = loadSkillFile('manim-video/SKILL.md');
         const scenePlanning = loadSkillFile('manim-video/references/scene-planning.md');
-        const systemPrompt = buildExtractConceptsSystemPrompt(manimSkill, scenePlanning);
+        const systemPrompt = buildExtractConceptsSystemPrompt(scenePlanning);
         const snapWords = loadSessionTranscriptWords(ctx.sessionId, transcript_words ?? []);
         const userMessage = buildExtractConceptsUserMessage(
           transcript_text,
@@ -1026,19 +1060,14 @@ Paths are relative to the session work directory unless absolute.`,
         };
 
         let concepts = await runExtraction();
-        const needsRetry =
-          !concepts.some((c) => c.visual === 'manim') ||
-          !concepts.some((c) => c.visual === 'hyperframes');
-
-        if (needsRetry) {
+        if (needsExtractionRetry(concepts, duration_seconds)) {
           concepts = await runExtraction(
-            'Your previous response did not include at least one concept with visual "manim" and at least one with visual "hyperframes". Fix this while keeping excerpts non-overlapping.'
+            'Your previous response left too much of the video as speaker-only Mode C. Extract additional non-overlapping Manim moments — use shorter excerpts (5–15s each) for distinct teachable beats (frameworks, comparisons, dilemmas, cause-effect) still uncovered. Excerpts must not overlap in transcript text.'
           );
           concepts = finalizeExtractedConcepts(concepts);
         }
 
-        const manim_count = concepts.filter((c) => c.visual === 'manim').length;
-        const hyperframes_count = concepts.filter((c) => c.visual === 'hyperframes').length;
+        const concept_count = concepts.length;
 
         const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
         fs.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
@@ -1050,8 +1079,7 @@ Paths are relative to the session work directory unless absolute.`,
         return {
           concepts_url: conceptsUrl,
           concepts,
-          manim_count,
-          hyperframes_count,
+          concept_count,
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -1061,17 +1089,22 @@ Paths are relative to the session work directory unless absolute.`,
   }),
 
   generate_manim_script: tool({
-    description: `Generate a valid Manim Python script for a single teaching concept. Call this BEFORE render_manim_clip for each concept with visual: manim. Returns a validated Python script string ready to render.`,
+    description: `Generate a valid Manim Python script for a single teaching concept. Call this BEFORE render_manim_clip for each extracted concept. Persists script to disk and returns script_path for surgical patching on render failure.`,
     inputSchema: z.object({
       concept_name: z.string().describe('Name of the teaching concept to animate'),
       explanation: z.string().describe('Full explanation of the concept from extract_concepts'),
       duration_seconds: z
         .number()
         .describe('Target duration for the animation in seconds (start_seconds to end_seconds)'),
+      brand_colors: brandColorsSchema
+        .optional()
+        .describe('Optional brand palette — same values as scaffold_hf_project; defaults match edu-video templates'),
     }),
-    execute: async ({ concept_name, explanation, duration_seconds }) => {
+    execute: async ({ concept_name, explanation, duration_seconds, brand_colors }) => {
       const safeName = manimSafeName(concept_name);
       const className = `Scene${safeName}`;
+      const colors = resolveBrandColors(brand_colors);
+      const palettePrompt = buildManimPalettePrompt(colors);
 
       const manimSkill = loadSkillFile('manim-video/SKILL.md');
       const troubleshooting = loadSkillFile('manim-video/references/troubleshooting.md');
@@ -1082,7 +1115,9 @@ Paths are relative to the session work directory unless absolute.`,
 The script MUST:
 - Import from manim: from manim import *
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
-- Set background color to #0f0f0f
+- Set background color to ${colors.bg_dark}
+- Use these color constants at file top:
+${palettePrompt}
 - Target duration: ${duration_seconds} seconds
 - Use self.wait() after every animation
 - End with FadeOut(Group(*self.mobjects))
@@ -1128,12 +1163,16 @@ Fix these specific issues and return corrected Python only.`;
         }
       }
 
-      const scriptPath = getTempPath(`${ctx.sessionId}_${safeName}_script.py`);
+      const scriptDir = path.join(getSessionWorkdir(ctx.sessionId), 'manim_scripts');
+      fs.mkdirSync(scriptDir, { recursive: true });
+      const scriptPath = path.join(scriptDir, `${safeName}.py`);
       fs.writeFileSync(scriptPath, cleanScript);
 
       const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim_scripts/${safeName}.py`;
       const scriptUrl = await uploadToStorage(scriptPath, storagePath);
       await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_script_${safeName}`, scriptUrl);
+      // ponytail: uploadToStorage deletes the local file; keep script_path for patch loop
+      fs.writeFileSync(scriptPath, cleanScript);
 
       try {
         fs.unlinkSync(validatePath);
@@ -1143,6 +1182,7 @@ Fix these specific issues and return corrected Python only.`;
 
       return {
         script: cleanScript,
+        script_path: scriptPath,
         script_url: scriptUrl,
         class_name: className,
         concept_name,
@@ -1151,9 +1191,16 @@ Fix these specific issues and return corrected Python only.`;
   }),
 
   render_manim_clip: tool({
-    description: `Render a Manim Python script to an MP4 clip. Call this after generate_manim_script for each concept with visual: manim. Takes the script string and class name from generate_manim_script, renders it with the manim CLI, and uploads the MP4 to Firebase Storage.`,
+    description: `Render a Manim Python script to an MP4 clip. Call after generate_manim_script for each concept. On render failure, read Skills/manim-video/references/troubleshooting.md and patch the script via read_file + write_file — do NOT regenerate unless a full rewrite is needed.`,
     inputSchema: z.object({
-      script: z.string().describe('Validated Python script string from generate_manim_script'),
+      script: z
+        .string()
+        .optional()
+        .describe('Inline script string — omit when script_path is provided'),
+      script_path: z
+        .string()
+        .optional()
+        .describe('Path from generate_manim_script — preferred after patching on disk'),
       class_name: z.string().describe('Scene class name from generate_manim_script e.g. SceneMyTopic'),
       concept_name: z.string(),
       start_seconds: z.number(),
@@ -1161,17 +1208,29 @@ Fix these specific issues and return corrected Python only.`;
     }),
     execute: async ({
       script,
+      script_path,
       class_name,
       concept_name,
       start_seconds,
       end_seconds,
     }) => {
       const safeName = class_name.replace('Scene', '');
-      const scriptPath = getTempPath(`${ctx.sessionId}_${safeName}.py`);
+      const resolvedScriptPath = script_path
+        ? resolveToolPath(ctx.sessionId, script_path)
+        : getTempPath(`${ctx.sessionId}_${safeName}.py`);
+      const wroteTempScript = !script_path;
       const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
 
       try {
-        fs.writeFileSync(scriptPath, script);
+        if (script_path) {
+          if (!fs.existsSync(resolvedScriptPath)) {
+            throw new Error(`Script not found at ${resolvedScriptPath}`);
+          }
+        } else if (!script) {
+          throw new Error('Provide script or script_path');
+        } else {
+          fs.writeFileSync(resolvedScriptPath, script);
+        }
 
         const cmd = [
           'manim',
@@ -1181,7 +1240,7 @@ Fix these specific issues and return corrected Python only.`;
           'output.mp4',
           '--media_dir',
           outputDir,
-          scriptPath,
+          resolvedScriptPath,
           class_name,
         ].join(' ');
 
@@ -1189,11 +1248,11 @@ Fix these specific issues and return corrected Python only.`;
 
         if (!renderResult.success) {
           throw new Error(
-            `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}`
+            `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}. Read Skills/manim-video/references/troubleshooting.md, read_file the script at ${resolvedScriptPath}, patch only the broken lines with write_file, then re-render with script_path — do not call generate_manim_script again unless the script needs a full rewrite.`
           );
         }
 
-        const scriptBaseName = path.basename(scriptPath, '.py');
+        const scriptBaseName = path.basename(resolvedScriptPath, '.py');
         const expectedPath = path.join(
           outputDir,
           'videos',
@@ -1226,7 +1285,9 @@ Fix these specific issues and return corrected Python only.`;
         };
       } finally {
         try {
-          if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
+          if (wroteTempScript && fs.existsSync(resolvedScriptPath)) {
+            fs.unlinkSync(resolvedScriptPath);
+          }
         } catch {
           // ignore cleanup errors
         }
@@ -1240,7 +1301,7 @@ Fix these specific issues and return corrected Python only.`;
   }),
 
   plan_segments: tool({
-    description: `Deterministically plan video display modes: Mode A at Manim clip timestamps, Mode B at HyperFrames concept timestamps, Mode C fills all remaining gaps. Call after Manim clips are rendered.`,
+    description: `Deterministically plan video display modes: Mode A at Manim clip timestamps, Mode C fills all remaining gaps. Call after Manim clips are rendered.`,
     inputSchema: z.object({
       manim_clips: z.array(
         z.object({
@@ -1249,12 +1310,11 @@ Fix these specific issues and return corrected Python only.`;
           end_seconds: z.number(),
         })
       ),
-      hf_concepts: z.array(hfConceptSchema),
       total_duration: z.number(),
     }),
-    execute: async ({ manim_clips, hf_concepts, total_duration }) => {
+    execute: async ({ manim_clips, total_duration }) => {
       try {
-        const segments = buildDeterministicSegments(manim_clips, hf_concepts, total_duration);
+        const segments = buildDeterministicSegments(manim_clips, total_duration);
 
         for (const seg of segments) {
           if (seg.mode === 'A' && seg.manim_index == null) {
@@ -1274,170 +1334,6 @@ Fix these specific issues and return corrected Python only.`;
         const message = err instanceof Error ? err.message : String(err);
         throw new Error(`Segment planning failed: ${message}`);
       }
-    },
-  }),
-
-  generate_hyperframes_html: tool({
-    description: `Generate and write ONE edu-video Mode B HyperFrames sub-composition HTML file.
-Loads hyperframes-core contract + matched animation rules internally.
-Call once per Mode B segment after plan_segments, BEFORE scaffold_hf_project.`,
-    inputSchema: z.object({
-      segment_number: z
-        .number()
-        .int()
-        .min(1)
-        .describe('1-based position in full segments[] from plan_segments'),
-      concept_name: z.string(),
-      explanation: z.string(),
-      transcript_excerpt: z
-        .string()
-        .describe('Words from this segment — meaning context only; do NOT display on screen'),
-      duration_seconds: z.number().positive(),
-    }),
-    execute: async ({
-      segment_number,
-      concept_name,
-      explanation,
-      transcript_excerpt,
-      duration_seconds,
-    }) => {
-      const index = segment_number - 1;
-      const segmentId = buildSegmentId(index, 'B');
-      const relativePath = sectionRelativePath(index);
-      const fullPath = path.join(getSessionWorkdir(ctx.sessionId), relativePath);
-
-      const coreSkill = loadSkillFile('hyperframes/hyperframes-core/SKILL.md');
-      const subCompositions = loadSkillFile(
-        'hyperframes/hyperframes-core/references/sub-compositions.md'
-      );
-      const houseStyle = loadSkillFile(
-        'hyperframes/hyperframes-creative/references/house-style.md'
-      );
-      const videoComposition = loadSkillFile(
-        'hyperframes/hyperframes-creative/references/video-composition.md'
-      );
-      const animationSkill = loadSkillFile('hyperframes/hyperframes-animation/SKILL.md');
-      const rulesIndex = loadSkillFile('hyperframes/hyperframes-animation/rules-index.md');
-      const blueprintsIndex = loadSkillFile(
-        'hyperframes/hyperframes-animation/blueprints-index.md'
-      );
-
-      const archetype = detectModeBArchetype(explanation, transcript_excerpt);
-      const blueprintPath = selectHfBlueprint(archetype, duration_seconds, blueprintsIndex);
-      const blueprintMd = blueprintPath
-        ? loadSkillFile(`hyperframes/hyperframes-animation/${blueprintPath}`)
-        : '';
-      const rulePaths = selectHfRules(explanation, rulesIndex, archetype, blueprintMd);
-      const ruleContents = rulePaths
-        .map((rulePath) =>
-          loadSkillFile(`hyperframes/hyperframes-animation/${rulePath}`)
-        )
-        .join('\n\n');
-      const modeBBrief = buildModeBBrief({
-        durationSeconds: duration_seconds,
-        conceptName: concept_name,
-        explanation,
-        transcriptExcerpt: transcript_excerpt,
-        archetype,
-        blueprintPath,
-      });
-
-      const systemPrompt = `You are a HyperFrames motion graphics expert. Return ONLY valid HTML — no markdown, no explanation.
-Write ONE edu-video Mode B sub-composition following these rules:
-- Captions already show spoken words — DO NOT repeat transcript sentences or long phrases on screen
-- Build a visual diagram: SVG nodes, icons, paths/arrows, or cards that explain the concept
-- Max 1–2 word labels per node if needed; icons/shapes carry the meaning
-- Follow the loaded blueprint shot structure and rule recipes — diagram-first, not kinetic typography
-- No full-sentence hero text, no subtitle-style paragraphs, no checklist UI with numbered circles
-- No invented stats or dollar amounts unless they appear in the transcript excerpt
-- Wrapped in <template id="${segmentId}-template"> containing ONLY: <style>, root <div>, <script src="gsap">, inline <script>
-- Root div: id="${segmentId}" data-composition-id="${segmentId}" data-start="0" data-width="1920" data-height="1080" data-duration="${duration_seconds}"
-- CSS: style root with #${segmentId} { position: absolute; inset: 0; overflow: hidden; background: gradient using brand vars }
-- CSS descendants: plain class selectors only (.node, .flow-path) — NEVER [data-composition-id="${segmentId}"] in any CSS rule (HyperFrames double-scopes it and breaks render)
-- Do NOT set opacity: 0 in CSS — hide via gsap.from() / gsap.set() only
-- Do NOT gsap.set(autoAlpha:0) on a parent of elements you animate with .from() — hide leaves only
-- GSAP: string selectors only ('#node-1', '.flow-path') — NEVER getElementById or document.querySelector
-- Load GSAP CDN: https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js
-- Paused GSAP timeline registered as window.__timelines['${segmentId}']
-- End with tl.set({}, {}, ${duration_seconds}) to pad timeline to full duration
-- All visual content in left 65% of canvas (max x ~1248px) — right 35% reserved for speaker PIP
-- Use brand CSS variables: --brand-primary, --brand-accent, --brand-bg-dark
-- No video or audio elements, no speaker PIP
-- No repeat: -1 or repeat: Infinity
-- No video.play() or audio.play()
-- Finite durations only, gsap.from() for entrances`;
-
-      const baseUserPrompt = `${coreSkill}
-
-${subCompositions}
-
-${houseStyle}
-
-${videoComposition}
-
-${animationSkill}
-
-${blueprintMd ? `## Blueprint\n\n${blueprintMd}\n\n` : ''}${ruleContents}
-
-${modeBBrief}
-
-Concept: ${concept_name}
-Explanation: ${explanation}
-Transcript excerpt: ${transcript_excerpt}
-Segment ID: ${segmentId}
-Duration: ${duration_seconds}s`;
-
-      let userPrompt = baseUserPrompt;
-      let htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
-      let cleanHtml = stripHtmlFences(htmlText);
-
-      let validation = validateHfSubcomposition(
-        cleanHtml,
-        segmentId,
-        duration_seconds,
-        transcript_excerpt
-      );
-      if (!validation.ok || (validation.warnings?.length ?? 0) > 0) {
-        const issues = [
-          ...(validation.ok ? [] : validation.errors),
-          ...(validation.warnings ?? []),
-        ];
-        userPrompt = `${baseUserPrompt}
-
-The previous HTML failed validation:
-${issues.map((err) => `- ${err}`).join('\n')}
-Fix these specific issues and return corrected HTML only.`;
-        htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
-        cleanHtml = stripHtmlFences(htmlText);
-        validation = validateHfSubcomposition(
-          cleanHtml,
-          segmentId,
-          duration_seconds,
-          transcript_excerpt
-        );
-        if (!validation.ok) {
-          throw new Error(
-            `HyperFrames HTML validation failed: ${validation.errors.join('; ')}`
-          );
-        }
-      }
-
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      fs.writeFileSync(fullPath, cleanHtml, 'utf-8');
-
-      return {
-        file_path: relativePath,
-        segment_id: segmentId,
-        concept_name,
-        archetype,
-        blueprint_used: blueprintPath
-          ? `hyperframes/hyperframes-animation/${blueprintPath}`
-          : undefined,
-        rules_used: rulePaths.map(
-          (rulePath) => `hyperframes/hyperframes-animation/${rulePath}`
-        ),
-        bytes_written: Buffer.byteLength(cleanHtml, 'utf-8'),
-      };
     },
   }),
 
@@ -1461,10 +1357,9 @@ Fix these specific issues and return corrected HTML only.`;
         z.object({
           start: z.number(),
           end: z.number(),
-          mode: z.enum(['A', 'B', 'C']),
+          mode: z.enum(['A', 'C']),
           manim_index: z.number().optional(),
           concept_name: z.string().optional(),
-          explanation: z.string().optional(),
         })
       ),
       transcript_words: z.array(
@@ -1475,13 +1370,7 @@ Fix these specific issues and return corrected HTML only.`;
         })
       ),
       total_duration: z.number(),
-      brand_colors: z
-        .object({
-          primary: z.string(),
-          accent: z.string(),
-          bg_dark: z.string(),
-        })
-        .optional(),
+      brand_colors: brandColorsSchema.optional(),
     }),
     execute: async ({
       speaker_video_url,
@@ -1491,7 +1380,7 @@ Fix these specific issues and return corrected HTML only.`;
       total_duration,
       brand_colors,
     }) => {
-      const colors = brand_colors ?? DEFAULT_BRAND_COLORS;
+      const colors = resolveBrandColors(brand_colors);
       const brandCss = buildBrandCssVars(colors);
       const projectDir = path.join(getSessionWorkdir(ctx.sessionId), 'hf-project');
 
@@ -1549,20 +1438,6 @@ Fix these specific issues and return corrected HTML only.`;
         const filename = `${nn}-${conceptName}.html`;
         const sectionPath = path.join(sectionsDir, filename);
 
-        if (fs.existsSync(sectionPath)) {
-          sectionMeta.push({ filename, segmentId, duration });
-          continue;
-        }
-
-        // A4: Mode B has no deterministic fallback — an empty mode-b template
-        // renders as a bare gradient. Fail loud so the agent writes the Phase 3
-        // file or re-plans the segment as Mode C.
-        if (seg.mode === 'B') {
-          throw new Error(
-            `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Call generate_hyperframes_html for this segment before scaffold_hf_project, or re-plan this segment as Mode C.`
-          );
-        }
-
         const built = buildSegmentSection(
           seg,
           index,
@@ -1618,7 +1493,7 @@ Fix these specific issues and return corrected HTML only.`;
 
       // A5: remove raw templates so lint only sees processed, placeholder-free files.
       fs.rmSync(path.join(projectDir, 'index-root.html'), { force: true });
-      for (const m of ['a', 'b', 'c']) {
+      for (const m of ['a', 'c']) {
         fs.rmSync(path.join(projectDir, 'compositions', `mode-${m}.html`), { force: true });
       }
 

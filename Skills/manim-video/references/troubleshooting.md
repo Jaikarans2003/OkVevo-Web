@@ -133,3 +133,16 @@ mob.resume_updating()
 3. Replace `self.play()` with `self.add()` to see final state instantly
 4. Print positions: `print(mob.get_center())`
 5. Clear cache: delete `media/` directory
+
+## Edu-Video Patch Loop
+
+When `render_manim_clip` fails in the edu-video pipeline, **patch the existing script** — do not call `generate_manim_script` again unless a full rewrite is truly needed.
+
+1. Read this file and identify the error category from stderr
+2. `read_file` the script at `script_path` returned by `generate_manim_script`
+3. `write_file` a minimal fix — only the broken lines/blocks
+4. Re-render with `render_manim_clip` using `script_path` (not inline script)
+
+**Patch by default:** LaTeX/raw-string, VGroup/Group, Text kwargs, missing waits, localized tracebacks.
+
+**Full regen only after 3 patch cycles:** structurally wrong script, empty construct, or errors spanning most of the file.
