@@ -1,31 +1,26 @@
-<template id="seg-mode-b-template">
+<template id="seg-mode-a-template">
   <div
-    id="{{SEGMENT_ID}}"
-    data-composition-id="{{SEGMENT_ID}}"
+    id="seg-04-a"
+    data-composition-id="seg-04-a"
     data-start="0"
     data-width="1920"
     data-height="1080"
-    data-duration="{{SEGMENT_DURATION}}"
+    data-duration="12.280000000000001"
   >
     <div id="brand-bg"></div>
-
-    <div id="viz-layer">
-      {{CATALOG_BLOCK_WIRING}}
-    </div>
-
     <div id="speaker-pip" class="glass-panel liquid-glass"></div>
 
     <style>
-      {{BRAND_CSS_VARS}}
+      :root { --brand-primary: #1a1a2e; --brand-accent: #37bdf8; --brand-bg-dark: #0a0a0f; }
 
-      #{{SEGMENT_ID}} {
+      #seg-04-a {
         position: relative;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
       }
 
-      #{{SEGMENT_ID}} #brand-bg {
+      #seg-04-a #brand-bg {
         position: absolute;
         inset: 0;
         z-index: 0;
@@ -37,16 +32,8 @@
         );
       }
 
-      #{{SEGMENT_ID}} #viz-layer {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        pointer-events: none;
-        overflow: hidden;
-      }
-
       /* PiP marker — liquid-glass shell (catalog: liquid-glass-widgets) */
-      #{{SEGMENT_ID}} #speaker-pip {
+      #seg-04-a #speaker-pip {
         position: absolute;
         bottom: 64px;
         right: 24px;
@@ -79,14 +66,15 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <script>
       (function () {
-        const SEGMENT_DURATION = {{SEGMENT_DURATION}};
+        const SEGMENT_DURATION = 12.280000000000001;
         const tl = gsap.timeline({ paused: true });
 
-        {{VIZ_GSAP}}
+        /* Manim clip show/hide lives on the root timeline (index.html) —
+           the video elements are outside this sub-composition's scope */
 
         tl.set({}, {}, SEGMENT_DURATION);
         window.__timelines = window.__timelines || {};
-        window.__timelines['{{SEGMENT_ID}}'] = tl;
+        window.__timelines['seg-04-a'] = tl;
       })();
     </script>
   </div>

@@ -3,11 +3,14 @@ services:
     build:
       context: .
       dockerfile: services/agent/Dockerfile
+    shm_size: '512mb'
     ports:
       - "3001:3001"
     env_file:
       - services/agent/.env
     environment:
       # Override local-dev paths from .env for in-container binaries
+      - DOCKER_AGENT=1
       - HYPERFRAMES_CLI=/usr/local/lib/node_modules/hyperframes/dist/cli.js
+      - HYPERFRAMES_BROWSER_PATH=/usr/local/bin/hyperframes-chrome-headless-shell
       - PORT=3001

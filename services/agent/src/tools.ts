@@ -15,6 +15,16 @@ import {
   type VisualKind,
 } from './skills/eduVideo/planning';
 import {
+  buildModeBBrief,
+  buildSegmentId,
+  detectModeBArchetype,
+  sectionRelativePath,
+  selectHfBlueprint,
+  selectHfRules,
+  stripHtmlFences,
+  validateHfSubcomposition,
+} from './skills/eduVideo/hfGeneration';
+import {
   downloadStoragePrefixToDir,
   getAssetUrl,
   getTempPath,
@@ -383,7 +393,7 @@ For each concept, provide an excerpt field containing the exact contiguous words
 
 Classify each concept with a visual field:
 - "manim" — math, equations, geometry, algorithmic step-by-step animation
-- "hyperframes" — charts, comparisons, timelines, flows, stats, AND general visual reinforcement of an explanation (not only data-heavy visuals)
+- "hyperframes" — charts, comparisons, timelines, process diagrams, icons, visual metaphors — anything that explains WITHOUT repeating spoken words (captions handle narration)
 - "none" — the speaker's words alone carry it; no added visual needed
 
 Hard rules:
@@ -1267,6 +1277,170 @@ Fix these specific issues and return corrected Python only.`;
     },
   }),
 
+  generate_hyperframes_html: tool({
+    description: `Generate and write ONE edu-video Mode B HyperFrames sub-composition HTML file.
+Loads hyperframes-core contract + matched animation rules internally.
+Call once per Mode B segment after plan_segments, BEFORE scaffold_hf_project.`,
+    inputSchema: z.object({
+      segment_number: z
+        .number()
+        .int()
+        .min(1)
+        .describe('1-based position in full segments[] from plan_segments'),
+      concept_name: z.string(),
+      explanation: z.string(),
+      transcript_excerpt: z
+        .string()
+        .describe('Words from this segment — meaning context only; do NOT display on screen'),
+      duration_seconds: z.number().positive(),
+    }),
+    execute: async ({
+      segment_number,
+      concept_name,
+      explanation,
+      transcript_excerpt,
+      duration_seconds,
+    }) => {
+      const index = segment_number - 1;
+      const segmentId = buildSegmentId(index, 'B');
+      const relativePath = sectionRelativePath(index);
+      const fullPath = path.join(getSessionWorkdir(ctx.sessionId), relativePath);
+
+      const coreSkill = loadSkillFile('hyperframes/hyperframes-core/SKILL.md');
+      const subCompositions = loadSkillFile(
+        'hyperframes/hyperframes-core/references/sub-compositions.md'
+      );
+      const houseStyle = loadSkillFile(
+        'hyperframes/hyperframes-creative/references/house-style.md'
+      );
+      const videoComposition = loadSkillFile(
+        'hyperframes/hyperframes-creative/references/video-composition.md'
+      );
+      const animationSkill = loadSkillFile('hyperframes/hyperframes-animation/SKILL.md');
+      const rulesIndex = loadSkillFile('hyperframes/hyperframes-animation/rules-index.md');
+      const blueprintsIndex = loadSkillFile(
+        'hyperframes/hyperframes-animation/blueprints-index.md'
+      );
+
+      const archetype = detectModeBArchetype(explanation, transcript_excerpt);
+      const blueprintPath = selectHfBlueprint(archetype, duration_seconds, blueprintsIndex);
+      const blueprintMd = blueprintPath
+        ? loadSkillFile(`hyperframes/hyperframes-animation/${blueprintPath}`)
+        : '';
+      const rulePaths = selectHfRules(explanation, rulesIndex, archetype, blueprintMd);
+      const ruleContents = rulePaths
+        .map((rulePath) =>
+          loadSkillFile(`hyperframes/hyperframes-animation/${rulePath}`)
+        )
+        .join('\n\n');
+      const modeBBrief = buildModeBBrief({
+        durationSeconds: duration_seconds,
+        conceptName: concept_name,
+        explanation,
+        transcriptExcerpt: transcript_excerpt,
+        archetype,
+        blueprintPath,
+      });
+
+      const systemPrompt = `You are a HyperFrames motion graphics expert. Return ONLY valid HTML — no markdown, no explanation.
+Write ONE edu-video Mode B sub-composition following these rules:
+- Captions already show spoken words — DO NOT repeat transcript sentences or long phrases on screen
+- Build a visual diagram: SVG nodes, icons, paths/arrows, or cards that explain the concept
+- Max 1–2 word labels per node if needed; icons/shapes carry the meaning
+- Follow the loaded blueprint shot structure and rule recipes — diagram-first, not kinetic typography
+- No full-sentence hero text, no subtitle-style paragraphs, no checklist UI with numbered circles
+- No invented stats or dollar amounts unless they appear in the transcript excerpt
+- Wrapped in <template id="${segmentId}-template"> containing ONLY: <style>, root <div>, <script src="gsap">, inline <script>
+- Root div: id="${segmentId}" data-composition-id="${segmentId}" data-start="0" data-width="1920" data-height="1080" data-duration="${duration_seconds}"
+- CSS: style root with #${segmentId} { position: absolute; inset: 0; overflow: hidden; background: gradient using brand vars }
+- CSS descendants: plain class selectors only (.node, .flow-path) — NEVER [data-composition-id="${segmentId}"] in any CSS rule (HyperFrames double-scopes it and breaks render)
+- Do NOT set opacity: 0 in CSS — hide via gsap.from() / gsap.set() only
+- Do NOT gsap.set(autoAlpha:0) on a parent of elements you animate with .from() — hide leaves only
+- GSAP: string selectors only ('#node-1', '.flow-path') — NEVER getElementById or document.querySelector
+- Load GSAP CDN: https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js
+- Paused GSAP timeline registered as window.__timelines['${segmentId}']
+- End with tl.set({}, {}, ${duration_seconds}) to pad timeline to full duration
+- All visual content in left 65% of canvas (max x ~1248px) — right 35% reserved for speaker PIP
+- Use brand CSS variables: --brand-primary, --brand-accent, --brand-bg-dark
+- No video or audio elements, no speaker PIP
+- No repeat: -1 or repeat: Infinity
+- No video.play() or audio.play()
+- Finite durations only, gsap.from() for entrances`;
+
+      const baseUserPrompt = `${coreSkill}
+
+${subCompositions}
+
+${houseStyle}
+
+${videoComposition}
+
+${animationSkill}
+
+${blueprintMd ? `## Blueprint\n\n${blueprintMd}\n\n` : ''}${ruleContents}
+
+${modeBBrief}
+
+Concept: ${concept_name}
+Explanation: ${explanation}
+Transcript excerpt: ${transcript_excerpt}
+Segment ID: ${segmentId}
+Duration: ${duration_seconds}s`;
+
+      let userPrompt = baseUserPrompt;
+      let htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+      let cleanHtml = stripHtmlFences(htmlText);
+
+      let validation = validateHfSubcomposition(
+        cleanHtml,
+        segmentId,
+        duration_seconds,
+        transcript_excerpt
+      );
+      if (!validation.ok || (validation.warnings?.length ?? 0) > 0) {
+        const issues = [
+          ...(validation.ok ? [] : validation.errors),
+          ...(validation.warnings ?? []),
+        ];
+        userPrompt = `${baseUserPrompt}
+
+The previous HTML failed validation:
+${issues.map((err) => `- ${err}`).join('\n')}
+Fix these specific issues and return corrected HTML only.`;
+        htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+        cleanHtml = stripHtmlFences(htmlText);
+        validation = validateHfSubcomposition(
+          cleanHtml,
+          segmentId,
+          duration_seconds,
+          transcript_excerpt
+        );
+        if (!validation.ok) {
+          throw new Error(
+            `HyperFrames HTML validation failed: ${validation.errors.join('; ')}`
+          );
+        }
+      }
+
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, cleanHtml, 'utf-8');
+
+      return {
+        file_path: relativePath,
+        segment_id: segmentId,
+        concept_name,
+        archetype,
+        blueprint_used: blueprintPath
+          ? `hyperframes/hyperframes-animation/${blueprintPath}`
+          : undefined,
+        rules_used: rulePaths.map(
+          (rulePath) => `hyperframes/hyperframes-animation/${rulePath}`
+        ),
+        bytes_written: Buffer.byteLength(cleanHtml, 'utf-8'),
+      };
+    },
+  }),
+
   scaffold_hf_project: tool({
     description: `Scaffold the HyperFrames project from edu-video templates: copies templates, injects segment wiring, captions, speaker GSAP, downloads speaker media, and uploads the full project to Firebase Storage. Call this after render_manim_clip and plan_segments.`,
     inputSchema: z.object({
@@ -1385,7 +1559,7 @@ Fix these specific issues and return corrected Python only.`;
         // file or re-plans the segment as Mode C.
         if (seg.mode === 'B') {
           throw new Error(
-            `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Complete Phase 3 (write the sub-composition via write_file) before calling scaffold_hf_project, or re-plan this segment as Mode C.`
+            `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Call generate_hyperframes_html for this segment before scaffold_hf_project, or re-plan this segment as Mode C.`
           );
         }
 

@@ -20,8 +20,6 @@ Three display modes, auto-assigned per transcript segment:
 
 Every finished video includes all three modes. The agent decides how many concepts fit the lecture length — do not over-clutter short videos.
 
-
-
 ## UI Activity Trace vs User Text
 
 Activity trace shows each step as collapsible cards. Keep text responses brief.
@@ -42,10 +40,11 @@ Never mention tool names, file paths, or technical details to the user.
 - `generate_manim_script` — writes Python Manim script for one concept, validates syntax
 - `render_manim_clip` — renders one Manim script to MP4, returns clip_url, start_seconds, end_seconds
 - `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode B at HyperFrames concepts, Mode C fills gaps
+- `generate_hyperframes_html` — generates and writes one Mode B sub-composition HTML file (loads HyperFrames skills internally)
 - `scaffold_hf_project` — deterministic template injector, no LLM, writes full HyperFrames project to disk and Firebase Storage, returns project_dir and composition_url
 - `render_hyperframes` — runs hyperframes lint then render, returns structured lint errors on failure or video_url on success
 - `run_command` — run shell commands (used for patches, ffmpeg, etc.)
-- `write_file` — write files to disk (used for Mode B sub-compositions and patch edits)
+- `write_file` — write files to disk (used for lint patches and small targeted edits)
 - `read_file` — read any file from disk (used before patching, reading manifest)
 - `search_files` — find files by name or content (used when manifest is missing)
 
@@ -96,52 +95,36 @@ Never mention tool names, file paths, or technical details to the user.
 
 
 
-### Phase 3 — Mode B Sub-Compositions (agent-written HyperFrames HTML)
+### Phase 3 — Mode B Sub-Compositions
 
 **Runs on every video** — at least one Mode B segment is mandatory. This phase is BLOCKING: scaffold_hf_project fails if any Mode B segment file is missing. Never call scaffold_hf_project until every Mode B segment has its file written, or has been re-planned as Mode C (last resort only).
 
-The project directory is `hf-project/` inside the session workdir. Relative paths passed to `write_file` resolve from the session workdir, so write Mode B files to `hf-project/compositions/sections/{NN}-segment-{NN}.html` — no absolute path needed, and `write_file` creates parent directories automatically. (For `run_command`, which does NOT run from the session workdir, use the absolute path returned by earlier tools.)
-
 For each segment where mode=B:
 
-1. Read `Skills/hyperframes/SKILL.md` fully — do not skip this step
-2. Extract transcript text for this segment: filter transcript_words where word.start >= segment.start and word.end <= segment.end, join into a string
-3. Use segment.explanation and the transcript excerpt to decide the best visual — charts, comparisons, timelines, flows, stats, or simple explanatory motion graphics. Do not use pre-built templates. Generate HTML appropriate to the actual content.
-4. Use `write_file` to write a complete valid HyperFrames sub-composition to:
-  `hf-project/compositions/sections/{NN}-segment-{NN}.html`
-   where NN is the segment's 1-based position in the FULL segments[] array (counting Mode A and C segments too), zero-padded: first segment = 01. A wrong NN means scaffold_hf_project will not find the file and will reject the Mode B segment.
+1. Filter `transcript_words` where `word.start >= segment.start` and `word.end <= segment.end`, join into `transcript_excerpt`
+2. `generate_hyperframes_html` — pass:
+  - `segment_number` — 1-based position in the FULL segments[] array (counting Mode A and C segments too): first segment = 1
+  - `concept_name` — from segment
+  - `explanation` — from segment
+  - `transcript_excerpt` — filtered words from step 1 (meaning only — tool visualizes, does not subtitle)
+  - `duration_seconds` — `segment.end - segment.start`
+3. The tool loads creative refs + diagram blueprint + animation rules internally; generates SVG/icon diagrams (not kinetic typography — captions carry spoken words); validates HTML; writes to `hf-project/compositions/sections/{NN}-segment-{NN}.html`
+4. Tool returns `archetype`, `blueprint_used`, and `rules_used`
 
-**The file MUST follow the HyperFrames sub-composition contract:**
+**On tool failure after internal retry:** fall back to Mode C for that segment only — change that segment's `mode` to `"C"` in the segments array you pass to scaffold_hf_project. Tell the user one plain sentence that one motion graphic could not be included.
+
+Then proceed to Phase 4 (`scaffold_hf_project`).
+
+**Contract enforced by the tool** (for reference — you do not write this HTML manually):
 
 - Wrapped in `<template id="seg-{NN}-b-template">`
 - Inner div: `data-composition-id="seg-{NN}-b"` `data-start="0"` `data-width="1920"` `data-height="1080"` `data-duration="{segment.end - segment.start}"`
-- All CSS scoped under `[data-composition-id="seg-{NN}-b"]` — no global selectors
-- Load GSAP: `<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>`
-- GSAP script block:
+- Root div: `id="seg-{NN}-b"` + `data-composition-id="seg-{NN}-b"`; CSS root via `#seg-{NN}-b`, descendants via plain classes — never `[data-composition-id="..."]` in CSS (HyperFrames double-scopes it)
+- GSAP CDN, paused timeline, `tl.set({}, {}, DURATION)` padding
+- Visual content in left 65% of canvas — right 35% reserved for speaker PIP
+- Brand CSS variables, no video/audio elements, no infinite repeats
 
-```javascript
-  (function() {
-    window.__timelines = window.__timelines || {};
-    const tl = gsap.timeline({ paused: true });
-    // ... your animations ...
-    tl.set({}, {}, SEGMENT_DURATION); // pad to full duration
-    window.__timelines["seg-{NN}-b"] = tl;
-  })();
-```
 
-- All animations use `gsap.from()` for entrances — no `repeat: -1`, all durations finite
-- No imperative media calls — no `video.play()`, no `audio.play()`
-- No `display` or `visibility` property animations — only opacity, transforms, colors
-
-**Content placement rules:**
-
-- All visual content stays in left 65% of canvas (max x: ~1248px) — right 35% reserved for speaker PIP
-- Ambient gradient background: `background: linear-gradient(135deg, var(--brand-bg-dark) 0%, var(--brand-primary) 100%)`
-- Use brand CSS variables: `--brand-primary`, `--brand-accent`, `--brand-bg-dark`
-- No video or audio elements — those live in index-root.html only
-- Do NOT include speaker video or PIP — handled by index-root.html
-
-**On Mode B failure:** retry once. If still failing, fall back to Mode C for that segment only — change that segment's `mode` to `"C"` in the segments array you pass to scaffold_hf_project. Tell the user one plain sentence that one motion graphic could not be included.
 
 ### Phase 4 — Assembly and Render
 
@@ -205,19 +188,19 @@ Caption right edge stops at 1550px to avoid PIP overlap in Mode A and B.
 ## Deterministic vs Agent-Generated
 
 
-| Element                                    | Who generates it                                           |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| Speaker video position and PIP transitions | Deterministic — GSAP presets in scaffold_hf_project        |
-| Manim clip placement (full canvas)         | Deterministic — injected by scaffold_hf_project            |
-| Mode B safe zone enforcement (left 65%)    | Agent responsibility — follow content placement rules      |
-| Caption layer position and structure       | Deterministic — captions-overlay.html template             |
-| index-root.html wiring and audio track     | Deterministic — scaffold_hf_project                        |
-| All timestamps                             | Always from Groq Whisper word-level data — never estimated |
-| Mode B sub-composition HTML/CSS/GSAP       | Agent-written — Phase 3                                    |
-| Visual type decision for Mode B            | Agent — based on transcript understanding                  |
-| Manim Python scripts                       | Agent — generate_manim_script                              |
-| Concept count and manim vs hyperframes split | Agent — extract_concepts, guided by duration and content |
-| Mode A/B/C timeline partition              | Deterministic — plan_segments                              |
+| Element                                      | Who generates it                                           |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| Speaker video position and PIP transitions   | Deterministic — GSAP presets in scaffold_hf_project        |
+| Manim clip placement (full canvas)           | Deterministic — injected by scaffold_hf_project            |
+| Mode B safe zone enforcement (left 65%)      | Agent responsibility — follow content placement rules      |
+| Caption layer position and structure         | Deterministic — captions-overlay.html template             |
+| index-root.html wiring and audio track       | Deterministic — scaffold_hf_project                        |
+| All timestamps                               | Always from Groq Whisper word-level data — never estimated |
+| Mode B sub-composition HTML/CSS/GSAP         | `generate_hyperframes_html` tool — Phase 3                 |
+| Visual type decision for Mode B              | Agent — based on transcript understanding                  |
+| Manim Python scripts                         | Agent — generate_manim_script                              |
+| Concept count and manim vs hyperframes split | Agent — extract_concepts, guided by duration and content   |
+| Mode A/B/C timeline partition                | Deterministic — plan_segments                              |
 
 
 
@@ -227,7 +210,6 @@ Caption right edge stops at 1550px to avoid PIP overlap in Mode A and B.
 Always read the relevant skill file before using that tool:
 
 - Before `generate_manim_script`: read `Skills/manim-video/SKILL.md`
-- Before Phase 3 Mode B writing: read `Skills/hyperframes/SKILL.md`
 - Before `render_hyperframes`: read `Skills/hyperframes/hyperframes-cli/SKILL.md`
 
 
@@ -281,10 +263,8 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 
 "change that chart" / "use a comparison table" / "make the diagram different":
 
-- Re-run Phase 3 for that specific segment only
-- Filter transcript_words for that segment's time window
-- Read HyperFrames skill, write new sub-composition HTML via `write_file` to same path
-- `render_hyperframes`
+- Re-call `generate_hyperframes_html` for that segment (same path overwrites)
+- `render_hyperframes` — skip re-scaffold if only section content changed
 
 
 
@@ -294,7 +274,7 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 
 - Adding Manim: `generate_manim_script` + `render_manim_clip` for new concept
 - `plan_segments` with updated clip list and hf_concepts
-- Phase 3 for any new Mode B segments
+- `generate_hyperframes_html` for any new Mode B segments
 - `scaffold_hf_project` with updated segments
 - `render_hyperframes`
 

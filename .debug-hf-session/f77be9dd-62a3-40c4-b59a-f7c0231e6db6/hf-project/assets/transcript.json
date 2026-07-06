@@ -1,0 +1,544 @@
+{
+  "words": [
+    {
+      "word": "Lesson",
+      "start": 0.82,
+      "end": 1.1
+    },
+    {
+      "word": "5.1,",
+      "start": 1.1,
+      "end": 2.52
+    },
+    {
+      "word": "when",
+      "start": 2.52,
+      "end": 2.56
+    },
+    {
+      "word": "and",
+      "start": 2.56,
+      "end": 2.82
+    },
+    {
+      "word": "how",
+      "start": 2.82,
+      "end": 2.98
+    },
+    {
+      "word": "to",
+      "start": 2.98,
+      "end": 3.1
+    },
+    {
+      "word": "pitch",
+      "start": 3.1,
+      "end": 3.28
+    },
+    {
+      "word": "an",
+      "start": 3.28,
+      "end": 3.42
+    },
+    {
+      "word": "audit.",
+      "start": 3.42,
+      "end": 4.16
+    },
+    {
+      "word": "At",
+      "start": 4.64,
+      "end": 4.74
+    },
+    {
+      "word": "some",
+      "start": 4.74,
+      "end": 4.94
+    },
+    {
+      "word": "point",
+      "start": 4.94,
+      "end": 5.12
+    },
+    {
+      "word": "during",
+      "start": 5.12,
+      "end": 5.32
+    },
+    {
+      "word": "a",
+      "start": 5.32,
+      "end": 5.44
+    },
+    {
+      "word": "project,",
+      "start": 5.44,
+      "end": 5.9
+    },
+    {
+      "word": "you're",
+      "start": 5.9,
+      "end": 5.98
+    },
+    {
+      "word": "going",
+      "start": 5.98,
+      "end": 6.1
+    },
+    {
+      "word": "to",
+      "start": 6.1,
+      "end": 6.22
+    },
+    {
+      "word": "notice",
+      "start": 6.22,
+      "end": 6.48
+    },
+    {
+      "word": "something.",
+      "start": 6.48,
+      "end": 7.24
+    },
+    {
+      "word": "The",
+      "start": 7.24,
+      "end": 7.34
+    },
+    {
+      "word": "client's",
+      "start": 7.34,
+      "end": 7.62
+    },
+    {
+      "word": "business",
+      "start": 7.62,
+      "end": 7.88
+    },
+    {
+      "word": "has",
+      "start": 7.88,
+      "end": 8.04
+    },
+    {
+      "word": "more",
+      "start": 8.04,
+      "end": 8.2
+    },
+    {
+      "word": "problems",
+      "start": 8.2,
+      "end": 8.56
+    },
+    {
+      "word": "than",
+      "start": 8.56,
+      "end": 8.74
+    },
+    {
+      "word": "the",
+      "start": 8.74,
+      "end": 8.88
+    },
+    {
+      "word": "one",
+      "start": 8.88,
+      "end": 9.04
+    },
+    {
+      "word": "you",
+      "start": 9.04,
+      "end": 9.18
+    },
+    {
+      "word": "were",
+      "start": 9.18,
+      "end": 9.24
+    },
+    {
+      "word": "hired",
+      "start": 9.24,
+      "end": 9.46
+    },
+    {
+      "word": "to",
+      "start": 9.46,
+      "end": 9.58
+    },
+    {
+      "word": "fix.",
+      "start": 9.58,
+      "end": 10.4
+    },
+    {
+      "word": "You",
+      "start": 10.36,
+      "end": 10.44
+    },
+    {
+      "word": "can",
+      "start": 10.44,
+      "end": 10.54
+    },
+    {
+      "word": "see",
+      "start": 10.54,
+      "end": 10.72
+    },
+    {
+      "word": "inefficiencies",
+      "start": 10.72,
+      "end": 11.24
+    },
+    {
+      "word": "in",
+      "start": 11.24,
+      "end": 11.42
+    },
+    {
+      "word": "workflows",
+      "start": 11.42,
+      "end": 11.74
+    },
+    {
+      "word": "they",
+      "start": 11.74,
+      "end": 11.92
+    },
+    {
+      "word": "haven't",
+      "start": 11.92,
+      "end": 12.18
+    },
+    {
+      "word": "even",
+      "start": 12.18,
+      "end": 12.34
+    },
+    {
+      "word": "asked",
+      "start": 12.34,
+      "end": 12.68
+    },
+    {
+      "word": "about.",
+      "start": 12.68,
+      "end": 13.36
+    },
+    {
+      "word": "You",
+      "start": 13.36,
+      "end": 13.42
+    },
+    {
+      "word": "can",
+      "start": 13.42,
+      "end": 13.56
+    },
+    {
+      "word": "tell",
+      "start": 13.56,
+      "end": 13.7
+    },
+    {
+      "word": "the",
+      "start": 13.7,
+      "end": 13.82
+    },
+    {
+      "word": "system",
+      "start": 13.82,
+      "end": 14.1
+    },
+    {
+      "word": "needs",
+      "start": 14.1,
+      "end": 14.34
+    },
+    {
+      "word": "more",
+      "start": 14.34,
+      "end": 14.54
+    },
+    {
+      "word": "than",
+      "start": 14.54,
+      "end": 14.68
+    },
+    {
+      "word": "a",
+      "start": 14.68,
+      "end": 14.78
+    },
+    {
+      "word": "single",
+      "start": 14.78,
+      "end": 15.02
+    },
+    {
+      "word": "automation,",
+      "start": 15.02,
+      "end": 16.08
+    },
+    {
+      "word": "and",
+      "start": 16.08,
+      "end": 16.1
+    },
+    {
+      "word": "you'll",
+      "start": 16.1,
+      "end": 16.24
+    },
+    {
+      "word": "want",
+      "start": 16.24,
+      "end": 16.38
+    },
+    {
+      "word": "to",
+      "start": 16.38,
+      "end": 16.48
+    },
+    {
+      "word": "say",
+      "start": 16.48,
+      "end": 16.62
+    },
+    {
+      "word": "something.",
+      "start": 16.62,
+      "end": 16.94
+    },
+    {
+      "word": "But",
+      "start": 17.76,
+      "end": 17.84
+    },
+    {
+      "word": "you",
+      "start": 17.84,
+      "end": 17.96
+    },
+    {
+      "word": "won't",
+      "start": 17.96,
+      "end": 18.12
+    },
+    {
+      "word": "be",
+      "start": 18.12,
+      "end": 18.26
+    },
+    {
+      "word": "sure",
+      "start": 18.26,
+      "end": 18.44
+    },
+    {
+      "word": "how.",
+      "start": 18.44,
+      "end": 19.18
+    },
+    {
+      "word": "Bringing",
+      "start": 19.38,
+      "end": 19.44
+    },
+    {
+      "word": "up",
+      "start": 19.44,
+      "end": 19.62
+    },
+    {
+      "word": "a",
+      "start": 19.62,
+      "end": 19.72
+    },
+    {
+      "word": "bigger",
+      "start": 19.72,
+      "end": 19.9
+    },
+    {
+      "word": "engagement",
+      "start": 19.9,
+      "end": 20.3
+    },
+    {
+      "word": "feels",
+      "start": 20.3,
+      "end": 20.62
+    },
+    {
+      "word": "risky.",
+      "start": 20.62,
+      "end": 21.42
+    },
+    {
+      "word": "You",
+      "start": 21.4,
+      "end": 21.5
+    },
+    {
+      "word": "don't",
+      "start": 21.5,
+      "end": 21.64
+    },
+    {
+      "word": "want",
+      "start": 21.64,
+      "end": 21.78
+    },
+    {
+      "word": "to",
+      "start": 21.78,
+      "end": 21.9
+    },
+    {
+      "word": "come",
+      "start": 21.9,
+      "end": 22.06
+    },
+    {
+      "word": "across",
+      "start": 22.06,
+      "end": 22.42
+    },
+    {
+      "word": "as",
+      "start": 22.42,
+      "end": 22.7
+    },
+    {
+      "word": "the",
+      "start": 22.7,
+      "end": 22.82
+    },
+    {
+      "word": "consultant",
+      "start": 22.82,
+      "end": 23.3
+    },
+    {
+      "word": "who's",
+      "start": 23.3,
+      "end": 23.8
+    },
+    {
+      "word": "always",
+      "start": 23.8,
+      "end": 24.1
+    },
+    {
+      "word": "trying",
+      "start": 24.1,
+      "end": 24.32
+    },
+    {
+      "word": "to",
+      "start": 24.32,
+      "end": 24.44
+    },
+    {
+      "word": "expand",
+      "start": 24.44,
+      "end": 24.72
+    },
+    {
+      "word": "the",
+      "start": 24.72,
+      "end": 24.88
+    },
+    {
+      "word": "scope.",
+      "start": 24.88,
+      "end": 25.6
+    },
+    {
+      "word": "So",
+      "start": 25.62,
+      "end": 25.76
+    },
+    {
+      "word": "you",
+      "start": 25.76,
+      "end": 25.8
+    },
+    {
+      "word": "might",
+      "start": 25.8,
+      "end": 25.96
+    },
+    {
+      "word": "just",
+      "start": 25.96,
+      "end": 26.1
+    },
+    {
+      "word": "finish",
+      "start": 26.1,
+      "end": 26.34
+    },
+    {
+      "word": "the",
+      "start": 26.34,
+      "end": 26.44
+    },
+    {
+      "word": "project,",
+      "start": 26.44,
+      "end": 27.12
+    },
+    {
+      "word": "send",
+      "start": 27.12,
+      "end": 27.2
+    },
+    {
+      "word": "the",
+      "start": 27.2,
+      "end": 27.34
+    },
+    {
+      "word": "invoice,",
+      "start": 27.34,
+      "end": 28.18
+    },
+    {
+      "word": "and",
+      "start": 28.18,
+      "end": 28.3
+    },
+    {
+      "word": "move",
+      "start": 28.3,
+      "end": 28.46
+    },
+    {
+      "word": "on.",
+      "start": 28.46,
+      "end": 28.66
+    },
+    {
+      "word": "that",
+      "start": 29.34,
+      "end": 29.42
+    },
+    {
+      "word": "hesitation",
+      "start": 29.42,
+      "end": 29.74
+    },
+    {
+      "word": "costs",
+      "start": 29.74,
+      "end": 30.16
+    },
+    {
+      "word": "you",
+      "start": 30.16,
+      "end": 30.36
+    }
+  ]
+}

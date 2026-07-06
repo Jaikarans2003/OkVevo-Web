@@ -4,6 +4,15 @@ import express from 'express';
 import cors from 'cors';
 import { pipeAgentStream, runAgent } from './agent';
 
+// ponytail: Docker-only — local `node` on 3001 collides with `docker compose up agent`
+if (process.env.DOCKER_AGENT !== '1') {
+  console.error(
+    'Agent runs in Docker only: docker compose up agent --build\n' +
+      '(Local npm run dev/start is disabled to avoid port 3001 conflicts.)'
+  );
+  process.exit(1);
+}
+
 const app = express();
 
 app.use(cors());

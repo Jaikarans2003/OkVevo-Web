@@ -34026,6 +34026,8 @@ function summarizeToolName(toolName, output) {
   switch (toolName) {
     case "generate_manim_script":
       return `[manim script generated for ${String(data.concept_name ?? "unknown")} \u2014 truncated]`;
+    case "generate_hyperframes_html":
+      return `[Mode B sub-composition: ${String(data.concept_name ?? "unknown")} \u2192 ${String(data.file_path ?? "?")}]`;
     case "render_manim_clip":
       return `[clip rendered: ${String(data.concept_name ?? "unknown")} \u2192 ${String(data.clip_url ?? "?")}]`;
     case "run_command":
@@ -34342,6 +34344,341 @@ function buildDeterministicSegments(manimClips, hfConcepts, totalDuration) {
       ...anchor.explanation !== void 0 && { explanation: anchor.explanation }
     };
   });
+}
+
+// src/skills/eduVideo/hfGeneration.ts
+var GSAP_EFFECTS = "rules/gsap-effects.md";
+var FLOW_RULES = [
+  "rules/center-outward-expansion.md",
+  "rules/svg-path-draw.md",
+  "rules/avatar-cloud-network.md"
+];
+var FALLBACK_RULES = [...FLOW_RULES.slice(0, 2), GSAP_EFFECTS];
+var CAMERA_RULES = /* @__PURE__ */ new Set([
+  "rules/coordinate-target-zoom.md",
+  "rules/multi-phase-camera.md",
+  "rules/viewport-change.md"
+]);
+var ARCHETYPE_BLUEPRINT = {
+  flow: "constellation-hub",
+  dataviz: "dataviz-countup",
+  comparison: "comparison-split",
+  timeline: "spatial-pan-stations",
+  list: "grid-card-assemble",
+  fallback: "grid-card-assemble"
+};
+var ARCHETYPE_RULES = {
+  flow: FLOW_RULES,
+  dataviz: ["rules/counting-dynamic-scale.md", "rules/stat-bars-and-fills.md"],
+  comparison: ["rules/split-tilt-cards.md", "rules/scale-swap-transition.md"],
+  timeline: ["rules/center-outward-expansion.md", "rules/svg-path-draw.md"],
+  list: ["rules/center-outward-expansion.md", "rules/stat-bars-and-fills.md"],
+  fallback: FALLBACK_RULES
+};
+var ARCHETYPE_PATTERNS = [
+  {
+    archetype: "dataviz",
+    re: /\b(stat|stats|chart|counter|revenue|percent|\$\d|metric|growth rate)\b/i
+  },
+  {
+    archetype: "comparison",
+    re: /\b(vs\.?|versus|compare|comparison|two sides|split)\b/i
+  },
+  {
+    archetype: "timeline",
+    re: /\b(timeline|milestone|station|journey map)\b/i
+  },
+  {
+    archetype: "list",
+    re: /\b(benefits|features|grid|list of|items)\b/i
+  },
+  {
+    archetype: "flow",
+    re: /\b(step|flow|process|decision|path|diagram|node|→|sequence)\b/i
+  }
+];
+var DIAGRAM_FALLBACK_IDS = ["constellation-hub", "grid-card-assemble"];
+function padSegmentNum(index) {
+  return String(index + 1).padStart(2, "0");
+}
+function sectionFilename(index) {
+  const nn = padSegmentNum(index);
+  return `${nn}-segment-${nn}.html`;
+}
+function sectionRelativePath(index) {
+  return `hf-project/compositions/sections/${sectionFilename(index)}`;
+}
+function parseRulesIndex(indexMd) {
+  const rules = [];
+  const re2 = /<([a-z0-9-]+)\s+path="([^"]+)"[^>]*>[\s\S]*?Tags:\s*([^<]+)<\/\1>/gi;
+  let match;
+  while ((match = re2.exec(indexMd)) !== null) {
+    rules.push({
+      name: match[1],
+      path: match[2],
+      tags: match[3].split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+    });
+  }
+  return rules;
+}
+function parseDurationMin(durationStr) {
+  const m = durationStr.match(/([\d.]+)/);
+  return m ? Number.parseFloat(m[1]) : 0;
+}
+function parseBlueprintsIndex(indexMd) {
+  const entries = [];
+  const re2 = /<blueprint\s+id="([^"]+)"\s+roles="([^"]*)"\s+duration="([^"]*)"[^>]*>/gi;
+  let match;
+  while ((match = re2.exec(indexMd)) !== null) {
+    entries.push({
+      id: match[1],
+      roles: match[2],
+      duration: match[3],
+      minDuration: parseDurationMin(match[3])
+    });
+  }
+  return entries;
+}
+function detectModeBArchetype(explanation, transcriptExcerpt) {
+  const text2 = `${explanation} ${transcriptExcerpt}`.toLowerCase();
+  for (const { archetype, re: re2 } of ARCHETYPE_PATTERNS) {
+    if (re2.test(text2)) return archetype;
+  }
+  return "fallback";
+}
+function pickDiagramFallback(durationSeconds, entries) {
+  const candidates = DIAGRAM_FALLBACK_IDS.map((id) => entries.find((e) => e.id === id)).filter(
+    (e) => Boolean(e)
+  );
+  const fitting = candidates.filter((e) => durationSeconds >= e.minDuration).sort((a, b) => b.minDuration - a.minDuration);
+  if (fitting.length > 0) return `blueprints/${fitting[0].id}.md`;
+  const grid = entries.find((e) => e.id === "grid-card-assemble");
+  return grid ? `blueprints/grid-card-assemble.md` : null;
+}
+function selectHfBlueprint(archetype, durationSeconds, blueprintsIndexMd) {
+  const entries = parseBlueprintsIndex(blueprintsIndexMd);
+  const preferredId = ARCHETYPE_BLUEPRINT[archetype];
+  const preferred = entries.find((e) => e.id === preferredId);
+  if (preferred && durationSeconds >= preferred.minDuration) {
+    return `blueprints/${preferred.id}.md`;
+  }
+  return pickDiagramFallback(durationSeconds, entries);
+}
+function parseBlueprintRuleBoosts(blueprintMd) {
+  const boosts = [];
+  const mapping = blueprintMd.match(/\*\*rule mapping\*\*[\s\S]*?(?=\n\*\*|$)/i);
+  if (!mapping) return boosts;
+  const re2 = /`([a-z0-9-]+)`/g;
+  let m;
+  while ((m = re2.exec(mapping[0])) !== null) {
+    const name26 = m[1];
+    if (name26 !== "gsap-effects" && !name26.includes("techniques")) {
+      boosts.push(`rules/${name26}.md`);
+    }
+  }
+  return boosts;
+}
+function selectHfRules(explanation, rulesIndexMd, archetype = "fallback", blueprintMd) {
+  const rules = parseRulesIndex(rulesIndexMd);
+  const lower = explanation.toLowerCase();
+  const archetypePreferred = new Set(ARCHETYPE_RULES[archetype] ?? FALLBACK_RULES);
+  const boosts = blueprintMd ? parseBlueprintRuleBoosts(blueprintMd) : [];
+  const penalizeCamera = archetype !== "timeline" && /\b(step|flow|process|decision)\b/i.test(lower);
+  const scored = rules.map((rule) => {
+    let score = 0;
+    if (archetypePreferred.has(rule.path)) score += 20;
+    else if (boosts.includes(rule.path)) score += 12;
+    for (const tag of rule.tags) {
+      if (lower.includes(tag)) score += 2;
+    }
+    if (penalizeCamera && CAMERA_RULES.has(rule.path)) score -= 20;
+    return { ...rule, score };
+  }).filter((rule) => rule.score > 0).sort((a, b) => b.score - a.score);
+  const picked = [];
+  for (const rule of scored) {
+    if (picked.length >= 2) break;
+    if (!picked.includes(rule.path)) picked.push(rule.path);
+  }
+  if (picked.length === 0) {
+    for (const path5 of ARCHETYPE_RULES[archetype] ?? FALLBACK_RULES) {
+      if (picked.length >= 2) break;
+      if (!picked.includes(path5)) picked.push(path5);
+    }
+  }
+  if (!picked.includes(GSAP_EFFECTS)) picked.push(GSAP_EFFECTS);
+  return picked;
+}
+function maxBeatsForDuration(durationSeconds) {
+  if (durationSeconds <= 5) return 3;
+  if (durationSeconds <= 9) return 4;
+  return 6;
+}
+function inferVisualNodes(conceptName, explanation, maxNodes) {
+  const fromExplanation = explanation.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g) ?? [];
+  const fromConcept = conceptName.split(/\s+/).filter((w) => w.length > 3 && !/^(the|and|of|for)$/i.test(w));
+  const candidates = [...fromExplanation, ...fromConcept].map((s) => s.trim()).filter(Boolean);
+  if (candidates.length >= 2) return candidates.slice(0, maxNodes);
+  return ["Start", "Action", "Outcome"].slice(0, maxNodes);
+}
+function buildModeBBrief(opts) {
+  const maxNodes = maxBeatsForDuration(opts.durationSeconds);
+  const nodeHints = inferVisualNodes(opts.conceptName, opts.explanation, maxNodes);
+  const visualShape = opts.archetype === "dataviz" ? "Animated chart, counter, or stat graphic \u2014 numbers only if spoken in transcript" : opts.archetype === "comparison" ? "Two-panel split with icons/cards \u2014 no sentence captions" : opts.archetype === "timeline" ? "Horizontal stations or path with icons \u2014 camera optional if duration allows" : opts.archetype === "list" ? "Icon grid or card assemble \u2014 one icon per item, 1\u20132 word labels max" : "SVG flow diagram: nodes + connector paths/arrows; icons or shapes carry meaning";
+  const blueprintHint = opts.blueprintPath ? `- Follow blueprint ${opts.blueprintPath} with diagram-first execution (not typography slides)` : "- Build a compact SVG diagram with animated reveals";
+  return `## Mode B brief
+
+Duration: ${opts.durationSeconds}s \u2014 HARD LIMITS:
+- Captions already show spoken words \u2014 DO NOT repeat transcript sentences or phrases on screen
+- Max ${maxNodes} visual nodes/steps with 1\u20132 word labels each (e.g. ${nodeHints.map((n) => `"${n}"`).join(", ")})
+- Primary content = icons, SVG shapes, paths, arrows, cards \u2014 not paragraphs or kinetic type
+- ${visualShape}
+- Animate reveals with GSAP (path draw, node pop-in, connector stroke) \u2014 motion explains the idea
+${blueprintHint}
+- Archetype: ${opts.archetype}
+- Transcript is for meaning only \u2014 visualize the concept, don't subtitle it`;
+}
+function stripHtmlFences(text2) {
+  return text2.replace(/```(?:html|xml)?\n?/g, "").replace(/```\n?/g, "").trim();
+}
+function countStepPatterns(html) {
+  const stepClass = (html.match(/class="[^"]*step[-_]/gi) ?? []).length;
+  const stepId = (html.match(/id="step\d+/gi) ?? []).length;
+  const numbered = (html.match(/class="[^"]*step-num/gi) ?? []).length;
+  return Math.max(stepClass, stepId, numbered);
+}
+function hasDiagramVisual(html) {
+  if (/<svg[\s>]/i.test(html)) return true;
+  if (/class="[^"]*\b(node|flow-node|hub|connector|card-|icon-|flow-)/i.test(html)) return true;
+  if (/\b(path|circle|rect|line|polyline)\b[^>]*\bd=["']/i.test(html)) return true;
+  return false;
+}
+function visibleTextContent(html) {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+function captionEchoError(html, transcriptExcerpt) {
+  const text2 = visibleTextContent(html);
+  const words = transcriptExcerpt.toLowerCase().replace(/\s+/g, " ").trim().split(/\s+/);
+  if (words.length < 4) return null;
+  for (let len = Math.min(8, words.length); len >= 4; len--) {
+    for (let i = 0; i <= words.length - len; i++) {
+      const phrase = words.slice(i, i + len).join(" ");
+      if (text2.includes(phrase)) {
+        return `Caption echo: on-screen text repeats transcript ("${phrase}") \u2014 use diagram/icons only; captions carry spoken words`;
+      }
+    }
+  }
+  return null;
+}
+function usesSystemUiOnly(html) {
+  const families = html.match(/font-family:\s*([^;}{]+)/gi) ?? [];
+  if (families.length === 0) return false;
+  return families.every(
+    (f) => /system-ui|apple-system|sans-serif/i.test(f) && !/Archivo|League|Bebas|Oswald|Montserrat|Poppins|Inter|Gothic/i.test(f)
+  );
+}
+function validateHfSubcomposition(html, segmentId, durationSeconds, transcriptExcerpt) {
+  const errors = [];
+  const warnings = [];
+  const templateId = `${segmentId}-template`;
+  const attrScopeRe = new RegExp(
+    `\\[data-composition-id=["']${segmentId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']\\]`
+  );
+  if (!html.includes(`id="${templateId}"`) && !html.includes(`id='${templateId}'`)) {
+    errors.push(`Missing <template id="${templateId}">`);
+  }
+  if (!html.includes(`data-composition-id="${segmentId}"`)) {
+    errors.push(`Missing data-composition-id="${segmentId}" on root div`);
+  }
+  if (!html.includes(`id="${segmentId}"`)) {
+    errors.push(
+      `Root div must have id="${segmentId}" (HyperFrames Pitfall 3 \u2014 style via #id, not attribute selector)`
+    );
+  }
+  if (!html.includes(`#${segmentId}`)) {
+    errors.push(`CSS must style root with #${segmentId} { position: absolute; inset: 0; ... }`);
+  }
+  if (attrScopeRe.test(html)) {
+    errors.push(
+      `Do not use [data-composition-id="${segmentId}"] in CSS \u2014 HyperFrames double-scopes it and styles break. Use #${segmentId} for root and plain class selectors for descendants (.node, .flow-path, etc.)`
+    );
+  }
+  if (/\bgetElementById\s*\(/.test(html) || /\bdocument\.querySelector/.test(html)) {
+    errors.push(
+      'Do not use getElementById or document.querySelector \u2014 GSAP targets must be string selectors resolved at seek time (e.g. tl.from("#node-1", ...))'
+    );
+  }
+  if (/gsap\.set\([^)]*#[\w-]+[^)]*autoAlpha\s*:\s*0/.test(html) && /\.from\(['"]#[\w-]+/.test(html)) {
+    errors.push(
+      "Do not gsap.set(autoAlpha:0) on a parent container that holds .from() children \u2014 it hides descendants even after child tweens run"
+    );
+  }
+  if (/opacity:\s*0\s*;/.test(html)) {
+    errors.push(
+      "Do not set opacity: 0 in CSS \u2014 use gsap.from() / gsap.set() only so elements are visible if the timeline fails"
+    );
+  }
+  if (!hasDiagramVisual(html)) {
+    errors.push(
+      "Mode B must include diagram visuals (SVG nodes, icons, paths, or cards) \u2014 captions already show spoken words; kinetic typography alone is not allowed"
+    );
+  }
+  const visibleWords = visibleTextContent(html).split(/\s+/).filter(Boolean).length;
+  const maxLabels = maxBeatsForDuration(durationSeconds) * 3;
+  if (visibleWords > maxLabels) {
+    errors.push(
+      `Too much on-screen text (${visibleWords} words) \u2014 max ~${maxLabels} words of short labels; captions carry the narration`
+    );
+  }
+  if (transcriptExcerpt) {
+    const echo = captionEchoError(html, transcriptExcerpt);
+    if (echo) errors.push(echo);
+    const invented = html.match(/\$[\d,]+(?:\s*[–-]\s*\$?[\d,]+)?/g) ?? [];
+    for (const amount of invented) {
+      if (!transcriptExcerpt.includes(amount.replace(/\$/g, ""))) {
+        warnings.push(`Invented currency "${amount}" not in transcript \u2014 remove or use transcript words only`);
+      }
+    }
+  }
+  if (usesSystemUiOnly(html) && visibleWords > 0) {
+    errors.push(
+      "Use an embedded Google Font for any labels \u2014 system-ui alone reads as generic web UI"
+    );
+  }
+  const maxBeats = maxBeatsForDuration(durationSeconds);
+  const stepCount = countStepPatterns(html);
+  if (stepCount > maxBeats) {
+    errors.push(
+      `Too many numbered step elements (${stepCount}) for ${durationSeconds}s \u2014 max ${maxBeats} visual nodes`
+    );
+  }
+  const durationMatch = html.match(/data-duration="([^"]+)"/);
+  if (!durationMatch) {
+    errors.push("Missing data-duration attribute");
+  } else {
+    const found = Number.parseFloat(durationMatch[1]);
+    if (Math.abs(found - durationSeconds) > 0.05) {
+      errors.push(
+        `data-duration ${found} does not match requested ${durationSeconds} (\xB10.05s)`
+      );
+    }
+  }
+  if (!html.includes(`window.__timelines['${segmentId}']`) && !html.includes(`window.__timelines["${segmentId}"]`)) {
+    errors.push(`Missing window.__timelines['${segmentId}'] registration`);
+  }
+  if (!/tl\.set\(\s*\{\s*\}\s*,\s*\{\s*\}\s*,/.test(html)) {
+    errors.push("Missing tl.set({}, {}, DURATION) padding at end of timeline");
+  }
+  if (!html.includes("cdn.jsdelivr.net/npm/gsap")) {
+    errors.push("Missing GSAP CDN script");
+  }
+  if (/repeat:\s*-1/.test(html) || /repeat:\s*Infinity/.test(html)) {
+    errors.push("Infinite repeat detected (repeat: -1 or repeat: Infinity)");
+  }
+  if (/\b(video|audio)\.play\s*\(/.test(html)) {
+    errors.push("Imperative video.play() or audio.play() not allowed");
+  }
+  if (errors.length > 0) return { ok: false, errors, warnings };
+  return warnings.length > 0 ? { ok: true, warnings } : { ok: true };
 }
 
 // src/storage.ts
@@ -34761,7 +35098,7 @@ For each concept, provide an excerpt field containing the exact contiguous words
 
 Classify each concept with a visual field:
 - "manim" \u2014 math, equations, geometry, algorithmic step-by-step animation
-- "hyperframes" \u2014 charts, comparisons, timelines, flows, stats, AND general visual reinforcement of an explanation (not only data-heavy visuals)
+- "hyperframes" \u2014 charts, comparisons, timelines, process diagrams, icons, visual metaphors \u2014 anything that explains WITHOUT repeating spoken words (captions handle narration)
 - "none" \u2014 the speaker's words alone carry it; no added visual needed
 
 Hard rules:
@@ -34789,11 +35126,11 @@ function slugConceptName(name26, fallback) {
   const slug = name26.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
   return slug || fallback;
 }
-function padSegmentNum(index) {
+function padSegmentNum2(index) {
   return String(index + 1).padStart(2, "0");
 }
 function buildSegmentId(index, mode) {
-  return `seg-${padSegmentNum(index)}-${mode.toLowerCase()}`;
+  return `seg-${padSegmentNum2(index)}-${mode.toLowerCase()}`;
 }
 function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
   const mode = seg.mode.toLowerCase();
@@ -34801,7 +35138,7 @@ function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
   let html = import_fs4.default.readFileSync(templatePath, "utf-8");
   const segmentId = buildSegmentId(index, seg.mode);
   const duration3 = seg.end - seg.start;
-  const nn = padSegmentNum(index);
+  const nn = padSegmentNum2(index);
   let conceptName;
   if (seg.mode === "A" && seg.manim_index != null) {
     conceptName = slugConceptName(
@@ -34822,9 +35159,9 @@ function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
 }
 function buildSegmentWiring(segments, sectionMeta) {
   return segments.map((seg, index) => {
-    const nn = padSegmentNum(index);
+    const nn = padSegmentNum2(index);
     const meta = sectionMeta[index];
-    const dataStart = index === 0 ? "0" : `sec-${padSegmentNum(index - 1)}`;
+    const dataStart = index === 0 ? "0" : `sec-${padSegmentNum2(index - 1)}`;
     return `<div id="sec-${nn}" data-composition-id="${meta.segmentId}" data-composition-src="compositions/sections/${meta.filename}"
      data-start="${dataStart}" data-duration="${meta.duration}" data-track-index="1"
      data-width="1920" data-height="1080" class="scene-layer"></div>`;
@@ -35433,6 +35770,153 @@ ${cleanScript}`
         }
       }
     }),
+    generate_hyperframes_html: tool({
+      description: `Generate and write ONE edu-video Mode B HyperFrames sub-composition HTML file.
+Loads hyperframes-core contract + matched animation rules internally.
+Call once per Mode B segment after plan_segments, BEFORE scaffold_hf_project.`,
+      inputSchema: external_exports2.object({
+        segment_number: external_exports2.number().int().min(1).describe("1-based position in full segments[] from plan_segments"),
+        concept_name: external_exports2.string(),
+        explanation: external_exports2.string(),
+        transcript_excerpt: external_exports2.string().describe("Words from this segment \u2014 meaning context only; do NOT display on screen"),
+        duration_seconds: external_exports2.number().positive()
+      }),
+      execute: async ({
+        segment_number,
+        concept_name,
+        explanation,
+        transcript_excerpt,
+        duration_seconds
+      }) => {
+        const index = segment_number - 1;
+        const segmentId = buildSegmentId(index, "B");
+        const relativePath = sectionRelativePath(index);
+        const fullPath = import_path4.default.join(getSessionWorkdir(ctx.sessionId), relativePath);
+        const coreSkill = loadSkillFile("hyperframes/hyperframes-core/SKILL.md");
+        const subCompositions = loadSkillFile(
+          "hyperframes/hyperframes-core/references/sub-compositions.md"
+        );
+        const houseStyle = loadSkillFile(
+          "hyperframes/hyperframes-creative/references/house-style.md"
+        );
+        const videoComposition = loadSkillFile(
+          "hyperframes/hyperframes-creative/references/video-composition.md"
+        );
+        const animationSkill = loadSkillFile("hyperframes/hyperframes-animation/SKILL.md");
+        const rulesIndex = loadSkillFile("hyperframes/hyperframes-animation/rules-index.md");
+        const blueprintsIndex = loadSkillFile(
+          "hyperframes/hyperframes-animation/blueprints-index.md"
+        );
+        const archetype = detectModeBArchetype(explanation, transcript_excerpt);
+        const blueprintPath = selectHfBlueprint(archetype, duration_seconds, blueprintsIndex);
+        const blueprintMd = blueprintPath ? loadSkillFile(`hyperframes/hyperframes-animation/${blueprintPath}`) : "";
+        const rulePaths = selectHfRules(explanation, rulesIndex, archetype, blueprintMd);
+        const ruleContents = rulePaths.map(
+          (rulePath) => loadSkillFile(`hyperframes/hyperframes-animation/${rulePath}`)
+        ).join("\n\n");
+        const modeBBrief = buildModeBBrief({
+          durationSeconds: duration_seconds,
+          conceptName: concept_name,
+          explanation,
+          transcriptExcerpt: transcript_excerpt,
+          archetype,
+          blueprintPath
+        });
+        const systemPrompt = `You are a HyperFrames motion graphics expert. Return ONLY valid HTML \u2014 no markdown, no explanation.
+Write ONE edu-video Mode B sub-composition following these rules:
+- Captions already show spoken words \u2014 DO NOT repeat transcript sentences or long phrases on screen
+- Build a visual diagram: SVG nodes, icons, paths/arrows, or cards that explain the concept
+- Max 1\u20132 word labels per node if needed; icons/shapes carry the meaning
+- Follow the loaded blueprint shot structure and rule recipes \u2014 diagram-first, not kinetic typography
+- No full-sentence hero text, no subtitle-style paragraphs, no checklist UI with numbered circles
+- No invented stats or dollar amounts unless they appear in the transcript excerpt
+- Wrapped in <template id="${segmentId}-template"> containing ONLY: <style>, root <div>, <script src="gsap">, inline <script>
+- Root div: id="${segmentId}" data-composition-id="${segmentId}" data-start="0" data-width="1920" data-height="1080" data-duration="${duration_seconds}"
+- CSS: style root with #${segmentId} { position: absolute; inset: 0; overflow: hidden; background: gradient using brand vars }
+- CSS descendants: plain class selectors only (.node, .flow-path) \u2014 NEVER [data-composition-id="${segmentId}"] in any CSS rule (HyperFrames double-scopes it and breaks render)
+- Do NOT set opacity: 0 in CSS \u2014 hide via gsap.from() / gsap.set() only
+- Do NOT gsap.set(autoAlpha:0) on a parent of elements you animate with .from() \u2014 hide leaves only
+- GSAP: string selectors only ('#node-1', '.flow-path') \u2014 NEVER getElementById or document.querySelector
+- Load GSAP CDN: https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js
+- Paused GSAP timeline registered as window.__timelines['${segmentId}']
+- End with tl.set({}, {}, ${duration_seconds}) to pad timeline to full duration
+- All visual content in left 65% of canvas (max x ~1248px) \u2014 right 35% reserved for speaker PIP
+- Use brand CSS variables: --brand-primary, --brand-accent, --brand-bg-dark
+- No video or audio elements, no speaker PIP
+- No repeat: -1 or repeat: Infinity
+- No video.play() or audio.play()
+- Finite durations only, gsap.from() for entrances`;
+        const baseUserPrompt = `${coreSkill}
+
+${subCompositions}
+
+${houseStyle}
+
+${videoComposition}
+
+${animationSkill}
+
+${blueprintMd ? `## Blueprint
+
+${blueprintMd}
+
+` : ""}${ruleContents}
+
+${modeBBrief}
+
+Concept: ${concept_name}
+Explanation: ${explanation}
+Transcript excerpt: ${transcript_excerpt}
+Segment ID: ${segmentId}
+Duration: ${duration_seconds}s`;
+        let userPrompt = baseUserPrompt;
+        let htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+        let cleanHtml = stripHtmlFences(htmlText);
+        let validation = validateHfSubcomposition(
+          cleanHtml,
+          segmentId,
+          duration_seconds,
+          transcript_excerpt
+        );
+        if (!validation.ok || (validation.warnings?.length ?? 0) > 0) {
+          const issues = [
+            ...validation.ok ? [] : validation.errors,
+            ...validation.warnings ?? []
+          ];
+          userPrompt = `${baseUserPrompt}
+
+The previous HTML failed validation:
+${issues.map((err) => `- ${err}`).join("\n")}
+Fix these specific issues and return corrected HTML only.`;
+          htmlText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+          cleanHtml = stripHtmlFences(htmlText);
+          validation = validateHfSubcomposition(
+            cleanHtml,
+            segmentId,
+            duration_seconds,
+            transcript_excerpt
+          );
+          if (!validation.ok) {
+            throw new Error(
+              `HyperFrames HTML validation failed: ${validation.errors.join("; ")}`
+            );
+          }
+        }
+        import_fs4.default.mkdirSync(import_path4.default.dirname(fullPath), { recursive: true });
+        import_fs4.default.writeFileSync(fullPath, cleanHtml, "utf-8");
+        return {
+          file_path: relativePath,
+          segment_id: segmentId,
+          concept_name,
+          archetype,
+          blueprint_used: blueprintPath ? `hyperframes/hyperframes-animation/${blueprintPath}` : void 0,
+          rules_used: rulePaths.map(
+            (rulePath) => `hyperframes/hyperframes-animation/${rulePath}`
+          ),
+          bytes_written: Buffer.byteLength(cleanHtml, "utf-8")
+        };
+      }
+    }),
     scaffold_hf_project: tool({
       description: `Scaffold the HyperFrames project from edu-video templates: copies templates, injects segment wiring, captions, speaker GSAP, downloads speaker media, and uploads the full project to Firebase Storage. Call this after render_manim_clip and plan_segments.`,
       inputSchema: external_exports2.object({
@@ -35508,7 +35992,7 @@ ${cleanScript}`
           if (seg.mode === "A" && seg.manim_index == null) {
             throw new Error(`Segment ${index + 1} mode A requires manim_index`);
           }
-          const nn = padSegmentNum(index);
+          const nn = padSegmentNum2(index);
           const segmentId = buildSegmentId(index, seg.mode);
           const duration3 = seg.end - seg.start;
           let conceptName;
@@ -35528,7 +36012,7 @@ ${cleanScript}`
           }
           if (seg.mode === "B") {
             throw new Error(
-              `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Complete Phase 3 (write the sub-composition via write_file) before calling scaffold_hf_project, or re-plan this segment as Mode C.`
+              `Segment ${index + 1} is Mode B but compositions/sections/${filename} was not written. Call generate_hyperframes_html for this segment before scaffold_hf_project, or re-plan this segment as Mode C.`
             );
           }
           const built = buildSegmentSection(
@@ -35824,6 +36308,12 @@ function pipeAgentStream(result, response, params) {
 }
 
 // src/server.ts
+if (process.env.DOCKER_AGENT !== "1") {
+  console.error(
+    "Agent runs in Docker only: docker compose up agent --build\n(Local npm run dev/start is disabled to avoid port 3001 conflicts.)"
+  );
+  process.exit(1);
+}
 var app2 = (0, import_express.default)();
 app2.use((0, import_cors.default)());
 app2.use(import_express.default.json({ limit: "50mb" }));

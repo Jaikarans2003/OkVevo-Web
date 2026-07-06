@@ -4,11 +4,12 @@
   "private": true,
   "main": "dist/server.js",
   "scripts": {
-    "dev": "TS_NODE_TRANSPILE_ONLY=true ts-node -r dotenv/config src/server.ts",
+    "dev": "echo 'Agent is Docker-only. Run: docker compose up agent --build' >&2 && exit 1",
     "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.js --external:firebase-admin --external:express --external:cors --external:groq-sdk --external:node-fetch",
-    "start": "node dist/server.js",
+    "start": "echo 'Agent is Docker-only. Run: docker compose up agent --build' >&2 && exit 1",
     "typecheck": "tsc --noEmit",
     "check-planning": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-planning.ts",
+    "check-hf-gen": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-hf-gen.ts",
     "check-templates": "node scripts/check-templates.mjs"
   },
   "dependencies": {

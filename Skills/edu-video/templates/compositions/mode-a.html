@@ -1,5 +1,6 @@
 <template id="seg-mode-a-template">
   <div
+    id="{{SEGMENT_ID}}"
     data-composition-id="{{SEGMENT_ID}}"
     data-start="0"
     data-width="1920"
@@ -12,14 +13,14 @@
     <style>
       {{BRAND_CSS_VARS}}
 
-      [data-composition-id="{{SEGMENT_ID}}"] {
+      #{{SEGMENT_ID}} {
         position: relative;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
       }
 
-      [data-composition-id="{{SEGMENT_ID}}"] #brand-bg {
+      #{{SEGMENT_ID}} #brand-bg {
         position: absolute;
         inset: 0;
         z-index: 0;
@@ -32,7 +33,7 @@
       }
 
       /* PiP marker — liquid-glass shell (catalog: liquid-glass-widgets) */
-      [data-composition-id="{{SEGMENT_ID}}"] #speaker-pip {
+      #{{SEGMENT_ID}} #speaker-pip {
         position: absolute;
         bottom: 64px;
         right: 24px;
