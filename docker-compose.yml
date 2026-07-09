@@ -14,3 +14,17 @@ services:
       - HYPERFRAMES_CLI=/usr/local/lib/node_modules/hyperframes/dist/cli.js
       - HYPERFRAMES_BROWSER_PATH=/usr/local/bin/hyperframes-chrome-headless-shell
       - PORT=3001
+
+  video-use:
+    build:
+      context: .
+      dockerfile: services/video-use/docker/Dockerfile
+    ports:
+      - "3040:3040"
+    env_file:
+      - services/video-use/.env
+    environment:
+      - VIDEO_USE_REPO=/opt/video-use
+      - VIDEO_USE_WORK_ROOT=/tmp/video-use/work
+      - VIDEO_USE_TEMP_ROOT=/tmp/video-use/temp
+      - PORT=3040

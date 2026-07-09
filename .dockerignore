@@ -1,2 +1,11 @@
 Skills/**/graphify-out
 Skills/**/.DS_Store
+# video-use / agent image build context trims
+node_modules
+.next
+.venv
+**/.venv
+.git
+Refference/video-use/.git
+.debug-hf-session
+graphify-out
