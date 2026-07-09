@@ -1,7 +1,7 @@
 // Self-check: every {{PLACEHOLDER}} in the edu-video templates must be one the
-// scaffold_hf_project code in src/tools.ts actually substitutes, and the
-// coupled MANIM_GSAP placeholder must exist on both sides. Fails loud if the
-// template and code drift apart. Run: node scripts/check-templates.mjs
+// scaffold_hf_project code actually substitutes, and the coupled MANIM_GSAP
+// placeholder must exist on both sides. Fails loud if template and code drift.
+// Run: node scripts/check-templates.mjs
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const templates = path.join(root, 'Skills/edu-video/templates');
-const toolsSrc = fs.readFileSync(path.join(root, 'services/agent/src/tools.ts'), 'utf-8');
+const toolsDir = path.join(root, 'services/agent/src/tools');
+const hyperframesSrc = fs.readFileSync(path.join(toolsDir, 'edu-video/hyperframes.ts'), 'utf-8');
+const utilsSrc = fs.readFileSync(path.join(toolsDir, 'lib/utils.ts'), 'utf-8');
 
 const placeholders = (file) =>
   new Set(
@@ -54,11 +56,11 @@ for (const [file, known] of checks) {
 
 // The A3 coupling: template placeholder AND code-side substitution must both exist.
 assert(placeholders('index-root.html').has('MANIM_GSAP'), 'index-root.html missing {{MANIM_GSAP}}');
-assert(/MANIM_GSAP:\s*manimGsap/.test(toolsSrc), 'tools.ts does not substitute MANIM_GSAP');
-assert(/function buildManimGsap/.test(toolsSrc), 'tools.ts missing buildManimGsap');
+assert(/MANIM_GSAP:\s*manimGsap/.test(hyperframesSrc), 'hyperframes.ts does not substitute MANIM_GSAP');
+assert(/function buildManimGsap/.test(utilsSrc), 'utils.ts missing buildManimGsap');
 // mode-a must no longer carry per-segment Manim GSAP (moved to root timeline)
 assert(
-  !toolsSrc.includes("tl.set('#manim-${seg.manim_index}', { autoAlpha: 1, display: 'block' }, 0)"),
+  !utilsSrc.includes("tl.set('#manim-${seg.manim_index}', { autoAlpha: 1, display: 'block' }, 0)"),
   'buildSegmentSection still stamps Manim GSAP into segment sub-compositions'
 );
 
