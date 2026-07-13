@@ -217,5 +217,58 @@ Paths are relative to the session work directory unless absolute.`,
         };
       },
     }),
+
+    str_replace: tool({
+      description:
+        'Replace exactly one occurrence of a string in a text file. Fails if old_string is not found or appears more than once. Paths are resolved like read_file.',
+      inputSchema: z.object({
+        path: z.string().describe('Absolute path or path relative to session workdir'),
+        old_string: z.string().describe('Exact text to find (must match once)'),
+        new_string: z.string().describe('Replacement text'),
+      }),
+      execute: async ({ path: filePath, old_string, new_string }) => {
+        const resolved = resolveToolPath(ctx.sessionId, filePath);
+
+        try {
+          if (!fs.existsSync(resolved)) {
+            return { error: 'File not found', path: resolved };
+          }
+
+          const stat = fs.statSync(resolved);
+          if (stat.isDirectory()) {
+            return { error: 'Path is a directory', path: resolved };
+          }
+
+          const buf = fs.readFileSync(resolved);
+          if (isBinaryBuffer(buf)) {
+            return { error: 'File is binary and cannot be edited as text', path: resolved };
+          }
+
+          const content = buf.toString('utf-8');
+          const matches = content.split(old_string).length - 1;
+          if (matches === 0) {
+            return { error: 'old_string not found', path: resolved };
+          }
+          if (matches > 1) {
+            return {
+              error: 'old_string matched multiple times',
+              path: resolved,
+              matches,
+            };
+          }
+
+          const updated = content.replace(old_string, new_string);
+          fs.writeFileSync(resolved, updated, 'utf-8');
+
+          return {
+            path: resolved,
+            bytes_written: Buffer.byteLength(updated, 'utf-8'),
+          };
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return { error: message, path: resolved };
+        }
+      },
+    }),
   };
 }

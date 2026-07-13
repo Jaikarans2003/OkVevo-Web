@@ -34860,6 +34860,51 @@ Paths are relative to the session work directory unless absolute.`,
           matches
         };
       }
+    }),
+    str_replace: tool({
+      description: "Replace exactly one occurrence of a string in a text file. Fails if old_string is not found or appears more than once. Paths are resolved like read_file.",
+      inputSchema: external_exports2.object({
+        path: external_exports2.string().describe("Absolute path or path relative to session workdir"),
+        old_string: external_exports2.string().describe("Exact text to find (must match once)"),
+        new_string: external_exports2.string().describe("Replacement text")
+      }),
+      execute: async ({ path: filePath, old_string, new_string }) => {
+        const resolved = resolveToolPath(ctx.sessionId, filePath);
+        try {
+          if (!import_fs5.default.existsSync(resolved)) {
+            return { error: "File not found", path: resolved };
+          }
+          const stat = import_fs5.default.statSync(resolved);
+          if (stat.isDirectory()) {
+            return { error: "Path is a directory", path: resolved };
+          }
+          const buf = import_fs5.default.readFileSync(resolved);
+          if (isBinaryBuffer(buf)) {
+            return { error: "File is binary and cannot be edited as text", path: resolved };
+          }
+          const content = buf.toString("utf-8");
+          const matches = content.split(old_string).length - 1;
+          if (matches === 0) {
+            return { error: "old_string not found", path: resolved };
+          }
+          if (matches > 1) {
+            return {
+              error: "old_string matched multiple times",
+              path: resolved,
+              matches
+            };
+          }
+          const updated = content.replace(old_string, new_string);
+          import_fs5.default.writeFileSync(resolved, updated, "utf-8");
+          return {
+            path: resolved,
+            bytes_written: Buffer.byteLength(updated, "utf-8")
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return { error: message, path: resolved };
+        }
+      }
     })
   };
 }
@@ -35039,7 +35084,25 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
   };
 }
 
-// src/tools/edu-video/concepts.ts
+// src/tools/general/clarify.ts
+function createClarifyTools(_ctx) {
+  return {
+    ask_clarification: tool({
+      description: "Ask the user a clarifying question when required information is missing or ambiguous. Returns formatted text for you to relay \u2014 does not block or wait for a response.",
+      inputSchema: external_exports2.object({
+        question: external_exports2.string().describe("The question to ask the user"),
+        context: external_exports2.string().optional().describe("Optional background explaining why clarification is needed")
+      }),
+      execute: async ({ question, context: context2 }) => {
+        return context2 ? `${context2}
+
+${question}` : question;
+      }
+    })
+  };
+}
+
+// src/tools/pipeline/concepts.ts
 var import_fs7 = __toESM(require("fs"));
 
 // src/lib/timelinePlanning.ts
@@ -35128,7 +35191,7 @@ function buildDeterministicSegments(manimClips, totalDuration) {
   });
 }
 
-// src/tools/edu-video/concepts.ts
+// src/tools/pipeline/concepts.ts
 var conceptSchema = external_exports2.object({
   concept_name: external_exports2.string(),
   explanation: external_exports2.string(),
@@ -35290,7 +35353,7 @@ ${retryHint}` : userMessage
   };
 }
 
-// src/tools/edu-video/hyperframes.ts
+// src/tools/pipeline/hyperframes.ts
 var import_fs8 = __toESM(require("fs"));
 var import_path7 = __toESM(require("path"));
 var brandColorsSchema = external_exports2.object({
@@ -35591,7 +35654,7 @@ function createHyperframesTools(ctx) {
   };
 }
 
-// src/tools/edu-video/manim.ts
+// src/tools/pipeline/manim.ts
 var import_fs9 = __toESM(require("fs"));
 var import_path8 = __toESM(require("path"));
 var import_child_process2 = require("child_process");
@@ -35812,7 +35875,7 @@ ${cleanScript}`
   };
 }
 
-// src/tools/edu-video/transcribe.ts
+// src/tools/pipeline/transcribe.ts
 var import_fs10 = __toESM(require("fs"));
 var import_path9 = __toESM(require("path"));
 var import_groq_sdk = __toESM(require("groq-sdk"));
@@ -35880,17 +35943,54 @@ function createTranscribeTools(ctx) {
   };
 }
 
+// src/tools/catalog.ts
+var BASE_TOOLS = [
+  "run_command",
+  "write_file",
+  "read_file",
+  "search_files",
+  "web_search",
+  "web_extract",
+  "vision_analyze",
+  "str_replace",
+  "ask_clarification"
+];
+var SKILL_TOOLS = {
+  "edu-video": [
+    "transcribe_video",
+    "extract_concepts",
+    "generate_manim_script",
+    "render_manim_clip",
+    "plan_segments",
+    "scaffold_hf_project",
+    "render_hyperframes"
+  ],
+  "manim-video": ["generate_manim_script", "render_manim_clip"],
+  "hyperframes": ["render_hyperframes"]
+};
+
 // src/tools/index.ts
-function createTools(ctx) {
-  return {
+function buildTools(ctx, opts) {
+  const all = {
     ...createFilesystemTools(ctx),
     ...createWebTools(ctx),
     ...createVisionTools(ctx),
+    ...createClarifyTools(ctx),
     ...createTranscribeTools(ctx),
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx)
   };
+  const names = new Set(BASE_TOOLS);
+  const skill = opts?.skill;
+  if (skill && SKILL_TOOLS[skill]) {
+    for (const name26 of SKILL_TOOLS[skill]) {
+      names.add(name26);
+    }
+  }
+  return Object.fromEntries(
+    [...names].filter((name26) => name26 in all).map((name26) => [name26, all[name26]])
+  );
 }
 
 // src/session.ts
@@ -35963,10 +36063,10 @@ Video URL for processing: ${params.videoUrl}`;
   const skillName = resolveSkill(params.skillId, params.userMessage);
   const systemPrompt = getCachedSystemPrompt(params.sessionId, skillName);
   const modelId = params.model ?? "anthropic/claude-sonnet-4-5";
-  const tools = createTools({
-    sessionId: params.sessionId,
-    userId: params.userId
-  });
+  const tools = buildTools(
+    { sessionId: params.sessionId, userId: params.userId },
+    { skill: skillName }
+  );
   const result = streamText({
     model: openrouter2(modelId),
     system: systemPrompt,

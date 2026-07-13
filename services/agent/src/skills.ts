@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const SKILLS_DIR = path.resolve(__dirname, '../../../Skills');
+export const SKILLS_DIR = path.resolve(__dirname, '../../../Skills');
 
 const DEFAULT_AGENT_PROMPT = `You are OkVevo AI, a helpful assistant for creating educational videos from lecture recordings.
 

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const templates = path.join(root, 'Skills/edu-video/templates');
 const toolsDir = path.join(root, 'services/agent/src/tools');
-const hyperframesSrc = fs.readFileSync(path.join(toolsDir, 'edu-video/hyperframes.ts'), 'utf-8');
+const hyperframesSrc = fs.readFileSync(path.join(toolsDir, 'pipeline/hyperframes.ts'), 'utf-8');
 const utilsSrc = fs.readFileSync(path.join(toolsDir, 'lib/utils.ts'), 'utf-8');
 
 const placeholders = (file) =>

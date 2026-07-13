@@ -3,7 +3,7 @@ import type { ServerResponse } from 'node:http';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { pruneToolResults } from './messagePruning';
 import { getCachedSystemPrompt } from './systemPromptCache';
-import { createTools } from './tools';
+import { buildTools } from './tools';
 import { resolveSkill } from './skills';
 import {
   ensureSession,
@@ -46,10 +46,10 @@ export async function runAgent(params: {
 
   const modelId = params.model ?? 'anthropic/claude-sonnet-4-5';
 
-  const tools = createTools({
-    sessionId: params.sessionId,
-    userId: params.userId,
-  });
+  const tools = buildTools(
+    { sessionId: params.sessionId, userId: params.userId },
+    { skill: skillName }
+  );
 
   const result = streamText({
     model: openrouter(modelId),
