@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { auth } from '../../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -11,9 +9,8 @@ import WorkspaceBento from '../../components/workspace/WorkspaceBento';
 import DashNavbar from '../../components/workspace/WorkspaceNavbar';
 
 export default function WorkspacePage() {
-    const [user, setUser] = useState<any>(null);
     const router = useRouter();
-    const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
+    const { loading: authLoading, isAuthenticated } = useAuth();
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -21,14 +18,6 @@ export default function WorkspacePage() {
             router.push('/login');
         }
     }, [authLoading, isAuthenticated, router]);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
-        return () => unsubscribe();
-    }, []);
-
 
     return (
         <div className="bg-black text-white font-sans selection:bg-accent-orange/30 overflow-x-hidden min-h-screen relative">
@@ -47,7 +36,7 @@ export default function WorkspacePage() {
                 <DashNavbar />
 
                 <main>
-                    <WorkspaceBento user={user} />
+                    <WorkspaceBento />
                 </main>
             </div>
         </div>

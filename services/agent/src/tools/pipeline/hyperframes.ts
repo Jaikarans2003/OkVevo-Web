@@ -27,6 +27,7 @@ import {
   downloadStoragePrefixToDir,
   getAssetUrl,
   parseStoragePathFromPublicUrl,
+  persistRenderJob,
   uploadDirectoryToStorage,
   uploadToStorage,
   writeAssetUrl,
@@ -300,7 +301,7 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
     }),
 
     render_hyperframes: tool({
-      description: `Render the HyperFrames composition to an MP4 draft video. This is the FINAL step — it produces the video the user can watch. Runs lint validation then renders via HyperFrames CLI subprocess. Uploads result to Firebase Storage. Call this after scaffold_hf_project.`,
+      description: `Validate and dispatch the final HyperFrames MP4 render to AWS Lambda. Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
       inputSchema: z.object({
         composition_url: z.string().describe('Firebase Storage URL of the composition.html file'),
       }),
@@ -348,34 +349,56 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
             };
           }
 
-          const outputPath = path.join(workdir, 'draft_video.mp4');
-
-          const renderCmd = `node "${cliPath}" render --output "${outputPath}" --quality draft --quiet`;
-          const renderResult = await execCommand(renderCmd, {
-            cwd: projectDir,
-            timeoutSeconds: 600,
-          });
-
-          if (!renderResult.success) {
+          const region = process.env.AWS_REGION;
+          const bucketName = process.env.HYPERFRAMES_BUCKET;
+          const stateMachineArn = process.env.HYPERFRAMES_SFN_ARN;
+          if (!region || !bucketName || !stateMachineArn) {
             throw new Error(
-              renderResult.stderr || `HyperFrames render exited with code ${renderResult.exit_code}`
+              'Missing AWS_REGION, HYPERFRAMES_BUCKET, or HYPERFRAMES_SFN_ARN'
             );
           }
 
-          if (!fs.existsSync(outputPath)) {
-            throw new Error('Render reported success but output file is missing');
-          }
+          const { deploySite, renderToLambda } = await import(
+            '@hyperframes/aws-lambda/sdk'
+          );
+          const siteHandle = await deploySite({
+            projectDir,
+            bucketName,
+            region,
+          });
+          const outputKey =
+            `renders/users/${encodeURIComponent(ctx.userId)}` +
+            `/sessions/${encodeURIComponent(ctx.sessionId)}/draft_video.mp4`;
+          const handle = await renderToLambda({
+            siteHandle,
+            bucketName,
+            stateMachineArn,
+            region,
+            outputKey,
+            config: {
+              fps: 30,
+              width: 1920,
+              height: 1080,
+              format: 'mp4',
+              chunkSize: 240,
+              maxParallelChunks: 2,
+              runtimeCap: 'lambda',
+            },
+          });
+          const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
+            executionArn: handle.executionArn,
+            outputKey,
+            compositionUrl: composition_url,
+          });
 
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/draft_video.mp4`;
-          const videoUrl = await uploadToStorage(outputPath, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, 'draft_video', videoUrl);
-
-          return { success: true, video_url: videoUrl };
+          return {
+            success: true,
+            composition_url,
+            execution_arn: job.executionArn,
+            output_key: job.outputKey,
+            render_status: job.renderStatus,
+          };
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          if (message.includes('timed out')) {
-            throw new Error('Render timed out after 10 minutes');
-          }
           throw err;
         }
       },

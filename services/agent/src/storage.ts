@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { db, getStorageBucketName } from './firebase';
@@ -205,4 +206,109 @@ export async function getHfSegmentsPlan(
     .doc('plan')
     .get();
   return snap.exists ? (snap.data() as HfSegmentsPlan) : null;
+}
+
+export type RenderJob = {
+  executionArn: string;
+  outputKey: string;
+  renderStatus: string;
+  compositionUrl?: string;
+};
+
+export async function persistRenderJob(
+  userId: string,
+  sessionId: string,
+  job: Omit<RenderJob, 'renderStatus'>
+): Promise<RenderJob> {
+  const payload = {
+    renderExecutionArn: job.executionArn,
+    renderOutputKey: job.outputKey,
+    renderStatus: 'RUNNING',
+    renderCompositionUrl: job.compositionUrl,
+    pipelinePhase: 6,
+    pipelineStatus: 'rendering',
+    pipelineUpdatedAt: FieldValue.serverTimestamp(),
+  };
+  await db.collection('sessions').doc(sessionId).set({ userId, ...payload }, { merge: true });
+  return { ...job, renderStatus: 'RUNNING' };
+}
+
+export async function getRenderJob(
+  userId: string,
+  sessionId: string
+): Promise<RenderJob | null> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const data = snap.data();
+  if (!snap.exists || data?.userId !== userId) return null;
+  if (typeof data.renderExecutionArn !== 'string' || typeof data.renderOutputKey !== 'string') {
+    return null;
+  }
+  return {
+    executionArn: data.renderExecutionArn,
+    outputKey: data.renderOutputKey,
+    renderStatus: typeof data.renderStatus === 'string' ? data.renderStatus : 'RUNNING',
+    compositionUrl:
+      typeof data.renderCompositionUrl === 'string' ? data.renderCompositionUrl : undefined,
+  };
+}
+
+export async function finalizeRenderFromS3(
+  userId: string,
+  sessionId: string,
+  bucketName: string,
+  outputKey: string,
+  region?: string
+): Promise<string> {
+  const sessionRef = db.collection('sessions').doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (
+    current?.userId === userId &&
+    current.renderStatus === 'SUCCEEDED' &&
+    typeof current.draftVideoUrl === 'string'
+  ) {
+    return current.draftVideoUrl;
+  }
+
+  const response = await new S3Client({ region }).send(
+    new GetObjectCommand({ Bucket: bucketName, Key: outputKey })
+  );
+  if (!response.Body) throw new Error('Render output is missing from S3');
+
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  fs.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
+
+  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl);
+  await sessionRef.set(
+    {
+      assets: { draft_video: videoUrl },
+      renderStatus: 'SUCCEEDED',
+      renderError: FieldValue.delete(),
+      draftVideoUrl: videoUrl,
+      pipelinePhase: 7,
+      pipelineStatus: 'complete',
+      pipelineUpdatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return videoUrl;
+}
+
+export async function recordRenderFailure(
+  userId: string,
+  sessionId: string,
+  status: 'FAILED' | 'TIMED_OUT' | 'ABORTED',
+  error: string
+): Promise<void> {
+  await db.collection('sessions').doc(sessionId).set(
+    {
+      userId,
+      renderStatus: status,
+      renderError: error,
+      pipelineStatus: 'failed',
+      pipelineUpdatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }

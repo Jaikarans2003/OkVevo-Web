@@ -78,11 +78,11 @@ The Next.js route at `src/app/api/agent/route.ts` **does not call the LLM direct
 | **Docker (recommended)** | Docker Desktop (Mac/Windows) |
 | **Native agent dev** | Python 3.11+, Manim CE, LaTeX, FFmpeg, Chromium/Chrome, global `hyperframes` CLI |
 
-### Optional (full platform features)
+### Optional platform integrations
 
-- **AWS** account — AI Influencer pipelines (SQS, Lambda, Step Functions)
+- **AWS** account — HyperFrames Lambda rendering and completion events
 - **Razorpay** — billing/subscriptions
-- **Fal.ai, Gemini, Pexels** — Director, Product, generation features
+- **Pexels** — stock media used by the agent
 - **Bun** — running `services/hyperframes-renderer` locally
 - **Firebase CLI** — deploy hosting/functions
 
@@ -247,13 +247,8 @@ Also see `.Env File Example` for a more complete variable list.
 
 | Variable | Feature |
 |----------|---------|
-| `GEMINI_API_KEY`, `NEXT_PUBLIC_GEMINI_API_KEY` | Gemini-powered generation |
-| `NEXT_PUBLIC_GROQ_API_KEY`, `GROQ_API_KEY` | Client/server Groq usage |
-| `AWS_*`, `SQS_*`, `SFN_AI_INFLUENCER_ARN` | AI Influencer pipelines |
-| `FAL_API_*` | Fal.ai image/video/audio |
 | `RAZORPAY_*` | Payments and subscriptions |
 | `PEXELS_API_KEY` | Stock media |
-| `NEXT_PUBLIC_BASE_URL` | Webhooks (use ngrok URL when testing locally) |
 
 #### Encoding Firebase service account (root `.env`)
 
@@ -340,8 +335,6 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 **AI Studio:** [http://localhost:3000/workspace/ai-studio](http://localhost:3000/workspace/ai-studio)
-
-Other workspace routes live under `src/app/workspace/` (AI Influencer, Director, Product, etc.).
 
 ### Terminal 2 — Agent service
 
@@ -552,16 +545,19 @@ Firebase config is in `firebase.json` (hosting, Firestore rules, Storage rules, 
 
 ## AWS infrastructure (optional)
 
-For AI Influencer and AWS-backed pipelines:
+The CDK app contains only the HyperFrames render-completion flow:
 
 ```bash
 cd infrastructure
 npm install
+export HYPERFRAMES_SFN_ARN=arn:aws:states:us-east-1:ACCOUNT_ID:stateMachine:hyperframes-render
+export HYPERFRAMES_BUCKET=your-render-bucket
+export FIREBASE_ADMIN_SECRET_ARN=arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:firebase-admin
 npm run synth:dev      # preview CloudFormation
 npm run deploy:dev     # requires AWS_PROFILE=dev configured
 ```
 
-See `infrastructure/package.json` for `bootstrap:dev`, `deploy:prod`, etc. Configure AWS credentials in root `.env` (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`).
+See `infrastructure/package.json` for `bootstrap:dev`, `deploy:prod`, and related commands.
 
 ---
 
@@ -662,8 +658,8 @@ Root `package.json` includes `dev:dev` which loads `.env.dev` via dotenv-cli. Us
 |-----------|-----|
 | **Frontend** | `npm run build` → `firebase deploy --only hosting` |
 | **Agent** | Build Docker image from `services/agent/Dockerfile`, deploy to your container platform |
-| **Render services** | See `services/hyperframes-renderer/deploy/` and `services/manim-renderer` Dockerfiles |
-| **AWS / Influencer** | `infrastructure/` CDK stacks + `AI-Influencer/` Lambdas |
+| **Render services** | Manim runs with the agent; HyperFrames renders on AWS Lambda |
+| **AWS / HyperFrames** | `infrastructure/` CDK completion stack |
 
 ---
 

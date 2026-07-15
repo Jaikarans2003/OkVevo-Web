@@ -42,19 +42,11 @@ const websiteSchema = {
 const faqItems = [
   {
     question: "What is OkVevo and what does it offer?",
-    answer: "OkVevo is an AI content creation platform that enables users to generate high-quality, Instagram-ready videos in minutes. It eliminates the need for shoots, editing, and retakes through its AI Influencer Suite. OkVevo also offers a physical experience called 'Your AI Adda' located in MASIV Shakarnagar, Bangalore, where users can explore AI-powered content creation in a real-world setting."
-  },
-  {
-    question: "How does the AI Influencer Suite work?",
-    answer: "Users simply upload a script or idea, choose or upload custom avatars and voice samples, and OkVevo takes care of the rest. The platform refines the script, synchronizes lip movements, and enhances the video with captions, visuals, and effects to produce professional short-form content ready for social media."
+    answer: "OkVevo is an AI content creation platform that turns source media into polished videos with editing, captions, and custom visuals. OkVevo also offers a physical experience called 'Your AI Adda' located in MASIV Shakarnagar, Bangalore, where users can explore AI-powered content creation in a real-world setting."
   },
   {
     question: "Can I create AI reels using my own content?",
     answer: "Yes, you can upload your own scripts, videos, and audio. OkVevo processes your inputs to generate engaging, polished videos optimized for platforms like Instagram and YouTube."
-  },
-  {
-    question: "Does OkVevo support accurate AI lip sync?",
-    answer: "Yes, OkVevo uses advanced AI lip-sync technology to precisely match speech with facial expressions, ensuring your videos look natural, professional, and highly engaging."
   },
   {
     question: "Can I add my logo or disclaimers to the videos?",
@@ -67,10 +59,6 @@ const faqItems = [
   {
     question: "How does the 'Your AI Adda' create videos?",
     answer: "Users select a trend or style, and the system captures their visuals. AI then generates ready-to-share videos or images instantly, tailored for trending formats like reels and shorts."
-  },
-  {
-    question: "Who should use OkVevo AI Influencer Suite?",
-    answer: "OkVevo is ideal for content creators, influencers, startups, and enterprises who want to create high-quality AI-generated videos that look, sound, and behave like them—quickly, easily, and at scale."
   }
 ];
 

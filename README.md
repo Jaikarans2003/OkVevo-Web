@@ -2,7 +2,7 @@
 
 **OkVevo** is an AI video platform that helps educators, creators, brands, and businesses turn ideas and raw footage into polished, publish-ready videos — without traditional shoots, heavy editing, or production delays.
 
-Upload a lecture recording and get an educational video with animations and narration. Create reels and ads with AI avatars, voice, and lip-sync. Generate product shoots, director-style photo/video workflows, and social content — all from one workspace.
+Upload a lecture recording and get an educational video with animations, narration, captions, and custom HyperFrames visuals.
 
 **Repository:** [https://github.com/Jaikarans2003/OKVEVO-V2](https://github.com/Jaikarans2003/OKVEVO-V2)
 
@@ -18,8 +18,8 @@ For full installation on a new machine (macOS and Windows), see **[INSTALLATION.
 | Audience                     | What OkVevo gives them                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------- |
 | **Teachers & educators**     | Turn lecture recordings into structured educational videos with animations, captions, and narration |
-| **Content creators**         | Produce reels, shorts, and social videos quickly — including faceless and avatar-driven content     |
-| **Brands & marketers**       | Product placement, branded shoots, and consistent visual identity across campaigns                  |
+| **Content creators**         | Produce reels, shorts, and educational videos from existing media                                   |
+| **Brands & marketers**       | Create consistently branded videos with captions, overlays, and custom visuals                      |
 | **Businesses & enterprises** | Scalable video creation with billing, teams, and subscription plans                                 |
 
 
@@ -37,18 +37,6 @@ The flagship V2 experience. A chat-first interface where users describe what the
 
 Nia transcribes the lecture, identifies key concepts, generates Manim math animations, builds HyperFrames HTML compositions, and delivers finished video assets stored in Firebase.
 
-### AI Influencer
-
-Create scripted avatar videos with realistic voice and lip-sync. Jobs run through AWS (SQS queues and Step Functions) with Lambdas handling prep, rendering, branding, and recovery.
-
-### Supporting workspace areas
-
-- **Avatar profiles** — manage digital avatar identity
-- **Social** — social-studio content flows
-- **User manual** — in-app guidance for creators
-
-
-
 ### Public-facing site
 
 Marketing pages (about, features, pricing, blogs, showcase), authentication, billing, affiliate dashboard, admin tools, and onboarding — all served by the Next.js app outside the workspace.
@@ -62,7 +50,7 @@ Marketing pages (about, features, pricing, blogs, showcase), authentication, bil
 1. **Users** sign in via Firebase Auth and work inside the Next.js workspace UI.
 2. **AI Studio** sends chat messages to a dedicated **agent service** (`services/agent/`), which streams responses from an LLM (OpenRouter) and runs tools — transcription, script generation, rendering, file upload.
 3. **Skills** (`Skills/`) are instruction files that tell the agent how to behave for each workflow (edu-video, HyperFrames, Manim).
-4. **Render services** turn scripts and HTML compositions into MP4 video — either inside the agent Docker container or via standalone microservices.
+4. **Render services** turn scripts and HTML compositions into MP4 video through the HyperFrames AWS Lambda renderer.
 5. **Firebase** stores sessions, user data, and finished assets. **AWS** powers influencer and legacy generation pipelines. **Razorpay** handles subscriptions.
 
 The Next.js app does not call the LLM directly for AI Studio — it proxies chat to the agent service at `AGENT_URL`.
@@ -127,7 +115,6 @@ OKVEVO-V2/
 │   │   ├── onboarding/               # New-user onboarding
 │   │   ├── billing/                  # Billing management
 │   │   ├── profile/                  # User profile
-│   │   ├── history/                  # Generation history
 │   │   ├── blogs/                    # Blog content
 │   │   ├── legal/                    # Legal pages
 │   │   ├── demo/                     # Demo flows
@@ -143,21 +130,10 @@ OKVEVO-V2/
 │   │   ├── workspace/                # Logged-in creator workspace
 │   │   │   ├── ai-studio/            # AI Studio — chat-first edu-video
 │   │   │   │   └── files/            # Project file browser
-│   │   │   ├── ai-influencer/        # AI Influencer workflows
-│   │   │   ├── director/             # Director photo/video generation
-│   │   │   ├── product/              # Product placement & shoots
-│   │   │   ├── avatar-profiles/      # Avatar identity management
-│   │   │   ├── social/               # Social studio
-│   │   │   └── user-manual/          # In-app user guide
 │   │   │
 │   │   └── api/                      # Next.js API routes (server-side)
 │   │       ├── agent/                # Proxy to agent service + sessions
-│   │       ├── ai-influencer/        # Influencer script & brand video APIs
-│   │       ├── sqs/                  # SQS job submission (stitch, photos, influencer)
 │   │       ├── razorpay/             # Subscriptions, webhooks, upgrades
-│   │       ├── fal/                  # Fal.ai webhook handler
-│   │       ├── upload/               # File uploads (avatars, etc.)
-│   │       ├── download-video/       # Video download endpoint
 │   │       ├── affiliates/           # Affiliate creation & stats
 │   │       ├── coupons/              # Coupon validation
 │   │       └── admin/                # Admin audit, users, credits
@@ -165,9 +141,6 @@ OKVEVO-V2/
 │   ├── components/                   # React components
 │   │   ├── workspace/                # Workspace shell and product UIs
 │   │   │   └── ai-studio/            # AiStudioShell, chat bar, timeline, sidebar
-│   │   ├── ai-influencer/            # Influencer UI components
-│   │   ├── social-studio/            # Social studio components
-│   │   ├── chat/                     # Shared chat components
 │   │   ├── payment/                  # Razorpay / billing UI
 │   │   ├── admin/                    # Admin UI
 │   │   ├── layout/                   # Navigation, headers, footers
@@ -180,37 +153,15 @@ OKVEVO-V2/
 │   │
 │   ├── hooks/                        # React hooks
 │   │   ├── useAuth.ts
-│   │   ├── useChatFlow.ts
-│   │   ├── useDirectorFlow.ts
 │   │   ├── usePipelineState.ts
 │   │   ├── usePipelineApproval.ts
-│   │   ├── useVideoGeneration.ts
 │   │   └── useWorkspaceSession.ts
 │   │
 │   ├── services/                     # Client and server service modules
-│   │   ├── ChatService.ts
-│   │   ├── AIService.ts
-│   │   ├── AIInfluencerService.ts
 │   │   ├── SubscriptionService.ts
 │   │   ├── CreditsService.ts
-│   │   ├── StorageService.ts
-│   │   ├── SQSStitchService.ts
-│   │   ├── SQSPhotoService.ts
-│   │   ├── LambdaStitchService.ts
-│   │   ├── ProductPlacementService.ts
-│   │   ├── ProductShootsService.ts
-│   │   ├── TrendGenerationService.ts
-│   │   ├── NarrationService.ts
-│   │   ├── TTSService.ts
-│   │   ├── VisionOrchestratorService.ts
-│   │   ├── VideoStitcherService.ts
-│   │   ├── AvatarProfileService.ts
-│   │   ├── GenerationStorageService.ts
-│   │   ├── GenerationMetadataService.ts
 │   │   ├── WorkspaceSessionService.ts
-│   │   ├── HistoryService.ts
 │   │   ├── AdminService.ts
-│   │   ├── RateLimitService.ts
 │   │   └── userService.ts
 │   │
 │   ├── lib/                          # Shared utilities
@@ -322,25 +273,13 @@ OKVEVO-V2/
 │       ├── talking-head-recut/
 │       └── website-to-video/
 │
-├── AI-Influencer/                    # AWS serverless influencer pipelines
-│   ├── Lambdas/
-│   │   ├── okvevo-ai-prep/           # Job preparation
-│   │   ├── okvevo-branding/          # Brand overlay
-│   │   ├── okvevo-fal-recovery/      # Fal.ai failure recovery
-│   │   ├── okvevo-lipsync-submit/    # Lipsync job submission
-│   │   ├── okvevo-lipsync-recovery/  # Lipsync failure recovery
-│   │   ├── okvevo-renderer/          # Video rendering
-│   │   └── okvevo-noop/              # No-op / passthrough
-│   └── State-Machine/
-│       └── state-machine.json        # Step Functions definition
-│
 ├── infrastructure/                   # AWS CDK infrastructure
 │   ├── package.json
 │   ├── bin/
 │   │   └── app.ts                    # CDK app entry
 │   ├── lib/
 │   │   └── stacks/
-│   │       └── ai-influencer-stack.ts
+│   │       └── hyperframes-completion-stack.ts
 │   └── config/
 │       ├── dev.json
 │       └── prod.json
@@ -485,7 +424,7 @@ Skills live under `Skills/` as `SKILL.md` files. The agent loads `AGENT.md` for 
 | **Frontend**         | `npm run build` → `firebase deploy --only hosting` |
 | **Agent**            | Docker image from `services/agent/Dockerfile`      |
 | **Cloud Functions**  | `cd functions && npm run deploy`                   |
-| **AWS / Influencer** | `infrastructure/` CDK + `AI-Influencer/` Lambdas   |
+| **AWS / HyperFrames** | `infrastructure/` CDK completion stack             |
 
 
 ---

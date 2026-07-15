@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "echo 'Agent is Docker-only. Run: docker compose up agent --build' >&2 && exit 1",
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.js --external:firebase-admin --external:express --external:cors --external:groq-sdk --external:node-fetch",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.js --external:firebase-admin --external:express --external:cors --external:groq-sdk --external:node-fetch --external:@hyperframes/aws-lambda/* --external:@aws-sdk/client-s3",
     "start": "echo 'Agent is Docker-only. Run: docker compose up agent --build' >&2 && exit 1",
     "typecheck": "tsc --noEmit",
     "check-planning": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-planning.ts",
@@ -13,6 +13,8 @@
     "check-tool-registry": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-tool-registry.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1088.0",
+    "@hyperframes/aws-lambda": "0.7.59",
     "@openrouter/ai-sdk-provider": "^2.0.0",
     "ai": "^6.0.206",
     "cors": "^2.8.5",

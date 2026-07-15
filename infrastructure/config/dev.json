@@ -2,13 +2,6 @@
   "accountId": "052120999576",
   "region": "us-east-1",
   "firebase": {
-    "projectId": "okvevo-testing",
-    "storageBucket": "okvevo-testing.firebasestorage.app",
-    "databaseUrl": "https://okvevo-testing-default-rtdb.firebaseio.com"
-  },
-  "lambdaEnv": {
-    "NEXT_PUBLIC_BASE_URL": "https://okvevo-testing.cloudfunctions.net",
-    "FAL_MODE": "live"
-  },
-  "ffmpegLayerArn": "arn:aws:lambda:us-east-1:315974965935:layer:ffmpeg-with-ffprobe:2"
+    "storageBucket": "okvevo-testing.firebasestorage.app"
+  }
 }

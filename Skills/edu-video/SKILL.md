@@ -26,7 +26,7 @@ Activity trace shows each step as collapsible cards. Keep text responses brief.
 - After concept extraction: how many Manim concepts found, one sentence
 - After segment planning: confirm timeline ready, one sentence
 - After animations: "animations ready", one sentence
-- After final render: show video URL prominently, ask if they want changes
+- After render dispatch: say the final render is running in the background; do not claim it is complete
 
 Never mention tool names, file paths, or technical details to the user.
 
@@ -38,7 +38,7 @@ Never mention tool names, file paths, or technical details to the user.
 - `render_manim_clip` — renders one Manim script to MP4; accepts script_path for patch-and-re-render
 - `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode C fills gaps
 - `scaffold_hf_project` — deterministic template injector, no LLM, writes full HyperFrames project to disk and Firebase Storage
-- `render_hyperframes` — runs hyperframes lint then render, returns structured lint errors on failure or video_url on success
+- `render_hyperframes` — runs HyperFrames lint, dispatches an AWS Lambda render, and returns the background job
 - `run_command` — run shell commands (used for ffmpeg, etc.)
 - `write_file` — write files to disk (used for Manim script patches and lint fixes)
 - `read_file` — read any file from disk (used before patching scripts or manifest)
@@ -141,8 +141,8 @@ Behavior:
 
 **On render success:**
 
-- Returns: `{ success: true, video_url: "..." }`
-- Show video_url prominently to user
+- Returns immediately: `{ success: true, render_status: "RUNNING", execution_arn, output_key, composition_url }`
+- Tell the user the final render is running in the background. Completion updates the session and video URL independently.
 
 ## Karaoke Captions
 
@@ -164,7 +164,7 @@ Caption right edge stops at 1550px to avoid PIP overlap in Mode A.
 | Manim Python scripts               | Agent — generate_manim_script; patch via read_file/write_file on failure |
 | Concept count and selection        | Agent — extract_concepts, guided by duration and content   |
 | Mode A/C timeline partition        | Deterministic — plan_segments                              |
-| Final composite render             | Deterministic — render_hyperframes (HyperFrames CLI)         |
+| Final composite render             | Deterministic — render_hyperframes (HyperFrames AWS Lambda)  |
 
 ## Sub-Skill Reference
 

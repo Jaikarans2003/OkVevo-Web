@@ -7,6 +7,8 @@ export interface PipelineState {
   pipelineMode: 'ask' | 'auto'
   videoUrl?: string
   draftVideoUrl?: string
+  renderStatus?: string
+  renderError?: string
   pipelineUpdatedAt?: Date
 }
 
@@ -51,6 +53,8 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
           pipelineMode: 'ask' | 'auto'
           videoUrl?: string
           draftVideoUrl?: string
+          renderStatus?: string
+          renderError?: string
           pipelineUpdatedAt?: string
         }
 
@@ -60,6 +64,8 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
           pipelineMode: data.pipelineMode ?? 'auto',
           videoUrl: data.videoUrl,
           draftVideoUrl: data.draftVideoUrl,
+          renderStatus: data.renderStatus,
+          renderError: data.renderError,
           pipelineUpdatedAt: data.pipelineUpdatedAt
             ? new Date(data.pipelineUpdatedAt)
             : undefined,

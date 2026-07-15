@@ -89,3 +89,8 @@ lambda-*.zip
 function*.zip
 okvevo-ai-prep.zip
 okvevo-ai-prep-*.zip
+
+# CDK generated assemblies
+infrastructure/cdk.out/
+infrastructure/cdk.out-*/
+infrastructure/dist/

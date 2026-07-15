@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform, useInView, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, useSpring } from 'framer-motion';
 import { auth } from '../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, ArrowLeft, Play, Sparkles, Zap, Eye, Target, ArrowUpRight, Clapperboard, MonitorPlay, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Play, Sparkles, Zap, Eye, Target, ArrowUpRight, Clapperboard, MonitorPlay } from 'lucide-react';
 import Image from 'next/image';
 
 import NoiseOverlay from '../../components/NoiseOverlay';
@@ -111,9 +111,6 @@ export default function AboutPage() {
     const [user, setUser] = useState<any>(null);
     const router = useRouter();
     const containerRef = useRef(null);
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const totalSlides = 2;
-    
     const { scrollYProgress } = useScroll({
         target: containerRef,
         offset: ["start start", "end end"]
@@ -149,20 +146,20 @@ export default function AboutPage() {
   {
     id: "01",
     title: "INSTANT AI VIDEO CREATION",
-    desc: "Generate reels, ads, and short-form videos instantly using AI. No shoots, no editing, no delays—just high-quality content ready to publish.",
-    href: "/workspace/user-manual"
+    desc: "Turn source media into polished videos with AI-assisted editing, captions, and custom visuals.",
+    href: "/workspace/ai-studio"
   },
   {
     id: "02",
-    title: "AI INFLUENCER SUITE",
-    desc: "Create AI avatars with your face, voice, and personality. Build your digital twin and scale content across platforms without being on camera.",
-    href: "/workspace/user-manual"
+    title: "CUSTOM HYPERFRAMES",
+    desc: "Build deterministic animated compositions that combine narration, media, captions, and brand visuals.",
+    href: "/workspace/ai-studio"
   },
   {
     id: "03",
     title: "FULL CREATIVE CONTROL",
     desc: "Customize every video with branding, logos, captions, and overlays. Maintain consistency across all your social media and marketing content.",
-    href: "/workspace/user-manual"
+    href: "/workspace/ai-studio"
   },
   {
     id: "04",
@@ -178,7 +175,7 @@ export default function AboutPage() {
                 "@context": "https://schema.org",
                 "@type": "AboutPage",
                 "name": "About OKVEVO",
-                "description": "OkVevo is an AI video generation platform offering an AI Influencer Suite to create reels, ads, and social media content instantly. Build digital avatars, generate videos with lip-sync, and create viral content using AI."
+                "description": "OkVevo is an AI video creation platform for editing source media, generating custom visuals, adding captions, and producing polished videos."
             }} />
             <NoiseOverlay />
             <Navbar user={user} onJoinClick={handleJoinClick} />
@@ -284,7 +281,7 @@ export default function AboutPage() {
                                     STARTS HERE.
                                 </h3>
                                 <p className="text-lg md:text-xl font-medium leading-relaxed text-white/40 mb-12 border-l border-white/5 pl-8 text-left">
-                                    OkVevo is an AI video generation platform built for creators, brands, and enterprises to produce high-quality social media content instantly. With our AI Influencer Suite, you can create reels, ads, and short-form videos using digital avatars, realistic voiceovers, and precise lip-sync—without shoots, editing, or production delays.
+                                    OkVevo is an AI video creation platform built for creators, brands, and enterprises to turn source media into polished content with intelligent editing, captions, and custom visuals.
                                     <br/><br/>
                                     Beyond digital creation, OkVevo introduces "Your AI Adda"—a real-world AI content experience where users can step in, pick trending formats, and instantly generate viral-ready videos and images, making content creation fun, accessible, and built for shareability.
                                 </p>
@@ -302,98 +299,28 @@ export default function AboutPage() {
 
                         <div className="flex-1 relative">
                             <div className="relative aspect-[4/5] md:aspect-auto md:h-[800px]">
-                                <AnimatePresence mode="wait">
-                                    {currentSlide === 0 && (
-                                        <motion.div
-                                            key="video-slide"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.5 }}
-                                            className="absolute inset-0 rounded-[60px] overflow-hidden border border-white/10 group"
-                                        >
-                                            <iframe
-                                                src="https://www.youtube.com/embed/Cc4JRa5lBaM?autoplay=1&mute=1&loop=1&playlist=Cc4JRa5lBaM&controls=0&rel=0&modestbranding=1&showinfo=0"
-                                                title="OkVevo AI Influencer Suite"
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                allowFullScreen
-                                                className="absolute inset-0 w-full h-full pointer-events-none"
-                                                style={{ transform: 'scale(1.5)' }}
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                            <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
-                                            
-                                            <div className="absolute bottom-16 left-16 right-16 z-10">
-                                                <div className="flex flex-col gap-8">
-                                                    <div>
-                                                        <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">AI Influencer Suite</h4>
-                                                        <p className="text-white/60 text-sm max-w-sm leading-relaxed">
-                                                            Create AI influencers that look, talk, and behave like you. Turn scripts into high-performing reels and ads with avatars, voice cloning, and advanced lip-sync—optimized for Instagram, YouTube, and social media growth.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-
-                                    {currentSlide === 1 && (
-                                        <motion.div
-                                            key="image-slide"
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            transition={{ duration: 0.5 }}
-                                            className="absolute inset-0 rounded-[60px] overflow-hidden border border-white/10 group"
-                                        >
-                                            <Image
-                                                src="/okvevoimg/ok7.jpeg"
-                                                alt="Your AI Adda Experience"
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                            <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
-                                            
-                                            <div className="absolute bottom-16 left-16 right-16">
-                                                <div className="flex flex-col gap-8">
-                                                    <div>
-                                                        <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">Your AI Adda</h4>
-                                                        <p className="text-white/60 text-sm max-w-sm leading-relaxed">
-                                                            Experience AI content creation in the real world. Step into our physical booth, pick trending formats, and instantly generate viral-ready videos and images designed for maximum shareability.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Navigation Buttons */}
-                                <button
-                                    onClick={() => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides)}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-orange-500 hover:border-orange-500 transition-all"
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    whileInView={{ opacity: 1, scale: 1 }}
+                                    viewport={{ once: true }}
+                                    transition={{ duration: 0.5 }}
+                                    className="absolute inset-0 rounded-[60px] overflow-hidden border border-white/10 group"
                                 >
-                                    <ChevronLeft size={24} />
-                                </button>
-                                <button
-                                    onClick={() => setCurrentSlide((prev) => (prev + 1) % totalSlides)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-orange-500 hover:border-orange-500 transition-all"
-                                >
-                                    <ChevronRight size={24} />
-                                </button>
-
-                                {/* Slide Indicators */}
-                                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-                                    {[0, 1].map((index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => setCurrentSlide(index)}
-                                            className={`w-2 h-2 rounded-full transition-all ${
-                                                currentSlide === index ? 'bg-orange-500 w-8' : 'bg-white/30'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
+                                    <Image
+                                        src="/okvevoimg/ok7.jpeg"
+                                        alt="Your AI Adda Experience"
+                                        fill
+                                        className="object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                    <div className="absolute inset-0 border border-white/5 rounded-[60px] pointer-events-none group-hover:border-orange-500/40 transition-colors duration-1000" />
+                                    <div className="absolute bottom-16 left-16 right-16">
+                                        <h4 className="text-3xl font-black uppercase tracking-tighter mb-4">Your AI Adda</h4>
+                                        <p className="text-white/60 text-sm max-w-sm leading-relaxed">
+                                            Experience AI content creation in the real world. Step into our physical booth, pick trending formats, and instantly generate viral-ready videos and images designed for maximum shareability.
+                                        </p>
+                                    </div>
+                                </motion.div>
                             </div>
                         </div>
 

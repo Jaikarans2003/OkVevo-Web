@@ -80,7 +80,9 @@ export function summarizeToolPart(part: ToolLikePart): string {
     case 'scaffold_hf_project':
       return 'Scaffolded HyperFrames project';
     case 'render_hyperframes':
-      return 'Rendered draft video';
+      return output?.render_status === 'RUNNING'
+        ? 'Dispatched final render'
+        : 'Prepared final render';
     case 'run_command': {
       const command = typeof input?.command === 'string' ? input.command : 'command';
       const exitCode = output?.exit_code;

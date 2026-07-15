@@ -74,7 +74,7 @@ export async function runAgent(params: {
             : JSON.stringify(result.output)?.slice(0, 300);
         console.log(
           `[agent] tool.result ${result.toolName}`,
-          JSON.stringify({ ok: !result.isError, outputPreview: output })
+          JSON.stringify({ ok: true, outputPreview: output })
         );
       }
     },

@@ -449,21 +449,9 @@ export default function BillingPage() {
                                         <h4 className="text-sm font-black uppercase tracking-widest text-white/50 mb-4">Credit Costs per Feature</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                                                <span className="text-xs font-bold text-white/70">AI Influencer</span>
+                                                <span className="text-xs font-bold text-white/70">AI Studio</span>
                                                 <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.AI_INFLUENCER}</span>
                                             </div>
-                                            {/* <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                                                <span className="text-xs font-bold text-white/70">Product Shoots</span>
-                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.PRODUCT_SHOOTS}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                                                <span className="text-xs font-bold text-white/70">Placement</span>
-                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.PRODUCT_PLACEMENT}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                                                <span className="text-xs font-bold text-white/70">Trends</span>
-                                                <span className="text-sm font-black text-[#FF4D00]">{FEATURE_COSTS.TRENDS}</span>
-                                            </div> */}
                                         </div>
                                     </div>
                                 </div>

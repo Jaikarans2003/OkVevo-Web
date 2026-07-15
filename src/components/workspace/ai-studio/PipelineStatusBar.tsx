@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { auth } from '@/config/firebase';
 import type { PipelineState } from '@/hooks/usePipelineState';
 
 const PHASE_LABELS: Record<number, string> = {
@@ -7,7 +9,7 @@ const PHASE_LABELS: Record<number, string> = {
   3: 'Extracting animation concepts...',
   4: 'Rendering Manim animations...',
   5: 'Building video composition...',
-  6: 'Rendering final video...',
+  6: 'Final render running in background...',
 };
 
 interface PipelineStatusBarProps {
@@ -19,7 +21,10 @@ interface PipelineStatusBarProps {
 export function PipelineStatusBar({
   pipelineState,
   onApprove,
+  sessionId,
 }: PipelineStatusBarProps) {
+  const [checking, setChecking] = useState(false);
+
   if (
     pipelineState === null ||
     pipelineState.pipelinePhase === 0 ||
@@ -29,10 +34,31 @@ export function PipelineStatusBar({
     return null;
   }
 
-  const { pipelinePhase, pipelineStatus, draftVideoUrl } = pipelineState;
+  const { pipelinePhase, pipelineStatus, draftVideoUrl, renderStatus } = pipelineState;
   const phaseLabel = PHASE_LABELS[pipelinePhase];
   const showApprovalGate =
     pipelinePhase === 3 && pipelineStatus === 'awaiting_approval';
+  const showCheckNow = pipelinePhase === 6 && renderStatus === 'RUNNING' && sessionId;
+
+  const checkNow = async () => {
+    if (!sessionId || checking) return;
+    setChecking(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      const response = await fetch(`/api/agent/sessions/${sessionId}/pipeline`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'check_now' }),
+      });
+      if (!response.ok) console.error('Render check failed:', response.status);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   if (!phaseLabel && !draftVideoUrl) {
     return null;
@@ -67,6 +93,16 @@ export function PipelineStatusBar({
             className="flex items-center justify-center rounded-full bg-orange-500 px-4 py-1.5 text-sm text-white transition hover:bg-orange-400"
           >
             Approve & Continue
+          </button>
+        ) : null}
+        {showCheckNow ? (
+          <button
+            type="button"
+            onClick={checkNow}
+            disabled={checking}
+            className="rounded-full border border-white/10 px-4 py-1.5 text-sm text-white/70 transition hover:bg-white/5 disabled:opacity-50"
+          >
+            {checking ? 'Checking...' : 'Check now'}
           </button>
         ) : null}
       </div>

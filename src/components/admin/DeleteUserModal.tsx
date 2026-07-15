@@ -65,7 +65,7 @@ export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUser
                         <li>• User profile and authentication</li>
                         <li>• All subscriptions and payment history</li>
                         <li>• Credit transactions and balance</li>
-                        <li>• All generated content (AI Influencer, Product Shoots, etc.)</li>
+                        <li>• All generated content and uploaded media</li>
                         <li>• Job history and metadata</li>
                         <li>• User statistics and analytics</li>
                     </ul>

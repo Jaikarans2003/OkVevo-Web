@@ -5,6 +5,8 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
 
+const AGENT_URL = process.env.AGENT_URL ?? 'http://localhost:3001';
+
 async function verifySessionAccessFromRequest(request: NextRequest, sessionId: string) {
   const token = await getBearerToken(request.headers.get('authorization'));
   if (token instanceof NextResponse) {
@@ -28,6 +30,8 @@ function mapPipelineState(data: Record<string, unknown>) {
     pipelineMode: data.pipelineMode ?? 'auto',
     videoUrl: data.videoUrl as string | undefined,
     draftVideoUrl: data.draftVideoUrl as string | undefined,
+    renderStatus: data.renderStatus as string | undefined,
+    renderError: data.renderError as string | undefined,
     pipelineUpdatedAt,
   };
 }
@@ -56,6 +60,17 @@ export async function POST(
     const { sessionId } = await params;
     const access = await verifySessionAccessFromRequest(request, sessionId);
     if ('error' in access) return access.error;
+
+    const body = (await request.json().catch(() => ({}))) as { action?: string };
+    if (body.action === 'check_now') {
+      const response = await fetch(`${AGENT_URL}/renders/${sessionId}/check`, {
+        method: 'POST',
+        headers: {
+          Authorization: request.headers.get('authorization') ?? '',
+        },
+      });
+      return NextResponse.json(await response.json(), { status: response.status });
+    }
 
     await db.collection('sessions').doc(sessionId).set(
       { pipelineApproved: true, pipelineStatus: 'running' },

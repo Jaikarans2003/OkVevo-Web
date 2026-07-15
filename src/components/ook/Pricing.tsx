@@ -98,12 +98,10 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         monthlyPrice: '₹1,499',
         description: 'Perfect for trying out AI-powered content creation',
         features: [
-            '5 AI Influencer Videos + 2 Bonus (Early Bird Offer)',
-            'Upto 7 Minutes generation time',
-            'Unlimited custom avatar uploads',
-            'Unlimited custom voice uploads',
-            'Up to 7 thumbnail generations',
-            '1 AVATAR Profile Stored',
+            '7 AI Studio video generations',
+            'Up to 7 minutes generation time',
+            'AI-assisted editing and captions',
+            'Custom HyperFrames visuals',
         ],
         notIncluded: [
             'Custom logo & marquee overlay',
@@ -120,13 +118,11 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         monthlyPrice: '₹5,999',
         description: 'Perfect for getting started with AI-powered content',
         features: [
-            '30 AI Influencer Videos + 20 Bonus (Early Bird Offer)',
-            'Upto 30 Minutes generation time',
-            'Unlimited custom avatar uploads',
-            'Unlimited custom voice uploads',
-            'Up to 50 thumbnail generations',
-            '5 AVATAR Profiles Stored',
-            'Custom logo & marquee overlay'
+            '50 AI Studio video generations',
+            'Up to 30 minutes generation time',
+            'AI-assisted editing and captions',
+            'Custom HyperFrames visuals',
+            'Custom logo and overlays'
         ],
         notIncluded: [
             'Priority support',
@@ -142,13 +138,11 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         monthlyPrice: '₹17,999',
         description: 'For creators and brands scaling AI content production',
         features: [
-            '150 AI Influencer Videos + 20 Bonus (Early Bird Offer)',
-            'Upto 105 Minutes generation time',
-            'Unlimited custom avatar uploads',
-            'Unlimited custom voice uploads',
-            'Up to 180 thumbnail generations',
-            '15 AVATAR Profiles Stored',
-            'Custom logo & marquee overlay',
+            '170 AI Studio video generations',
+            'Up to 105 minutes generation time',
+            'AI-assisted editing and captions',
+            'Custom HyperFrames visuals',
+            'Custom logo and overlays',
             '24/7 email support'
         ],
         notIncluded: [],
@@ -266,7 +260,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                         transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-[#a1a1aa] text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed"
                     >
-                        Choose your Creative Power <span className="text-orange-500 text-xs md:text-sm">(AI-Influencer Suite)</span>
+                        Choose your Creative Power <span className="text-orange-500 text-xs md:text-sm">(AI Studio)</span>
                     </motion.p>
 
                     {/* Centralized Toggle Button */}

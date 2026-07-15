@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { AiInfluencerStack } from '../lib/stacks/ai-influencer-stack';
+import { HyperframesCompletionStack } from '../lib/stacks/hyperframes-completion-stack';
 
 const app = new cdk.App();
 
@@ -15,24 +15,36 @@ const config = env === 'prod'
   ? require('../config/prod.json')
   : require('../config/dev.json');
 
-// ── AI Influencer Pipeline Stack ──────────────────────────────────────────────
-new AiInfluencerStack(app, `OkVevo-AiInfluencer-${env}`, {
+const hyperframesStateMachineArn =
+  app.node.tryGetContext('hyperframesStateMachineArn') || process.env.HYPERFRAMES_SFN_ARN;
+const hyperframesBucket =
+  app.node.tryGetContext('hyperframesBucket') || process.env.HYPERFRAMES_BUCKET;
+const firebaseAdminSecretArn =
+  app.node.tryGetContext('firebaseAdminSecretArn') || process.env.FIREBASE_ADMIN_SECRET_ARN;
+
+if (!hyperframesStateMachineArn || !hyperframesBucket || !firebaseAdminSecretArn) {
+  throw new Error(
+    'HyperFrames completion stack requires HYPERFRAMES_SFN_ARN, HYPERFRAMES_BUCKET, ' +
+      'and FIREBASE_ADMIN_SECRET_ARN (environment variables or CDK context)'
+  );
+}
+
+new HyperframesCompletionStack(app, `OkVevo-HyperframesCompletion-${env}`, {
   env: {
     account: config.accountId,
     region: config.region,
   },
   environment: env,
-  config,
-  description: `OkVevo AI Influencer Pipeline — ${env.toUpperCase()}`,
+  stateMachineArn: hyperframesStateMachineArn,
+  renderBucketName: hyperframesBucket,
+  firebaseAdminSecretArn,
+  firebaseStorageBucket: config.firebase.storageBucket,
+  description: `OkVevo HyperFrames render completion — ${env.toUpperCase()}`,
   tags: {
     Project: 'OkVevo',
-    Pipeline: 'AIInfluencer',
+    Pipeline: 'HyperFrames',
     Environment: env,
   },
 });
-
-// ── Future stacks go here ─────────────────────────────────────────────────────
-// new VideoEditingStack(app, `OkVevo-VideoEditing-${env}`, { ... });
-// new SharedInfraStack(app, `OkVevo-Shared-${env}`, { ... });
 
 app.synth();

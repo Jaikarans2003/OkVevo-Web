@@ -1,3 +1,0 @@
-FB_KEY_LENGTH=0
-BUCKET=text2video-16cbf.firebasestorage.app
-GEMINI_SET=True

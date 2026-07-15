@@ -1,114 +1,0 @@
-
-◆  Rendering hf-project → /Users/karan/Documents/ManarthaVarsityProjects/OkVevo/OkVevo2/OKVEVO V2/.debug-hf-session/f77be9dd-62a3-40c4-b59a-f7c0231e6db6/draft_video.mp4
-   30fps · draft · auto workers (10 cores detected)
-   GPU: browser GPU (auto-detect)
-
-[?25l│
-◇  Browser: cache
-[?25h[INFO] [Render] Pipeline started {"platform":"darwin","arch":"arm64","nodeVersion":"v22.22.2","fps":{"num":30,"den":1},"format":"mp4","quality":"draft","browserGpuMode":"auto","forceScreenshot":false,"protocolTimeout":300000,"browserTimeout":120000,"pageNavigationTimeout":60000,"playerReadyTimeout":45000}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"pipeline","status":"checkpoint","elapsedMs":0,"message":"started","format":"mp4","quality":"draft","browserGpuMode":"auto","forceScreenshot":false,"protocolTimeoutMs":300000,"pageNavigationTimeoutMs":60000,"playerReadyTimeoutMs":45000,"requestedWorkers":"auto"}
-[2K  █░░░░░░░░░░░░░░░░░░░░░░░░  5%  Compiling composition[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"compile","status":"start","elapsedMs":2,"needsAlpha":false}
-[INFO] [Compiler] Fetched 77 font face(s) for "Inter" from Google Fonts (cached to /Users/karan/.cache/hyperframes/fonts/inter)
-[INFO] [Compiler] Fetched 60 font face(s) for "JetBrains Mono" from Google Fonts (cached to /Users/karan/.cache/hyperframes/fonts/jetbrains-mono)
-[INFO] [Compiler] Injected deterministic @font-face rules for 2 requested font families
-[WARN] [Compiler] No deterministic font mapping for: sans-serif)
-  Mapped fonts: andale mono → jetbrains-mono, archivo black → archivo-black, arial black → montserrat, arial → inter, avenir next → inter, avenir → inter, bebas neue → league-gothic, book antiqua → eb-garamond, calibri → inter, cambria → eb-garamond, candara → inter, consolas → jetbrains-mono, corbel → inter, courier new → jetbrains-mono, courier → jetbrains-mono, dejavu sans mono → jetbrains-mono, dejavu sans → inter, dejavu serif → eb-garamond, din alternate → montserrat, eb garamond → eb-garamond, futura → montserrat, garamond → eb-garamond, geneva → inter, georgia → eb-garamond, helvetica bold → inter, helvetica neue → inter, helvetica → inter, ibm plex mono → ibm-plex-mono, inter, jetbrains mono → jetbrains-mono, lato, league gothic → league-gothic, liberation mono → jetbrains-mono, liberation sans → inter, liberation serif → eb-garamond, lucida console → jetbrains-mono, lucida grande → inter, lucida sans typewriter → jetbrains-mono, lucida sans unicode → inter, lucida sans → inter, menlo → jetbrains-mono, monaco → jetbrains-mono, montserrat, noto sans japanese → noto-sans-jp, noto sans jp → noto-sans-jp, noto sans → inter, nunito, open sans → open-sans, optima → inter, oswald, outfit, palatino linotype → eb-garamond, palatino → eb-garamond, playfair display → playfair-display, poppins, roboto, segoe ui → roboto, sf mono → jetbrains-mono, sf pro display → inter, sf pro rounded → inter, sf pro text → inter, sf pro → inter, source code pro → source-code-pro, space mono → space-mono, tahoma → inter, times new roman → eb-garamond, times → eb-garamond, trebuchet ms → inter, verdana → inter
-  To fix, pick one:
-    1. Use a mapped font name instead (see list above)
-    2. Add a @font-face block in your HTML with a local or hosted font file
-    3. Install the font locally on the render machine (Docker: add to Dockerfile)
-    4. Add an alias to FONT_ALIAS_MAP in packages/core/src/fonts/aliases.ts (for contributors)
-  Docs: https://hyperframes.heygen.com/docs/fonts
-[INFO] [Compiler] Inlined CDN script: https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js
-[INFO] Compiled composition metadata {"entryFile":"index.html","staticDuration":30.42,"width":1920,"height":1080,"videoCount":2,"audioCount":1,"renderModeHints":{"recommendScreenshot":false,"reasons":[]}}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"compile","status":"end","elapsedMs":6124,"durationMs":6122}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"compile","status":"checkpoint","elapsedMs":6132,"message":"composition metadata resolved","width":1920,"height":1080,"videoCount":2,"audioCount":1,"imageCount":0,"deviceScaleFactor":1,"forceScreenshot":false,"compositionHash":"69ee4029f1ca3f9c"}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"browser_probe","status":"start","elapsedMs":6132,"forceScreenshot":false}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"browser_probe","status":"end","elapsedMs":6145,"durationMs":13}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"browser_probe","status":"checkpoint","elapsedMs":6149,"message":"duration resolved","durationSeconds":30.42,"totalFrames":913,"compositionHash":"69ee4029f1ca3f9c"}
-[2K  ██░░░░░░░░░░░░░░░░░░░░░░░  10%  Extracting video frames[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"video_extract","status":"start","elapsedMs":6149,"videoCount":2}
-[INFO] Probing video color spaces... {"videoCount":2}
-[INFO] Extracting frames from video 1/2: assets/manim-0.mp4
-[INFO] Extracting frames from video 2/2: assets/speaker_noaudio.mp4
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"video_extract","status":"end","elapsedMs":6172,"durationMs":23}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"video_extract","status":"checkpoint","elapsedMs":6172,"message":"frames resolved","videoCount":2,"extractedVideoCount":2,"totalFramesExtracted":1280,"maxFramesPerVideo":912,"avgFramesPerExtractedVideo":640,"vfrPreflightCount":0,"vfrPreflightMs":0,"cacheHits":2,"cacheMisses":0}
-[INFO] [Render] No HDR sources detected — rendering SDR
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"hdr_detection","status":"checkpoint","elapsedMs":6173,"message":"resolved","requestedHdrMode":"auto","effectiveHdr":"sdr","nativeHdrVideoCount":0,"nativeHdrImageCount":0}
-[2K  █████░░░░░░░░░░░░░░░░░░░░  20%  Processing audio tracks[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"audio_process","status":"start","elapsedMs":6173,"audioCount":1}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"audio_process","status":"end","elapsedMs":7284,"durationMs":1111}
-[2K  ██████░░░░░░░░░░░░░░░░░░░  25%  Starting frame capture[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"file_server","status":"start","elapsedMs":7284,"reused":false}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"file_server","status":"end","elapsedMs":7287,"durationMs":3}
-[hyperframes] browserGpuMode auto → hardware (WebGL renderer vendor="Google Inc. (Apple)" renderer="ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)")
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_calibration","status":"start","elapsedMs":7648,"forceScreenshot":false}
-[INFO] [Render] Calibration config {"protocolTimeout":30000,"parentProtocolTimeout":300000,"forceScreenshot":false,"totalFrames":913}
-[INFO] Launching browser for capture calibration...
-[BrowserManager] Browser launched (HeadlessChrome/148.0.7778.97, screenshot, gl=--use-gl=angle --use-angle=metal, headlessShell=true, platform=darwin)
-[INFO] Initializing calibration session...
-[initSession:screenshot] page.goto start (0ms)
-[HyperFrames] render runtime fps [object Object]
-[initSession:screenshot] page.goto complete (472ms)
-[initSession:screenshot] GSAP proxy flush complete (489ms)
-[initSession:screenshot] pollHfReady complete (492ms)
-[initSession:screenshot] pollSubCompositionTimelines complete (497ms)
-[initSession:screenshot] applyVideoMetadataHints complete (507ms)
-[initSession:screenshot] media + fonts + tailwind ready (515ms)
-[initSession:screenshot] static-frame dedup: disabled (before-capture hook / video injection active) (517ms)
-[INFO] Calibration session ready, capturing test frames...
-[INFO] Calibration: capturing test frame 1/5...
-[INFO] Calibration: capturing test frame 2/5...
-[INFO] Calibration: capturing test frame 3/5...
-[INFO] Calibration: capturing test frame 4/5...
-[INFO] Calibration: capturing test frame 5/5...
-[INFO] Calibration complete, estimated cost: 99ms/frame (p95)
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_calibration","status":"end","elapsedMs":8717,"durationMs":1069}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_calibration","status":"checkpoint","elapsedMs":8717,"message":"resolved","forceScreenshot":false,"multiplier":1,"p95Ms":99}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"worker_resolution","status":"checkpoint","elapsedMs":8717,"message":"resolved","workerCount":4}
-[INFO] streaming-encode gate {"enabled":false,"configFlag":true,"outputFormat":"mp4","workerCount":4,"durationSeconds":30.42,"maxDurationSeconds":240}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_strategy","status":"checkpoint","elapsedMs":8718,"message":"resolved","workerCount":4,"forceScreenshot":false,"captureBeyondViewport":true,"useStreamingEncode":false,"useLayeredComposite":false,"usePageSideCompositing":false,"hasHdrContent":false,"hasShaderTransitions":false,"isPngSequence":false}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_disk","status":"start","elapsedMs":8718,"workerCount":4,"forceScreenshot":false,"needsAlpha":false}
-[BrowserManager] Browser launched (HeadlessChrome/148.0.7778.97, screenshot, gl=--use-gl=angle --use-angle=metal, headlessShell=true, platform=darwin)
-[initSession:screenshot] page.goto start (0ms)
-[initSession:screenshot] page.goto start (0ms)
-[initSession:screenshot] page.goto start (0ms)
-[initSession:screenshot] page.goto start (0ms)
-[HyperFrames] render runtime fps [object Object]
-[HyperFrames] render runtime fps [object Object]
-[HyperFrames] render runtime fps [object Object]
-[HyperFrames] render runtime fps [object Object]
-[initSession:screenshot] page.goto complete (578ms)
-[initSession:screenshot] GSAP proxy flush complete (627ms)
-[initSession:screenshot] page.goto complete (636ms)
-[initSession:screenshot] page.goto complete (684ms)
-[initSession:screenshot] pollHfReady complete (713ms)
-[initSession:screenshot] GSAP proxy flush complete (718ms)
-[initSession:screenshot] GSAP proxy flush complete (779ms)
-[initSession:screenshot] pollHfReady complete (857ms)
-[initSession:screenshot] page.goto complete (854ms)
-[initSession:screenshot] pollHfReady complete (918ms)
-[initSession:screenshot] pollSubCompositionTimelines complete (944ms)
-[initSession:screenshot] GSAP proxy flush complete (942ms)
-[initSession:screenshot] applyVideoMetadataHints complete (953ms)
-[initSession:screenshot] pollSubCompositionTimelines complete (953ms)
-[initSession:screenshot] pollHfReady complete (948ms)
-[initSession:screenshot] pollSubCompositionTimelines complete (953ms)
-[initSession:screenshot] applyVideoMetadataHints complete (954ms)
-[initSession:screenshot] media + fonts + tailwind ready (956ms)
-[initSession:screenshot] applyVideoMetadataHints complete (955ms)
-[initSession:screenshot] pollSubCompositionTimelines complete (951ms)
-[initSession:screenshot] static-frame dedup: disabled (before-capture hook / video injection active) (957ms)
-[initSession:screenshot] media + fonts + tailwind ready (957ms)
-[initSession:screenshot] applyVideoMetadataHints complete (952ms)
-[initSession:screenshot] media + fonts + tailwind ready (957ms)
-[initSession:screenshot] static-frame dedup: disabled (before-capture hook / video injection active) (958ms)
-[initSession:screenshot] media + fonts + tailwind ready (955ms)
-[initSession:screenshot] static-frame dedup: disabled (before-capture hook / video injection active) (962ms)
-[initSession:screenshot] static-frame dedup: disabled (before-capture hook / video injection active) (971ms)
-[2K  ██████░░░░░░░░░░░░░░░░░░░  26%  Capturing frame 30/913 (4 workers)[2K  ███████░░░░░░░░░░░░░░░░░░  28%  Capturing frame 60/913 (4 workers)[2K  ███████░░░░░░░░░░░░░░░░░░  29%  Capturing frame 90/913 (4 workers)[2K  ███████░░░░░░░░░░░░░░░░░░  31%  Capturing frame 120/913 (4 workers)[2K  ████████░░░░░░░░░░░░░░░░░  32%  Capturing frame 150/913 (4 workers)[2K  ████████░░░░░░░░░░░░░░░░░  34%  Capturing frame 180/913 (4 workers)[2K  ████████░░░░░░░░░░░░░░░░░  35%  Capturing frame 210/913 (4 workers)[2K  █████████░░░░░░░░░░░░░░░░  37%  Capturing frame 240/913 (4 workers)[2K  █████████░░░░░░░░░░░░░░░░  38%  Capturing frame 270/913 (4 workers)[2K  ██████████░░░░░░░░░░░░░░░  40%  Capturing frame 300/913 (4 workers)[2K  ██████████░░░░░░░░░░░░░░░  41%  Capturing frame 330/913 (4 workers)[2K  ██████████░░░░░░░░░░░░░░░  43%  Capturing frame 360/913 (4 workers)[2K  ███████████░░░░░░░░░░░░░░  44%  Capturing frame 390/913 (4 workers)[2K  ███████████░░░░░░░░░░░░░░  46%  Capturing frame 420/913 (4 workers)[2K  ███████████░░░░░░░░░░░░░░  47%  Capturing frame 450/913 (4 workers)[2K  ████████████░░░░░░░░░░░░░  49%  Capturing frame 480/913 (4 workers)[2K  ████████████░░░░░░░░░░░░░  50%  Capturing frame 510/913 (4 workers)[2K  █████████████░░░░░░░░░░░░  52%  Capturing frame 540/913 (4 workers)[2K  █████████████░░░░░░░░░░░░  53%  Capturing frame 570/913 (4 workers)[2K  █████████████░░░░░░░░░░░░  55%  Capturing frame 600/913 (4 workers)[2K  ██████████████░░░░░░░░░░░  56%  Capturing frame 630/913 (4 workers)[2K  ██████████████░░░░░░░░░░░  58%  Capturing frame 660/913 (4 workers)[2K  ██████████████░░░░░░░░░░░  59%  Capturing frame 690/913 (4 workers)[2K  ███████████████░░░░░░░░░░  60%  Capturing frame 720/913 (4 workers)[2K  ███████████████░░░░░░░░░░  62%  Capturing frame 750/913 (4 workers)[2K  ███████████████░░░░░░░░░░  63%  Capturing frame 780/913 (4 workers)[2K  ████████████████░░░░░░░░░  65%  Capturing frame 810/913 (4 workers)[2K  ████████████████░░░░░░░░░  66%  Capturing frame 840/913 (4 workers)[2K  █████████████████░░░░░░░░  68%  Capturing frame 870/913 (4 workers)[2K  █████████████████░░░░░░░░  69%  Capturing frame 900/913 (4 workers)[2K  █████████████████░░░░░░░░  70%  Capturing frame 913/913 (4 workers)[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"capture_disk","status":"end","elapsedMs":28614,"durationMs":19896}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"encode","status":"start","elapsedMs":28615,"hasAudio":true,"isPngSequence":false,"isGif":false,"chunkedEncode":false}
-[2K  ██████████████████░░░░░░░  75%  Encoding video[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"encode","status":"end","elapsedMs":31733,"durationMs":3118}
-[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"assemble","status":"start","elapsedMs":31733,"hasAudio":true}
-[2K  ██████████████████████░░░  90%  Assembling final video[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"assemble","status":"end","elapsedMs":31810,"durationMs":77}
-[2K  █████████████████████████  100%  Render complete[INFO] [Render:trace] {"renderJobId":"f34af762-0eee-475b-802b-7d9d8885bb37","phase":"pipeline","status":"checkpoint","elapsedMs":31827,"message":"completed","totalElapsedMs":31810}
-
-◇  /Users/karan/Documents/ManarthaVarsityProjects/OkVevo/OkVevo2/OKVEVO V2/.debug-hf-session/f77be9dd-62a3-40c4-b59a-f7c0231e6db6/draft_video.mp4
-   5.8 MB · 30.4s video · rendered in 31.9s

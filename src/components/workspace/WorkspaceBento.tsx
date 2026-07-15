@@ -1,25 +1,7 @@
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { auth } from '../../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import Link from 'next/link';
 
-interface WorkspaceBentoProps {
-    user?: any;
-}
-
-const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
-    const [user, setUser] = useState<any>(initialUser);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
+const WorkspaceBento = () => {
     return (
         <div className="min-h-screen pt-40 pb-24 px-6 md:px-12 bg-black selection:bg-accent-orange/30 relative overflow-hidden">
             {/* Professional Grid Background with Radial Mask */}
@@ -35,50 +17,11 @@ const WorkspaceBento = ({ user: initialUser }: WorkspaceBentoProps) => {
             </div>
             
             <div className="max-w-[1200px] mx-auto relative z-10 w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full lg:h-[700px] font-sans">
-                    
-                    {/* AI Influencer */}
+                <div className="w-full max-w-2xl mx-auto h-[500px] lg:h-[700px] font-sans">
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="h-[500px] lg:h-full rounded-[40px] bg-[#fb4a2e] flex flex-col items-center overflow-hidden relative group"
-                    >
-                        <div className="p-8 md:p-12 pb-2 flex flex-col items-center text-center relative z-20 w-full">
-                            <div className="bg-white/10 text-white/90 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 border border-white/20 backdrop-blur-md">
-                                Digital Twin Studio
-                            </div>
-
-                            <h2 className="text-white text-[42px] leading-tight mb-3 tracking-tight" style={{ fontWeight: 600 }}>AI Influencer</h2>
-                            
-                            <p className="text-white/80 text-[14px] md:text-[15px] leading-relaxed max-w-[300px] mb-6 font-medium">
-                                Train your personal digital twin. Automate your content with infinite scale, seamless lip-sync, and hyper-realistic motion.
-                            </p>
-
-                            <Link href="/workspace/ai-influencer">
-                                <button className="bg-[#0a0a0a] text-white px-8 py-3 rounded-full text-[15px] font-medium hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.15)] flex items-center gap-2">
-                                    Launch Studio
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                                </button>
-                            </Link>
-                        </div>
-                        
-                        <div className="w-full flex-1 relative flex items-end justify-center overflow-hidden">
-                            <div className="absolute inset-x-0 top-[-1px] h-32 bg-gradient-to-b from-[#fb4a2e] to-transparent z-10 pointer-events-none"></div>
-                            
-                            <img 
-                                src="/ai-bgg.png" 
-                                alt="AI Influencer Studio" 
-                                className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                            />
-                        </div>
-                    </motion.div>
-
-                    {/* AI Studio */}
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
                         className="h-[500px] lg:h-full rounded-[40px] bg-[#fb4a2e] flex flex-col items-center overflow-hidden relative group"
                     >
                         <div className="p-8 md:p-12 pb-2 flex flex-col items-center text-center relative z-20 w-full">

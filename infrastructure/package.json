@@ -1,7 +1,7 @@
 {
   "name": "okvevo-infrastructure",
   "version": "1.0.0",
-  "description": "AWS CDK infrastructure for OkVevo — manages all stacks across prod and dev accounts",
+  "description": "AWS CDK infrastructure for the OkVevo agent render completion flow",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

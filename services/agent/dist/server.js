@@ -20742,12 +20742,12 @@ function createGatewayProvider(options = {}) {
   const baseURL = (_b113 = withoutTrailingSlash(options.baseURL)) != null ? _b113 : "https://ai-gateway.vercel.sh/v3/ai";
   const getHeaders = async () => {
     try {
-      const auth = await getGatewayAuthToken(options);
+      const auth2 = await getGatewayAuthToken(options);
       return withUserAgentSuffix(
         {
-          Authorization: `Bearer ${auth.token}`,
+          Authorization: `Bearer ${auth2.token}`,
           "ai-gateway-protocol-version": AI_GATEWAY_PROTOCOL_VERSION,
-          [GATEWAY_AUTH_METHOD_HEADER]: auth.authMethod,
+          [GATEWAY_AUTH_METHOD_HEADER]: auth2.authMethod,
           ...options.headers
         },
         `ai-sdk/gateway/${VERSION2}`
@@ -34557,11 +34557,13 @@ function substitutePlaceholders(template, replacements) {
 var import_fs4 = __toESM(require("fs"));
 var import_os2 = __toESM(require("os"));
 var import_path4 = __toESM(require("path"));
+var import_client_s3 = require("@aws-sdk/client-s3");
 var import_firestore2 = require("firebase-admin/firestore");
 var import_storage = require("firebase-admin/storage");
 
 // src/firebase.ts
 var import_app = require("firebase-admin/app");
+var import_auth = require("firebase-admin/auth");
 var import_firestore = require("firebase-admin/firestore");
 function loadServiceAccount() {
   const json3 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -34590,6 +34592,7 @@ function getAdminApp() {
 }
 var app = getAdminApp();
 var db = (0, import_firestore.getFirestore)(app);
+var auth = (0, import_auth.getAuth)(app);
 db.settings({ ignoreUndefinedProperties: true });
 
 // src/storage.ts
@@ -34706,6 +34709,74 @@ async function writeAssetUrl(userId, sessionId, assetKey, url2) {
 }
 async function writeHfSegmentsPlan(userId, sessionId, plan) {
   await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore2.FieldValue.serverTimestamp() });
+}
+async function persistRenderJob(userId, sessionId, job) {
+  const payload = {
+    renderExecutionArn: job.executionArn,
+    renderOutputKey: job.outputKey,
+    renderStatus: "RUNNING",
+    renderCompositionUrl: job.compositionUrl,
+    pipelinePhase: 6,
+    pipelineStatus: "rendering",
+    pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+  };
+  await db.collection("sessions").doc(sessionId).set({ userId, ...payload }, { merge: true });
+  return { ...job, renderStatus: "RUNNING" };
+}
+async function getRenderJob(userId, sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const data = snap.data();
+  if (!snap.exists || data?.userId !== userId) return null;
+  if (typeof data.renderExecutionArn !== "string" || typeof data.renderOutputKey !== "string") {
+    return null;
+  }
+  return {
+    executionArn: data.renderExecutionArn,
+    outputKey: data.renderOutputKey,
+    renderStatus: typeof data.renderStatus === "string" ? data.renderStatus : "RUNNING",
+    compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
+  };
+}
+async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const response = await new import_client_s3.S3Client({ region }).send(
+    new import_client_s3.GetObjectCommand({ Bucket: bucketName, Key: outputKey })
+  );
+  if (!response.Body) throw new Error("Render output is missing from S3");
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  import_fs4.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
+  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  await writeAssetUrl(userId, sessionId, "draft_video", videoUrl);
+  await sessionRef.set(
+    {
+      assets: { draft_video: videoUrl },
+      renderStatus: "SUCCEEDED",
+      renderError: import_firestore2.FieldValue.delete(),
+      draftVideoUrl: videoUrl,
+      pipelinePhase: 7,
+      pipelineStatus: "complete",
+      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  return videoUrl;
+}
+async function recordRenderFailure(userId, sessionId, status, error40) {
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      userId,
+      renderStatus: status,
+      renderError: error40,
+      pipelineStatus: "failed",
+      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 // src/tools/general/filesystem.ts
@@ -35584,7 +35655,7 @@ function createHyperframesTools(ctx) {
       }
     }),
     render_hyperframes: tool({
-      description: `Render the HyperFrames composition to an MP4 draft video. This is the FINAL step \u2014 it produces the video the user can watch. Runs lint validation then renders via HyperFrames CLI subprocess. Uploads result to Firebase Storage. Call this after scaffold_hf_project.`,
+      description: `Validate and dispatch the final HyperFrames MP4 render to AWS Lambda. Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
       inputSchema: external_exports2.object({
         composition_url: external_exports2.string().describe("Firebase Storage URL of the composition.html file")
       }),
@@ -35597,8 +35668,8 @@ function createHyperframesTools(ctx) {
             const hfProjectUrl = await getAssetUrl(ctx.userId, ctx.sessionId, "hf_project");
             if (hfProjectUrl) {
               import_fs8.default.mkdirSync(projectDir, { recursive: true });
-              const storagePath2 = parseStoragePathFromPublicUrl(hfProjectUrl);
-              await downloadStoragePrefixToDir(storagePath2, projectDir);
+              const storagePath = parseStoragePathFromPublicUrl(hfProjectUrl);
+              await downloadStoragePrefixToDir(storagePath, projectDir);
             } else {
               import_fs8.default.mkdirSync(projectDir, { recursive: true });
               const htmlPath = import_path7.default.join(projectDir, "index.html");
@@ -35624,29 +35695,50 @@ function createHyperframesTools(ctx) {
               project_dir: projectDir
             };
           }
-          const outputPath = import_path7.default.join(workdir, "draft_video.mp4");
-          const renderCmd = `node "${cliPath}" render --output "${outputPath}" --quality draft --quiet`;
-          const renderResult = await execCommand(renderCmd, {
-            cwd: projectDir,
-            timeoutSeconds: 600
-          });
-          if (!renderResult.success) {
+          const region = process.env.AWS_REGION;
+          const bucketName = process.env.HYPERFRAMES_BUCKET;
+          const stateMachineArn = process.env.HYPERFRAMES_SFN_ARN;
+          if (!region || !bucketName || !stateMachineArn) {
             throw new Error(
-              renderResult.stderr || `HyperFrames render exited with code ${renderResult.exit_code}`
+              "Missing AWS_REGION, HYPERFRAMES_BUCKET, or HYPERFRAMES_SFN_ARN"
             );
           }
-          if (!import_fs8.default.existsSync(outputPath)) {
-            throw new Error("Render reported success but output file is missing");
-          }
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/draft_video.mp4`;
-          const videoUrl = await uploadToStorage(outputPath, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, "draft_video", videoUrl);
-          return { success: true, video_url: videoUrl };
+          const { deploySite, renderToLambda } = await import("@hyperframes/aws-lambda/sdk");
+          const siteHandle = await deploySite({
+            projectDir,
+            bucketName,
+            region
+          });
+          const outputKey = `renders/users/${encodeURIComponent(ctx.userId)}/sessions/${encodeURIComponent(ctx.sessionId)}/draft_video.mp4`;
+          const handle = await renderToLambda({
+            siteHandle,
+            bucketName,
+            stateMachineArn,
+            region,
+            outputKey,
+            config: {
+              fps: 30,
+              width: 1920,
+              height: 1080,
+              format: "mp4",
+              chunkSize: 240,
+              maxParallelChunks: 2,
+              runtimeCap: "lambda"
+            }
+          });
+          const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
+            executionArn: handle.executionArn,
+            outputKey,
+            compositionUrl: composition_url
+          });
+          return {
+            success: true,
+            composition_url,
+            execution_arn: job.executionArn,
+            output_key: job.outputKey,
+            render_status: job.renderStatus
+          };
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          if (message.includes("timed out")) {
-            throw new Error("Render timed out after 10 minutes");
-          }
           throw err;
         }
       }
@@ -36087,7 +36179,7 @@ Video URL for processing: ${params.videoUrl}`;
         const output = typeof result2.output === "string" ? result2.output.slice(0, 300) : JSON.stringify(result2.output)?.slice(0, 300);
         console.log(
           `[agent] tool.result ${result2.toolName}`,
-          JSON.stringify({ ok: !result2.isError, outputPreview: output })
+          JSON.stringify({ ok: true, outputPreview: output })
         );
       }
     }
@@ -36132,6 +36224,60 @@ app2.use((0, import_cors.default)());
 app2.use(import_express.default.json({ limit: "50mb" }));
 app2.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+app2.post("/renders/:sessionId/check", async (req, res) => {
+  const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    const userId = (await auth.verifyIdToken(token)).uid;
+    const job = await getRenderJob(userId, req.params.sessionId);
+    if (!job) {
+      res.status(404).json({ error: "Render job not found" });
+      return;
+    }
+    const region = process.env.AWS_REGION;
+    const bucketName = process.env.HYPERFRAMES_BUCKET;
+    if (!region || !bucketName) {
+      throw new Error("Missing AWS_REGION or HYPERFRAMES_BUCKET");
+    }
+    const { getRenderProgress } = await import("@hyperframes/aws-lambda/sdk");
+    const progress = await getRenderProgress({
+      executionArn: job.executionArn,
+      region
+    });
+    if (progress.status === "SUCCEEDED") {
+      const videoUrl = await finalizeRenderFromS3(
+        userId,
+        req.params.sessionId,
+        bucketName,
+        job.outputKey,
+        region
+      );
+      res.json({ renderStatus: progress.status, draftVideoUrl: videoUrl });
+      return;
+    }
+    if (["FAILED", "TIMED_OUT", "ABORTED"].includes(progress.status)) {
+      const error40 = progress.errors.map((item) => `${item.error}: ${item.cause}`).join("\n") || `Render ${progress.status.toLowerCase()}`;
+      await recordRenderFailure(
+        userId,
+        req.params.sessionId,
+        progress.status,
+        error40
+      );
+    }
+    res.json({
+      renderStatus: progress.status,
+      progress: progress.overallProgress,
+      errors: progress.errors
+    });
+  } catch (error40) {
+    const message = error40 instanceof Error ? error40.message : "Failed to check render";
+    const status = message.includes("Firebase ID token") ? 401 : 500;
+    res.status(status).json({ error: message });
+  }
 });
 app2.post("/chat", async (req, res) => {
   const {

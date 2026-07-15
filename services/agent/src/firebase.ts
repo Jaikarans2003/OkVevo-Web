@@ -1,4 +1,5 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 function loadServiceAccount(): Record<string, unknown> {
@@ -41,4 +42,5 @@ function getAdminApp(): App {
 const app = getAdminApp();
 
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 db.settings({ ignoreUndefinedProperties: true });
