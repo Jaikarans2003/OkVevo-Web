@@ -107,7 +107,7 @@ var require_main = __commonJS({
     var fs11 = require("fs");
     var path10 = require("path");
     var os3 = require("os");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var packageJson = require_package();
     var version2 = packageJson.version;
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
@@ -326,7 +326,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto3.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error40) {
@@ -1190,7 +1190,7 @@ var require_dist = __commonJS({
 })();
 
 // src/server.ts
-var import_node_crypto = __toESM(require("node:crypto"));
+var import_node_crypto2 = __toESM(require("node:crypto"));
 var import_express = __toESM(require("express"));
 var import_cors = __toESM(require("cors"));
 
@@ -34737,18 +34737,12 @@ async function getRenderJob(userId, sessionId) {
     compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
   };
 }
-async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
+async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
   const sessionRef = db.collection("sessions").doc(sessionId);
   const current = (await sessionRef.get()).data();
   if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
     return current.draftVideoUrl;
   }
-  const response = await new import_client_s3.S3Client({ region }).send(
-    new import_client_s3.GetObjectCommand({ Bucket: bucketName, Key: outputKey })
-  );
-  if (!response.Body) throw new Error("Render output is missing from S3");
-  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
-  import_fs4.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
   await writeAssetUrl(userId, sessionId, "draft_video", videoUrl);
@@ -34766,6 +34760,42 @@ async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, re
   );
   return videoUrl;
 }
+async function finalizeRenderFromUrl(userId, sessionId, videoUrl) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${videoUrl}`);
+  }
+  import_fs4.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+  } finally {
+    import_fs4.default.rmSync(tempPath, { force: true });
+  }
+}
+async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const response = await new import_client_s3.S3Client({ region }).send(
+    new import_client_s3.GetObjectCommand({ Bucket: bucketName, Key: outputKey })
+  );
+  if (!response.Body) throw new Error("Render output is missing from S3");
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  import_fs4.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
+  try {
+    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+  } finally {
+    import_fs4.default.rmSync(tempPath, { force: true });
+  }
+}
 async function recordRenderFailure(userId, sessionId, status, error40) {
   await db.collection("sessions").doc(sessionId).set(
     {
@@ -34777,6 +34807,16 @@ async function recordRenderFailure(userId, sessionId, status, error40) {
     },
     { merge: true }
   );
+}
+async function claimHeygenEvent(eventId) {
+  try {
+    await db.collection("heygen_webhook_events").doc(eventId).create({
+      receivedAt: import_firestore2.FieldValue.serverTimestamp()
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // src/tools/general/filesystem.ts
@@ -35427,6 +35467,71 @@ ${retryHint}` : userMessage
 // src/tools/pipeline/hyperframes.ts
 var import_fs8 = __toESM(require("fs"));
 var import_path7 = __toESM(require("path"));
+
+// src/heygenWebhook.ts
+var import_node_crypto = __toESM(require("node:crypto"));
+var MAX_SKEW_SECONDS = 300;
+var HEYGEN_API_BASE = process.env.HEYGEN_API_URL ?? "https://api.heygen.com";
+function verifyHeygenSignature(rawBody, signature, timestamp, secret) {
+  if (!signature || !timestamp) {
+    return { ok: false, status: 400, error: "missing headers" };
+  }
+  if (!Number.isFinite(Number(timestamp))) {
+    return { ok: false, status: 400, error: "bad timestamp" };
+  }
+  if (Math.abs(Date.now() / 1e3 - Number(timestamp)) > MAX_SKEW_SECONDS) {
+    return { ok: false, status: 400, error: "stale timestamp" };
+  }
+  const expected = import_node_crypto.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const sigBuf = Buffer.from(signature, "hex");
+  const expBuf = Buffer.from(expected, "hex");
+  if (sigBuf.length !== expBuf.length || !import_node_crypto.default.timingSafeEqual(sigBuf, expBuf)) {
+    return { ok: false, status: 401, error: "bad signature" };
+  }
+  return { ok: true };
+}
+function videoUrlFromEventData(eventData) {
+  for (const key of ["video_url", "url"]) {
+    const value = eventData[key];
+    if (typeof value === "string" && value.startsWith("http")) return value;
+  }
+  return null;
+}
+async function fetchHeygenRender(renderId) {
+  const apiKey = process.env.HEYGEN_API_KEY;
+  if (!apiKey) throw new Error("Missing HEYGEN_API_KEY");
+  const response = await fetch(`${HEYGEN_API_BASE}/v3/hyperframes/renders/${renderId}`, {
+    headers: { "X-Api-Key": apiKey }
+  });
+  if (!response.ok) {
+    throw new Error(`HeyGen render GET failed: ${response.status}`);
+  }
+  const body = await response.json();
+  if (!body.data?.render_id || !body.data.status) {
+    throw new Error("HeyGen render GET returned unexpected payload");
+  }
+  return body.data;
+}
+function parseCloudRenderId(stdout) {
+  const trimmed = stdout.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    const nested = parsed.data;
+    const fromNested = nested && typeof nested === "object" && typeof nested.render_id === "string" ? nested.render_id : null;
+    const id = typeof parsed.render_id === "string" && parsed.render_id || fromNested || null;
+    if (id) return id;
+  } catch {
+  }
+  const match = trimmed.match(/\b(hfr_[A-Za-z0-9_-]+)\b/);
+  if (match) return match[1];
+  throw new Error(`Could not parse render_id from cloud render output: ${trimmed.slice(0, 200)}`);
+}
+function isSfnExecutionArn(arn) {
+  return arn.startsWith("arn:aws:states:");
+}
+
+// src/tools/pipeline/hyperframes.ts
+var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
 var brandColorsSchema = external_exports2.object({
   primary: external_exports2.string(),
   accent: external_exports2.string(),
@@ -35655,7 +35760,7 @@ function createHyperframesTools(ctx) {
       }
     }),
     render_hyperframes: tool({
-      description: `Validate and dispatch the final HyperFrames MP4 render to AWS Lambda. Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
+      description: `Validate and dispatch the final HyperFrames MP4 render (HeyGen Cloud or AWS Lambda per RENDER_BACKEND). Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
       inputSchema: external_exports2.object({
         composition_url: external_exports2.string().describe("Firebase Storage URL of the composition.html file")
       }),
@@ -35683,7 +35788,7 @@ function createHyperframesTools(ctx) {
           console.log(
             `[render_hyperframes] HyperFrames CLI guidance loaded (${hfCliSkill.length} chars)`
           );
-          const lintCmd = `node "${cliPath}" lint`;
+          const lintCmd = `node "${cliPath}" lint --json`;
           const lintResult = await execCommand(lintCmd, {
             cwd: projectDir,
             timeoutSeconds: 120
@@ -35693,6 +35798,46 @@ function createHyperframesTools(ctx) {
               success: false,
               lint_errors: lintResult.stdout + "\n" + lintResult.stderr,
               project_dir: projectDir
+            };
+          }
+          if (RENDER_BACKEND === "heygen_cloud") {
+            const existing = await getRenderJob(ctx.userId, ctx.sessionId);
+            if (existing?.renderStatus === "RUNNING" && existing.executionArn && !isSfnExecutionArn(existing.executionArn)) {
+              return {
+                success: true,
+                composition_url,
+                execution_arn: existing.executionArn,
+                output_key: existing.outputKey,
+                render_status: existing.renderStatus
+              };
+            }
+            const apiKey = process.env.HEYGEN_API_KEY;
+            const callbackUrl = process.env.HEYGEN_CALLBACK_URL;
+            if (!apiKey || !callbackUrl) {
+              throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
+            }
+            const cloudCmd = `node "${cliPath}" cloud render . --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${ctx.sessionId}" --no-wait --json`;
+            const cloudResult = await execCommand(cloudCmd, {
+              cwd: projectDir,
+              timeoutSeconds: 600
+            });
+            if (!cloudResult.success) {
+              throw new Error(
+                cloudResult.stderr || cloudResult.stdout || "HeyGen cloud render submit failed"
+              );
+            }
+            const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
+            const job2 = await persistRenderJob(ctx.userId, ctx.sessionId, {
+              executionArn: renderId,
+              outputKey: "heygen-cloud",
+              compositionUrl: composition_url
+            });
+            return {
+              success: true,
+              composition_url,
+              execution_arn: job2.executionArn,
+              output_key: job2.outputKey,
+              render_status: job2.renderStatus
             };
           }
           const region = process.env.AWS_REGION;
@@ -36221,6 +36366,92 @@ if (process.env.DOCKER_AGENT !== "1") {
 }
 var app2 = (0, import_express.default)();
 app2.use((0, import_cors.default)());
+app2.post(
+  "/webhooks/heygen",
+  import_express.default.raw({ type: "application/json" }),
+  async (req, res) => {
+    const secret = process.env.HEYGEN_WEBHOOK_SECRET;
+    if (!secret) {
+      res.status(500).send("webhook secret not configured");
+      return;
+    }
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+    const verified = verifyHeygenSignature(
+      rawBody,
+      req.header("Heygen-Signature") ?? void 0,
+      req.header("Heygen-Timestamp") ?? void 0,
+      secret
+    );
+    if (!verified.ok) {
+      res.status(verified.status).send(verified.error);
+      return;
+    }
+    const eventId = req.header("Heygen-Event-Id");
+    if (!eventId) {
+      res.status(400).send("missing event id");
+      return;
+    }
+    let event;
+    try {
+      event = JSON.parse(rawBody.toString("utf8"));
+    } catch {
+      res.status(400).send("invalid json");
+      return;
+    }
+    const claimed = await claimHeygenEvent(eventId);
+    if (!claimed) {
+      res.status(200).send("ok");
+      return;
+    }
+    const eventType = event.event_type ?? "";
+    const eventData = event.event_data ?? {};
+    const sessionId = typeof eventData.callback_id === "string" ? eventData.callback_id : null;
+    if (!sessionId) {
+      console.error("[heygen webhook] missing callback_id", eventType, eventId);
+      res.status(200).send("ok");
+      return;
+    }
+    const sessionSnap = await db.collection("sessions").doc(sessionId).get();
+    const userId = sessionSnap.data()?.userId;
+    if (typeof userId !== "string") {
+      console.error("[heygen webhook] unknown session", sessionId);
+      res.status(200).send("ok");
+      return;
+    }
+    try {
+      if (eventType === "hyperframes_video.fail") {
+        const message = typeof eventData.failure_message === "string" && eventData.failure_message || typeof eventData.error === "string" && eventData.error || "HeyGen cloud render failed";
+        await recordRenderFailure(userId, sessionId, "FAILED", message);
+        res.status(200).send("ok");
+        return;
+      }
+      if (eventType === "hyperframes_video.success") {
+        let videoUrl = videoUrlFromEventData(eventData);
+        if (!videoUrl) {
+          const renderId = typeof eventData.render_id === "string" && eventData.render_id || null;
+          if (!renderId) {
+            throw new Error("success event missing video_url and render_id");
+          }
+          const detail = await fetchHeygenRender(renderId);
+          if (detail.status !== "completed" || !detail.video_url) {
+            throw new Error(
+              `render ${renderId} not completed (${detail.status}): ${detail.failure_message ?? ""}`
+            );
+          }
+          videoUrl = detail.video_url;
+        }
+        await finalizeRenderFromUrl(userId, sessionId, videoUrl);
+        res.status(200).send("ok");
+        return;
+      }
+      res.status(200).send("ok");
+    } catch (error40) {
+      const message = error40 instanceof Error ? error40.message : String(error40);
+      console.error("[heygen webhook] finalize failed", sessionId, message);
+      res.status(500).send("finalize failed");
+    }
+  }
+);
 app2.use(import_express.default.json({ limit: "50mb" }));
 app2.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -36236,6 +36467,33 @@ app2.post("/renders/:sessionId/check", async (req, res) => {
     const job = await getRenderJob(userId, req.params.sessionId);
     if (!job) {
       res.status(404).json({ error: "Render job not found" });
+      return;
+    }
+    if (!isSfnExecutionArn(job.executionArn)) {
+      const detail = await fetchHeygenRender(job.executionArn);
+      if (detail.status === "completed" && detail.video_url) {
+        const videoUrl = await finalizeRenderFromUrl(
+          userId,
+          req.params.sessionId,
+          detail.video_url
+        );
+        res.json({ renderStatus: "SUCCEEDED", draftVideoUrl: videoUrl });
+        return;
+      }
+      if (detail.status === "failed") {
+        await recordRenderFailure(
+          userId,
+          req.params.sessionId,
+          "FAILED",
+          detail.failure_message || "HeyGen cloud render failed"
+        );
+        res.json({ renderStatus: "FAILED", errors: [detail.failure_message] });
+        return;
+      }
+      res.json({
+        renderStatus: "RUNNING",
+        heygenStatus: detail.status
+      });
       return;
     }
     const region = process.env.AWS_REGION;
@@ -36290,7 +36548,7 @@ app2.post("/chat", async (req, res) => {
   } = req.body;
   const lastMessage = messages?.at(-1);
   const userMessage = typeof lastMessage?.content === "string" ? lastMessage.content : Array.isArray(lastMessage?.parts) ? lastMessage.parts.filter((p) => p.type === "text").map((p) => p.text ?? "").join("") : "";
-  const sessionId = bodySessionId ?? import_node_crypto.default.randomUUID();
+  const sessionId = bodySessionId ?? import_node_crypto2.default.randomUUID();
   const userId = bodyUserId ?? "anonymous";
   if (!userMessage) {
     res.status(400).json({ error: "userMessage is required" });

@@ -14,6 +14,9 @@ services:
       - HYPERFRAMES_CLI=/usr/local/lib/node_modules/hyperframes/dist/cli.js
       - HYPERFRAMES_BROWSER_PATH=/usr/local/bin/hyperframes-chrome-headless-shell
       - PORT=3001
+    volumes:
+      # Dev-only: SDK shared credentials. Production uses ECS task IAM role.
+      - ${HOME}/.aws:/root/.aws:ro
 
   video-use:
     build:

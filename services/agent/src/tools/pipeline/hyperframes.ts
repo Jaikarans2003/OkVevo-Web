@@ -23,9 +23,11 @@ import {
   resolveBrandColors,
   substitutePlaceholders,
 } from '../lib/utils';
+import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import {
   downloadStoragePrefixToDir,
   getAssetUrl,
+  getRenderJob,
   parseStoragePathFromPublicUrl,
   persistRenderJob,
   uploadDirectoryToStorage,
@@ -33,6 +35,8 @@ import {
   writeAssetUrl,
   writeHfSegmentsPlan,
 } from '../../storage';
+
+const RENDER_BACKEND = process.env.RENDER_BACKEND ?? 'heygen_cloud';
 
 const brandColorsSchema = z.object({
   primary: z.string(),
@@ -301,7 +305,7 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
     }),
 
     render_hyperframes: tool({
-      description: `Validate and dispatch the final HyperFrames MP4 render to AWS Lambda. Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
+      description: `Validate and dispatch the final HyperFrames MP4 render (HeyGen Cloud or AWS Lambda per RENDER_BACKEND). Returns immediately with a background render job; completion is persisted separately. Call this after scaffold_hf_project.`,
       inputSchema: z.object({
         composition_url: z.string().describe('Firebase Storage URL of the composition.html file'),
       }),
@@ -335,7 +339,7 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
             `[render_hyperframes] HyperFrames CLI guidance loaded (${hfCliSkill.length} chars)`
           );
 
-          const lintCmd = `node "${cliPath}" lint`;
+          const lintCmd = `node "${cliPath}" lint --json`;
           const lintResult = await execCommand(lintCmd, {
             cwd: projectDir,
             timeoutSeconds: 120,
@@ -346,6 +350,62 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
               success: false,
               lint_errors: lintResult.stdout + '\n' + lintResult.stderr,
               project_dir: projectDir,
+            };
+          }
+
+          if (RENDER_BACKEND === 'heygen_cloud') {
+            const existing = await getRenderJob(ctx.userId, ctx.sessionId);
+            if (
+              existing?.renderStatus === 'RUNNING' &&
+              existing.executionArn &&
+              !isSfnExecutionArn(existing.executionArn)
+            ) {
+              return {
+                success: true,
+                composition_url,
+                execution_arn: existing.executionArn,
+                output_key: existing.outputKey,
+                render_status: existing.renderStatus,
+              };
+            }
+
+            const apiKey = process.env.HEYGEN_API_KEY;
+            const callbackUrl = process.env.HEYGEN_CALLBACK_URL;
+            if (!apiKey || !callbackUrl) {
+              throw new Error('Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL');
+            }
+
+            // CLI inherits HEYGEN_API_KEY from process env
+            const cloudCmd =
+              `node "${cliPath}" cloud render .` +
+              ` --fps 30 --quality standard --format mp4 --resolution 1080p` +
+              ` --callback-url "${callbackUrl}"` +
+              ` --callback-id "${ctx.sessionId}"` +
+              ` --idempotency-key "${ctx.sessionId}"` +
+              ` --no-wait --json`;
+            const cloudResult = await execCommand(cloudCmd, {
+              cwd: projectDir,
+              timeoutSeconds: 600,
+            });
+            if (!cloudResult.success) {
+              throw new Error(
+                cloudResult.stderr || cloudResult.stdout || 'HeyGen cloud render submit failed'
+              );
+            }
+
+            const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
+            const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
+              executionArn: renderId,
+              outputKey: 'heygen-cloud',
+              compositionUrl: composition_url,
+            });
+
+            return {
+              success: true,
+              composition_url,
+              execution_arn: job.executionArn,
+              output_key: job.outputKey,
+              render_status: job.renderStatus,
             };
           }
 

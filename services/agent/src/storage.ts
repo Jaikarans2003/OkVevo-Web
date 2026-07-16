@@ -252,6 +252,67 @@ export async function getRenderJob(
   };
 }
 
+export async function finalizeRenderFromLocalFile(
+  userId: string,
+  sessionId: string,
+  tempPath: string
+): Promise<string> {
+  const sessionRef = db.collection('sessions').doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (
+    current?.userId === userId &&
+    current.renderStatus === 'SUCCEEDED' &&
+    typeof current.draftVideoUrl === 'string'
+  ) {
+    return current.draftVideoUrl;
+  }
+
+  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl);
+  await sessionRef.set(
+    {
+      assets: { draft_video: videoUrl },
+      renderStatus: 'SUCCEEDED',
+      renderError: FieldValue.delete(),
+      draftVideoUrl: videoUrl,
+      pipelinePhase: 7,
+      pipelineStatus: 'complete',
+      pipelineUpdatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return videoUrl;
+}
+
+export async function finalizeRenderFromUrl(
+  userId: string,
+  sessionId: string,
+  videoUrl: string
+): Promise<string> {
+  const sessionRef = db.collection('sessions').doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (
+    current?.userId === userId &&
+    current.renderStatus === 'SUCCEEDED' &&
+    typeof current.draftVideoUrl === 'string'
+  ) {
+    return current.draftVideoUrl;
+  }
+
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${videoUrl}`);
+  }
+  fs.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
+}
+
 export async function finalizeRenderFromS3(
   userId: string,
   sessionId: string,
@@ -276,23 +337,11 @@ export async function finalizeRenderFromS3(
 
   const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
   fs.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
-
-  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
-  const videoUrl = await uploadToStorage(tempPath, firebasePath);
-  await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl);
-  await sessionRef.set(
-    {
-      assets: { draft_video: videoUrl },
-      renderStatus: 'SUCCEEDED',
-      renderError: FieldValue.delete(),
-      draftVideoUrl: videoUrl,
-      pipelinePhase: 7,
-      pipelineStatus: 'complete',
-      pipelineUpdatedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-  return videoUrl;
+  try {
+    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
 }
 
 export async function recordRenderFailure(
@@ -311,4 +360,16 @@ export async function recordRenderFailure(
     },
     { merge: true }
   );
+}
+
+/** Create-once dedup for HeyGen webhook deliveries. Returns false if already claimed. */
+export async function claimHeygenEvent(eventId: string): Promise<boolean> {
+  try {
+    await db.collection('heygen_webhook_events').doc(eventId).create({
+      receivedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

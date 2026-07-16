@@ -1,6 +1,7 @@
 # ── Stage 1: Node deps ───────────────────────────────
 FROM --platform=linux/amd64 node:20-slim AS node-deps
 WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY services/agent/package*.json ./
 RUN npm ci --only=production
 
@@ -12,6 +13,7 @@ FROM --platform=linux/amd64 node:22.22.3-slim AS node-runtime
 FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # System dependencies (build-essential/pkg-config/python3-dev needed for pycairo/manim pip build on arm64)
 RUN apt-get update && apt-get install -y --no-install-recommends \

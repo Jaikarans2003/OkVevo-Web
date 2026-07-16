@@ -3,9 +3,17 @@ import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { pipeAgentStream, runAgent } from './agent';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import {
+  fetchHeygenRender,
+  isSfnExecutionArn,
+  verifyHeygenSignature,
+  videoUrlFromEventData,
+} from './heygenWebhook';
+import {
+  claimHeygenEvent,
   finalizeRenderFromS3,
+  finalizeRenderFromUrl,
   getRenderJob,
   recordRenderFailure,
 } from './storage';
@@ -22,6 +30,115 @@ if (process.env.DOCKER_AGENT !== '1') {
 const app = express();
 
 app.use(cors());
+
+// Raw body required for HeyGen HMAC — must mount before express.json()
+app.post(
+  '/webhooks/heygen',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const secret = process.env.HEYGEN_WEBHOOK_SECRET;
+    if (!secret) {
+      res.status(500).send('webhook secret not configured');
+      return;
+    }
+
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+    const verified = verifyHeygenSignature(
+      rawBody,
+      req.header('Heygen-Signature') ?? undefined,
+      req.header('Heygen-Timestamp') ?? undefined,
+      secret
+    );
+    if (!verified.ok) {
+      res.status(verified.status).send(verified.error);
+      return;
+    }
+
+    const eventId = req.header('Heygen-Event-Id');
+    if (!eventId) {
+      res.status(400).send('missing event id');
+      return;
+    }
+
+    let event: {
+      event_type?: string;
+      event_data?: Record<string, unknown>;
+    };
+    try {
+      event = JSON.parse(rawBody.toString('utf8')) as typeof event;
+    } catch {
+      res.status(400).send('invalid json');
+      return;
+    }
+
+    const claimed = await claimHeygenEvent(eventId);
+    if (!claimed) {
+      res.status(200).send('ok');
+      return;
+    }
+
+    const eventType = event.event_type ?? '';
+    const eventData = event.event_data ?? {};
+    const sessionId =
+      typeof eventData.callback_id === 'string' ? eventData.callback_id : null;
+
+    if (!sessionId) {
+      console.error('[heygen webhook] missing callback_id', eventType, eventId);
+      res.status(200).send('ok');
+      return;
+    }
+
+    const sessionSnap = await db.collection('sessions').doc(sessionId).get();
+    const userId = sessionSnap.data()?.userId;
+    if (typeof userId !== 'string') {
+      console.error('[heygen webhook] unknown session', sessionId);
+      res.status(200).send('ok');
+      return;
+    }
+
+    try {
+      if (eventType === 'hyperframes_video.fail') {
+        const message =
+          (typeof eventData.failure_message === 'string' && eventData.failure_message) ||
+          (typeof eventData.error === 'string' && eventData.error) ||
+          'HeyGen cloud render failed';
+        await recordRenderFailure(userId, sessionId, 'FAILED', message);
+        res.status(200).send('ok');
+        return;
+      }
+
+      if (eventType === 'hyperframes_video.success') {
+        let videoUrl = videoUrlFromEventData(eventData);
+        if (!videoUrl) {
+          const renderId =
+            (typeof eventData.render_id === 'string' && eventData.render_id) ||
+            null;
+          if (!renderId) {
+            throw new Error('success event missing video_url and render_id');
+          }
+          const detail = await fetchHeygenRender(renderId);
+          if (detail.status !== 'completed' || !detail.video_url) {
+            throw new Error(
+              `render ${renderId} not completed (${detail.status}): ${detail.failure_message ?? ''}`
+            );
+          }
+          videoUrl = detail.video_url;
+        }
+        await finalizeRenderFromUrl(userId, sessionId, videoUrl);
+        res.status(200).send('ok');
+        return;
+      }
+
+      res.status(200).send('ok');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[heygen webhook] finalize failed', sessionId, message);
+      // Non-2xx so HeyGen retries; Check Now can also finalize.
+      res.status(500).send('finalize failed');
+    }
+  }
+);
+
 app.use(express.json({ limit: '50mb' }));
 
 app.get('/health', (_req, res) => {
@@ -40,6 +157,34 @@ app.post('/renders/:sessionId/check', async (req, res) => {
     const job = await getRenderJob(userId, req.params.sessionId);
     if (!job) {
       res.status(404).json({ error: 'Render job not found' });
+      return;
+    }
+
+    if (!isSfnExecutionArn(job.executionArn)) {
+      const detail = await fetchHeygenRender(job.executionArn);
+      if (detail.status === 'completed' && detail.video_url) {
+        const videoUrl = await finalizeRenderFromUrl(
+          userId,
+          req.params.sessionId,
+          detail.video_url
+        );
+        res.json({ renderStatus: 'SUCCEEDED', draftVideoUrl: videoUrl });
+        return;
+      }
+      if (detail.status === 'failed') {
+        await recordRenderFailure(
+          userId,
+          req.params.sessionId,
+          'FAILED',
+          detail.failure_message || 'HeyGen cloud render failed'
+        );
+        res.json({ renderStatus: 'FAILED', errors: [detail.failure_message] });
+        return;
+      }
+      res.json({
+        renderStatus: 'RUNNING',
+        heygenStatus: detail.status,
+      });
       return;
     }
 
