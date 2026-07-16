@@ -34808,9 +34808,9 @@ async function recordRenderFailure(userId, sessionId, status, error40) {
     { merge: true }
   );
 }
-async function claimHeygenEvent(eventId) {
+async function claimHeygenEvent(eventId2) {
   try {
-    await db.collection("heygen_webhook_events").doc(eventId).create({
+    await db.collection("heygen_webhook_events").doc(eventId2).create({
       receivedAt: import_firestore2.FieldValue.serverTimestamp()
     });
     return true;
@@ -35473,14 +35473,16 @@ var import_node_crypto = __toESM(require("node:crypto"));
 var MAX_SKEW_SECONDS = 300;
 var HEYGEN_API_BASE = process.env.HEYGEN_API_URL ?? "https://api.heygen.com";
 function verifyHeygenSignature(rawBody, signature, timestamp, secret) {
-  if (!signature || !timestamp) {
-    return { ok: false, status: 400, error: "missing headers" };
+  if (!signature) {
+    return { ok: false, status: 400, error: "missing signature" };
   }
-  if (!Number.isFinite(Number(timestamp))) {
-    return { ok: false, status: 400, error: "bad timestamp" };
-  }
-  if (Math.abs(Date.now() / 1e3 - Number(timestamp)) > MAX_SKEW_SECONDS) {
-    return { ok: false, status: 400, error: "stale timestamp" };
+  if (timestamp !== void 0) {
+    if (!Number.isFinite(Number(timestamp))) {
+      return { ok: false, status: 400, error: "bad timestamp" };
+    }
+    if (Math.abs(Date.now() / 1e3 - Number(timestamp)) > MAX_SKEW_SECONDS) {
+      return { ok: false, status: 400, error: "stale timestamp" };
+    }
   }
   const expected = import_node_crypto.default.createHmac("sha256", secret).update(rawBody).digest("hex");
   const sigBuf = Buffer.from(signature, "hex");
@@ -35514,15 +35516,18 @@ async function fetchHeygenRender(renderId) {
 }
 function parseCloudRenderId(stdout) {
   const trimmed = stdout.trim();
+  const readId = (o) => o && typeof o === "object" && typeof o.render_id === "string" ? o.render_id : null;
   try {
     const parsed = JSON.parse(trimmed);
-    const nested = parsed.data;
-    const fromNested = nested && typeof nested === "object" && typeof nested.render_id === "string" ? nested.render_id : null;
-    const id = typeof parsed.render_id === "string" && parsed.render_id || fromNested || null;
+    const id = readId(parsed) ?? readId(parsed.render) ?? readId(parsed.data);
     if (id) return id;
   } catch {
   }
-  const match = trimmed.match(/\b(hfr_[A-Za-z0-9_-]+)\b/);
+  const keyed = trimmed.match(/"render_id"\s*:\s*"([^"]+)"/);
+  if (keyed) return keyed[1];
+  const match = trimmed.match(
+    /\b(hfr_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i
+  );
   if (match) return match[1];
   throw new Error(`Could not parse render_id from cloud render output: ${trimmed.slice(0, 200)}`);
 }
@@ -36378,17 +36383,12 @@ app2.post(
     const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
     const verified = verifyHeygenSignature(
       rawBody,
-      req.header("Heygen-Signature") ?? void 0,
+      req.header("Heygen-Signature") ?? req.header("Signature") ?? void 0,
       req.header("Heygen-Timestamp") ?? void 0,
       secret
     );
     if (!verified.ok) {
       res.status(verified.status).send(verified.error);
-      return;
-    }
-    const eventId = req.header("Heygen-Event-Id");
-    if (!eventId) {
-      res.status(400).send("missing event id");
       return;
     }
     let event;
@@ -36398,14 +36398,18 @@ app2.post(
       res.status(400).send("invalid json");
       return;
     }
-    const claimed = await claimHeygenEvent(eventId);
-    if (!claimed) {
-      res.status(200).send("ok");
-      return;
-    }
     const eventType = event.event_type ?? "";
     const eventData = event.event_data ?? {};
     const sessionId = typeof eventData.callback_id === "string" ? eventData.callback_id : null;
+    const renderId = typeof eventData.render_id === "string" ? eventData.render_id : null;
+    const dedupKey = req.header("Heygen-Event-Id") ?? renderId ?? sessionId;
+    if (dedupKey) {
+      const claimed = await claimHeygenEvent(dedupKey);
+      if (!claimed) {
+        res.status(200).send("ok");
+        return;
+      }
+    }
     if (!sessionId) {
       console.error("[heygen webhook] missing callback_id", eventType, eventId);
       res.status(200).send("ok");
@@ -36428,14 +36432,14 @@ app2.post(
       if (eventType === "hyperframes_video.success") {
         let videoUrl = videoUrlFromEventData(eventData);
         if (!videoUrl) {
-          const renderId = typeof eventData.render_id === "string" && eventData.render_id || null;
-          if (!renderId) {
+          const renderId2 = typeof eventData.render_id === "string" && eventData.render_id || null;
+          if (!renderId2) {
             throw new Error("success event missing video_url and render_id");
           }
-          const detail = await fetchHeygenRender(renderId);
+          const detail = await fetchHeygenRender(renderId2);
           if (detail.status !== "completed" || !detail.video_url) {
             throw new Error(
-              `render ${renderId} not completed (${detail.status}): ${detail.failure_message ?? ""}`
+              `render ${renderId2} not completed (${detail.status}): ${detail.failure_message ?? ""}`
             );
           }
           videoUrl = detail.video_url;

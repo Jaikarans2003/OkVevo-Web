@@ -46,7 +46,13 @@ export function AiStudioDeliverablesRail({
                   Draft video ready
                 </div>
                 <article className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
-                  <div className="aspect-video bg-black/50" />
+                  <video
+                    src={draftVideoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="aspect-video w-full bg-black/50"
+                  />
                   <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
                     <a
                       href={draftVideoUrl}
@@ -54,7 +60,7 @@ export function AiStudioDeliverablesRail({
                       rel="noopener noreferrer"
                       className="truncate text-orange-300 transition hover:text-orange-200"
                     >
-                      View draft video
+                      Open in new tab
                     </a>
                   </div>
                 </article>
@@ -70,7 +76,17 @@ export function AiStudioDeliverablesRail({
                   Final render ({fileCount})
                 </div>
                 <article className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
-                  <div className="aspect-video bg-black/50" />
+                  {draftVideoUrl ? (
+                    <video
+                      src={draftVideoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="aspect-video w-full bg-black/50"
+                    />
+                  ) : (
+                    <div className="aspect-video bg-black/50" />
+                  )}
                   <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
                     <span className="truncate">final.mp4</span>
                   </div>

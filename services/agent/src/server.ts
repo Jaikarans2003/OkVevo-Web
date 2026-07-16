@@ -43,20 +43,16 @@ app.post(
     }
 
     const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+    // HeyGen's hyperframes webhook sends a legacy `Signature` header; the v3
+    // scheme uses `Heygen-Signature` (+ timestamp). Accept either.
     const verified = verifyHeygenSignature(
       rawBody,
-      req.header('Heygen-Signature') ?? undefined,
+      req.header('Heygen-Signature') ?? req.header('Signature') ?? undefined,
       req.header('Heygen-Timestamp') ?? undefined,
       secret
     );
     if (!verified.ok) {
       res.status(verified.status).send(verified.error);
-      return;
-    }
-
-    const eventId = req.header('Heygen-Event-Id');
-    if (!eventId) {
-      res.status(400).send('missing event id');
       return;
     }
 
@@ -71,16 +67,24 @@ app.post(
       return;
     }
 
-    const claimed = await claimHeygenEvent(eventId);
-    if (!claimed) {
-      res.status(200).send('ok');
-      return;
-    }
-
     const eventType = event.event_type ?? '';
     const eventData = event.event_data ?? {};
     const sessionId =
       typeof eventData.callback_id === 'string' ? eventData.callback_id : null;
+
+    // Dedup key: prefer Heygen-Event-Id, but legacy deliveries omit it, so fall
+    // back to render_id (stable across retries of the same delivery). finalize
+    // is idempotent, so processing without a key is still safe.
+    const renderId =
+      typeof eventData.render_id === 'string' ? eventData.render_id : null;
+    const dedupKey = req.header('Heygen-Event-Id') ?? renderId ?? sessionId;
+    if (dedupKey) {
+      const claimed = await claimHeygenEvent(dedupKey);
+      if (!claimed) {
+        res.status(200).send('ok');
+        return;
+      }
+    }
 
     if (!sessionId) {
       console.error('[heygen webhook] missing callback_id', eventType, eventId);

@@ -18,14 +18,19 @@ export function verifyHeygenSignature(
   timestamp: string | undefined,
   secret: string
 ): { ok: true } | { ok: false; status: number; error: string } {
-  if (!signature || !timestamp) {
-    return { ok: false, status: 400, error: 'missing headers' };
+  if (!signature) {
+    return { ok: false, status: 400, error: 'missing signature' };
   }
-  if (!Number.isFinite(Number(timestamp))) {
-    return { ok: false, status: 400, error: 'bad timestamp' };
-  }
-  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > MAX_SKEW_SECONDS) {
-    return { ok: false, status: 400, error: 'stale timestamp' };
+  // The v3 webhook scheme includes Heygen-Timestamp for replay protection, but
+  // the legacy hyperframes delivery sends only a `Signature` header with no
+  // timestamp. Apply the skew check only when a timestamp is actually present.
+  if (timestamp !== undefined) {
+    if (!Number.isFinite(Number(timestamp))) {
+      return { ok: false, status: 400, error: 'bad timestamp' };
+    }
+    if (Math.abs(Date.now() / 1000 - Number(timestamp)) > MAX_SKEW_SECONDS) {
+      return { ok: false, status: 400, error: 'stale timestamp' };
+    }
   }
 
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
@@ -64,22 +69,24 @@ export async function fetchHeygenRender(renderId: string): Promise<HeygenRenderD
 
 export function parseCloudRenderId(stdout: string): string {
   const trimmed = stdout.trim();
+  const readId = (o: unknown): string | null =>
+    o && typeof o === 'object' && typeof (o as { render_id?: unknown }).render_id === 'string'
+      ? (o as { render_id: string }).render_id
+      : null;
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    const nested = parsed.data;
-    const fromNested =
-      nested && typeof nested === 'object' && typeof (nested as { render_id?: unknown }).render_id === 'string'
-        ? (nested as { render_id: string }).render_id
-        : null;
-    const id =
-      (typeof parsed.render_id === 'string' && parsed.render_id) ||
-      fromNested ||
-      null;
+    const id = readId(parsed) ?? readId(parsed.render) ?? readId(parsed.data);
     if (id) return id;
   } catch {
     // fall through to regex
   }
-  const match = trimmed.match(/\b(hfr_[A-Za-z0-9_-]+)\b/);
+  // Prefer the value attached to a render_id key so a stray UUID elsewhere
+  // in the output (e.g. a _meta trace id) can't be grabbed by mistake.
+  const keyed = trimmed.match(/"render_id"\s*:\s*"([^"]+)"/);
+  if (keyed) return keyed[1];
+  const match = trimmed.match(
+    /\b(hfr_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i
+  );
   if (match) return match[1];
   throw new Error(`Could not parse render_id from cloud render output: ${trimmed.slice(0, 200)}`);
 }
@@ -99,8 +106,18 @@ export function selfcheck(): void {
   if (bad.ok || bad.status !== 401) throw new Error('expected bad signature 401');
   const stale = verifyHeygenSignature(body, sig, String(Math.floor(Date.now() / 1000) - 999), secret);
   if (stale.ok || stale.status !== 400) throw new Error('expected stale 400');
+  // Legacy hyperframes delivery: `Signature` header, no timestamp — must verify.
+  const legacy = verifyHeygenSignature(body, sig, undefined, secret);
+  if (!legacy.ok) throw new Error(`expected legacy ok, got ${legacy.error}`);
+  const legacyBad = verifyHeygenSignature(body, '00'.repeat(32), undefined, secret);
+  if (legacyBad.ok || legacyBad.status !== 401) throw new Error('expected legacy bad signature 401');
   if (parseCloudRenderId('{"render_id":"hfr_abc123"}') !== 'hfr_abc123') {
     throw new Error('parseCloudRenderId failed');
+  }
+  const nestedShape =
+    '{"render":{"render_id":"211d77dd-6ee8-4acd-b3c8-b1bca7df487f","status":"queued"},"_meta":{}}';
+  if (parseCloudRenderId(nestedShape) !== '211d77dd-6ee8-4acd-b3c8-b1bca7df487f') {
+    throw new Error('parseCloudRenderId nested/UUID shape failed');
   }
   console.log('heygenWebhook selfcheck ok');
 }
