@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const WorkspaceBento = () => {
     return (
@@ -24,44 +25,54 @@ const WorkspaceBento = () => {
                         transition={{ delay: 0.1 }}
                         className="h-[500px] lg:h-full rounded-[40px] bg-[#fb4a2e] flex flex-col items-center overflow-hidden relative group"
                     >
-                        <div className="p-8 md:p-12 pb-2 flex flex-col items-center text-center relative z-20 w-full">
+                        <div className="p-8 md:p-12 pb-2 flex flex-col items-start text-left relative z-20 w-full">
                             <div className="bg-white/10 text-white/90 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 border border-white/20 backdrop-blur-md">
-                                Creative Agent Studio
+                          Hey Nia
                             </div>
 
-                            <h2 className="text-white text-[42px] leading-tight mb-3 tracking-tight" style={{ fontWeight: 600 }}>AI Studio</h2>
+                            <h2 className="text-white text-[48px] md:text-[56px] leading-tight mb-4 tracking-tight" style={{ fontWeight: 600 }}>AI Studio</h2>
                             
-                            <p className="text-white/80 text-[14px] md:text-[15px] leading-relaxed max-w-[300px] mb-6 font-medium">
-                                Chat with your creative agent. Cut clips, add captions, compose with HyperFrames, and ship content faster.
+                            <p className="text-white/80 text-[17px] md:text-[19px] leading-relaxed max-w-[360px] mb-7 font-medium">
+                                Tell Nia what you want. She&apos;ll figure out the rest.
                             </p>
 
                             <Link href="/workspace/ai-studio">
                                 <button className="bg-[#0a0a0a] text-white px-8 py-3 rounded-full text-[15px] font-medium hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.15)] flex items-center gap-2">
-                                    Launch Studio
+                                Create with Nia
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                                 </button>
                             </Link>
                         </div>
                         
-                        <div className="w-full flex-1 relative flex items-end justify-center overflow-hidden px-8 pb-8">
+                        <div className="w-full flex-1 relative flex items-end justify-center px-8 pb-8">
                             <div className="absolute inset-x-0 top-[-1px] h-32 bg-gradient-to-b from-[#fb4a2e] to-transparent z-10 pointer-events-none"></div>
 
-                            <div className="w-full max-w-[320px] rounded-[24px] bg-[#1C1C1E]/90 border border-white/10 p-5 shadow-2xl backdrop-blur-sm transition-transform duration-700 group-hover:scale-105">
-                                <div className="flex flex-col gap-3">
-                                    <div className="self-end max-w-[85%] rounded-2xl rounded-tr-sm bg-white/10 px-4 py-2.5 text-[13px] text-white/90 text-left">
-                                        Cut my podcast into 5 vertical clips with captions.
+                            <div className="relative w-full max-w-[560px]">
+                                <Image
+                                    src="/Nia/5.png"
+                                    alt="Nia"
+                                    width={210}
+                                    height={330}
+                                    priority
+                                    className="pointer-events-none absolute bottom-full right-2 md:right-6 z-30 h-auto w-[170px] translate-y-[88px] object-contain drop-shadow-[0_24px_48px_rgba(0,0,0,0.5)] transition-transform duration-700 group-hover:translate-y-[82px] md:w-[210px]"
+                                />
+
+                            <div className="relative z-20 w-full rounded-[24px] bg-[#1C1C1E]/90 border border-white/10 p-6 md:p-7 shadow-2xl backdrop-blur-sm transition-transform duration-700 group-hover:scale-105">
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col items-end gap-1.5">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-white/50 pr-1">You</span>
+                                        <div className="self-end max-w-[85%] rounded-2xl rounded-tr-sm bg-white/10 px-4 py-3 text-[15px] leading-relaxed text-white/90 text-left">
+                                            Hey Nia, turn this lecture into a course students actually finish.
+                                        </div>
                                     </div>
-                                    <div className="self-start max-w-[85%] rounded-2xl rounded-tl-sm bg-[#fb4a2e]/80 px-4 py-2.5 text-[13px] text-white text-left">
-                                        On it — I&apos;ll find the best moments and add karaoke-style captions.
-                                    </div>
-                                    <div className="flex gap-2 pt-1">
-                                        {['🎬 Clips', '📋 Captions', '🖼 HyperFrames'].map((pill) => (
-                                            <span key={pill} className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium text-white/80 border border-white/10">
-                                                {pill}
-                                            </span>
-                                        ))}
+                                    <div className="flex flex-col items-start gap-1.5">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-white/50 pl-1">Nia</span>
+                                        <div className="self-start max-w-[85%] rounded-2xl rounded-tl-sm bg-[#fb4a2e]/80 px-4 py-3 text-[15px] leading-relaxed text-white text-left">
+                                            Building the curriculum, creating visuals, generating lessons, and producing the videos.
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
                             </div>
                         </div>
                     </motion.div>
