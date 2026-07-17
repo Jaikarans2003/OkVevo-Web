@@ -27,7 +27,7 @@ const WorkspaceBento = () => {
                     >
                         <div className="p-8 md:p-12 pb-2 flex flex-col items-start text-left relative z-20 w-full">
                             <div className="bg-white/10 text-white/90 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 border border-white/20 backdrop-blur-md">
-                          Hey Nia
+                            Meet Nia
                             </div>
 
                             <h2 className="text-white text-[48px] md:text-[56px] leading-tight mb-4 tracking-tight" style={{ fontWeight: 600 }}>AI Studio</h2>
