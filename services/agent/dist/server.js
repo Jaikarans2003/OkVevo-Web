@@ -36460,6 +36460,47 @@ app2.use(import_express.default.json({ limit: "50mb" }));
 app2.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+app2.get("/ping", (_req, res) => {
+  res.json({ status: "Healthy" });
+});
+app2.post("/invocations", async (req, res) => {
+  try {
+    const input = req.body?.input ?? req.body ?? {};
+    const prompt = typeof input.prompt === "string" && input.prompt || typeof input.userMessage === "string" && input.userMessage || typeof input.message === "string" && input.message || "";
+    if (!prompt.trim()) {
+      res.status(400).json({
+        error: "No prompt found in input. Provide input.prompt (AgentCore) or a message."
+      });
+      return;
+    }
+    const sessionId = typeof input.sessionId === "string" && input.sessionId || typeof req.body?.sessionId === "string" && req.body.sessionId || import_node_crypto2.default.randomUUID();
+    const userId = typeof input.userId === "string" && input.userId || typeof req.body?.userId === "string" && req.body.userId || "agentcore";
+    const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
+    const skillId = typeof input.skillId === "string" ? input.skillId : void 0;
+    const model = typeof input.model === "string" ? input.model : void 0;
+    const result = await runAgent({
+      userMessage: prompt,
+      sessionId,
+      userId,
+      videoUrl,
+      skillId,
+      model
+    });
+    const text2 = await result.text;
+    res.json({
+      output: {
+        message: text2,
+        sessionId,
+        userId,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    });
+  } catch (error40) {
+    const message = error40 instanceof Error ? error40.message : "Invocation failed";
+    console.error("[agentcore] /invocations error:", message);
+    res.status(500).json({ error: message });
+  }
+});
 app2.post("/renders/:sessionId/check", async (req, res) => {
   const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) {
@@ -36577,7 +36618,7 @@ app2.post("/chat", async (req, res) => {
     }
   }
 });
-var PORT = process.env.PORT || 3001;
-app2.listen(PORT, () => {
-  console.log(`OkVevo Agent running on port ${PORT}`);
+var PORT = Number(process.env.PORT || 3001);
+app2.listen(PORT, "0.0.0.0", () => {
+  console.log(`OkVevo Agent running on 0.0.0.0:${PORT}`);
 });

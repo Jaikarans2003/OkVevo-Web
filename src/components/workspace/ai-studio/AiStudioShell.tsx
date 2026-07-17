@@ -97,7 +97,29 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [pipelineMode, setPipelineMode] = useState<'ask' | 'auto'>('ask');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [agentBackend, setAgentBackend] = useState<'local' | 'agentcore' | null>(
+    null
+  );
   const pipelineState = usePipelineState(chatId);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/agent')
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          backend?: string;
+        };
+        if (cancelled) return;
+        if (data.backend === 'agentcore') setAgentBackend('agentcore');
+        else if (data.backend === 'local') setAgentBackend('local');
+      })
+      .catch(() => {
+        if (!cancelled) setAgentBackend(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -173,10 +195,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
     const sessionId = activeSessionId;
     if (!sessionId) {
-      return;
-    }
-
-    if (loadedSessionRef.current === sessionId) {
+      setMessagesLoading(false);
       return;
     }
 
@@ -184,16 +203,26 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       return;
     }
 
+    // Only skip after a successful load — setting this before fetch + Strict Mode
+    // cleanup left messagesLoading=true forever ("Warming up…").
+    if (loadedSessionRef.current === sessionId) {
+      setMessagesLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    loadedSessionRef.current = sessionId;
     setMessagesLoading(true);
 
     (async () => {
       try {
         const loaded = await fetchSessionMessages(sessionId);
-        if (!cancelled) setMessages(loaded);
+        if (cancelled) return;
+        setMessages(loaded);
+        loadedSessionRef.current = sessionId;
       } catch {
-        if (!cancelled) setMessages([]);
+        if (cancelled) return;
+        setMessages([]);
+        loadedSessionRef.current = sessionId;
       } finally {
         if (!cancelled) setMessagesLoading(false);
       }
@@ -404,6 +433,17 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         className="hidden"
         onChange={handleFileInputChange}
       />
+      {agentBackend ? (
+        <p className="mb-2 text-center text-[11px] tracking-wide text-white/35">
+          Agent:{' '}
+          <span className="text-white/55">
+            {agentBackend === 'agentcore' ? 'Bedrock AgentCore' : 'Local Docker'}
+          </span>
+          {agentBackend === 'agentcore' ? (
+            <span className="text-white/25"> · replies arrive after the run finishes</span>
+          ) : null}
+        </p>
+      ) : null}
       <PipelineStatusBar
         pipelineState={pipelineState}
         onApprove={approve}

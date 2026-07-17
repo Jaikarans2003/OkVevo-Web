@@ -149,6 +149,66 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Bedrock AgentCore Runtime contract (keep /health + /chat for local Compose)
+app.get('/ping', (_req, res) => {
+  res.json({ status: 'Healthy' });
+});
+
+app.post('/invocations', async (req, res) => {
+  try {
+    const input = (req.body?.input ?? req.body ?? {}) as Record<string, unknown>;
+    const prompt =
+      (typeof input.prompt === 'string' && input.prompt) ||
+      (typeof input.userMessage === 'string' && input.userMessage) ||
+      (typeof input.message === 'string' && input.message) ||
+      '';
+
+    if (!prompt.trim()) {
+      res.status(400).json({
+        error: "No prompt found in input. Provide input.prompt (AgentCore) or a message.",
+      });
+      return;
+    }
+
+    const sessionId =
+      (typeof input.sessionId === 'string' && input.sessionId) ||
+      (typeof req.body?.sessionId === 'string' && req.body.sessionId) ||
+      crypto.randomUUID();
+    const userId =
+      (typeof input.userId === 'string' && input.userId) ||
+      (typeof req.body?.userId === 'string' && req.body.userId) ||
+      'agentcore';
+    const videoUrl =
+      typeof input.videoUrl === 'string' ? input.videoUrl : undefined;
+    const skillId =
+      typeof input.skillId === 'string' ? input.skillId : undefined;
+    const model = typeof input.model === 'string' ? input.model : undefined;
+
+    const result = await runAgent({
+      userMessage: prompt,
+      sessionId,
+      userId,
+      videoUrl,
+      skillId,
+      model,
+    });
+
+    const text = await result.text;
+    res.json({
+      output: {
+        message: text,
+        sessionId,
+        userId,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Invocation failed';
+    console.error('[agentcore] /invocations error:', message);
+    res.status(500).json({ error: message });
+  }
+});
+
 app.post('/renders/:sessionId/check', async (req, res) => {
   const token = req.header('authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) {
@@ -290,8 +350,8 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT || 3001);
 
-app.listen(PORT, () => {
-  console.log(`OkVevo Agent running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`OkVevo Agent running on 0.0.0.0:${PORT}`);
 });

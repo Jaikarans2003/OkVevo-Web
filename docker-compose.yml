@@ -1,9 +1,11 @@
 services:
   agent:
+    platform: linux/arm64
     build:
       context: .
       dockerfile: services/agent/Dockerfile
-    shm_size: '512mb'
+      platforms:
+        - linux/arm64
     ports:
       - "3001:3001"
     env_file:
@@ -12,7 +14,6 @@ services:
       # Override local-dev paths from .env for in-container binaries
       - DOCKER_AGENT=1
       - HYPERFRAMES_CLI=/usr/local/lib/node_modules/hyperframes/dist/cli.js
-      - HYPERFRAMES_BROWSER_PATH=/usr/local/bin/hyperframes-chrome-headless-shell
       - PORT=3001
     volumes:
       # Dev-only: SDK shared credentials. Production uses ECS task IAM role.
