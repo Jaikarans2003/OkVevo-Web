@@ -17,6 +17,7 @@ import {
   getRenderJob,
   recordRenderFailure,
 } from './storage';
+import { deliverEvent, parseRenderEvent } from './deliverEvent';
 
 // ponytail: Docker-only — local `node` on 3001 collides with `docker compose up agent`
 if (process.env.DOCKER_AGENT !== '1') {
@@ -87,7 +88,7 @@ app.post(
     }
 
     if (!sessionId) {
-      console.error('[heygen webhook] missing callback_id', eventType, eventId);
+      console.error('[heygen webhook] missing callback_id', eventType, dedupKey);
       res.status(200).send('ok');
       return;
     }
@@ -183,6 +184,24 @@ app.post('/invocations', async (req, res) => {
     const skillId =
       typeof input.skillId === 'string' ? input.skillId : undefined;
     const model = typeof input.model === 'string' ? input.model : undefined;
+    const source = typeof input.source === 'string' ? input.source : undefined;
+
+    // Webhook turns short-circuit the LLM: write the render result directly.
+    if (source === 'webhook') {
+      const message = await deliverEvent(
+        { sessionId, userId },
+        parseRenderEvent(prompt)
+      );
+      res.json({
+        output: {
+          message,
+          sessionId,
+          userId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
 
     const accept = String(req.headers.accept ?? '');
     const wantsStream =

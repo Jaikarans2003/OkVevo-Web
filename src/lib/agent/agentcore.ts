@@ -10,6 +10,7 @@ export type AgentCoreInvokeInput = {
   videoUrl?: string;
   skillId?: string;
   model?: string;
+  source?: 'chat' | 'webhook';
 };
 
 export type AgentCoreInvokeResult = {
@@ -51,6 +52,7 @@ function buildPayload(input: AgentCoreInvokeInput, stream: boolean) {
       ...(input.videoUrl ? { videoUrl: input.videoUrl } : {}),
       ...(input.skillId ? { skillId: input.skillId } : {}),
       ...(input.model ? { model: input.model } : {}),
+      ...(input.source ? { source: input.source } : {}),
     },
   };
 }

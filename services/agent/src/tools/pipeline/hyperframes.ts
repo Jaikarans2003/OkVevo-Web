@@ -24,6 +24,7 @@ import {
   substitutePlaceholders,
 } from '../lib/utils';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
+import { signCallbackToken } from '../../callbackToken';
 import {
   downloadStoragePrefixToDir,
   getAssetUrl,
@@ -370,10 +371,18 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
             }
 
             const apiKey = process.env.HEYGEN_API_KEY;
-            const callbackUrl = process.env.HEYGEN_CALLBACK_URL;
-            if (!apiKey || !callbackUrl) {
+            const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
+            if (!apiKey || !baseCallbackUrl) {
               throw new Error('Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL');
             }
+
+            // Auth for the Next receiver: HMAC-signed token carrying the session.
+            const token = signCallbackToken({
+              sessionId: ctx.sessionId,
+              taskId: ctx.sessionId,
+              exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+            });
+            const callbackUrl = `${baseCallbackUrl}?token=${token}`;
 
             // CLI inherits HEYGEN_API_KEY from process env
             const cloudCmd =

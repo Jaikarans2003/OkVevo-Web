@@ -107,7 +107,7 @@ var require_main = __commonJS({
     var fs11 = require("fs");
     var path10 = require("path");
     var os3 = require("os");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var packageJson = require_package();
     var version2 = packageJson.version;
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
@@ -326,7 +326,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error40) {
@@ -1190,7 +1190,7 @@ var require_dist = __commonJS({
 })();
 
 // src/server.ts
-var import_node_crypto2 = __toESM(require("node:crypto"));
+var import_node_crypto3 = __toESM(require("node:crypto"));
 var import_express = __toESM(require("express"));
 var import_cors = __toESM(require("cors"));
 
@@ -34866,9 +34866,9 @@ async function recordRenderFailure(userId, sessionId, status, error40) {
     { merge: true }
   );
 }
-async function claimHeygenEvent(eventId2) {
+async function claimHeygenEvent(eventId) {
   try {
-    await db.collection("heygen_webhook_events").doc(eventId2).create({
+    await db.collection("heygen_webhook_events").doc(eventId).create({
       receivedAt: import_firestore3.FieldValue.serverTimestamp()
     });
     return true;
@@ -35593,6 +35593,21 @@ function isSfnExecutionArn(arn) {
   return arn.startsWith("arn:aws:states:");
 }
 
+// src/callbackToken.ts
+var import_node_crypto2 = __toESM(require("node:crypto"));
+function getSecret() {
+  const secret = process.env.HEYGEN_CALLBACK_SECRET;
+  if (!secret) {
+    throw new Error("HEYGEN_CALLBACK_SECRET is required");
+  }
+  return secret;
+}
+function signCallbackToken(payload) {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = import_node_crypto2.default.createHmac("sha256", getSecret()).update(body).digest("hex");
+  return `${body}.${sig}`;
+}
+
 // src/tools/pipeline/hyperframes.ts
 var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
 var brandColorsSchema = external_exports2.object({
@@ -35875,10 +35890,16 @@ function createHyperframesTools(ctx) {
               };
             }
             const apiKey = process.env.HEYGEN_API_KEY;
-            const callbackUrl = process.env.HEYGEN_CALLBACK_URL;
-            if (!apiKey || !callbackUrl) {
+            const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
+            if (!apiKey || !baseCallbackUrl) {
               throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
             }
+            const token = signCallbackToken({
+              sessionId: ctx.sessionId,
+              taskId: ctx.sessionId,
+              exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
+            });
+            const callbackUrl = `${baseCallbackUrl}?token=${token}`;
             const cloudCmd = `node "${cliPath}" cloud render . --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${ctx.sessionId}" --no-wait --json`;
             const cloudResult = await execCommand(cloudCmd, {
               cwd: projectDir,
@@ -36372,6 +36393,39 @@ function pipeAgentStream(result, response, params) {
   });
 }
 
+// src/deliverEvent.ts
+function parseRenderEvent(prompt) {
+  const status = /HeyGen render completed/.test(prompt) ? "completed" : "failed";
+  const urlMatch = prompt.match(/video_url:\s*(\S+)/);
+  const raw = urlMatch?.[1];
+  const videoUrl = raw && raw !== "n/a" ? raw : void 0;
+  return { status, videoUrl };
+}
+async function deliverEvent(session, event) {
+  const { sessionId, userId } = session;
+  const targets = session.deliveryTargets ?? [{ type: "ui" }];
+  if (event.status === "completed") {
+    if (!event.videoUrl) throw new Error("completed event missing videoUrl");
+    await finalizeRenderFromUrl(userId, sessionId, event.videoUrl);
+  } else {
+    await recordRenderFailure(
+      userId,
+      sessionId,
+      "FAILED",
+      "HeyGen cloud render failed"
+    );
+  }
+  for (const t of targets) {
+    switch (t.type) {
+      case "ui":
+        break;
+      default:
+        console.warn(`[deliverEvent] unknown delivery target: ${t.type}`);
+    }
+  }
+  return `delivered ${event.status} for session ${sessionId} to [${targets.map((t) => t.type).join(", ")}]`;
+}
+
 // src/server.ts
 if (process.env.DOCKER_AGENT !== "1") {
   console.error(
@@ -36421,7 +36475,7 @@ app2.post(
       }
     }
     if (!sessionId) {
-      console.error("[heygen webhook] missing callback_id", eventType, eventId);
+      console.error("[heygen webhook] missing callback_id", eventType, dedupKey);
       res.status(200).send("ok");
       return;
     }
@@ -36483,11 +36537,27 @@ app2.post("/invocations", async (req, res) => {
       });
       return;
     }
-    const sessionId = typeof input.sessionId === "string" && input.sessionId || typeof req.body?.sessionId === "string" && req.body.sessionId || import_node_crypto2.default.randomUUID();
+    const sessionId = typeof input.sessionId === "string" && input.sessionId || typeof req.body?.sessionId === "string" && req.body.sessionId || import_node_crypto3.default.randomUUID();
     const userId = typeof input.userId === "string" && input.userId || typeof req.body?.userId === "string" && req.body.userId || "agentcore";
     const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
     const skillId = typeof input.skillId === "string" ? input.skillId : void 0;
     const model = typeof input.model === "string" ? input.model : void 0;
+    const source = typeof input.source === "string" ? input.source : void 0;
+    if (source === "webhook") {
+      const message = await deliverEvent(
+        { sessionId, userId },
+        parseRenderEvent(prompt)
+      );
+      res.json({
+        output: {
+          message,
+          sessionId,
+          userId,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+      return;
+    }
     const accept = String(req.headers.accept ?? "");
     const wantsStream = input.stream === true || accept.includes("text/event-stream") || accept.includes("text/plain") || req.headers["x-vercel-ai-ui-message-stream"] === "v1";
     const result = await runAgent({
@@ -36613,7 +36683,7 @@ app2.post("/chat", async (req, res) => {
   } = req.body;
   const lastMessage = messages?.at(-1);
   const userMessage = typeof lastMessage?.content === "string" ? lastMessage.content : Array.isArray(lastMessage?.parts) ? lastMessage.parts.filter((p) => p.type === "text").map((p) => p.text ?? "").join("") : "";
-  const sessionId = bodySessionId ?? import_node_crypto2.default.randomUUID();
+  const sessionId = bodySessionId ?? import_node_crypto3.default.randomUUID();
   const userId = bodyUserId ?? "anonymous";
   if (!userMessage) {
     res.status(400).json({ error: "userMessage is required" });

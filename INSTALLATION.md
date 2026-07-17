@@ -638,7 +638,7 @@ taskkill /PID <pid> /F
 
 ### Docker build fails on Apple Silicon
 
-The agent Dockerfile targets `linux/amd64`. On Apple Silicon, Docker Desktop emulates amd64 automatically; first build may be slow.
+The agent Dockerfile targets `linux/arm64` (required by AgentCore Runtime). On Apple Silicon this is native; on amd64 hosts `docker buildx` emulates arm64 automatically, so the first build may be slow.
 
 ### Windows path issues
 

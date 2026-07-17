@@ -1,0 +1,9 @@
+{
+  "region": "us-east-1",
+  "agentRuntimeId": "okvevo_agent-HMRsX57MzN",
+  "agentRuntimeArn": "arn:aws:bedrock-agentcore:us-east-1:052120999576:runtime/okvevo_agent-HMRsX57MzN",
+  "ecrRepoUri": "052120999576.dkr.ecr.us-east-1.amazonaws.com/okvevo-agent",
+  "roleArn": "arn:aws:iam::052120999576:role/OkVevoAgentCoreRuntimeRole",
+  "platform": "linux/arm64",
+  "networkConfiguration": { "networkMode": "PUBLIC" }
+}
