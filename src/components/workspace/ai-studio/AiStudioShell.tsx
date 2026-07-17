@@ -97,29 +97,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [pipelineMode, setPipelineMode] = useState<'ask' | 'auto'>('ask');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [agentBackend, setAgentBackend] = useState<'local' | 'agentcore' | null>(
-    null
-  );
   const pipelineState = usePipelineState(chatId);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetch('/api/agent')
-      .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as {
-          backend?: string;
-        };
-        if (cancelled) return;
-        if (data.backend === 'agentcore') setAgentBackend('agentcore');
-        else if (data.backend === 'local') setAgentBackend('local');
-      })
-      .catch(() => {
-        if (!cancelled) setAgentBackend(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -401,6 +379,61 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     if (heroView) setDeliverablesOpen(false);
   }, [heroView, setShowDeliverablesToggle, setDeliverablesOpen]);
 
+  // When draft video lands (webhook / Check Now), open deliverables and refresh
+  // chat so a finalize-posted assistant message (or pipeline fallback) appears.
+  const draftVideoUrl = pipelineState?.draftVideoUrl;
+  const seenDraftUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draftVideoUrl || !activeSessionId) return;
+    if (seenDraftUrlRef.current === draftVideoUrl) return;
+    seenDraftUrlRef.current = draftVideoUrl;
+    setDeliverablesOpen(true);
+    setShowDeliverablesToggle(true);
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await fetchSessionMessages(activeSessionId);
+        if (cancelled) return;
+        const hasVideoMsg = loaded.some((m) => {
+          const meta = m.metadata as { videoUrl?: string } | undefined;
+          return meta?.videoUrl === draftVideoUrl;
+        });
+        if (hasVideoMsg) {
+          setMessages(loaded);
+          return;
+        }
+        // Older finalizes didn't write a chat row — inject a client-side card.
+        setMessages([
+          ...loaded,
+          {
+            id: `${activeSessionId}-draft-video`,
+            role: 'assistant' as const,
+            parts: [
+              {
+                type: 'text' as const,
+                text: 'Your educational video is ready.',
+              },
+            ],
+            metadata: { videoUrl: draftVideoUrl },
+          },
+        ]);
+      } catch {
+        // keep existing messages
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    draftVideoUrl,
+    activeSessionId,
+    setMessages,
+    setDeliverablesOpen,
+    setShowDeliverablesToggle,
+  ]);
+
   const lastAssistantIndex = messages.reduce(
     (last, message, index) => (message.role === 'assistant' ? index : last),
     -1
@@ -433,17 +466,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         className="hidden"
         onChange={handleFileInputChange}
       />
-      {agentBackend ? (
-        <p className="mb-2 text-center text-[11px] tracking-wide text-white/35">
-          Agent:{' '}
-          <span className="text-white/55">
-            {agentBackend === 'agentcore' ? 'Bedrock AgentCore' : 'Local Docker'}
-          </span>
-          {agentBackend === 'agentcore' ? (
-            <span className="text-white/25"> · replies arrive after the run finishes</span>
-          ) : null}
-        </p>
-      ) : null}
       <PipelineStatusBar
         pipelineState={pipelineState}
         onApprove={approve}

@@ -25,20 +25,27 @@ export function PipelineStatusBar({
 }: PipelineStatusBarProps) {
   const [checking, setChecking] = useState(false);
 
+  if (pipelineState === null || pipelineState.pipelinePhase === 0) {
+    return null;
+  }
+
+  const { pipelinePhase, pipelineStatus, draftVideoUrl, renderStatus } =
+    pipelineState;
+
+  // Clip is already shown in chat / deliverables — no redundant "ready" bar.
   if (
-    pipelineState === null ||
-    pipelineState.pipelinePhase === 0 ||
-    pipelineState.pipelinePhase === 7 ||
-    pipelineState.pipelineStatus === 'complete'
+    draftVideoUrl ||
+    pipelinePhase === 7 ||
+    pipelineStatus === 'complete'
   ) {
     return null;
   }
 
-  const { pipelinePhase, pipelineStatus, draftVideoUrl, renderStatus } = pipelineState;
   const phaseLabel = PHASE_LABELS[pipelinePhase];
   const showApprovalGate =
     pipelinePhase === 3 && pipelineStatus === 'awaiting_approval';
-  const showCheckNow = pipelinePhase === 6 && renderStatus === 'RUNNING' && sessionId;
+  const showCheckNow =
+    pipelinePhase === 6 && renderStatus === 'RUNNING' && sessionId;
 
   const checkNow = async () => {
     if (!sessionId || checking) return;
@@ -60,7 +67,7 @@ export function PipelineStatusBar({
     }
   };
 
-  if (!phaseLabel && !draftVideoUrl) {
+  if (!phaseLabel && !showApprovalGate && !showCheckNow) {
     return null;
   }
 
@@ -76,16 +83,6 @@ export function PipelineStatusBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {draftVideoUrl ? (
-          <a
-            href={draftVideoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-orange-300 transition hover:text-orange-200"
-          >
-            Watch your video
-          </a>
-        ) : null}
         {showApprovalGate ? (
           <button
             type="button"

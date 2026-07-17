@@ -184,6 +184,13 @@ app.post('/invocations', async (req, res) => {
       typeof input.skillId === 'string' ? input.skillId : undefined;
     const model = typeof input.model === 'string' ? input.model : undefined;
 
+    const accept = String(req.headers.accept ?? '');
+    const wantsStream =
+      input.stream === true ||
+      accept.includes('text/event-stream') ||
+      accept.includes('text/plain') ||
+      req.headers['x-vercel-ai-ui-message-stream'] === 'v1';
+
     const result = await runAgent({
       userMessage: prompt,
       sessionId,
@@ -192,6 +199,12 @@ app.post('/invocations', async (req, res) => {
       skillId,
       model,
     });
+
+    if (wantsStream) {
+      // Live UI message stream (same protocol as /chat) for AgentCore → Next → useChat
+      pipeAgentStream(result, res, { sessionId, userId });
+      return;
+    }
 
     const text = await result.text;
     res.json({
@@ -205,7 +218,11 @@ app.post('/invocations', async (req, res) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Invocation failed';
     console.error('[agentcore] /invocations error:', message);
-    res.status(500).json({ error: message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: message });
+    } else {
+      res.end();
+    }
   }
 });
 

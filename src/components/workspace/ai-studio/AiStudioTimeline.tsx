@@ -61,12 +61,12 @@ export function AiStudioTimeline({
               <div key={message.id} className="flex w-full justify-end">
                 <div className="flex max-w-[min(100%,42rem)] flex-col items-end gap-2">
                   {message.videoUrl ? (
-                    <div className="overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
+                    <div className="w-full max-w-sm overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
                       <video
                         src={message.videoUrl}
                         controls
                         playsInline
-                        className="max-h-52 w-full max-w-[min(100%,20rem)] bg-black object-cover"
+                        className="aspect-video w-full bg-black object-cover"
                       />
                     </div>
                   ) : null}
@@ -96,6 +96,24 @@ export function AiStudioTimeline({
                   showTextCursor={isStreaming}
                 />
               </div>
+              {message.videoUrl ? (
+                <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
+                  <video
+                    src={message.videoUrl}
+                    controls
+                    playsInline
+                    className="aspect-video w-full bg-black object-cover"
+                  />
+                  <a
+                    href={message.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-white/[0.03] px-3 py-2 text-xs text-orange-300/90 transition hover:text-orange-200"
+                  >
+                    Open video URL
+                  </a>
+                </div>
+              ) : null}
               {time ? (
                 <span className="mt-1.5 block text-xs text-white/30">{time}</span>
               ) : null}

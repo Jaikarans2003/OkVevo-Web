@@ -41,31 +41,35 @@ function getClient() {
   });
 }
 
-export function isAgentCoreBackend(): boolean {
-  return (process.env.AGENT_BACKEND ?? '').trim().toLowerCase() === 'agentcore';
-}
-
-export async function invokeAgentCore(
-  input: AgentCoreInvokeInput
-): Promise<AgentCoreInvokeResult> {
-  const payload = {
+function buildPayload(input: AgentCoreInvokeInput, stream: boolean) {
+  return {
     input: {
       prompt: input.prompt,
       sessionId: input.sessionId,
       userId: input.userId,
+      stream,
       ...(input.videoUrl ? { videoUrl: input.videoUrl } : {}),
       ...(input.skillId ? { skillId: input.skillId } : {}),
       ...(input.model ? { model: input.model } : {}),
     },
   };
+}
 
+export function isAgentCoreBackend(): boolean {
+  return (process.env.AGENT_BACKEND ?? '').trim().toLowerCase() === 'agentcore';
+}
+
+/** Non-streaming JSON invoke (CLI / smoke). */
+export async function invokeAgentCore(
+  input: AgentCoreInvokeInput
+): Promise<AgentCoreInvokeResult> {
   const command = new InvokeAgentRuntimeCommand({
     agentRuntimeArn: getRuntimeArn(),
     runtimeSessionId: ensureRuntimeSessionId(input.sessionId),
     runtimeUserId: input.userId,
     contentType: 'application/json',
     accept: 'application/json',
-    payload: Buffer.from(JSON.stringify(payload), 'utf8'),
+    payload: Buffer.from(JSON.stringify(buildPayload(input, false)), 'utf8'),
   });
 
   const response = await getClient().send(command);
@@ -101,4 +105,43 @@ export async function invokeAgentCore(
     userId: body.output?.userId ?? input.userId,
     timestamp: body.output?.timestamp,
   };
+}
+
+/**
+ * Streaming invoke — AgentCore /invocations pipes the AI SDK UI message SSE.
+ * Returns a Web ReadableStream suitable for `new Response(stream, …)`.
+ */
+export async function invokeAgentCoreStream(
+  input: AgentCoreInvokeInput
+): Promise<ReadableStream<Uint8Array>> {
+  const command = new InvokeAgentRuntimeCommand({
+    agentRuntimeArn: getRuntimeArn(),
+    runtimeSessionId: ensureRuntimeSessionId(input.sessionId),
+    runtimeUserId: input.userId,
+    contentType: 'application/json',
+    accept: 'text/event-stream',
+    payload: Buffer.from(JSON.stringify(buildPayload(input, true)), 'utf8'),
+  });
+
+  const response = await getClient().send(command);
+  if (!response.response) {
+    throw new Error('AgentCore returned an empty streaming body');
+  }
+
+  // Prefer native web stream when available (AWS SDK SdkStream)
+  const sdkBody = response.response as {
+    transformToWebStream?: () => ReadableStream<Uint8Array>;
+  };
+  if (typeof sdkBody.transformToWebStream === 'function') {
+    return sdkBody.transformToWebStream();
+  }
+
+  // Fallback: buffer then emit (loses mid-flight streaming)
+  const bytes = await response.response.transformToByteArray();
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
 }

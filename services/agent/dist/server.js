@@ -34558,7 +34558,7 @@ var import_fs4 = __toESM(require("fs"));
 var import_os2 = __toESM(require("os"));
 var import_path4 = __toESM(require("path"));
 var import_client_s3 = require("@aws-sdk/client-s3");
-var import_firestore2 = require("firebase-admin/firestore");
+var import_firestore3 = require("firebase-admin/firestore");
 var import_storage = require("firebase-admin/storage");
 
 // src/firebase.ts
@@ -34594,6 +34594,56 @@ var app = getAdminApp();
 var db = (0, import_firestore.getFirestore)(app);
 var auth = (0, import_auth.getAuth)(app);
 db.settings({ ignoreUndefinedProperties: true });
+
+// src/session.ts
+var import_firestore2 = require("firebase-admin/firestore");
+async function ensureSession(sessionId, userId, title) {
+  const ref = db.collection("sessions").doc(sessionId);
+  const existing = await ref.get();
+  const payload = {
+    userId,
+    status: "active",
+    createdAt: import_firestore2.FieldValue.serverTimestamp()
+  };
+  if (!existing.exists || !existing.data()?.title) {
+    payload.title = title.slice(0, 80) || "Untitled Chat";
+  }
+  await ref.set(payload, { merge: true });
+}
+async function loadMessages(sessionId, _userId) {
+  try {
+    const snapshot = await db.collection("sessions").doc(sessionId).collection("messages").orderBy("createdAt", "asc").get();
+    if (snapshot.empty) {
+      return [];
+    }
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        role: data.role,
+        content: data.content
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+async function saveMessage(sessionId, _userId, role, content, parts, extras) {
+  await db.collection("sessions").doc(sessionId).collection("messages").add({
+    role,
+    content,
+    ...parts && parts.length > 0 ? { parts } : {},
+    ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
+    ...extras?.videoName ? { videoName: extras.videoName } : {},
+    createdAt: import_firestore2.FieldValue.serverTimestamp()
+  });
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      lastMessageAt: import_firestore2.FieldValue.serverTimestamp(),
+      messageCount: import_firestore2.FieldValue.increment(1)
+    },
+    { merge: true }
+  );
+}
 
 // src/storage.ts
 function getPublicUrl(bucketName, storagePath) {
@@ -34708,7 +34758,7 @@ async function writeAssetUrl(userId, sessionId, assetKey, url2) {
   );
 }
 async function writeHfSegmentsPlan(userId, sessionId, plan) {
-  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore2.FieldValue.serverTimestamp() });
+  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore3.FieldValue.serverTimestamp() });
 }
 async function persistRenderJob(userId, sessionId, job) {
   const payload = {
@@ -34718,7 +34768,7 @@ async function persistRenderJob(userId, sessionId, job) {
     renderCompositionUrl: job.compositionUrl,
     pipelinePhase: 6,
     pipelineStatus: "rendering",
-    pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+    pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp()
   };
   await db.collection("sessions").doc(sessionId).set({ userId, ...payload }, { merge: true });
   return { ...job, renderStatus: "RUNNING" };
@@ -34750,14 +34800,22 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
     {
       assets: { draft_video: videoUrl },
       renderStatus: "SUCCEEDED",
-      renderError: import_firestore2.FieldValue.delete(),
+      renderError: import_firestore3.FieldValue.delete(),
       draftVideoUrl: videoUrl,
       pipelinePhase: 7,
       pipelineStatus: "complete",
-      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+      pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp()
     },
     { merge: true }
   );
+  try {
+    const text2 = "Your educational video is ready.";
+    await saveMessage(sessionId, userId, "assistant", text2, [
+      { type: "text", text: text2 }
+    ], { videoUrl });
+  } catch (err) {
+    console.error("[finalize] failed to post draft video chat message:", err);
+  }
   return videoUrl;
 }
 async function finalizeRenderFromUrl(userId, sessionId, videoUrl) {
@@ -34803,7 +34861,7 @@ async function recordRenderFailure(userId, sessionId, status, error40) {
       renderStatus: status,
       renderError: error40,
       pipelineStatus: "failed",
-      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
+      pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp()
     },
     { merge: true }
   );
@@ -34811,7 +34869,7 @@ async function recordRenderFailure(userId, sessionId, status, error40) {
 async function claimHeygenEvent(eventId2) {
   try {
     await db.collection("heygen_webhook_events").doc(eventId2).create({
-      receivedAt: import_firestore2.FieldValue.serverTimestamp()
+      receivedAt: import_firestore3.FieldValue.serverTimestamp()
     });
     return true;
   } catch {
@@ -36235,54 +36293,6 @@ function buildTools(ctx, opts) {
   );
 }
 
-// src/session.ts
-var import_firestore3 = require("firebase-admin/firestore");
-async function ensureSession(sessionId, userId, title) {
-  const ref = db.collection("sessions").doc(sessionId);
-  const existing = await ref.get();
-  const payload = {
-    userId,
-    status: "active",
-    createdAt: import_firestore3.FieldValue.serverTimestamp()
-  };
-  if (!existing.exists || !existing.data()?.title) {
-    payload.title = title.slice(0, 80) || "Untitled Chat";
-  }
-  await ref.set(payload, { merge: true });
-}
-async function loadMessages(sessionId, _userId) {
-  try {
-    const snapshot = await db.collection("sessions").doc(sessionId).collection("messages").orderBy("createdAt", "asc").get();
-    if (snapshot.empty) {
-      return [];
-    }
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        role: data.role,
-        content: data.content
-      };
-    });
-  } catch {
-    return [];
-  }
-}
-async function saveMessage(sessionId, _userId, role, content, parts) {
-  await db.collection("sessions").doc(sessionId).collection("messages").add({
-    role,
-    content,
-    ...parts && parts.length > 0 ? { parts } : {},
-    createdAt: import_firestore3.FieldValue.serverTimestamp()
-  });
-  await db.collection("sessions").doc(sessionId).set(
-    {
-      lastMessageAt: import_firestore3.FieldValue.serverTimestamp(),
-      messageCount: import_firestore3.FieldValue.increment(1)
-    },
-    { merge: true }
-  );
-}
-
 // src/agent.ts
 var openrouter2 = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY
@@ -36478,6 +36488,8 @@ app2.post("/invocations", async (req, res) => {
     const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
     const skillId = typeof input.skillId === "string" ? input.skillId : void 0;
     const model = typeof input.model === "string" ? input.model : void 0;
+    const accept = String(req.headers.accept ?? "");
+    const wantsStream = input.stream === true || accept.includes("text/event-stream") || accept.includes("text/plain") || req.headers["x-vercel-ai-ui-message-stream"] === "v1";
     const result = await runAgent({
       userMessage: prompt,
       sessionId,
@@ -36486,6 +36498,10 @@ app2.post("/invocations", async (req, res) => {
       skillId,
       model
     });
+    if (wantsStream) {
+      pipeAgentStream(result, res, { sessionId, userId });
+      return;
+    }
     const text2 = await result.text;
     res.json({
       output: {
@@ -36498,7 +36514,11 @@ app2.post("/invocations", async (req, res) => {
   } catch (error40) {
     const message = error40 instanceof Error ? error40.message : "Invocation failed";
     console.error("[agentcore] /invocations error:", message);
-    res.status(500).json({ error: message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: message });
+    } else {
+      res.end();
+    }
   }
 });
 app2.post("/renders/:sessionId/check", async (req, res) => {

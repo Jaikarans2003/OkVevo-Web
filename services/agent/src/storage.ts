@@ -5,6 +5,7 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { db, getStorageBucketName } from './firebase';
+import { saveMessage } from './session';
 
 export type HfSegmentsPlan = {
   segments: unknown[];
@@ -282,6 +283,18 @@ export async function finalizeRenderFromLocalFile(
     },
     { merge: true }
   );
+
+  // Surface the URL in chat — webhook/Check Now used to only write Firestore fields,
+  // so the UI never got an assistant message with the finished video.
+  try {
+    const text = 'Your educational video is ready.';
+    await saveMessage(sessionId, userId, 'assistant', text, [
+      { type: 'text', text },
+    ], { videoUrl });
+  } catch (err) {
+    console.error('[finalize] failed to post draft video chat message:', err);
+  }
+
   return videoUrl;
 }
 

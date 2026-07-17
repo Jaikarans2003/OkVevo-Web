@@ -1,10 +1,5 @@
 import {
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-  generateId,
-} from 'ai';
-import {
-  invokeAgentCore,
+  invokeAgentCoreStream,
   isAgentCoreBackend,
 } from '@/lib/agent/agentcore';
 
@@ -50,7 +45,7 @@ async function handleAgentCore(req: Request) {
   const sessionId = body.sessionId ?? crypto.randomUUID();
   const userId = body.userId ?? 'anonymous';
 
-  const result = await invokeAgentCore({
+  const stream = await invokeAgentCoreStream({
     prompt,
     sessionId,
     userId,
@@ -59,20 +54,14 @@ async function handleAgentCore(req: Request) {
     model: body.model,
   });
 
-  const textId = generateId();
-  const stream = createUIMessageStream({
-    execute: ({ writer }) => {
-      writer.write({ type: 'start', messageId: generateId() });
-      writer.write({ type: 'start-step' });
-      writer.write({ type: 'text-start', id: textId });
-      writer.write({ type: 'text-delta', id: textId, delta: result.message });
-      writer.write({ type: 'text-end', id: textId });
-      writer.write({ type: 'finish-step' });
-      writer.write({ type: 'finish' });
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'x-vercel-ai-ui-message-stream': 'v1',
     },
   });
-
-  return createUIMessageStreamResponse({ stream });
 }
 
 async function handleLocalProxy(req: Request) {
@@ -92,12 +81,18 @@ async function handleLocalProxy(req: Request) {
     );
   }
 
+  const headers = new Headers({
+    'Content-Type': response.headers.get('Content-Type') ?? 'text/event-stream',
+    'Cache-Control': 'no-cache',
+  });
+  const uiStream = response.headers.get('x-vercel-ai-ui-message-stream');
+  if (uiStream) {
+    headers.set('x-vercel-ai-ui-message-stream', uiStream);
+  }
+
   return new Response(response.body, {
     status: response.status,
-    headers: {
-      'Content-Type': response.headers.get('Content-Type') ?? 'text/event-stream',
-      'Cache-Control': 'no-cache',
-    },
+    headers,
   });
 }
 
@@ -123,6 +118,7 @@ export async function GET() {
       status: 'ok',
       backend: 'agentcore',
       runtimeArn: process.env.AGENTCORE_RUNTIME_ARN ?? null,
+      streaming: true,
     });
   }
 

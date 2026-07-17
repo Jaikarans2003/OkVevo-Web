@@ -62,7 +62,8 @@ export async function saveMessage(
   _userId: string,
   role: 'user' | 'assistant',
   content: string,
-  parts?: StoredMessagePart[]
+  parts?: StoredMessagePart[],
+  extras?: { videoUrl?: string; videoName?: string }
 ): Promise<void> {
   await db
     .collection('sessions')
@@ -72,6 +73,8 @@ export async function saveMessage(
       role,
       content,
       ...(parts && parts.length > 0 ? { parts } : {}),
+      ...(extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
+      ...(extras?.videoName ? { videoName: extras.videoName } : {}),
       createdAt: FieldValue.serverTimestamp(),
     });
 
