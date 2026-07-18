@@ -144,7 +144,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                                 loop
                                 playsInline
                                 className="w-full h-full object-cover"
-                                src="https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2FProduct%20Walkthrough%20WithOut%20Audio..mp4?alt=media&token=41e191fa-74aa-41f5-a2fa-86a1a6a292db"
+                                src="https://firebasestorage.googleapis.com/v0/b/okvevo-testing.firebasestorage.app/o/videoforwebsite%2FProduct%20Walkthrough%20WithOut%20Audio..mp4?alt=media&token=41e191fa-74aa-41f5-a2fa-86a1a6a292db"
                                 suppressHydrationWarning
                             />
                             {/* Overlay Gradient */}

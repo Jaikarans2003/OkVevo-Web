@@ -2,12 +2,21 @@ import {
   invokeAgentCoreStream,
   isAgentCoreBackend,
 } from '@/lib/agent/agentcore';
+import { getBearerToken } from '@/lib/agent/verifySessionAccess';
+import { auth } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 /** Edu-video on AgentCore can take several minutes (transcribe → Manim → HeyGen submit). */
 export const maxDuration = 800;
 
 const AGENT_URL = process.env.AGENT_URL ?? 'http://localhost:3001';
+
+const ALLOWED_ORIGINS = new Set([
+  'https://okvevo-testing.web.app',
+  'https://okvevo-testing.firebaseapp.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]);
 
 type ChatRequestBody = {
   messages?: Array<{
@@ -20,6 +29,30 @@ type ChatRequestBody = {
   skillId?: string;
   model?: string;
 };
+
+function isAllowedOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.has(origin);
+}
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') ?? '';
+  if (!isAllowedOrigin(origin)) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    Vary: 'Origin',
+  };
+}
+
+function sseHeaders(req: Request): HeadersInit {
+  return {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'x-vercel-ai-ui-message-stream': 'v1',
+    ...corsHeaders(req),
+  };
+}
 
 function extractUserMessage(body: ChatRequestBody): string {
   const lastMessage = body.messages?.at(-1);
@@ -35,7 +68,22 @@ function extractUserMessage(body: ChatRequestBody): string {
   return '';
 }
 
-async function handleAgentCore(req: Request) {
+async function requireVerifiedUserId(
+  req: Request
+): Promise<string | Response> {
+  const tokenOrError = await getBearerToken(req.headers.get('authorization'));
+  if (typeof tokenOrError !== 'string') {
+    return tokenOrError;
+  }
+  try {
+    const decoded = await auth.verifyIdToken(tokenOrError);
+    return decoded.uid;
+  } catch {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+}
+
+async function handleAgentCore(req: Request, userId: string) {
   const body = (await req.json()) as ChatRequestBody;
   const prompt = extractUserMessage(body);
   if (!prompt.trim()) {
@@ -43,7 +91,6 @@ async function handleAgentCore(req: Request) {
   }
 
   const sessionId = body.sessionId ?? crypto.randomUUID();
-  const userId = body.userId ?? 'anonymous';
 
   const stream = await invokeAgentCoreStream({
     prompt,
@@ -56,18 +103,18 @@ async function handleAgentCore(req: Request) {
 
   return new Response(stream, {
     status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'x-vercel-ai-ui-message-stream': 'v1',
-    },
+    headers: sseHeaders(req),
   });
 }
 
-async function handleLocalProxy(req: Request) {
+async function handleLocalProxy(req: Request, userId: string) {
+  const upstreamHeaders = new Headers({ 'Content-Type': 'application/json' });
+  // Forward identity so local agent can attribute the session; never trust client userId.
+  upstreamHeaders.set('x-user-id', userId);
+
   const response = await fetch(`${AGENT_URL}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: upstreamHeaders,
     body: req.body,
     // @ts-expect-error duplex required for streaming request bodies
     duplex: 'half',
@@ -81,10 +128,9 @@ async function handleLocalProxy(req: Request) {
     );
   }
 
-  const headers = new Headers({
-    'Content-Type': response.headers.get('Content-Type') ?? 'text/event-stream',
-    'Cache-Control': 'no-cache',
-  });
+  const headers = new Headers(sseHeaders(req));
+  const contentType = response.headers.get('Content-Type');
+  if (contentType) headers.set('Content-Type', contentType);
   const uiStream = response.headers.get('x-vercel-ai-ui-message-stream');
   if (uiStream) {
     headers.set('x-vercel-ai-ui-message-stream', uiStream);
@@ -96,30 +142,62 @@ async function handleLocalProxy(req: Request) {
   });
 }
 
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get('origin') ?? '';
+  if (!isAllowedOrigin(origin)) {
+    return new Response(null, { status: 204 });
+  }
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+      Vary: 'Origin',
+    },
+  });
+}
+
 export async function POST(req: Request) {
   try {
-    if (isAgentCoreBackend()) {
-      return await handleAgentCore(req);
+    const userIdOrError = await requireVerifiedUserId(req);
+    if (typeof userIdOrError !== 'string') {
+      return Response.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(req) }
+      );
     }
-    return await handleLocalProxy(req);
+
+    if (isAgentCoreBackend()) {
+      return await handleAgentCore(req, userIdOrError);
+    }
+    return await handleLocalProxy(req, userIdOrError);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to reach agent service';
     const hint = isAgentCoreBackend()
       ? `${message}. Check AGENTCORE_RUNTIME_ARN and AWS credentials.`
       : `${message}. Is the agent running at ${AGENT_URL}? Start it with: cd services/agent && npm run dev`;
-    return Response.json({ error: hint }, { status: 503 });
+    return Response.json(
+      { error: hint },
+      { status: 503, headers: corsHeaders(req) }
+    );
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const headers = corsHeaders(req);
   if (isAgentCoreBackend()) {
-    return Response.json({
-      status: 'ok',
-      backend: 'agentcore',
-      runtimeArn: process.env.AGENTCORE_RUNTIME_ARN ?? null,
-      streaming: true,
-    });
+    return Response.json(
+      {
+        status: 'ok',
+        backend: 'agentcore',
+        runtimeArn: process.env.AGENTCORE_RUNTIME_ARN ?? null,
+        streaming: true,
+      },
+      { headers }
+    );
   }
 
   try {
@@ -127,13 +205,13 @@ export async function GET() {
     const data = (await response.json()) as Record<string, unknown>;
     return Response.json(
       { ...data, backend: 'local', agentUrl: AGENT_URL },
-      { status: response.status }
+      { status: response.status, headers }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unreachable';
     return Response.json(
       { status: 'error', backend: 'local', agentUrl: AGENT_URL, error: message },
-      { status: 503 }
+      { status: 503, headers }
     );
   }
 }

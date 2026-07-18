@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import AiStudioShellLayout from '@/components/workspace/ai-studio/AiStudioShellLayout';
 import AiStudioSidebar from '@/components/workspace/ai-studio/AiStudioSidebar';
+import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
 import { AiStudioWorkspaceProvider, useAiStudioWorkspace } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
 
 function AiStudioLayoutShell({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,7 @@ function AiStudioLayoutShell({ children }: { children: React.ReactNode }) {
     if (isFilesPage) {
       router.push(target);
     } else {
-      router.replace(target, { scroll: false });
+      replaceSessionUrl(target);
     }
   };
 
@@ -37,7 +38,7 @@ function AiStudioLayoutShell({ children }: { children: React.ReactNode }) {
     if (isFilesPage) {
       router.push(target);
     } else {
-      router.replace(target, { scroll: false });
+      replaceSessionUrl(target);
     }
   };
 

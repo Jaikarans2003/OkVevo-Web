@@ -23,33 +23,19 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspace_sessions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "feature",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "createdAt",
           "order": "ASCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "subscriptions",
+      "collectionGroup": "razorpaySubscriptions",
       "queryScope": "COLLECTION",
       "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
         {
           "fieldPath": "status",
           "order": "ASCENDING"
@@ -61,7 +47,7 @@
       ]
     },
     {
-      "collectionGroup": "sessions",
+      "collectionGroup": "couponUsage",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -69,8 +55,22 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "lastMessageAt",
-          "order": "DESCENDING"
+          "fieldPath": "couponCode",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "couponUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "phoneNumber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "couponCode",
+          "order": "ASCENDING"
         }
       ]
     }

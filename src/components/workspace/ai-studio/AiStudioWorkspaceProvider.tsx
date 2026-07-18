@@ -36,6 +36,8 @@ interface AiStudioWorkspaceContextValue {
   setShowDeliverablesToggle: (show: boolean) => void;
   deliverablesCount: number;
   setDeliverablesCount: (count: number) => void;
+  draftVideoUrl: string | undefined;
+  setDraftVideoUrl: (url: string | undefined) => void;
 }
 
 const AiStudioWorkspaceContext = createContext<AiStudioWorkspaceContextValue | null>(null);
@@ -59,6 +61,7 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
   const [deliverablesOpen, setDeliverablesOpen] = useState(false);
   const [showDeliverablesToggle, setShowDeliverablesToggle] = useState(false);
   const [deliverablesCount, setDeliverablesCount] = useState(0);
+  const [draftVideoUrl, setDraftVideoUrl] = useState<string | undefined>(undefined);
   const hasLoadedRef = useRef(false);
 
   const refreshSessions = useCallback(async () => {
@@ -100,6 +103,7 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
     }
     setActiveSessionId(null);
     setDraftChatId(crypto.randomUUID());
+    setDraftVideoUrl(undefined);
     return true;
   }, [activeSessionId]);
 
@@ -123,6 +127,8 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
         setShowDeliverablesToggle,
         deliverablesCount,
         setDeliverablesCount,
+        draftVideoUrl,
+        setDraftVideoUrl,
       }}
     >
       {children}

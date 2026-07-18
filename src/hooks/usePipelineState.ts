@@ -14,6 +14,12 @@ export interface PipelineState {
 
 const POLL_MS = 2000
 
+function shouldKeepPolling(state: PipelineState): boolean {
+  if (state.pipelineStatus === 'running') return true
+  const phase = state.pipelinePhase
+  return phase >= 2 && phase <= 6 && state.pipelineStatus !== 'complete'
+}
+
 export function usePipelineState(sessionId: string | null): PipelineState | null {
   const [state, setState] = useState<PipelineState | null>(null)
 
@@ -25,6 +31,13 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
 
     let cancelled = false
     let intervalId: ReturnType<typeof setInterval> | null = null
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
 
     const fetchState = async () => {
       try {
@@ -39,6 +52,7 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
 
         if (response.status === 404) {
           setState(null)
+          stopPolling()
           return
         }
 
@@ -58,7 +72,7 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
           pipelineUpdatedAt?: string
         }
 
-        setState({
+        const next: PipelineState = {
           pipelinePhase: data.pipelinePhase ?? 0,
           pipelineStatus: data.pipelineStatus ?? '',
           pipelineMode: data.pipelineMode ?? 'auto',
@@ -69,7 +83,17 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
           pipelineUpdatedAt: data.pipelineUpdatedAt
             ? new Date(data.pipelineUpdatedAt)
             : undefined,
-        })
+        }
+
+        setState(next)
+
+        if (shouldKeepPolling(next)) {
+          if (!intervalId) {
+            intervalId = setInterval(() => void fetchState(), POLL_MS)
+          }
+        } else {
+          stopPolling()
+        }
       } catch (error) {
         if (!cancelled) {
           console.error('Pipeline state listener error:', error)
@@ -78,11 +102,10 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
     }
 
     void fetchState()
-    intervalId = setInterval(() => void fetchState(), POLL_MS)
 
     return () => {
       cancelled = true
-      if (intervalId) clearInterval(intervalId)
+      stopPolling()
     }
   }, [sessionId])
 

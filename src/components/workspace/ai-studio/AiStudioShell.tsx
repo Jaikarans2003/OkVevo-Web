@@ -3,7 +3,7 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AiStudioChatBar } from '@/components/workspace/ai-studio/AiStudioChatBar';
 import { AiStudioHeroExtras } from '@/components/workspace/ai-studio/AiStudioHeroExtras';
@@ -16,11 +16,17 @@ import {
 } from '@/components/workspace/ai-studio/constants';
 import { HeroTypewriterHeading } from '@/components/workspace/ai-studio/HeroTypewriterHeading';
 import { PipelineStatusBar } from '@/components/workspace/ai-studio/PipelineStatusBar';
+import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
 import { auth, storage } from '@/config/firebase';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineApproval } from '@/hooks/usePipelineApproval';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+
+// ponytail: Hosting buffers SSE through rewrites — temporary Cloud Run origin bypass.
+// Ceiling: classic Hosting only. After App Hosting migration, drop NEXT_PUBLIC_AGENT_API_ORIGIN and use same-origin /api/agent.
+const AGENT_API_ORIGIN = (process.env.NEXT_PUBLIC_AGENT_API_ORIGIN ?? '').replace(/\/$/, '');
+const AGENT_API = AGENT_API_ORIGIN ? `${AGENT_API_ORIGIN}/api/agent` : '/api/agent';
 
 interface AiStudioShellProps {
   userId: string;
@@ -75,7 +81,6 @@ async function fetchSessionMessages(sessionId: string) {
 
 export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const {
     activeSessionId,
@@ -85,6 +90,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     refreshSessions,
     setDeliverablesOpen,
     setShowDeliverablesToggle,
+    setDraftVideoUrl,
   } = useAiStudioWorkspace();
   const chatId = activeSessionId ?? draftChatId;
   const [input, setInput] = useState('');
@@ -97,7 +103,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [pipelineMode, setPipelineMode] = useState<'ask' | 'auto'>('ask');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const pipelineState = usePipelineState(chatId);
+  const pipelineState = usePipelineState(activeSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -125,10 +131,15 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: '/api/agent',
+        api: AGENT_API,
+        headers: async (): Promise<Record<string, string>> => {
+          const token = await auth.currentUser?.getIdToken();
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        },
         body: () => ({
           model: selectedModelRef.current,
           sessionId: chatIdRef.current,
+          // Server derives userId from Bearer token; kept for local-agent attribution only.
           userId: userIdRef.current,
           videoUrl: pendingVideoUrlRef.current ?? undefined,
           videoName: pendingVideoNameRef.current ?? undefined,
@@ -143,7 +154,11 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     transport,
     id: chatId,
   });
-  const { approve } = usePipelineApproval(chatId, sendMessage);
+  const { approve } = usePipelineApproval(activeSessionId, sendMessage);
+
+  useEffect(() => {
+    setDraftVideoUrl(pipelineState?.draftVideoUrl);
+  }, [pipelineState?.draftVideoUrl, setDraftVideoUrl]);
 
   useEffect(() => {
     if (wasFirstMessageRef.current && status === 'ready') {
@@ -330,9 +345,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       commitSession(chatId);
       skipFetchRef.current = true;
       loadedSessionRef.current = chatId;
-      router.replace(
-        `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`,
-        { scroll: false }
+      replaceSessionUrl(
+        `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`
       );
     }
 
@@ -469,7 +483,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       <PipelineStatusBar
         pipelineState={pipelineState}
         onApprove={approve}
-        sessionId={chatId}
+        sessionId={activeSessionId}
       />
       <AiStudioChatBar
         variant={heroView ? 'hero' : 'default'}

@@ -24,7 +24,7 @@ export function getStorageBucketName(): string {
     process.env.FIREBASE_STORAGE_BUCKET ||
     process.env.FB_STORAGE_BUCKET ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    'text2video-16cbf.firebasestorage.app'
+    'okvevo-testing.firebasestorage.app'
   );
 }
 

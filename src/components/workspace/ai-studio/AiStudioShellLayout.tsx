@@ -9,7 +9,6 @@ import {
 import { AiStudioSidebarToggle } from '@/components/workspace/ai-studio/AiStudioSidebarToggle';
 import { useAiStudioWorkspace } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
 import { AI_STUDIO_SIDEBAR_COLLAPSED_W, AI_STUDIO_SIDEBAR_EXPANDED_W } from '@/components/workspace/ai-studio/constants';
-import { usePipelineState } from '@/hooks/usePipelineState';
 
 export default function AiStudioShellLayout({
   children,
@@ -28,9 +27,8 @@ export default function AiStudioShellLayout({
     setDeliverablesOpen,
     showDeliverablesToggle,
     deliverablesCount,
-    activeSessionId,
+    draftVideoUrl,
   } = useAiStudioWorkspace();
-  const pipelineState = usePipelineState(activeSessionId);
 
   const sidebarWidth = sidebarCollapsed
     ? AI_STUDIO_SIDEBAR_COLLAPSED_W
@@ -90,7 +88,7 @@ export default function AiStudioShellLayout({
           <AiStudioDeliverablesRail
             open={deliverablesOpen}
             fileCount={deliverablesCount}
-            draftVideoUrl={pipelineState?.draftVideoUrl}
+            draftVideoUrl={draftVideoUrl}
           />
         ) : null}
       </div>

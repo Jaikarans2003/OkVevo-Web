@@ -34579,7 +34579,7 @@ function loadServiceAccount() {
   );
 }
 function getStorageBucketName() {
-  return process.env.FIREBASE_STORAGE_BUCKET || process.env.FB_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "text2video-16cbf.firebasestorage.app";
+  return process.env.FIREBASE_STORAGE_BUCKET || process.env.FB_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "okvevo-testing.firebasestorage.app";
 }
 function getAdminApp() {
   if ((0, import_app.getApps)().length > 0) {

@@ -1,16 +1,6 @@
 {
-  "functions": {
-    "source": "functions",
-    "codebase": "default",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log"
-    ]
-  },
   "hosting": {
-    "site": "text2video-16cbf",
+    "site": "okvevo-testing",
     "source": ".",
     "ignore": [
       "firebase.json",
@@ -56,7 +46,13 @@
           }
         ]
       }
-    ]
+    ],
+    "frameworksBackend": {
+      "region": "us-central1",
+      "memory": "1GiB",
+      "timeoutSeconds": 800,
+      "concurrency": 20
+    }
   },
   "storage": {
     "rules": "storage.rules"

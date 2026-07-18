@@ -10,15 +10,15 @@ import ButtonWithIconDemo from '@/components/ui/button-with-icon';
 const tabs = [
     // {
     //     name: 'Concept',
-    //     video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2FfirstPart.mp4?alt=media&token=b733b4d7-410c-4b41-b3c0-e2408345cb8f',
+    //     video: 'https://firebasestorage.googleapis.com/v0/b/okvevo-testing.firebasestorage.app/o/videoforwebsite%2FfirstPart.mp4?alt=media&token=b733b4d7-410c-4b41-b3c0-e2408345cb8f',
     // },
     // {
     //     name: 'Create',
-    //     video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2Fsecondddd.mp4?alt=media&token=8ddb26de-79d5-46b2-9013-c7843de5ab73',
+    //     video: 'https://firebasestorage.googleapis.com/v0/b/okvevo-testing.firebasestorage.app/o/videoforwebsite%2Fsecondddd.mp4?alt=media&token=8ddb26de-79d5-46b2-9013-c7843de5ab73',
     // },
     {
         name: 'Concept to Result',
-        video: 'https://firebasestorage.googleapis.com/v0/b/text2video-16cbf.firebasestorage.app/o/videoforwebsite%2FOkVevo%20Demos.mp4?alt=media&token=42d539e8-f646-4f3d-93eb-9caf9c61488b',
+        video: 'https://firebasestorage.googleapis.com/v0/b/okvevo-testing.firebasestorage.app/o/videoforwebsite%2FOkVevo%20Demos.mp4?alt=media&token=42d539e8-f646-4f3d-93eb-9caf9c61488b',
     }
 ];
 
