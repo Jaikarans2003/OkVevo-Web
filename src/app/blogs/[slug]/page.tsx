@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { BlogPost } from '@/types/blog';
 import BlogView from '@/components/blog/BlogView';
 import Link from 'next/link';
+import { env } from '@/config/env';
 
 interface Props {
     params: Promise<{ slug: string }>;
@@ -128,20 +129,20 @@ export default async function BlogPostPage({ params }: Props) {
         "author": [{
             "@type": "Person",
             "name": blog.author,
-            "url": "https://okvevo.com/about"
+            "url": `${env.siteUrl}/about`
         }],
         "publisher": {
             "@type": "Organization",
             "name": "OKVEVO",
             "logo": {
                 "@type": "ImageObject",
-                "url": "https://okvevo.com/OKVEVO%20With%20BackGrounds/OrangeBackGround.svg"
+                "url": `${env.siteUrl}/OKVEVO%20With%20BackGrounds/OrangeBackGround.svg`
             }
         },
         "description": blog.seoDescription || blog.excerpt,
         "mainEntityOfPage": {
             "@type": "WebPage",
-            "@id": `https://okvevo.com/blogs/${slug}`
+            "@id": `${env.siteUrl}/blogs/${slug}`
         }
     };
 

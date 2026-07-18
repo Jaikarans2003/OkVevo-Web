@@ -18,6 +18,7 @@ import { HeroTypewriterHeading } from '@/components/workspace/ai-studio/HeroType
 import { PipelineStatusBar } from '@/components/workspace/ai-studio/PipelineStatusBar';
 import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
 import { auth, storage } from '@/config/firebase';
+import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineApproval } from '@/hooks/usePipelineApproval';
 import { usePipelineState } from '@/hooks/usePipelineState';
@@ -25,7 +26,7 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 
 // ponytail: Hosting buffers SSE through rewrites — temporary Cloud Run origin bypass.
 // Ceiling: classic Hosting only. After App Hosting migration, drop NEXT_PUBLIC_AGENT_API_ORIGIN and use same-origin /api/agent.
-const AGENT_API_ORIGIN = (process.env.NEXT_PUBLIC_AGENT_API_ORIGIN ?? '').replace(/\/$/, '');
+const AGENT_API_ORIGIN = env.agentApiOrigin;
 const AGENT_API = AGENT_API_ORIGIN ? `${AGENT_API_ORIGIN}/api/agent` : '/api/agent';
 
 interface AiStudioShellProps {

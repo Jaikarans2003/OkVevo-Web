@@ -7,14 +7,10 @@
     "watch": "tsc -w",
     "cdk": "cdk",
     "deploy:dev": "AWS_PROFILE=dev cdk deploy --all --context env=dev --require-approval never",
-    "deploy:prod": "AWS_PROFILE=prod cdk deploy --all --context env=prod",
     "destroy:dev": "AWS_PROFILE=dev cdk destroy --all --context env=dev",
     "synth:dev": "AWS_PROFILE=dev cdk synth --context env=dev",
-    "synth:prod": "AWS_PROFILE=prod cdk synth --context env=prod",
     "bootstrap:dev": "AWS_PROFILE=dev cdk bootstrap aws://052120999576/us-east-1",
-    "bootstrap:prod": "AWS_PROFILE=prod cdk bootstrap aws://315974965935/us-east-1",
-    "diff:dev": "AWS_PROFILE=dev cdk diff --context env=dev",
-    "diff:prod": "AWS_PROFILE=prod cdk diff --context env=prod"
+    "diff:dev": "AWS_PROFILE=dev cdk diff --context env=dev"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -4,19 +4,14 @@ import {
 } from '@/lib/agent/agentcore';
 import { getBearerToken } from '@/lib/agent/verifySessionAccess';
 import { auth } from '@/lib/firebase-admin';
+import { env } from '@/config/env';
 
 export const runtime = 'nodejs';
 /** Edu-video on AgentCore can take several minutes (transcribe → Manim → HeyGen submit). */
 export const maxDuration = 800;
 
-const AGENT_URL = process.env.AGENT_URL ?? 'http://localhost:3001';
-
-const ALLOWED_ORIGINS = new Set([
-  'https://okvevo-testing.web.app',
-  'https://okvevo-testing.firebaseapp.com',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-]);
+const AGENT_URL = env.agentUrl;
+const ALLOWED_ORIGINS = new Set(env.allowedOrigins);
 
 type ChatRequestBody = {
   messages?: Array<{

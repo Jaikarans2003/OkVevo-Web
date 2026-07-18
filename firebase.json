@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "okvevo-testing",
     "source": ".",
     "ignore": [
       "firebase.json",

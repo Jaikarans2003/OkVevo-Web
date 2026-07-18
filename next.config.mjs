@@ -1,10 +1,9 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
     outputFileTracingRoot: process.cwd(),
     serverExternalPackages: ['firebase-admin'],
     turbopack: {},
-    
+
     webpack: (config, { isServer, webpack }) => {
         if (!isServer) {
             config.resolve.fallback = {
@@ -18,7 +17,7 @@ const nextConfig: NextConfig = {
                 util: false,
                 buffer: false,
             };
-            
+
             // Only ignore firebase-admin on client side
             config.plugins.push(
                 new webpack.IgnorePlugin({
@@ -29,7 +28,7 @@ const nextConfig: NextConfig = {
 
         return config;
     },
-    
+
     async headers() {
         return [
             {
@@ -54,6 +53,8 @@ const nextConfig: NextConfig = {
     },
 
     images: {
+        // ponytail: Firebase Hosting webframeworks /_next/image returns 500; raw /public paths are 200. Re-enable when sharp/optimizer works on Cloud Run.
+        unoptimized: true,
         remotePatterns: [
             { protocol: 'https', hostname: 'images.unsplash.com' },
             { protocol: 'https', hostname: 'pixabay.com' },

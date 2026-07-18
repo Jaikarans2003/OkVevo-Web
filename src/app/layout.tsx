@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Ubuntu, Dancing_Script } from "next/font/google";
 import "./globals.css";
+import { env } from "@/config/env";
 // SmoothScroll will be moved to LandingPage for better optimization control
 
 const ubuntu = Ubuntu({
@@ -18,7 +19,7 @@ const dancingScript = Dancing_Script({
 });
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://okvevo.com'),
+    metadataBase: new URL(env.siteUrl),
     title: "OKVEVO - AI Video Generator | Create Videos from Text Instantly",
     description: "OKVEVO AI - Best AI video generator for Instagram reels, YouTube shorts & faceless content. Create viral videos using AI without camera. Text to video AI tool for creators in India.",
     keywords: [
@@ -64,7 +65,7 @@ export const metadata: Metadata = {
         description: 'Best AI video generator for Instagram reels, YouTube shorts. Create faceless videos with AI.',
     },
     alternates: {
-        canonical: 'https://okvevo.com',
+        canonical: env.siteUrl,
     },
     robots: {
         index: true,

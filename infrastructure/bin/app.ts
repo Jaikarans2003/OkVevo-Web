@@ -7,13 +7,13 @@ const app = new cdk.App();
 
 const env = app.node.tryGetContext('env') || 'dev';
 
-if (!['prod', 'dev'].includes(env)) {
-  throw new Error(`Invalid --context env=${env}. Must be 'prod' or 'dev'.`);
+if (env !== 'dev') {
+  throw new Error(
+    `Invalid --context env=${env}. Dev-only CDK app — use --context env=dev.`
+  );
 }
 
-const config = env === 'prod'
-  ? require('../config/prod.json')
-  : require('../config/dev.json');
+const config = require('../config/dev.json');
 
 const hyperframesStateMachineArn =
   app.node.tryGetContext('hyperframesStateMachineArn') || process.env.HYPERFRAMES_SFN_ARN;

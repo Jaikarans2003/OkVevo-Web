@@ -557,7 +557,7 @@ npm run synth:dev      # preview CloudFormation
 npm run deploy:dev     # requires AWS_PROFILE=dev configured
 ```
 
-See `infrastructure/package.json` for `bootstrap:dev`, `deploy:prod`, and related commands.
+See `infrastructure/package.json` for `bootstrap:dev`, `deploy:dev`, and related commands.
 
 ---
 

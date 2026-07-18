@@ -3,9 +3,11 @@
  * Manages Razorpay credentials and subscription plan configurations
  */
 
+import { env } from '@/config/env';
+
 export const RAZORPAY_CONFIG = {
-    keyId: process.env.RAZORPAY_KEY_ID || '',
-    keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+    keyId: env.razorpay.keyId,
+    keySecret: env.razorpay.keySecret,
 };
 
 export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
@@ -17,16 +19,16 @@ export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
  */
 export const RAZORPAY_PLAN_IDS = {
     starter: {
-        monthly: process.env.RAZORPAY_STARTER_PLAN_ID || '',
-        annual: process.env.RAZORPAY_STARTER_ANNUAL_PLAN_ID || '',
+        monthly: env.razorpay.plans.starterMonthly,
+        annual: env.razorpay.plans.starterAnnual,
     },
     hobby: {
-        monthly: process.env.RAZORPAY_HOBBY_PLAN_ID || '',
-        annual: process.env.RAZORPAY_HOBBY_ANNUAL_PLAN_ID || '',
+        monthly: env.razorpay.plans.hobbyMonthly,
+        annual: env.razorpay.plans.hobbyAnnual,
     },
     pro: {
-        monthly: process.env.RAZORPAY_PRO_PLAN_ID || '',
-        annual: process.env.RAZORPAY_PRO_ANNUAL_PLAN_ID || '',
+        monthly: env.razorpay.plans.proMonthly,
+        annual: env.razorpay.plans.proAnnual,
     },
 };
 

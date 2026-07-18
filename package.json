@@ -9,8 +9,9 @@
     "build": "NEXT_TURBOPACK=0 next build",
     "start": "next start",
     "lint": "next lint",
+    "check:env": "node --experimental-strip-types src/config/env.selfcheck.ts",
     "export": "NEXT_TURBOPACK=0 next build",
-    "deploy": "npm run export && firebase deploy --only hosting"
+    "deploy": "npm run export && firebase deploy --only hosting --project testing"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.71",

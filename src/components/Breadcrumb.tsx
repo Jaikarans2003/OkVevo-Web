@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { env } from '@/config/env';
 
 type Crumb = { label: string; href: string }
 
@@ -10,7 +11,7 @@ export default function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
       "@type": "ListItem",
       position: i + 1,
       name: c.label,
-      item: `https://okvevo.com${c.href}`
+      item: `${env.siteUrl}${c.href}`
     }))
   }
 

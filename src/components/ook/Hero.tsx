@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Play, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { env } from '@/config/env';
 
 interface HeroProps {
     onJoinClick: () => void;
@@ -14,6 +15,7 @@ interface HeroProps {
 const Hero = ({ onJoinClick }: HeroProps) => {
     const containerRef = useRef<HTMLElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const marketingVideoUrl = env.marketingVideoUrl;
 
     return (
         <section ref={containerRef} className="relative min-h-[140vh] bg-black overflow-hidden flex flex-col items-center">
@@ -144,7 +146,7 @@ const Hero = ({ onJoinClick }: HeroProps) => {
                                 loop
                                 playsInline
                                 className="w-full h-full object-cover"
-                                src="https://firebasestorage.googleapis.com/v0/b/okvevo-testing.firebasestorage.app/o/videoforwebsite%2FProduct%20Walkthrough%20WithOut%20Audio..mp4?alt=media&token=41e191fa-74aa-41f5-a2fa-86a1a6a292db"
+                                src={marketingVideoUrl || undefined}
                                 suppressHydrationWarning
                             />
                             {/* Overlay Gradient */}

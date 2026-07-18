@@ -2,6 +2,7 @@ import {
   BedrockAgentCoreClient,
   InvokeAgentRuntimeCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
+import { env } from '@/config/env';
 
 export type AgentCoreInvokeInput = {
   prompt: string;
@@ -38,7 +39,7 @@ function ensureRuntimeSessionId(sessionId: string): string {
 
 function getClient() {
   return new BedrockAgentCoreClient({
-    region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1',
+    region: env.awsRegion,
   });
 }
 

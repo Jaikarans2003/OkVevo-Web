@@ -1,6 +1,9 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorageBucketName } from './env';
+
+export { getStorageBucketName };
 
 function loadServiceAccount(): Record<string, unknown> {
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -16,15 +19,6 @@ function loadServiceAccount(): Record<string, unknown> {
 
   throw new Error(
     'Missing Firebase service account key (FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_KEY)'
-  );
-}
-
-export function getStorageBucketName(): string {
-  return (
-    process.env.FIREBASE_STORAGE_BUCKET ||
-    process.env.FB_STORAGE_BUCKET ||
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    'okvevo-testing.firebasestorage.app'
   );
 }
 

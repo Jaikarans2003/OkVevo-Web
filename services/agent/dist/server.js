@@ -34565,6 +34565,17 @@ var import_storage = require("firebase-admin/storage");
 var import_app = require("firebase-admin/app");
 var import_auth = require("firebase-admin/auth");
 var import_firestore = require("firebase-admin/firestore");
+
+// src/env.ts
+function getStorageBucketName(processEnv = process.env) {
+  const v = processEnv.FIREBASE_STORAGE_BUCKET?.trim() || processEnv.FB_STORAGE_BUCKET?.trim() || processEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (v) return v;
+  throw new Error(
+    "Missing required env FIREBASE_STORAGE_BUCKET (or FB_STORAGE_BUCKET / NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET)"
+  );
+}
+
+// src/firebase.ts
 function loadServiceAccount() {
   const json3 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (json3) {
@@ -34577,9 +34588,6 @@ function loadServiceAccount() {
   throw new Error(
     "Missing Firebase service account key (FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_KEY)"
   );
-}
-function getStorageBucketName() {
-  return process.env.FIREBASE_STORAGE_BUCKET || process.env.FB_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "okvevo-testing.firebasestorage.app";
 }
 function getAdminApp() {
   if ((0, import_app.getApps)().length > 0) {

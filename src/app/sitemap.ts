@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
+import { env } from '@/config/env';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://okvevo.com';
+    const baseUrl = env.siteUrl;
     
     return [
         {

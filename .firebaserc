@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "okvevo-testing"
+    "default": "okvevo-testing",
+    "testing": "okvevo-testing"
   }
 }

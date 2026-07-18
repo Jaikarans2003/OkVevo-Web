@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { env } from '@/config/env';
 
 export const metadata: Metadata = {
     title: 'OKVEVO Pricing - Best AI Video Generator Plans for Creators | India',
@@ -14,11 +15,11 @@ export const metadata: Metadata = {
         'creator AI tools pricing', 'business AI video pricing', 'enterprise AI video plans',
         'AI video generator free trial', 'affordable AI video creation', 'AI reel maker India pricing',
     ],
-    authors: [{ name: 'Okvevo Team', url: 'https://okvevo.com' }],
+    authors: [{ name: 'Okvevo Team', url: env.siteUrl }],
     openGraph: {
         title: 'OKVEVO Pricing - Affordable AI Video Generator for All Creators',
         description: 'Flexible plans for Instagram, YouTube & business. Best AI video generator in India. Start free.',
-        url: 'https://okvevo.com/pricing',
+        url: `${env.siteUrl}/pricing`,
         siteName: 'Okvevo',
         images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'OKVEVO Pricing Plans' }],
         type: 'website',
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
         images: ['/og-image.jpg'],
     },
     alternates: {
-        canonical: 'https://okvevo.com/pricing',
+        canonical: `${env.siteUrl}/pricing`,
     },
     robots: {
         index: true,
@@ -38,10 +39,6 @@ export const metadata: Metadata = {
     },
 };
 
-export default function PricingLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function PricingLayout({ children }: { children: React.ReactNode }) {
     return children;
 }

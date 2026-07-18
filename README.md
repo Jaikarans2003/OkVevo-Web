@@ -281,8 +281,7 @@ OKVEVO-V2/
 │   │   └── stacks/
 │   │       └── hyperframes-completion-stack.ts
 │   └── config/
-│       ├── dev.json
-│       └── prod.json
+│       └── dev.json
 │
 ├── functions/                        # Firebase Cloud Functions
 │   ├── package.json
@@ -421,7 +420,7 @@ Skills live under `Skills/` as `SKILL.md` files. The agent loads `AGENT.md` for 
 
 | Component            | How                                                |
 | -------------------- | -------------------------------------------------- |
-| **Frontend**         | `npm run build` → `firebase deploy --only hosting` |
+| **Frontend**         | `npm run build` → `firebase deploy --only hosting --project testing` (CI prod: `--project $FIREBASE_PROD_PROJECT`) |
 | **Agent**            | Docker image from `services/agent/Dockerfile`      |
 | **Cloud Functions**  | `cd functions && npm run deploy`                   |
 | **AWS / HyperFrames** | `infrastructure/` CDK completion stack             |

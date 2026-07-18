@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAccess';
 import { Timestamp } from 'firebase-admin/firestore';
+import { env } from '@/config/env';
 
 export const runtime = 'nodejs';
 
-const AGENT_URL = process.env.AGENT_URL ?? 'http://localhost:3001';
+const AGENT_URL = env.agentUrl;
 
 async function verifySessionAccessFromRequest(request: NextRequest, sessionId: string) {
   const token = await getBearerToken(request.headers.get('authorization'));

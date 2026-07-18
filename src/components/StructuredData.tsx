@@ -3,8 +3,10 @@
  * Helps search engines and AI agents understand OKVEVO better
  */
 
+import { env } from '@/config/env';
+
 export default function StructuredData() {
-    const baseUrl = "https://okvevo.com";
+    const baseUrl = env.siteUrl;
     
     const organizationSchema = {
         "@context": "https://schema.org",

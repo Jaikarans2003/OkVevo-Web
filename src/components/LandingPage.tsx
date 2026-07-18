@@ -20,13 +20,14 @@ const Faq = dynamic(() => import('./Faq'));
 const SmoothScroll = dynamic(() => import('./SmoothScroll'), { ssr: false });
 
 import SEOKeywords from './SEOKeywords';
+import { env } from '@/config/env';
 
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "Okvevo",
-  "url": "https://okvevo.com",
-  "logo": "https://okvevo.com/OKVEVO%20Logos%20With%20BackGrounds/OrangeBackGround.svg",
+  "url": env.siteUrl,
+  "logo": `${env.siteUrl}/OKVEVO%20Logos%20With%20BackGrounds/OrangeBackGround.svg`,
   "sameAs": [
     "https://instagram.com/okvevo",
     "https://linkedin.com/company/okvevo",
@@ -35,7 +36,7 @@ const websiteSchema = {
   ],
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://okvevo.com/search?q={search_term_string}",
+    "target": `${env.siteUrl}/search?q={search_term_string}`,
     "query-input": "required name=search_term_string"
   }
 };
