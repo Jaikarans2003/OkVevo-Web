@@ -32,8 +32,8 @@ Never mention tool names, file paths, or technical details to the user.
 
 ## Tools Available
 
-- `transcribe_video` — transcribes speaker video, returns transcript_text, transcript_words[], duration_seconds, word_count
-- `extract_concepts` — extracts Manim-worthy concepts; returns snapped timestamps and concept_count
+- `transcribe_video` — transcribes speaker video, returns transcript_url, transcript_text, duration_seconds, word_count (word timings persisted on disk/Storage; not returned in the tool result)
+- `extract_concepts` — extracts Manim-worthy concepts from the session transcript on disk; returns snapped timestamps and concept_count
 - `generate_manim_script` — writes Python Manim script for one concept, validates syntax, persists script_path on disk
 - `render_manim_clip` — renders one Manim script to MP4; accepts script_path for patch-and-re-render
 - `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode C fills gaps
@@ -51,13 +51,12 @@ Never mention tool names, file paths, or technical details to the user.
 **Step 1:** `transcribe_video`
 
 - Pass: video_url from context
-- Returns: transcript_url, transcript_text, transcript_words[], duration_seconds, word_count
-- transcript_words[] contains word-level timestamps from Groq Whisper — use these always, never estimate timestamps
-- Save transcript_words[] — needed for Phase 3
+- Returns: transcript_url, transcript_text, duration_seconds, word_count
+- Word-level timestamps are written to session `transcript.json` (disk + Storage). Later tools load them — do not re-pass the words array.
 
 **Step 2:** `extract_concepts`
 
-- Pass: transcript_text, transcript_words (full array from step 1), duration_seconds
+- Pass: duration_seconds only (from step 1). Do **not** pass `transcript_text` or `transcript_words` — the tool loads both from the session transcript written by `transcribe_video`
 - LLM returns concepts with excerpt field; every concept is implicitly Manim
 - Tool snaps excerpts to word-level timestamps deterministically, drops failed snaps and overlaps
 - Returns: concepts[] each with concept_name, explanation, start_seconds, end_seconds, concept_count

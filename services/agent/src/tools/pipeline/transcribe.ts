@@ -69,7 +69,6 @@ export function createTranscribeTools(ctx: { sessionId: string; userId: string }
           return {
             transcript_url: transcriptUrl,
             transcript_text: transcription.text,
-            transcript_words: verbose.words ?? [],
             duration_seconds: verbose.duration ?? 0,
             word_count: verbose.words?.length ?? 0,
           };

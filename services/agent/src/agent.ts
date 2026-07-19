@@ -2,6 +2,7 @@ import { streamText, stepCountIs, type ModelMessage, type ToolSet, type UIMessag
 import type { ServerResponse } from 'node:http';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { pruneToolResults } from './messagePruning';
+import { errorMessage } from './errorMessage';
 import { getCachedSystemPrompt } from './systemPromptCache';
 import { buildTools } from './tools';
 import { resolveSkill } from './skills';
@@ -96,8 +97,7 @@ export function pipeAgentStream(
   params: { sessionId: string; userId: string }
 ) {
   result.pipeUIMessageStreamToResponse(response, {
-    onError: (error) =>
-      error instanceof Error ? error.message : 'An error occurred.',
+    onError: (error) => errorMessage(error),
     onFinish: async ({ responseMessage }) => {
       const text = getTextFromParts(responseMessage.parts);
       if (!text.trim() && responseMessage.parts.length === 0) {

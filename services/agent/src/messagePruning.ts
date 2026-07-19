@@ -74,6 +74,8 @@ function summarizeToolName(toolName: string, output: unknown): string | null {
   const data = parseOutputValue(output);
 
   switch (toolName) {
+    case 'transcribe_video':
+      return `[transcript: ${String(data.word_count ?? '?')} words, ${String(data.duration_seconds ?? '?')}s → ${String(data.transcript_url ?? '?')}]`;
     case 'generate_manim_script':
       return `[manim script generated for ${String(data.concept_name ?? 'unknown')} — truncated]`;
     case 'render_manim_clip':

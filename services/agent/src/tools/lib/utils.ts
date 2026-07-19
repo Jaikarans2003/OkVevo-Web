@@ -176,22 +176,42 @@ export function stripCodeFences(text: string): string {
 
 export type TranscriptWord = { word: string; start: number; end: number };
 
+export type SessionTranscript = {
+  text: string;
+  words: TranscriptWord[];
+  duration_seconds: number;
+};
+
+export function loadSessionTranscript(sessionId: string): SessionTranscript | null {
+  const transcriptPath = path.join(getSessionWorkdir(sessionId), 'transcript.json');
+  if (!fs.existsSync(transcriptPath)) return null;
+  try {
+    const saved = JSON.parse(fs.readFileSync(transcriptPath, 'utf-8')) as {
+      text?: string;
+      words?: TranscriptWord[];
+      duration_seconds?: number;
+    };
+    const text = typeof saved.text === 'string' ? saved.text : '';
+    const words = Array.isArray(saved.words) ? saved.words : [];
+    if (!text && words.length === 0) return null;
+    return {
+      text,
+      words,
+      duration_seconds:
+        typeof saved.duration_seconds === 'number' ? saved.duration_seconds : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function loadSessionTranscriptWords(
   sessionId: string,
   fallback: TranscriptWord[]
 ): TranscriptWord[] {
-  const transcriptPath = path.join(getSessionWorkdir(sessionId), 'transcript.json');
-  if (fs.existsSync(transcriptPath)) {
-    try {
-      const saved = JSON.parse(fs.readFileSync(transcriptPath, 'utf-8')) as {
-        words?: TranscriptWord[];
-      };
-      if (Array.isArray(saved.words) && saved.words.length > fallback.length) {
-        return saved.words;
-      }
-    } catch {
-      // fall through
-    }
+  const saved = loadSessionTranscript(sessionId);
+  if (saved && saved.words.length > fallback.length) {
+    return saved.words;
   }
   return fallback;
 }

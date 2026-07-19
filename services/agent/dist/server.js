@@ -13170,15 +13170,15 @@ var makeIssue = (params) => {
       message: issueData.message
     };
   }
-  let errorMessage = "";
+  let errorMessage2 = "";
   const maps = errorMaps.filter((m) => !!m).slice().reverse();
   for (const map2 of maps) {
-    errorMessage = map2(fullIssue, { data, defaultError: errorMessage }).message;
+    errorMessage2 = map2(fullIssue, { data, defaultError: errorMessage2 }).message;
   }
   return {
     ...issueData,
     path: fullPath,
-    message: errorMessage
+    message: errorMessage2
   };
 };
 var EMPTY_PATH = [];
@@ -23687,12 +23687,12 @@ async function _retryWithExponentialBackoff(f, {
     if (maxRetries === 0) {
       throw error40;
     }
-    const errorMessage = getErrorMessage2(error40);
+    const errorMessage2 = getErrorMessage2(error40);
     const newErrors = [...errors, error40];
     const tryNumber = newErrors.length;
     if (tryNumber > maxRetries) {
       throw new RetryError({
-        message: `Failed after ${tryNumber} attempts. Last error: ${errorMessage}`,
+        message: `Failed after ${tryNumber} attempts. Last error: ${errorMessage2}`,
         reason: "maxRetriesExceeded",
         errors: newErrors
       });
@@ -23720,7 +23720,7 @@ async function _retryWithExponentialBackoff(f, {
       throw error40;
     }
     throw new RetryError({
-      message: `Failed after ${tryNumber} attempts with non-retryable error: '${errorMessage}'`,
+      message: `Failed after ${tryNumber} attempts with non-retryable error: '${errorMessage2}'`,
       reason: "errorNotRetryable",
       errors: newErrors
     });
@@ -34024,6 +34024,8 @@ function parseOutputValue(output) {
 function summarizeToolName(toolName, output) {
   const data = parseOutputValue(output);
   switch (toolName) {
+    case "transcribe_video":
+      return `[transcript: ${String(data.word_count ?? "?")} words, ${String(data.duration_seconds ?? "?")}s \u2192 ${String(data.transcript_url ?? "?")}]`;
     case "generate_manim_script":
       return `[manim script generated for ${String(data.concept_name ?? "unknown")} \u2014 truncated]`;
     case "render_manim_clip":
@@ -34078,6 +34080,23 @@ function pruneToolResults(messages) {
   return messages.map(
     (message, index) => indicesToPrune.has(index) ? summarizeToolMessage(message) : message
   );
+}
+
+// src/errorMessage.ts
+function errorMessage(error40) {
+  if (error40 instanceof Error) return error40.message;
+  if (typeof error40 === "string") return error40;
+  if (error40 && typeof error40 === "object" && "message" in error40 && typeof error40.message === "string" && error40.message.trim()) {
+    return error40.message;
+  }
+  try {
+    const serialized = JSON.stringify(error40);
+    if (serialized && serialized !== "{}" && serialized !== "null") {
+      return serialized;
+    }
+  } catch {
+  }
+  return "An error occurred.";
 }
 
 // src/systemPromptCache.ts
@@ -34326,16 +34345,27 @@ async function downloadFile(url2, destPath) {
 function stripCodeFences(text2) {
   return text2.replace(/```(?:python|json|html)?\n?/g, "").replace(/```\n?/g, "").trim();
 }
-function loadSessionTranscriptWords(sessionId, fallback) {
+function loadSessionTranscript(sessionId) {
   const transcriptPath = import_path3.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (import_fs3.default.existsSync(transcriptPath)) {
-    try {
-      const saved = JSON.parse(import_fs3.default.readFileSync(transcriptPath, "utf-8"));
-      if (Array.isArray(saved.words) && saved.words.length > fallback.length) {
-        return saved.words;
-      }
-    } catch {
-    }
+  if (!import_fs3.default.existsSync(transcriptPath)) return null;
+  try {
+    const saved = JSON.parse(import_fs3.default.readFileSync(transcriptPath, "utf-8"));
+    const text2 = typeof saved.text === "string" ? saved.text : "";
+    const words = Array.isArray(saved.words) ? saved.words : [];
+    if (!text2 && words.length === 0) return null;
+    return {
+      text: text2,
+      words,
+      duration_seconds: typeof saved.duration_seconds === "number" ? saved.duration_seconds : 0
+    };
+  } catch {
+    return null;
+  }
+}
+function loadSessionTranscriptWords(sessionId, fallback) {
+  const saved = loadSessionTranscript(sessionId);
+  if (saved && saved.words.length > fallback.length) {
+    return saved.words;
   }
   return fallback;
 }
@@ -35463,27 +35493,26 @@ ${transcript_text}${timed}`;
 function createConceptsTools(ctx) {
   return {
     extract_concepts: tool({
-      description: `Extract Manim-worthy teaching concepts from the transcript. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
+      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video \u2014 pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
       inputSchema: external_exports2.object({
-        transcript_text: external_exports2.string(),
-        transcript_words: external_exports2.array(
-          external_exports2.object({
-            word: external_exports2.string(),
-            start: external_exports2.number(),
-            end: external_exports2.number()
-          })
-        ).optional(),
         duration_seconds: external_exports2.number().optional()
       }),
-      execute: async ({ transcript_text, transcript_words, duration_seconds }) => {
+      execute: async ({ duration_seconds }) => {
         try {
+          const transcript = loadSessionTranscript(ctx.sessionId);
+          if (!transcript || !transcript.text.trim() && transcript.words.length === 0) {
+            throw new Error(
+              "No session transcript found on disk. Call transcribe_video first."
+            );
+          }
+          const resolvedDuration = duration_seconds ?? (transcript.duration_seconds > 0 ? transcript.duration_seconds : void 0);
           const scenePlanning = loadSkillFile("manim-video/references/scene-planning.md");
           const systemPrompt = buildExtractConceptsSystemPrompt(scenePlanning);
-          const snapWords = loadSessionTranscriptWords(ctx.sessionId, transcript_words ?? []);
+          const snapWords = transcript.words;
           const userMessage = buildExtractConceptsUserMessage(
-            transcript_text,
+            transcript.text,
             snapWords,
-            duration_seconds
+            resolvedDuration
           );
           const runExtraction = async (retryHint) => {
             const responseText = await callOpenRouter(
@@ -35500,11 +35529,11 @@ ${retryHint}` : userMessage
             }
             const parsedConcepts = conceptsArraySchema.parse(parsed);
             return finalizeExtractedConcepts(
-              snapConceptsFromLlm(parsedConcepts, snapWords, duration_seconds)
+              snapConceptsFromLlm(parsedConcepts, snapWords, resolvedDuration)
             );
           };
           let concepts = await runExtraction();
-          if (needsExtractionRetry(concepts, duration_seconds)) {
+          if (needsExtractionRetry(concepts, resolvedDuration)) {
             concepts = await runExtraction(
               "Your previous response left too much of the video as speaker-only Mode C. Extract additional non-overlapping Manim moments \u2014 use shorter excerpts (5\u201315s each) for distinct teachable beats (frameworks, comparisons, dilemmas, cause-effect) still uncovered. Excerpts must not overlap in transcript text."
             );
@@ -36258,7 +36287,6 @@ function createTranscribeTools(ctx) {
           return {
             transcript_url: transcriptUrl,
             transcript_text: transcription.text,
-            transcript_words: verbose.words ?? [],
             duration_seconds: verbose.duration ?? 0,
             word_count: verbose.words?.length ?? 0
           };
@@ -36380,7 +36408,7 @@ function getTextFromParts(parts) {
 }
 function pipeAgentStream(result, response, params) {
   result.pipeUIMessageStreamToResponse(response, {
-    onError: (error40) => error40 instanceof Error ? error40.message : "An error occurred.",
+    onError: (error40) => errorMessage(error40),
     onFinish: async ({ responseMessage }) => {
       const text2 = getTextFromParts(responseMessage.parts);
       if (!text2.trim() && responseMessage.parts.length === 0) {

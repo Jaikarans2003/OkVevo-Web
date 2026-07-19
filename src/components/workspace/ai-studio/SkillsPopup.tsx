@@ -7,24 +7,9 @@ const SKILLS = [
     id: 'edu-video',
     name: 'Edu-Video',
     description:
-      'Transform a teacher recording into a polished educational video with Manim animations',
+      "Turn a teacher's lecture recording into a polished educational video with AI-generated animations, visuals, captions, and explanations.",
     icon: '🎬',
     requiresVideo: true,
-  },
-  {
-    id: 'hyperframes',
-    name: 'HyperFrames',
-    description: 'Build custom HTML video compositions with multiple layers and effects',
-    icon: '🎨',
-    requiresVideo: false,
-  },
-  {
-    id: 'manim-video',
-    name: 'Manim Video',
-    description:
-      'Generate Manim Python animation scripts for mathematical and technical visualizations',
-    icon: '📐',
-    requiresVideo: false,
   },
 ] as const;
 

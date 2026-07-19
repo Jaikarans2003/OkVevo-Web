@@ -4,7 +4,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import {
   loadSkillFile,
-  loadSessionTranscriptWords,
+  loadSessionTranscript,
   snapToWords,
   stripCodeFences,
   callOpenRouter,
@@ -135,29 +135,29 @@ function buildExtractConceptsUserMessage(
 export function createConceptsTools(ctx: { sessionId: string; userId: string }) {
   return {
     extract_concepts: tool({
-      description: `Extract Manim-worthy teaching concepts from the transcript. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
+      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video — pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
       inputSchema: z.object({
-        transcript_text: z.string(),
-        transcript_words: z
-          .array(
-            z.object({
-              word: z.string(),
-              start: z.number(),
-              end: z.number(),
-            })
-          )
-          .optional(),
         duration_seconds: z.number().optional(),
       }),
-      execute: async ({ transcript_text, transcript_words, duration_seconds }) => {
+      execute: async ({ duration_seconds }) => {
         try {
+          const transcript = loadSessionTranscript(ctx.sessionId);
+          if (!transcript || (!transcript.text.trim() && transcript.words.length === 0)) {
+            throw new Error(
+              'No session transcript found on disk. Call transcribe_video first.'
+            );
+          }
+
+          const resolvedDuration =
+            duration_seconds ??
+            (transcript.duration_seconds > 0 ? transcript.duration_seconds : undefined);
           const scenePlanning = loadSkillFile('manim-video/references/scene-planning.md');
           const systemPrompt = buildExtractConceptsSystemPrompt(scenePlanning);
-          const snapWords = loadSessionTranscriptWords(ctx.sessionId, transcript_words ?? []);
+          const snapWords = transcript.words;
           const userMessage = buildExtractConceptsUserMessage(
-            transcript_text,
+            transcript.text,
             snapWords,
-            duration_seconds
+            resolvedDuration
           );
 
           const runExtraction = async (retryHint?: string) => {
@@ -173,12 +173,12 @@ export function createConceptsTools(ctx: { sessionId: string; userId: string }) 
             }
             const parsedConcepts = conceptsArraySchema.parse(parsed);
             return finalizeExtractedConcepts(
-              snapConceptsFromLlm(parsedConcepts, snapWords, duration_seconds)
+              snapConceptsFromLlm(parsedConcepts, snapWords, resolvedDuration)
             );
           };
 
           let concepts = await runExtraction();
-          if (needsExtractionRetry(concepts, duration_seconds)) {
+          if (needsExtractionRetry(concepts, resolvedDuration)) {
             concepts = await runExtraction(
               'Your previous response left too much of the video as speaker-only Mode C. Extract additional non-overlapping Manim moments — use shorter excerpts (5–15s each) for distinct teachable beats (frameworks, comparisons, dilemmas, cause-effect) still uncovered. Excerpts must not overlap in transcript text.'
             );
