@@ -14,6 +14,7 @@
     "check-heygen-webhook": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-heygen-webhook.ts",
     "check-webhook-delivery": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-webhook-delivery.ts",
     "check-transcript-timeout": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-transcript-timeout.ts",
+    "check-speaker-normalize": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-speaker-normalize.ts",
     "deploy:agentcore": "bash scripts/deploy-agentcore.sh && bash scripts/verify-agentcore-deploy.sh"
   },
   "dependencies": {

@@ -20,7 +20,9 @@ import {
   groupCaptionWords,
   loadSessionTranscriptWords,
   loadSkillFile,
+  normalizeSpeakerVideo,
   resolveBrandColors,
+  SPEAKER_MAX_BYTES,
   substitutePlaceholders,
 } from '../lib/utils';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
@@ -171,8 +173,28 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
         const assetsDir = path.join(projectDir, 'assets');
         fs.mkdirSync(assetsDir, { recursive: true });
 
+        const speakerRawPath = path.join(assetsDir, 'speaker_raw.mp4');
         const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
-        await downloadFile(speaker_video_url, speakerVideoPath);
+        await downloadFile(speaker_video_url, speakerRawPath);
+
+        const audioPath = path.join(assetsDir, 'audio.mp3');
+        const audioExtract = await execCommand(
+          `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+          { timeoutSeconds: 120 }
+        );
+        if (!audioExtract.success) {
+          throw new Error(audioExtract.stderr || 'ffmpeg audio extraction failed');
+        }
+
+        await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
+        fs.unlinkSync(speakerRawPath);
+
+        const speakerBytes = fs.statSync(speakerVideoPath).size;
+        if (speakerBytes > SPEAKER_MAX_BYTES) {
+          throw new Error(
+            'Speaker video is too long to upload after 1080p normalization'
+          );
+        }
 
         const ffprobe = await execCommand(
           `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
@@ -264,15 +286,6 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
         );
         await writeAssetUrl(ctx.userId, ctx.sessionId, 'composition', indexUrl);
         fs.writeFileSync(path.join(projectDir, 'index.html'), indexHtml, 'utf-8');
-
-        const audioPath = path.join(assetsDir, 'audio.mp3');
-        const ffmpeg = await execCommand(
-          `ffmpeg -i "${speakerVideoPath}" -vn -acodec mp3 "${audioPath}"`,
-          { timeoutSeconds: 120 }
-        );
-        if (!ffmpeg.success) {
-          throw new Error(ffmpeg.stderr || 'ffmpeg audio extraction failed');
-        }
 
         const manifest = buildCompositionManifest({
           projectDir,

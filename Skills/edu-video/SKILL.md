@@ -113,7 +113,8 @@ What scaffold_hf_project does (deterministic, zero LLM calls):
 - Copies template scaffold from Skills/edu-video/templates/
 - For Mode A and C segments: uses mode-a.html / mode-c.html templates
 - Injects all segment wiring, Manim clip HTML, speaker GSAP transitions, Manim show/hide on the root timeline, karaoke captions
-- Downloads speaker video and all Manim clips to assets/, extracts audio via ffmpeg
+- Downloads speaker video, always normalizes to ≤1080p H.264 (CRF 20, 30fps, no audio track), extracts audio.mp3 from the raw download, then downloads Manim clips to assets/
+- If normalized speaker still exceeds ~180MB → fail; tell user one plain sentence (see On Failure)
 - Writes COMPOSITION_MANIFEST.json
 - Uploads Phase A checkpoint (index.html only) immediately
 - Uploads full project directory to Firebase Storage
@@ -180,6 +181,7 @@ One plain sentence to the user. Never mention tool names, file paths, or technic
 - Manim clip fails after patch cycles → drop clip, Mode C fills that window; continue
 - extract_concepts may return zero concepts on short/meta recordings — all-C timeline is valid
 - Lint fails → patch and retry (max 3 attempts), then tell user one plain sentence
+- Speaker video still too large after 1080p normalization → tell user the recording is too long to process
 - Any other failure → tell user one plain sentence, continue with what worked
 
 ## On Edit Requests

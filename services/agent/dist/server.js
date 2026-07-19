@@ -34342,6 +34342,27 @@ async function downloadFile(url2, destPath) {
   import_fs3.default.mkdirSync(import_path3.default.dirname(destPath), { recursive: true });
   import_fs3.default.writeFileSync(destPath, buffer);
 }
+var SPEAKER_MAX_BYTES = 180 * 1024 * 1024;
+var SPEAKER_NORMALIZE_CRF = 20;
+var SPEAKER_NORMALIZE_PRESET = "medium";
+var SPEAKER_NORMALIZE_VF = "fps=30,scale='min(1920,iw)':-2";
+async function normalizeSpeakerVideo(inputPath, outputPath) {
+  const probe = await execCommand(
+    `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${inputPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  if (!probe.success) {
+    throw new Error(probe.stderr || "ffprobe failed on speaker video");
+  }
+  import_fs3.default.mkdirSync(import_path3.default.dirname(outputPath), { recursive: true });
+  const ffmpeg = await execCommand(
+    `ffmpeg -y -i "${inputPath}" -vf "${SPEAKER_NORMALIZE_VF}" -an -c:v libx264 -crf ${SPEAKER_NORMALIZE_CRF} -preset ${SPEAKER_NORMALIZE_PRESET} -pix_fmt yuv420p -movflags +faststart "${outputPath}"`,
+    { timeoutSeconds: 600 }
+  );
+  if (!ffmpeg.success) {
+    throw new Error(ffmpeg.stderr || "ffmpeg speaker normalize failed");
+  }
+}
 function stripCodeFences(text2) {
   return text2.replace(/```(?:python|json|html)?\n?/g, "").replace(/```\n?/g, "").trim();
 }
@@ -35757,8 +35778,25 @@ function createHyperframesTools(ctx) {
         const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
         const assetsDir = import_path7.default.join(projectDir, "assets");
         import_fs8.default.mkdirSync(assetsDir, { recursive: true });
+        const speakerRawPath = import_path7.default.join(assetsDir, "speaker_raw.mp4");
         const speakerVideoPath = import_path7.default.join(assetsDir, "speaker_noaudio.mp4");
-        await downloadFile(speaker_video_url, speakerVideoPath);
+        await downloadFile(speaker_video_url, speakerRawPath);
+        const audioPath = import_path7.default.join(assetsDir, "audio.mp3");
+        const audioExtract = await execCommand(
+          `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+          { timeoutSeconds: 120 }
+        );
+        if (!audioExtract.success) {
+          throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
+        }
+        await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
+        import_fs8.default.unlinkSync(speakerRawPath);
+        const speakerBytes = import_fs8.default.statSync(speakerVideoPath).size;
+        if (speakerBytes > SPEAKER_MAX_BYTES) {
+          throw new Error(
+            "Speaker video is too long to upload after 1080p normalization"
+          );
+        }
         const ffprobe = await execCommand(
           `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
           { timeoutSeconds: 60 }
@@ -35838,14 +35876,6 @@ function createHyperframesTools(ctx) {
         );
         await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
         import_fs8.default.writeFileSync(import_path7.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-        const audioPath = import_path7.default.join(assetsDir, "audio.mp3");
-        const ffmpeg = await execCommand(
-          `ffmpeg -i "${speakerVideoPath}" -vn -acodec mp3 "${audioPath}"`,
-          { timeoutSeconds: 120 }
-        );
-        if (!ffmpeg.success) {
-          throw new Error(ffmpeg.stderr || "ffmpeg audio extraction failed");
-        }
         const manifest = buildCompositionManifest({
           projectDir,
           total_duration: effectiveDuration,

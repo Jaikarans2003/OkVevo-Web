@@ -170,6 +170,42 @@ export async function downloadFile(url: string, destPath: string): Promise<void>
   fs.writeFileSync(destPath, buffer);
 }
 
+/** Cap for HeyGen upload after normalize; longer lectures must fail clearly. */
+export const SPEAKER_MAX_BYTES = 180 * 1024 * 1024;
+export const SPEAKER_NORMALIZE_CRF = 20;
+export const SPEAKER_NORMALIZE_PRESET = 'medium';
+/** Never upscales: min(1920,iw). Matches composition 30fps. */
+export const SPEAKER_NORMALIZE_VF = "fps=30,scale='min(1920,iw)':-2";
+
+/**
+ * Re-encode speaker to ≤1080p H.264 (CRF 20, 30fps, no audio).
+ * Audio must be extracted from the raw download before calling this.
+ */
+export async function normalizeSpeakerVideo(
+  inputPath: string,
+  outputPath: string
+): Promise<void> {
+  const probe = await execCommand(
+    `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${inputPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  if (!probe.success) {
+    throw new Error(probe.stderr || 'ffprobe failed on speaker video');
+  }
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const ffmpeg = await execCommand(
+    `ffmpeg -y -i "${inputPath}" -vf "${SPEAKER_NORMALIZE_VF}"` +
+      ` -an -c:v libx264 -crf ${SPEAKER_NORMALIZE_CRF}` +
+      ` -preset ${SPEAKER_NORMALIZE_PRESET} -pix_fmt yuv420p -movflags +faststart` +
+      ` "${outputPath}"`,
+    { timeoutSeconds: 600 }
+  );
+  if (!ffmpeg.success) {
+    throw new Error(ffmpeg.stderr || 'ffmpeg speaker normalize failed');
+  }
+}
+
 export function stripCodeFences(text: string): string {
   return text.replace(/```(?:python|json|html)?\n?/g, '').replace(/```\n?/g, '').trim();
 }
