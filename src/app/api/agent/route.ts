@@ -23,6 +23,13 @@ type ChatRequestBody = {
   videoUrl?: string;
   skillId?: string;
   model?: string;
+  pipelineMode?: 'ask' | 'auto';
+  checkpointAnswer?: {
+    checkpointId: string;
+    type: 'approve' | 'choice' | 'revision' | 'freeform';
+    text: string;
+    choiceId?: string;
+  };
 };
 
 function isAllowedOrigin(origin: string): boolean {
@@ -94,6 +101,8 @@ async function handleAgentCore(req: Request, userId: string) {
     videoUrl: body.videoUrl,
     skillId: body.skillId,
     model: body.model,
+    pipelineMode: body.pipelineMode,
+    checkpointAnswer: body.checkpointAnswer,
   });
 
   return new Response(stream, {

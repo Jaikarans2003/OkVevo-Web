@@ -1,12 +1,13 @@
 ---
 
 ## name: edu-video
-
-description: Transform a teacher video recording into an educational video with Manim animations, karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only. Two display modes switch automatically per segment. Use when asked to generate an educational video from a recording.
+description: >
+  Transform a teacher video recording into an educational video with Manim animations,
+  karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only.
+  Two display modes switch automatically per segment. Use when asked to generate an educational
+  video from a recording.
 
 # Edu-Video Pipeline — Orchestration Skill
-
-## What This Does
 
 Transforms a teacher's video recording into a 1920×1080 educational video.
 Every extracted concept is animated with Manim. HyperFrames assembles and renders the final composite — no per-segment creative HTML generation.
@@ -18,15 +19,50 @@ Two display modes, auto-assigned per transcript segment:
 
 Mode C covers intros, transitions, narrative, and any time not covered by a successful Manim clip. Zero concepts on a very short or meta-only recording is valid (all Mode C).
 
+## Ask-Me check-ins
+
+These apply **only in Ask-Me mode** (`pipelineMode: ask`). In Auto-Run mode, do not call `ask_clarification` for routine phase boundaries — proceed autonomously.
+
+**Mandatory:** Ask-Me mode auto-pauses after `extract_concepts` (tool-enforced checkpoint). Do not call `ask_clarification` again for concepts — wait for the user to continue from the checkpoint card.
+
+In Ask-Me mode, **consider** calling `ask_clarification` after each major milestone when you want the user to review before continuing:
+
+- After `transcribe_video` — summarize duration and word count
+- After all `render_manim_clip` calls complete — summarize clips rendered vs dropped
+- After `plan_segments` — summarize segment counts and total duration
+- After `scaffold_hf_project` — confirm composition is ready
+- **Before** `render_hyperframes` — same soft check-in; final render is irreversible, so wait for explicit approval
+
+Use `phase_label` for a short milestone title, `context` for summary bullets, and optional `choices` / `allowFreeform`. The checkpoint waits indefinitely until the user explicitly answers — closing the browser does not auto-proceed.
+
+After the user responds, pick the next tool freely based on their answer. Do not restart from transcription unless they asked to start over. After checkpoint resume / Continue: call the next tool before any status text — do not re-announce prior phases or invent concept counts, names, or later milestones until this turn's tool results confirm them.
+
 ## UI Activity Trace vs User Text
 
 Activity trace shows each step as collapsible cards. Keep text responses brief.
 
-- After transcription: title and duration only, one sentence
-- After concept extraction: how many Manim concepts found, one sentence
-- After segment planning: confirm timeline ready, one sentence
-- After animations: "animations ready", one sentence
-- After render dispatch: say the final render is running in the background; do not claim it is complete
+**Never state a step is done unless that turn’s tool result confirms success.** Mapping:
+
+
+| Milestone     | Confirmed only by                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Transcription | successful `transcribe_video`                                                             |
+| Concepts      | successful `extract_concepts`                                                             |
+| Animations    | successful `render_manim_clip` result(s) in this turn                                     |
+| Timeline      | successful `plan_segments`                                                                |
+| Scaffold      | successful `scaffold_hf_project`                                                          |
+| Render        | `render_hyperframes` with `render_status: RUNNING` only — never claim the MP4 is finished |
+
+
+If a tool was not called or returned failure: say so in one plain sentence. Do not invent counts (“all 6 clips”), colors, styles, or other completed work. Same rule after checkpoint resume: no status claims until this turn’s tool results confirm them.
+
+Only after confirmed tool success (keep brevity):
+
+- Transcription: title and duration only, one sentence
+- Concepts: how many Manim concepts found, one sentence
+- Timeline: confirm timeline ready, one sentence
+- Animations: "animations ready", one sentence
+- Render dispatch: final render is running in the background
 
 Never mention tool names, file paths, or technical details to the user.
 
@@ -44,7 +80,11 @@ Never mention tool names, file paths, or technical details to the user.
 - `read_file` — read any file from disk (used before patching scripts or manifest)
 - `search_files` — find files by name or content (used when manifest is missing)
 
+
+
 ## Tool Sequence
+
+
 
 ### Phase 1 — Transcription and Concept Extraction
 
@@ -61,6 +101,8 @@ Never mention tool names, file paths, or technical details to the user.
 - Tool snaps excerpts to word-level timestamps deterministically, drops failed snaps and overlaps
 - Returns: concepts[] each with concept_name, explanation, start_seconds, end_seconds, concept_count
 - Zero concepts is valid for very short or meta-only recordings
+
+
 
 ### Phase 2 — Manim (all extracted concepts, run sequentially)
 
@@ -81,7 +123,7 @@ For **each** concept from extract_concepts:
 
 **Patch by default for:** LaTeX/raw-string issues, VGroup vs Group errors, invalid Text() kwargs, missing self.wait(), buff/FadeOut issues, any localized traceback.
 
-**Full regenerate via `generate_manim_script` only when:** 3 patch cycles exhausted and error persists, script is structurally wrong (wrong scene class, empty construct, fundamentally wrong approach), or error spans most of the file.
+**Full regenerate via** `generate_manim_script` **only when:** 3 patch cycles exhausted and error persists, script is structurally wrong (wrong scene class, empty construct, fundamentally wrong approach), or error spans most of the file.
 
 **After 3 failed patch cycles + optional one full regen:** drop that clip from manim_clips[]; that window becomes Mode C at plan_segments time; one plain sentence to user.
 
@@ -95,6 +137,8 @@ For **each** concept from extract_concepts:
 - Deterministic — succeeds on first call, no retry loop
 - Returns: segments[] with mode (A/C), start, end, manim_index (for A)
 
+
+
 ### Phase 4 — Assembly and Render
 
 **Step 4:** `scaffold_hf_project`
@@ -103,8 +147,8 @@ Pass:
 
 - `speaker_video_url` — original video URL from context
 - `manim_clips[]` — all clips from Phase 2 with clip_url, concept_name, start_seconds, end_seconds
-- `segments[]` — from plan_segments, with manim_index for Mode A segments
 - `transcript_words[]` — array from transcribe_video (for karaoke captions). You may pass an empty array `[]`: scaffold automatically loads the full word list persisted by transcribe_video
+- Segments are loaded automatically from the session plan written by `plan_segments` — do not pass `segments[]`
 - `total_duration` — duration_seconds from transcribe_video (scaffold extends this to the real video duration via ffprobe if whisper undershot)
 - `brand_colors` — optional, defaults: primary `#f97316` (orange), accent `#fb923c` (light orange), bg_dark `#0a0a0a` (black); captions use white text
 
@@ -144,6 +188,8 @@ Behavior:
 - Returns immediately: `{ success: true, render_status: "RUNNING", execution_arn, output_key, composition_url }`
 - Tell the user the final render is running in the background. Completion updates the session and video URL independently.
 
+
+
 ## Karaoke Captions
 
 Always enabled on every mode. scaffold_hf_project receives transcript_words and generates
@@ -154,17 +200,21 @@ Caption right edge stops at 1550px to avoid PIP overlap in Mode A.
 
 ## Deterministic vs Agent-Generated
 
-| Element                            | Who generates it                                           |
-| ---------------------------------- | ---------------------------------------------------------- |
-| Speaker video position and PIP     | Deterministic — GSAP presets in scaffold_hf_project        |
-| Manim clip placement (85% float)   | Deterministic — injected by scaffold_hf_project            |
-| Caption layer position             | Deterministic — captions-overlay.html template             |
-| index-root.html wiring             | Deterministic — scaffold_hf_project                        |
-| All timestamps                     | Always from Groq Whisper word-level data — never estimated |
-| Manim Python scripts               | Agent — generate_manim_script; patch via read_file/write_file on failure |
-| Concept count and selection        | Agent — extract_concepts, guided by duration and content   |
-| Mode A/C timeline partition        | Deterministic — plan_segments                              |
-| Final composite render             | Deterministic — render_hyperframes (HyperFrames AWS Lambda)  |
+
+| Element                          | Who generates it                                                         |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| Speaker video position and PIP   | Deterministic — GSAP presets in scaffold_hf_project                      |
+| Manim clip placement (85% float) | Deterministic — injected by scaffold_hf_project                          |
+| Caption layer position           | Deterministic — captions-overlay.html template                           |
+| index-root.html wiring           | Deterministic — scaffold_hf_project                                      |
+| All timestamps                   | Always from Groq Whisper word-level data — never estimated               |
+| Manim Python scripts             | Agent — generate_manim_script; patch via read_file/write_file on failure |
+| Concept count and selection      | Agent — extract_concepts, guided by duration and content                 |
+| Mode A/C timeline partition      | Deterministic — plan_segments                                            |
+| Final composite render           | Deterministic — render_hyperframes (HyperFrames AWS Lambda)              |
+
+
+
 
 ## Sub-Skill Reference
 
@@ -173,6 +223,8 @@ Always read the relevant skill file before using that tool:
 - Before `generate_manim_script`: read `Skills/manim-video/SKILL.md`
 - On Manim render failure: read `Skills/manim-video/references/troubleshooting.md`
 - Before `render_hyperframes`: read `Skills/hyperframes/hyperframes-cli/SKILL.md`
+
+
 
 ## On Failure
 
@@ -184,11 +236,15 @@ One plain sentence to the user. Never mention tool names, file paths, or technic
 - Speaker video still too large after 1080p normalization → tell user the recording is too long to process
 - Any other failure → tell user one plain sentence, continue with what worked
 
+
+
 ## On Edit Requests
+
+Local session files (transcript, manim scripts, hf-project) are restored from Firebase Storage automatically when missing on disk. **Never ask the user to re-upload** if this session already has Storage assets. Only ask for a new upload when a tool reports nothing stored for that session (cold session / empty Storage).
 
 Before any edit, always:
 
-1. `read_file("{project_dir}/COMPOSITION_MANIFEST.json")` — get file map and current values
+1. `read_file("{project_dir}/COMPOSITION_MANIFEST.json")` — get file map and current values (restores hf-project from Storage if needed)
 2. If manifest missing, `search_files(directory: project_dir, pattern: "*.html")` to locate files
 3. `read_file` the specific file before patching — understand existing structure first
 4. `write_file` to patch only the specific file
@@ -205,6 +261,8 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 - `write_file` to patch `tl.set('#speaker-wrap', ...)` and `tl.to('#speaker-wrap', ...)` in index.html
 - `render_hyperframes`
 
+
+
 ### Caption style edits
 
 "bigger captions" / "different color" / "move captions up" / "smaller text":
@@ -212,6 +270,8 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 - Read manifest `captions.current` for current font_size, color, position_bottom values
 - `write_file` to patch those values in `compositions/captions-overlay.html`
 - `render_hyperframes`
+
+
 
 ### Segment edits
 
@@ -222,9 +282,23 @@ Identify which phase is affected. Re-run only from that phase forward. Never res
 - `scaffold_hf_project` with updated segments
 - `render_hyperframes`
 
+
+
 ### Brand/color edits
 
 "change the accent color" / "use red instead of blue":
 
 - `scaffold_hf_project` with updated brand_colors
 - `render_hyperframes`
+
+
+
+## Background job rule
+
+Any tool whose own execution could plausibly leave the SSE stream silent for **~60–90+ seconds** (unlike Manim's naturally chunked per-clip renders) **must** submit as a background job and return an immediate handle, ending the turn. The agent must not block inside a held SSE connection waiting for completion.
+
+**Pattern:** submit job → persist job handle on session (Firestore) → return `{ job_status: 'RUNNING', job_id }` → turn ends → completion arrives via webhook/callback or user's next "check status" message → fresh invocation resumes with `ensureSessionArtifacts`.
+
+**Existing example:** `render_hyperframes` (HeyGen `--no-wait` + callback).
+
+**Future candidates:** cleanup service, bulk asset processing, long ffmpeg batch jobs. Do not add synchronous wrappers for these.

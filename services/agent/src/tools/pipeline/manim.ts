@@ -6,6 +6,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import {
   callOpenRouter,
+  ensureSessionArtifacts,
   execCommand,
   loadSkillFile,
   stripCodeFences,
@@ -16,6 +17,9 @@ import {
   buildManimPalettePrompt,
 } from '../lib/utils';
 import { getTempPath, uploadToStorage, walkDir, writeAssetUrl } from '../../storage';
+import { db } from '../../firebase';
+import { formatDuration } from '../../checkpoint';
+import type { ToolCtx } from '../index';
 
 const brandColorsSchema = z.object({
   primary: z.string(),
@@ -57,7 +61,31 @@ function validatePythonSyntax(scriptPath: string): { ok: true } | { ok: false; e
   }
 }
 
-export function createManimTools(ctx: { sessionId: string; userId: string }) {
+function loadSessionConcepts(sessionId: string): { concept_name: string }[] {
+  const conceptsPath = path.join(getSessionWorkdir(sessionId), 'concepts.json');
+  if (!fs.existsSync(conceptsPath)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(conceptsPath, 'utf-8')) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function countRenderedManimClips(userId: string, sessionId: string): Promise<number> {
+  const snap = await db
+    .collection('users')
+    .doc(userId)
+    .collection('sessions')
+    .doc(sessionId)
+    .get();
+  const assets = snap.data()?.assets ?? {};
+  return Object.keys(assets).filter(
+    (key) => key.startsWith('manim_') && !key.startsWith('manim_script_')
+  ).length;
+}
+
+export function createManimTools(ctx: ToolCtx) {
   return {
     generate_manim_script: tool({
       description: `Generate a valid Manim Python script for a single teaching concept. Call this BEFORE render_manim_clip for each extracted concept. Persists script to disk and returns script_path for surgical patching on render failure.`,
@@ -194,7 +222,12 @@ Fix these specific issues and return corrected Python only.`;
         try {
           if (script_path) {
             if (!fs.existsSync(resolvedScriptPath)) {
-              throw new Error(`Script not found at ${resolvedScriptPath}`);
+              await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['manim_scripts']);
+            }
+            if (!fs.existsSync(resolvedScriptPath)) {
+              throw new Error(
+                `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts — regenerate or re-upload.`
+              );
             }
           } else if (!script) {
             throw new Error('Provide script or script_path');
@@ -247,11 +280,17 @@ Fix these specific issues and return corrected Python only.`;
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
 
+          const concepts = loadSessionConcepts(ctx.sessionId);
+          const manim_count = await countRenderedManimClips(ctx.userId, ctx.sessionId);
+          const dropped_count = Math.max(0, concepts.length - manim_count);
+
           return {
             clip_url: clipUrl,
             concept_name,
             start_seconds,
             end_seconds,
+            manim_count,
+            dropped_count,
           };
         } finally {
           try {

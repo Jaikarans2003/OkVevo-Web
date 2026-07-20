@@ -12,6 +12,13 @@ export type AgentCoreInvokeInput = {
   skillId?: string;
   model?: string;
   source?: 'chat' | 'webhook';
+  pipelineMode?: 'ask' | 'auto';
+  checkpointAnswer?: {
+    checkpointId: string;
+    type: 'approve' | 'choice' | 'revision' | 'freeform';
+    text: string;
+    choiceId?: string;
+  };
 };
 
 export type AgentCoreInvokeResult = {
@@ -54,6 +61,8 @@ function buildPayload(input: AgentCoreInvokeInput, stream: boolean) {
       ...(input.skillId ? { skillId: input.skillId } : {}),
       ...(input.model ? { model: input.model } : {}),
       ...(input.source ? { source: input.source } : {}),
+      ...(input.pipelineMode ? { pipelineMode: input.pipelineMode } : {}),
+      ...(input.checkpointAnswer ? { checkpointAnswer: input.checkpointAnswer } : {}),
     },
   };
 }

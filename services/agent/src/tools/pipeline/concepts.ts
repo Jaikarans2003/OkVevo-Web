@@ -1,8 +1,11 @@
 // @ts-nocheck
 import fs from 'fs';
+import path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
+  ensureSessionArtifacts,
+  getSessionWorkdir,
   loadSkillFile,
   loadSessionTranscript,
   snapToWords,
@@ -14,7 +17,9 @@ import {
   resolveNonOverlappingConcepts,
   type TimedConcept,
 } from '../../skills/eduVideo/planning';
+import { writeAskCheckpoint } from '../../checkpoint';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
+import type { ToolCtx } from '../index';
 
 const conceptSchema = z.object({
   concept_name: z.string(),
@@ -132,7 +137,7 @@ function buildExtractConceptsUserMessage(
   return `${durationLine}\n\nTranscript:\n${transcript_text}${timed}`;
 }
 
-export function createConceptsTools(ctx: { sessionId: string; userId: string }) {
+export function createConceptsTools(ctx: ToolCtx) {
   return {
     extract_concepts: tool({
       description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video — pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
@@ -141,10 +146,11 @@ export function createConceptsTools(ctx: { sessionId: string; userId: string }) 
       }),
       execute: async ({ duration_seconds }) => {
         try {
+          await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['transcript']);
           const transcript = loadSessionTranscript(ctx.sessionId);
           if (!transcript || (!transcript.text.trim() && transcript.words.length === 0)) {
             throw new Error(
-              'No session transcript found on disk. Call transcribe_video first.'
+              'No session transcript on disk or in Storage. Call transcribe_video first, or re-upload if this session has no stored transcript.'
             );
           }
 
@@ -189,10 +195,37 @@ export function createConceptsTools(ctx: { sessionId: string; userId: string }) 
 
           const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
           fs.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
+          fs.copyFileSync(
+            conceptsPath,
+            path.join(getSessionWorkdir(ctx.sessionId), 'concepts.json')
+          );
 
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/concepts.json`;
           const conceptsUrl = await uploadToStorage(conceptsPath, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, 'concepts', conceptsUrl);
+
+          if (ctx.pipelineMode === 'ask') {
+            const written = await writeAskCheckpoint(
+              {
+                sessionId: ctx.sessionId,
+                userId: ctx.userId,
+                skillName: ctx.skillName,
+                pipelineMode: ctx.pipelineMode,
+              },
+              {
+                phase_label: 'Concepts extracted',
+                bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
+                question: `${concept_count} concept(s) ready for Manim. Review and continue when ready.`,
+                allowFreeform: true,
+              }
+            );
+            return {
+              concepts_url: conceptsUrl,
+              concepts,
+              concept_count,
+              ...written,
+            };
+          }
 
           return {
             concepts_url: conceptsUrl,

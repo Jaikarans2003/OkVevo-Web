@@ -8,6 +8,7 @@ import {
   resolveNonOverlappingConcepts,
   segmentsCoverTimeline,
   segmentsHaveRequiredModes,
+  validatePlannedSegments,
 } from '../src/skills/eduVideo/planning';
 
 // --- generic timelinePlanning ---
@@ -104,5 +105,16 @@ assert(segmentsHaveRequiredModes(segments, true), 'segments with Manim must incl
 const allC = buildDeterministicSegments([], totalDuration);
 assert(segmentsCoverTimeline(allC, totalDuration), 'all-C timeline must cover full duration');
 assert(segmentsHaveRequiredModes(allC, false), 'zero clips → all-C is valid');
+
+// validatePlannedSegments rejects overlapping duplicate windows
+const overlappingSegments = [
+  { start: 0, end: 10, mode: 'C' as const },
+  { start: 5, end: 15, mode: 'A' as const, manim_index: 0 },
+  { start: 15, end: 30, mode: 'C' as const },
+];
+assert.throws(
+  () => validatePlannedSegments(overlappingSegments, 30, true),
+  /Overlapping segments/
+);
 
 console.log('check-planning: OK');

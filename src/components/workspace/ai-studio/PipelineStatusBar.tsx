@@ -14,13 +14,11 @@ const PHASE_LABELS: Record<number, string> = {
 
 interface PipelineStatusBarProps {
   pipelineState: PipelineState | null;
-  onApprove: () => void;
   sessionId: string | null;
 }
 
 export function PipelineStatusBar({
   pipelineState,
-  onApprove,
   sessionId,
 }: PipelineStatusBarProps) {
   const [checking, setChecking] = useState(false);
@@ -42,8 +40,6 @@ export function PipelineStatusBar({
   }
 
   const phaseLabel = PHASE_LABELS[pipelinePhase];
-  const showApprovalGate =
-    pipelinePhase === 3 && pipelineStatus === 'awaiting_approval';
   const showCheckNow =
     pipelinePhase === 6 && renderStatus === 'RUNNING' && sessionId;
 
@@ -67,7 +63,7 @@ export function PipelineStatusBar({
     }
   };
 
-  if (!phaseLabel && !showApprovalGate && !showCheckNow) {
+  if (!phaseLabel && !showCheckNow) {
     return null;
   }
 
@@ -83,15 +79,6 @@ export function PipelineStatusBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {showApprovalGate ? (
-          <button
-            type="button"
-            onClick={onApprove}
-            className="flex items-center justify-center rounded-full bg-orange-500 px-4 py-1.5 text-sm text-white transition hover:bg-orange-400"
-          >
-            Approve & Continue
-          </button>
-        ) : null}
         {showCheckNow ? (
           <button
             type="button"

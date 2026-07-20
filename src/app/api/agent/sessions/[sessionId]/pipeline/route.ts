@@ -28,7 +28,10 @@ function mapPipelineState(data: Record<string, unknown>) {
   return {
     pipelinePhase: data.pipelinePhase ?? 0,
     pipelineStatus: data.pipelineStatus ?? '',
-    pipelineMode: data.pipelineMode ?? 'auto',
+    pipelineMode: data.pipelineMode ?? 'ask',
+    pendingCheckpointId:
+      typeof data.pendingCheckpointId === 'string' ? data.pendingCheckpointId : null,
+    skillId: typeof data.skillId === 'string' ? data.skillId : null,
     videoUrl: data.videoUrl as string | undefined,
     draftVideoUrl: data.draftVideoUrl as string | undefined,
     renderStatus: data.renderStatus as string | undefined,

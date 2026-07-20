@@ -54,6 +54,171 @@ export function getSessionWorkdir(sessionId: string): string {
   return dir;
 }
 
+export type SessionArtifactNeed =
+  | 'transcript'
+  | 'concepts'
+  | 'manim_scripts'
+  | 'hf_project';
+export type ArtifactEnsureStatus = 'present' | 'restored' | 'unavailable';
+
+export function sessionArtifactLocalPath(
+  workdir: string,
+  need: SessionArtifactNeed
+): string {
+  switch (need) {
+    case 'transcript':
+      return path.join(workdir, 'transcript.json');
+    case 'concepts':
+      return path.join(workdir, 'concepts.json');
+    case 'manim_scripts':
+      return path.join(workdir, 'manim_scripts');
+    case 'hf_project':
+      return path.join(workdir, 'hf-project');
+  }
+}
+
+/** True when the local marker for this artifact family already exists. */
+export function sessionArtifactPresent(
+  workdir: string,
+  need: SessionArtifactNeed
+): boolean {
+  const marker = sessionArtifactLocalPath(workdir, need);
+  if (need === 'transcript' || need === 'concepts') {
+    return fs.existsSync(marker);
+  }
+  if (need === 'hf_project') {
+    return fs.existsSync(path.join(marker, 'index.html'));
+  }
+  // manim_scripts: at least one .py
+  if (!fs.existsSync(marker) || !fs.statSync(marker).isDirectory()) return false;
+  return fs.readdirSync(marker).some((f) => f.endsWith('.py'));
+}
+
+export function isSessionWorkdirCold(sessionId: string): boolean {
+  const workdir = getSessionWorkdir(sessionId);
+  return !(
+    sessionArtifactPresent(workdir, 'transcript') ||
+    sessionArtifactPresent(workdir, 'concepts') ||
+    sessionArtifactPresent(workdir, 'manim_scripts') ||
+    sessionArtifactPresent(workdir, 'hf_project')
+  );
+}
+
+/** Infer which Storage families a workdir-relative path may need. */
+export function artifactNeedsForResolvedPath(
+  sessionId: string,
+  resolvedPath: string
+): SessionArtifactNeed[] {
+  const workdir = getSessionWorkdir(sessionId);
+  const rel = path.relative(workdir, resolvedPath);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+    return [];
+  }
+  const top = rel.split(path.sep)[0];
+  if (top === 'transcript.json' || rel === 'transcript.json') return ['transcript'];
+  if (top === 'concepts.json' || rel === 'concepts.json') return ['concepts'];
+  if (top === 'manim_scripts') return ['manim_scripts'];
+  if (top === 'hf-project') return ['hf_project'];
+  if (isSessionWorkdirCold(sessionId)) {
+    return ['transcript', 'concepts', 'manim_scripts', 'hf_project'];
+  }
+  return [];
+}
+
+type EnsureSessionArtifactsDeps = {
+  getAssetUrl: (
+    userId: string,
+    sessionId: string,
+    assetKey: string
+  ) => Promise<string | null>;
+  downloadFile: (url: string, destPath: string) => Promise<void>;
+  downloadStoragePrefixToDir: (
+    storagePrefix: string,
+    localDir: string
+  ) => Promise<void>;
+  parseStoragePathFromPublicUrl: (url: string) => string;
+  workdir?: string;
+};
+
+/**
+ * Restore session artifacts from Firebase Storage when local markers are missing.
+ * No recency checks — month-old sessions work if Storage objects remain.
+ */
+export async function ensureSessionArtifacts(
+  userId: string,
+  sessionId: string,
+  needs: SessionArtifactNeed[],
+  deps?: Partial<EnsureSessionArtifactsDeps>
+): Promise<Partial<Record<SessionArtifactNeed, ArtifactEnsureStatus>>> {
+  // Lazy storage import so utils constants stay usable without Firebase init
+  const needsStorage =
+    !deps?.getAssetUrl ||
+    !deps?.downloadStoragePrefixToDir ||
+    !deps?.parseStoragePathFromPublicUrl;
+  const storage = needsStorage ? await import('../../storage') : null;
+  const resolved: EnsureSessionArtifactsDeps = {
+    getAssetUrl: deps?.getAssetUrl ?? storage!.getAssetUrl,
+    downloadFile: deps?.downloadFile ?? downloadFile,
+    downloadStoragePrefixToDir:
+      deps?.downloadStoragePrefixToDir ?? storage!.downloadStoragePrefixToDir,
+    parseStoragePathFromPublicUrl:
+      deps?.parseStoragePathFromPublicUrl ?? storage!.parseStoragePathFromPublicUrl,
+    workdir: deps?.workdir,
+  };
+
+  const workdir = resolved.workdir ?? getSessionWorkdir(sessionId);
+  const result: Partial<Record<SessionArtifactNeed, ArtifactEnsureStatus>> = {};
+  const uniqueNeeds = [...new Set(needs)];
+
+  for (const need of uniqueNeeds) {
+    if (sessionArtifactPresent(workdir, need)) {
+      result[need] = 'present';
+      continue;
+    }
+
+    if (need === 'transcript' || need === 'concepts') {
+      const url = await resolved.getAssetUrl(userId, sessionId, need);
+      if (!url) {
+        result[need] = 'unavailable';
+        continue;
+      }
+      const dest = sessionArtifactLocalPath(workdir, need);
+      await resolved.downloadFile(url, dest);
+      result[need] = sessionArtifactPresent(workdir, need)
+        ? 'restored'
+        : 'unavailable';
+      continue;
+    }
+
+    if (need === 'manim_scripts') {
+      const dest = sessionArtifactLocalPath(workdir, 'manim_scripts');
+      fs.mkdirSync(dest, { recursive: true });
+      const prefix = `users/${userId}/sessions/${sessionId}/manim_scripts`;
+      await resolved.downloadStoragePrefixToDir(prefix, dest);
+      result[need] = sessionArtifactPresent(workdir, 'manim_scripts')
+        ? 'restored'
+        : 'unavailable';
+      continue;
+    }
+
+    // hf_project
+    const hfUrl = await resolved.getAssetUrl(userId, sessionId, 'hf_project');
+    if (!hfUrl) {
+      result[need] = 'unavailable';
+      continue;
+    }
+    const dest = sessionArtifactLocalPath(workdir, 'hf_project');
+    fs.mkdirSync(dest, { recursive: true });
+    const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
+    await resolved.downloadStoragePrefixToDir(storagePath, dest);
+    result[need] = sessionArtifactPresent(workdir, 'hf_project')
+      ? 'restored'
+      : 'unavailable';
+  }
+
+  return result;
+}
+
 export function resolveToolPath(sessionId: string, inputPath: string): string {
   if (path.isAbsolute(inputPath)) return inputPath;
   if (inputPath.startsWith('Skills/')) {

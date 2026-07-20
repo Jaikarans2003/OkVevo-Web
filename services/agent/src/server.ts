@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { pipeAgentStream, runAgent } from './agent';
+import { CheckpointConflictError } from './checkpoint';
 import { auth, db } from './firebase';
 import {
   fetchHeygenRender,
@@ -181,10 +182,27 @@ app.post('/invocations', async (req, res) => {
       'agentcore';
     const videoUrl =
       typeof input.videoUrl === 'string' ? input.videoUrl : undefined;
+    const videoName =
+      typeof input.videoName === 'string' ? input.videoName : undefined;
     const skillId =
       typeof input.skillId === 'string' ? input.skillId : undefined;
     const model = typeof input.model === 'string' ? input.model : undefined;
     const source = typeof input.source === 'string' ? input.source : undefined;
+    const pipelineMode =
+      input.pipelineMode === 'auto' || input.pipelineMode === 'ask'
+        ? input.pipelineMode
+        : undefined;
+    const checkpointAnswer =
+      input.checkpointAnswer &&
+      typeof input.checkpointAnswer === 'object' &&
+      typeof (input.checkpointAnswer as { checkpointId?: string }).checkpointId === 'string'
+        ? (input.checkpointAnswer as {
+            checkpointId: string;
+            type: 'approve' | 'choice' | 'revision' | 'freeform';
+            text: string;
+            choiceId?: string;
+          })
+        : undefined;
 
     // Webhook turns short-circuit the LLM: write the render result directly.
     if (source === 'webhook') {
@@ -215,8 +233,11 @@ app.post('/invocations', async (req, res) => {
       sessionId,
       userId,
       videoUrl,
+      videoName,
       skillId,
       model,
+      pipelineMode,
+      checkpointAnswer,
     });
 
     if (wantsStream) {
@@ -225,7 +246,7 @@ app.post('/invocations', async (req, res) => {
       return;
     }
 
-    const text = await result.text;
+    const text = await result.result.text;
     res.json({
       output: {
         message: text,
@@ -238,7 +259,8 @@ app.post('/invocations', async (req, res) => {
     const message = error instanceof Error ? error.message : 'Invocation failed';
     console.error('[agentcore] /invocations error:', message);
     if (!res.headersSent) {
-      res.status(500).json({ error: message });
+      const status = error instanceof CheckpointConflictError ? 409 : 500;
+      res.status(status).json({ error: message });
     } else {
       res.end();
     }
@@ -342,8 +364,11 @@ app.post('/chat', async (req, res) => {
     sessionId: bodySessionId,
     userId: bodyUserId,
     videoUrl,
+    videoName,
     model,
     skillId,
+    pipelineMode: bodyPipelineMode,
+    checkpointAnswer,
   } = req.body;
 
   const lastMessage = messages?.at(-1);
@@ -365,21 +390,30 @@ app.post('/chat', async (req, res) => {
     return;
   }
 
+  const pipelineMode =
+    bodyPipelineMode === 'auto' || bodyPipelineMode === 'ask'
+      ? bodyPipelineMode
+      : 'ask';
+
   try {
-    const result = await runAgent({
+    const agentRun = await runAgent({
       userMessage,
       sessionId,
       userId,
       videoUrl,
+      videoName,
       model,
       skillId,
+      pipelineMode,
+      checkpointAnswer,
     });
 
-    pipeAgentStream(result, res, { sessionId, userId });
+    pipeAgentStream(agentRun, res, { sessionId, userId });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (!res.headersSent) {
-      res.status(500).json({ error: message });
+      const status = error instanceof CheckpointConflictError ? 409 : 500;
+      res.status(status).json({ error: message });
     } else {
       res.end();
     }

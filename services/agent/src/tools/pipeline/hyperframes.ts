@@ -3,7 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { buildDeterministicSegments } from '../../skills/eduVideo/planning';
+import {
+  buildDeterministicSegments,
+  validatePlannedSegments,
+} from '../../skills/eduVideo/planning';
 import {
   buildBrandCssVars,
   buildCompositionManifest,
@@ -15,6 +18,7 @@ import {
   DEFAULT_HYPERFRAMES_JSON,
   downloadFile,
   EDU_VIDEO_TEMPLATE_DIR,
+  ensureSessionArtifacts,
   execCommand,
   getSessionWorkdir,
   groupCaptionWords,
@@ -27,11 +31,11 @@ import {
 } from '../lib/utils';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import { signCallbackToken } from '../../callbackToken';
+import { formatDuration } from '../../checkpoint';
+import type { ToolCtx } from '../index';
 import {
-  downloadStoragePrefixToDir,
-  getAssetUrl,
+  getHfSegmentsPlan,
   getRenderJob,
-  parseStoragePathFromPublicUrl,
   persistRenderJob,
   uploadDirectoryToStorage,
   uploadToStorage,
@@ -80,7 +84,7 @@ async function scaffoldHyperframesProject(
   }
 }
 
-export function createHyperframesTools(ctx: { sessionId: string; userId: string }) {
+export function createHyperframesTools(ctx: ToolCtx) {
   return {
     plan_segments: tool({
       description: `Deterministically plan video display modes: Mode A at Manim clip timestamps, Mode C fills all remaining gaps. Call after Manim clips are rendered.`,
@@ -111,7 +115,15 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
             total_duration,
           });
 
-          return { segments: parsed };
+          const mode_a_count = parsed.filter((s) => s.mode === 'A').length;
+          const mode_c_count = parsed.filter((s) => s.mode === 'C').length;
+          return {
+            segments: parsed,
+            segment_count: parsed.length,
+            mode_a_count,
+            mode_c_count,
+            total_duration: formatDuration(total_duration),
+          };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`Segment planning failed: ${message}`);
@@ -135,15 +147,6 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
             end_seconds: z.number(),
           })
         ),
-        segments: z.array(
-          z.object({
-            start: z.number(),
-            end: z.number(),
-            mode: z.enum(['A', 'C']),
-            manim_index: z.number().optional(),
-            concept_name: z.string().optional(),
-          })
-        ),
         transcript_words: z.array(
           z.object({
             word: z.string(),
@@ -157,14 +160,22 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
       execute: async ({
         speaker_video_url,
         manim_clips,
-        segments,
         transcript_words,
         total_duration,
         brand_colors,
       }) => {
+        const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
+        if (!storedPlan?.segments?.length) {
+          throw new Error('No segment plan found. Call plan_segments first.');
+        }
+        const segments = z.array(plannedSegmentSchema).parse(storedPlan.segments);
+        validatePlannedSegments(segments, total_duration, manim_clips.length > 0);
+
         const colors = resolveBrandColors(brand_colors);
         const brandCss = buildBrandCssVars(colors);
         const projectDir = path.join(getSessionWorkdir(ctx.sessionId), 'hf-project');
+
+        await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['transcript']);
 
         fs.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
 
@@ -327,21 +338,16 @@ export function createHyperframesTools(ctx: { sessionId: string; userId: string 
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
           const projectDir = path.join(workdir, 'hf-project');
+
+          await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['hf_project']);
           const hasLocalProject = fs.existsSync(path.join(projectDir, 'index.html'));
 
           if (!hasLocalProject) {
-            const hfProjectUrl = await getAssetUrl(ctx.userId, ctx.sessionId, 'hf_project');
-            if (hfProjectUrl) {
-              fs.mkdirSync(projectDir, { recursive: true });
-              const storagePath = parseStoragePathFromPublicUrl(hfProjectUrl);
-              await downloadStoragePrefixToDir(storagePath, projectDir);
-            } else {
-              fs.mkdirSync(projectDir, { recursive: true });
-              const htmlPath = path.join(projectDir, 'index.html');
-              await downloadFile(composition_url, htmlPath);
-              const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
-              await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId);
-            }
+            fs.mkdirSync(projectDir, { recursive: true });
+            const htmlPath = path.join(projectDir, 'index.html');
+            await downloadFile(composition_url, htmlPath);
+            const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
+            await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId);
           }
 
           const cliPath =

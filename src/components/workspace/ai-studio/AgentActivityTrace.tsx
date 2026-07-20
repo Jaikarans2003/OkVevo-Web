@@ -21,6 +21,11 @@ import {
 } from '@/lib/agent-tool-summaries';
 import { cn } from '@/lib/utils';
 import {
+  CheckpointCard,
+  type CheckpointAnswerPayload,
+  type CheckpointCardData,
+} from '@/components/workspace/ai-studio/CheckpointCard';
+import {
   CheckCircle,
   ChevronDown,
   Loader2,
@@ -39,7 +44,12 @@ type ActivityPart = {
   output?: unknown;
   errorText?: string;
   toolCallId?: string;
+  data?: CheckpointCardData;
 };
+
+function isCheckpointPart(part: ActivityPart): part is ActivityPart & { data: CheckpointCardData } {
+  return part.type === 'data-checkpoint' && part.data != null;
+}
 
 function formatJson(value: unknown): string {
   if (value === null) return 'null';
@@ -195,11 +205,15 @@ export function AgentActivityTrace({
   isStreaming = false,
   showTextCursor = false,
   className,
+  onCheckpointAnswer,
+  checkpointInteractionDisabled = false,
 }: {
   parts: ActivityPart[];
   isStreaming?: boolean;
   showTextCursor?: boolean;
   className?: string;
+  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
+  checkpointInteractionDisabled?: boolean;
 }) {
   const hasInFlightTools = parts.some(
     (part) => isToolActivityPart(part) && isPartInFlight(part)
@@ -221,6 +235,7 @@ export function AgentActivityTrace({
     (part) =>
       part.type === 'reasoning' ||
       isToolActivityPart(part) ||
+      isCheckpointPart(part) ||
       (part.type === 'text' && part.text?.trim())
   );
 
@@ -273,6 +288,17 @@ export function AgentActivityTrace({
       ) : null}
 
       {parts.map((part, index) => {
+        if (isCheckpointPart(part) && onCheckpointAnswer) {
+          return (
+            <CheckpointCard
+              key={`checkpoint-${part.data.checkpointId}`}
+              data={part.data}
+              disabled={checkpointInteractionDisabled || isStreaming}
+              onAnswer={onCheckpointAnswer}
+            />
+          );
+        }
+
         if (part.type === 'text' && part.text?.trim()) {
           return (
             <div

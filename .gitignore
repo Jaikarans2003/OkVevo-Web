@@ -5,6 +5,8 @@ graphify-out/
 
 # Local dev / reference (not shipped)
 .cursor/
+.downloads/
+.verification/
 Refference/
 Reference/
 .agent/

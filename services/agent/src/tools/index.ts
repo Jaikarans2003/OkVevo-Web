@@ -14,11 +14,17 @@ export {
   resolveNonOverlappingConcepts,
   segmentsCoverTimeline,
   segmentsHaveRequiredModes,
+  validatePlannedSegments,
 } from '../skills/eduVideo/planning';
 
-type Ctx = { sessionId: string; userId: string };
+export type ToolCtx = {
+  sessionId: string;
+  userId: string;
+  pipelineMode: 'ask' | 'auto';
+  skillName: string;
+};
 
-export function buildTools(ctx: Ctx, opts?: { skill?: string | null }) {
+export function buildTools(ctx: ToolCtx, opts?: { skill?: string | null }) {
   const all = {
     ...createFilesystemTools(ctx),
     ...createWebTools(ctx),

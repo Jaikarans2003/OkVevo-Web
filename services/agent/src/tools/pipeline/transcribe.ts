@@ -6,8 +6,10 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { downloadFile, execCommand, getSessionWorkdir } from '../lib/utils';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
+import { formatDuration } from '../../checkpoint';
+import type { ToolCtx } from '../index';
 
-export function createTranscribeTools(ctx: { sessionId: string; userId: string }) {
+export function createTranscribeTools(ctx: ToolCtx) {
   return {
     transcribe_video: tool({
       description: `Transcribe a teacher video using Groq Whisper. Call this first when the user provides a video URL. Downloads the video, transcribes it, uploads the transcript JSON to Firebase Storage, and returns the transcript text and storage URL.`,
@@ -66,11 +68,14 @@ export function createTranscribeTools(ctx: { sessionId: string; userId: string }
           const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, 'transcript', transcriptUrl);
 
+          await writeAssetUrl(ctx.userId, ctx.sessionId, 'transcript', transcriptUrl);
+
           return {
             transcript_url: transcriptUrl,
             transcript_text: transcription.text,
             duration_seconds: verbose.duration ?? 0,
             word_count: verbose.words?.length ?? 0,
+            duration: formatDuration(verbose.duration ?? 0),
           };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);

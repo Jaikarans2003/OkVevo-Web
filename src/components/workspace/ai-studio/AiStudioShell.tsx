@@ -17,10 +17,10 @@ import {
 import { HeroTypewriterHeading } from '@/components/workspace/ai-studio/HeroTypewriterHeading';
 import { PipelineStatusBar } from '@/components/workspace/ai-studio/PipelineStatusBar';
 import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
+import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
 import { auth, storage } from '@/config/firebase';
 import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
-import { usePipelineApproval } from '@/hooks/usePipelineApproval';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 
@@ -115,6 +115,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const pendingVideoNameRef = useRef<string | null>(null);
   const activeSkillRef = useRef<string | null>(null);
   const pipelineModeRef = useRef(pipelineMode);
+  const pipelineSkillIdRef = useRef<string | null | undefined>(null);
+  const checkpointAnswerRef = useRef<{
+    checkpointId: string;
+    type: CheckpointAnswerPayload['type'];
+    text: string;
+    choiceId?: string;
+  } | null>(null);
   const chatIdRef = useRef(chatId);
   const skipFetchRef = useRef(false);
   const loadedSessionRef = useRef<string | null>(null);
@@ -125,6 +132,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   pendingVideoNameRef.current = pendingVideoName;
   activeSkillRef.current = activeSkill;
   pipelineModeRef.current = pipelineMode;
+  pipelineSkillIdRef.current = pipelineState?.skillId;
   chatIdRef.current = chatId;
 
   const firstName = user?.displayName?.split(' ')[0];
@@ -145,7 +153,11 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           videoUrl: pendingVideoUrlRef.current ?? undefined,
           videoName: pendingVideoNameRef.current ?? undefined,
           pipelineMode: pipelineModeRef.current,
-          skillId: activeSkillRef.current ?? undefined,
+          skillId:
+            activeSkillRef.current ?? pipelineSkillIdRef.current ?? undefined,
+          ...(checkpointAnswerRef.current
+            ? { checkpointAnswer: checkpointAnswerRef.current }
+            : {}),
         }),
       }),
     [chatId]
@@ -155,7 +167,41 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     transport,
     id: chatId,
   });
-  const { approve } = usePipelineApproval(activeSessionId, sendMessage);
+
+  useEffect(() => {
+    if (pipelineState?.pipelineMode) {
+      setPipelineMode(pipelineState.pipelineMode);
+    }
+  }, [activeSessionId, pipelineState?.pipelineMode]);
+
+  useEffect(() => {
+    if (pipelineState?.skillId) {
+      setActiveSkill(pipelineState.skillId);
+    }
+  }, [activeSessionId, pipelineState?.skillId]);
+
+  const sendCheckpointAnswer = (
+    checkpointId: string,
+    answer: CheckpointAnswerPayload
+  ) => {
+    if (status !== 'ready') return;
+
+    checkpointAnswerRef.current = { checkpointId, ...answer };
+    sendMessage(
+      { text: answer.text },
+      {
+        body: {
+          model: selectedModel,
+          sessionId: chatId,
+          userId,
+          pipelineMode,
+          skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
+          checkpointAnswer: { checkpointId, ...answer },
+        },
+      }
+    );
+    checkpointAnswerRef.current = null;
+  };
 
   useEffect(() => {
     setDraftVideoUrl(pipelineState?.draftVideoUrl);
@@ -351,6 +397,16 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       );
     }
 
+    const pendingCheckpointId = pipelineState?.pendingCheckpointId;
+    const checkpointAnswer =
+      pendingCheckpointId && input.trim()
+        ? {
+            checkpointId: pendingCheckpointId,
+            type: 'freeform' as const,
+            text: input.trim(),
+          }
+        : undefined;
+
     sendMessage(
       {
         text: messageText,
@@ -366,7 +422,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           videoUrl: sentVideoUrl,
           videoName: sentVideoName,
           pipelineMode,
-          skillId: activeSkill ?? undefined,
+          skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
+          ...(checkpointAnswer ? { checkpointAnswer } : {}),
         },
       }
     );
@@ -483,7 +540,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       />
       <PipelineStatusBar
         pipelineState={pipelineState}
-        onApprove={approve}
         sessionId={activeSessionId}
       />
       <AiStudioChatBar
@@ -546,6 +602,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
             messages={timelineMessages}
             streamingAssistantId={streamingAssistantId}
             bottomRef={bottomRef}
+            onCheckpointAnswer={sendCheckpointAnswer}
+            pendingCheckpointId={pipelineState?.pendingCheckpointId}
           />
           <div className="shrink-0 pb-6 pt-2">
             <div className={AI_STUDIO_CHAT_COLUMN}>

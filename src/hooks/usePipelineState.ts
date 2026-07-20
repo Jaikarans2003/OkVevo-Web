@@ -3,8 +3,10 @@ import { auth } from '@/config/firebase'
 
 export interface PipelineState {
   pipelinePhase: number        // 0 = not started, 2-6 = active, 7 = complete
-  pipelineStatus: string       // 'running' | 'awaiting_approval' | 'complete' | undefined
+  pipelineStatus: string       // 'running' | 'awaiting_checkpoint' | 'complete' | undefined
   pipelineMode: 'ask' | 'auto'
+  skillId?: string | null
+  pendingCheckpointId?: string | null
   videoUrl?: string
   draftVideoUrl?: string
   renderStatus?: string
@@ -16,6 +18,7 @@ const POLL_MS = 2000
 
 function shouldKeepPolling(state: PipelineState): boolean {
   if (state.pipelineStatus === 'running') return true
+  if (state.pipelineStatus === 'awaiting_checkpoint') return true
   const phase = state.pipelinePhase
   return phase >= 2 && phase <= 6 && state.pipelineStatus !== 'complete'
 }
@@ -65,6 +68,8 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
           pipelinePhase: number
           pipelineStatus: string
           pipelineMode: 'ask' | 'auto'
+          skillId?: string | null
+          pendingCheckpointId?: string | null
           videoUrl?: string
           draftVideoUrl?: string
           renderStatus?: string
@@ -75,7 +80,9 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
         const next: PipelineState = {
           pipelinePhase: data.pipelinePhase ?? 0,
           pipelineStatus: data.pipelineStatus ?? '',
-          pipelineMode: data.pipelineMode ?? 'auto',
+          pipelineMode: data.pipelineMode ?? 'ask',
+          skillId: data.skillId ?? null,
+          pendingCheckpointId: data.pendingCheckpointId ?? null,
           videoUrl: data.videoUrl,
           draftVideoUrl: data.draftVideoUrl,
           renderStatus: data.renderStatus,

@@ -4,6 +4,8 @@ import path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
+  artifactNeedsForResolvedPath,
+  ensureSessionArtifacts,
   execCommand,
   getSessionWorkdir,
   globToRegex,
@@ -11,6 +13,16 @@ import {
   resolveToolPath,
 } from '../lib/utils';
 import { walkDir } from '../../storage';
+
+async function ensurePathArtifacts(
+  ctx: { sessionId: string; userId: string },
+  resolvedPath: string
+): Promise<void> {
+  if (fs.existsSync(resolvedPath)) return;
+  const needs = artifactNeedsForResolvedPath(ctx.sessionId, resolvedPath);
+  if (needs.length === 0) return;
+  await ensureSessionArtifacts(ctx.userId, ctx.sessionId, needs);
+}
 
 export function createFilesystemTools(ctx: { sessionId: string; userId: string }) {
   return {
@@ -50,6 +62,11 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved =
           path.isAbsolute(filePath) ? filePath : path.join(baseDir, filePath);
 
+        // Restore parent artifact family when patching a missing session file
+        if (!fs.existsSync(resolved)) {
+          await ensurePathArtifacts(ctx, resolved);
+        }
+
         fs.mkdirSync(path.dirname(resolved), { recursive: true });
         fs.writeFileSync(resolved, content, 'utf-8');
 
@@ -77,6 +94,7 @@ Paths are relative to the session work directory unless absolute.`,
       }),
       execute: async ({ path: filePath, max_bytes }) => {
         const resolved = resolveToolPath(ctx.sessionId, filePath);
+        await ensurePathArtifacts(ctx, resolved);
 
         try {
           if (!fs.existsSync(resolved)) {
@@ -147,6 +165,7 @@ Paths are relative to the session work directory unless absolute.`,
       }),
       execute: async ({ directory, pattern, content_search, max_results }) => {
         const resolved = resolveToolPath(ctx.sessionId, directory);
+        await ensurePathArtifacts(ctx, resolved);
 
         if (!fs.existsSync(resolved)) {
           return { error: 'Directory not found', matches: [] };
@@ -228,6 +247,7 @@ Paths are relative to the session work directory unless absolute.`,
       }),
       execute: async ({ path: filePath, old_string, new_string }) => {
         const resolved = resolveToolPath(ctx.sessionId, filePath);
+        await ensurePathArtifacts(ctx, resolved);
 
         try {
           if (!fs.existsSync(resolved)) {

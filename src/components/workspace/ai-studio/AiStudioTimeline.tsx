@@ -1,6 +1,7 @@
 'use client';
 
 import { AgentActivityTrace } from '@/components/workspace/ai-studio/AgentActivityTrace';
+import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
   AI_STUDIO_CHAT_BODY_CLASS,
   AI_STUDIO_CHAT_COLUMN,
@@ -45,10 +46,14 @@ export function AiStudioTimeline({
   messages,
   streamingAssistantId,
   bottomRef,
+  onCheckpointAnswer,
+  pendingCheckpointId,
 }: {
   messages: TimelineMessage[];
   streamingAssistantId?: string | null;
   bottomRef?: React.RefObject<HTMLDivElement | null>;
+  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
+  pendingCheckpointId?: string | null;
 }) {
   return (
     <div className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -94,6 +99,16 @@ export function AiStudioTimeline({
                   parts={message.parts}
                   isStreaming={isStreaming}
                   showTextCursor={isStreaming}
+                  onCheckpointAnswer={onCheckpointAnswer}
+                  checkpointInteractionDisabled={
+                    pendingCheckpointId != null &&
+                    !message.parts.some(
+                      (p) =>
+                        p.type === 'data-checkpoint' &&
+                        (p as { data?: { checkpointId?: string } }).data?.checkpointId ===
+                          pendingCheckpointId
+                    )
+                  }
                 />
               </div>
               {message.videoUrl ? (

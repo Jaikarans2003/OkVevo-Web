@@ -135,3 +135,38 @@ export function segmentsHaveRequiredModes(
   }
   return modes.has('C');
 }
+
+export function validatePlannedSegments(
+  segments: PlannedSegment[],
+  totalDuration: number,
+  hasManimClips: boolean
+): void {
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length; j++) {
+      const a = segments[i];
+      const b = segments[j];
+      if (
+        a.start < b.end - TIMELINE_EPSILON &&
+        b.start < a.end - TIMELINE_EPSILON
+      ) {
+        throw new Error(
+          `Overlapping segments: [${a.start}-${a.end}] vs [${b.start}-${b.end}]`
+        );
+      }
+    }
+  }
+
+  if (!segmentsCoverTimeline(segments, totalDuration)) {
+    throw new Error('Segments do not cover the full timeline contiguously');
+  }
+
+  if (hasManimClips && !segmentsHaveRequiredModes(segments, true)) {
+    throw new Error('Timeline with Manim clips must include both Mode A and Mode C');
+  }
+
+  for (const seg of segments) {
+    if (seg.mode === 'A' && seg.manim_index == null) {
+      throw new Error('Mode A segment missing manim_index');
+    }
+  }
+}
