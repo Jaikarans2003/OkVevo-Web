@@ -1,19 +1,29 @@
 'use client';
 
-import { ArrowRight, Film, Sparkles, Subtitles, Wand2 } from 'lucide-react';
-
+import { ArrowRight, GraduationCap, Sparkles, Subtitles } from 'lucide-react';
 const QUICK_CHIPS = [
-  { label: 'Karaoke captions', prompt: 'Add karaoke captions to my video', icon: Subtitles },
-  { label: 'Build with skills', prompt: 'Use the best skill for my edit', icon: Sparkles, badge: 'New' as const },
-  { label: 'Create UGC', prompt: 'Make this feel like authentic UGC', icon: Wand2 },
-  { label: 'HyperFrames', prompt: 'Help me plan a HyperFrames video', icon: Film },
-  { label: 'Vertical clips', prompt: 'Cut my long video into 5 vertical clips', icon: Film },
+  {
+    label: 'Educational Videos',
+    prompt: 'Turn this lecture into an engaging educational video',
+    icon: GraduationCap,
+  },
+  {
+    label: 'Learning Animations',
+    prompt: 'Generate educational animations for this lecture',
+    icon: Sparkles,
+    badge: 'New' as const,
+  },
+  {
+    label: 'Smart Captions',
+    prompt: 'Add engaging captions to my educational video',
+    icon: Subtitles,
+  },
+  
 ];
-
 const EXAMPLE_PROMPTS = [
-  'Cut my hour-long interview into 5 vertical clips with captions and hooks.',
-  'Turn my stream recording into TikTok-ready clips with bold subtitles.',
-  'Find the best moments in my podcast and add karaoke-style captions.',
+  'Turn my lecture into an engaging educational video.',
+  'Add animations, captions and learning visuals to this chemistry lesson.',
+  'Convert this classroom recording into a YouTube-ready educational lesson.',
 ];
 
 export function AiStudioHeroExtras({ onPickPrompt }: { onPickPrompt: (p: string) => void }) {
