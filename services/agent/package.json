@@ -16,6 +16,9 @@
     "check-transcript-timeout": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-transcript-timeout.ts",
     "check-speaker-normalize": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-speaker-normalize.ts",
     "check-session-artifacts": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-session-artifacts.ts",
+    "check-session-skills": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-session-skills.ts",
+    "check-shell-env": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-shell-env.ts",
+    "check-render-idempotency": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-render-idempotency.ts",
     "check-skill-checkpoints": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-soft-ask.ts",
     "check-soft-ask": "TS_NODE_TRANSPILE_ONLY=true ts-node scripts/check-soft-ask.ts",
     "deploy:agentcore": "bash scripts/deploy-agentcore.sh && bash scripts/verify-agentcore-deploy.sh"

@@ -18,6 +18,12 @@ export interface AgentSession {
   messageCount: number;
 }
 
+export interface DeliverableVideo {
+  id: string;
+  label: string;
+  url: string;
+}
+
 interface AiStudioWorkspaceContextValue {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean | ((prev: boolean) => boolean)) => void;
@@ -34,10 +40,10 @@ interface AiStudioWorkspaceContextValue {
   setDeliverablesOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   showDeliverablesToggle: boolean;
   setShowDeliverablesToggle: (show: boolean) => void;
-  deliverablesCount: number;
-  setDeliverablesCount: (count: number) => void;
   draftVideoUrl: string | undefined;
   setDraftVideoUrl: (url: string | undefined) => void;
+  renderedVideos: DeliverableVideo[];
+  setRenderedVideos: (videos: DeliverableVideo[]) => void;
 }
 
 const AiStudioWorkspaceContext = createContext<AiStudioWorkspaceContextValue | null>(null);
@@ -60,8 +66,8 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [deliverablesOpen, setDeliverablesOpen] = useState(false);
   const [showDeliverablesToggle, setShowDeliverablesToggle] = useState(false);
-  const [deliverablesCount, setDeliverablesCount] = useState(0);
   const [draftVideoUrl, setDraftVideoUrl] = useState<string | undefined>(undefined);
+  const [renderedVideos, setRenderedVideos] = useState<DeliverableVideo[]>([]);
   const hasLoadedRef = useRef(false);
 
   const refreshSessions = useCallback(async () => {
@@ -104,6 +110,7 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
     setActiveSessionId(null);
     setDraftChatId(crypto.randomUUID());
     setDraftVideoUrl(undefined);
+    setRenderedVideos([]);
     return true;
   }, [activeSessionId]);
 
@@ -125,10 +132,10 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
         setDeliverablesOpen,
         showDeliverablesToggle,
         setShowDeliverablesToggle,
-        deliverablesCount,
-        setDeliverablesCount,
         draftVideoUrl,
         setDraftVideoUrl,
+        renderedVideos,
+        setRenderedVideos,
       }}
     >
       {children}

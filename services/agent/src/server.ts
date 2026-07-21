@@ -19,6 +19,7 @@ import {
   recordRenderFailure,
 } from './storage';
 import { deliverEvent, parseRenderEvent } from './deliverEvent';
+import { parseTaggedAssets } from './taggedAssets';
 
 // ponytail: Docker-only — local `node` on 3001 collides with `docker compose up agent`
 if (process.env.DOCKER_AGENT !== '1') {
@@ -184,6 +185,7 @@ app.post('/invocations', async (req, res) => {
       typeof input.videoUrl === 'string' ? input.videoUrl : undefined;
     const videoName =
       typeof input.videoName === 'string' ? input.videoName : undefined;
+    const taggedAssets = parseTaggedAssets(input.taggedAssets);
     const skillId =
       typeof input.skillId === 'string' ? input.skillId : undefined;
     const model = typeof input.model === 'string' ? input.model : undefined;
@@ -234,6 +236,7 @@ app.post('/invocations', async (req, res) => {
       userId,
       videoUrl,
       videoName,
+      taggedAssets,
       skillId,
       model,
       pipelineMode,
@@ -365,6 +368,7 @@ app.post('/chat', async (req, res) => {
     userId: bodyUserId,
     videoUrl,
     videoName,
+    taggedAssets: rawTaggedAssets,
     model,
     skillId,
     pipelineMode: bodyPipelineMode,
@@ -394,6 +398,7 @@ app.post('/chat', async (req, res) => {
     bodyPipelineMode === 'auto' || bodyPipelineMode === 'ask'
       ? bodyPipelineMode
       : 'ask';
+  const taggedAssets = parseTaggedAssets(rawTaggedAssets);
 
   try {
     const agentRun = await runAgent({
@@ -402,6 +407,7 @@ app.post('/chat', async (req, res) => {
       userId,
       videoUrl,
       videoName,
+      taggedAssets,
       model,
       skillId,
       pipelineMode,

@@ -3,6 +3,10 @@ import {
   isAgentCoreBackend,
 } from '@/lib/agent/agentcore';
 import { getBearerToken } from '@/lib/agent/verifySessionAccess';
+import {
+  sanitizeTaggedAssets,
+  type TaggedAsset,
+} from '@/lib/agent/taggedAssets';
 import { auth } from '@/lib/firebase-admin';
 import { env } from '@/config/env';
 
@@ -21,6 +25,7 @@ type ChatRequestBody = {
   sessionId?: string;
   userId?: string;
   videoUrl?: string;
+  taggedAssets?: TaggedAsset[];
   skillId?: string;
   model?: string;
   pipelineMode?: 'ask' | 'auto';
@@ -85,8 +90,11 @@ async function requireVerifiedUserId(
   }
 }
 
-async function handleAgentCore(req: Request, userId: string) {
-  const body = (await req.json()) as ChatRequestBody;
+async function handleAgentCore(
+  req: Request,
+  userId: string,
+  body: ChatRequestBody
+) {
   const prompt = extractUserMessage(body);
   if (!prompt.trim()) {
     return Response.json({ error: 'userMessage is required' }, { status: 400 });
@@ -99,6 +107,7 @@ async function handleAgentCore(req: Request, userId: string) {
     sessionId,
     userId,
     videoUrl: body.videoUrl,
+    taggedAssets: body.taggedAssets,
     skillId: body.skillId,
     model: body.model,
     pipelineMode: body.pipelineMode,
@@ -111,7 +120,11 @@ async function handleAgentCore(req: Request, userId: string) {
   });
 }
 
-async function handleLocalProxy(req: Request, userId: string) {
+async function handleLocalProxy(
+  req: Request,
+  userId: string,
+  body: ChatRequestBody
+) {
   const upstreamHeaders = new Headers({ 'Content-Type': 'application/json' });
   // Forward identity so local agent can attribute the session; never trust client userId.
   upstreamHeaders.set('x-user-id', userId);
@@ -119,9 +132,7 @@ async function handleLocalProxy(req: Request, userId: string) {
   const response = await fetch(`${AGENT_URL}/chat`, {
     method: 'POST',
     headers: upstreamHeaders,
-    body: req.body,
-    // @ts-expect-error duplex required for streaming request bodies
-    duplex: 'half',
+    body: JSON.stringify({ ...body, userId }),
   });
 
   if (!response.ok) {
@@ -172,11 +183,18 @@ export async function POST(req: Request) {
         { status: 401, headers: corsHeaders(req) }
       );
     }
+    const rawBody = (await req.json()) as ChatRequestBody & {
+      taggedAssets?: unknown;
+    };
+    const body: ChatRequestBody = {
+      ...rawBody,
+      taggedAssets: sanitizeTaggedAssets(rawBody.taggedAssets),
+    };
 
     if (isAgentCoreBackend()) {
-      return await handleAgentCore(req, userIdOrError);
+      return await handleAgentCore(req, userIdOrError, body);
     }
-    return await handleLocalProxy(req, userIdOrError);
+    return await handleLocalProxy(req, userIdOrError, body);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to reach agent service';

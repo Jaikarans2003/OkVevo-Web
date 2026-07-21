@@ -2,18 +2,46 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { FolderOpen } from 'lucide-react';
+import type { DeliverableVideo } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
 
 const PANEL_EASE = [0.32, 0.72, 0, 1] as const;
 const PANEL_DURATION = 0.44;
+
+function VideoCard({ url, label }: { url: string; label: string }) {
+  return (
+    <article className="mb-3 overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
+      <video
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        className="aspect-video w-full bg-black/50"
+      />
+      <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-xs text-orange-300 transition hover:text-orange-200"
+        >
+          Open
+        </a>
+      </div>
+    </article>
+  );
+}
 
 export function AiStudioDeliverablesRail({
   open,
   fileCount = 0,
   draftVideoUrl,
+  renderedVideos = [],
 }: {
   open: boolean;
   fileCount?: number;
   draftVideoUrl?: string;
+  renderedVideos?: DeliverableVideo[];
 }) {
   return (
     <AnimatePresence initial={false} mode="sync">
@@ -43,56 +71,26 @@ export function AiStudioDeliverablesRail({
             {draftVideoUrl ? (
               <div className="mt-4 pt-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
-                  Draft video ready
+                  Final video
                 </div>
-                <article className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
-                  <video
-                    src={draftVideoUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="aspect-video w-full bg-black/50"
-                  />
-                  <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
-                    <a
-                      href={draftVideoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="truncate text-orange-300 transition hover:text-orange-200"
-                    >
-                      Open in new tab
-                    </a>
-                  </div>
-                </article>
+                <VideoCard url={draftVideoUrl} label="final.mp4" />
               </div>
             ) : null}
-            {fileCount === 0 && !draftVideoUrl ? (
+            {renderedVideos.length > 0 ? (
+              <div className="mt-4 pt-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
+                  Rendered clips ({renderedVideos.length})
+                </div>
+                {renderedVideos.map((video) => (
+                  <VideoCard key={video.id} url={video.url} label={video.label} />
+                ))}
+              </div>
+            ) : null}
+            {!draftVideoUrl && renderedVideos.length === 0 ? (
               <p className="mt-8 text-center text-sm text-white/38">
                 Renders and exports will appear here.
               </p>
-            ) : (
-              <div className="mt-4 pt-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
-                  Final render ({fileCount})
-                </div>
-                <article className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
-                  {draftVideoUrl ? (
-                    <video
-                      src={draftVideoUrl}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="aspect-video w-full bg-black/50"
-                    />
-                  ) : (
-                    <div className="aspect-video bg-black/50" />
-                  )}
-                  <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
-                    <span className="truncate">final.mp4</span>
-                  </div>
-                </article>
-              </div>
-            )}
+            ) : null}
           </div>
         </motion.aside>
       ) : null}

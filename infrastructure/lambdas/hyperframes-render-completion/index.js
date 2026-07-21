@@ -98,16 +98,28 @@ async function completeSuccessfulRender(userId, sessionId, s3Location) {
   );
   await file.makePublic();
   const videoUrl = `https://storage.googleapis.com/${bucket.name}/${firebasePath}`;
+  const draftMetadata = {
+    label: 'Draft Video',
+    type: 'video',
+    createdAt: FieldValue.serverTimestamp(),
+  };
 
   await db
     .collection('users')
     .doc(userId)
     .collection('sessions')
     .doc(sessionId)
-    .set({ assets: { draft_video: videoUrl } }, { merge: true });
+    .set(
+      {
+        assets: { draft_video: videoUrl },
+        assetMetadata: { draft_video: draftMetadata },
+      },
+      { merge: true }
+    );
   await sessionRef.set(
     {
       assets: { draft_video: videoUrl },
+      assetMetadata: { draft_video: draftMetadata },
       renderStatus: 'SUCCEEDED',
       renderError: FieldValue.delete(),
       draftVideoUrl: videoUrl,

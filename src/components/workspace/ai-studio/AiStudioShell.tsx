@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AiStudioChatBar } from '@/components/workspace/ai-studio/AiStudioChatBar';
 import { AiStudioHeroExtras } from '@/components/workspace/ai-studio/AiStudioHeroExtras';
 import { AiStudioProjectLoader } from '@/components/workspace/ai-studio/AiStudioProjectLoader';
@@ -23,6 +23,12 @@ import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import type { TaggedAsset } from '@/lib/agent/taggedAssets';
+
+type SessionAsset = TaggedAsset & {
+  id: string;
+  createdAt: string | null;
+};
 
 // ponytail: Hosting buffers SSE through rewrites — temporary Cloud Run origin bypass.
 // Ceiling: classic Hosting only. After App Hosting migration, drop NEXT_PUBLIC_AGENT_API_ORIGIN and use same-origin /api/agent.
@@ -80,6 +86,21 @@ async function fetchSessionMessages(sessionId: string) {
   }));
 }
 
+async function fetchSessionAssets(sessionId: string): Promise<SessionAsset[]> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) return [];
+  const response = await fetch(`/api/agent/sessions/${sessionId}/assets`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to load session assets');
+  return (await response.json()) as SessionAsset[];
+}
+
+function hasAssetMention(text: string, label: string): boolean {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`).test(text);
+}
+
 export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const { user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -92,6 +113,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     setDeliverablesOpen,
     setShowDeliverablesToggle,
     setDraftVideoUrl,
+    setRenderedVideos,
   } = useAiStudioWorkspace();
   const chatId = activeSessionId ?? draftChatId;
   const [input, setInput] = useState('');
@@ -104,6 +126,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [pipelineMode, setPipelineMode] = useState<'ask' | 'auto'>('ask');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [availableAssets, setAvailableAssets] = useState<SessionAsset[]>([]);
+  const [draftTaggedAssets, setDraftTaggedAssets] = useState<TaggedAsset[]>([]);
   const pipelineState = usePipelineState(activeSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -126,6 +150,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const skipFetchRef = useRef(false);
   const loadedSessionRef = useRef<string | null>(null);
   const wasFirstMessageRef = useRef(false);
+  const draftTaggedAssetsRef = useRef<TaggedAsset[]>([]);
   selectedModelRef.current = selectedModel;
   userIdRef.current = userId;
   pendingVideoUrlRef.current = pendingVideoUrl;
@@ -134,6 +159,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   pipelineModeRef.current = pipelineMode;
   pipelineSkillIdRef.current = pipelineState?.skillId;
   chatIdRef.current = chatId;
+  draftTaggedAssetsRef.current = draftTaggedAssets;
 
   const firstName = user?.displayName?.split(' ')[0];
 
@@ -152,6 +178,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           userId: userIdRef.current,
           videoUrl: pendingVideoUrlRef.current ?? undefined,
           videoName: pendingVideoNameRef.current ?? undefined,
+          taggedAssets: draftTaggedAssetsRef.current,
           pipelineMode: pipelineModeRef.current,
           skillId:
             activeSkillRef.current ?? pipelineSkillIdRef.current ?? undefined,
@@ -173,6 +200,11 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       setPipelineMode(pipelineState.pipelineMode);
     }
   }, [activeSessionId, pipelineState?.pipelineMode]);
+
+  useEffect(() => {
+    draftTaggedAssetsRef.current = [];
+    setDraftTaggedAssets([]);
+  }, [chatId]);
 
   useEffect(() => {
     if (pipelineState?.skillId) {
@@ -273,6 +305,34 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     };
   }, [activeSessionId, status, setMessages]);
 
+  const refreshAssets = useCallback(async (sessionId: string) => {
+    const assets = await fetchSessionAssets(sessionId);
+    setAvailableAssets(assets);
+  }, []);
+
+  useEffect(() => {
+    if (!activeSessionId || status !== 'ready') {
+      if (!activeSessionId) setAvailableAssets([]);
+      return;
+    }
+    void refreshAssets(activeSessionId).catch(() => {});
+  }, [activeSessionId, status, refreshAssets]);
+
+  // Every rendered video (Manim clips etc.) goes to the Deliverables rail;
+  // the final draft video is shown there separately and is the only one in chat.
+  useEffect(() => {
+    setRenderedVideos(
+      availableAssets
+        .filter(
+          (asset) =>
+            asset.type === 'video' &&
+            asset.id !== 'draft_video' &&
+            !asset.id.startsWith('uploaded_video')
+        )
+        .map(({ id, label, url }) => ({ id, label, url }))
+    );
+  }, [availableAssets, setRenderedVideos]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -307,7 +367,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     const token = await auth.currentUser?.getIdToken();
     if (!token) return;
 
-    await fetch(`/api/agent/sessions/${chatId}`, {
+    const response = await fetch(`/api/agent/sessions/${chatId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -315,6 +375,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       },
       body: JSON.stringify({ videoUrl, videoName }),
     });
+    if (!response.ok) throw new Error('Failed to register uploaded video');
   };
 
   const handleVideoSelect = async (file: File) => {
@@ -356,9 +417,10 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           setPendingVideoUrl(downloadUrl);
           setPendingVideoName(file.name);
           setUploadProgress(null);
-          void persistVideoToSession(downloadUrl, file.name);
+          await persistVideoToSession(downloadUrl, file.name);
+          await refreshAssets(chatId);
         } catch {
-          setUploadError('Failed to get video URL. Please try again.');
+          setUploadError('Failed to finish video upload. Please try again.');
           setUploadProgress(null);
         }
       }
@@ -386,6 +448,9 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
     const sentVideoUrl = pendingVideoUrl ?? undefined;
     const sentVideoName = pendingVideoName ?? undefined;
+    const taggedAssets = draftTaggedAssets.filter((asset) =>
+      hasAssetMention(messageText, asset.label)
+    );
 
     if (messages.length === 0 && activeSessionId === null) {
       wasFirstMessageRef.current = true;
@@ -421,6 +486,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           userId,
           videoUrl: sentVideoUrl,
           videoName: sentVideoName,
+          taggedAssets,
           pipelineMode,
           skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
           ...(checkpointAnswer ? { checkpointAnswer } : {}),
@@ -431,7 +497,27 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     setPendingVideoUrl(null);
     setPendingVideoName(null);
     setActiveSkill(null);
+    draftTaggedAssetsRef.current = [];
+    setDraftTaggedAssets([]);
     setInput('');
+  };
+
+  const handleAssetSelect = (asset: TaggedAsset) => {
+    setDraftTaggedAssets((current) =>
+      current.some((selected) => selected.url === asset.url)
+        ? current
+        : [...current, asset]
+    );
+  };
+
+  const handleAssetRemove = (asset: TaggedAsset) => {
+    setDraftTaggedAssets((current) =>
+      current.filter((selected) => selected.url !== asset.url)
+    );
+    const escaped = asset.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    setInput(
+      input.replace(new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`, 'g'), '$1').trimStart()
+    );
   };
 
   const handleSkillSelect = (skillId: string) => {
@@ -561,6 +647,10 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         setPipelineMode={setPipelineMode}
         onSkillSelect={handleSkillSelect}
         inputRef={inputRef}
+        assets={availableAssets}
+        onAssetSelect={handleAssetSelect}
+        selectedAssets={draftTaggedAssets}
+        onAssetRemove={handleAssetRemove}
       />
     </>
   );

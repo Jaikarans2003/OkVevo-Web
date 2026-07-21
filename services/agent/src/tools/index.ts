@@ -7,6 +7,7 @@ import { createHyperframesTools } from './pipeline/hyperframes';
 import { createManimTools } from './pipeline/manim';
 import { createTranscribeTools } from './pipeline/transcribe';
 import { BASE_TOOLS, SKILL_TOOLS } from './catalog';
+import type { ResolvedTaggedAsset } from '../taggedAssets';
 
 export { getSessionWorkdir, execCommand } from './lib/utils';
 export {
@@ -22,9 +23,10 @@ export type ToolCtx = {
   userId: string;
   pipelineMode: 'ask' | 'auto';
   skillName: string;
+  taggedArtifacts: ResolvedTaggedAsset[];
 };
 
-export function buildTools(ctx: ToolCtx, opts?: { skill?: string | null }) {
+export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
   const all = {
     ...createFilesystemTools(ctx),
     ...createWebTools(ctx),
@@ -37,8 +39,8 @@ export function buildTools(ctx: ToolCtx, opts?: { skill?: string | null }) {
   };
 
   const names = new Set<string>(BASE_TOOLS);
-  const skill = opts?.skill;
-  if (skill && SKILL_TOOLS[skill]) {
+  for (const skill of skills) {
+    if (!SKILL_TOOLS[skill]) continue;
     for (const name of SKILL_TOOLS[skill]) {
       names.add(name);
     }

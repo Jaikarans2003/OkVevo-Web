@@ -4,7 +4,8 @@ import { auth, db } from '@/lib/firebase-admin';
 
 export async function verifySessionAccess(
   token: string,
-  sessionId: string
+  sessionId: string,
+  options: { createIfMissing?: boolean } = {}
 ): Promise<
   | { sessionDoc: DocumentSnapshot }
   | { error: NextResponse }
@@ -16,6 +17,10 @@ export async function verifySessionAccess(
   const sessionDoc = await sessionRef.get();
 
   if (!sessionDoc.exists) {
+    if (options.createIfMissing) {
+      await sessionRef.set({ userId });
+      return { sessionDoc: await sessionRef.get() };
+    }
     return { error: NextResponse.json({ error: 'Session not found' }, { status: 404 }) };
   }
 

@@ -22,6 +22,7 @@ In Ask-Me mode: defer to the active skill's check-in guidance. Mandatory checkpo
 - If something fails, say what failed in one plain sentence
 - Keep responses under 80 words unless presenting structured output
 - Never claim work completed without a successful tool result in the same turn (including after checkpoint resume); never invent progress to fill the activity trace
+- Never reimplement a missing pipeline tool through shell/CLI or read credentials from environment variables. If a required pipeline tool is unavailable, say so and stop.
 
 ## Background jobs (long tools)
 

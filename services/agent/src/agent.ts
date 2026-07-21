@@ -20,6 +20,7 @@ import {
   loadCheckpoint,
   persistPipelineMode,
   persistSkillId,
+  recordSkillsUsed,
   type CheckpointAnswer,
   type CheckpointDisplayData,
   type LoadedCheckpoint,
@@ -29,7 +30,16 @@ import { errorMessage } from './errorMessage';
 import { getCachedSystemPrompt } from './systemPromptCache';
 import { buildTools } from './tools';
 import { resolveSkill } from './skills';
-import { ensureSessionArtifacts, getSessionWorkdir } from './tools/lib/utils';
+import { skillsEngagedByToolCalls } from './sessionSkills';
+import {
+  ensureSessionArtifacts,
+  getSessionWorkdir,
+  resolveTaggedArtifacts,
+} from './tools/lib/utils';
+import {
+  formatReferencedAssets,
+  type TaggedAsset,
+} from './taggedAssets';
 import {
   ensureSession,
   loadMessages,
@@ -47,6 +57,7 @@ export type RunAgentParams = {
   userId: string;
   videoUrl?: string;
   videoName?: string;
+  taggedAssets?: TaggedAsset[];
   model?: string;
   skillId?: string;
   pipelineMode?: 'ask' | 'auto';
@@ -157,10 +168,19 @@ export async function runAgent(params: RunAgentParams) {
   }
 
   const history = await loadMessages(params.sessionId, params.userId);
+  const taggedArtifacts = await resolveTaggedArtifacts(
+    params.userId,
+    params.sessionId,
+    params.taggedAssets ?? []
+  );
 
   let userContent = params.userMessage;
   if (params.videoUrl) {
     userContent += `\n\nVideo URL for processing: ${params.videoUrl}`;
+  }
+  const referencedAssets = formatReferencedAssets(taggedArtifacts);
+  if (referencedAssets) {
+    userContent += `\n\n${referencedAssets}`;
   }
 
   await saveMessage(
@@ -180,15 +200,19 @@ export async function runAgent(params: RunAgentParams) {
   ]);
 
   const resolvedSkill = resolveSkill(params.skillId, params.userMessage);
-  const effectiveSkill = resolvedSkill ?? sessionFields.skillId;
-  if (resolvedSkill) await persistSkillId(params.sessionId, resolvedSkill);
+  const capabilitySkills = new Set(sessionFields.skillsUsed);
+  if (resolvedSkill) capabilitySkills.add(resolvedSkill);
 
   const modeBanner =
     effectiveMode === 'ask'
       ? 'Current mode: Ask-Me — pause and ask before major decisions.'
       : 'Current mode: Auto-Run — proceed autonomously without asking permission.';
 
-  let systemPrompt = `${modeBanner}\n\n${getCachedSystemPrompt(params.sessionId, effectiveSkill)}`;
+  let systemPrompt = `${modeBanner}\n\n${getCachedSystemPrompt(params.sessionId, resolvedSkill)}`;
+  if (!resolvedSkill && sessionFields.skillsUsed.length > 1) {
+    systemPrompt +=
+      '\n\nTools from multiple previously used skills are available. If the current request remains genuinely ambiguous after considering the conversation and referenced assets, use ask_clarification; otherwise proceed without selecting old skill guidance.';
+  }
   if (resumeSystemAppend) {
     systemPrompt = `${systemPrompt}\n\n${resumeSystemAppend}`;
   }
@@ -199,16 +223,17 @@ export async function runAgent(params: RunAgentParams) {
     sessionId: params.sessionId,
     userId: params.userId,
     pipelineMode: effectiveMode,
-    skillName: effectiveSkill ?? 'edu-video',
+    skillName: resolvedSkill ?? sessionFields.skillsUsed[0] ?? 'edu-video',
+    taggedArtifacts,
   };
 
-  const tools = buildTools(toolCtx, { skill: effectiveSkill });
+  const tools = buildTools(toolCtx, capabilitySkills);
 
   if (conceptsResumeForce) {
     if (!('generate_manim_script' in tools)) {
       console.error('[agent] concepts resume force failed: generate_manim_script missing', {
         sessionId: params.sessionId,
-        effectiveSkill,
+        resolvedSkill,
         toolNames: Object.keys(tools),
       });
       throw new Error(
@@ -216,7 +241,7 @@ export async function runAgent(params: RunAgentParams) {
       );
     }
     console.log(
-      `[agent] checkpoint.resume conceptsForce tx=ok skill=${effectiveSkill ?? 'null'} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
+      `[agent] checkpoint.resume conceptsForce tx=ok skill=${resolvedSkill ?? 'null'} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
     );
   }
 
@@ -251,7 +276,15 @@ export async function runAgent(params: RunAgentParams) {
       }
       return base;
     },
-    onStepFinish: ({ toolCalls, toolResults }) => {
+    onStepFinish: async ({ toolCalls, toolResults }) => {
+      const engagedSkills = skillsEngagedByToolCalls(
+        resolvedSkill,
+        (toolCalls ?? []).map((call) => call.toolName)
+      );
+      if (engagedSkills.length > 0) {
+        await recordSkillsUsed(params.sessionId, engagedSkills);
+        await persistSkillId(params.sessionId, engagedSkills.at(-1)!);
+      }
       for (const call of toolCalls ?? []) {
         console.log(
           `[agent] tool.call ${call.toolName}`,

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase';
+import { isKnownSkill, resolveSessionSkillState } from './sessionSkills';
 import type { SessionArtifactNeed } from './tools/lib/utils';
 
 export type CheckpointPhase =
@@ -317,20 +318,38 @@ export async function getSessionPipelineFields(sessionId: string): Promise<{
   pendingCheckpointId: string | null;
   pipelineMode: 'ask' | 'auto';
   skillId: string | null;
+  skillsUsed: string[];
 }> {
   const snap = await db.collection('sessions').doc(sessionId).get();
   const data = snap.data();
   const mode = data?.pipelineMode;
+  const skillState = resolveSessionSkillState(data ?? {});
+  if (skillState.inferredSkills.length > 0) {
+    await recordSkillsUsed(sessionId, skillState.inferredSkills);
+  }
   return {
     pendingCheckpointId:
       typeof data?.pendingCheckpointId === 'string' ? data.pendingCheckpointId : null,
     pipelineMode: mode === 'auto' ? 'auto' : 'ask',
-    skillId: typeof data?.skillId === 'string' ? data.skillId : null,
+    skillId: skillState.legacySkillId,
+    skillsUsed: skillState.skillsUsed,
   };
 }
 
 export async function persistSkillId(sessionId: string, skillId: string): Promise<void> {
   await db.collection('sessions').doc(sessionId).set({ skillId }, { merge: true });
+}
+
+export async function recordSkillsUsed(
+  sessionId: string,
+  skills: Iterable<string>
+): Promise<void> {
+  const valid = [...new Set(skills)].filter(isKnownSkill);
+  if (valid.length === 0) return;
+  await db
+    .collection('sessions')
+    .doc(sessionId)
+    .set({ skillsUsed: FieldValue.arrayUnion(...valid) }, { merge: true });
 }
 
 export async function persistPipelineMode(

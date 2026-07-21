@@ -3,12 +3,14 @@ import {
   InvokeAgentRuntimeCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
 import { env } from '@/config/env';
+import type { TaggedAsset } from '@/lib/agent/taggedAssets';
 
 export type AgentCoreInvokeInput = {
   prompt: string;
   sessionId: string;
   userId: string;
   videoUrl?: string;
+  taggedAssets?: TaggedAsset[];
   skillId?: string;
   model?: string;
   source?: 'chat' | 'webhook';
@@ -58,6 +60,7 @@ function buildPayload(input: AgentCoreInvokeInput, stream: boolean) {
       userId: input.userId,
       stream,
       ...(input.videoUrl ? { videoUrl: input.videoUrl } : {}),
+      ...(input.taggedAssets?.length ? { taggedAssets: input.taggedAssets } : {}),
       ...(input.skillId ? { skillId: input.skillId } : {}),
       ...(input.model ? { model: input.model } : {}),
       ...(input.source ? { source: input.source } : {}),

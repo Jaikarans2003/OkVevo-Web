@@ -277,6 +277,13 @@ Fix these specific issues and return corrected Python only.`;
           }
 
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
+          const canonicalPath = path.join(
+            getSessionWorkdir(ctx.sessionId),
+            'manim',
+            `${safeName}.mp4`
+          );
+          fs.mkdirSync(path.dirname(canonicalPath), { recursive: true });
+          fs.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
 

@@ -115,7 +115,7 @@ var require_main = __commonJS({
     var fs12 = require("fs");
     var path12 = require("path");
     var os3 = require("os");
-    var crypto6 = require("crypto");
+    var crypto7 = require("crypto");
     var packageJson = require_package();
     var version2 = packageJson.version;
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
@@ -334,7 +334,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto6.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto7.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error40) {
@@ -29839,9 +29839,11 @@ async function ensureSession(sessionId, userId, title, extras) {
   const existing = await ref.get();
   const payload = {
     userId,
-    status: "active",
-    createdAt: import_firestore3.FieldValue.serverTimestamp()
+    status: "active"
   };
+  if (!existing.exists) {
+    payload.createdAt = import_firestore3.FieldValue.serverTimestamp();
+  }
   if (!existing.exists || !existing.data()?.title) {
     payload.title = title.slice(0, 80) || "Untitled Chat";
   }
@@ -29981,6 +29983,12 @@ function contentTypeForPath(filePath) {
       return "application/octet-stream";
   }
 }
+function assetMetadata(assetKey, url2) {
+  const ext = import_path3.default.extname(new URL(url2).pathname).toLowerCase();
+  const type = [".mp4", ".mov", ".webm"].includes(ext) ? "video" : [".mp3", ".wav", ".m4a"].includes(ext) ? "audio" : [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext) ? "image" : assetKey === "transcript" ? "transcript" : [".json", ".csv", ".txt", ".srt", ".vtt"].includes(ext) ? "data" : "file";
+  const label = assetKey.replace(/^manim_(?:script_)?/, "").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return { label, type, createdAt: import_firestore4.FieldValue.serverTimestamp() };
+}
 async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
   const fileRef = bucket.file(storagePath);
@@ -30027,8 +30035,23 @@ async function getAssetUrl(userId, sessionId, assetKey) {
 }
 function parseStoragePathFromPublicUrl(url2) {
   const parsed = new URL(url2);
-  const segments = parsed.pathname.replace(/^\//, "").split("/");
-  return segments.slice(1).join("/");
+  if (parsed.hostname === "storage.googleapis.com") {
+    const segments = parsed.pathname.replace(/^\//, "").split("/");
+    if (segments.length < 2) throw new Error("Invalid Google Storage URL");
+    if (decodeURIComponent(segments[0]) !== getStorageBucketName()) {
+      throw new Error("Storage URL uses an unexpected bucket");
+    }
+    return decodeURIComponent(segments.slice(1).join("/"));
+  }
+  if (parsed.hostname === "firebasestorage.googleapis.com") {
+    const match = /^\/v0\/b\/([^/]+)\/o\/([^/]+)$/.exec(parsed.pathname);
+    if (!match) throw new Error("Invalid Firebase Storage URL");
+    if (decodeURIComponent(match[1]) !== getStorageBucketName()) {
+      throw new Error("Storage URL uses an unexpected bucket");
+    }
+    return decodeURIComponent(match[2]);
+  }
+  throw new Error("Unsupported Storage URL");
 }
 async function downloadStoragePrefixToDir(storagePrefix, localDir) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
@@ -30048,6 +30071,9 @@ async function writeAssetUrl(userId, sessionId, assetKey, url2) {
     {
       assets: {
         [assetKey]: url2
+      },
+      assetMetadata: {
+        [assetKey]: assetMetadata(assetKey, url2)
       }
     },
     { merge: true }
@@ -30094,11 +30120,24 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
     return current.draftVideoUrl;
   }
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
-  const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  const canonicalPath = import_path3.default.join(import_os.default.tmpdir(), "okvevo", sessionId, "draft_video.mp4");
+  import_fs3.default.mkdirSync(import_path3.default.dirname(canonicalPath), { recursive: true });
+  if (import_path3.default.resolve(tempPath) !== import_path3.default.resolve(canonicalPath)) {
+    import_fs3.default.copyFileSync(tempPath, canonicalPath);
+  }
+  const videoUrl = await uploadFileToStorage(canonicalPath, firebasePath, {
+    deleteLocal: false
+  });
+  if (import_path3.default.resolve(tempPath) !== import_path3.default.resolve(canonicalPath)) {
+    import_fs3.default.rmSync(tempPath, { force: true });
+  }
   await writeAssetUrl(userId, sessionId, "draft_video", videoUrl);
   await sessionRef.set(
     {
       assets: { draft_video: videoUrl },
+      assetMetadata: {
+        draft_video: assetMetadata("draft_video", videoUrl)
+      },
       renderStatus: "SUCCEEDED",
       renderError: import_firestore4.FieldValue.delete(),
       draftVideoUrl: videoUrl,
@@ -35437,6 +35476,67 @@ var openrouter = createOpenRouter({
 var import_node_crypto = __toESM(require("node:crypto"));
 var import_firestore2 = require("firebase-admin/firestore");
 init_firebase();
+
+// src/tools/catalog.ts
+var BASE_TOOLS = [
+  "run_command",
+  "write_file",
+  "read_file",
+  "search_files",
+  "web_search",
+  "web_extract",
+  "vision_analyze",
+  "str_replace",
+  "ask_clarification"
+];
+var SKILL_TOOLS = {
+  "edu-video": [
+    "transcribe_video",
+    "extract_concepts",
+    "generate_manim_script",
+    "render_manim_clip",
+    "plan_segments",
+    "scaffold_hf_project",
+    "render_hyperframes"
+  ],
+  "manim-video": ["generate_manim_script", "render_manim_clip"],
+  "hyperframes": ["render_hyperframes"]
+};
+
+// src/sessionSkills.ts
+function isKnownSkill(value) {
+  return typeof value === "string" && value in SKILL_TOOLS;
+}
+function resolveSessionSkillState(fields) {
+  const persisted = Array.isArray(fields.skillsUsed) ? fields.skillsUsed.filter(isKnownSkill) : [];
+  const skillsUsed = [...new Set(persisted)];
+  const inferredSkills = [];
+  const legacySkillId = isKnownSkill(fields.skillId) ? fields.skillId : null;
+  if (legacySkillId && !skillsUsed.includes(legacySkillId)) {
+    skillsUsed.push(legacySkillId);
+    inferredSkills.push(legacySkillId);
+  }
+  if (skillsUsed.length === 0 && typeof fields.pipelinePhase === "number" && fields.pipelinePhase > 0) {
+    skillsUsed.push("edu-video");
+    inferredSkills.push("edu-video");
+  }
+  return { skillsUsed, inferredSkills, legacySkillId };
+}
+function skillsEngagedByToolCalls(currentSkill, toolNames) {
+  const called = new Set(toolNames);
+  if (currentSkill && SKILL_TOOLS[currentSkill]?.some((toolName) => called.has(toolName))) {
+    return [currentSkill];
+  }
+  if (currentSkill) return [];
+  const engaged = /* @__PURE__ */ new Set();
+  for (const toolName of called) {
+    const owners = Object.entries(SKILL_TOOLS).filter(([, tools]) => tools.includes(toolName)).map(([skill]) => skill);
+    if (owners.length === 1) engaged.add(owners[0]);
+  }
+  return [...engaged];
+}
+
+// src/checkpoint.ts
 var PHASE_NUMBERS = {
   transcription: 2,
   concepts: 3,
@@ -35591,14 +35691,24 @@ async function getSessionPipelineFields(sessionId) {
   const snap = await db.collection("sessions").doc(sessionId).get();
   const data = snap.data();
   const mode = data?.pipelineMode;
+  const skillState = resolveSessionSkillState(data ?? {});
+  if (skillState.inferredSkills.length > 0) {
+    await recordSkillsUsed(sessionId, skillState.inferredSkills);
+  }
   return {
     pendingCheckpointId: typeof data?.pendingCheckpointId === "string" ? data.pendingCheckpointId : null,
     pipelineMode: mode === "auto" ? "auto" : "ask",
-    skillId: typeof data?.skillId === "string" ? data.skillId : null
+    skillId: skillState.legacySkillId,
+    skillsUsed: skillState.skillsUsed
   };
 }
 async function persistSkillId(sessionId, skillId) {
   await db.collection("sessions").doc(sessionId).set({ skillId }, { merge: true });
+}
+async function recordSkillsUsed(sessionId, skills) {
+  const valid = [...new Set(skills)].filter(isKnownSkill);
+  if (valid.length === 0) return;
+  await db.collection("sessions").doc(sessionId).set({ skillsUsed: import_firestore2.FieldValue.arrayUnion(...valid) }, { merge: true });
 }
 async function persistPipelineMode(sessionId, pipelineMode) {
   await db.collection("sessions").doc(sessionId).set({ pipelineMode }, { merge: true });
@@ -35899,6 +36009,25 @@ var import_os2 = __toESM(require("os"));
 var import_path4 = __toESM(require("path"));
 var import_util6 = require("util");
 var execAsync = (0, import_util6.promisify)(import_child_process.exec);
+var SHELL_ENV_KEYS = [
+  "PATH",
+  "HOME",
+  "LANG",
+  "LC_ALL",
+  "TERM",
+  "TMPDIR",
+  "PWD",
+  "SHELL",
+  "USER",
+  "LOGNAME"
+];
+function sanitizedShellEnv() {
+  return Object.fromEntries(
+    SHELL_ENV_KEYS.flatMap(
+      (key) => process.env[key] === void 0 ? [] : [[key, process.env[key]]]
+    )
+  );
+}
 var SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../../../Skills");
 var EDU_VIDEO_TEMPLATE_DIR = process.env.EDU_VIDEO_TEMPLATE_DIR ?? import_path4.default.join(SKILLS_DIR3, "edu-video/templates");
 var TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
@@ -35937,6 +36066,7 @@ function getSessionWorkdir(sessionId) {
   return dir;
 }
 function sessionArtifactLocalPath(workdir, need) {
+  if (typeof need !== "string") return need.localPath;
   switch (need) {
     case "transcript":
       return import_path4.default.join(workdir, "transcript.json");
@@ -35950,6 +36080,7 @@ function sessionArtifactLocalPath(workdir, need) {
 }
 function sessionArtifactPresent(workdir, need) {
   const marker26 = sessionArtifactLocalPath(workdir, need);
+  if (typeof need !== "string") return import_fs4.default.existsSync(marker26);
   if (need === "transcript" || need === "concepts") {
     return import_fs4.default.existsSync(marker26);
   }
@@ -35963,12 +36094,16 @@ function isSessionWorkdirCold(sessionId) {
   const workdir = getSessionWorkdir(sessionId);
   return !(sessionArtifactPresent(workdir, "transcript") || sessionArtifactPresent(workdir, "concepts") || sessionArtifactPresent(workdir, "manim_scripts") || sessionArtifactPresent(workdir, "hf_project"));
 }
-function artifactNeedsForResolvedPath(sessionId, resolvedPath) {
+function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts = []) {
   const workdir = getSessionWorkdir(sessionId);
   const rel = import_path4.default.relative(workdir, resolvedPath);
   if (!rel || rel.startsWith("..") || import_path4.default.isAbsolute(rel)) {
     return [];
   }
+  const tagged = taggedArtifacts.find(
+    (artifact) => import_path4.default.resolve(artifact.localPath) === import_path4.default.resolve(resolvedPath)
+  );
+  if (tagged) return [tagged];
   const top = rel.split(import_path4.default.sep)[0];
   if (top === "transcript.json" || rel === "transcript.json") return ["transcript"];
   if (top === "concepts.json" || rel === "concepts.json") return ["concepts"];
@@ -35978,6 +36113,29 @@ function artifactNeedsForResolvedPath(sessionId, resolvedPath) {
     return ["transcript", "concepts", "manim_scripts", "hf_project"];
   }
   return [];
+}
+async function resolveTaggedArtifacts(userId, sessionId, assets, parseStoragePath) {
+  const parse3 = parseStoragePath ?? (await Promise.resolve().then(() => (init_storage(), storage_exports))).parseStoragePathFromPublicUrl;
+  const workdir = getSessionWorkdir(sessionId);
+  const sessionPrefix = `users/${userId}/sessions/${sessionId}/`;
+  const uploadPrefix = `uploads/${userId}/${sessionId}/`;
+  return assets.flatMap((asset, index) => {
+    let storagePath;
+    try {
+      storagePath = parse3(asset.url);
+    } catch {
+      return [];
+    }
+    const isUpload = storagePath.startsWith(uploadPrefix);
+    const prefix = isUpload ? uploadPrefix : sessionPrefix;
+    if (!storagePath.startsWith(prefix)) return [];
+    const suffix = storagePath.slice(prefix.length);
+    if (!suffix || suffix.endsWith("/")) return [];
+    const relativePath = isUpload ? import_path4.default.join("uploads", suffix) : suffix;
+    const localPath = import_path4.default.resolve(workdir, relativePath);
+    if (!localPath.startsWith(`${import_path4.default.resolve(workdir)}${import_path4.default.sep}`)) return [];
+    return [{ ...asset, localPath, key: `tagged_${index}` }];
+  });
 }
 async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   const needsStorage = !deps?.getAssetUrl || !deps?.downloadStoragePrefixToDir || !deps?.parseStoragePathFromPublicUrl;
@@ -35991,21 +36149,32 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   };
   const workdir = resolved.workdir ?? getSessionWorkdir(sessionId);
   const result = {};
-  const uniqueNeeds = [...new Set(needs)];
+  const uniqueNeeds = needs.filter(
+    (need, index) => needs.findIndex(
+      (candidate) => typeof need === "string" || typeof candidate === "string" ? candidate === need : candidate.localPath === need.localPath
+    ) === index
+  );
   for (const need of uniqueNeeds) {
+    const resultKey = typeof need === "string" ? need : need.key;
     if (sessionArtifactPresent(workdir, need)) {
-      result[need] = "present";
+      result[resultKey] = "present";
+      continue;
+    }
+    if (typeof need !== "string") {
+      import_fs4.default.mkdirSync(import_path4.default.dirname(need.localPath), { recursive: true });
+      await resolved.downloadFile(need.url, need.localPath);
+      result[resultKey] = sessionArtifactPresent(workdir, need) ? "restored" : "unavailable";
       continue;
     }
     if (need === "transcript" || need === "concepts") {
       const url2 = await resolved.getAssetUrl(userId, sessionId, need);
       if (!url2) {
-        result[need] = "unavailable";
+        result[resultKey] = "unavailable";
         continue;
       }
       const dest2 = sessionArtifactLocalPath(workdir, need);
       await resolved.downloadFile(url2, dest2);
-      result[need] = sessionArtifactPresent(workdir, need) ? "restored" : "unavailable";
+      result[resultKey] = sessionArtifactPresent(workdir, need) ? "restored" : "unavailable";
       continue;
     }
     if (need === "manim_scripts") {
@@ -36013,19 +36182,19 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
       import_fs4.default.mkdirSync(dest2, { recursive: true });
       const prefix = `users/${userId}/sessions/${sessionId}/manim_scripts`;
       await resolved.downloadStoragePrefixToDir(prefix, dest2);
-      result[need] = sessionArtifactPresent(workdir, "manim_scripts") ? "restored" : "unavailable";
+      result[resultKey] = sessionArtifactPresent(workdir, "manim_scripts") ? "restored" : "unavailable";
       continue;
     }
     const hfUrl = await resolved.getAssetUrl(userId, sessionId, "hf_project");
     if (!hfUrl) {
-      result[need] = "unavailable";
+      result[resultKey] = "unavailable";
       continue;
     }
     const dest = sessionArtifactLocalPath(workdir, "hf_project");
     import_fs4.default.mkdirSync(dest, { recursive: true });
     const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
     await resolved.downloadStoragePrefixToDir(storagePath, dest);
-    result[need] = sessionArtifactPresent(workdir, "hf_project") ? "restored" : "unavailable";
+    result[resultKey] = sessionArtifactPresent(workdir, "hf_project") ? "restored" : "unavailable";
   }
   return result;
 }
@@ -36049,6 +36218,7 @@ async function execCommand(command, options = {}) {
   try {
     const { stdout, stderr } = await execAsync(command, {
       cwd: options.cwd,
+      env: options.env,
       timeout: timeoutSeconds * 1e3,
       maxBuffer: 50 * 1024 * 1024,
       killSignal: "SIGKILL"
@@ -36381,22 +36551,48 @@ function substitutePlaceholders(template, replacements) {
 init_storage();
 async function ensurePathArtifacts(ctx, resolvedPath) {
   if (import_fs5.default.existsSync(resolvedPath)) return;
-  const needs = artifactNeedsForResolvedPath(ctx.sessionId, resolvedPath);
+  const needs = artifactNeedsForResolvedPath(
+    ctx.sessionId,
+    resolvedPath,
+    ctx.taggedArtifacts
+  );
   if (needs.length === 0) return;
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, needs);
+}
+function referencesProcEnviron(command) {
+  return /\/proc\/[^/\s'"]+\/environ\b/.test(command);
 }
 function createFilesystemTools(ctx) {
   return {
     run_command: tool({
       description: `Execute a shell command in the agent's working directory.
 Use this to run Manim scripts, HyperFrames CLI, ffmpeg, or any other
-tool installed in the container. Returns stdout, stderr, and exit code.`,
+tool installed in the container. Never reimplement a missing pipeline tool
+with shell/CLI and never read credentials from environment variables; if a
+pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code.`,
       inputSchema: external_exports2.object({
         command: external_exports2.string().describe("Shell command to execute"),
         timeout_seconds: external_exports2.number().optional().default(300).describe("Max seconds to wait. Default 300. Use 600 for Manim/HyperFrames renders.")
       }),
       execute: async ({ command, timeout_seconds }) => {
-        const result = await execCommand(command, { timeoutSeconds: timeout_seconds });
+        if (referencesProcEnviron(command)) {
+          return {
+            stdout: "",
+            stderr: "Reading process environments is not allowed.",
+            exit_code: 1,
+            success: false
+          };
+        }
+        const referenced = (ctx.taggedArtifacts ?? []).filter(
+          (artifact) => command.includes(artifact.localPath)
+        );
+        if (referenced.length > 0) {
+          await ensureSessionArtifacts(ctx.userId, ctx.sessionId, referenced);
+        }
+        const result = await execCommand(command, {
+          timeoutSeconds: timeout_seconds,
+          env: sanitizedShellEnv()
+        });
         return {
           stdout: result.stdout,
           stderr: result.stderr,
@@ -37133,6 +37329,7 @@ ${retryHint}` : userMessage
 }
 
 // src/tools/pipeline/hyperframes.ts
+var import_crypto = __toESM(require("crypto"));
 var import_fs8 = __toESM(require("fs"));
 var import_path8 = __toESM(require("path"));
 init_dist5();
@@ -37223,6 +37420,10 @@ function signCallbackToken(payload) {
 // src/tools/pipeline/hyperframes.ts
 init_storage();
 var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
+function renderIdempotencyKey(sessionId, indexHtml) {
+  const contentHash = import_crypto.default.createHash("sha256").update(indexHtml).digest("hex").slice(0, 16);
+  return `${sessionId}.${contentHash}`;
+}
 var brandColorsSchema = external_exports2.object({
   primary: external_exports2.string(),
   accent: external_exports2.string(),
@@ -37521,7 +37722,11 @@ function createHyperframesTools(ctx) {
               exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
             });
             const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-            const cloudCmd = `node "${cliPath}" cloud render . --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${ctx.sessionId}" --no-wait --json`;
+            const idempotencyKey = renderIdempotencyKey(
+              ctx.sessionId,
+              import_fs8.default.readFileSync(import_path8.default.join(projectDir, "index.html"))
+            );
+            const cloudCmd = `node "${cliPath}" cloud render . --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
             const cloudResult = await execCommand(cloudCmd, {
               cwd: projectDir,
               timeoutSeconds: 600
@@ -37818,6 +38023,13 @@ ${cleanScript}`
             );
           }
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
+          const canonicalPath = import_path9.default.join(
+            getSessionWorkdir(ctx.sessionId),
+            "manim",
+            `${safeName}.mp4`
+          );
+          import_fs9.default.mkdirSync(import_path9.default.dirname(canonicalPath), { recursive: true });
+          import_fs9.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
           const concepts = loadSessionConcepts(ctx.sessionId);
@@ -37920,34 +38132,8 @@ function createTranscribeTools(ctx) {
   };
 }
 
-// src/tools/catalog.ts
-var BASE_TOOLS = [
-  "run_command",
-  "write_file",
-  "read_file",
-  "search_files",
-  "web_search",
-  "web_extract",
-  "vision_analyze",
-  "str_replace",
-  "ask_clarification"
-];
-var SKILL_TOOLS = {
-  "edu-video": [
-    "transcribe_video",
-    "extract_concepts",
-    "generate_manim_script",
-    "render_manim_clip",
-    "plan_segments",
-    "scaffold_hf_project",
-    "render_hyperframes"
-  ],
-  "manim-video": ["generate_manim_script", "render_manim_clip"],
-  "hyperframes": ["render_hyperframes"]
-};
-
 // src/tools/index.ts
-function buildTools(ctx, opts) {
+function buildTools(ctx, skills = []) {
   const all = {
     ...createFilesystemTools(ctx),
     ...createWebTools(ctx),
@@ -37959,8 +38145,8 @@ function buildTools(ctx, opts) {
     ...createHyperframesTools(ctx)
   };
   const names = new Set(BASE_TOOLS);
-  const skill = opts?.skill;
-  if (skill && SKILL_TOOLS[skill]) {
+  for (const skill of skills) {
+    if (!SKILL_TOOLS[skill]) continue;
     for (const name26 of SKILL_TOOLS[skill]) {
       names.add(name26);
     }
@@ -37968,6 +38154,35 @@ function buildTools(ctx, opts) {
   return Object.fromEntries(
     [...names].filter((name26) => name26 in all).map((name26) => [name26, all[name26]])
   );
+}
+
+// src/taggedAssets.ts
+var MAX_TAGGED_ASSETS = 8;
+function parseTaggedAssets(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { label, url: url2, type } = item;
+    if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
+      return [];
+    }
+    try {
+      if (new URL(url2).protocol !== "https:") return [];
+    } catch {
+      return [];
+    }
+    return [{ label: label.trim(), url: url2, type: type.trim() }];
+  });
+}
+function formatReferencedAssets(assets) {
+  if (assets.length === 0) return "";
+  return [
+    "Referenced assets:",
+    ...assets.map(
+      ({ label, type, url: url2, localPath }) => `- ${label} (${type}): URL ${url2} | internal path ${localPath}`
+    ),
+    "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path."
+  ].join("\n");
 }
 
 // src/agent.ts
@@ -38066,11 +38281,22 @@ ${hint}`;
     }
   }
   const history = await loadMessages(params.sessionId, params.userId);
+  const taggedArtifacts = await resolveTaggedArtifacts(
+    params.userId,
+    params.sessionId,
+    params.taggedAssets ?? []
+  );
   let userContent = params.userMessage;
   if (params.videoUrl) {
     userContent += `
 
 Video URL for processing: ${params.videoUrl}`;
+  }
+  const referencedAssets = formatReferencedAssets(taggedArtifacts);
+  if (referencedAssets) {
+    userContent += `
+
+${referencedAssets}`;
   }
   await saveMessage(
     params.sessionId,
@@ -38085,12 +38311,15 @@ Video URL for processing: ${params.videoUrl}`;
     { role: "user", content: userContent }
   ]);
   const resolvedSkill = resolveSkill(params.skillId, params.userMessage);
-  const effectiveSkill = resolvedSkill ?? sessionFields.skillId;
-  if (resolvedSkill) await persistSkillId(params.sessionId, resolvedSkill);
+  const capabilitySkills = new Set(sessionFields.skillsUsed);
+  if (resolvedSkill) capabilitySkills.add(resolvedSkill);
   const modeBanner = effectiveMode === "ask" ? "Current mode: Ask-Me \u2014 pause and ask before major decisions." : "Current mode: Auto-Run \u2014 proceed autonomously without asking permission.";
   let systemPrompt = `${modeBanner}
 
-${getCachedSystemPrompt(params.sessionId, effectiveSkill)}`;
+${getCachedSystemPrompt(params.sessionId, resolvedSkill)}`;
+  if (!resolvedSkill && sessionFields.skillsUsed.length > 1) {
+    systemPrompt += "\n\nTools from multiple previously used skills are available. If the current request remains genuinely ambiguous after considering the conversation and referenced assets, use ask_clarification; otherwise proceed without selecting old skill guidance.";
+  }
   if (resumeSystemAppend) {
     systemPrompt = `${systemPrompt}
 
@@ -38101,14 +38330,15 @@ ${resumeSystemAppend}`;
     sessionId: params.sessionId,
     userId: params.userId,
     pipelineMode: effectiveMode,
-    skillName: effectiveSkill ?? "edu-video"
+    skillName: resolvedSkill ?? sessionFields.skillsUsed[0] ?? "edu-video",
+    taggedArtifacts
   };
-  const tools = buildTools(toolCtx, { skill: effectiveSkill });
+  const tools = buildTools(toolCtx, capabilitySkills);
   if (conceptsResumeForce) {
     if (!("generate_manim_script" in tools)) {
       console.error("[agent] concepts resume force failed: generate_manim_script missing", {
         sessionId: params.sessionId,
-        effectiveSkill,
+        resolvedSkill,
         toolNames: Object.keys(tools)
       });
       throw new Error(
@@ -38116,7 +38346,7 @@ ${resumeSystemAppend}`;
       );
     }
     console.log(
-      `[agent] checkpoint.resume conceptsForce tx=ok skill=${effectiveSkill ?? "null"} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
+      `[agent] checkpoint.resume conceptsForce tx=ok skill=${resolvedSkill ?? "null"} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
     );
   }
   let capturedCheckpointDisplay = null;
@@ -38143,7 +38373,15 @@ ${resumeSystemAppend}`;
       }
       return base;
     },
-    onStepFinish: ({ toolCalls, toolResults }) => {
+    onStepFinish: async ({ toolCalls, toolResults }) => {
+      const engagedSkills = skillsEngagedByToolCalls(
+        resolvedSkill,
+        (toolCalls ?? []).map((call) => call.toolName)
+      );
+      if (engagedSkills.length > 0) {
+        await recordSkillsUsed(params.sessionId, engagedSkills);
+        await persistSkillId(params.sessionId, engagedSkills.at(-1));
+      }
       for (const call of toolCalls ?? []) {
         console.log(
           `[agent] tool.call ${call.toolName}`,
@@ -38372,6 +38610,7 @@ app2.post("/invocations", async (req, res) => {
     const userId = typeof input.userId === "string" && input.userId || typeof req.body?.userId === "string" && req.body.userId || "agentcore";
     const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
     const videoName = typeof input.videoName === "string" ? input.videoName : void 0;
+    const taggedAssets = parseTaggedAssets(input.taggedAssets);
     const skillId = typeof input.skillId === "string" ? input.skillId : void 0;
     const model = typeof input.model === "string" ? input.model : void 0;
     const source = typeof input.source === "string" ? input.source : void 0;
@@ -38400,6 +38639,7 @@ app2.post("/invocations", async (req, res) => {
       userId,
       videoUrl,
       videoName,
+      taggedAssets,
       skillId,
       model,
       pipelineMode,
@@ -38517,6 +38757,7 @@ app2.post("/chat", async (req, res) => {
     userId: bodyUserId,
     videoUrl,
     videoName,
+    taggedAssets: rawTaggedAssets,
     model,
     skillId,
     pipelineMode: bodyPipelineMode,
@@ -38531,6 +38772,7 @@ app2.post("/chat", async (req, res) => {
     return;
   }
   const pipelineMode = bodyPipelineMode === "auto" || bodyPipelineMode === "ask" ? bodyPipelineMode : "ask";
+  const taggedAssets = parseTaggedAssets(rawTaggedAssets);
   try {
     const agentRun = await runAgent({
       userMessage,
@@ -38538,6 +38780,7 @@ app2.post("/chat", async (req, res) => {
       userId,
       videoUrl,
       videoName,
+      taggedAssets,
       model,
       skillId,
       pipelineMode,

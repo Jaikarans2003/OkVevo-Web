@@ -4,8 +4,29 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
+import type { ResolvedTaggedAsset, TaggedAsset } from '../../taggedAssets';
 
 const execAsync = promisify(exec);
+const SHELL_ENV_KEYS = [
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'TERM',
+  'TMPDIR',
+  'PWD',
+  'SHELL',
+  'USER',
+  'LOGNAME',
+] as const;
+
+export function sanitizedShellEnv(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    SHELL_ENV_KEYS.flatMap((key) =>
+      process.env[key] === undefined ? [] : [[key, process.env[key]]]
+    )
+  );
+}
 
 export const SKILLS_DIR = path.resolve(__dirname, '../../../../../Skills');
 export const EDU_VIDEO_TEMPLATE_DIR =
@@ -59,12 +80,19 @@ export type SessionArtifactNeed =
   | 'concepts'
   | 'manim_scripts'
   | 'hf_project';
+export type TaggedArtifactNeed = {
+  key: string;
+  url: string;
+  localPath: string;
+};
+export type ArtifactNeed = SessionArtifactNeed | TaggedArtifactNeed;
 export type ArtifactEnsureStatus = 'present' | 'restored' | 'unavailable';
 
 export function sessionArtifactLocalPath(
   workdir: string,
-  need: SessionArtifactNeed
+  need: ArtifactNeed
 ): string {
+  if (typeof need !== 'string') return need.localPath;
   switch (need) {
     case 'transcript':
       return path.join(workdir, 'transcript.json');
@@ -80,9 +108,10 @@ export function sessionArtifactLocalPath(
 /** True when the local marker for this artifact family already exists. */
 export function sessionArtifactPresent(
   workdir: string,
-  need: SessionArtifactNeed
+  need: ArtifactNeed
 ): boolean {
   const marker = sessionArtifactLocalPath(workdir, need);
+  if (typeof need !== 'string') return fs.existsSync(marker);
   if (need === 'transcript' || need === 'concepts') {
     return fs.existsSync(marker);
   }
@@ -107,13 +136,18 @@ export function isSessionWorkdirCold(sessionId: string): boolean {
 /** Infer which Storage families a workdir-relative path may need. */
 export function artifactNeedsForResolvedPath(
   sessionId: string,
-  resolvedPath: string
-): SessionArtifactNeed[] {
+  resolvedPath: string,
+  taggedArtifacts: TaggedArtifactNeed[] = []
+): ArtifactNeed[] {
   const workdir = getSessionWorkdir(sessionId);
   const rel = path.relative(workdir, resolvedPath);
   if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
     return [];
   }
+  const tagged = taggedArtifacts.find(
+    (artifact) => path.resolve(artifact.localPath) === path.resolve(resolvedPath)
+  );
+  if (tagged) return [tagged];
   const top = rel.split(path.sep)[0];
   if (top === 'transcript.json' || rel === 'transcript.json') return ['transcript'];
   if (top === 'concepts.json' || rel === 'concepts.json') return ['concepts'];
@@ -123,6 +157,38 @@ export function artifactNeedsForResolvedPath(
     return ['transcript', 'concepts', 'manim_scripts', 'hf_project'];
   }
   return [];
+}
+
+export async function resolveTaggedArtifacts(
+  userId: string,
+  sessionId: string,
+  assets: TaggedAsset[],
+  parseStoragePath?: (url: string) => string
+): Promise<ResolvedTaggedAsset[]> {
+  const parse =
+    parseStoragePath ??
+    (await import('../../storage')).parseStoragePathFromPublicUrl;
+  const workdir = getSessionWorkdir(sessionId);
+  const sessionPrefix = `users/${userId}/sessions/${sessionId}/`;
+  const uploadPrefix = `uploads/${userId}/${sessionId}/`;
+
+  return assets.flatMap((asset, index) => {
+    let storagePath: string;
+    try {
+      storagePath = parse(asset.url);
+    } catch {
+      return [];
+    }
+    const isUpload = storagePath.startsWith(uploadPrefix);
+    const prefix = isUpload ? uploadPrefix : sessionPrefix;
+    if (!storagePath.startsWith(prefix)) return [];
+    const suffix = storagePath.slice(prefix.length);
+    if (!suffix || suffix.endsWith('/')) return [];
+    const relativePath = isUpload ? path.join('uploads', suffix) : suffix;
+    const localPath = path.resolve(workdir, relativePath);
+    if (!localPath.startsWith(`${path.resolve(workdir)}${path.sep}`)) return [];
+    return [{ ...asset, localPath, key: `tagged_${index}` }];
+  });
 }
 
 type EnsureSessionArtifactsDeps = {
@@ -147,9 +213,9 @@ type EnsureSessionArtifactsDeps = {
 export async function ensureSessionArtifacts(
   userId: string,
   sessionId: string,
-  needs: SessionArtifactNeed[],
+  needs: ArtifactNeed[],
   deps?: Partial<EnsureSessionArtifactsDeps>
-): Promise<Partial<Record<SessionArtifactNeed, ArtifactEnsureStatus>>> {
+): Promise<Record<string, ArtifactEnsureStatus>> {
   // Lazy storage import so utils constants stay usable without Firebase init
   const needsStorage =
     !deps?.getAssetUrl ||
@@ -167,24 +233,41 @@ export async function ensureSessionArtifacts(
   };
 
   const workdir = resolved.workdir ?? getSessionWorkdir(sessionId);
-  const result: Partial<Record<SessionArtifactNeed, ArtifactEnsureStatus>> = {};
-  const uniqueNeeds = [...new Set(needs)];
+  const result: Record<string, ArtifactEnsureStatus> = {};
+  const uniqueNeeds = needs.filter(
+    (need, index) =>
+      needs.findIndex((candidate) =>
+        typeof need === 'string' || typeof candidate === 'string'
+          ? candidate === need
+          : candidate.localPath === need.localPath
+      ) === index
+  );
 
   for (const need of uniqueNeeds) {
+    const resultKey = typeof need === 'string' ? need : need.key;
     if (sessionArtifactPresent(workdir, need)) {
-      result[need] = 'present';
+      result[resultKey] = 'present';
+      continue;
+    }
+
+    if (typeof need !== 'string') {
+      fs.mkdirSync(path.dirname(need.localPath), { recursive: true });
+      await resolved.downloadFile(need.url, need.localPath);
+      result[resultKey] = sessionArtifactPresent(workdir, need)
+        ? 'restored'
+        : 'unavailable';
       continue;
     }
 
     if (need === 'transcript' || need === 'concepts') {
       const url = await resolved.getAssetUrl(userId, sessionId, need);
       if (!url) {
-        result[need] = 'unavailable';
+        result[resultKey] = 'unavailable';
         continue;
       }
       const dest = sessionArtifactLocalPath(workdir, need);
       await resolved.downloadFile(url, dest);
-      result[need] = sessionArtifactPresent(workdir, need)
+      result[resultKey] = sessionArtifactPresent(workdir, need)
         ? 'restored'
         : 'unavailable';
       continue;
@@ -195,7 +278,7 @@ export async function ensureSessionArtifacts(
       fs.mkdirSync(dest, { recursive: true });
       const prefix = `users/${userId}/sessions/${sessionId}/manim_scripts`;
       await resolved.downloadStoragePrefixToDir(prefix, dest);
-      result[need] = sessionArtifactPresent(workdir, 'manim_scripts')
+      result[resultKey] = sessionArtifactPresent(workdir, 'manim_scripts')
         ? 'restored'
         : 'unavailable';
       continue;
@@ -204,14 +287,14 @@ export async function ensureSessionArtifacts(
     // hf_project
     const hfUrl = await resolved.getAssetUrl(userId, sessionId, 'hf_project');
     if (!hfUrl) {
-      result[need] = 'unavailable';
+      result[resultKey] = 'unavailable';
       continue;
     }
     const dest = sessionArtifactLocalPath(workdir, 'hf_project');
     fs.mkdirSync(dest, { recursive: true });
     const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
     await resolved.downloadStoragePrefixToDir(storagePath, dest);
-    result[need] = sessionArtifactPresent(workdir, 'hf_project')
+    result[resultKey] = sessionArtifactPresent(workdir, 'hf_project')
       ? 'restored'
       : 'unavailable';
   }
@@ -239,13 +322,14 @@ export function isBinaryBuffer(buf: Buffer): boolean {
 
 export async function execCommand(
   command: string,
-  options: { cwd?: string; timeoutSeconds?: number } = {}
+  options: { cwd?: string; timeoutSeconds?: number; env?: NodeJS.ProcessEnv } = {}
 ): Promise<{ stdout: string; stderr: string; exit_code: number; success: boolean }> {
   const timeoutSeconds = options.timeoutSeconds ?? 300;
 
   try {
     const { stdout, stderr } = await execAsync(command, {
       cwd: options.cwd,
+      env: options.env,
       timeout: timeoutSeconds * 1000,
       maxBuffer: 50 * 1024 * 1024,
       killSignal: 'SIGKILL',

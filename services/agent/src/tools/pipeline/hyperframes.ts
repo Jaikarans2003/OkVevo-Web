@@ -1,4 +1,5 @@
 // @ts-nocheck
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { tool } from 'ai';
@@ -44,6 +45,14 @@ import {
 } from '../../storage';
 
 const RENDER_BACKEND = process.env.RENDER_BACKEND ?? 'heygen_cloud';
+
+// Content-derived so a changed composition gets a fresh HeyGen key (avoids the
+// 24h idempotent replay of the old presigned URL / render_id), while a crash-safe
+// retry of the identical submission still replays instead of double-billing.
+export function renderIdempotencyKey(sessionId: string, indexHtml: string | Buffer): string {
+  const contentHash = crypto.createHash('sha256').update(indexHtml).digest('hex').slice(0, 16);
+  return `${sessionId}.${contentHash}`;
+}
 
 const brandColorsSchema = z.object({
   primary: z.string(),
@@ -403,13 +412,18 @@ export function createHyperframesTools(ctx: ToolCtx) {
             });
             const callbackUrl = `${baseCallbackUrl}?token=${token}`;
 
+            const idempotencyKey = renderIdempotencyKey(
+              ctx.sessionId,
+              fs.readFileSync(path.join(projectDir, 'index.html'))
+            );
+
             // CLI inherits HEYGEN_API_KEY from process env
             const cloudCmd =
               `node "${cliPath}" cloud render .` +
               ` --fps 30 --quality standard --format mp4 --resolution 1080p` +
               ` --callback-url "${callbackUrl}"` +
               ` --callback-id "${ctx.sessionId}"` +
-              ` --idempotency-key "${ctx.sessionId}"` +
+              ` --idempotency-key "${idempotencyKey}"` +
               ` --no-wait --json`;
             const cloudResult = await execCommand(cloudCmd, {
               cwd: projectDir,

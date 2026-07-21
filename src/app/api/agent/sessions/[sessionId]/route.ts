@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAccess';
-import { Timestamp } from 'firebase-admin/firestore';
+import { uploadedVideoAssetKey } from '@/lib/agent/sessionAssets';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
 
@@ -66,7 +67,9 @@ export async function PATCH(
     }
 
     const { sessionId } = await params;
-    const access = await verifySessionAccess(token, sessionId);
+    const access = await verifySessionAccess(token, sessionId, {
+      createIfMissing: true,
+    });
     if ('error' in access) {
       return access.error;
     }
@@ -76,19 +79,48 @@ export async function PATCH(
       videoName?: string;
     };
 
-    if (!body.videoUrl) {
+    if (!body.videoUrl || !body.videoName) {
       return NextResponse.json({ error: 'videoUrl is required' }, { status: 400 });
     }
 
-    await db.collection('sessions').doc(sessionId).set(
-      {
-        videoUrl: body.videoUrl,
-        ...(body.videoName ? { videoName: body.videoName } : {}),
-      },
-      { merge: true }
-    );
+    let videoUrl: URL;
+    try {
+      videoUrl = new URL(body.videoUrl);
+    } catch {
+      return NextResponse.json({ error: 'videoUrl is invalid' }, { status: 400 });
+    }
+    if (videoUrl.protocol !== 'https:') {
+      return NextResponse.json({ error: 'videoUrl must use HTTPS' }, { status: 400 });
+    }
 
-    return NextResponse.json({ ok: true });
+    const userId = access.sessionDoc.data()?.userId as string;
+    const assetKey = uploadedVideoAssetKey(body.videoName);
+    await Promise.all([
+      db.collection('sessions').doc(sessionId).set(
+        { videoUrl: body.videoUrl, videoName: body.videoName },
+        { merge: true }
+      ),
+      db
+        .collection('users')
+        .doc(userId)
+        .collection('sessions')
+        .doc(sessionId)
+        .set(
+          {
+            assets: { [assetKey]: body.videoUrl },
+            assetMetadata: {
+              [assetKey]: {
+                label: body.videoName,
+                type: 'video',
+                createdAt: FieldValue.serverTimestamp(),
+              },
+            },
+          },
+          { merge: true }
+        ),
+    ]);
+
+    return NextResponse.json({ ok: true, assetId: assetKey });
   } catch (error) {
     console.error('PATCH /api/agent/sessions/[sessionId] error:', error);
     return NextResponse.json({ error: 'Failed to update session' }, { status: 500 });

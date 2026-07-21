@@ -24,19 +24,34 @@ for (const [skill, tools] of Object.entries(SKILL_TOOLS)) {
   assertNoDuplicates(tools, `SKILL_TOOLS['${skill}']`);
 }
 
-const ctx = { sessionId: 'check-tool-registry', userId: 'check' };
+const ctx = {
+  sessionId: 'check-tool-registry',
+  userId: 'check',
+  pipelineMode: 'auto' as const,
+  skillName: 'edu-video',
+  taggedArtifacts: [],
+};
 
-const baseBuilt = buildTools(ctx, {});
+const baseBuilt = buildTools(ctx);
 for (const name of BASE_TOOLS) {
   assert(name in baseBuilt, `BASE_TOOLS tool '${name}' not in buildTools() output`);
 }
 
 for (const [skill, toolNames] of Object.entries(SKILL_TOOLS)) {
-  const built = buildTools(ctx, { skill });
+  const built = buildTools(ctx, [skill]);
   for (const name of [...BASE_TOOLS, ...toolNames]) {
     assert(name in built, `Skill '${skill}' buildTools missing '${name}'`);
   }
 }
+
+const additiveSkills = ['manim-video', 'hyperframes'];
+const additiveBuilt = buildTools(ctx, additiveSkills);
+const additiveExpected = new Set([
+  ...BASE_TOOLS,
+  ...SKILL_TOOLS['manim-video'],
+  ...SKILL_TOOLS.hyperframes,
+]);
+assert.deepEqual(new Set(Object.keys(additiveBuilt)), additiveExpected);
 
 const skillFolders = fs
   .readdirSync(SKILLS_DIR, { withFileTypes: true })

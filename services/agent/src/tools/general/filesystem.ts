@@ -11,25 +11,45 @@ import {
   globToRegex,
   isBinaryBuffer,
   resolveToolPath,
+  sanitizedShellEnv,
 } from '../lib/utils';
 import { walkDir } from '../../storage';
+import type { ResolvedTaggedAsset } from '../../taggedAssets';
 
 async function ensurePathArtifacts(
-  ctx: { sessionId: string; userId: string },
+  ctx: {
+    sessionId: string;
+    userId: string;
+    taggedArtifacts?: ResolvedTaggedAsset[];
+  },
   resolvedPath: string
 ): Promise<void> {
   if (fs.existsSync(resolvedPath)) return;
-  const needs = artifactNeedsForResolvedPath(ctx.sessionId, resolvedPath);
+  const needs = artifactNeedsForResolvedPath(
+    ctx.sessionId,
+    resolvedPath,
+    ctx.taggedArtifacts
+  );
   if (needs.length === 0) return;
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, needs);
 }
 
-export function createFilesystemTools(ctx: { sessionId: string; userId: string }) {
+export function referencesProcEnviron(command: string): boolean {
+  return /\/proc\/[^/\s'"]+\/environ\b/.test(command);
+}
+
+export function createFilesystemTools(ctx: {
+  sessionId: string;
+  userId: string;
+  taggedArtifacts?: ResolvedTaggedAsset[];
+}) {
   return {
     run_command: tool({
       description: `Execute a shell command in the agent's working directory.
 Use this to run Manim scripts, HyperFrames CLI, ffmpeg, or any other
-tool installed in the container. Returns stdout, stderr, and exit code.`,
+tool installed in the container. Never reimplement a missing pipeline tool
+with shell/CLI and never read credentials from environment variables; if a
+pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code.`,
       inputSchema: z.object({
         command: z.string().describe('Shell command to execute'),
         timeout_seconds: z
@@ -39,7 +59,25 @@ tool installed in the container. Returns stdout, stderr, and exit code.`,
           .describe('Max seconds to wait. Default 300. Use 600 for Manim/HyperFrames renders.'),
       }),
       execute: async ({ command, timeout_seconds }) => {
-        const result = await execCommand(command, { timeoutSeconds: timeout_seconds });
+        // ponytail: string guard blocks the known root-container escape; use a separate uid for full isolation.
+        if (referencesProcEnviron(command)) {
+          return {
+            stdout: '',
+            stderr: 'Reading process environments is not allowed.',
+            exit_code: 1,
+            success: false,
+          };
+        }
+        const referenced = (ctx.taggedArtifacts ?? []).filter((artifact) =>
+          command.includes(artifact.localPath)
+        );
+        if (referenced.length > 0) {
+          await ensureSessionArtifacts(ctx.userId, ctx.sessionId, referenced);
+        }
+        const result = await execCommand(command, {
+          timeoutSeconds: timeout_seconds,
+          env: sanitizedShellEnv(),
+        });
         return {
           stdout: result.stdout,
           stderr: result.stderr,

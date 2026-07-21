@@ -29,9 +29,11 @@ export async function ensureSession(
   const payload: Record<string, unknown> = {
     userId,
     status: 'active',
-    createdAt: FieldValue.serverTimestamp(),
   };
 
+  if (!existing.exists) {
+    payload.createdAt = FieldValue.serverTimestamp();
+  }
   if (!existing.exists || !existing.data()?.title) {
     payload.title = title.slice(0, 80) || 'Untitled Chat';
   }

@@ -6,12 +6,18 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   ensureSessionArtifacts,
+  resolveTaggedArtifacts,
   sessionArtifactPresent,
 } from '../src/tools/lib/utils';
+import {
+  formatReferencedAssets,
+  parseTaggedAssets,
+} from '../src/taggedAssets';
 
 async function main() {
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'okvevo-ensure-'));
   const calls: string[] = [];
+  let taggedSessionDir: string | null = null;
 
   try {
     // Skip when local marker exists
@@ -129,9 +135,56 @@ async function main() {
     ]);
     assert.equal(sessionArtifactPresent(workdir, 'concepts'), true);
 
+    // Tagged Manim file: warm 0 downloads, cold 1, repeated resolve still 1.
+    const tagged = parseTaggedAssets([
+      {
+        label: 'Gravity',
+        type: 'video',
+        url: 'https://storage.googleapis.com/b/users/u/sessions/s/manim/Gravity.mp4',
+      },
+      {
+        label: 'Concepts',
+        type: 'data',
+        url: 'https://storage.googleapis.com/b/users/u/sessions/s/concepts.json',
+      },
+    ]);
+    const resolved = await resolveTaggedArtifacts('u', 's', tagged, (url) =>
+      new URL(url).pathname.split('/').slice(2).join('/')
+    );
+    assert.equal(resolved.length, 2);
+    taggedSessionDir = path.dirname(path.dirname(resolved[0].localPath));
+    assert.match(formatReferencedAssets(resolved), /Gravity \(video\).*https:\/\//);
+    assert.match(formatReferencedAssets(resolved), /internal path/);
+
+    const clip = resolved[0];
+    fs.mkdirSync(path.dirname(clip.localPath), { recursive: true });
+    fs.writeFileSync(clip.localPath, 'warm');
+    let taggedDownloads = 0;
+    const taggedDeps = {
+      workdir,
+      getAssetUrl: async () => null,
+      downloadFile: async (_url: string, dest: string) => {
+        taggedDownloads++;
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, 'cold');
+      },
+      downloadStoragePrefixToDir: async () => {},
+      parseStoragePathFromPublicUrl: (url: string) => url,
+    };
+    assert.equal((await ensureSessionArtifacts('u', 's', [clip], taggedDeps))[clip.key], 'present');
+    assert.equal(taggedDownloads, 0);
+    fs.unlinkSync(clip.localPath);
+    assert.equal((await ensureSessionArtifacts('u', 's', [clip], taggedDeps))[clip.key], 'restored');
+    assert.equal(taggedDownloads, 1);
+    assert.equal((await ensureSessionArtifacts('u', 's', [clip], taggedDeps))[clip.key], 'present');
+    assert.equal(taggedDownloads, 1);
+
     console.log('check-session-artifacts: ok');
   } finally {
     fs.rmSync(workdir, { recursive: true, force: true });
+    if (taggedSessionDir) {
+      fs.rmSync(taggedSessionDir, { recursive: true, force: true });
+    }
   }
 }
 
