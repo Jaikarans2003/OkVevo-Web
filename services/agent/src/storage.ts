@@ -53,6 +53,8 @@ function contentTypeForPath(filePath: string): string {
       return 'application/javascript';
     case '.py':
       return 'text/x-python';
+    case '.zip':
+      return 'application/zip';
     default:
       return 'application/octet-stream';
   }
@@ -252,6 +254,7 @@ export type RenderJob = {
   outputKey: string;
   renderStatus: string;
   compositionUrl?: string;
+  renderFingerprint?: string;
 };
 
 export async function persistRenderJob(
@@ -264,6 +267,7 @@ export async function persistRenderJob(
     renderOutputKey: job.outputKey,
     renderStatus: 'RUNNING',
     renderCompositionUrl: job.compositionUrl,
+    renderFingerprint: job.renderFingerprint,
     pipelinePhase: 6,
     pipelineStatus: 'rendering',
     pipelineUpdatedAt: FieldValue.serverTimestamp(),
@@ -288,6 +292,8 @@ export async function getRenderJob(
     renderStatus: typeof data.renderStatus === 'string' ? data.renderStatus : 'RUNNING',
     compositionUrl:
       typeof data.renderCompositionUrl === 'string' ? data.renderCompositionUrl : undefined,
+    renderFingerprint:
+      typeof data.renderFingerprint === 'string' ? data.renderFingerprint : undefined,
   };
 }
 

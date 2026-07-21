@@ -40,18 +40,196 @@ import {
   persistRenderJob,
   uploadDirectoryToStorage,
   uploadToStorage,
+  walkDir,
   writeAssetUrl,
   writeHfSegmentsPlan,
 } from '../../storage';
 
 const RENDER_BACKEND = process.env.RENDER_BACKEND ?? 'heygen_cloud';
+const RENDER_FINGERPRINT_EXCLUDE = new Set(['COMPOSITION_MANIFEST.json']);
+const HEYGEN_API_BASE = 'https://api.heygen.com';
+/** URL / multipart asset ceiling — Firebase zip + `cloud render --url`. */
+export const RENDER_ZIP_URL_CAP_BYTES = 32 * 1024 * 1024;
+/** Hosted direct-upload archive ceiling — our checksum-free PUT + `--asset-id`. */
+export const RENDER_ZIP_DIRECT_CAP_BYTES = 200 * 1024 * 1024;
 
-// Content-derived so a changed composition gets a fresh HeyGen key (avoids the
-// 24h idempotent replay of the old presigned URL / render_id), while a crash-safe
-// retry of the identical submission still replays instead of double-billing.
-export function renderIdempotencyKey(sessionId: string, indexHtml: string | Buffer): string {
-  const contentHash = crypto.createHash('sha256').update(indexHtml).digest('hex').slice(0, 16);
-  return `${sessionId}.${contentHash}`;
+const ZIP_SKIP_DIRS = new Set([
+  '.git',
+  'node_modules',
+  'renders',
+  'snapshots',
+  'dist',
+  '.next',
+  'coverage',
+]);
+
+// Project-wide content hash so Manim/media/caption edits get a fresh HeyGen key
+// (avoids the 24h idempotent replay of the old upload/render), while a crash-safe
+// retry of the identical project still replays instead of double-billing.
+// Manifest is excluded: its generated_at timestamp changes every scaffold.
+export function renderIdempotencyKey(sessionId: string, projectDir: string): string {
+  const hash = crypto.createHash('sha256');
+  const files = walkDir(projectDir)
+    .map((abs) => ({
+      abs,
+      rel: path.relative(projectDir, abs).split(path.sep).join('/'),
+    }))
+    .filter((f) => !RENDER_FINGERPRINT_EXCLUDE.has(f.rel))
+    .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+
+  for (const { abs, rel } of files) {
+    hash.update(rel);
+    hash.update('\0');
+    hash.update(fs.readFileSync(abs));
+  }
+
+  return `${sessionId}.${hash.digest('hex').slice(0, 16)}`;
+}
+
+/** Fail-closed size routing: url ≤32 MiB, asset_id ≤200 MiB, else throw. */
+export function renderIngestMode(zipBytes: number): 'url' | 'asset_id' {
+  if (!Number.isFinite(zipBytes) || zipBytes < 0) {
+    throw new Error('NON_RETRYABLE: invalid HyperFrames project zip size');
+  }
+  if (zipBytes > RENDER_ZIP_DIRECT_CAP_BYTES) {
+    throw new Error(
+      `NON_RETRYABLE: HyperFrames project zip is ${zipBytes} bytes; ` +
+        `max is ${RENDER_ZIP_DIRECT_CAP_BYTES} (200 MiB).`
+    );
+  }
+  return zipBytes <= RENDER_ZIP_URL_CAP_BYTES ? 'url' : 'asset_id';
+}
+
+function isNonRetryableCloudError(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('baddigest') ||
+    lower.includes('hyperframes_project_too_large') ||
+    lower.includes('payload too large') ||
+    /\b413\b/.test(text)
+  );
+}
+
+function throwCloudSubmitError(detail: string): never {
+  const msg = detail || 'HeyGen cloud render submit failed';
+  if (isNonRetryableCloudError(msg)) {
+    throw new Error(`NON_RETRYABLE: ${msg}`);
+  }
+  throw new Error(msg);
+}
+
+const ZIP_PY_SCRIPT = [
+  'import os, sys, zipfile',
+  'src, dst = sys.argv[1], sys.argv[2]',
+  `skip = {${[...ZIP_SKIP_DIRS].map((d) => JSON.stringify(d)).join(', ')}}`,
+  'with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:',
+  '    for root, dirs, files in os.walk(src):',
+  '        dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]',
+  '        for name in files:',
+  '            if name.startswith("."):',
+  '                continue',
+  '            abs_path = os.path.join(root, name)',
+  '            rel = os.path.relpath(abs_path, src).replace(os.sep, "/")',
+  '            zf.write(abs_path, rel)',
+  'names = zipfile.ZipFile(dst).namelist()',
+  'if "index.html" not in names:',
+  '    raise SystemExit("zip missing root index.html")',
+  '',
+].join('\n');
+
+/** Zip project with index.html at archive root (Python zipfile; no CLI checksum path). */
+export async function zipHyperframesProject(
+  projectDir: string,
+  zipPath: string
+): Promise<void> {
+  if (!fs.existsSync(path.join(projectDir, 'index.html'))) {
+    throw new Error('NON_RETRYABLE: HyperFrames project missing root index.html');
+  }
+  fs.rmSync(zipPath, { force: true });
+
+  const pyPath = `${zipPath}.py`;
+  fs.writeFileSync(pyPath, ZIP_PY_SCRIPT);
+  try {
+    const result = await execCommand(
+      `python3 ${JSON.stringify(pyPath)} ${JSON.stringify(projectDir)} ${JSON.stringify(zipPath)}`,
+      { timeoutSeconds: 300 }
+    );
+    if (!result.success) {
+      throw new Error(result.stderr || result.stdout || 'Failed to zip HyperFrames project');
+    }
+  } finally {
+    fs.rmSync(pyPath, { force: true });
+  }
+}
+
+/** Direct-to-S3 asset upload without checksum_sha256 (avoids CLI BadDigest). */
+async function uploadZipAssetId(
+  zipPath: string,
+  apiKey: string,
+  idempotencyKey: string
+): Promise<string> {
+  const size_bytes = fs.statSync(zipPath).size;
+  const initResp = await fetch(`${HEYGEN_API_BASE}/v3/assets/direct-uploads`, {
+    method: 'POST',
+    headers: {
+      'X-Api-Key': apiKey,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({
+      filename: path.basename(zipPath),
+      content_type: 'application/zip',
+      size_bytes,
+    }),
+  });
+  const initBody = (await initResp.json().catch(() => ({}))) as {
+    data?: { asset_id?: string; upload_url?: string; upload_headers?: Record<string, string> };
+    error?: { message?: string; code?: string };
+  };
+  if (!initResp.ok || !initBody.data?.asset_id || !initBody.data.upload_url) {
+    throwCloudSubmitError(
+      initBody.error?.message ||
+        initBody.error?.code ||
+        `direct-uploads init failed: HTTP ${initResp.status}`
+    );
+  }
+  const { asset_id, upload_url, upload_headers } = initBody.data;
+
+  const putResp = await fetch(upload_url, {
+    method: 'PUT',
+    headers: upload_headers ?? {},
+    body: fs.readFileSync(zipPath),
+  });
+  if (!putResp.ok) {
+    const putText = await putResp.text().catch(() => '');
+    throwCloudSubmitError(
+      putText || `direct-upload PUT failed: HTTP ${putResp.status}`
+    );
+  }
+
+  const completeResp = await fetch(
+    `${HEYGEN_API_BASE}/v3/assets/${encodeURIComponent(asset_id)}/complete`,
+    {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': apiKey,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: '{}',
+    }
+  );
+  const completeBody = (await completeResp.json().catch(() => ({}))) as {
+    error?: { message?: string; code?: string };
+  };
+  if (!completeResp.ok) {
+    throwCloudSubmitError(
+      completeBody.error?.message ||
+        completeBody.error?.code ||
+        `direct-upload complete failed: HTTP ${completeResp.status}`
+    );
+  }
+  return asset_id;
 }
 
 const brandColorsSchema = z.object({
@@ -383,15 +561,31 @@ export function createHyperframesTools(ctx: ToolCtx) {
           }
 
           if (RENDER_BACKEND === 'heygen_cloud') {
+            const idempotencyKey = renderIdempotencyKey(ctx.sessionId, projectDir);
+            const fingerprint = idempotencyKey.split('.')[1];
+
             const existing = await getRenderJob(ctx.userId, ctx.sessionId);
             if (
               existing?.renderStatus === 'RUNNING' &&
               existing.executionArn &&
               !isSfnExecutionArn(existing.executionArn)
             ) {
+              if (existing.renderFingerprint === fingerprint) {
+                console.log(
+                  `[render_hyperframes] reusing in-flight render fingerprint=${fingerprint} render_id=${existing.executionArn}`
+                );
+                return {
+                  success: true,
+                  composition_url,
+                  execution_arn: existing.executionArn,
+                  output_key: existing.outputKey,
+                  render_status: existing.renderStatus,
+                };
+              }
               return {
-                success: true,
-                composition_url,
+                success: false,
+                error:
+                  'A render is already in progress for this session. Wait for it to finish before submitting a changed composition.',
                 execution_arn: existing.executionArn,
                 output_key: existing.outputKey,
                 render_status: existing.renderStatus,
@@ -412,14 +606,35 @@ export function createHyperframesTools(ctx: ToolCtx) {
             });
             const callbackUrl = `${baseCallbackUrl}?token=${token}`;
 
-            const idempotencyKey = renderIdempotencyKey(
-              ctx.sessionId,
-              fs.readFileSync(path.join(projectDir, 'index.html'))
-            );
+            // Bypass CLI local zip+upload (BadDigest): zip ourselves, then
+            // --url (≤32 MiB) or checksum-free direct-upload → --asset-id.
+            const zipPath = path.join(workdir, `render-${fingerprint}.zip`);
+            let cloudCmdSource = '';
+            try {
+              await zipHyperframesProject(projectDir, zipPath);
+              const zipBytes = fs.statSync(zipPath).size;
+              const ingest = renderIngestMode(zipBytes);
+              console.log(
+                `[render_hyperframes] fingerprint=${fingerprint} zip_bytes=${zipBytes} ingest=${ingest}`
+              );
 
-            // CLI inherits HEYGEN_API_KEY from process env
+              if (ingest === 'url') {
+                const zipUrl = await uploadToStorage(
+                  zipPath,
+                  `users/${ctx.userId}/sessions/${ctx.sessionId}/render-projects/${fingerprint}.zip`
+                );
+                cloudCmdSource = `--url ${JSON.stringify(zipUrl)}`;
+              } else {
+                const assetId = await uploadZipAssetId(zipPath, apiKey, idempotencyKey);
+                cloudCmdSource = `--asset-id ${JSON.stringify(assetId)}`;
+              }
+            } finally {
+              fs.rmSync(zipPath, { force: true });
+            }
+
+            // CLI inherits HEYGEN_API_KEY from process env. Never `cloud render .`.
             const cloudCmd =
-              `node "${cliPath}" cloud render .` +
+              `node "${cliPath}" cloud render ${cloudCmdSource}` +
               ` --fps 30 --quality standard --format mp4 --resolution 1080p` +
               ` --callback-url "${callbackUrl}"` +
               ` --callback-id "${ctx.sessionId}"` +
@@ -430,16 +645,20 @@ export function createHyperframesTools(ctx: ToolCtx) {
               timeoutSeconds: 600,
             });
             if (!cloudResult.success) {
-              throw new Error(
+              throwCloudSubmitError(
                 cloudResult.stderr || cloudResult.stdout || 'HeyGen cloud render submit failed'
               );
             }
 
             const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
+            console.log(
+              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(' ')[0]}`
+            );
             const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
               executionArn: renderId,
               outputKey: 'heygen-cloud',
               compositionUrl: composition_url,
+              renderFingerprint: fingerprint,
             });
 
             return {
