@@ -11,10 +11,42 @@ const SKILLS = [
     icon: '🎬',
     requiresVideo: true,
   },
+  {
+    id: 'remove-background',
+    name: 'Remove Background',
+    description:
+      'Remove the background from a person/portrait video and get a transparent cutout ready for compositing.',
+    icon: '✂️',
+    requiresVideo: true,
+  },
+  {
+    id: 'background-generator',
+    name: 'Background Generator',
+    description:
+      'Generate a backdrop image from a text prompt — ideal for placing behind a transparent subject.',
+    icon: '🖼️',
+    requiresVideo: false,
+  },
+  {
+    id: 'background-video-generator',
+    name: 'Background Video',
+    description:
+      'Generate a short moving backdrop video from a text prompt (max 15 seconds) for compositing behind a subject.',
+    icon: '🎥',
+    requiresVideo: false,
+  },
+  {
+    id: 'composite-subject',
+    name: 'Composite Subject',
+    description:
+      'Place a transparent cutout over a background image or video and export a final MP4.',
+    icon: '🧩',
+    requiresVideo: false,
+  },
 ] as const;
 
 const dropdownPanelClass =
-  'absolute bottom-full z-50 mb-2 max-h-56 overflow-y-auto custom-scrollbar rounded-xl border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]';
+  'absolute bottom-full z-50 mb-2 max-h-[min(28rem,70vh)] overflow-y-auto custom-scrollbar rounded-xl border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]';
 
 interface SkillsPopupProps {
   isOpen: boolean;
@@ -66,40 +98,37 @@ export function SkillsPopup({
   return (
     <div
       ref={popupRef}
-      className={`${dropdownPanelClass} right-0 w-56`}
+      className={`${dropdownPanelClass} right-0 w-80`}
       role="dialog"
       aria-label="Skills"
     >
       {SKILLS.map((skill) => (
-        <div
+        <button
           key={skill.id}
-          className="border-b border-white/[0.05] px-3 py-2 last:border-b-0 hover:bg-white/[0.05]"
+          type="button"
+          onClick={() => {
+            onSelectSkill(skill.id, skill.name);
+            onClose();
+          }}
+          className="flex w-full items-start gap-2 border-b border-white/[0.05] px-3 py-2.5 text-left last:border-b-0 hover:bg-white/[0.05]"
         >
-          <div className="flex items-start gap-2">
-            <span className="shrink-0 text-sm" aria-hidden>
-              {skill.icon}
+          <span className="shrink-0 text-sm" aria-hidden>
+            {skill.icon}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-white/80">
+              {skill.name}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-white/75">{skill.name}</div>
-              <p className="mt-0.5 text-xs text-white/45">{skill.description}</p>
-              {skill.requiresVideo ? (
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                  Requires video upload
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectSkill(skill.id, skill.name);
-                  onClose();
-                }}
-                className="mt-2 rounded-full bg-orange-500 px-3 py-1 text-sm text-white transition hover:bg-orange-400"
-              >
-                Use skill
-              </button>
-            </div>
-          </div>
-        </div>
+            <span className="mt-0.5 block text-xs leading-snug text-white/45">
+              {skill.description}
+            </span>
+            {skill.requiresVideo ? (
+              <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                Requires video upload
+              </span>
+            ) : null}
+          </span>
+        </button>
       ))}
     </div>
   );

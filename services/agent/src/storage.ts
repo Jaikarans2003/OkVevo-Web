@@ -45,39 +45,26 @@ function contentTypeForPath(filePath: string): string {
       return 'text/html';
     case '.mp4':
       return 'video/mp4';
+    case '.webm':
+      return 'video/webm';
+    case '.mov':
+      return 'video/quicktime';
     case '.mp3':
       return 'audio/mpeg';
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
     case '.css':
       return 'text/css';
     case '.js':
       return 'application/javascript';
     case '.py':
       return 'text/x-python';
-    case '.zip':
-      return 'application/zip';
     default:
       return 'application/octet-stream';
   }
-}
-
-function assetMetadata(assetKey: string, url: string) {
-  const ext = path.extname(new URL(url).pathname).toLowerCase();
-  const type = ['.mp4', '.mov', '.webm'].includes(ext)
-    ? 'video'
-    : ['.mp3', '.wav', '.m4a'].includes(ext)
-      ? 'audio'
-      : ['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)
-        ? 'image'
-        : assetKey === 'transcript'
-          ? 'transcript'
-          : ['.json', '.csv', '.txt', '.srt', '.vtt'].includes(ext)
-            ? 'data'
-            : 'file';
-  const label = assetKey
-    .replace(/^manim_(?:script_)?/, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  return { label, type, createdAt: FieldValue.serverTimestamp() };
 }
 
 async function uploadFileToStorage(
@@ -158,23 +145,8 @@ export async function getAssetUrl(
 
 export function parseStoragePathFromPublicUrl(url: string): string {
   const parsed = new URL(url);
-  if (parsed.hostname === 'storage.googleapis.com') {
-    const segments = parsed.pathname.replace(/^\//, '').split('/');
-    if (segments.length < 2) throw new Error('Invalid Google Storage URL');
-    if (decodeURIComponent(segments[0]) !== getStorageBucketName()) {
-      throw new Error('Storage URL uses an unexpected bucket');
-    }
-    return decodeURIComponent(segments.slice(1).join('/'));
-  }
-  if (parsed.hostname === 'firebasestorage.googleapis.com') {
-    const match = /^\/v0\/b\/([^/]+)\/o\/([^/]+)$/.exec(parsed.pathname);
-    if (!match) throw new Error('Invalid Firebase Storage URL');
-    if (decodeURIComponent(match[1]) !== getStorageBucketName()) {
-      throw new Error('Storage URL uses an unexpected bucket');
-    }
-    return decodeURIComponent(match[2]);
-  }
-  throw new Error('Unsupported Storage URL');
+  const segments = parsed.pathname.replace(/^\//, '').split('/');
+  return segments.slice(1).join('/');
 }
 
 export async function downloadStoragePrefixToDir(
@@ -210,9 +182,6 @@ export async function writeAssetUrl(
       {
         assets: {
           [assetKey]: url,
-        },
-        assetMetadata: {
-          [assetKey]: assetMetadata(assetKey, url),
         },
       },
       { merge: true }
@@ -254,7 +223,6 @@ export type RenderJob = {
   outputKey: string;
   renderStatus: string;
   compositionUrl?: string;
-  renderFingerprint?: string;
 };
 
 export async function persistRenderJob(
@@ -267,7 +235,6 @@ export async function persistRenderJob(
     renderOutputKey: job.outputKey,
     renderStatus: 'RUNNING',
     renderCompositionUrl: job.compositionUrl,
-    renderFingerprint: job.renderFingerprint,
     pipelinePhase: 6,
     pipelineStatus: 'rendering',
     pipelineUpdatedAt: FieldValue.serverTimestamp(),
@@ -292,8 +259,6 @@ export async function getRenderJob(
     renderStatus: typeof data.renderStatus === 'string' ? data.renderStatus : 'RUNNING',
     compositionUrl:
       typeof data.renderCompositionUrl === 'string' ? data.renderCompositionUrl : undefined,
-    renderFingerprint:
-      typeof data.renderFingerprint === 'string' ? data.renderFingerprint : undefined,
   };
 }
 
@@ -313,24 +278,11 @@ export async function finalizeRenderFromLocalFile(
   }
 
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
-  const canonicalPath = path.join(os.tmpdir(), 'okvevo', sessionId, 'draft_video.mp4');
-  fs.mkdirSync(path.dirname(canonicalPath), { recursive: true });
-  if (path.resolve(tempPath) !== path.resolve(canonicalPath)) {
-    fs.copyFileSync(tempPath, canonicalPath);
-  }
-  const videoUrl = await uploadFileToStorage(canonicalPath, firebasePath, {
-    deleteLocal: false,
-  });
-  if (path.resolve(tempPath) !== path.resolve(canonicalPath)) {
-    fs.rmSync(tempPath, { force: true });
-  }
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
   await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl);
   await sessionRef.set(
     {
       assets: { draft_video: videoUrl },
-      assetMetadata: {
-        draft_video: assetMetadata('draft_video', videoUrl),
-      },
       renderStatus: 'SUCCEEDED',
       renderError: FieldValue.delete(),
       draftVideoUrl: videoUrl,

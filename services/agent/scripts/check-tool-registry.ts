@@ -2,7 +2,12 @@ import 'dotenv/config';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { BASE_TOOLS, SKILL_TOOLS, BASE_ONLY_SKILLS } from '../src/tools/catalog';
+import {
+  BASE_TOOLS,
+  SKILL_TOOLS,
+  SKILL_BASE_OVERRIDES,
+  BASE_ONLY_SKILLS,
+} from '../src/tools/catalog';
 import { buildTools } from '../src/tools';
 import { SKILLS_DIR } from '../src/skills';
 
@@ -23,6 +28,13 @@ assertNoDuplicates(BASE_TOOLS, 'BASE_TOOLS');
 for (const [skill, tools] of Object.entries(SKILL_TOOLS)) {
   assertNoDuplicates(tools, `SKILL_TOOLS['${skill}']`);
 }
+for (const [skill, tools] of Object.entries(SKILL_BASE_OVERRIDES)) {
+  assertNoDuplicates(tools, `SKILL_BASE_OVERRIDES['${skill}']`);
+  assert(
+    skill in SKILL_TOOLS || BASE_ONLY_SKILLS.includes(skill),
+    `SKILL_BASE_OVERRIDES['${skill}'] has no matching SKILL_TOOLS / BASE_ONLY entry`
+  );
+}
 
 const ctx = {
   sessionId: 'check-tool-registry',
@@ -39,8 +51,15 @@ for (const name of BASE_TOOLS) {
 
 for (const [skill, toolNames] of Object.entries(SKILL_TOOLS)) {
   const built = buildTools(ctx, [skill]);
-  for (const name of [...BASE_TOOLS, ...toolNames]) {
+  const expectedBase = SKILL_BASE_OVERRIDES[skill] ?? BASE_TOOLS;
+  for (const name of [...expectedBase, ...toolNames]) {
     assert(name in built, `Skill '${skill}' buildTools missing '${name}'`);
+  }
+  if (SKILL_BASE_OVERRIDES[skill]) {
+    assert(
+      !('run_command' in built),
+      `Skill '${skill}' must not expose run_command`
+    );
   }
 }
 

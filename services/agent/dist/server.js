@@ -112,8 +112,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs12 = require("fs");
-    var path12 = require("path");
+    var fs16 = require("fs");
+    var path16 = require("path");
     var os3 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
@@ -221,7 +221,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs12.existsSync(filepath)) {
+            if (fs16.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +229,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path12.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path16.resolve(process.cwd(), ".env.vault");
       }
-      if (fs12.existsSync(possibleVaultPath)) {
+      if (fs16.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path12.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path16.join(os3.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path12.resolve(process.cwd(), ".env");
+      const dotenvPath = path16.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path13 of optionPaths) {
+      for (const path17 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs12.readFileSync(path13, { encoding }));
+          const parsed = DotenvModule.parse(fs16.readFileSync(path17, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path13} ${e.message}`);
+            _debug(`Failed to load ${path17} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path12.relative(process.cwd(), filePath);
+            const relative = path16.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path12) {
-  if (!path12)
+function getElementAtPath(obj, path16) {
+  if (!path16)
     return obj;
-  return path12.reduce((acc, key) => acc?.[key], obj);
+  return path16.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path12, issues) {
+function prefixIssues(path16, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path12);
+    iss.path.unshift(path16);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path12 = []) => {
+  const processError = (error41, path16 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path12, ...issue2.path];
+        const fullpath = [...path16, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path12) {
+function toDotPath(path16) {
   const segs = [];
-  for (const seg of path12) {
+  for (const seg of path16) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -1631,12 +1631,12 @@ function time(args) {
 }
 function datetime(args) {
   const time3 = timeSource({ precision: args.precision });
-  const opts = ["Z"];
+  const opts2 = ["Z"];
   if (args.local)
-    opts.push("");
+    opts2.push("");
   if (args.offset)
-    opts.push(`([+-]\\d{2}:\\d{2})`);
-  const timeRegex2 = `${time3}(?:${opts.join("|")})`;
+    opts2.push(`([+-]\\d{2}:\\d{2})`);
+  const timeRegex2 = `${time3}(?:${opts2.join("|")})`;
   return new RegExp(`^${dateSource}T(?:${timeRegex2})$`);
 }
 var cuid, cuid2, ulid, xid, ksuid, nanoid, duration, extendedDuration, guid, uuid, uuid4, uuid6, uuid7, email, html5Email, rfc5322Email, unicodeEmail, browserEmail, _emoji, ipv4, ipv6, cidrv4, cidrv6, base64, base64url, hostname, domain, e164, dateSource, date, string, bigint, integer, number, boolean, _null, _undefined, lowercase, uppercase;
@@ -3329,9 +3329,9 @@ var init_schemas = __esm({
         return propValues;
       });
       const disc = cached(() => {
-        const opts = def.options;
+        const opts2 = def.options;
         const map2 = /* @__PURE__ */ new Map();
-        for (const o of opts) {
+        for (const o of opts2) {
           const values = o._zod.propValues[def.discriminator];
           if (!values || values.size === 0)
             throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(o)}"`);
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path12, errorMaps, issueData } = params;
-      const fullPath = [...path12, ...issueData.path || []];
+      const { data, path: path16, errorMaps, issueData } = params;
+      const fullPath = [...path16, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -12936,11 +12936,11 @@ function timeRegex(args) {
 }
 function datetimeRegex(args) {
   let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
-  const opts = [];
-  opts.push(args.local ? `Z?` : `Z`);
+  const opts2 = [];
+  opts2.push(args.local ? `Z?` : `Z`);
   if (args.offset)
-    opts.push(`([+-]\\d{2}:?\\d{2})`);
-  regex = `${regex}(${opts.join("|")})`;
+    opts2.push(`([+-]\\d{2}:?\\d{2})`);
+  regex = `${regex}(${opts2.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
 function isValidIP(ip, version2) {
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path12, key) {
+      constructor(parent, value, path16, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path12;
+        this._path = path16;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path11 = __toESM2(require("path"));
-    var import_fs11 = __toESM2(require("fs"));
+    var import_path15 = __toESM2(require("path"));
+    var import_fs15 = __toESM2(require("fs"));
     var import_os3 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path11.default.dirname(dir)) {
-          const pkgPath = import_path11.default.join(dir, ".vercel");
-          if (import_fs11.default.existsSync(pkgPath)) {
+        while (dir !== import_path15.default.dirname(dir)) {
+          const pkgPath = import_path15.default.join(dir, ".vercel");
+          if (import_fs15.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path11.default.dirname(dir);
+          dir = import_path15.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19076,9 +19076,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os3.default.platform()) {
         case "darwin":
-          return import_path11.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path15.default.join(import_os3.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path11.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path15.default.join(import_os3.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19129,8 +19129,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS(auth_config_exports);
-    var fs12 = __toESM2(require("fs"));
-    var path12 = __toESM2(require("path"));
+    var fs16 = __toESM2(require("fs"));
+    var path16 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19139,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path12.join(dataDir, "auth.json");
+      return path16.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs12.existsSync(authPath)) {
+        if (!fs16.existsSync(authPath)) {
           return null;
         }
-        const content = fs12.readFileSync(authPath, "utf8");
+        const content = fs16.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19158,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path12.dirname(authPath);
-      if (!fs12.existsSync(authDir)) {
-        fs12.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path16.dirname(authPath);
+      if (!fs16.existsSync(authDir)) {
+        fs16.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs12.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs16.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19353,8 +19353,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path12 = __toESM2(require("path"));
-    var fs12 = __toESM2(require("fs"));
+    var path16 = __toESM2(require("path"));
+    var fs16 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path12.join(dataDir, vercelFolder);
+      return path16.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19442,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path12.join(dir, ".vercel", "project.json");
-      if (!fs12.existsSync(prjPath)) {
+      const prjPath = path16.join(dir, ".vercel", "project.json");
+      if (!fs16.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs12.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs16.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19463,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path16.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs12.mkdirSync(path12.dirname(tokenPath), { mode: 504, recursive: true });
-      fs12.writeFileSync(tokenPath, tokenJson);
-      fs12.chmodSync(tokenPath, 432);
+      fs16.mkdirSync(path16.dirname(tokenPath), { mode: 504, recursive: true });
+      fs16.writeFileSync(tokenPath, tokenJson);
+      fs16.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs12.existsSync(tokenPath)) {
+      const tokenPath = path16.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs16.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs12.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs16.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -22161,7 +22161,7 @@ var init_NoopTracer = __esm({
         }
       }
       startActiveSpan(name26, arg2, arg3, arg4) {
-        let opts;
+        let opts2;
         let ctx;
         let fn;
         if (arguments.length < 2) {
@@ -22169,15 +22169,15 @@ var init_NoopTracer = __esm({
         } else if (arguments.length === 2) {
           fn = arg2;
         } else if (arguments.length === 3) {
-          opts = arg2;
+          opts2 = arg2;
           fn = arg3;
         } else {
-          opts = arg2;
+          opts2 = arg2;
           ctx = arg3;
           fn = arg4;
         }
         const parentContext = ctx !== null && ctx !== void 0 ? ctx : contextApi.active();
-        const span = this.startSpan(name26, opts, parentContext);
+        const span = this.startSpan(name26, opts2, parentContext);
         const contextWithSpanSet = setSpan(parentContext, span);
         return contextApi.with(contextWithSpanSet, fn, void 0, span);
       }
@@ -29971,25 +29971,26 @@ function contentTypeForPath(filePath) {
       return "text/html";
     case ".mp4":
       return "video/mp4";
+    case ".webm":
+      return "video/webm";
+    case ".mov":
+      return "video/quicktime";
     case ".mp3":
       return "audio/mpeg";
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
     case ".css":
       return "text/css";
     case ".js":
       return "application/javascript";
     case ".py":
       return "text/x-python";
-    case ".zip":
-      return "application/zip";
     default:
       return "application/octet-stream";
   }
-}
-function assetMetadata(assetKey, url2) {
-  const ext = import_path3.default.extname(new URL(url2).pathname).toLowerCase();
-  const type = [".mp4", ".mov", ".webm"].includes(ext) ? "video" : [".mp3", ".wav", ".m4a"].includes(ext) ? "audio" : [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext) ? "image" : assetKey === "transcript" ? "transcript" : [".json", ".csv", ".txt", ".srt", ".vtt"].includes(ext) ? "data" : "file";
-  const label = assetKey.replace(/^manim_(?:script_)?/, "").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-  return { label, type, createdAt: import_firestore4.FieldValue.serverTimestamp() };
 }
 async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
@@ -30037,23 +30038,8 @@ async function getAssetUrl(userId, sessionId, assetKey) {
 }
 function parseStoragePathFromPublicUrl(url2) {
   const parsed = new URL(url2);
-  if (parsed.hostname === "storage.googleapis.com") {
-    const segments = parsed.pathname.replace(/^\//, "").split("/");
-    if (segments.length < 2) throw new Error("Invalid Google Storage URL");
-    if (decodeURIComponent(segments[0]) !== getStorageBucketName()) {
-      throw new Error("Storage URL uses an unexpected bucket");
-    }
-    return decodeURIComponent(segments.slice(1).join("/"));
-  }
-  if (parsed.hostname === "firebasestorage.googleapis.com") {
-    const match = /^\/v0\/b\/([^/]+)\/o\/([^/]+)$/.exec(parsed.pathname);
-    if (!match) throw new Error("Invalid Firebase Storage URL");
-    if (decodeURIComponent(match[1]) !== getStorageBucketName()) {
-      throw new Error("Storage URL uses an unexpected bucket");
-    }
-    return decodeURIComponent(match[2]);
-  }
-  throw new Error("Unsupported Storage URL");
+  const segments = parsed.pathname.replace(/^\//, "").split("/");
+  return segments.slice(1).join("/");
 }
 async function downloadStoragePrefixToDir(storagePrefix, localDir) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
@@ -30073,9 +30059,6 @@ async function writeAssetUrl(userId, sessionId, assetKey, url2) {
     {
       assets: {
         [assetKey]: url2
-      },
-      assetMetadata: {
-        [assetKey]: assetMetadata(assetKey, url2)
       }
     },
     { merge: true }
@@ -30094,7 +30077,6 @@ async function persistRenderJob(userId, sessionId, job) {
     renderOutputKey: job.outputKey,
     renderStatus: "RUNNING",
     renderCompositionUrl: job.compositionUrl,
-    renderFingerprint: job.renderFingerprint,
     pipelinePhase: 6,
     pipelineStatus: "rendering",
     pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
@@ -30113,8 +30095,7 @@ async function getRenderJob(userId, sessionId) {
     executionArn: data.renderExecutionArn,
     outputKey: data.renderOutputKey,
     renderStatus: typeof data.renderStatus === "string" ? data.renderStatus : "RUNNING",
-    compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0,
-    renderFingerprint: typeof data.renderFingerprint === "string" ? data.renderFingerprint : void 0
+    compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
   };
 }
 async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
@@ -30124,24 +30105,11 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
     return current.draftVideoUrl;
   }
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
-  const canonicalPath = import_path3.default.join(import_os.default.tmpdir(), "okvevo", sessionId, "draft_video.mp4");
-  import_fs3.default.mkdirSync(import_path3.default.dirname(canonicalPath), { recursive: true });
-  if (import_path3.default.resolve(tempPath) !== import_path3.default.resolve(canonicalPath)) {
-    import_fs3.default.copyFileSync(tempPath, canonicalPath);
-  }
-  const videoUrl = await uploadFileToStorage(canonicalPath, firebasePath, {
-    deleteLocal: false
-  });
-  if (import_path3.default.resolve(tempPath) !== import_path3.default.resolve(canonicalPath)) {
-    import_fs3.default.rmSync(tempPath, { force: true });
-  }
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
   await writeAssetUrl(userId, sessionId, "draft_video", videoUrl);
   await sessionRef.set(
     {
       assets: { draft_video: videoUrl },
-      assetMetadata: {
-        draft_video: assetMetadata("draft_video", videoUrl)
-      },
       renderStatus: "SUCCEEDED",
       renderError: import_firestore4.FieldValue.delete(),
       draftVideoUrl: videoUrl,
@@ -35409,7 +35377,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path16 }) => `${baseURL}${path16}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35417,7 +35385,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path16 }) => `${baseURL}${path16}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35425,21 +35393,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path16 }) => `${baseURL}${path16}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path16 }) => `${baseURL}${path16}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path16 }) => `${baseURL}${path16}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35504,7 +35472,17 @@ var SKILL_TOOLS = {
     "render_hyperframes"
   ],
   "manim-video": ["generate_manim_script", "render_manim_clip"],
-  "hyperframes": ["render_hyperframes"]
+  "hyperframes": ["render_hyperframes"],
+  "remove-background": ["remove_background"],
+  "background-generator": ["generate_background"],
+  "background-video-generator": ["generate_background_video"],
+  "composite-subject": ["composite_subject"]
+};
+var SKILL_BASE_OVERRIDES = {
+  "remove-background": ["ask_clarification"],
+  "background-generator": ["ask_clarification"],
+  "background-video-generator": ["ask_clarification"],
+  "composite-subject": ["ask_clarification"]
 };
 
 // src/sessionSkills.ts
@@ -35921,16 +35899,69 @@ function resolveSkill(skillId, message) {
 }
 function detectSkill(message) {
   const text2 = message.toLowerCase();
-  const triggers = [
-    "/edu-video",
-    "educational video",
-    "edu video",
-    "lecture video",
-    "teacher video",
-    "teaching video"
+  const skillTriggers = [
+    {
+      skill: "edu-video",
+      triggers: [
+        "/edu-video",
+        "educational video",
+        "edu video",
+        "lecture video",
+        "teacher video",
+        "teaching video"
+      ]
+    },
+    {
+      skill: "remove-background",
+      triggers: [
+        "/remove-background",
+        "remove background",
+        "remove the background",
+        "transparent background",
+        "cut out the speaker",
+        "matte the video"
+      ]
+    },
+    {
+      skill: "background-generator",
+      triggers: [
+        "/background-generator",
+        "generate a background",
+        "generate background",
+        "create a background",
+        "background image",
+        "backdrop image"
+      ]
+    },
+    {
+      skill: "background-video-generator",
+      triggers: [
+        "/background-video-generator",
+        "background video",
+        "generate a background video",
+        "generate background video",
+        "moving background",
+        "video backdrop",
+        "animated background"
+      ]
+    },
+    {
+      skill: "composite-subject",
+      triggers: [
+        "/composite-subject",
+        "composite",
+        "combine cutout",
+        "put me on the background",
+        "overlay on background",
+        "place on background",
+        "club the two"
+      ]
+    }
   ];
-  if (triggers.some((trigger) => text2.includes(trigger))) {
-    return "edu-video";
+  for (const { skill, triggers } of skillTriggers) {
+    if (triggers.some((trigger) => text2.includes(trigger))) {
+      return skill;
+    }
   }
   return null;
 }
@@ -36098,13 +36129,13 @@ function isSessionWorkdirCold(sessionId) {
   const workdir = getSessionWorkdir(sessionId);
   return !(sessionArtifactPresent(workdir, "transcript") || sessionArtifactPresent(workdir, "concepts") || sessionArtifactPresent(workdir, "manim_scripts") || sessionArtifactPresent(workdir, "hf_project"));
 }
-function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts = []) {
+function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts2 = []) {
   const workdir = getSessionWorkdir(sessionId);
   const rel = import_path4.default.relative(workdir, resolvedPath);
   if (!rel || rel.startsWith("..") || import_path4.default.isAbsolute(rel)) {
     return [];
   }
-  const tagged = taggedArtifacts.find(
+  const tagged = taggedArtifacts2.find(
     (artifact) => import_path4.default.resolve(artifact.localPath) === import_path4.default.resolve(resolvedPath)
   );
   if (tagged) return [tagged];
@@ -36117,29 +36148,6 @@ function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts =
     return ["transcript", "concepts", "manim_scripts", "hf_project"];
   }
   return [];
-}
-async function resolveTaggedArtifacts(userId, sessionId, assets, parseStoragePath) {
-  const parse3 = parseStoragePath ?? (await Promise.resolve().then(() => (init_storage(), storage_exports))).parseStoragePathFromPublicUrl;
-  const workdir = getSessionWorkdir(sessionId);
-  const sessionPrefix = `users/${userId}/sessions/${sessionId}/`;
-  const uploadPrefix = `uploads/${userId}/${sessionId}/`;
-  return assets.flatMap((asset, index) => {
-    let storagePath;
-    try {
-      storagePath = parse3(asset.url);
-    } catch {
-      return [];
-    }
-    const isUpload = storagePath.startsWith(uploadPrefix);
-    const prefix = isUpload ? uploadPrefix : sessionPrefix;
-    if (!storagePath.startsWith(prefix)) return [];
-    const suffix = storagePath.slice(prefix.length);
-    if (!suffix || suffix.endsWith("/")) return [];
-    const relativePath = isUpload ? import_path4.default.join("uploads", suffix) : suffix;
-    const localPath = import_path4.default.resolve(workdir, relativePath);
-    if (!localPath.startsWith(`${import_path4.default.resolve(workdir)}${import_path4.default.sep}`)) return [];
-    return [{ ...asset, localPath, key: `tagged_${index}` }];
-  });
 }
 async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   const needsStorage = !deps?.getAssetUrl || !deps?.downloadStoragePrefixToDir || !deps?.parseStoragePathFromPublicUrl;
@@ -38306,6 +38314,571 @@ function createTranscribeTools(ctx) {
   };
 }
 
+// src/tools/pipeline/removeBackground.ts
+var import_fs11 = __toESM(require("fs"));
+var import_path11 = __toESM(require("path"));
+init_dist5();
+init_zod();
+init_storage();
+function resolveHyperframesCli() {
+  return process.env.HYPERFRAMES_CLI ?? "/usr/local/lib/node_modules/hyperframes/dist/cli.js";
+}
+async function muxSourceAudio(videoPath, audioSourcePath, outputPath) {
+  const probe = await execCommand(
+    `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${audioSourcePath}"`,
+    { timeoutSeconds: 30 }
+  );
+  const hasAudio2 = probe.success && probe.stdout.trim().length > 0;
+  if (!hasAudio2) {
+    import_fs11.default.copyFileSync(videoPath, outputPath);
+    return { kept_audio: false };
+  }
+  const mux = await execCommand(
+    `ffmpeg -y -i "${videoPath}" -i "${audioSourcePath}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a libopus -shortest "${outputPath}"`,
+    { timeoutSeconds: 120 }
+  );
+  if (!mux.success) {
+    throw new Error(mux.stderr || "Failed to mux source audio onto cutout");
+  }
+  return { kept_audio: true };
+}
+function createRemoveBackgroundTools(ctx) {
+  return {
+    remove_background: tool({
+      description: `Remove the background from a person/portrait video using HyperFrames local matting (u\xB2-net_human_seg). Downloads the source, writes a transparent VP9-alpha WebM cutout with source audio remuxed by default, uploads it to Firebase Storage, and returns the public URL. Optionally also emits an inverse-alpha background plate.`,
+      inputSchema: external_exports2.object({
+        video_url: external_exports2.string().describe("Firebase Storage URL of the source video"),
+        quality: external_exports2.enum(["fast", "balanced", "best"]).optional().describe("Encoder quality preset; default balanced"),
+        emit_background_plate: external_exports2.boolean().optional().describe(
+          "If true, also write an inverse-alpha hole-cut plate for text-behind-subject layouts"
+        ),
+        keep_audio: external_exports2.boolean().optional().describe(
+          "Remux original audio onto the cutout (default true). Set false for silent cutout."
+        )
+      }),
+      execute: async ({
+        video_url,
+        quality = "balanced",
+        emit_background_plate = false,
+        keep_audio = true
+      }) => {
+        try {
+          const workdir = getSessionWorkdir(ctx.sessionId);
+          const inputPath = import_path11.default.join(workdir, "rb_source.mp4");
+          const cutoutSilentPath = import_path11.default.join(workdir, "rb_cutout_silent.webm");
+          const cutoutPath = import_path11.default.join(workdir, "rb_cutout.webm");
+          const plateSilentPath = import_path11.default.join(workdir, "rb_plate_silent.webm");
+          const platePath = import_path11.default.join(workdir, "rb_plate.webm");
+          await downloadFile(video_url, inputPath);
+          const cliPath = resolveHyperframesCli();
+          if (!import_fs11.default.existsSync(cliPath)) {
+            throw new Error(
+              `HyperFrames CLI not found at ${cliPath}. Set HYPERFRAMES_CLI.`
+            );
+          }
+          const matteOut = keep_audio ? cutoutSilentPath : cutoutPath;
+          let cmd = `node "${cliPath}" remove-background "${inputPath}" -o "${matteOut}" --quality ${quality}`;
+          if (emit_background_plate) {
+            cmd += ` --background-output "${keep_audio ? plateSilentPath : platePath}"`;
+          }
+          const result = await execCommand(cmd, {
+            cwd: workdir,
+            timeoutSeconds: 1800
+          });
+          if (!result.success) {
+            throw new Error(
+              result.stderr || result.stdout || "remove-background failed"
+            );
+          }
+          if (!import_fs11.default.existsSync(matteOut)) {
+            throw new Error("Cutout file was not produced");
+          }
+          let keptAudio = false;
+          if (keep_audio) {
+            const muxed = await muxSourceAudio(
+              cutoutSilentPath,
+              inputPath,
+              cutoutPath
+            );
+            keptAudio = muxed.kept_audio;
+          }
+          const cutoutTemp = getTempPath(`${ctx.sessionId}_rb_cutout.webm`);
+          import_fs11.default.copyFileSync(cutoutPath, cutoutTemp);
+          const cutoutStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/cutout.webm`;
+          const cutoutUrl = await uploadToStorage(
+            cutoutTemp,
+            cutoutStoragePath
+          );
+          await writeAssetUrl(
+            ctx.userId,
+            ctx.sessionId,
+            "cutout_video",
+            cutoutUrl
+          );
+          let plateUrl;
+          if (emit_background_plate) {
+            const plateMatte = keep_audio ? plateSilentPath : platePath;
+            if (!import_fs11.default.existsSync(plateMatte)) {
+              throw new Error("Background plate file was not produced");
+            }
+            if (keep_audio) {
+              await muxSourceAudio(plateSilentPath, inputPath, platePath);
+            }
+            const plateTemp = getTempPath(`${ctx.sessionId}_rb_plate.webm`);
+            import_fs11.default.copyFileSync(platePath, plateTemp);
+            const plateStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/plate.webm`;
+            plateUrl = await uploadToStorage(plateTemp, plateStoragePath);
+            await writeAssetUrl(
+              ctx.userId,
+              ctx.sessionId,
+              "plate_video",
+              plateUrl
+            );
+          }
+          return {
+            cutout_url: cutoutUrl,
+            ...plateUrl ? { plate_url: plateUrl } : {},
+            quality,
+            emit_background_plate,
+            keep_audio,
+            kept_audio: keep_audio ? keptAudio : false,
+            cli_log: (result.stdout || result.stderr || "").slice(0, 500)
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[remove_background]", ctx.sessionId, message);
+          throw new Error(`Background removal failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
+// src/tools/pipeline/generateBackground.ts
+var import_fs12 = __toESM(require("fs"));
+var import_path12 = __toESM(require("path"));
+init_dist5();
+init_zod();
+init_storage();
+var IMAGE_SIZES = [
+  "square_hd",
+  "square",
+  "portrait_4_3",
+  "portrait_16_9",
+  "landscape_4_3",
+  "landscape_16_9"
+];
+function resolveFalImageKey() {
+  const key = process.env.FAL_API_IMAGE?.trim() || process.env.FAL_API_KEY?.trim();
+  if (!key) {
+    throw new Error("Missing FAL_API_IMAGE (or FAL_API_KEY)");
+  }
+  return key;
+}
+function createGenerateBackgroundTools(ctx) {
+  return {
+    generate_background: tool({
+      description: `Generate a background image from a text prompt using Fal AI FLUX schnell. Uploads the image to Firebase Storage and returns the public URL. Use for video backdrops and compositing behind transparent subjects.`,
+      inputSchema: external_exports2.object({
+        prompt: external_exports2.string().min(1).describe("Scene description for the background image"),
+        image_size: external_exports2.enum(IMAGE_SIZES).optional().describe("Output size preset; default landscape_16_9")
+      }),
+      execute: async ({ prompt, image_size = "landscape_16_9" }) => {
+        try {
+          const falKey = resolveFalImageKey();
+          const response = await fetch("https://fal.run/fal-ai/flux/schnell", {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${falKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              prompt,
+              image_size,
+              num_images: 1,
+              output_format: "png",
+              enable_safety_checker: true
+            })
+          });
+          if (!response.ok) {
+            const text2 = await response.text();
+            throw new Error(
+              `Fal API error ${response.status}: ${text2.slice(0, 500)}`
+            );
+          }
+          const data = await response.json();
+          const image = data.images?.[0];
+          if (!image?.url) {
+            throw new Error("Fal returned no image URL");
+          }
+          const workdir = getSessionWorkdir(ctx.sessionId);
+          const localPath = import_path12.default.join(workdir, "generated_background.png");
+          await downloadFile(image.url, localPath);
+          const tempPath = getTempPath(`${ctx.sessionId}_bg.png`);
+          import_fs12.default.copyFileSync(localPath, tempPath);
+          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/background.png`;
+          const imageUrl = await uploadToStorage(tempPath, storagePath);
+          await writeAssetUrl(
+            ctx.userId,
+            ctx.sessionId,
+            "background_image",
+            imageUrl
+          );
+          return {
+            image_url: imageUrl,
+            prompt_used: prompt,
+            image_size,
+            width: image.width ?? null,
+            height: image.height ?? null,
+            fal_source_url: image.url
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[generate_background]", ctx.sessionId, message);
+          throw new Error(`Background generation failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
+// src/tools/pipeline/generateBackgroundVideo.ts
+var import_fs13 = __toESM(require("fs"));
+var import_path13 = __toESM(require("path"));
+init_dist5();
+init_zod();
+init_storage();
+var MAX_BACKGROUND_VIDEO_SECONDS = 15;
+var WAN_MODEL = "fal-ai/wan-t2v";
+var MIN_FRAMES = 81;
+var MAX_FRAMES = 100;
+var MIN_FPS = 5;
+function resolveFalVideoKey() {
+  const key = process.env.FAL_API_VIDEO?.trim() || process.env.FAL_API_KEY?.trim() || process.env.FAL_API_IMAGE?.trim();
+  if (!key) {
+    throw new Error("Missing FAL_API_VIDEO (or FAL_API_KEY / FAL_API_IMAGE)");
+  }
+  return key;
+}
+function resolveWanTiming(durationSeconds) {
+  const raw = Number.isFinite(durationSeconds) ? durationSeconds : 5;
+  const requested = Math.round(raw);
+  const clampedValue = Math.min(
+    MAX_BACKGROUND_VIDEO_SECONDS,
+    Math.max(4, requested)
+  );
+  const clamped = clampedValue !== requested;
+  for (let fps = 16; fps >= MIN_FPS; fps--) {
+    const frames = Math.round(clampedValue * fps);
+    if (frames >= MIN_FRAMES && frames <= MAX_FRAMES) {
+      return {
+        num_frames: frames,
+        frames_per_second: fps,
+        requested_seconds: requested,
+        actual_seconds: frames / fps,
+        clamped
+      };
+    }
+  }
+  if (clampedValue >= 12) {
+    return {
+      num_frames: 90,
+      frames_per_second: 6,
+      requested_seconds: requested,
+      actual_seconds: 15,
+      clamped: true
+    };
+  }
+  return {
+    num_frames: MIN_FRAMES,
+    frames_per_second: 16,
+    requested_seconds: requested,
+    actual_seconds: MIN_FRAMES / 16,
+    clamped
+  };
+}
+async function falQueueGenerate(falKey, input) {
+  const submit = await fetch(`https://queue.fal.run/${WAN_MODEL}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${falKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+  if (!submit.ok) {
+    const text2 = await submit.text();
+    throw new Error(`Fal queue submit ${submit.status}: ${text2.slice(0, 500)}`);
+  }
+  const submitted = await submit.json();
+  const requestId = submitted.request_id;
+  if (!requestId) {
+    throw new Error("Fal queue submit returned no request_id");
+  }
+  const statusUrl = submitted.status_url ?? `https://queue.fal.run/${WAN_MODEL}/requests/${requestId}/status`;
+  const resultUrl = submitted.response_url ?? `https://queue.fal.run/${WAN_MODEL}/requests/${requestId}`;
+  const deadline = Date.now() + 10 * 60 * 1e3;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3e3));
+    const statusRes = await fetch(statusUrl, {
+      headers: { Authorization: `Key ${falKey}` }
+    });
+    if (!statusRes.ok) {
+      const text2 = await statusRes.text();
+      throw new Error(
+        `Fal queue status ${statusRes.status}: ${text2.slice(0, 500)}`
+      );
+    }
+    const statusBody = await statusRes.json();
+    const status = (statusBody.status ?? "").toUpperCase();
+    if (status === "COMPLETED" || status === "OK") {
+      break;
+    }
+    if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
+      throw new Error(
+        `Fal video generation failed: ${statusBody.error || status}`
+      );
+    }
+  }
+  const resultRes = await fetch(resultUrl, {
+    headers: { Authorization: `Key ${falKey}` }
+  });
+  if (!resultRes.ok) {
+    const text2 = await resultRes.text();
+    throw new Error(
+      `Fal queue result ${resultRes.status}: ${text2.slice(0, 500)}`
+    );
+  }
+  return await resultRes.json();
+}
+function createGenerateBackgroundVideoTools(ctx) {
+  return {
+    generate_background_video: tool({
+      description: `Generate a short backdrop video from a text prompt using Fal Wan 2.1 (fal-ai/wan-t2v). Hard-capped at ${MAX_BACKGROUND_VIDEO_SECONDS} seconds. Uploads the MP4 to Firebase Storage and returns the public URL. Use for moving video backgrounds behind a subject.`,
+      inputSchema: external_exports2.object({
+        prompt: external_exports2.string().min(1).describe("Scene description for the background video"),
+        duration_seconds: external_exports2.number().optional().describe(
+          `Desired length in seconds (4\u2013${MAX_BACKGROUND_VIDEO_SECONDS}). Longer requests are clamped.`
+        ),
+        resolution: external_exports2.enum(["480p", "580p", "720p"]).optional().describe("Output resolution; default 720p"),
+        aspect_ratio: external_exports2.enum(["16:9", "9:16"]).optional().describe("Aspect ratio; default 16:9")
+      }),
+      execute: async ({
+        prompt,
+        duration_seconds = 5,
+        resolution = "720p",
+        aspect_ratio = "16:9"
+      }) => {
+        try {
+          const falKey = resolveFalVideoKey();
+          const timing = resolveWanTiming(duration_seconds);
+          const data = await falQueueGenerate(falKey, {
+            prompt,
+            num_frames: timing.num_frames,
+            frames_per_second: timing.frames_per_second,
+            resolution,
+            aspect_ratio,
+            enable_safety_checker: true,
+            turbo_mode: true
+          });
+          const falVideoUrl = data.video?.url;
+          if (!falVideoUrl) {
+            throw new Error("Fal returned no video URL");
+          }
+          const workdir = getSessionWorkdir(ctx.sessionId);
+          const localPath = import_path13.default.join(workdir, "generated_background.mp4");
+          await downloadFile(falVideoUrl, localPath);
+          const tempPath = getTempPath(`${ctx.sessionId}_bg_video.mp4`);
+          import_fs13.default.copyFileSync(localPath, tempPath);
+          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/background.mp4`;
+          const videoUrl = await uploadToStorage(tempPath, storagePath);
+          await writeAssetUrl(
+            ctx.userId,
+            ctx.sessionId,
+            "background_video",
+            videoUrl
+          );
+          return {
+            video_url: videoUrl,
+            prompt_used: prompt,
+            resolution,
+            aspect_ratio,
+            model: WAN_MODEL,
+            requested_seconds: timing.requested_seconds,
+            duration_seconds: timing.actual_seconds,
+            duration_clamped: timing.clamped,
+            max_seconds: MAX_BACKGROUND_VIDEO_SECONDS,
+            num_frames: timing.num_frames,
+            frames_per_second: timing.frames_per_second,
+            fal_source_url: falVideoUrl,
+            seed: data.seed ?? null
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[generate_background_video]", ctx.sessionId, message);
+          throw new Error(`Background video generation failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
+// src/tools/pipeline/compositeSubject.ts
+var import_fs14 = __toESM(require("fs"));
+var import_path14 = __toESM(require("path"));
+init_dist5();
+init_zod();
+init_storage();
+async function ffprobeJson(filePath) {
+  const result = await execCommand(
+    `ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,duration -show_entries format=duration,format_name -of json "${filePath}"`,
+    { timeoutSeconds: 60 }
+  );
+  if (!result.success) {
+    throw new Error(result.stderr || "ffprobe failed");
+  }
+  return JSON.parse(result.stdout);
+}
+function pickVideoStream(probe) {
+  return probe.streams?.find((s) => s.codec_type === "video") ?? null;
+}
+function hasAudio(probe) {
+  return Boolean(probe.streams?.some((s) => s.codec_type === "audio"));
+}
+function parseDuration(probe) {
+  const fromFormat = Number(probe.format?.duration);
+  if (Number.isFinite(fromFormat) && fromFormat > 0) return fromFormat;
+  for (const stream of probe.streams ?? []) {
+    const d = Number(stream.duration);
+    if (Number.isFinite(d) && d > 0) return d;
+  }
+  return 0;
+}
+function isImageFile(filePath, probe) {
+  const ext = import_path14.default.extname(filePath).toLowerCase();
+  if ([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"].includes(ext)) {
+    return true;
+  }
+  const format = (probe.format?.format_name ?? "").toLowerCase();
+  if (format.includes("image") || format.includes("png") || format.includes("jpeg")) {
+    return true;
+  }
+  const video = pickVideoStream(probe);
+  const duration3 = parseDuration(probe);
+  return Boolean(video?.width && duration3 > 0 && duration3 < 0.15);
+}
+function createCompositeSubjectTools(ctx) {
+  return {
+    composite_subject: tool({
+      description: `Composite a transparent subject cutout (WebM/MOV with alpha) over a background image or video using ffmpeg. Preserves cutout audio when present. Uploads the final MP4 to Firebase Storage and returns the public URL.`,
+      inputSchema: external_exports2.object({
+        cutout_url: external_exports2.string().describe("Firebase URL of the transparent cutout video (alpha WebM)"),
+        background_url: external_exports2.string().describe(
+          "Firebase URL of the background image (png/jpg) or background video (mp4/webm)"
+        ),
+        layout: external_exports2.enum(["fill", "fit", "bottom-center"]).optional().describe(
+          "Subject placement: fill (default), fit (letterboxed), bottom-center (talking-head)"
+        ),
+        width: external_exports2.number().optional().describe("Output width; default = cutout width"),
+        height: external_exports2.number().optional().describe("Output height; default = cutout height")
+      }),
+      execute: async ({
+        cutout_url,
+        background_url,
+        layout = "fill",
+        width,
+        height
+      }) => {
+        try {
+          const workdir = getSessionWorkdir(ctx.sessionId);
+          const cutoutPath = import_path14.default.join(workdir, "composite_cutout.webm");
+          const bgPath = import_path14.default.join(workdir, "composite_bg");
+          const outPath = import_path14.default.join(workdir, "composite_out.mp4");
+          await downloadFile(cutout_url, cutoutPath);
+          await downloadFile(background_url, bgPath);
+          const cutoutProbe = await ffprobeJson(cutoutPath);
+          const bgProbe = await ffprobeJson(bgPath);
+          const cutoutVideo = pickVideoStream(cutoutProbe);
+          if (!cutoutVideo?.width || !cutoutVideo?.height) {
+            throw new Error("Cutout has no video stream");
+          }
+          const outW = width ?? cutoutVideo.width;
+          const outH = height ?? cutoutVideo.height;
+          const bgIsImage = isImageFile(bgPath, bgProbe);
+          const cutoutHasAudio = hasAudio(cutoutProbe);
+          const bgHasAudio = !bgIsImage && hasAudio(bgProbe);
+          const bgScale = `[0:v]scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH},setsar=1[bg]`;
+          let fgScale;
+          let overlayPos;
+          if (layout === "bottom-center") {
+            fgScale = `[1:v]format=rgba,scale=${Math.round(outW * 0.75)}:-1:flags=lanczos[fg]`;
+            overlayPos = "(W-w)/2:H-h";
+          } else if (layout === "fit") {
+            fgScale = `[1:v]format=rgba,scale=${outW}:${outH}:force_original_aspect_ratio=decrease[fg]`;
+            overlayPos = "(W-w)/2:(H-h)/2";
+          } else {
+            fgScale = `[1:v]format=rgba,scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH}[fg]`;
+            overlayPos = "0:0";
+          }
+          const filter3 = `${bgScale};${fgScale};[bg][fg]overlay=${overlayPos}:format=auto,format=yuv420p[v]`;
+          const bgInput = bgIsImage ? `-loop 1 -i "${bgPath}"` : `-i "${bgPath}"`;
+          const cutoutInput = `-c:v libvpx-vp9 -i "${cutoutPath}"`;
+          let mapAudio = "";
+          if (cutoutHasAudio) {
+            mapAudio = "-map 1:a:0 -c:a aac -b:a 192k";
+          } else if (bgHasAudio) {
+            mapAudio = "-map 0:a:0 -c:a aac -b:a 192k";
+          } else {
+            mapAudio = "-an";
+          }
+          const cmd = `ffmpeg -y ${bgInput} ${cutoutInput} -filter_complex "${filter3}" -map "[v]" ${mapAudio} -shortest -movflags +faststart "${outPath}"`;
+          const render = await execCommand(cmd, {
+            cwd: workdir,
+            timeoutSeconds: 600
+          });
+          if (!render.success) {
+            throw new Error(render.stderr || render.stdout || "ffmpeg composite failed");
+          }
+          if (!import_fs14.default.existsSync(outPath)) {
+            throw new Error("Composite output was not produced");
+          }
+          const tempPath = getTempPath(`${ctx.sessionId}_composite.mp4`);
+          import_fs14.default.copyFileSync(outPath, tempPath);
+          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composite.mp4`;
+          const videoUrl = await uploadToStorage(tempPath, storagePath);
+          await writeAssetUrl(
+            ctx.userId,
+            ctx.sessionId,
+            "composite_video",
+            videoUrl
+          );
+          await writeAssetUrl(
+            ctx.userId,
+            ctx.sessionId,
+            "draft_video",
+            videoUrl
+          );
+          const outProbe = await ffprobeJson(outPath);
+          return {
+            video_url: videoUrl,
+            layout,
+            width: outW,
+            height: outH,
+            background_type: bgIsImage ? "image" : "video",
+            kept_audio: cutoutHasAudio || bgHasAudio,
+            audio_source: cutoutHasAudio ? "cutout" : bgHasAudio ? "background" : "none",
+            duration_seconds: parseDuration(outProbe) || null
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[composite_subject]", ctx.sessionId, message);
+          throw new Error(`Composite failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
 // src/tools/index.ts
 function buildTools(ctx, skills = []) {
   const all = {
@@ -38316,11 +38889,16 @@ function buildTools(ctx, skills = []) {
     ...createTranscribeTools(ctx),
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
-    ...createHyperframesTools(ctx)
+    ...createHyperframesTools(ctx),
+    ...createRemoveBackgroundTools(ctx),
+    ...createGenerateBackgroundTools(ctx),
+    ...createGenerateBackgroundVideoTools(ctx),
+    ...createCompositeSubjectTools(ctx)
   };
-  const names = new Set(BASE_TOOLS);
-  for (const skill of skills) {
-    if (!SKILL_TOOLS[skill]) continue;
+  const skill = opts?.skill;
+  const baseNames = skill && SKILL_BASE_OVERRIDES[skill] ? SKILL_BASE_OVERRIDES[skill] : BASE_TOOLS;
+  const names = new Set(baseNames);
+  if (skill && SKILL_TOOLS[skill]) {
     for (const name26 of SKILL_TOOLS[skill]) {
       names.add(name26);
     }
@@ -38455,16 +39033,25 @@ ${hint}`;
     }
   }
   const history = await loadMessages(params.sessionId, params.userId);
-  const taggedArtifacts = await resolveTaggedArtifacts(
-    params.userId,
-    params.sessionId,
-    params.taggedAssets ?? []
-  );
+  await saveMessage(params.sessionId, params.userId, "user", params.userMessage);
+  const mediaUrls = params.mediaUrls && params.mediaUrls.length > 0 ? params.mediaUrls : params.videoUrl ? [params.videoUrl] : [];
+  const mediaNames = params.mediaNames ?? [];
   let userContent = params.userMessage;
-  if (params.videoUrl) {
+  if (mediaUrls.length === 1) {
+    const label = mediaNames[0] ? ` (${mediaNames[0]})` : "";
     userContent += `
 
-Video URL for processing: ${params.videoUrl}`;
+Media URL for processing${label}: ${mediaUrls[0]}`;
+  } else if (mediaUrls.length > 1) {
+    const lines = mediaUrls.map((url2, i) => {
+      const name26 = mediaNames[i] ? ` \u2014 ${mediaNames[i]}` : "";
+      return `${i + 1}.${name26} ${url2}`;
+    });
+    userContent += `
+
+Media URLs for processing (in upload order \u2014 use these Firebase URLs directly; do not ask the user for links):
+${lines.join("\n")}`;
+    userContent += "\n\nIf compositing: prefer a .webm / transparent cutout as cutout_url and an image or opaque .mp4 as background_url.";
   }
   const referencedAssets = formatReferencedAssets(taggedArtifacts);
   if (referencedAssets) {
@@ -38785,6 +39372,8 @@ app2.post("/invocations", async (req, res) => {
     const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
     const videoName = typeof input.videoName === "string" ? input.videoName : void 0;
     const taggedAssets = parseTaggedAssets(input.taggedAssets);
+    const mediaUrls = Array.isArray(input.mediaUrls) ? input.mediaUrls.filter((u) => typeof u === "string") : void 0;
+    const mediaNames = Array.isArray(input.mediaNames) ? input.mediaNames.filter((u) => typeof u === "string") : void 0;
     const skillId = typeof input.skillId === "string" ? input.skillId : void 0;
     const model = typeof input.model === "string" ? input.model : void 0;
     const source = typeof input.source === "string" ? input.source : void 0;
@@ -38814,6 +39403,8 @@ app2.post("/invocations", async (req, res) => {
       videoUrl,
       videoName,
       taggedAssets,
+      mediaUrls,
+      mediaNames,
       skillId,
       model,
       pipelineMode,
@@ -38932,6 +39523,8 @@ app2.post("/chat", async (req, res) => {
     videoUrl,
     videoName,
     taggedAssets: rawTaggedAssets,
+    mediaUrls: bodyMediaUrls,
+    mediaNames: bodyMediaNames,
     model,
     skillId,
     pipelineMode: bodyPipelineMode,
@@ -38941,6 +39534,8 @@ app2.post("/chat", async (req, res) => {
   const userMessage = typeof lastMessage?.content === "string" ? lastMessage.content : Array.isArray(lastMessage?.parts) ? lastMessage.parts.filter((p) => p.type === "text").map((p) => p.text ?? "").join("") : "";
   const sessionId = bodySessionId ?? import_node_crypto4.default.randomUUID();
   const userId = bodyUserId ?? "anonymous";
+  const mediaUrls = Array.isArray(bodyMediaUrls) ? bodyMediaUrls.filter((u) => typeof u === "string") : void 0;
+  const mediaNames = Array.isArray(bodyMediaNames) ? bodyMediaNames.filter((u) => typeof u === "string") : void 0;
   if (!userMessage) {
     res.status(400).json({ error: "userMessage is required" });
     return;
@@ -38955,6 +39550,8 @@ app2.post("/chat", async (req, res) => {
       videoUrl,
       videoName,
       taggedAssets,
+      mediaUrls,
+      mediaNames,
       model,
       skillId,
       pipelineMode,

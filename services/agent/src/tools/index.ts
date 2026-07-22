@@ -6,7 +6,11 @@ import { createConceptsTools } from './pipeline/concepts';
 import { createHyperframesTools } from './pipeline/hyperframes';
 import { createManimTools } from './pipeline/manim';
 import { createTranscribeTools } from './pipeline/transcribe';
-import { BASE_TOOLS, SKILL_TOOLS } from './catalog';
+import { createRemoveBackgroundTools } from './pipeline/removeBackground';
+import { createGenerateBackgroundTools } from './pipeline/generateBackground';
+import { createGenerateBackgroundVideoTools } from './pipeline/generateBackgroundVideo';
+import { createCompositeSubjectTools } from './pipeline/compositeSubject';
+import { BASE_TOOLS, SKILL_BASE_OVERRIDES, SKILL_TOOLS } from './catalog';
 import type { ResolvedTaggedAsset } from '../taggedAssets';
 
 export { getSessionWorkdir, execCommand } from './lib/utils';
@@ -36,11 +40,19 @@ export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
+    ...createRemoveBackgroundTools(ctx),
+    ...createGenerateBackgroundTools(ctx),
+    ...createGenerateBackgroundVideoTools(ctx),
+    ...createCompositeSubjectTools(ctx),
   };
 
-  const names = new Set<string>(BASE_TOOLS);
-  for (const skill of skills) {
-    if (!SKILL_TOOLS[skill]) continue;
+  const skill = opts?.skill;
+  const baseNames =
+    skill && SKILL_BASE_OVERRIDES[skill]
+      ? SKILL_BASE_OVERRIDES[skill]
+      : BASE_TOOLS;
+  const names = new Set<string>(baseNames);
+  if (skill && SKILL_TOOLS[skill]) {
     for (const name of SKILL_TOOLS[skill]) {
       names.add(name);
     }

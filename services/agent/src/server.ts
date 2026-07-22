@@ -186,6 +186,12 @@ app.post('/invocations', async (req, res) => {
     const videoName =
       typeof input.videoName === 'string' ? input.videoName : undefined;
     const taggedAssets = parseTaggedAssets(input.taggedAssets);
+    const mediaUrls = Array.isArray(input.mediaUrls)
+      ? input.mediaUrls.filter((u): u is string => typeof u === 'string')
+      : undefined;
+    const mediaNames = Array.isArray(input.mediaNames)
+      ? input.mediaNames.filter((u): u is string => typeof u === 'string')
+      : undefined;
     const skillId =
       typeof input.skillId === 'string' ? input.skillId : undefined;
     const model = typeof input.model === 'string' ? input.model : undefined;
@@ -237,6 +243,8 @@ app.post('/invocations', async (req, res) => {
       videoUrl,
       videoName,
       taggedAssets,
+      mediaUrls,
+      mediaNames,
       skillId,
       model,
       pipelineMode,
@@ -369,6 +377,8 @@ app.post('/chat', async (req, res) => {
     videoUrl,
     videoName,
     taggedAssets: rawTaggedAssets,
+    mediaUrls: bodyMediaUrls,
+    mediaNames: bodyMediaNames,
     model,
     skillId,
     pipelineMode: bodyPipelineMode,
@@ -388,6 +398,12 @@ app.post('/chat', async (req, res) => {
 
   const sessionId = bodySessionId ?? crypto.randomUUID();
   const userId = bodyUserId ?? 'anonymous';
+  const mediaUrls = Array.isArray(bodyMediaUrls)
+    ? bodyMediaUrls.filter((u: unknown): u is string => typeof u === 'string')
+    : undefined;
+  const mediaNames = Array.isArray(bodyMediaNames)
+    ? bodyMediaNames.filter((u: unknown): u is string => typeof u === 'string')
+    : undefined;
 
   if (!userMessage) {
     res.status(400).json({ error: 'userMessage is required' });
@@ -408,6 +424,8 @@ app.post('/chat', async (req, res) => {
       videoUrl,
       videoName,
       taggedAssets,
+      mediaUrls,
+      mediaNames,
       model,
       skillId,
       pipelineMode,

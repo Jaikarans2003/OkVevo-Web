@@ -5,7 +5,10 @@ import { DefaultChatTransport, type UIMessage } from 'ai';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AiStudioChatBar } from '@/components/workspace/ai-studio/AiStudioChatBar';
+import {
+  AiStudioChatBar,
+  type PendingAttachment,
+} from '@/components/workspace/ai-studio/AiStudioChatBar';
 import { AiStudioHeroExtras } from '@/components/workspace/ai-studio/AiStudioHeroExtras';
 import { AiStudioProjectLoader } from '@/components/workspace/ai-studio/AiStudioProjectLoader';
 import { AiStudioTimeline } from '@/components/workspace/ai-studio/AiStudioTimeline';
@@ -34,6 +37,7 @@ type SessionAsset = TaggedAsset & {
 // Ceiling: classic Hosting only. After App Hosting migration, drop NEXT_PUBLIC_AGENT_API_ORIGIN and use same-origin /api/agent.
 const AGENT_API_ORIGIN = env.agentApiOrigin;
 const AGENT_API = AGENT_API_ORIGIN ? `${AGENT_API_ORIGIN}/api/agent` : '/api/agent';
+const MAX_PENDING_ATTACHMENTS = 2;
 
 interface AiStudioShellProps {
   userId: string;
@@ -119,10 +123,9 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-haiku-4-5');
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [pendingVideoUrl, setPendingVideoUrl] = useState<string | null>(null);
-  const [pendingVideoName, setPendingVideoName] = useState<string | null>(null);
-  const [pendingVideoObjectUrl, setPendingVideoObjectUrl] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<
+    PendingAttachment[]
+  >([]);
   const [pipelineMode, setPipelineMode] = useState<'ask' | 'auto'>('ask');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -132,11 +135,9 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingVideoObjectUrlRef = useRef<string | null>(null);
+  const pendingAttachmentsRef = useRef<PendingAttachment[]>([]);
   const selectedModelRef = useRef(selectedModel);
   const userIdRef = useRef(userId);
-  const pendingVideoUrlRef = useRef<string | null>(null);
-  const pendingVideoNameRef = useRef<string | null>(null);
   const activeSkillRef = useRef<string | null>(null);
   const pipelineModeRef = useRef(pipelineMode);
   const pipelineSkillIdRef = useRef<string | null | undefined>(null);
@@ -153,13 +154,17 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const draftTaggedAssetsRef = useRef<TaggedAsset[]>([]);
   selectedModelRef.current = selectedModel;
   userIdRef.current = userId;
-  pendingVideoUrlRef.current = pendingVideoUrl;
-  pendingVideoNameRef.current = pendingVideoName;
+  pendingAttachmentsRef.current = pendingAttachments;
   activeSkillRef.current = activeSkill;
   pipelineModeRef.current = pipelineMode;
   pipelineSkillIdRef.current = pipelineState?.skillId;
   chatIdRef.current = chatId;
   draftTaggedAssetsRef.current = draftTaggedAssets;
+
+  const readyMediaUrls = pendingAttachments
+    .filter((a) => a.downloadUrl)
+    .map((a) => a.downloadUrl as string);
+  const isUploading = pendingAttachments.some((a) => a.progress !== null);
 
   const firstName = user?.displayName?.split(' ')[0];
 
@@ -171,21 +176,21 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           const token = await auth.currentUser?.getIdToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
         },
-        body: () => ({
-          model: selectedModelRef.current,
-          sessionId: chatIdRef.current,
-          // Server derives userId from Bearer token; kept for local-agent attribution only.
-          userId: userIdRef.current,
-          videoUrl: pendingVideoUrlRef.current ?? undefined,
-          videoName: pendingVideoNameRef.current ?? undefined,
-          taggedAssets: draftTaggedAssetsRef.current,
-          pipelineMode: pipelineModeRef.current,
-          skillId:
-            activeSkillRef.current ?? pipelineSkillIdRef.current ?? undefined,
-          ...(checkpointAnswerRef.current
-            ? { checkpointAnswer: checkpointAnswerRef.current }
-            : {}),
-        }),
+        body: () => {
+          const ready = pendingAttachmentsRef.current.filter((a) => a.downloadUrl);
+          return {
+            model: selectedModelRef.current,
+            sessionId: chatIdRef.current,
+            // Server derives userId from Bearer token; kept for local-agent attribution only.
+            userId: userIdRef.current,
+            videoUrl: ready[0]?.downloadUrl ?? undefined,
+            videoName: ready[0]?.name ?? undefined,
+            mediaUrls: ready.map((a) => a.downloadUrl as string),
+            mediaNames: ready.map((a) => a.name),
+            pipelineMode: pipelineModeRef.current,
+            skillId: activeSkillRef.current ?? undefined,
+          };
+        },
       }),
     [chatId]
   );
@@ -338,29 +343,26 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   }, [messages]);
 
   useEffect(() => {
-    pendingVideoObjectUrlRef.current = pendingVideoObjectUrl;
-  }, [pendingVideoObjectUrl]);
-
-  useEffect(() => {
     return () => {
-      if (pendingVideoObjectUrlRef.current) {
-        URL.revokeObjectURL(pendingVideoObjectUrlRef.current);
+      for (const item of pendingAttachmentsRef.current) {
+        URL.revokeObjectURL(item.objectUrl);
       }
     };
   }, []);
 
-  const revokePendingVideoObjectUrl = () => {
-    if (pendingVideoObjectUrl) {
-      URL.revokeObjectURL(pendingVideoObjectUrl);
+  const clearPendingAttachments = () => {
+    for (const item of pendingAttachments) {
+      URL.revokeObjectURL(item.objectUrl);
     }
-    setPendingVideoObjectUrl(null);
+    setPendingAttachments([]);
   };
 
-  const clearPendingVideo = () => {
-    revokePendingVideoObjectUrl();
-    setPendingVideoUrl(null);
-    setPendingVideoName(null);
-    setUploadProgress(null);
+  const clearPendingAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target) URL.revokeObjectURL(target.objectUrl);
+      return prev.filter((a) => a.id !== id);
+    });
   };
 
   const persistVideoToSession = async (videoUrl: string, videoName: string) => {
@@ -378,23 +380,36 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     if (!response.ok) throw new Error('Failed to register uploaded video');
   };
 
-  const handleVideoSelect = async (file: File) => {
-    if (!file.type.startsWith('video/')) {
-      setUploadError('Please select a valid video file.');
+  const handleMediaSelect = async (file: File) => {
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isVideo && !isImage) {
+      setUploadError('Please select a video or image file.');
       return;
     }
     if (file.size > 2 * 1024 ** 3) {
-      setUploadError('Video must be under 2GB.');
+      setUploadError('File must be under 2GB.');
+      return;
+    }
+    if (pendingAttachments.length >= MAX_PENDING_ATTACHMENTS) {
+      setUploadError(
+        `You can attach up to ${MAX_PENDING_ATTACHMENTS} files. Remove one to add another.`
+      );
       return;
     }
 
     setUploadError(null);
-    revokePendingVideoObjectUrl();
+    const id = crypto.randomUUID();
     const objectUrl = URL.createObjectURL(file);
-    setPendingVideoObjectUrl(objectUrl);
-    setPendingVideoUrl(null);
-    setPendingVideoName(null);
-    setUploadProgress(0);
+    const attachment: PendingAttachment = {
+      id,
+      objectUrl,
+      downloadUrl: null,
+      name: file.name,
+      kind: isVideo ? 'video' : 'image',
+      progress: 0,
+    };
+    setPendingAttachments((prev) => [...prev, attachment]);
 
     const storageRef = ref(storage, `uploads/${userId}/${chatId}/${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -405,52 +420,103 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         const progress = Math.round(
           (snapshot.bytesTransferred / snapshot.totalBytes) * 100
         );
-        setUploadProgress(progress);
+        setPendingAttachments((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, progress } : a))
+        );
       },
       () => {
-        setUploadError('Failed to upload video. Please try again.');
-        setUploadProgress(null);
+        setUploadError('Failed to upload file. Please try again.');
+        setPendingAttachments((prev) => {
+          const target = prev.find((a) => a.id === id);
+          if (target) URL.revokeObjectURL(target.objectUrl);
+          return prev.filter((a) => a.id !== id);
+        });
       },
       async () => {
         try {
           const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          setPendingVideoUrl(downloadUrl);
-          setPendingVideoName(file.name);
-          setUploadProgress(null);
-          await persistVideoToSession(downloadUrl, file.name);
-          await refreshAssets(chatId);
+          setPendingAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id ? { ...a, downloadUrl, progress: null } : a
+            )
+          );
+          if (isVideo) {
+            void persistVideoToSession(downloadUrl, file.name);
+          }
         } catch {
-          setUploadError('Failed to finish video upload. Please try again.');
-          setUploadProgress(null);
+          setUploadError('Failed to get file URL. Please try again.');
+          setPendingAttachments((prev) => {
+            const target = prev.find((a) => a.id === id);
+            if (target) URL.revokeObjectURL(target.objectUrl);
+            return prev.filter((a) => a.id !== id);
+          });
         }
       }
     );
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      void handleVideoSelect(file);
-    }
+    const files = Array.from(e.target.files ?? []);
     e.target.value = '';
+    if (files.length === 0) return;
+
+    const remaining = MAX_PENDING_ATTACHMENTS - pendingAttachments.length;
+    if (remaining <= 0) {
+      setUploadError(
+        `You can attach up to ${MAX_PENDING_ATTACHMENTS} files. Remove one to add another.`
+      );
+      return;
+    }
+
+    const toUpload = files.slice(0, remaining);
+    if (files.length > remaining) {
+      setUploadError(
+        `Only ${remaining} more file${remaining === 1 ? '' : 's'} can be attached (max ${MAX_PENDING_ATTACHMENTS}).`
+      );
+    }
+    for (const file of toUpload) {
+      void handleMediaSelect(file);
+    }
   };
 
   const handleSubmit = () => {
     const messageText =
-      input.trim() || (pendingVideoUrl ? 'Process my uploaded teacher video' : '');
-    if (!messageText || status !== 'ready' || uploadProgress !== null) return;
+      input.trim() ||
+      (readyMediaUrls.length > 0
+        ? activeSkill === 'remove-background'
+          ? 'Remove the background from my uploaded video'
+          : activeSkill === 'composite-subject'
+            ? 'Composite my uploaded cutout and background'
+            : 'Process my uploaded media'
+        : '');
+    if (!messageText || status !== 'ready' || isUploading) return;
 
-    const hasVideo = pendingVideoUrl ?? pipelineState?.videoUrl;
-    if (activeSkill === 'edu-video' && !hasVideo) {
-      setUploadError('Upload a teacher video before starting Edu-Video.');
+    const hasVideo =
+      readyMediaUrls.length > 0 || Boolean(pipelineState?.videoUrl);
+    if (
+      (activeSkill === 'edu-video' || activeSkill === 'remove-background') &&
+      !hasVideo
+    ) {
+      setUploadError(
+        activeSkill === 'remove-background'
+          ? 'Upload a video before starting Remove Background.'
+          : 'Upload a teacher video before starting Edu-Video.'
+      );
+      return;
+    }
+    if (activeSkill === 'composite-subject' && readyMediaUrls.length < 2) {
+      setUploadError(
+        'Upload a cutout and a background (2 files) before compositing.'
+      );
       return;
     }
 
-    const sentVideoUrl = pendingVideoUrl ?? undefined;
-    const sentVideoName = pendingVideoName ?? undefined;
-    const taggedAssets = draftTaggedAssets.filter((asset) =>
-      hasAssetMention(messageText, asset.label)
-    );
+    const sentMediaUrls = [...readyMediaUrls];
+    const sentMediaNames = pendingAttachments
+      .filter((a) => a.downloadUrl)
+      .map((a) => a.name);
+    const sentVideoUrl = sentMediaUrls[0];
+    const sentVideoName = sentMediaNames[0];
 
     if (messages.length === 0 && activeSessionId === null) {
       wasFirstMessageRef.current = true;
@@ -476,7 +542,12 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       {
         text: messageText,
         metadata: sentVideoUrl
-          ? { videoUrl: sentVideoUrl, videoName: sentVideoName }
+          ? {
+              videoUrl: sentVideoUrl,
+              videoName: sentVideoName,
+              mediaUrls: sentMediaUrls,
+              mediaNames: sentMediaNames,
+            }
           : undefined,
       },
       {
@@ -487,18 +558,19 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           videoUrl: sentVideoUrl,
           videoName: sentVideoName,
           taggedAssets,
+          mediaUrls: sentMediaUrls,
+          mediaNames: sentMediaNames,
           pipelineMode,
           skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
           ...(checkpointAnswer ? { checkpointAnswer } : {}),
         },
       }
     );
-    revokePendingVideoObjectUrl();
-    setPendingVideoUrl(null);
-    setPendingVideoName(null);
-    setActiveSkill(null);
-    draftTaggedAssetsRef.current = [];
-    setDraftTaggedAssets([]);
+    // Defer clear so the transport body snapshot cannot race with send.
+    queueMicrotask(() => {
+      clearPendingAttachments();
+      setActiveSkill(null);
+    });
     setInput('');
   };
 
@@ -603,7 +675,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
   const timelineMessages = messages.map((message) => {
     const metadata = message.metadata as
-      | { createdAt?: string; videoUrl?: string; videoName?: string }
+      | {
+          createdAt?: string;
+          videoUrl?: string;
+          videoName?: string;
+          mediaUrls?: string[];
+          mediaNames?: string[];
+        }
       | undefined;
     return {
       id: message.id,
@@ -612,6 +690,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       createdAt: metadata?.createdAt,
       videoUrl: metadata?.videoUrl,
       videoName: metadata?.videoName,
+      mediaUrls: metadata?.mediaUrls,
+      mediaNames: metadata?.mediaNames,
     };
   });
 
@@ -619,7 +699,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     <>
       <input
         type="file"
-        accept="video/*"
+        accept="video/*,image/*"
+        multiple
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileInputChange}
@@ -637,12 +718,10 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         status={status}
         onSubmit={handleSubmit}
         onPlusClick={() => fileInputRef.current?.click()}
-        pendingVideoObjectUrl={pendingVideoObjectUrl}
-        uploadProgress={uploadProgress}
-        pendingVideoUrl={pendingVideoUrl}
-        pendingVideoName={pendingVideoName}
+        pendingAttachments={pendingAttachments}
+        maxAttachments={MAX_PENDING_ATTACHMENTS}
         activeSkill={activeSkill}
-        onClearVideo={clearPendingVideo}
+        onClearAttachment={clearPendingAttachment}
         pipelineMode={pipelineMode}
         setPipelineMode={setPipelineMode}
         onSkillSelect={handleSkillSelect}

@@ -3,7 +3,6 @@
 import {
   ArrowUp,
   ChevronDown,
-  FileText,
   Loader2,
   Plus,
   X,
@@ -11,7 +10,15 @@ import {
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { SkillsPopup } from '@/components/workspace/ai-studio/SkillsPopup';
 import { TypewriterPlaceholder } from '@/components/workspace/ai-studio/TypewriterPlaceholder';
-import type { TaggedAsset } from '@/lib/agent/taggedAssets';
+
+export type PendingAttachment = {
+  id: string;
+  objectUrl: string;
+  downloadUrl: string | null;
+  name: string;
+  kind: 'video' | 'image';
+  progress: number | null;
+};
 
 const HERO_ROTATING_PROMPTS = [
   'Generate a short drama',
@@ -80,53 +87,6 @@ const chatBoxClass =
 const iconBtnClass =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#222226] text-white/55 transition hover:bg-[#2a2a2e] hover:text-white/85 disabled:opacity-40';
 
-function AssetThumb({
-  asset,
-  className,
-}: {
-  asset: TaggedAsset;
-  className: string;
-}) {
-  if (asset.type === 'video') {
-    return (
-      <video
-        src={asset.url}
-        muted
-        playsInline
-        preload="metadata"
-        className={`${className} object-cover`}
-      />
-    );
-  }
-  if (asset.type === 'image') {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={asset.url} alt={asset.label} className={`${className} object-cover`} />;
-  }
-  return (
-    <div className={`${className} flex items-center justify-center bg-[#222226] text-white/45`}>
-      <FileText size={16} strokeWidth={1.75} />
-    </div>
-  );
-}
-
-function fuzzyAssets(assets: TaggedAsset[], query: string): TaggedAsset[] {
-  const needle = query.toLowerCase();
-  return assets
-    .flatMap((asset) => {
-      const label = asset.label.toLowerCase();
-      let cursor = 0;
-      for (const char of needle) {
-        cursor = label.indexOf(char, cursor);
-        if (cursor < 0) return [];
-        cursor++;
-      }
-      return [{ asset, score: label.startsWith(needle) ? 0 : cursor }];
-    })
-    .sort((a, b) => a.score - b.score || a.asset.label.localeCompare(b.asset.label))
-    .slice(0, 6)
-    .map(({ asset }) => asset);
-}
-
 export function AiStudioChatBar({
   variant = 'hero',
   input,
@@ -137,20 +97,14 @@ export function AiStudioChatBar({
   onSubmit,
   disabled = false,
   onPlusClick,
-  pendingVideoObjectUrl = null,
-  uploadProgress = null,
-  pendingVideoUrl = null,
-  pendingVideoName = null,
+  pendingAttachments = [],
+  maxAttachments = 2,
   activeSkill = null,
-  onClearVideo,
+  onClearAttachment,
   pipelineMode = 'ask',
   setPipelineMode,
   onSkillSelect,
   inputRef,
-  assets = [],
-  onAssetSelect,
-  selectedAssets = [],
-  onAssetRemove,
 }: {
   variant?: 'hero' | 'default';
   input: string;
@@ -161,20 +115,14 @@ export function AiStudioChatBar({
   onSubmit: () => void;
   disabled?: boolean;
   onPlusClick?: () => void;
-  pendingVideoObjectUrl?: string | null;
-  uploadProgress?: number | null;
-  pendingVideoUrl?: string | null;
-  pendingVideoName?: string | null;
+  pendingAttachments?: PendingAttachment[];
+  maxAttachments?: number;
   activeSkill?: string | null;
-  onClearVideo?: () => void;
+  onClearAttachment?: (id: string) => void;
   pipelineMode?: 'ask' | 'auto';
   setPipelineMode?: (mode: 'ask' | 'auto') => void;
   onSkillSelect: (skillId: string) => void;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
-  assets?: TaggedAsset[];
-  onAssetSelect?: (asset: TaggedAsset) => void;
-  selectedAssets?: TaggedAsset[];
-  onAssetRemove?: (asset: TaggedAsset) => void;
 }) {
   const isHero = variant === 'hero';
   const sending = status === 'submitted' || status === 'streaming';
@@ -185,25 +133,25 @@ export function AiStudioChatBar({
   const pipelineRef = useRef<HTMLDivElement>(null);
   const skillsRef = useRef<HTMLDivElement>(null);
   const skillsButtonRef = useRef<HTMLButtonElement>(null);
-  const [mention, setMention] = useState<{
-    start: number;
-    end: number;
-    query: string;
-  } | null>(null);
-  const [mentionIndex, setMentionIndex] = useState(0);
-  const mentionMatches = mention ? fuzzyAssets(assets, mention.query) : [];
 
   const activeModel = ALL_MODELS.find((m) => m.value === selectedModel) ?? ALL_MODELS[0];
   const activePipeline =
     PIPELINE_MODES.find((p) => p.value === pipelineMode) ?? PIPELINE_MODES[0];
   const showTypewriter = isHero && !input.trim();
+  const readyCount = pendingAttachments.filter((a) => a.downloadUrl).length;
+  const isUploading = pendingAttachments.some((a) => a.progress !== null);
+  const atMaxAttachments = pendingAttachments.length >= maxAttachments;
   const canSend =
-    (input.trim().length > 0 || !!pendingVideoUrl) &&
-    uploadProgress === null &&
+    (input.trim().length > 0 || readyCount > 0) &&
+    !isUploading &&
     !sending &&
     status === 'ready';
   const showEduVideoHint =
-    activeSkill === 'edu-video' && !!pendingVideoUrl && uploadProgress === null;
+    activeSkill === 'edu-video' && readyCount > 0 && !isUploading;
+  const showRemoveBgHint =
+    activeSkill === 'remove-background' && readyCount > 0 && !isUploading;
+  const showCompositeHint =
+    activeSkill === 'composite-subject' && readyCount >= 2 && !isUploading;
 
   useEffect(() => {
     if (!modelOpen && !pipelineOpen && !isSkillsOpen) return;
@@ -222,55 +170,7 @@ export function AiStudioChatBar({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [modelOpen, pipelineOpen, isSkillsOpen]);
 
-  useEffect(() => {
-    setMentionIndex(0);
-  }, [mention?.query, assets]);
-
-  const updateMention = (value: string, caret: number | null) => {
-    if (caret === null) return setMention(null);
-    const match = /(?:^|\s)@([^\s@]*)$/.exec(value.slice(0, caret));
-    if (!match) return setMention(null);
-    const query = match[1];
-    setMention({ start: caret - query.length - 1, end: caret, query });
-  };
-
-  const selectMention = (asset: TaggedAsset) => {
-    if (!mention) return;
-    const next = `${input.slice(0, mention.start)}@${asset.label} ${input.slice(
-      mention.end
-    )}`;
-    const caret = mention.start + asset.label.length + 2;
-    setInput(next);
-    onAssetSelect?.(asset);
-    setMention(null);
-    requestAnimationFrame(() => {
-      inputRef?.current?.focus();
-      inputRef?.current?.setSelectionRange(caret, caret);
-    });
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (mentionMatches.length > 0) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setMention(null);
-        return;
-      }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const direction = e.key === 'ArrowDown' ? 1 : -1;
-        setMentionIndex(
-          (current) =>
-            (current + direction + mentionMatches.length) % mentionMatches.length
-        );
-        return;
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        selectMention(mentionMatches[mentionIndex]);
-        return;
-      }
-    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -281,108 +181,80 @@ export function AiStudioChatBar({
     <div className={`mx-auto w-full ${isHero ? 'max-w-4xl' : 'max-w-full'}`}>
       <div className={chatBoxClass}>
         <div className={`relative z-10 px-4 sm:px-5 ${isHero ? 'pb-2 pt-2.5' : 'pb-3 pt-4'}`}>
-          {pendingVideoObjectUrl ? (
+          {pendingAttachments.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
-                <video
-                  src={pendingVideoObjectUrl}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="h-full w-full rounded-xl object-cover"
-                />
-                {uploadProgress !== null ? (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60">
-                    <Loader2 size={22} className="animate-spin text-orange-500" />
+              {pendingAttachments.map((attachment) => (
+                <div key={attachment.id} className="flex items-center gap-2">
+                  <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
+                    {attachment.kind === 'video' ? (
+                      <video
+                        src={attachment.objectUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="h-full w-full rounded-xl object-cover"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={attachment.objectUrl}
+                        alt={attachment.name}
+                        className="h-full w-full rounded-xl object-cover"
+                      />
+                    )}
+                    {attachment.progress !== null ? (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60">
+                        <Loader2 size={22} className="animate-spin text-orange-500" />
+                      </div>
+                    ) : attachment.downloadUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => onClearAttachment?.(attachment.id)}
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
+                        aria-label={`Remove ${attachment.name}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    ) : null}
                   </div>
-                ) : pendingVideoUrl ? (
-                  <button
-                    type="button"
-                    onClick={onClearVideo}
-                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
-                    aria-label="Remove video"
-                  >
-                    <X size={12} />
-                  </button>
-                ) : null}
-              </div>
-              {pendingVideoUrl && pendingVideoName ? (
-                <span className="max-w-[200px] truncate rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-xs text-white/60">
-                  {pendingVideoName}
-                </span>
-              ) : null}
+                  {attachment.downloadUrl ? (
+                    <span className="max-w-[140px] truncate rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-xs text-white/60">
+                      {attachment.name}
+                    </span>
+                  ) : null}
+                </div>
+              ))}
               {showEduVideoHint ? (
                 <span className="text-xs text-orange-300/80">
                   Video attached — send to start transcription
                 </span>
               ) : null}
-            </div>
-          ) : null}
-          {selectedAssets.length > 0 ? (
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {selectedAssets.map((asset) => (
-                <div key={asset.url} className="flex items-center gap-2">
-                  <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
-                    <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
-                    <button
-                      type="button"
-                      onClick={() => onAssetRemove?.(asset)}
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
-                      aria-label={`Remove ${asset.label}`}
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <span className="max-w-[200px] truncate rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-xs text-white/60">
-                    @{asset.label}
-                  </span>
-                </div>
-              ))}
+              {showRemoveBgHint ? (
+                <span className="text-xs text-orange-300/80">
+                  Video attached — send to remove background
+                </span>
+              ) : null}
+              {showCompositeHint ? (
+                <span className="text-xs text-orange-300/80">
+                  Cutout + background ready — send to composite
+                </span>
+              ) : null}
+              {activeSkill === 'composite-subject' &&
+              readyCount < 2 &&
+              !isUploading ? (
+                <span className="text-xs text-white/45">
+                  Attach {2 - readyCount} more file{2 - readyCount === 1 ? '' : 's'}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="relative">
-            {mentionMatches.length > 0 ? (
-              <div
-                role="listbox"
-                className="absolute bottom-full left-0 z-50 mb-2 max-h-52 w-72 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#1a1a1a] p-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-              >
-                {mentionMatches.map((asset, index) => (
-                  <button
-                    key={asset.url}
-                    type="button"
-                    role="option"
-                    aria-selected={index === mentionIndex}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectMention(asset)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm ${
-                      index === mentionIndex
-                        ? 'bg-white/[0.07] text-orange-300'
-                        : 'text-white/70 hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="h-8 w-14 shrink-0 overflow-hidden rounded-md ring-1 ring-white/[0.08]">
-                      <AssetThumb asset={asset} className="h-full w-full" />
-                    </div>
-                    <span className="min-w-0 flex-1 truncate">@{asset.label}</span>
-                    <span className="shrink-0 text-[10px] uppercase text-white/35">
-                      {asset.type}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
             <TypewriterPlaceholder prompts={HERO_ROTATING_PROMPTS} active={showTypewriter} />
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                updateMention(e.target.value, e.target.selectionStart);
-              }}
-              onSelect={(e) =>
-                updateMention(e.currentTarget.value, e.currentTarget.selectionStart)
-              }
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled || sending}
               placeholder={isHero ? '' : 'Describe your edit…'}
@@ -400,7 +272,12 @@ export function AiStudioChatBar({
                 className={iconBtnClass}
                 aria-label="Upload"
                 onClick={onPlusClick}
-                disabled={uploadProgress !== null}
+                disabled={isUploading || atMaxAttachments}
+                title={
+                  atMaxAttachments
+                    ? `Maximum ${maxAttachments} attachments`
+                    : 'Upload video or image'
+                }
               >
                 <Plus size={17} strokeWidth={1.75} />
               </button>

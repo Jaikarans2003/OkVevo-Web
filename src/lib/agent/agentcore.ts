@@ -11,6 +11,7 @@ export type AgentCoreInvokeInput = {
   userId: string;
   videoUrl?: string;
   taggedAssets?: TaggedAsset[];
+  mediaUrls?: string[];
   skillId?: string;
   model?: string;
   source?: 'chat' | 'webhook';
@@ -61,6 +62,7 @@ function buildPayload(input: AgentCoreInvokeInput, stream: boolean) {
       stream,
       ...(input.videoUrl ? { videoUrl: input.videoUrl } : {}),
       ...(input.taggedAssets?.length ? { taggedAssets: input.taggedAssets } : {}),
+      ...(input.mediaUrls?.length ? { mediaUrls: input.mediaUrls } : {}),
       ...(input.skillId ? { skillId: input.skillId } : {}),
       ...(input.model ? { model: input.model } : {}),
       ...(input.source ? { source: input.source } : {}),

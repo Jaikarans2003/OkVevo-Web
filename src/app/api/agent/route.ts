@@ -26,6 +26,7 @@ type ChatRequestBody = {
   userId?: string;
   videoUrl?: string;
   taggedAssets?: TaggedAsset[];
+  mediaUrls?: string[];
   skillId?: string;
   model?: string;
   pipelineMode?: 'ask' | 'auto';
@@ -108,6 +109,7 @@ async function handleAgentCore(
     userId,
     videoUrl: body.videoUrl,
     taggedAssets: body.taggedAssets,
+    mediaUrls: body.mediaUrls,
     skillId: body.skillId,
     model: body.model,
     pipelineMode: body.pipelineMode,

@@ -31,17 +31,70 @@ export function resolveSkill(
 export function detectSkill(message: string): string | null {
   const text = message.toLowerCase();
 
-  const triggers = [
-    '/edu-video',
-    'educational video',
-    'edu video',
-    'lecture video',
-    'teacher video',
-    'teaching video',
+  const skillTriggers: { skill: string; triggers: string[] }[] = [
+    {
+      skill: 'edu-video',
+      triggers: [
+        '/edu-video',
+        'educational video',
+        'edu video',
+        'lecture video',
+        'teacher video',
+        'teaching video',
+      ],
+    },
+    {
+      skill: 'remove-background',
+      triggers: [
+        '/remove-background',
+        'remove background',
+        'remove the background',
+        'transparent background',
+        'cut out the speaker',
+        'matte the video',
+      ],
+    },
+    {
+      skill: 'background-generator',
+      triggers: [
+        '/background-generator',
+        'generate a background',
+        'generate background',
+        'create a background',
+        'background image',
+        'backdrop image',
+      ],
+    },
+    {
+      skill: 'background-video-generator',
+      triggers: [
+        '/background-video-generator',
+        'background video',
+        'generate a background video',
+        'generate background video',
+        'moving background',
+        'video backdrop',
+        'animated background',
+      ],
+    },
+    {
+      skill: 'composite-subject',
+      triggers: [
+        '/composite-subject',
+        'composite',
+        'combine cutout',
+        'put me on the background',
+        'overlay on background',
+        'place on background',
+        'club the two',
+      ],
+    },
   ];
 
-  if (triggers.some((trigger) => text.includes(trigger))) {
-    return 'edu-video';
+  for (const { skill, triggers } of skillTriggers) {
+    if (triggers.some((trigger) => text.includes(trigger))) {
+      return skill;
+    }
   }
 
   return null;

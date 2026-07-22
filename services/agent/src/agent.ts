@@ -58,6 +58,8 @@ export type RunAgentParams = {
   videoUrl?: string;
   videoName?: string;
   taggedAssets?: TaggedAsset[];
+  mediaUrls?: string[];
+  mediaNames?: string[];
   model?: string;
   skillId?: string;
   pipelineMode?: 'ask' | 'auto';
@@ -168,15 +170,29 @@ export async function runAgent(params: RunAgentParams) {
   }
 
   const history = await loadMessages(params.sessionId, params.userId);
-  const taggedArtifacts = await resolveTaggedArtifacts(
-    params.userId,
-    params.sessionId,
-    params.taggedAssets ?? []
-  );
+
+  await saveMessage(params.sessionId, params.userId, 'user', params.userMessage);
+
+  const mediaUrls =
+    params.mediaUrls && params.mediaUrls.length > 0
+      ? params.mediaUrls
+      : params.videoUrl
+        ? [params.videoUrl]
+        : [];
+  const mediaNames = params.mediaNames ?? [];
 
   let userContent = params.userMessage;
-  if (params.videoUrl) {
-    userContent += `\n\nVideo URL for processing: ${params.videoUrl}`;
+  if (mediaUrls.length === 1) {
+    const label = mediaNames[0] ? ` (${mediaNames[0]})` : '';
+    userContent += `\n\nMedia URL for processing${label}: ${mediaUrls[0]}`;
+  } else if (mediaUrls.length > 1) {
+    const lines = mediaUrls.map((url, i) => {
+      const name = mediaNames[i] ? ` — ${mediaNames[i]}` : '';
+      return `${i + 1}.${name} ${url}`;
+    });
+    userContent += `\n\nMedia URLs for processing (in upload order — use these Firebase URLs directly; do not ask the user for links):\n${lines.join('\n')}`;
+    userContent +=
+      '\n\nIf compositing: prefer a .webm / transparent cutout as cutout_url and an image or opaque .mp4 as background_url.';
   }
   const referencedAssets = formatReferencedAssets(taggedArtifacts);
   if (referencedAssets) {

@@ -1,7 +1,6 @@
 'use client';
 
 import { AgentActivityTrace } from '@/components/workspace/ai-studio/AgentActivityTrace';
-import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
   AI_STUDIO_CHAT_BODY_CLASS,
   AI_STUDIO_CHAT_COLUMN,
@@ -25,6 +24,33 @@ export interface TimelineMessage {
   createdAt?: string;
   videoUrl?: string;
   videoName?: string;
+  mediaUrls?: string[];
+  mediaNames?: string[];
+}
+
+function isLikelyImageUrl(url: string): boolean {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
+}
+
+function MediaThumb({ url }: { url: string }) {
+  if (isLikelyImageUrl(url)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt=""
+        className="aspect-video w-full bg-black object-cover"
+      />
+    );
+  }
+  return (
+    <video
+      src={url}
+      controls
+      playsInline
+      className="aspect-video w-full bg-black object-cover"
+    />
+  );
 }
 
 function formatMessageTime(iso: string) {
@@ -46,14 +72,10 @@ export function AiStudioTimeline({
   messages,
   streamingAssistantId,
   bottomRef,
-  onCheckpointAnswer,
-  pendingCheckpointId,
 }: {
   messages: TimelineMessage[];
   streamingAssistantId?: string | null;
   bottomRef?: React.RefObject<HTMLDivElement | null>;
-  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
-  pendingCheckpointId?: string | null;
 }) {
   return (
     <div className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -62,17 +84,25 @@ export function AiStudioTimeline({
           const time = message.createdAt ? formatMessageTime(message.createdAt) : null;
           if (message.role === 'user') {
             const text = getUserText(message.parts);
+            const urls =
+              message.mediaUrls && message.mediaUrls.length > 0
+                ? message.mediaUrls
+                : message.videoUrl
+                  ? [message.videoUrl]
+                  : [];
             return (
               <div key={message.id} className="flex w-full justify-end">
                 <div className="flex max-w-[min(100%,42rem)] flex-col items-end gap-2">
-                  {message.videoUrl ? (
-                    <div className="w-full max-w-sm overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
-                      <video
-                        src={message.videoUrl}
-                        controls
-                        playsInline
-                        className="aspect-video w-full bg-black object-cover"
-                      />
+                  {urls.length > 0 ? (
+                    <div className="flex w-full max-w-sm flex-col gap-2">
+                      {urls.map((url) => (
+                        <div
+                          key={url}
+                          className="overflow-hidden rounded-2xl ring-1 ring-white/[0.08]"
+                        >
+                          <MediaThumb url={url} />
+                        </div>
+                      ))}
                     </div>
                   ) : null}
                   {text ? (
@@ -99,16 +129,6 @@ export function AiStudioTimeline({
                   parts={message.parts}
                   isStreaming={isStreaming}
                   showTextCursor={isStreaming}
-                  onCheckpointAnswer={onCheckpointAnswer}
-                  checkpointInteractionDisabled={
-                    pendingCheckpointId != null &&
-                    !message.parts.some(
-                      (p) =>
-                        p.type === 'data-checkpoint' &&
-                        (p as { data?: { checkpointId?: string } }).data?.checkpointId ===
-                          pendingCheckpointId
-                    )
-                  }
                 />
               </div>
               {message.videoUrl ? (
