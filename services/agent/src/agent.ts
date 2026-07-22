@@ -170,8 +170,11 @@ export async function runAgent(params: RunAgentParams) {
   }
 
   const history = await loadMessages(params.sessionId, params.userId);
-
-  await saveMessage(params.sessionId, params.userId, 'user', params.userMessage);
+  const taggedArtifacts = await resolveTaggedArtifacts(
+    params.userId,
+    params.sessionId,
+    params.taggedAssets ?? []
+  );
 
   const mediaUrls =
     params.mediaUrls && params.mediaUrls.length > 0

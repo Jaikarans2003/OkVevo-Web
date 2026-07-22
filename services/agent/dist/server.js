@@ -1631,12 +1631,12 @@ function time(args) {
 }
 function datetime(args) {
   const time3 = timeSource({ precision: args.precision });
-  const opts2 = ["Z"];
+  const opts = ["Z"];
   if (args.local)
-    opts2.push("");
+    opts.push("");
   if (args.offset)
-    opts2.push(`([+-]\\d{2}:\\d{2})`);
-  const timeRegex2 = `${time3}(?:${opts2.join("|")})`;
+    opts.push(`([+-]\\d{2}:\\d{2})`);
+  const timeRegex2 = `${time3}(?:${opts.join("|")})`;
   return new RegExp(`^${dateSource}T(?:${timeRegex2})$`);
 }
 var cuid, cuid2, ulid, xid, ksuid, nanoid, duration, extendedDuration, guid, uuid, uuid4, uuid6, uuid7, email, html5Email, rfc5322Email, unicodeEmail, browserEmail, _emoji, ipv4, ipv6, cidrv4, cidrv6, base64, base64url, hostname, domain, e164, dateSource, date, string, bigint, integer, number, boolean, _null, _undefined, lowercase, uppercase;
@@ -3329,9 +3329,9 @@ var init_schemas = __esm({
         return propValues;
       });
       const disc = cached(() => {
-        const opts2 = def.options;
+        const opts = def.options;
         const map2 = /* @__PURE__ */ new Map();
-        for (const o of opts2) {
+        for (const o of opts) {
           const values = o._zod.propValues[def.discriminator];
           if (!values || values.size === 0)
             throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(o)}"`);
@@ -12936,11 +12936,11 @@ function timeRegex(args) {
 }
 function datetimeRegex(args) {
   let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
-  const opts2 = [];
-  opts2.push(args.local ? `Z?` : `Z`);
+  const opts = [];
+  opts.push(args.local ? `Z?` : `Z`);
   if (args.offset)
-    opts2.push(`([+-]\\d{2}:?\\d{2})`);
-  regex = `${regex}(${opts2.join("|")})`;
+    opts.push(`([+-]\\d{2}:?\\d{2})`);
+  regex = `${regex}(${opts.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
 function isValidIP(ip, version2) {
@@ -22161,7 +22161,7 @@ var init_NoopTracer = __esm({
         }
       }
       startActiveSpan(name26, arg2, arg3, arg4) {
-        let opts2;
+        let opts;
         let ctx;
         let fn;
         if (arguments.length < 2) {
@@ -22169,15 +22169,15 @@ var init_NoopTracer = __esm({
         } else if (arguments.length === 2) {
           fn = arg2;
         } else if (arguments.length === 3) {
-          opts2 = arg2;
+          opts = arg2;
           fn = arg3;
         } else {
-          opts2 = arg2;
+          opts = arg2;
           ctx = arg3;
           fn = arg4;
         }
         const parentContext = ctx !== null && ctx !== void 0 ? ctx : contextApi.active();
-        const span = this.startSpan(name26, opts2, parentContext);
+        const span = this.startSpan(name26, opts, parentContext);
         const contextWithSpanSet = setSpan(parentContext, span);
         return contextApi.with(contextWithSpanSet, fn, void 0, span);
       }
@@ -36129,13 +36129,13 @@ function isSessionWorkdirCold(sessionId) {
   const workdir = getSessionWorkdir(sessionId);
   return !(sessionArtifactPresent(workdir, "transcript") || sessionArtifactPresent(workdir, "concepts") || sessionArtifactPresent(workdir, "manim_scripts") || sessionArtifactPresent(workdir, "hf_project"));
 }
-function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts2 = []) {
+function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts = []) {
   const workdir = getSessionWorkdir(sessionId);
   const rel = import_path4.default.relative(workdir, resolvedPath);
   if (!rel || rel.startsWith("..") || import_path4.default.isAbsolute(rel)) {
     return [];
   }
-  const tagged = taggedArtifacts2.find(
+  const tagged = taggedArtifacts.find(
     (artifact) => import_path4.default.resolve(artifact.localPath) === import_path4.default.resolve(resolvedPath)
   );
   if (tagged) return [tagged];
@@ -36148,6 +36148,29 @@ function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts2 
     return ["transcript", "concepts", "manim_scripts", "hf_project"];
   }
   return [];
+}
+async function resolveTaggedArtifacts(userId, sessionId, assets, parseStoragePath) {
+  const parse3 = parseStoragePath ?? (await Promise.resolve().then(() => (init_storage(), storage_exports))).parseStoragePathFromPublicUrl;
+  const workdir = getSessionWorkdir(sessionId);
+  const sessionPrefix = `users/${userId}/sessions/${sessionId}/`;
+  const uploadPrefix = `uploads/${userId}/${sessionId}/`;
+  return assets.flatMap((asset, index) => {
+    let storagePath;
+    try {
+      storagePath = parse3(asset.url);
+    } catch {
+      return [];
+    }
+    const isUpload = storagePath.startsWith(uploadPrefix);
+    const prefix = isUpload ? uploadPrefix : sessionPrefix;
+    if (!storagePath.startsWith(prefix)) return [];
+    const suffix = storagePath.slice(prefix.length);
+    if (!suffix || suffix.endsWith("/")) return [];
+    const relativePath = isUpload ? import_path4.default.join("uploads", suffix) : suffix;
+    const localPath = import_path4.default.resolve(workdir, relativePath);
+    if (!localPath.startsWith(`${import_path4.default.resolve(workdir)}${import_path4.default.sep}`)) return [];
+    return [{ ...asset, localPath, key: `tagged_${index}` }];
+  });
 }
 async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   const needsStorage = !deps?.getAssetUrl || !deps?.downloadStoragePrefixToDir || !deps?.parseStoragePathFromPublicUrl;
@@ -38895,10 +38918,11 @@ function buildTools(ctx, skills = []) {
     ...createGenerateBackgroundVideoTools(ctx),
     ...createCompositeSubjectTools(ctx)
   };
-  const skill = opts?.skill;
-  const baseNames = skill && SKILL_BASE_OVERRIDES[skill] ? SKILL_BASE_OVERRIDES[skill] : BASE_TOOLS;
+  const skillList = [...skills];
+  const baseNames = skillList.length === 1 && SKILL_BASE_OVERRIDES[skillList[0]] ? SKILL_BASE_OVERRIDES[skillList[0]] : BASE_TOOLS;
   const names = new Set(baseNames);
-  if (skill && SKILL_TOOLS[skill]) {
+  for (const skill of skillList) {
+    if (!SKILL_TOOLS[skill]) continue;
     for (const name26 of SKILL_TOOLS[skill]) {
       names.add(name26);
     }
@@ -39033,7 +39057,11 @@ ${hint}`;
     }
   }
   const history = await loadMessages(params.sessionId, params.userId);
-  await saveMessage(params.sessionId, params.userId, "user", params.userMessage);
+  const taggedArtifacts = await resolveTaggedArtifacts(
+    params.userId,
+    params.sessionId,
+    params.taggedAssets ?? []
+  );
   const mediaUrls = params.mediaUrls && params.mediaUrls.length > 0 ? params.mediaUrls : params.videoUrl ? [params.videoUrl] : [];
   const mediaNames = params.mediaNames ?? [];
   let userContent = params.userMessage;

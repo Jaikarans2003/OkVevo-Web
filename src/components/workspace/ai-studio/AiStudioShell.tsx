@@ -187,8 +187,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
             videoName: ready[0]?.name ?? undefined,
             mediaUrls: ready.map((a) => a.downloadUrl as string),
             mediaNames: ready.map((a) => a.name),
+            taggedAssets: draftTaggedAssetsRef.current,
             pipelineMode: pipelineModeRef.current,
-            skillId: activeSkillRef.current ?? undefined,
+            skillId:
+              activeSkillRef.current ?? pipelineSkillIdRef.current ?? undefined,
+            ...(checkpointAnswerRef.current
+              ? { checkpointAnswer: checkpointAnswerRef.current }
+              : {}),
           };
         },
       }),
@@ -517,6 +522,9 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       .map((a) => a.name);
     const sentVideoUrl = sentMediaUrls[0];
     const sentVideoName = sentMediaNames[0];
+    const taggedAssets = draftTaggedAssets.filter((asset) =>
+      hasAssetMention(messageText, asset.label)
+    );
 
     if (messages.length === 0 && activeSessionId === null) {
       wasFirstMessageRef.current = true;
@@ -570,6 +578,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     queueMicrotask(() => {
       clearPendingAttachments();
       setActiveSkill(null);
+      draftTaggedAssetsRef.current = [];
+      setDraftTaggedAssets([]);
     });
     setInput('');
   };

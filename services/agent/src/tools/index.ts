@@ -46,13 +46,15 @@ export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
     ...createCompositeSubjectTools(ctx),
   };
 
-  const skill = opts?.skill;
+  const skillList = [...skills];
   const baseNames =
-    skill && SKILL_BASE_OVERRIDES[skill]
-      ? SKILL_BASE_OVERRIDES[skill]
+    skillList.length === 1 && SKILL_BASE_OVERRIDES[skillList[0]]
+      ? SKILL_BASE_OVERRIDES[skillList[0]]
       : BASE_TOOLS;
+
   const names = new Set<string>(baseNames);
-  if (skill && SKILL_TOOLS[skill]) {
+  for (const skill of skillList) {
+    if (!SKILL_TOOLS[skill]) continue;
     for (const name of SKILL_TOOLS[skill]) {
       names.add(name);
     }
