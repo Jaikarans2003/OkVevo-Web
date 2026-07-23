@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "check:env": "node --experimental-strip-types src/config/env.selfcheck.ts",
+    "check:fal-webhook": "node --experimental-strip-types scripts/check-fal-webhook.ts",
     "export": "NEXT_TURBOPACK=0 next build",
     "deploy": "npm run export && firebase deploy --only hosting --project testing"
   },

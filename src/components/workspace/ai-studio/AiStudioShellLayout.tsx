@@ -28,8 +28,10 @@ export default function AiStudioShellLayout({
     showDeliverablesToggle,
     draftVideoUrl,
     renderedVideos,
+    deliverableImages,
   } = useAiStudioWorkspace();
-  const deliverablesCount = renderedVideos.length + (draftVideoUrl ? 1 : 0);
+  const deliverablesCount =
+    renderedVideos.length + deliverableImages.length + (draftVideoUrl ? 1 : 0);
 
   const sidebarWidth = sidebarCollapsed
     ? AI_STUDIO_SIDEBAR_COLLAPSED_W
@@ -91,6 +93,7 @@ export default function AiStudioShellLayout({
             fileCount={deliverablesCount}
             draftVideoUrl={draftVideoUrl}
             renderedVideos={renderedVideos}
+            images={deliverableImages}
           />
         ) : null}
       </div>

@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
 import type { DocumentSnapshot } from 'firebase-admin/firestore';
 import { auth, db } from '@/lib/firebase-admin';
+import { ensureSession } from '@/lib/agent/session';
+import { noStoreJson } from '@/lib/agent/noStoreJson';
+import type { NextResponse } from 'next/server';
 
 export async function verifySessionAccess(
   token: string,
@@ -18,16 +20,16 @@ export async function verifySessionAccess(
 
   if (!sessionDoc.exists) {
     if (options.createIfMissing) {
-      await sessionRef.set({ userId });
+      await ensureSession(sessionId, userId);
       return { sessionDoc: await sessionRef.get() };
     }
-    return { error: NextResponse.json({ error: 'Session not found' }, { status: 404 }) };
+    return { error: noStoreJson({ error: 'Session not found' }, { status: 404 }) };
   }
 
   const sessionUserId = sessionDoc.data()?.userId as string | undefined;
 
   if (sessionUserId && sessionUserId !== userId) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    return { error: noStoreJson({ error: 'Forbidden' }, { status: 403 }) };
   }
 
   // Pipeline-only writes may create session docs before userId is set
@@ -43,7 +45,7 @@ export async function getBearerToken(
   authHeader: string | null
 ): Promise<string | NextResponse> {
   if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return noStoreJson({ error: 'Unauthorized' }, { status: 401 });
   }
   return authHeader.split('Bearer ')[1];
 }

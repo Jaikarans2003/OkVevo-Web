@@ -26,10 +26,11 @@ import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import type { TaggedAsset } from '@/lib/agent/taggedAssets';
+import { type TaggedAsset } from '@/lib/agent/taggedAssets';
 
 type SessionAsset = TaggedAsset & {
   id: string;
+  kind: string;
   createdAt: string | null;
 };
 
@@ -50,6 +51,7 @@ async function fetchSessionMessages(sessionId: string) {
   }
 
   const response = await fetch(`/api/agent/sessions/${sessionId}`, {
+    cache: 'no-store',
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -73,6 +75,7 @@ async function fetchSessionMessages(sessionId: string) {
     createdAt?: string | null;
     videoUrl?: string;
     videoName?: string;
+    imageUrl?: string;
   }[];
 
   return data.map((msg, index) => ({
@@ -86,6 +89,7 @@ async function fetchSessionMessages(sessionId: string) {
       ...(msg.createdAt ? { createdAt: msg.createdAt } : {}),
       ...(msg.videoUrl ? { videoUrl: msg.videoUrl } : {}),
       ...(msg.videoName ? { videoName: msg.videoName } : {}),
+      ...(msg.imageUrl ? { imageUrl: msg.imageUrl } : {}),
     },
   }));
 }
@@ -94,15 +98,38 @@ async function fetchSessionAssets(sessionId: string): Promise<SessionAsset[]> {
   const token = await auth.currentUser?.getIdToken();
   if (!token) return [];
   const response = await fetch(`/api/agent/sessions/${sessionId}/assets`, {
+    cache: 'no-store',
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error('Failed to load session assets');
   return (await response.json()) as SessionAsset[];
 }
 
+async function ensureSessionDoc(sessionId: string): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await fetch(`/api/agent/sessions/${sessionId}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to ensure session');
+}
+
 function hasAssetMention(text: string, label: string): boolean {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`).test(text);
+}
+
+function messageHasMediaUrl(
+  list: Array<{ metadata?: unknown }>,
+  url: string,
+  kind: 'image' | 'video'
+): boolean {
+  return list.some((m) => {
+    const meta = m.metadata as { imageUrl?: string; videoUrl?: string } | undefined;
+    return kind === 'image' ? meta?.imageUrl === url : meta?.videoUrl === url;
+  });
 }
 
 export default function AiStudioShell({ userId }: AiStudioShellProps) {
@@ -118,6 +145,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     setShowDeliverablesToggle,
     setDraftVideoUrl,
     setRenderedVideos,
+    setDeliverableImages,
   } = useAiStudioWorkspace();
   const chatId = activeSessionId ?? draftChatId;
   const [input, setInput] = useState('');
@@ -131,7 +159,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [availableAssets, setAvailableAssets] = useState<SessionAsset[]>([]);
   const [draftTaggedAssets, setDraftTaggedAssets] = useState<TaggedAsset[]>([]);
-  const pipelineState = usePipelineState(activeSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,14 +177,15 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const chatIdRef = useRef(chatId);
   const skipFetchRef = useRef(false);
   const loadedSessionRef = useRef<string | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const wasFirstMessageRef = useRef(false);
   const draftTaggedAssetsRef = useRef<TaggedAsset[]>([]);
+  const messagesRef = useRef<UIMessage[]>([]);
   selectedModelRef.current = selectedModel;
   userIdRef.current = userId;
   pendingAttachmentsRef.current = pendingAttachments;
   activeSkillRef.current = activeSkill;
   pipelineModeRef.current = pipelineMode;
-  pipelineSkillIdRef.current = pipelineState?.skillId;
   chatIdRef.current = chatId;
   draftTaggedAssetsRef.current = draftTaggedAssets;
 
@@ -204,6 +232,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     transport,
     id: chatId,
   });
+  // After useChat so we can wake pipeline poll on submitted/streaming (cold idle → render).
+  const pipelineState = usePipelineState(
+    sessionReady ? activeSessionId : null,
+    status
+  );
+  pipelineSkillIdRef.current = pipelineState?.skillId;
+  messagesRef.current = messages;
 
   useEffect(() => {
     if (pipelineState?.pipelineMode) {
@@ -270,6 +305,20 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   }, [activeSessionId, searchParams]);
 
   useEffect(() => {
+    setAvailableAssets([]);
+    if (!activeSessionId) {
+      setSessionReady(false);
+      return;
+    }
+    // First-message path marks loaded before commit — keep ready so polls start.
+    if (loadedSessionRef.current === activeSessionId) {
+      setSessionReady(true);
+      return;
+    }
+    setSessionReady(false);
+  }, [activeSessionId]);
+
+  useEffect(() => {
     if (skipFetchRef.current) {
       skipFetchRef.current = false;
       return;
@@ -289,6 +338,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     // cleanup left messagesLoading=true forever ("Warming up…").
     if (loadedSessionRef.current === sessionId) {
       setMessagesLoading(false);
+      setSessionReady(true);
       return;
     }
 
@@ -301,10 +351,11 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         if (cancelled) return;
         setMessages(loaded);
         loadedSessionRef.current = sessionId;
+        setSessionReady(true);
       } catch {
         if (cancelled) return;
         setMessages([]);
-        loadedSessionRef.current = sessionId;
+        // Do not mark loaded on failure — allow retry; polls stay gated off.
       } finally {
         if (!cancelled) setMessagesLoading(false);
       }
@@ -321,12 +372,18 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   }, []);
 
   useEffect(() => {
-    if (!activeSessionId || status !== 'ready') {
+    if (!sessionReady || !activeSessionId || status !== 'ready') {
       if (!activeSessionId) setAvailableAssets([]);
       return;
     }
     void refreshAssets(activeSessionId).catch(() => {});
-  }, [activeSessionId, status, refreshAssets]);
+    // ponytail: Fal webhooks land async after stream ends — poll assets until session changes.
+    // Ceiling: fixed 3s interval while session open; upgrade to Firestore onSnapshot if noisy.
+    const id = setInterval(() => {
+      void refreshAssets(activeSessionId).catch(() => {});
+    }, 3000);
+    return () => clearInterval(id);
+  }, [sessionReady, activeSessionId, status, refreshAssets]);
 
   // Every rendered video (Manim clips etc.) goes to the Deliverables rail;
   // the final draft video is shown there separately and is the only one in chat.
@@ -336,12 +393,17 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         .filter(
           (asset) =>
             asset.type === 'video' &&
-            asset.id !== 'draft_video' &&
-            !asset.id.startsWith('uploaded_video')
+            asset.kind !== 'draft_video' &&
+            asset.kind !== 'uploaded_video'
         )
+        .map(({ id, kind, label, url }) => ({ id, kind, label, url }))
+    );
+    setDeliverableImages(
+      availableAssets
+        .filter((asset) => asset.type === 'image')
         .map(({ id, label, url }) => ({ id, label, url }))
     );
-  }, [availableAssets, setRenderedVideos]);
+  }, [availableAssets, setRenderedVideos, setDeliverableImages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -376,6 +438,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
     const response = await fetch(`/api/agent/sessions/${chatId}`, {
       method: 'PATCH',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
@@ -484,7 +547,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const messageText =
       input.trim() ||
       (readyMediaUrls.length > 0
@@ -527,10 +590,18 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     );
 
     if (messages.length === 0 && activeSessionId === null) {
+      try {
+        await ensureSessionDoc(chatId);
+      } catch (error) {
+        console.error('Failed to ensure session before send:', error);
+        setUploadError('Could not start session. Please try again.');
+        return;
+      }
       wasFirstMessageRef.current = true;
+      loadedSessionRef.current = chatId;
+      setSessionReady(true);
       commitSession(chatId);
       skipFetchRef.current = true;
-      loadedSessionRef.current = chatId;
       replaceSessionUrl(
         `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`
       );
@@ -584,9 +655,12 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     setInput('');
   };
 
+  const sameTaggedAsset = (a: TaggedAsset, b: TaggedAsset) =>
+    a.id && b.id ? a.id === b.id : a.url === b.url;
+
   const handleAssetSelect = (asset: TaggedAsset) => {
     setDraftTaggedAssets((current) =>
-      current.some((selected) => selected.url === asset.url)
+      current.some((selected) => sameTaggedAsset(selected, asset))
         ? current
         : [...current, asset]
     );
@@ -594,7 +668,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
   const handleAssetRemove = (asset: TaggedAsset) => {
     setDraftTaggedAssets((current) =>
-      current.filter((selected) => selected.url !== asset.url)
+      current.filter((selected) => !sameTaggedAsset(selected, asset))
     );
     const escaped = asset.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     setInput(
@@ -619,14 +693,50 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     if (heroView) setDeliverablesOpen(false);
   }, [heroView, setShowDeliverablesToggle, setDeliverablesOpen]);
 
-  // When draft video lands (webhook / Check Now), open deliverables and refresh
-  // chat so a finalize-posted assistant message (or pipeline fallback) appears.
+  // Draft / Fal image / Fal video → open deliverables + refresh chat.
+  // Gate on messages containing the URL (no seen*Ref — that raced with cancelled fetches).
   const draftVideoUrl = pipelineState?.draftVideoUrl;
-  const seenDraftUrlRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!draftVideoUrl || !activeSessionId) return;
-    if (seenDraftUrlRef.current === draftVideoUrl) return;
-    seenDraftUrlRef.current = draftVideoUrl;
+    if (!activeSessionId) return;
+
+    type SyncTarget = {
+      url: string;
+      kind: 'image' | 'video';
+      injectId: string;
+      text: string;
+    };
+    const targets: SyncTarget[] = [];
+    if (draftVideoUrl) {
+      targets.push({
+        url: draftVideoUrl,
+        kind: 'video',
+        injectId: `${activeSessionId}-draft-video`,
+        text: 'Your educational video is ready.',
+      });
+    }
+    for (const asset of availableAssets) {
+      if (asset.kind === 'background_image') {
+        targets.push({
+          url: asset.url,
+          kind: 'image',
+          injectId: `${activeSessionId}-${asset.id}`,
+          text: 'Your background image is ready.',
+        });
+      } else if (asset.kind === 'background_video') {
+        targets.push({
+          url: asset.url,
+          kind: 'video',
+          injectId: `${activeSessionId}-${asset.id}`,
+          text: 'Your background video is ready.',
+        });
+      }
+    }
+
+    const missing = targets.filter(
+      (t) => !messageHasMediaUrl(messagesRef.current, t.url, t.kind)
+    );
+    if (missing.length === 0) return;
+
     setDeliverablesOpen(true);
     setShowDeliverablesToggle(true);
 
@@ -635,29 +745,23 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       try {
         const loaded = await fetchSessionMessages(activeSessionId);
         if (cancelled) return;
-        const hasVideoMsg = loaded.some((m) => {
-          const meta = m.metadata as { videoUrl?: string } | undefined;
-          return meta?.videoUrl === draftVideoUrl;
-        });
-        if (hasVideoMsg) {
-          setMessages(loaded);
-          return;
+        let next = loaded;
+        for (const t of missing) {
+          if (messageHasMediaUrl(next, t.url, t.kind)) continue;
+          next = [
+            ...next,
+            {
+              id: t.injectId,
+              role: 'assistant' as const,
+              parts: [{ type: 'text' as const, text: t.text }],
+              metadata:
+                t.kind === 'image'
+                  ? { imageUrl: t.url }
+                  : { videoUrl: t.url },
+            },
+          ];
         }
-        // Older finalizes didn't write a chat row — inject a client-side card.
-        setMessages([
-          ...loaded,
-          {
-            id: `${activeSessionId}-draft-video`,
-            role: 'assistant' as const,
-            parts: [
-              {
-                type: 'text' as const,
-                text: 'Your educational video is ready.',
-              },
-            ],
-            metadata: { videoUrl: draftVideoUrl },
-          },
-        ]);
+        setMessages(next);
       } catch {
         // keep existing messages
       }
@@ -668,6 +772,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     };
   }, [
     draftVideoUrl,
+    availableAssets,
     activeSessionId,
     setMessages,
     setDeliverablesOpen,
@@ -689,6 +794,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           createdAt?: string;
           videoUrl?: string;
           videoName?: string;
+          imageUrl?: string;
           mediaUrls?: string[];
           mediaNames?: string[];
         }
@@ -700,6 +806,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       createdAt: metadata?.createdAt,
       videoUrl: metadata?.videoUrl,
       videoName: metadata?.videoName,
+      imageUrl: metadata?.imageUrl,
       mediaUrls: metadata?.mediaUrls,
       mediaNames: metadata?.mediaNames,
     };

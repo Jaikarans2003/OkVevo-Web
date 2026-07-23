@@ -25,6 +25,7 @@ export interface TimelineMessage {
   createdAt?: string;
   videoUrl?: string;
   videoName?: string;
+  imageUrl?: string;
   mediaUrls?: string[];
   mediaNames?: string[];
 }
@@ -146,6 +147,16 @@ export function AiStudioTimeline({
                   }
                 />
               </div>
+              {message.imageUrl ? (
+                <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={message.imageUrl}
+                    alt="Generated image"
+                    className="aspect-video w-full bg-black object-contain"
+                  />
+                </div>
+              ) : null}
               {message.videoUrl ? (
                 <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
                   <video
@@ -154,14 +165,6 @@ export function AiStudioTimeline({
                     playsInline
                     className="aspect-video w-full bg-black object-cover"
                   />
-                  <a
-                    href={message.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block bg-white/[0.03] px-3 py-2 text-xs text-orange-300/90 transition hover:text-orange-200"
-                  >
-                    Open video URL
-                  </a>
                 </div>
               ) : null}
               {time ? (

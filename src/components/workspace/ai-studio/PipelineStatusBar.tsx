@@ -51,6 +51,7 @@ export function PipelineStatusBar({
       if (!token) return;
       const response = await fetch(`/api/agent/sessions/${sessionId}/pipeline`, {
         method: 'POST',
+        cache: 'no-store',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',

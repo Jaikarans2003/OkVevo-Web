@@ -7,36 +7,38 @@ description: Generate a short backdrop video from a text prompt using Fal Wan 2.
 
 ## Critical Rules
 
-1. Call **`generate_background_video`** with the user's prompt (enrich it per Prompt Rules).
+1. Call **`video_generate`** with the user's prompt (enrich it per Prompt Rules).
 2. **Duration guardrail:** never request more than **15 seconds**. If the user asks for longer (20s, 30s, 1 min, etc.), clamp to 15 and say so in one plain sentence.
 3. Do **not** use `run_command`, curl, or DIY video generation.
-4. Do **not** ask for API keys or Firebase credentials — the tool handles Fal + Storage upload.
+4. Do **not** ask for API keys or Firebase credentials — the tool handles Fal queue submit.
 5. If the prompt is missing or vague, ask one short clarifying question first.
+6. **Never paste, quote, or invent a media URL in chat.** The UI shows the video in a player and Deliverables — you only write short status sentences.
 
 ## What This Does
 
-Generates a short MP4 backdrop via Fal **Wan 2.1** (`fal-ai/wan-t2v`), then uploads it to Firebase Storage.
+Queues a short MP4 backdrop via Fal **Wan 2.1** (`fal-ai/wan-t2v`). Generation is **async**: the tool returns `request_id` / `queued` immediately. When ready, the video appears in chat and Deliverables via webhook — never invent or paste a URL.
 
 Default length ~5 seconds. Allowed range **4–15 seconds** (hard max 15).
 
 ## UI Activity Trace vs User Text
 
-Keep responses brief. Never mention tool names, API providers, or file paths.
+Keep responses brief. Never mention tool names, API providers, file paths, or URLs.
 
-- After start: one sentence that the backdrop video is generating (can take a minute or two)
-- After success: share the video URL; if duration was clamped, mention the 15s cap once
+- After queue: one sentence that the backdrop video is generating (can take a minute or two)
+- When the video is ready (webhook): it is already shown in the UI — do not re-fetch and do not paste a link
+- If duration was clamped, mention the 15s cap once when acknowledging the queue
 - On failure: one plain sentence
 
 ## Tools Available
 
-- `generate_background_video` — only tool that generates + uploads the video
+- `video_generate` — queues generation; video appears in chat/Deliverables when ready
 - `ask_clarification` — only if the prompt needs clarification
 
 ## Tool Sequence
 
 **Step 1:** Get a clear prompt. If they ask for a still image instead, tell them to use Background Generator.
 
-**Step 2:** `generate_background_video`
+**Step 2:** `video_generate`
 
 Pass:
 
@@ -45,7 +47,7 @@ Pass:
 - `resolution` — optional; default `720p` (`480p` | `580p` | `720p`)
 - `aspect_ratio` — optional; default `16:9` (`16:9` | `9:16`)
 
-Returns: `video_url`, `duration_seconds`, `duration_clamped`, `prompt_used`
+Returns: `request_id`, `status: queued`, `duration_seconds`, `duration_clamped`, `prompt_used`
 
 ## Prompt Rules
 
@@ -61,4 +63,4 @@ Example: "ocean sunset" →
 
 ## On Failure
 
-One plain sentence. Do not invent a video URL.
+One plain sentence. Do not invent or paste a video URL.

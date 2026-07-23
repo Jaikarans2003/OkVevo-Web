@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
+import { NextRequest } from 'next/server';
 import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAccess';
-import { assetLabel, assetType, isTaggableAsset } from '@/lib/agent/sessionAssets';
-import { db } from '@/lib/firebase-admin';
+import { listSessionAssetDocs } from '@/lib/agent/sessionAssets';
+import { noStoreJson } from '@/lib/agent/noStoreJson';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -12,53 +12,17 @@ export async function GET(
 ) {
   try {
     const token = await getBearerToken(request.headers.get('authorization'));
-    if (token instanceof NextResponse) return token;
+    if (typeof token !== 'string') return token;
 
     const { sessionId } = await params;
     const access = await verifySessionAccess(token, sessionId);
     if ('error' in access) return access.error;
 
     const userId = access.sessionDoc.data()?.userId as string;
-    const snapshot = await db
-      .collection('users')
-      .doc(userId)
-      .collection('sessions')
-      .doc(sessionId)
-      .get();
-    const data = snapshot.data() ?? {};
-    const assets = (data.assets ?? {}) as Record<string, unknown>;
-    const metadata = (data.assetMetadata ?? {}) as Record<
-      string,
-      { label?: unknown; type?: unknown; createdAt?: unknown }
-    >;
-
-    return NextResponse.json(
-      Object.entries(assets).flatMap(([id, value]) => {
-        if (typeof value !== 'string' || !isTaggableAsset(id, value)) return [];
-        const meta = metadata[id];
-        const createdAt =
-          meta?.createdAt instanceof Timestamp
-            ? meta.createdAt.toDate().toISOString()
-            : null;
-        return [
-          {
-            id,
-            label:
-              typeof meta?.label === 'string' && meta.label
-                ? meta.label
-                : assetLabel(id),
-            url: value,
-            type:
-              typeof meta?.type === 'string' && meta.type
-                ? meta.type
-                : assetType(id, value),
-            createdAt,
-          },
-        ];
-      })
-    );
+    const assets = await listSessionAssetDocs(userId, sessionId);
+    return noStoreJson(assets);
   } catch (error) {
     console.error('GET session assets error:', error);
-    return NextResponse.json({ error: 'Failed to fetch assets' }, { status: 500 });
+    return noStoreJson({ error: 'Failed to fetch assets' }, { status: 500 });
   }
 }

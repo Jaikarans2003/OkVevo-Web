@@ -57,6 +57,11 @@ webhook receiver — local root `.env` (ngrok path) **and** Firebase App Hosting
 (production). Same value everywhere; mismatch → agent dispatches fine, then
 receiver returns 401.
 
+`FAL_CALLBACK_URL` (public HTTPS → Next `/api/webhooks/fal`) is required for
+`image_generate` / `video_generate` queue+webhook. Add with
+`--add-env FAL_CALLBACK_URL` on first rollout; reuses `HEYGEN_CALLBACK_SECRET`
+for the signed `?token=`.
+
 ## How secret preservation works
 
 `update-agent-runtime` creates a **new version** and does **not** carry over

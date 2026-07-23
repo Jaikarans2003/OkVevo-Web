@@ -138,8 +138,12 @@ export async function getAssetUrl(
     .doc(userId)
     .collection('sessions')
     .doc(sessionId)
+    .collection('assets')
+    .where('kind', '==', assetKey)
+    .orderBy('createdAt', 'desc')
+    .limit(1)
     .get();
-  const url = snap.data()?.assets?.[assetKey];
+  const url = snap.docs[0]?.data()?.url;
   return typeof url === 'string' && url.length > 0 ? url : null;
 }
 
@@ -167,25 +171,36 @@ export async function downloadStoragePrefixToDir(
   }
 }
 
+export type WriteAssetFields = {
+  label?: string;
+  mimeType?: string;
+  sourceTool?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export async function writeAssetUrl(
   userId: string,
   sessionId: string,
-  assetKey: string,
-  url: string
+  kind: string,
+  url: string,
+  fields?: WriteAssetFields
 ): Promise<void> {
   await db
     .collection('users')
     .doc(userId)
     .collection('sessions')
     .doc(sessionId)
-    .set(
-      {
-        assets: {
-          [assetKey]: url,
-        },
-      },
-      { merge: true }
-    );
+    .collection('assets')
+    .add({
+      kind,
+      url,
+      status: 'ready',
+      createdAt: FieldValue.serverTimestamp(),
+      ...(fields?.label !== undefined ? { label: fields.label } : {}),
+      ...(fields?.mimeType !== undefined ? { mimeType: fields.mimeType } : {}),
+      ...(fields?.sourceTool !== undefined ? { sourceTool: fields.sourceTool } : {}),
+      ...(fields?.metadata !== undefined ? { metadata: fields.metadata } : {}),
+    });
 }
 
 export async function writeHfSegmentsPlan(
@@ -279,10 +294,12 @@ export async function finalizeRenderFromLocalFile(
 
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
-  await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl);
+  await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl, {
+    label: 'Draft Video',
+    mimeType: 'video/mp4',
+  });
   await sessionRef.set(
     {
-      assets: { draft_video: videoUrl },
       renderStatus: 'SUCCEEDED',
       renderError: FieldValue.delete(),
       draftVideoUrl: videoUrl,
@@ -293,8 +310,8 @@ export async function finalizeRenderFromLocalFile(
     { merge: true }
   );
 
-  // Surface the URL in chat — webhook/Check Now used to only write Firestore fields,
-  // so the UI never got an assistant message with the finished video.
+  // Surface the finished video in chat — webhook/Check Now used to only write
+  // Firestore fields, so the UI never got an assistant message with the player.
   try {
     const text = 'Your educational video is ready.';
     await saveMessage(sessionId, userId, 'assistant', text, [
@@ -363,6 +380,87 @@ export async function finalizeRenderFromS3(
     return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
   } finally {
     fs.rmSync(tempPath, { force: true });
+  }
+}
+
+/** Unique GCS filename per Fal gen so storage URLs never collide. */
+export function backgroundAssetIdentity(
+  kind: 'fal_image' | 'fal_video',
+  entryId: string
+): {
+  assetKind: 'background_image' | 'background_video';
+  filename: string;
+  label: string;
+} {
+  const isImage = kind === 'fal_image';
+  return {
+    assetKind: isImage ? 'background_image' : 'background_video',
+    filename: isImage ? `background-${entryId}.png` : `background-${entryId}.mp4`,
+    label: isImage ? `Background Image ${entryId}` : `Background Video ${entryId}`,
+  };
+}
+
+/** Download Fal media → Firebase background asset → chat message (non-LLM webhook). */
+export async function finalizeBackgroundFromUrl(
+  userId: string,
+  sessionId: string,
+  kind: 'fal_image' | 'fal_video',
+  mediaUrl: string
+): Promise<string> {
+  const isImage = kind === 'fal_image';
+  const ext = isImage ? 'png' : 'mp4';
+  // ponytail: unique GCS filenames; Firestore autoId + kind field = gallery history.
+  const entryId = crypto.randomUUID().slice(0, 8);
+  const { assetKind, filename, label } = backgroundAssetIdentity(kind, entryId);
+  const tempPath = getTempPath(`fal-${sessionId}-${entryId}.${ext}`);
+
+  const response = await fetch(mediaUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${mediaUrl}`);
+  }
+  fs.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    const storagePath = `users/${userId}/sessions/${sessionId}/${filename}`;
+    const publicUrl = await uploadToStorage(tempPath, storagePath);
+    await writeAssetUrl(userId, sessionId, assetKind, publicUrl, {
+      label,
+      mimeType: isImage ? 'image/png' : 'video/mp4',
+      sourceTool: 'fal',
+    });
+
+    const text = isImage
+      ? 'Your background image is ready.'
+      : 'Your background video is ready.';
+    try {
+      await saveMessage(
+        sessionId,
+        userId,
+        'assistant',
+        text,
+        [{ type: 'text', text }],
+        isImage ? { imageUrl: publicUrl } : { videoUrl: publicUrl }
+      );
+    } catch (err) {
+      console.error('[finalize] failed to post fal background chat message:', err);
+    }
+    return publicUrl;
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
+}
+
+export function selfcheckBackgroundIdentity(): void {
+  const a = backgroundAssetIdentity('fal_image', 'abc12def');
+  const b = backgroundAssetIdentity('fal_image', 'xyz99zzz');
+  if (a.filename === b.filename) {
+    throw new Error('background identity must be unique per entryId');
+  }
+  if (a.filename !== 'background-abc12def.png' || a.assetKind !== 'background_image') {
+    throw new Error(`unexpected image identity ${a.filename}/${a.assetKind}`);
+  }
+  const v = backgroundAssetIdentity('fal_video', 'abc12def');
+  if (v.assetKind !== 'background_video' || v.filename !== 'background-abc12def.mp4') {
+    throw new Error('fal_video identity mismatch');
   }
 }
 

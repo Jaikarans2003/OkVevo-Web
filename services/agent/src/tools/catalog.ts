@@ -8,6 +8,8 @@ export const BASE_TOOLS: string[] = [
   'vision_analyze',
   'str_replace',
   'ask_clarification',
+  'image_generate',
+  'video_generate',
 ];
 
 export const SKILL_TOOLS: Record<string, string[]> = {
@@ -23,8 +25,8 @@ export const SKILL_TOOLS: Record<string, string[]> = {
   'manim-video': ['generate_manim_script', 'render_manim_clip'],
   'hyperframes': ['render_hyperframes'],
   'remove-background': ['remove_background'],
-  'background-generator': ['generate_background'],
-  'background-video-generator': ['generate_background_video'],
+  'background-generator': ['image_generate'],
+  'background-video-generator': ['video_generate'],
   'composite-subject': ['composite_subject'],
 };
 

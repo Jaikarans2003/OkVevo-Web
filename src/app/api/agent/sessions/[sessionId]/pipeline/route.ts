@@ -1,16 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAccess';
 import { Timestamp } from 'firebase-admin/firestore';
 import { env } from '@/config/env';
+import { noStoreJson } from '@/lib/agent/noStoreJson';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const AGENT_URL = env.agentUrl;
 
 async function verifySessionAccessFromRequest(request: NextRequest, sessionId: string) {
   const token = await getBearerToken(request.headers.get('authorization'));
-  if (token instanceof NextResponse) {
+  if (typeof token !== 'string') {
     return { error: token };
   }
   return verifySessionAccess(token, sessionId);
@@ -49,10 +51,10 @@ export async function GET(
     const access = await verifySessionAccessFromRequest(request, sessionId);
     if ('error' in access) return access.error;
 
-    return NextResponse.json(mapPipelineState(access.sessionDoc.data()!));
+    return noStoreJson(mapPipelineState(access.sessionDoc.data()!));
   } catch (error) {
     console.error('GET /api/agent/sessions/[sessionId]/pipeline error:', error);
-    return NextResponse.json({ error: 'Failed to fetch pipeline state' }, { status: 500 });
+    return noStoreJson({ error: 'Failed to fetch pipeline state' }, { status: 500 });
   }
 }
 
@@ -73,7 +75,7 @@ export async function POST(
           Authorization: request.headers.get('authorization') ?? '',
         },
       });
-      return NextResponse.json(await response.json(), { status: response.status });
+      return noStoreJson(await response.json(), { status: response.status });
     }
 
     await db.collection('sessions').doc(sessionId).set(
@@ -82,9 +84,9 @@ export async function POST(
     );
 
     const updated = await db.collection('sessions').doc(sessionId).get();
-    return NextResponse.json(mapPipelineState(updated.data()!));
+    return noStoreJson(mapPipelineState(updated.data()!));
   } catch (error) {
     console.error('POST /api/agent/sessions/[sessionId]/pipeline error:', error);
-    return NextResponse.json({ error: 'Failed to approve pipeline' }, { status: 500 });
+    return noStoreJson({ error: 'Failed to approve pipeline' }, { status: 500 });
   }
 }

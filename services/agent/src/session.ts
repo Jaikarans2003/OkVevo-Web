@@ -112,7 +112,7 @@ export async function saveMessage(
   role: 'user' | 'assistant',
   content: string,
   parts?: StoredMessagePart[],
-  extras?: { videoUrl?: string; videoName?: string }
+  extras?: { videoUrl?: string; videoName?: string; imageUrl?: string }
 ): Promise<void> {
   await db
     .collection('sessions')
@@ -124,6 +124,7 @@ export async function saveMessage(
       ...(parts && parts.length > 0 ? { parts } : {}),
       ...(extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
       ...(extras?.videoName ? { videoName: extras.videoName } : {}),
+      ...(extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}),
       createdAt: FieldValue.serverTimestamp(),
     });
 
@@ -133,6 +134,7 @@ export async function saveMessage(
       messageCount: FieldValue.increment(1),
       ...(extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
       ...(extras?.videoName ? { videoName: extras.videoName } : {}),
+      ...(extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}),
     },
     { merge: true }
   );

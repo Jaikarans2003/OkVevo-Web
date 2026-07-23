@@ -84,12 +84,22 @@ else
     | docker login --username AWS --password-stdin "$ECR_REPO_URI"
 
   echo "==> Building + pushing $PLATFORM image: $IMAGE_URI (+ :latest)"
+  # Dockerfile COPY paths are repo-root relative (services/agent/..., Skills).
+  # Keep context as $ROOT; never default to services/agent cwd.
+  echo "==> Docker build context: $ROOT"
+  for req in \
+      "$ROOT/services/agent/package.json" \
+      "$ROOT/services/agent/dist/server.js" \
+      "$ROOT/Skills"; do
+    [[ -e "$req" ]] || { echo "ERROR: missing build input: $req" >&2; exit 1; }
+  done
   docker buildx build \
     --platform "$PLATFORM" \
     -f "$AGENT_DIR/Dockerfile" \
     -t "$IMAGE_URI" \
     -t "${ECR_REPO_URI}:latest" \
-    --push "$ROOT"
+    "$ROOT" \
+    --push
 fi
 
 # ── Read live runtime + extract the 4 preserved fields ──

@@ -42,6 +42,10 @@
           {
             "key": "Access-Control-Max-Age",
             "value": "3600"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
           }
         ]
       }

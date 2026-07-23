@@ -1,6 +1,8 @@
 export const MAX_TAGGED_ASSETS = 8;
 
 export type TaggedAsset = {
+  /** Firestore assets subcollection doc id when tagging a gallery item. */
+  id?: string;
   label: string;
   url: string;
   type: string;
@@ -16,7 +18,7 @@ export function parseTaggedAssets(value: unknown): TaggedAsset[] {
 
   return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
-    const { label, url, type } = item as Record<string, unknown>;
+    const { id, label, url, type } = item as Record<string, unknown>;
     if (
       typeof label !== 'string' ||
       !label.trim() ||
@@ -31,12 +33,28 @@ export function parseTaggedAssets(value: unknown): TaggedAsset[] {
     ) {
       return [];
     }
+    if (
+      id !== undefined &&
+      (typeof id !== 'string' ||
+        !id.trim() ||
+        id.length > 120 ||
+        /[\r\n]/.test(id))
+    ) {
+      return [];
+    }
     try {
       if (new URL(url).protocol !== 'https:') return [];
     } catch {
       return [];
     }
-    return [{ label: label.trim(), url, type: type.trim() }];
+    return [
+      {
+        ...(typeof id === 'string' && id.trim() ? { id: id.trim() } : {}),
+        label: label.trim(),
+        url,
+        type: type.trim(),
+      },
+    ];
   });
 }
 
@@ -44,10 +62,10 @@ export function formatReferencedAssets(assets: ResolvedTaggedAsset[]): string {
   if (assets.length === 0) return '';
   return [
     'Referenced assets:',
-    ...assets.map(
-      ({ label, type, url, localPath }) =>
-        `- ${label} (${type}): URL ${url} | internal path ${localPath}`
-    ),
+    ...assets.map(({ id, label, type, url, localPath }) => {
+      const idPart = id ? ` id ${id} |` : '';
+      return `- ${label} (${type}):${idPart} URL ${url} | internal path ${localPath}`;
+    }),
     'For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path.',
   ].join('\n');
 }

@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { NextRequest } from 'next/server';
+import { auth, db } from '@/lib/firebase-admin';
 import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAccess';
-import { uploadedVideoAssetKey } from '@/lib/agent/sessionAssets';
+import { ensureSession } from '@/lib/agent/session';
+import { noStoreJson } from '@/lib/agent/noStoreJson';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +14,7 @@ export async function GET(
 ) {
   try {
     const token = await getBearerToken(request.headers.get('authorization'));
-    if (token instanceof NextResponse) {
+    if (typeof token !== 'string') {
       return token;
     }
 
@@ -46,13 +48,34 @@ export async function GET(
         createdAt,
         videoUrl: (data.videoUrl as string | undefined) ?? undefined,
         videoName: (data.videoName as string | undefined) ?? undefined,
+        imageUrl: (data.imageUrl as string | undefined) ?? undefined,
       };
     });
 
-    return NextResponse.json(messages);
+    return noStoreJson(messages);
   } catch (error) {
     console.error('GET /api/agent/sessions/[sessionId] error:', error);
-    return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+    return noStoreJson({ error: 'Failed to fetch messages' }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  try {
+    const token = await getBearerToken(request.headers.get('authorization'));
+    if (typeof token !== 'string') {
+      return token;
+    }
+
+    const { sessionId } = await params;
+    const decoded = await auth.verifyIdToken(token);
+    await ensureSession(sessionId, decoded.uid);
+    return noStoreJson({ ok: true });
+  } catch (error) {
+    console.error('POST /api/agent/sessions/[sessionId] error:', error);
+    return noStoreJson({ error: 'Failed to ensure session' }, { status: 500 });
   }
 }
 
@@ -62,7 +85,7 @@ export async function PATCH(
 ) {
   try {
     const token = await getBearerToken(request.headers.get('authorization'));
-    if (token instanceof NextResponse) {
+    if (typeof token !== 'string') {
       return token;
     }
 
@@ -80,49 +103,43 @@ export async function PATCH(
     };
 
     if (!body.videoUrl || !body.videoName) {
-      return NextResponse.json({ error: 'videoUrl is required' }, { status: 400 });
+      return noStoreJson({ error: 'videoUrl is required' }, { status: 400 });
     }
 
     let videoUrl: URL;
     try {
       videoUrl = new URL(body.videoUrl);
     } catch {
-      return NextResponse.json({ error: 'videoUrl is invalid' }, { status: 400 });
+      return noStoreJson({ error: 'videoUrl is invalid' }, { status: 400 });
     }
     if (videoUrl.protocol !== 'https:') {
-      return NextResponse.json({ error: 'videoUrl must use HTTPS' }, { status: 400 });
+      return noStoreJson({ error: 'videoUrl must use HTTPS' }, { status: 400 });
     }
 
     const userId = access.sessionDoc.data()?.userId as string;
-    const assetKey = uploadedVideoAssetKey(body.videoName);
-    await Promise.all([
-      db.collection('sessions').doc(sessionId).set(
-        { videoUrl: body.videoUrl, videoName: body.videoName },
-        { merge: true }
-      ),
+    const [assetRef] = await Promise.all([
       db
         .collection('users')
         .doc(userId)
         .collection('sessions')
         .doc(sessionId)
-        .set(
-          {
-            assets: { [assetKey]: body.videoUrl },
-            assetMetadata: {
-              [assetKey]: {
-                label: body.videoName,
-                type: 'video',
-                createdAt: FieldValue.serverTimestamp(),
-              },
-            },
-          },
-          { merge: true }
-        ),
+        .collection('assets')
+        .add({
+          kind: 'uploaded_video',
+          url: body.videoUrl,
+          label: body.videoName,
+          status: 'ready',
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      db.collection('sessions').doc(sessionId).set(
+        { videoUrl: body.videoUrl, videoName: body.videoName },
+        { merge: true }
+      ),
     ]);
 
-    return NextResponse.json({ ok: true, assetId: assetKey });
+    return noStoreJson({ ok: true, assetId: assetRef.id });
   } catch (error) {
     console.error('PATCH /api/agent/sessions/[sessionId] error:', error);
-    return NextResponse.json({ error: 'Failed to update session' }, { status: 500 });
+    return noStoreJson({ error: 'Failed to update session' }, { status: 500 });
   }
 }

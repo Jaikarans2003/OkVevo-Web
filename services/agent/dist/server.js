@@ -112,8 +112,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs16 = require("fs");
-    var path16 = require("path");
+    var fs14 = require("fs");
+    var path14 = require("path");
     var os3 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
@@ -221,7 +221,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs16.existsSync(filepath)) {
+            if (fs14.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +229,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path16.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path14.resolve(process.cwd(), ".env.vault");
       }
-      if (fs16.existsSync(possibleVaultPath)) {
+      if (fs14.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path16.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path14.join(os3.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path16.resolve(process.cwd(), ".env");
+      const dotenvPath = path14.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path17 of optionPaths) {
+      for (const path15 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs16.readFileSync(path17, { encoding }));
+          const parsed = DotenvModule.parse(fs14.readFileSync(path15, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path17} ${e.message}`);
+            _debug(`Failed to load ${path15} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path16.relative(process.cwd(), filePath);
+            const relative = path14.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path16) {
-  if (!path16)
+function getElementAtPath(obj, path14) {
+  if (!path14)
     return obj;
-  return path16.reduce((acc, key) => acc?.[key], obj);
+  return path14.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path16, issues) {
+function prefixIssues(path14, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path16);
+    iss.path.unshift(path14);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path16 = []) => {
+  const processError = (error41, path14 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path16, ...issue2.path];
+        const fullpath = [...path14, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path16) {
+function toDotPath(path14) {
   const segs = [];
-  for (const seg of path16) {
+  for (const seg of path14) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path16, errorMaps, issueData } = params;
-      const fullPath = [...path16, ...issueData.path || []];
+      const { data, path: path14, errorMaps, issueData } = params;
+      const fullPath = [...path14, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path16, key) {
+      constructor(parent, value, path14, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path16;
+        this._path = path14;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path15 = __toESM2(require("path"));
-    var import_fs15 = __toESM2(require("fs"));
+    var import_path13 = __toESM2(require("path"));
+    var import_fs13 = __toESM2(require("fs"));
     var import_os3 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path15.default.dirname(dir)) {
-          const pkgPath = import_path15.default.join(dir, ".vercel");
-          if (import_fs15.default.existsSync(pkgPath)) {
+        while (dir !== import_path13.default.dirname(dir)) {
+          const pkgPath = import_path13.default.join(dir, ".vercel");
+          if (import_fs13.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path15.default.dirname(dir);
+          dir = import_path13.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19076,9 +19076,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os3.default.platform()) {
         case "darwin":
-          return import_path15.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path13.default.join(import_os3.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path15.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path13.default.join(import_os3.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19129,8 +19129,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS(auth_config_exports);
-    var fs16 = __toESM2(require("fs"));
-    var path16 = __toESM2(require("path"));
+    var fs14 = __toESM2(require("fs"));
+    var path14 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19139,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path16.join(dataDir, "auth.json");
+      return path14.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs16.existsSync(authPath)) {
+        if (!fs14.existsSync(authPath)) {
           return null;
         }
-        const content = fs16.readFileSync(authPath, "utf8");
+        const content = fs14.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19158,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path16.dirname(authPath);
-      if (!fs16.existsSync(authDir)) {
-        fs16.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path14.dirname(authPath);
+      if (!fs14.existsSync(authDir)) {
+        fs14.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs16.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs14.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19353,8 +19353,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path16 = __toESM2(require("path"));
-    var fs16 = __toESM2(require("fs"));
+    var path14 = __toESM2(require("path"));
+    var fs14 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path16.join(dataDir, vercelFolder);
+      return path14.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19442,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path16.join(dir, ".vercel", "project.json");
-      if (!fs16.existsSync(prjPath)) {
+      const prjPath = path14.join(dir, ".vercel", "project.json");
+      if (!fs14.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs16.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs14.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19463,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path16.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs16.mkdirSync(path16.dirname(tokenPath), { mode: 504, recursive: true });
-      fs16.writeFileSync(tokenPath, tokenJson);
-      fs16.chmodSync(tokenPath, 432);
+      fs14.mkdirSync(path14.dirname(tokenPath), { mode: 504, recursive: true });
+      fs14.writeFileSync(tokenPath, tokenJson);
+      fs14.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path16.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs16.existsSync(tokenPath)) {
+      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs14.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs16.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs14.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -29901,6 +29901,7 @@ async function saveMessage(sessionId, _userId, role, content, parts, extras) {
     ...parts && parts.length > 0 ? { parts } : {},
     ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
     ...extras?.videoName ? { videoName: extras.videoName } : {},
+    ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {},
     createdAt: import_firestore3.FieldValue.serverTimestamp()
   });
   await db.collection("sessions").doc(sessionId).set(
@@ -29908,7 +29909,8 @@ async function saveMessage(sessionId, _userId, role, content, parts, extras) {
       lastMessageAt: import_firestore3.FieldValue.serverTimestamp(),
       messageCount: import_firestore3.FieldValue.increment(1),
       ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
-      ...extras?.videoName ? { videoName: extras.videoName } : {}
+      ...extras?.videoName ? { videoName: extras.videoName } : {},
+      ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}
     },
     { merge: true }
   );
@@ -29926,8 +29928,10 @@ var init_session = __esm({
 // src/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
+  backgroundAssetIdentity: () => backgroundAssetIdentity,
   claimHeygenEvent: () => claimHeygenEvent,
   downloadStoragePrefixToDir: () => downloadStoragePrefixToDir,
+  finalizeBackgroundFromUrl: () => finalizeBackgroundFromUrl,
   finalizeRenderFromLocalFile: () => finalizeRenderFromLocalFile,
   finalizeRenderFromS3: () => finalizeRenderFromS3,
   finalizeRenderFromUrl: () => finalizeRenderFromUrl,
@@ -29938,6 +29942,7 @@ __export(storage_exports, {
   parseStoragePathFromPublicUrl: () => parseStoragePathFromPublicUrl,
   persistRenderJob: () => persistRenderJob,
   recordRenderFailure: () => recordRenderFailure,
+  selfcheckBackgroundIdentity: () => selfcheckBackgroundIdentity,
   uploadDirectoryToStorage: () => uploadDirectoryToStorage,
   uploadToStorage: () => uploadToStorage,
   walkDir: () => walkDir,
@@ -30032,8 +30037,8 @@ async function uploadDirectoryToStorage(localDir, storagePrefix) {
   return { indexUrl, prefixUrl };
 }
 async function getAssetUrl(userId, sessionId, assetKey) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).get();
-  const url2 = snap.data()?.assets?.[assetKey];
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").where("kind", "==", assetKey).orderBy("createdAt", "desc").limit(1).get();
+  const url2 = snap.docs[0]?.data()?.url;
   return typeof url2 === "string" && url2.length > 0 ? url2 : null;
 }
 function parseStoragePathFromPublicUrl(url2) {
@@ -30054,15 +30059,17 @@ async function downloadStoragePrefixToDir(storagePrefix, localDir) {
     await file2.download({ destination: dest });
   }
 }
-async function writeAssetUrl(userId, sessionId, assetKey, url2) {
-  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).set(
-    {
-      assets: {
-        [assetKey]: url2
-      }
-    },
-    { merge: true }
-  );
+async function writeAssetUrl(userId, sessionId, kind, url2, fields) {
+  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").add({
+    kind,
+    url: url2,
+    status: "ready",
+    createdAt: import_firestore4.FieldValue.serverTimestamp(),
+    ...fields?.label !== void 0 ? { label: fields.label } : {},
+    ...fields?.mimeType !== void 0 ? { mimeType: fields.mimeType } : {},
+    ...fields?.sourceTool !== void 0 ? { sourceTool: fields.sourceTool } : {},
+    ...fields?.metadata !== void 0 ? { metadata: fields.metadata } : {}
+  });
 }
 async function writeHfSegmentsPlan(userId, sessionId, plan) {
   await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore4.FieldValue.serverTimestamp() });
@@ -30106,10 +30113,12 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
   }
   const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
-  await writeAssetUrl(userId, sessionId, "draft_video", videoUrl);
+  await writeAssetUrl(userId, sessionId, "draft_video", videoUrl, {
+    label: "Draft Video",
+    mimeType: "video/mp4"
+  });
   await sessionRef.set(
     {
-      assets: { draft_video: videoUrl },
       renderStatus: "SUCCEEDED",
       renderError: import_firestore4.FieldValue.delete(),
       draftVideoUrl: videoUrl,
@@ -30163,6 +30172,65 @@ async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, re
     return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
   } finally {
     import_fs3.default.rmSync(tempPath, { force: true });
+  }
+}
+function backgroundAssetIdentity(kind, entryId) {
+  const isImage = kind === "fal_image";
+  return {
+    assetKind: isImage ? "background_image" : "background_video",
+    filename: isImage ? `background-${entryId}.png` : `background-${entryId}.mp4`,
+    label: isImage ? `Background Image ${entryId}` : `Background Video ${entryId}`
+  };
+}
+async function finalizeBackgroundFromUrl(userId, sessionId, kind, mediaUrl) {
+  const isImage = kind === "fal_image";
+  const ext = isImage ? "png" : "mp4";
+  const entryId = crypto.randomUUID().slice(0, 8);
+  const { assetKind, filename, label } = backgroundAssetIdentity(kind, entryId);
+  const tempPath = getTempPath(`fal-${sessionId}-${entryId}.${ext}`);
+  const response = await fetch(mediaUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${mediaUrl}`);
+  }
+  import_fs3.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    const storagePath = `users/${userId}/sessions/${sessionId}/${filename}`;
+    const publicUrl = await uploadToStorage(tempPath, storagePath);
+    await writeAssetUrl(userId, sessionId, assetKind, publicUrl, {
+      label,
+      mimeType: isImage ? "image/png" : "video/mp4",
+      sourceTool: "fal"
+    });
+    const text2 = isImage ? "Your background image is ready." : "Your background video is ready.";
+    try {
+      await saveMessage(
+        sessionId,
+        userId,
+        "assistant",
+        text2,
+        [{ type: "text", text: text2 }],
+        isImage ? { imageUrl: publicUrl } : { videoUrl: publicUrl }
+      );
+    } catch (err) {
+      console.error("[finalize] failed to post fal background chat message:", err);
+    }
+    return publicUrl;
+  } finally {
+    import_fs3.default.rmSync(tempPath, { force: true });
+  }
+}
+function selfcheckBackgroundIdentity() {
+  const a = backgroundAssetIdentity("fal_image", "abc12def");
+  const b = backgroundAssetIdentity("fal_image", "xyz99zzz");
+  if (a.filename === b.filename) {
+    throw new Error("background identity must be unique per entryId");
+  }
+  if (a.filename !== "background-abc12def.png" || a.assetKind !== "background_image") {
+    throw new Error(`unexpected image identity ${a.filename}/${a.assetKind}`);
+  }
+  const v = backgroundAssetIdentity("fal_video", "abc12def");
+  if (v.assetKind !== "background_video" || v.filename !== "background-abc12def.mp4") {
+    throw new Error("fal_video identity mismatch");
   }
 }
 async function recordRenderFailure(userId, sessionId, status, error40) {
@@ -35377,7 +35445,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path16 }) => `${baseURL}${path16}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35385,7 +35453,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path16 }) => `${baseURL}${path16}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35393,21 +35461,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path16 }) => `${baseURL}${path16}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path16 }) => `${baseURL}${path16}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path16 }) => `${baseURL}${path16}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35459,7 +35527,9 @@ var BASE_TOOLS = [
   "web_extract",
   "vision_analyze",
   "str_replace",
-  "ask_clarification"
+  "ask_clarification",
+  "image_generate",
+  "video_generate"
 ];
 var SKILL_TOOLS = {
   "edu-video": [
@@ -35474,8 +35544,8 @@ var SKILL_TOOLS = {
   "manim-video": ["generate_manim_script", "render_manim_clip"],
   "hyperframes": ["render_hyperframes"],
   "remove-background": ["remove_background"],
-  "background-generator": ["generate_background"],
-  "background-video-generator": ["generate_background_video"],
+  "background-generator": ["image_generate"],
+  "background-video-generator": ["video_generate"],
   "composite-subject": ["composite_subject"]
 };
 var SKILL_BASE_OVERRIDES = {
@@ -35881,7 +35951,7 @@ var DEFAULT_AGENT_PROMPT = `You are OkVevo AI, a helpful assistant for creating 
 
 When a user wants to create an educational video, use your tools to complete the full pipeline: transcribe \u2192 extract concepts \u2192 render animations \u2192 build composition \u2192 render video.
 
-Call tools autonomously in the right order. Narrate what you are doing in a friendly, conversational way. When the video is ready, show the user the URL and ask if they want any changes.
+Call tools autonomously in the right order. Narrate what you are doing in a friendly, conversational way. When the video is ready, tell the user it is ready (the UI shows the player \u2014 never paste a URL) and ask if they want any changes.
 
 For all other messages, respond conversationally.`;
 function resolveSkill(skillId, message) {
@@ -37040,6 +37110,227 @@ ${question}` : question;
   };
 }
 
+// src/tools/general/image_generate.ts
+init_dist5();
+init_zod();
+
+// src/callbackToken.ts
+var import_node_crypto2 = __toESM(require("node:crypto"));
+function getSecret() {
+  const secret = process.env.HEYGEN_CALLBACK_SECRET;
+  if (!secret) {
+    throw new Error("HEYGEN_CALLBACK_SECRET is required");
+  }
+  return secret;
+}
+function signCallbackToken(payload) {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = import_node_crypto2.default.createHmac("sha256", getSecret()).update(body).digest("hex");
+  return `${body}.${sig}`;
+}
+
+// src/falQueue.ts
+function buildFalWebhookUrl(sessionId, taskId) {
+  const base = process.env.FAL_CALLBACK_URL?.trim();
+  if (!base) throw new Error("Missing FAL_CALLBACK_URL");
+  const token = signCallbackToken({
+    sessionId,
+    taskId,
+    exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
+  });
+  return `${base}?token=${encodeURIComponent(token)}`;
+}
+async function falQueueSubmit(opts) {
+  const url2 = `https://queue.fal.run/${opts.model}?fal_webhook=${encodeURIComponent(opts.webhookUrl)}`;
+  const res = await fetch(url2, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${opts.falKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(opts.input)
+  });
+  if (!res.ok) {
+    const text2 = await res.text();
+    throw new Error(`Fal queue submit ${res.status}: ${text2.slice(0, 500)}`);
+  }
+  const body = await res.json();
+  if (!body.request_id) {
+    throw new Error("Fal queue submit returned no request_id");
+  }
+  return { request_id: body.request_id };
+}
+
+// src/tools/general/image_generate.ts
+var IMAGE_MODEL = "fal-ai/flux/schnell";
+var IMAGE_SIZES = [
+  "square_hd",
+  "square",
+  "portrait_4_3",
+  "portrait_16_9",
+  "landscape_4_3",
+  "landscape_16_9"
+];
+function resolveFalImageKey() {
+  const key = process.env.FAL_API_IMAGE?.trim() || process.env.FAL_API_KEY?.trim();
+  if (!key) {
+    throw new Error("Missing FAL_API_IMAGE (or FAL_API_KEY)");
+  }
+  return key;
+}
+function createImageGenerateTools(ctx) {
+  return {
+    image_generate: tool({
+      description: `Queue a background image generation via Fal AI FLUX schnell. Returns immediately with request_id (status queued). The image appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL.`,
+      inputSchema: external_exports2.object({
+        prompt: external_exports2.string().min(1).describe("Scene description for the background image"),
+        image_size: external_exports2.enum(IMAGE_SIZES).optional().describe("Output size preset; default landscape_16_9")
+      }),
+      execute: async ({ prompt, image_size = "landscape_16_9" }) => {
+        try {
+          const falKey = resolveFalImageKey();
+          const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_image");
+          const { request_id } = await falQueueSubmit({
+            model: IMAGE_MODEL,
+            falKey,
+            webhookUrl,
+            input: {
+              prompt,
+              image_size,
+              num_images: 1,
+              output_format: "png",
+              enable_safety_checker: true
+            }
+          });
+          return {
+            request_id,
+            status: "queued",
+            prompt_used: prompt,
+            image_size,
+            model: IMAGE_MODEL
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[image_generate]", ctx.sessionId, message);
+          throw new Error(`Background generation failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
+// src/tools/general/video_generate.ts
+init_dist5();
+init_zod();
+var MAX_BACKGROUND_VIDEO_SECONDS = 15;
+var WAN_MODEL = "fal-ai/wan-t2v";
+var MIN_FRAMES = 81;
+var MAX_FRAMES = 100;
+var MIN_FPS = 5;
+function resolveFalVideoKey() {
+  const key = process.env.FAL_API_VIDEO?.trim() || process.env.FAL_API_KEY?.trim() || process.env.FAL_API_IMAGE?.trim();
+  if (!key) {
+    throw new Error("Missing FAL_API_VIDEO (or FAL_API_KEY / FAL_API_IMAGE)");
+  }
+  return key;
+}
+function resolveWanTiming(durationSeconds) {
+  const raw = Number.isFinite(durationSeconds) ? durationSeconds : 5;
+  const requested = Math.round(raw);
+  const clampedValue = Math.min(
+    MAX_BACKGROUND_VIDEO_SECONDS,
+    Math.max(4, requested)
+  );
+  const clamped = clampedValue !== requested;
+  for (let fps = 16; fps >= MIN_FPS; fps--) {
+    const frames = Math.round(clampedValue * fps);
+    if (frames >= MIN_FRAMES && frames <= MAX_FRAMES) {
+      return {
+        num_frames: frames,
+        frames_per_second: fps,
+        requested_seconds: requested,
+        actual_seconds: frames / fps,
+        clamped
+      };
+    }
+  }
+  if (clampedValue >= 12) {
+    return {
+      num_frames: 90,
+      frames_per_second: 6,
+      requested_seconds: requested,
+      actual_seconds: 15,
+      clamped: true
+    };
+  }
+  return {
+    num_frames: MIN_FRAMES,
+    frames_per_second: 16,
+    requested_seconds: requested,
+    actual_seconds: MIN_FRAMES / 16,
+    clamped
+  };
+}
+function createVideoGenerateTools(ctx) {
+  return {
+    video_generate: tool({
+      description: `Queue a short backdrop video via Fal Wan 2.1 (fal-ai/wan-t2v). Hard-capped at ${MAX_BACKGROUND_VIDEO_SECONDS} seconds. Returns immediately with request_id (status queued). The video appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL.`,
+      inputSchema: external_exports2.object({
+        prompt: external_exports2.string().min(1).describe("Scene description for the background video"),
+        duration_seconds: external_exports2.number().optional().describe(
+          `Desired length in seconds (4\u2013${MAX_BACKGROUND_VIDEO_SECONDS}). Longer requests are clamped.`
+        ),
+        resolution: external_exports2.enum(["480p", "580p", "720p"]).optional().describe("Output resolution; default 720p"),
+        aspect_ratio: external_exports2.enum(["16:9", "9:16"]).optional().describe("Aspect ratio; default 16:9")
+      }),
+      execute: async ({
+        prompt,
+        duration_seconds = 5,
+        resolution = "720p",
+        aspect_ratio = "16:9"
+      }) => {
+        try {
+          const falKey = resolveFalVideoKey();
+          const timing = resolveWanTiming(duration_seconds);
+          const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_video");
+          const { request_id } = await falQueueSubmit({
+            model: WAN_MODEL,
+            falKey,
+            webhookUrl,
+            input: {
+              prompt,
+              num_frames: timing.num_frames,
+              frames_per_second: timing.frames_per_second,
+              resolution,
+              aspect_ratio,
+              enable_safety_checker: true,
+              turbo_mode: true
+            }
+          });
+          return {
+            request_id,
+            status: "queued",
+            prompt_used: prompt,
+            resolution,
+            aspect_ratio,
+            model: WAN_MODEL,
+            requested_seconds: timing.requested_seconds,
+            duration_seconds: timing.actual_seconds,
+            duration_clamped: timing.clamped,
+            max_seconds: MAX_BACKGROUND_VIDEO_SECONDS,
+            num_frames: timing.num_frames,
+            frames_per_second: timing.frames_per_second
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[video_generate]", ctx.sessionId, message);
+          throw new Error(`Background video generation failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
 // src/tools/pipeline/concepts.ts
 var import_fs7 = __toESM(require("fs"));
 var import_path7 = __toESM(require("path"));
@@ -37371,7 +37662,7 @@ init_dist5();
 init_zod();
 
 // src/heygenWebhook.ts
-var import_node_crypto2 = __toESM(require("node:crypto"));
+var import_node_crypto3 = __toESM(require("node:crypto"));
 var MAX_SKEW_SECONDS = 300;
 var HEYGEN_API_BASE = process.env.HEYGEN_API_URL ?? "https://api.heygen.com";
 function verifyHeygenSignature(rawBody, signature, timestamp, secret) {
@@ -37386,10 +37677,10 @@ function verifyHeygenSignature(rawBody, signature, timestamp, secret) {
       return { ok: false, status: 400, error: "stale timestamp" };
     }
   }
-  const expected = import_node_crypto2.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = import_node_crypto3.default.createHmac("sha256", secret).update(rawBody).digest("hex");
   const sigBuf = Buffer.from(signature, "hex");
   const expBuf = Buffer.from(expected, "hex");
-  if (sigBuf.length !== expBuf.length || !import_node_crypto2.default.timingSafeEqual(sigBuf, expBuf)) {
+  if (sigBuf.length !== expBuf.length || !import_node_crypto3.default.timingSafeEqual(sigBuf, expBuf)) {
     return { ok: false, status: 401, error: "bad signature" };
   }
   return { ok: true };
@@ -37435,21 +37726,6 @@ function parseCloudRenderId(stdout) {
 }
 function isSfnExecutionArn(arn) {
   return arn.startsWith("arn:aws:states:");
-}
-
-// src/callbackToken.ts
-var import_node_crypto3 = __toESM(require("node:crypto"));
-function getSecret() {
-  const secret = process.env.HEYGEN_CALLBACK_SECRET;
-  if (!secret) {
-    throw new Error("HEYGEN_CALLBACK_SECRET is required");
-  }
-  return secret;
-}
-function signCallbackToken(payload) {
-  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const sig = import_node_crypto3.default.createHmac("sha256", getSecret()).update(body).digest("hex");
-  return `${body}.${sig}`;
 }
 
 // src/tools/pipeline/hyperframes.ts
@@ -38059,11 +38335,11 @@ function loadSessionConcepts(sessionId) {
   }
 }
 async function countRenderedManimClips(userId, sessionId) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).get();
-  const assets = snap.data()?.assets ?? {};
-  return Object.keys(assets).filter(
-    (key) => key.startsWith("manim_") && !key.startsWith("manim_script_")
-  ).length;
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
+  return snap.docs.filter((doc) => {
+    const kind = doc.data()?.kind;
+    return typeof kind === "string" && kind.startsWith("manim_") && !kind.startsWith("manim_script_");
+  }).length;
 }
 function createManimTools(ctx) {
   return {
@@ -38477,278 +38753,9 @@ function createRemoveBackgroundTools(ctx) {
   };
 }
 
-// src/tools/pipeline/generateBackground.ts
+// src/tools/pipeline/compositeSubject.ts
 var import_fs12 = __toESM(require("fs"));
 var import_path12 = __toESM(require("path"));
-init_dist5();
-init_zod();
-init_storage();
-var IMAGE_SIZES = [
-  "square_hd",
-  "square",
-  "portrait_4_3",
-  "portrait_16_9",
-  "landscape_4_3",
-  "landscape_16_9"
-];
-function resolveFalImageKey() {
-  const key = process.env.FAL_API_IMAGE?.trim() || process.env.FAL_API_KEY?.trim();
-  if (!key) {
-    throw new Error("Missing FAL_API_IMAGE (or FAL_API_KEY)");
-  }
-  return key;
-}
-function createGenerateBackgroundTools(ctx) {
-  return {
-    generate_background: tool({
-      description: `Generate a background image from a text prompt using Fal AI FLUX schnell. Uploads the image to Firebase Storage and returns the public URL. Use for video backdrops and compositing behind transparent subjects.`,
-      inputSchema: external_exports2.object({
-        prompt: external_exports2.string().min(1).describe("Scene description for the background image"),
-        image_size: external_exports2.enum(IMAGE_SIZES).optional().describe("Output size preset; default landscape_16_9")
-      }),
-      execute: async ({ prompt, image_size = "landscape_16_9" }) => {
-        try {
-          const falKey = resolveFalImageKey();
-          const response = await fetch("https://fal.run/fal-ai/flux/schnell", {
-            method: "POST",
-            headers: {
-              Authorization: `Key ${falKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              prompt,
-              image_size,
-              num_images: 1,
-              output_format: "png",
-              enable_safety_checker: true
-            })
-          });
-          if (!response.ok) {
-            const text2 = await response.text();
-            throw new Error(
-              `Fal API error ${response.status}: ${text2.slice(0, 500)}`
-            );
-          }
-          const data = await response.json();
-          const image = data.images?.[0];
-          if (!image?.url) {
-            throw new Error("Fal returned no image URL");
-          }
-          const workdir = getSessionWorkdir(ctx.sessionId);
-          const localPath = import_path12.default.join(workdir, "generated_background.png");
-          await downloadFile(image.url, localPath);
-          const tempPath = getTempPath(`${ctx.sessionId}_bg.png`);
-          import_fs12.default.copyFileSync(localPath, tempPath);
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/background.png`;
-          const imageUrl = await uploadToStorage(tempPath, storagePath);
-          await writeAssetUrl(
-            ctx.userId,
-            ctx.sessionId,
-            "background_image",
-            imageUrl
-          );
-          return {
-            image_url: imageUrl,
-            prompt_used: prompt,
-            image_size,
-            width: image.width ?? null,
-            height: image.height ?? null,
-            fal_source_url: image.url
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[generate_background]", ctx.sessionId, message);
-          throw new Error(`Background generation failed: ${message}`);
-        }
-      }
-    })
-  };
-}
-
-// src/tools/pipeline/generateBackgroundVideo.ts
-var import_fs13 = __toESM(require("fs"));
-var import_path13 = __toESM(require("path"));
-init_dist5();
-init_zod();
-init_storage();
-var MAX_BACKGROUND_VIDEO_SECONDS = 15;
-var WAN_MODEL = "fal-ai/wan-t2v";
-var MIN_FRAMES = 81;
-var MAX_FRAMES = 100;
-var MIN_FPS = 5;
-function resolveFalVideoKey() {
-  const key = process.env.FAL_API_VIDEO?.trim() || process.env.FAL_API_KEY?.trim() || process.env.FAL_API_IMAGE?.trim();
-  if (!key) {
-    throw new Error("Missing FAL_API_VIDEO (or FAL_API_KEY / FAL_API_IMAGE)");
-  }
-  return key;
-}
-function resolveWanTiming(durationSeconds) {
-  const raw = Number.isFinite(durationSeconds) ? durationSeconds : 5;
-  const requested = Math.round(raw);
-  const clampedValue = Math.min(
-    MAX_BACKGROUND_VIDEO_SECONDS,
-    Math.max(4, requested)
-  );
-  const clamped = clampedValue !== requested;
-  for (let fps = 16; fps >= MIN_FPS; fps--) {
-    const frames = Math.round(clampedValue * fps);
-    if (frames >= MIN_FRAMES && frames <= MAX_FRAMES) {
-      return {
-        num_frames: frames,
-        frames_per_second: fps,
-        requested_seconds: requested,
-        actual_seconds: frames / fps,
-        clamped
-      };
-    }
-  }
-  if (clampedValue >= 12) {
-    return {
-      num_frames: 90,
-      frames_per_second: 6,
-      requested_seconds: requested,
-      actual_seconds: 15,
-      clamped: true
-    };
-  }
-  return {
-    num_frames: MIN_FRAMES,
-    frames_per_second: 16,
-    requested_seconds: requested,
-    actual_seconds: MIN_FRAMES / 16,
-    clamped
-  };
-}
-async function falQueueGenerate(falKey, input) {
-  const submit = await fetch(`https://queue.fal.run/${WAN_MODEL}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${falKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(input)
-  });
-  if (!submit.ok) {
-    const text2 = await submit.text();
-    throw new Error(`Fal queue submit ${submit.status}: ${text2.slice(0, 500)}`);
-  }
-  const submitted = await submit.json();
-  const requestId = submitted.request_id;
-  if (!requestId) {
-    throw new Error("Fal queue submit returned no request_id");
-  }
-  const statusUrl = submitted.status_url ?? `https://queue.fal.run/${WAN_MODEL}/requests/${requestId}/status`;
-  const resultUrl = submitted.response_url ?? `https://queue.fal.run/${WAN_MODEL}/requests/${requestId}`;
-  const deadline = Date.now() + 10 * 60 * 1e3;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 3e3));
-    const statusRes = await fetch(statusUrl, {
-      headers: { Authorization: `Key ${falKey}` }
-    });
-    if (!statusRes.ok) {
-      const text2 = await statusRes.text();
-      throw new Error(
-        `Fal queue status ${statusRes.status}: ${text2.slice(0, 500)}`
-      );
-    }
-    const statusBody = await statusRes.json();
-    const status = (statusBody.status ?? "").toUpperCase();
-    if (status === "COMPLETED" || status === "OK") {
-      break;
-    }
-    if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
-      throw new Error(
-        `Fal video generation failed: ${statusBody.error || status}`
-      );
-    }
-  }
-  const resultRes = await fetch(resultUrl, {
-    headers: { Authorization: `Key ${falKey}` }
-  });
-  if (!resultRes.ok) {
-    const text2 = await resultRes.text();
-    throw new Error(
-      `Fal queue result ${resultRes.status}: ${text2.slice(0, 500)}`
-    );
-  }
-  return await resultRes.json();
-}
-function createGenerateBackgroundVideoTools(ctx) {
-  return {
-    generate_background_video: tool({
-      description: `Generate a short backdrop video from a text prompt using Fal Wan 2.1 (fal-ai/wan-t2v). Hard-capped at ${MAX_BACKGROUND_VIDEO_SECONDS} seconds. Uploads the MP4 to Firebase Storage and returns the public URL. Use for moving video backgrounds behind a subject.`,
-      inputSchema: external_exports2.object({
-        prompt: external_exports2.string().min(1).describe("Scene description for the background video"),
-        duration_seconds: external_exports2.number().optional().describe(
-          `Desired length in seconds (4\u2013${MAX_BACKGROUND_VIDEO_SECONDS}). Longer requests are clamped.`
-        ),
-        resolution: external_exports2.enum(["480p", "580p", "720p"]).optional().describe("Output resolution; default 720p"),
-        aspect_ratio: external_exports2.enum(["16:9", "9:16"]).optional().describe("Aspect ratio; default 16:9")
-      }),
-      execute: async ({
-        prompt,
-        duration_seconds = 5,
-        resolution = "720p",
-        aspect_ratio = "16:9"
-      }) => {
-        try {
-          const falKey = resolveFalVideoKey();
-          const timing = resolveWanTiming(duration_seconds);
-          const data = await falQueueGenerate(falKey, {
-            prompt,
-            num_frames: timing.num_frames,
-            frames_per_second: timing.frames_per_second,
-            resolution,
-            aspect_ratio,
-            enable_safety_checker: true,
-            turbo_mode: true
-          });
-          const falVideoUrl = data.video?.url;
-          if (!falVideoUrl) {
-            throw new Error("Fal returned no video URL");
-          }
-          const workdir = getSessionWorkdir(ctx.sessionId);
-          const localPath = import_path13.default.join(workdir, "generated_background.mp4");
-          await downloadFile(falVideoUrl, localPath);
-          const tempPath = getTempPath(`${ctx.sessionId}_bg_video.mp4`);
-          import_fs13.default.copyFileSync(localPath, tempPath);
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/background.mp4`;
-          const videoUrl = await uploadToStorage(tempPath, storagePath);
-          await writeAssetUrl(
-            ctx.userId,
-            ctx.sessionId,
-            "background_video",
-            videoUrl
-          );
-          return {
-            video_url: videoUrl,
-            prompt_used: prompt,
-            resolution,
-            aspect_ratio,
-            model: WAN_MODEL,
-            requested_seconds: timing.requested_seconds,
-            duration_seconds: timing.actual_seconds,
-            duration_clamped: timing.clamped,
-            max_seconds: MAX_BACKGROUND_VIDEO_SECONDS,
-            num_frames: timing.num_frames,
-            frames_per_second: timing.frames_per_second,
-            fal_source_url: falVideoUrl,
-            seed: data.seed ?? null
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[generate_background_video]", ctx.sessionId, message);
-          throw new Error(`Background video generation failed: ${message}`);
-        }
-      }
-    })
-  };
-}
-
-// src/tools/pipeline/compositeSubject.ts
-var import_fs14 = __toESM(require("fs"));
-var import_path14 = __toESM(require("path"));
 init_dist5();
 init_zod();
 init_storage();
@@ -38778,7 +38785,7 @@ function parseDuration(probe) {
   return 0;
 }
 function isImageFile(filePath, probe) {
-  const ext = import_path14.default.extname(filePath).toLowerCase();
+  const ext = import_path12.default.extname(filePath).toLowerCase();
   if ([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"].includes(ext)) {
     return true;
   }
@@ -38814,9 +38821,9 @@ function createCompositeSubjectTools(ctx) {
       }) => {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
-          const cutoutPath = import_path14.default.join(workdir, "composite_cutout.webm");
-          const bgPath = import_path14.default.join(workdir, "composite_bg");
-          const outPath = import_path14.default.join(workdir, "composite_out.mp4");
+          const cutoutPath = import_path12.default.join(workdir, "composite_cutout.webm");
+          const bgPath = import_path12.default.join(workdir, "composite_bg");
+          const outPath = import_path12.default.join(workdir, "composite_out.mp4");
           await downloadFile(cutout_url, cutoutPath);
           await downloadFile(background_url, bgPath);
           const cutoutProbe = await ffprobeJson(cutoutPath);
@@ -38862,11 +38869,11 @@ function createCompositeSubjectTools(ctx) {
           if (!render.success) {
             throw new Error(render.stderr || render.stdout || "ffmpeg composite failed");
           }
-          if (!import_fs14.default.existsSync(outPath)) {
+          if (!import_fs12.default.existsSync(outPath)) {
             throw new Error("Composite output was not produced");
           }
           const tempPath = getTempPath(`${ctx.sessionId}_composite.mp4`);
-          import_fs14.default.copyFileSync(outPath, tempPath);
+          import_fs12.default.copyFileSync(outPath, tempPath);
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composite.mp4`;
           const videoUrl = await uploadToStorage(tempPath, storagePath);
           await writeAssetUrl(
@@ -38914,8 +38921,8 @@ function buildTools(ctx, skills = []) {
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
     ...createRemoveBackgroundTools(ctx),
-    ...createGenerateBackgroundTools(ctx),
-    ...createGenerateBackgroundVideoTools(ctx),
+    ...createImageGenerateTools(ctx),
+    ...createVideoGenerateTools(ctx),
     ...createCompositeSubjectTools(ctx)
   };
   const skillList = [...skills];
@@ -38938,8 +38945,11 @@ function parseTaggedAssets(value) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
     if (!item || typeof item !== "object") return [];
-    const { label, url: url2, type } = item;
+    const { id, label, url: url2, type } = item;
     if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
+      return [];
+    }
+    if (id !== void 0 && (typeof id !== "string" || !id.trim() || id.length > 120 || /[\r\n]/.test(id))) {
       return [];
     }
     try {
@@ -38947,16 +38957,24 @@ function parseTaggedAssets(value) {
     } catch {
       return [];
     }
-    return [{ label: label.trim(), url: url2, type: type.trim() }];
+    return [
+      {
+        ...typeof id === "string" && id.trim() ? { id: id.trim() } : {},
+        label: label.trim(),
+        url: url2,
+        type: type.trim()
+      }
+    ];
   });
 }
 function formatReferencedAssets(assets) {
   if (assets.length === 0) return "";
   return [
     "Referenced assets:",
-    ...assets.map(
-      ({ label, type, url: url2, localPath }) => `- ${label} (${type}): URL ${url2} | internal path ${localPath}`
-    ),
+    ...assets.map(({ id, label, type, url: url2, localPath }) => {
+      const idPart = id ? ` id ${id} |` : "";
+      return `- ${label} (${type}):${idPart} URL ${url2} | internal path ${localPath}`;
+    }),
     "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path."
   ].join("\n");
 }
@@ -39252,6 +39270,8 @@ init_storage();
 
 // src/deliverEvent.ts
 init_storage();
+init_session();
+init_storage();
 function parseRenderEvent(prompt) {
   const status = /HeyGen render completed/.test(prompt) ? "completed" : "failed";
   const urlMatch = prompt.match(/video_url:\s*(\S+)/);
@@ -39259,12 +39279,57 @@ function parseRenderEvent(prompt) {
   const videoUrl = raw && raw !== "n/a" ? raw : void 0;
   return { status, videoUrl };
 }
+function parseFalEvent(prompt) {
+  const head = prompt.match(
+    /^Fal (fal_image|fal_video) (completed|failed)\b/
+  );
+  if (!head) {
+    throw new Error(`not a Fal webhook prompt: ${prompt.slice(0, 80)}`);
+  }
+  const mediaMatch = prompt.match(/media_url:\s*(\S+)/);
+  const rawMedia = mediaMatch?.[1];
+  const mediaUrl = rawMedia && rawMedia !== "n/a" ? rawMedia : void 0;
+  const errorMatch = prompt.match(/\berror:\s*(.*)$/);
+  const rawError = errorMatch?.[1]?.trim();
+  const error40 = rawError && rawError !== "n/a" ? rawError : void 0;
+  return {
+    taskId: head[1],
+    status: head[2],
+    mediaUrl,
+    error: error40
+  };
+}
+function parseWebhookEvent(prompt) {
+  if (prompt.startsWith("Fal ")) {
+    return { source: "fal", ...parseFalEvent(prompt) };
+  }
+  return { source: "heygen", ...parseRenderEvent(prompt) };
+}
 async function deliverEvent(session, event) {
   const { sessionId, userId } = session;
   const targets = session.deliveryTargets ?? [{ type: "ui" }];
-  if (event.status === "completed") {
-    if (!event.videoUrl) throw new Error("completed event missing videoUrl");
-    await finalizeRenderFromUrl(userId, sessionId, event.videoUrl);
+  const normalized = "source" in event ? event : { source: "heygen", ...event };
+  if (normalized.source === "fal") {
+    if (normalized.status === "completed") {
+      if (!normalized.mediaUrl) {
+        throw new Error("completed Fal event missing mediaUrl");
+      }
+      await finalizeBackgroundFromUrl(
+        userId,
+        sessionId,
+        normalized.taskId,
+        normalized.mediaUrl
+      );
+    } else {
+      const label = normalized.taskId === "fal_image" ? "image" : "video";
+      const text2 = `Background ${label} generation failed.`;
+      await saveMessage(sessionId, userId, "assistant", text2, [
+        { type: "text", text: text2 }
+      ]);
+    }
+  } else if (normalized.status === "completed") {
+    if (!normalized.videoUrl) throw new Error("completed event missing videoUrl");
+    await finalizeRenderFromUrl(userId, sessionId, normalized.videoUrl);
   } else {
     await recordRenderFailure(
       userId,
@@ -39281,7 +39346,7 @@ async function deliverEvent(session, event) {
         console.warn(`[deliverEvent] unknown delivery target: ${t.type}`);
     }
   }
-  return `delivered ${event.status} for session ${sessionId} to [${targets.map((t) => t.type).join(", ")}]`;
+  return `delivered ${normalized.status} for session ${sessionId} to [${targets.map((t) => t.type).join(", ")}]`;
 }
 
 // src/server.ts
@@ -39410,7 +39475,7 @@ app2.post("/invocations", async (req, res) => {
     if (source === "webhook") {
       const message = await deliverEvent(
         { sessionId, userId },
-        parseRenderEvent(prompt)
+        parseWebhookEvent(prompt)
       );
       res.json({
         output: {

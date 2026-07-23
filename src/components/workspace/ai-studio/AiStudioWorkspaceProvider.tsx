@@ -20,6 +20,13 @@ export interface AgentSession {
 
 export interface DeliverableVideo {
   id: string;
+  kind: string;
+  label: string;
+  url: string;
+}
+
+export interface DeliverableImage {
+  id: string;
   label: string;
   url: string;
 }
@@ -44,6 +51,8 @@ interface AiStudioWorkspaceContextValue {
   setDraftVideoUrl: (url: string | undefined) => void;
   renderedVideos: DeliverableVideo[];
   setRenderedVideos: (videos: DeliverableVideo[]) => void;
+  deliverableImages: DeliverableImage[];
+  setDeliverableImages: (images: DeliverableImage[]) => void;
 }
 
 const AiStudioWorkspaceContext = createContext<AiStudioWorkspaceContextValue | null>(null);
@@ -68,6 +77,7 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
   const [showDeliverablesToggle, setShowDeliverablesToggle] = useState(false);
   const [draftVideoUrl, setDraftVideoUrl] = useState<string | undefined>(undefined);
   const [renderedVideos, setRenderedVideos] = useState<DeliverableVideo[]>([]);
+  const [deliverableImages, setDeliverableImages] = useState<DeliverableImage[]>([]);
   const hasLoadedRef = useRef(false);
 
   const refreshSessions = useCallback(async () => {
@@ -111,6 +121,7 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
     setDraftChatId(crypto.randomUUID());
     setDraftVideoUrl(undefined);
     setRenderedVideos([]);
+    setDeliverableImages([]);
     return true;
   }, [activeSessionId]);
 
@@ -136,6 +147,8 @@ export function AiStudioWorkspaceProvider({ children }: { children: ReactNode })
         setDraftVideoUrl,
         renderedVideos,
         setRenderedVideos,
+        deliverableImages,
+        setDeliverableImages,
       }}
     >
       {children}

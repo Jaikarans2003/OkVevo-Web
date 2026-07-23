@@ -18,7 +18,7 @@ import {
   getRenderJob,
   recordRenderFailure,
 } from './storage';
-import { deliverEvent, parseRenderEvent } from './deliverEvent';
+import { deliverEvent, parseWebhookEvent } from './deliverEvent';
 import { parseTaggedAssets } from './taggedAssets';
 
 // ponytail: Docker-only — local `node` on 3001 collides with `docker compose up agent`
@@ -212,11 +212,11 @@ app.post('/invocations', async (req, res) => {
           })
         : undefined;
 
-    // Webhook turns short-circuit the LLM: write the render result directly.
+    // Webhook turns short-circuit the LLM: write the render/Fal result directly.
     if (source === 'webhook') {
       const message = await deliverEvent(
         { sessionId, userId },
-        parseRenderEvent(prompt)
+        parseWebhookEvent(prompt)
       );
       res.json({
         output: {

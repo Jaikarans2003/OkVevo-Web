@@ -2,13 +2,13 @@ import { createFilesystemTools } from './general/filesystem';
 import { createWebTools } from './general/web';
 import { createVisionTools } from './general/vision';
 import { createClarifyTools } from './general/clarify';
+import { createImageGenerateTools } from './general/image_generate';
+import { createVideoGenerateTools } from './general/video_generate';
 import { createConceptsTools } from './pipeline/concepts';
 import { createHyperframesTools } from './pipeline/hyperframes';
 import { createManimTools } from './pipeline/manim';
 import { createTranscribeTools } from './pipeline/transcribe';
 import { createRemoveBackgroundTools } from './pipeline/removeBackground';
-import { createGenerateBackgroundTools } from './pipeline/generateBackground';
-import { createGenerateBackgroundVideoTools } from './pipeline/generateBackgroundVideo';
 import { createCompositeSubjectTools } from './pipeline/compositeSubject';
 import { BASE_TOOLS, SKILL_BASE_OVERRIDES, SKILL_TOOLS } from './catalog';
 import type { ResolvedTaggedAsset } from '../taggedAssets';
@@ -41,8 +41,8 @@ export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
     ...createRemoveBackgroundTools(ctx),
-    ...createGenerateBackgroundTools(ctx),
-    ...createGenerateBackgroundVideoTools(ctx),
+    ...createImageGenerateTools(ctx),
+    ...createVideoGenerateTools(ctx),
     ...createCompositeSubjectTools(ctx),
   };
 

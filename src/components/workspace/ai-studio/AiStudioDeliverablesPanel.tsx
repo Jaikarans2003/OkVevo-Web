@@ -2,7 +2,10 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { FolderOpen } from 'lucide-react';
-import type { DeliverableVideo } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
+import type {
+  DeliverableImage,
+  DeliverableVideo,
+} from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
 
 const PANEL_EASE = [0.32, 0.72, 0, 1] as const;
 const PANEL_DURATION = 0.44;
@@ -17,16 +20,24 @@ function VideoCard({ url, label }: { url: string; label: string }) {
         preload="metadata"
         className="aspect-video w-full bg-black/50"
       />
-      <div className="flex items-center gap-2 p-3 text-sm font-medium text-white/88">
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 text-xs text-orange-300 transition hover:text-orange-200"
-        >
-          Open
-        </a>
+      <div className="p-3 text-sm font-medium text-white/88">
+        <span className="block truncate">{label}</span>
+      </div>
+    </article>
+  );
+}
+
+function ImageCard({ url, label }: { url: string; label: string }) {
+  return (
+    <article className="mb-3 overflow-hidden rounded-xl border border-white/[0.06] bg-[#1f1f1f]/80">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={label}
+        className="aspect-video w-full bg-black/50 object-contain"
+      />
+      <div className="p-3 text-sm font-medium text-white/88">
+        <span className="block truncate">{label}</span>
       </div>
     </article>
   );
@@ -37,12 +48,24 @@ export function AiStudioDeliverablesRail({
   fileCount = 0,
   draftVideoUrl,
   renderedVideos = [],
+  images = [],
 }: {
   open: boolean;
   fileCount?: number;
   draftVideoUrl?: string;
   renderedVideos?: DeliverableVideo[];
+  images?: DeliverableImage[];
 }) {
+  const backgroundVideos = renderedVideos.filter(
+    (v) => v.kind === 'background_video'
+  );
+  const clipVideos = renderedVideos.filter((v) => v.kind !== 'background_video');
+  const empty =
+    !draftVideoUrl &&
+    clipVideos.length === 0 &&
+    backgroundVideos.length === 0 &&
+    images.length === 0;
+
   return (
     <AnimatePresence initial={false} mode="sync">
       {open ? (
@@ -68,6 +91,26 @@ export function AiStudioDeliverablesRail({
           </header>
 
           <div className="custom-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+            {images.length > 0 ? (
+              <div className="mt-4 pt-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
+                  Images ({images.length})
+                </div>
+                {images.map((image) => (
+                  <ImageCard key={image.id} url={image.url} label={image.label} />
+                ))}
+              </div>
+            ) : null}
+            {backgroundVideos.length > 0 ? (
+              <div className="mt-4 pt-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
+                  Background videos ({backgroundVideos.length})
+                </div>
+                {backgroundVideos.map((video) => (
+                  <VideoCard key={video.id} url={video.url} label={video.label} />
+                ))}
+              </div>
+            ) : null}
             {draftVideoUrl ? (
               <div className="mt-4 pt-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
@@ -76,17 +119,17 @@ export function AiStudioDeliverablesRail({
                 <VideoCard url={draftVideoUrl} label="final.mp4" />
               </div>
             ) : null}
-            {renderedVideos.length > 0 ? (
+            {clipVideos.length > 0 ? (
               <div className="mt-4 pt-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/42">
-                  Rendered clips ({renderedVideos.length})
+                  Rendered clips ({clipVideos.length})
                 </div>
-                {renderedVideos.map((video) => (
+                {clipVideos.map((video) => (
                   <VideoCard key={video.id} url={video.url} label={video.label} />
                 ))}
               </div>
             ) : null}
-            {!draftVideoUrl && renderedVideos.length === 0 ? (
+            {empty ? (
               <p className="mt-8 text-center text-sm text-white/38">
                 Renders and exports will appear here.
               </p>

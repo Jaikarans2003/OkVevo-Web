@@ -364,7 +364,7 @@ export function AiStudioChatBar({
           {selectedAssets.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {selectedAssets.map((asset) => (
-                <div key={asset.url} className="flex items-center gap-2">
+                <div key={asset.id ?? asset.url} className="flex items-center gap-2">
                   <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
                     <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
                     <button
@@ -391,7 +391,7 @@ export function AiStudioChatBar({
               >
                 {mentionMatches.map((asset, index) => (
                   <button
-                    key={asset.url}
+                    key={asset.id ?? asset.url}
                     type="button"
                     role="option"
                     aria-selected={index === mentionIndex}

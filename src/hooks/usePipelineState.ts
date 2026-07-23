@@ -17,13 +17,24 @@ export interface PipelineState {
 const POLL_MS = 2000
 
 function shouldKeepPolling(state: PipelineState): boolean {
+  // HeyGen draft: persistRenderJob writes these while phase may already be 6.
+  if (state.renderStatus === 'RUNNING') return true
+  if (state.pipelineStatus === 'rendering') return true
   if (state.pipelineStatus === 'running') return true
   if (state.pipelineStatus === 'awaiting_checkpoint') return true
   const phase = state.pipelinePhase
   return phase >= 2 && phase <= 6 && state.pipelineStatus !== 'complete'
 }
 
-export function usePipelineState(sessionId: string | null): PipelineState | null {
+/** Chat turn in flight — keep polling so a cold first idle fetch doesn't miss the later render. */
+function chatIsActive(chatStatus?: string): boolean {
+  return chatStatus === 'submitted' || chatStatus === 'streaming'
+}
+
+export function usePipelineState(
+  sessionId: string | null,
+  chatStatus?: string
+): PipelineState | null {
   const [state, setState] = useState<PipelineState | null>(null)
 
   useEffect(() => {
@@ -48,14 +59,17 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
         if (!token || cancelled) return
 
         const response = await fetch(`/api/agent/sessions/${sessionId}/pipeline`, {
+          cache: 'no-store',
           headers: { Authorization: `Bearer ${token}` },
         })
 
         if (cancelled) return
 
+        // 404 during ensure race: leave state alone and keep retrying.
         if (response.status === 404) {
-          setState(null)
-          stopPolling()
+          if (!intervalId) {
+            intervalId = setInterval(() => void fetchState(), POLL_MS)
+          }
           return
         }
 
@@ -94,7 +108,9 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
 
         setState(next)
 
-        if (shouldKeepPolling(next)) {
+        // First check after bind: start interval immediately if render already in flight
+        // (reopen mid-render) or chat still active (cold idle → later rendering).
+        if (shouldKeepPolling(next) || chatIsActive(chatStatus)) {
           if (!intervalId) {
             intervalId = setInterval(() => void fetchState(), POLL_MS)
           }
@@ -114,7 +130,7 @@ export function usePipelineState(sessionId: string | null): PipelineState | null
       cancelled = true
       stopPolling()
     }
-  }, [sessionId])
+  }, [sessionId, chatStatus])
 
   return state
 }

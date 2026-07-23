@@ -78,11 +78,17 @@ async function countRenderedManimClips(userId: string, sessionId: string): Promi
     .doc(userId)
     .collection('sessions')
     .doc(sessionId)
+    .collection('assets')
     .get();
-  const assets = snap.data()?.assets ?? {};
-  return Object.keys(assets).filter(
-    (key) => key.startsWith('manim_') && !key.startsWith('manim_script_')
-  ).length;
+  // Same semantics as old map-key filter; kind rename to manim_clip deferred.
+  return snap.docs.filter((doc) => {
+    const kind = doc.data()?.kind;
+    return (
+      typeof kind === 'string' &&
+      kind.startsWith('manim_') &&
+      !kind.startsWith('manim_script_')
+    );
+  }).length;
 }
 
 export function createManimTools(ctx: ToolCtx) {
