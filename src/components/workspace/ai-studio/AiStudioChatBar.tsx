@@ -188,8 +188,6 @@ export function AiStudioChatBar({
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);
   const modelRef = useRef<HTMLDivElement>(null);
   const pipelineRef = useRef<HTMLDivElement>(null);
-  const skillsRef = useRef<HTMLDivElement>(null);
-  const skillsButtonRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<{
     start: number;
     end: number;
@@ -212,13 +210,9 @@ export function AiStudioChatBar({
     status === 'ready';
   const showEduVideoHint =
     activeSkill === 'edu-video' && readyCount > 0 && !isUploading;
-  const showRemoveBgHint =
-    activeSkill === 'remove-background' && readyCount > 0 && !isUploading;
-  const showCompositeHint =
-    activeSkill === 'composite-subject' && readyCount >= 2 && !isUploading;
 
   useEffect(() => {
-    if (!modelOpen && !pipelineOpen && !isSkillsOpen) return;
+    if (!modelOpen && !pipelineOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       if (modelOpen && !modelRef.current?.contains(e.target as Node)) {
         setModelOpen(false);
@@ -226,13 +220,10 @@ export function AiStudioChatBar({
       if (pipelineOpen && !pipelineRef.current?.contains(e.target as Node)) {
         setPipelineOpen(false);
       }
-      if (isSkillsOpen && !skillsRef.current?.contains(e.target as Node)) {
-        setIsSkillsOpen(false);
-      }
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [modelOpen, pipelineOpen, isSkillsOpen]);
+  }, [modelOpen, pipelineOpen]);
 
   useEffect(() => {
     setMentionIndex(0);
@@ -340,23 +331,6 @@ export function AiStudioChatBar({
               {showEduVideoHint ? (
                 <span className="text-xs text-orange-300/80">
                   Video attached — send to start transcription
-                </span>
-              ) : null}
-              {showRemoveBgHint ? (
-                <span className="text-xs text-orange-300/80">
-                  Video attached — send to remove background
-                </span>
-              ) : null}
-              {showCompositeHint ? (
-                <span className="text-xs text-orange-300/80">
-                  Cutout + background ready — send to composite
-                </span>
-              ) : null}
-              {activeSkill === 'composite-subject' &&
-              readyCount < 2 &&
-              !isUploading ? (
-                <span className="text-xs text-white/45">
-                  Attach {2 - readyCount} more file{2 - readyCount === 1 ? '' : 's'}
                 </span>
               ) : null}
             </div>
@@ -542,10 +516,9 @@ export function AiStudioChatBar({
                   ) : null}
                 </div>
               ) : null}
-              <div className="relative" ref={skillsRef}>
+              <div>
                 <button
                   type="button"
-                  ref={skillsButtonRef}
                   onClick={() => {
                     setModelOpen(false);
                     setPipelineOpen(false);
@@ -566,7 +539,6 @@ export function AiStudioChatBar({
                     onSkillSelect(skillId);
                     setIsSkillsOpen(false);
                   }}
-                  anchorRef={skillsButtonRef}
                 />
               </div>
               <button

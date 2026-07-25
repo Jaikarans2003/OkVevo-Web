@@ -63,6 +63,22 @@ for (const [skill, toolNames] of Object.entries(SKILL_TOOLS)) {
   }
 }
 
+for (const skill of BASE_ONLY_SKILLS) {
+  const built = buildTools(ctx, [skill]);
+  const expectedBase = SKILL_BASE_OVERRIDES[skill] ?? BASE_TOOLS;
+  assert.deepEqual(
+    new Set(Object.keys(built)),
+    new Set(expectedBase),
+    `BASE_ONLY skill '${skill}' tool set mismatch`
+  );
+  if (SKILL_BASE_OVERRIDES[skill]) {
+    assert(
+      !('run_command' in built),
+      `Skill '${skill}' must not expose run_command`
+    );
+  }
+}
+
 const additiveSkills = ['manim-video', 'hyperframes'];
 const additiveBuilt = buildTools(ctx, additiveSkills);
 const additiveExpected = new Set([

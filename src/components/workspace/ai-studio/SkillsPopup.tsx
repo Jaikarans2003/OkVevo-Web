@@ -1,135 +1,128 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 const SKILLS = [
   {
     id: 'edu-video',
     name: 'Edu-Video',
     description:
-      "Turn a teacher's lecture recording into a polished educational video with AI-generated animations, visuals, captions, and explanations.",
+      "Turn a teacher's lecture recording into a polished LMS Ready Educational video.",
     icon: '🎬',
     requiresVideo: true,
   },
   {
-    id: 'remove-background',
-    name: 'Remove Background',
+    id: 'background-generation',
+    name: 'Background',
     description:
-      'Remove the background from a person/portrait video and get a transparent cutout ready for compositing.',
-    icon: '✂️',
-    requiresVideo: true,
-  },
-  {
-    id: 'background-generator',
-    name: 'Background Generator',
-    description:
-      'Generate a backdrop image from a text prompt — ideal for placing behind a transparent subject.',
+      'Generate a photo or video backdrop for your scene — studio plates, stylized worlds, or short motion loops.',
     icon: '🖼️',
     requiresVideo: false,
   },
-  {
-    id: 'background-video-generator',
-    name: 'Background Video',
-    description:
-      'Generate a short moving backdrop video from a text prompt (max 15 seconds) for compositing behind a subject.',
-    icon: '🎥',
-    requiresVideo: false,
-  },
-  {
-    id: 'composite-subject',
-    name: 'Composite Subject',
-    description:
-      'Place a transparent cutout over a background image or video and export a final MP4.',
-    icon: '🧩',
-    requiresVideo: false,
-  },
 ] as const;
-
-const dropdownPanelClass =
-  'absolute bottom-full z-50 mb-2 max-h-[min(28rem,70vh)] overflow-y-auto custom-scrollbar rounded-xl border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]';
-
 interface SkillsPopupProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectSkill: (skillId: string, displayName: string) => void;
-  anchorRef: React.RefObject<HTMLElement | null>;
 }
 
 export function SkillsPopup({
   isOpen,
   onClose,
   onSelectSkill,
-  anchorRef,
 }: SkillsPopupProps) {
-  const popupRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!isOpen) return;
 
-    const onPointerDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        popupRef.current?.contains(target) ||
-        anchorRef.current?.contains(target)
-      ) {
-        return;
-      }
-      onClose();
-    };
-
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
 
-    document.addEventListener('mousedown', onPointerDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
+      document.body.style.overflow = prevOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen, onClose, anchorRef]);
+  }, [isOpen, onClose]);
 
-  if (!isOpen) {
+  if (!isOpen || typeof document === 'undefined') {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
-      ref={popupRef}
-      className={`${dropdownPanelClass} right-0 w-80`}
-      role="dialog"
-      aria-label="Skills"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+      role="presentation"
     >
-      {SKILLS.map((skill) => (
-        <button
-          key={skill.id}
-          type="button"
-          onClick={() => {
-            onSelectSkill(skill.id, skill.name);
-            onClose();
-          }}
-          className="flex w-full items-start gap-2 border-b border-white/[0.05] px-3 py-2.5 text-left last:border-b-0 hover:bg-white/[0.05]"
-        >
-          <span className="shrink-0 text-sm" aria-hidden>
-            {skill.icon}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium text-white/80">
-              {skill.name}
-            </span>
-            <span className="mt-0.5 block text-xs leading-snug text-white/45">
-              {skill.description}
-            </span>
-            {skill.requiresVideo ? (
-              <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                Requires video upload
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+        aria-label="Close skills"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Skills"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141414] shadow-[0_8px_48px_rgba(0,0,0,0.55)]"
+      >
+        <div className="flex items-start justify-between border-b border-white/[0.06] px-5 py-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-400/90">
+              Skills
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-white/90">
+              Choose a skill
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition hover:bg-white/10 hover:text-white"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <div className="max-h-[min(28rem,70vh)] overflow-y-auto custom-scrollbar p-2">
+          {SKILLS.map((skill) => (
+            <button
+              key={skill.id}
+              type="button"
+              onClick={() => {
+                onSelectSkill(skill.id, skill.name);
+                onClose();
+              }}
+              className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
+            >
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-lg"
+                aria-hidden
+              >
+                {skill.icon}
               </span>
-            ) : null}
-          </span>
-        </button>
-      ))}
-    </div>
+              <span className="min-w-0 flex-1 pt-0.5">
+                <span className="block text-sm font-medium text-white/85">
+                  {skill.name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-snug text-white/45">
+                  {skill.description}
+                </span>
+                {skill.requiresVideo ? (
+                  <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                    Requires video upload
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

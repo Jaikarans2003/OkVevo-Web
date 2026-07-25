@@ -24,10 +24,6 @@ export const SKILL_TOOLS: Record<string, string[]> = {
   ],
   'manim-video': ['generate_manim_script', 'render_manim_clip'],
   'hyperframes': ['render_hyperframes'],
-  'remove-background': ['remove_background'],
-  'background-generator': ['image_generate'],
-  'background-video-generator': ['video_generate'],
-  'composite-subject': ['composite_subject'],
 };
 
 /**
@@ -35,10 +31,11 @@ export const SKILL_TOOLS: Record<string, string[]> = {
  * otherwise the model improvises with rembg/opencv/shell instead of the skill tool.
  */
 export const SKILL_BASE_OVERRIDES: Record<string, string[]> = {
-  'remove-background': ['ask_clarification'],
-  'background-generator': ['ask_clarification'],
-  'background-video-generator': ['ask_clarification'],
-  'composite-subject': ['ask_clarification'],
+  'background-generation': [
+    'ask_clarification',
+    'image_generate',
+    'video_generate',
+  ],
 };
 
-export const BASE_ONLY_SKILLS: string[] = [];
+export const BASE_ONLY_SKILLS: string[] = ['background-generation'];

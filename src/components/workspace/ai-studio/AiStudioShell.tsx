@@ -550,32 +550,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const handleSubmit = async () => {
     const messageText =
       input.trim() ||
-      (readyMediaUrls.length > 0
-        ? activeSkill === 'remove-background'
-          ? 'Remove the background from my uploaded video'
-          : activeSkill === 'composite-subject'
-            ? 'Composite my uploaded cutout and background'
-            : 'Process my uploaded media'
-        : '');
+      (readyMediaUrls.length > 0 ? 'Process my uploaded media' : '');
     if (!messageText || status !== 'ready' || isUploading) return;
 
     const hasVideo =
       readyMediaUrls.length > 0 || Boolean(pipelineState?.videoUrl);
-    if (
-      (activeSkill === 'edu-video' || activeSkill === 'remove-background') &&
-      !hasVideo
-    ) {
-      setUploadError(
-        activeSkill === 'remove-background'
-          ? 'Upload a video before starting Remove Background.'
-          : 'Upload a teacher video before starting Edu-Video.'
-      );
-      return;
-    }
-    if (activeSkill === 'composite-subject' && readyMediaUrls.length < 2) {
-      setUploadError(
-        'Upload a cutout and a background (2 files) before compositing.'
-      );
+    if (activeSkill === 'edu-video' && !hasVideo) {
+      setUploadError('Upload a teacher video before starting Edu-Video.');
       return;
     }
 

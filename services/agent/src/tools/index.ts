@@ -8,8 +8,6 @@ import { createConceptsTools } from './pipeline/concepts';
 import { createHyperframesTools } from './pipeline/hyperframes';
 import { createManimTools } from './pipeline/manim';
 import { createTranscribeTools } from './pipeline/transcribe';
-import { createRemoveBackgroundTools } from './pipeline/removeBackground';
-import { createCompositeSubjectTools } from './pipeline/compositeSubject';
 import { BASE_TOOLS, SKILL_BASE_OVERRIDES, SKILL_TOOLS } from './catalog';
 import type { ResolvedTaggedAsset } from '../taggedAssets';
 
@@ -40,10 +38,8 @@ export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
-    ...createRemoveBackgroundTools(ctx),
     ...createImageGenerateTools(ctx),
     ...createVideoGenerateTools(ctx),
-    ...createCompositeSubjectTools(ctx),
   };
 
   const skillList = [...skills];

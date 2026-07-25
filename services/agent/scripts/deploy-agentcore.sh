@@ -85,21 +85,33 @@ else
 
   echo "==> Building + pushing $PLATFORM image: $IMAGE_URI (+ :latest)"
   # Dockerfile COPY paths are repo-root relative (services/agent/..., Skills).
-  # Keep context as $ROOT; never default to services/agent cwd.
-  echo "==> Docker build context: $ROOT"
+  # Stage a tiny context instead of the whole monorepo: avoids cwd/dockerignore
+  # footguns when deploy is run from services/agent (BuildKit "package.json: not found").
   for req in \
-      "$ROOT/services/agent/package.json" \
-      "$ROOT/services/agent/dist/server.js" \
+      "$AGENT_DIR/package.json" \
+      "$AGENT_DIR/package-lock.json" \
+      "$AGENT_DIR/dist/server.js" \
       "$ROOT/Skills"; do
     [[ -e "$req" ]] || { echo "ERROR: missing build input: $req" >&2; exit 1; }
   done
+  CTX="$TMP/docker-context"
+  mkdir -p "$CTX/services/agent/dist" "$CTX/Skills"
+  cp "$AGENT_DIR/package.json" "$AGENT_DIR/package-lock.json" "$CTX/services/agent/"
+  cp "$AGENT_DIR/dist/server.js" "$CTX/services/agent/dist/"
+  # Skills only — exclude graph noise / OS junk (matches root .dockerignore intent).
+  rsync -a --delete \
+    --exclude 'graphify-out/' \
+    --exclude '.DS_Store' \
+    "$ROOT/Skills/" "$CTX/Skills/"
+  printf '%s\n' '# staged agent context — nothing else to ignore' > "$CTX/.dockerignore"
+  echo "==> Docker build context: $CTX (staged)"
   docker buildx build \
     --platform "$PLATFORM" \
     -f "$AGENT_DIR/Dockerfile" \
     -t "$IMAGE_URI" \
     -t "${ECR_REPO_URI}:latest" \
-    "$ROOT" \
-    --push
+    --push \
+    "$CTX"
 fi
 
 # ── Read live runtime + extract the 4 preserved fields ──

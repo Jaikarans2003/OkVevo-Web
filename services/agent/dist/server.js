@@ -112,8 +112,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs14 = require("fs");
-    var path14 = require("path");
+    var fs12 = require("fs");
+    var path12 = require("path");
     var os3 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
@@ -221,7 +221,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs14.existsSync(filepath)) {
+            if (fs12.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +229,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path14.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path12.resolve(process.cwd(), ".env.vault");
       }
-      if (fs14.existsSync(possibleVaultPath)) {
+      if (fs12.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path14.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path12.join(os3.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path14.resolve(process.cwd(), ".env");
+      const dotenvPath = path12.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path15 of optionPaths) {
+      for (const path13 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs14.readFileSync(path15, { encoding }));
+          const parsed = DotenvModule.parse(fs12.readFileSync(path13, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path15} ${e.message}`);
+            _debug(`Failed to load ${path13} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path14.relative(process.cwd(), filePath);
+            const relative = path12.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path14) {
-  if (!path14)
+function getElementAtPath(obj, path12) {
+  if (!path12)
     return obj;
-  return path14.reduce((acc, key) => acc?.[key], obj);
+  return path12.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path14, issues) {
+function prefixIssues(path12, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path14);
+    iss.path.unshift(path12);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path14 = []) => {
+  const processError = (error41, path12 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path14, ...issue2.path];
+        const fullpath = [...path12, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path14) {
+function toDotPath(path12) {
   const segs = [];
-  for (const seg of path14) {
+  for (const seg of path12) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path14, errorMaps, issueData } = params;
-      const fullPath = [...path14, ...issueData.path || []];
+      const { data, path: path12, errorMaps, issueData } = params;
+      const fullPath = [...path12, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path14, key) {
+      constructor(parent, value, path12, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path14;
+        this._path = path12;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path13 = __toESM2(require("path"));
-    var import_fs13 = __toESM2(require("fs"));
+    var import_path11 = __toESM2(require("path"));
+    var import_fs11 = __toESM2(require("fs"));
     var import_os3 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path13.default.dirname(dir)) {
-          const pkgPath = import_path13.default.join(dir, ".vercel");
-          if (import_fs13.default.existsSync(pkgPath)) {
+        while (dir !== import_path11.default.dirname(dir)) {
+          const pkgPath = import_path11.default.join(dir, ".vercel");
+          if (import_fs11.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path13.default.dirname(dir);
+          dir = import_path11.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19076,9 +19076,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os3.default.platform()) {
         case "darwin":
-          return import_path13.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path11.default.join(import_os3.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path13.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path11.default.join(import_os3.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19129,8 +19129,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS(auth_config_exports);
-    var fs14 = __toESM2(require("fs"));
-    var path14 = __toESM2(require("path"));
+    var fs12 = __toESM2(require("fs"));
+    var path12 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19139,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path14.join(dataDir, "auth.json");
+      return path12.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs14.existsSync(authPath)) {
+        if (!fs12.existsSync(authPath)) {
           return null;
         }
-        const content = fs14.readFileSync(authPath, "utf8");
+        const content = fs12.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19158,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path14.dirname(authPath);
-      if (!fs14.existsSync(authDir)) {
-        fs14.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path12.dirname(authPath);
+      if (!fs12.existsSync(authDir)) {
+        fs12.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs14.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs12.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19353,8 +19353,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path14 = __toESM2(require("path"));
-    var fs14 = __toESM2(require("fs"));
+    var path12 = __toESM2(require("path"));
+    var fs12 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path14.join(dataDir, vercelFolder);
+      return path12.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19442,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path14.join(dir, ".vercel", "project.json");
-      if (!fs14.existsSync(prjPath)) {
+      const prjPath = path12.join(dir, ".vercel", "project.json");
+      if (!fs12.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs14.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs12.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19463,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs14.mkdirSync(path14.dirname(tokenPath), { mode: 504, recursive: true });
-      fs14.writeFileSync(tokenPath, tokenJson);
-      fs14.chmodSync(tokenPath, 432);
+      fs12.mkdirSync(path12.dirname(tokenPath), { mode: 504, recursive: true });
+      fs12.writeFileSync(tokenPath, tokenJson);
+      fs12.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs14.existsSync(tokenPath)) {
+      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs12.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs14.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs12.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -35445,7 +35445,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path12 }) => `${baseURL}${path12}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35453,7 +35453,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path12 }) => `${baseURL}${path12}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35461,21 +35461,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path12 }) => `${baseURL}${path12}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path12 }) => `${baseURL}${path12}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path12 }) => `${baseURL}${path12}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35542,17 +35542,14 @@ var SKILL_TOOLS = {
     "render_hyperframes"
   ],
   "manim-video": ["generate_manim_script", "render_manim_clip"],
-  "hyperframes": ["render_hyperframes"],
-  "remove-background": ["remove_background"],
-  "background-generator": ["image_generate"],
-  "background-video-generator": ["video_generate"],
-  "composite-subject": ["composite_subject"]
+  "hyperframes": ["render_hyperframes"]
 };
 var SKILL_BASE_OVERRIDES = {
-  "remove-background": ["ask_clarification"],
-  "background-generator": ["ask_clarification"],
-  "background-video-generator": ["ask_clarification"],
-  "composite-subject": ["ask_clarification"]
+  "background-generation": [
+    "ask_clarification",
+    "image_generate",
+    "video_generate"
+  ]
 };
 
 // src/sessionSkills.ts
@@ -35982,49 +35979,14 @@ function detectSkill(message) {
       ]
     },
     {
-      skill: "remove-background",
+      skill: "background-generation",
       triggers: [
-        "/remove-background",
-        "remove background",
-        "remove the background",
-        "transparent background",
-        "cut out the speaker",
-        "matte the video"
-      ]
-    },
-    {
-      skill: "background-generator",
-      triggers: [
-        "/background-generator",
-        "generate a background",
-        "generate background",
-        "create a background",
+        "/background-generation",
+        "background",
+        "backdrop",
         "background image",
-        "backdrop image"
-      ]
-    },
-    {
-      skill: "background-video-generator",
-      triggers: [
-        "/background-video-generator",
         "background video",
-        "generate a background video",
-        "generate background video",
-        "moving background",
-        "video backdrop",
-        "animated background"
-      ]
-    },
-    {
-      skill: "composite-subject",
-      triggers: [
-        "/composite-subject",
-        "composite",
-        "combine cutout",
-        "put me on the background",
-        "overlay on background",
-        "place on background",
-        "club the two"
+        "studio background"
       ]
     }
   ];
@@ -37161,9 +37123,70 @@ async function falQueueSubmit(opts) {
   return { request_id: body.request_id };
 }
 
-// src/tools/general/image_generate.ts
-var IMAGE_MODEL = "fal-ai/flux/schnell";
-var IMAGE_SIZES = [
+// src/tools/general/mediaModelRegistry.ts
+var import_strict = __toESM(require("node:assert/strict"));
+var IMAGE_MODEL_KEYS = [
+  "studio_background",
+  "nano_banana_2",
+  "nano_banana_2_lite",
+  "nano_banana_pro",
+  "gpt_image_2"
+];
+var VIDEO_MODEL_KEYS = ["seedance_2", "seedance_2_fast"];
+var VIDEO_DURATIONS = [
+  "auto",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15"
+];
+var ASPECT_TO_IMAGE_SIZE = {
+  "16:9": "landscape_16_9",
+  "9:16": "portrait_16_9",
+  "4:3": "landscape_4_3",
+  "3:4": "portrait_4_3",
+  "1:1": "square_hd",
+  auto: "auto"
+};
+var NANO_ASPECT_RATIOS = [
+  "auto",
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16",
+  "4:1",
+  "1:4",
+  "8:1",
+  "1:8"
+];
+var NANO_PRO_ASPECT_RATIOS = [
+  "auto",
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16"
+];
+var KLEIN_IMAGE_SIZES = [
   "square_hd",
   "square",
   "portrait_4_3",
@@ -37171,6 +37194,277 @@ var IMAGE_SIZES = [
   "landscape_4_3",
   "landscape_16_9"
 ];
+var GPT_IMAGE_SIZES = [...KLEIN_IMAGE_SIZES, "auto"];
+var SEEDANCE_ASPECT_RATIOS = [
+  "auto",
+  "21:9",
+  "16:9",
+  "4:3",
+  "1:1",
+  "3:4",
+  "9:16"
+];
+var SEEDANCE_RESOLUTIONS = ["480p", "720p"];
+var IMAGE_MODELS = {
+  studio_background: {
+    kind: "image",
+    falModel: "fal-ai/flux-2/klein/9b",
+    sizeMode: "image_size",
+    defaultParams: {
+      image_size: "landscape_16_9",
+      num_inference_steps: 4,
+      num_images: 1,
+      output_format: "png",
+      enable_safety_checker: true
+    },
+    constraints: { sizes: KLEIN_IMAGE_SIZES }
+  },
+  nano_banana_2: {
+    kind: "image",
+    falModel: "fal-ai/nano-banana-2",
+    sizeMode: "aspect_ratio",
+    defaultParams: {
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      num_images: 1
+    },
+    constraints: {
+      sizes: NANO_ASPECT_RATIOS,
+      resolutions: ["0.5K", "1K", "2K", "4K"]
+    }
+  },
+  nano_banana_2_lite: {
+    kind: "image",
+    falModel: "google/nano-banana-2-lite",
+    sizeMode: "aspect_ratio",
+    defaultParams: {
+      aspect_ratio: "16:9",
+      num_images: 1
+    },
+    constraints: { sizes: NANO_ASPECT_RATIOS }
+  },
+  nano_banana_pro: {
+    kind: "image",
+    falModel: "fal-ai/nano-banana-pro",
+    sizeMode: "aspect_ratio",
+    defaultParams: {
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      num_images: 1
+    },
+    constraints: {
+      sizes: NANO_PRO_ASPECT_RATIOS,
+      resolutions: ["1K", "2K", "4K"]
+    }
+  },
+  gpt_image_2: {
+    kind: "image",
+    falModel: "openai/gpt-image-2",
+    sizeMode: "image_size",
+    defaultParams: {
+      image_size: "landscape_16_9",
+      quality: "high",
+      num_images: 1
+    },
+    constraints: {
+      sizes: GPT_IMAGE_SIZES,
+      qualities: ["auto", "low", "medium", "high"]
+    }
+  }
+};
+var VIDEO_MODELS = {
+  seedance_2: {
+    kind: "video",
+    falModel: "bytedance/seedance-2.0/text-to-video",
+    falModelImageToVideo: "bytedance/seedance-2.0/image-to-video",
+    sizeMode: "aspect_ratio",
+    defaultParams: {
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      duration: "5",
+      generate_audio: false
+    },
+    constraints: {
+      aspectRatios: SEEDANCE_ASPECT_RATIOS,
+      resolutions: SEEDANCE_RESOLUTIONS,
+      durations: VIDEO_DURATIONS
+    }
+  },
+  seedance_2_fast: {
+    kind: "video",
+    falModel: "bytedance/seedance-2.0/fast/text-to-video",
+    falModelImageToVideo: "bytedance/seedance-2.0/fast/image-to-video",
+    sizeMode: "aspect_ratio",
+    defaultParams: {
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      duration: "5",
+      generate_audio: false
+    },
+    constraints: {
+      aspectRatios: SEEDANCE_ASPECT_RATIOS,
+      resolutions: SEEDANCE_RESOLUTIONS,
+      durations: VIDEO_DURATIONS
+    }
+  }
+};
+function getImageModel(key) {
+  const entry = IMAGE_MODELS[key];
+  if (!entry) throw new Error(`Unknown image model: ${key}`);
+  return entry;
+}
+function getVideoModel(key) {
+  const entry = VIDEO_MODELS[key];
+  if (!entry) throw new Error(`Unknown video model: ${key}`);
+  return entry;
+}
+function resolveVideoFalModel(entry, hasReferenceImage) {
+  return hasReferenceImage ? entry.falModelImageToVideo : entry.falModel;
+}
+function mapAspectToImageSize(aspect, fallback) {
+  if (!aspect) return fallback;
+  return ASPECT_TO_IMAGE_SIZE[aspect] ?? fallback;
+}
+function buildImageInput(key, opts) {
+  const entry = getImageModel(key);
+  const input = {
+    ...entry.defaultParams,
+    prompt: opts.prompt
+  };
+  if (entry.sizeMode === "image_size") {
+    const mapped = mapAspectToImageSize(
+      opts.aspect_ratio,
+      entry.defaultParams.image_size
+    );
+    if (opts.aspect_ratio && mapped === entry.defaultParams.image_size && ASPECT_TO_IMAGE_SIZE[opts.aspect_ratio] == null) {
+      throw new Error(
+        `aspect_ratio '${opts.aspect_ratio}' is not valid for ${key}`
+      );
+    }
+    if (!entry.constraints.sizes.includes(mapped)) {
+      throw new Error(`image_size '${mapped}' is not valid for ${key}`);
+    }
+    input.image_size = mapped;
+  } else if (opts.aspect_ratio) {
+    if (!entry.constraints.sizes.includes(opts.aspect_ratio)) {
+      throw new Error(
+        `aspect_ratio '${opts.aspect_ratio}' is not valid for ${key}`
+      );
+    }
+    input.aspect_ratio = opts.aspect_ratio;
+  }
+  if (opts.resolution) {
+    if (!entry.constraints.resolutions) {
+      delete input.resolution;
+    } else if (!entry.constraints.resolutions.includes(opts.resolution)) {
+      throw new Error(
+        `resolution '${opts.resolution}' is not valid for ${key}`
+      );
+    } else {
+      input.resolution = opts.resolution;
+    }
+  } else if (!entry.constraints.resolutions) {
+    delete input.resolution;
+  }
+  return { falModel: entry.falModel, input };
+}
+function buildVideoInput(key, opts) {
+  const entry = getVideoModel(key);
+  const hasRef = Boolean(opts.reference_image_url?.trim());
+  const falModel = resolveVideoFalModel(entry, hasRef);
+  const input = {
+    ...entry.defaultParams,
+    prompt: opts.prompt
+  };
+  if (opts.aspect_ratio) {
+    if (!entry.constraints.aspectRatios.includes(opts.aspect_ratio)) {
+      throw new Error(
+        `aspect_ratio '${opts.aspect_ratio}' is not valid for ${key}`
+      );
+    }
+    input.aspect_ratio = opts.aspect_ratio;
+  }
+  if (opts.duration !== void 0) {
+    const duration3 = String(opts.duration);
+    if (!entry.constraints.durations.includes(duration3)) {
+      throw new Error(`duration '${duration3}' is not valid for ${key}`);
+    }
+    input.duration = duration3;
+  } else {
+    input.duration = String(entry.defaultParams.duration);
+  }
+  if (opts.resolution) {
+    if (!entry.constraints.resolutions.includes(opts.resolution)) {
+      throw new Error(
+        `resolution '${opts.resolution}' is not valid for ${key}`
+      );
+    }
+    input.resolution = opts.resolution;
+  }
+  if (hasRef) {
+    input.image_url = opts.reference_image_url.trim();
+  }
+  return { falModel, input };
+}
+function selfcheckMediaModelRegistry() {
+  import_strict.default.deepEqual(
+    Object.keys(IMAGE_MODELS).sort(),
+    [...IMAGE_MODEL_KEYS].sort()
+  );
+  import_strict.default.deepEqual(
+    Object.keys(VIDEO_MODELS).sort(),
+    [...VIDEO_MODEL_KEYS].sort()
+  );
+  for (const key of VIDEO_MODEL_KEYS) {
+    const entry = getVideoModel(key);
+    for (const res of entry.constraints.resolutions) {
+      import_strict.default.ok(
+        res === "480p" || res === "720p",
+        `${key} resolution ${res} outside {480p,720p}`
+      );
+    }
+    import_strict.default.equal(
+      resolveVideoFalModel(entry, false),
+      entry.falModel,
+      `${key} T2V slug`
+    );
+    import_strict.default.equal(
+      resolveVideoFalModel(entry, true),
+      entry.falModelImageToVideo,
+      `${key} I2V slug`
+    );
+  }
+  const i2v = buildVideoInput("seedance_2_fast", {
+    prompt: "test",
+    reference_image_url: "https://example.com/ref.png"
+  });
+  import_strict.default.equal(
+    i2v.falModel,
+    "bytedance/seedance-2.0/fast/image-to-video"
+  );
+  import_strict.default.equal(i2v.input.image_url, "https://example.com/ref.png");
+  import_strict.default.equal(typeof i2v.input.duration, "string");
+  const lite = buildImageInput("nano_banana_2_lite", {
+    prompt: "test",
+    aspect_ratio: "16:9",
+    resolution: "2K"
+  });
+  import_strict.default.equal(lite.falModel, "google/nano-banana-2-lite");
+  import_strict.default.equal(lite.input.aspect_ratio, "16:9");
+  import_strict.default.equal("resolution" in lite.input, false);
+  const studio = buildImageInput("studio_background", {
+    prompt: "classroom",
+    aspect_ratio: "16:9"
+  });
+  import_strict.default.equal(studio.input.image_size, "landscape_16_9");
+}
+var isMain = typeof process !== "undefined" && process.argv[1] != null && /mediaModelRegistry\.(ts|js)$/.test(process.argv[1]);
+if (isMain) {
+  selfcheckMediaModelRegistry();
+  console.log("mediaModelRegistry selfcheck ok");
+}
+
+// src/tools/general/image_generate.ts
 function resolveFalImageKey() {
   const key = process.env.FAL_API_IMAGE?.trim() || process.env.FAL_API_KEY?.trim();
   if (!key) {
@@ -37181,33 +37475,42 @@ function resolveFalImageKey() {
 function createImageGenerateTools(ctx) {
   return {
     image_generate: tool({
-      description: `Queue a background image generation via Fal AI FLUX schnell. Returns immediately with request_id (status queued). The image appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL.`,
+      description: `Queue a background image via a Fal media model (closed model enum). Returns immediately with request_id (status queued). The image appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL.`,
       inputSchema: external_exports2.object({
         prompt: external_exports2.string().min(1).describe("Scene description for the background image"),
-        image_size: external_exports2.enum(IMAGE_SIZES).optional().describe("Output size preset; default landscape_16_9")
+        model: external_exports2.enum(IMAGE_MODEL_KEYS).describe(
+          "Registry key: studio_background | nano_banana_2 | nano_banana_2_lite | nano_banana_pro | gpt_image_2"
+        ),
+        aspect_ratio: external_exports2.string().optional().describe(
+          "Unified ratio (e.g. 16:9, 9:16, 1:1). Mapped to Fal image_size or aspect_ratio per model."
+        ),
+        resolution: external_exports2.string().optional().describe(
+          "Model-specific resolution when supported (e.g. 1K). Omitted for models without it."
+        )
       }),
-      execute: async ({ prompt, image_size = "landscape_16_9" }) => {
+      execute: async ({ prompt, model, aspect_ratio, resolution }) => {
         try {
           const falKey = resolveFalImageKey();
+          const { falModel, input } = buildImageInput(model, {
+            prompt,
+            aspect_ratio,
+            resolution
+          });
           const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_image");
           const { request_id } = await falQueueSubmit({
-            model: IMAGE_MODEL,
+            model: falModel,
             falKey,
             webhookUrl,
-            input: {
-              prompt,
-              image_size,
-              num_images: 1,
-              output_format: "png",
-              enable_safety_checker: true
-            }
+            input
           });
           return {
             request_id,
             status: "queued",
             prompt_used: prompt,
-            image_size,
-            model: IMAGE_MODEL
+            model,
+            fal_model: falModel,
+            aspect_ratio: aspect_ratio ?? null,
+            resolution: resolution ?? null
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -37222,11 +37525,6 @@ function createImageGenerateTools(ctx) {
 // src/tools/general/video_generate.ts
 init_dist5();
 init_zod();
-var MAX_BACKGROUND_VIDEO_SECONDS = 15;
-var WAN_MODEL = "fal-ai/wan-t2v";
-var MIN_FRAMES = 81;
-var MAX_FRAMES = 100;
-var MIN_FPS = 5;
 function resolveFalVideoKey() {
   const key = process.env.FAL_API_VIDEO?.trim() || process.env.FAL_API_KEY?.trim() || process.env.FAL_API_IMAGE?.trim();
   if (!key) {
@@ -37234,92 +37532,54 @@ function resolveFalVideoKey() {
   }
   return key;
 }
-function resolveWanTiming(durationSeconds) {
-  const raw = Number.isFinite(durationSeconds) ? durationSeconds : 5;
-  const requested = Math.round(raw);
-  const clampedValue = Math.min(
-    MAX_BACKGROUND_VIDEO_SECONDS,
-    Math.max(4, requested)
-  );
-  const clamped = clampedValue !== requested;
-  for (let fps = 16; fps >= MIN_FPS; fps--) {
-    const frames = Math.round(clampedValue * fps);
-    if (frames >= MIN_FRAMES && frames <= MAX_FRAMES) {
-      return {
-        num_frames: frames,
-        frames_per_second: fps,
-        requested_seconds: requested,
-        actual_seconds: frames / fps,
-        clamped
-      };
-    }
-  }
-  if (clampedValue >= 12) {
-    return {
-      num_frames: 90,
-      frames_per_second: 6,
-      requested_seconds: requested,
-      actual_seconds: 15,
-      clamped: true
-    };
-  }
-  return {
-    num_frames: MIN_FRAMES,
-    frames_per_second: 16,
-    requested_seconds: requested,
-    actual_seconds: MIN_FRAMES / 16,
-    clamped
-  };
-}
 function createVideoGenerateTools(ctx) {
   return {
     video_generate: tool({
-      description: `Queue a short backdrop video via Fal Wan 2.1 (fal-ai/wan-t2v). Hard-capped at ${MAX_BACKGROUND_VIDEO_SECONDS} seconds. Returns immediately with request_id (status queued). The video appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL.`,
+      description: `Queue a short backdrop video via Seedance 2.0 (closed model enum). Returns immediately with request_id (status queued). The video appears in chat/Deliverables via webhook when ready \u2014 never invent or paste a URL. Pass reference_image_url to use image-to-video.`,
       inputSchema: external_exports2.object({
         prompt: external_exports2.string().min(1).describe("Scene description for the background video"),
-        duration_seconds: external_exports2.number().optional().describe(
-          `Desired length in seconds (4\u2013${MAX_BACKGROUND_VIDEO_SECONDS}). Longer requests are clamped.`
-        ),
-        resolution: external_exports2.enum(["480p", "580p", "720p"]).optional().describe("Output resolution; default 720p"),
-        aspect_ratio: external_exports2.enum(["16:9", "9:16"]).optional().describe("Aspect ratio; default 16:9")
+        model: external_exports2.enum(VIDEO_MODEL_KEYS).default("seedance_2_fast").describe("Registry key: seedance_2 | seedance_2_fast"),
+        aspect_ratio: external_exports2.enum(["auto", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]).optional().describe("Aspect ratio; default 16:9"),
+        duration: external_exports2.enum(VIDEO_DURATIONS).optional().describe("Clip length as string enum auto|4\u202615; default 5"),
+        resolution: external_exports2.enum(["480p", "720p"]).optional().describe("Output resolution; default 720p (Seedance ceiling)"),
+        reference_image_url: external_exports2.string().url().optional().describe(
+          "Optional still URL for image-to-video; switches to the I2V Fal endpoint"
+        )
       }),
       execute: async ({
         prompt,
-        duration_seconds = 5,
-        resolution = "720p",
-        aspect_ratio = "16:9"
+        model = "seedance_2_fast",
+        aspect_ratio,
+        duration: duration3,
+        resolution,
+        reference_image_url
       }) => {
         try {
           const falKey = resolveFalVideoKey();
-          const timing = resolveWanTiming(duration_seconds);
+          const { falModel, input } = buildVideoInput(model, {
+            prompt,
+            aspect_ratio,
+            duration: duration3,
+            resolution,
+            reference_image_url
+          });
           const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_video");
           const { request_id } = await falQueueSubmit({
-            model: WAN_MODEL,
+            model: falModel,
             falKey,
             webhookUrl,
-            input: {
-              prompt,
-              num_frames: timing.num_frames,
-              frames_per_second: timing.frames_per_second,
-              resolution,
-              aspect_ratio,
-              enable_safety_checker: true,
-              turbo_mode: true
-            }
+            input
           });
           return {
             request_id,
             status: "queued",
             prompt_used: prompt,
-            resolution,
-            aspect_ratio,
-            model: WAN_MODEL,
-            requested_seconds: timing.requested_seconds,
-            duration_seconds: timing.actual_seconds,
-            duration_clamped: timing.clamped,
-            max_seconds: MAX_BACKGROUND_VIDEO_SECONDS,
-            num_frames: timing.num_frames,
-            frames_per_second: timing.frames_per_second
+            model,
+            fal_model: falModel,
+            aspect_ratio: input.aspect_ratio ?? null,
+            duration: input.duration ?? null,
+            resolution: input.resolution ?? null,
+            i2v: Boolean(reference_image_url)
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -38613,302 +38873,6 @@ function createTranscribeTools(ctx) {
   };
 }
 
-// src/tools/pipeline/removeBackground.ts
-var import_fs11 = __toESM(require("fs"));
-var import_path11 = __toESM(require("path"));
-init_dist5();
-init_zod();
-init_storage();
-function resolveHyperframesCli() {
-  return process.env.HYPERFRAMES_CLI ?? "/usr/local/lib/node_modules/hyperframes/dist/cli.js";
-}
-async function muxSourceAudio(videoPath, audioSourcePath, outputPath) {
-  const probe = await execCommand(
-    `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${audioSourcePath}"`,
-    { timeoutSeconds: 30 }
-  );
-  const hasAudio2 = probe.success && probe.stdout.trim().length > 0;
-  if (!hasAudio2) {
-    import_fs11.default.copyFileSync(videoPath, outputPath);
-    return { kept_audio: false };
-  }
-  const mux = await execCommand(
-    `ffmpeg -y -i "${videoPath}" -i "${audioSourcePath}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a libopus -shortest "${outputPath}"`,
-    { timeoutSeconds: 120 }
-  );
-  if (!mux.success) {
-    throw new Error(mux.stderr || "Failed to mux source audio onto cutout");
-  }
-  return { kept_audio: true };
-}
-function createRemoveBackgroundTools(ctx) {
-  return {
-    remove_background: tool({
-      description: `Remove the background from a person/portrait video using HyperFrames local matting (u\xB2-net_human_seg). Downloads the source, writes a transparent VP9-alpha WebM cutout with source audio remuxed by default, uploads it to Firebase Storage, and returns the public URL. Optionally also emits an inverse-alpha background plate.`,
-      inputSchema: external_exports2.object({
-        video_url: external_exports2.string().describe("Firebase Storage URL of the source video"),
-        quality: external_exports2.enum(["fast", "balanced", "best"]).optional().describe("Encoder quality preset; default balanced"),
-        emit_background_plate: external_exports2.boolean().optional().describe(
-          "If true, also write an inverse-alpha hole-cut plate for text-behind-subject layouts"
-        ),
-        keep_audio: external_exports2.boolean().optional().describe(
-          "Remux original audio onto the cutout (default true). Set false for silent cutout."
-        )
-      }),
-      execute: async ({
-        video_url,
-        quality = "balanced",
-        emit_background_plate = false,
-        keep_audio = true
-      }) => {
-        try {
-          const workdir = getSessionWorkdir(ctx.sessionId);
-          const inputPath = import_path11.default.join(workdir, "rb_source.mp4");
-          const cutoutSilentPath = import_path11.default.join(workdir, "rb_cutout_silent.webm");
-          const cutoutPath = import_path11.default.join(workdir, "rb_cutout.webm");
-          const plateSilentPath = import_path11.default.join(workdir, "rb_plate_silent.webm");
-          const platePath = import_path11.default.join(workdir, "rb_plate.webm");
-          await downloadFile(video_url, inputPath);
-          const cliPath = resolveHyperframesCli();
-          if (!import_fs11.default.existsSync(cliPath)) {
-            throw new Error(
-              `HyperFrames CLI not found at ${cliPath}. Set HYPERFRAMES_CLI.`
-            );
-          }
-          const matteOut = keep_audio ? cutoutSilentPath : cutoutPath;
-          let cmd = `node "${cliPath}" remove-background "${inputPath}" -o "${matteOut}" --quality ${quality}`;
-          if (emit_background_plate) {
-            cmd += ` --background-output "${keep_audio ? plateSilentPath : platePath}"`;
-          }
-          const result = await execCommand(cmd, {
-            cwd: workdir,
-            timeoutSeconds: 1800
-          });
-          if (!result.success) {
-            throw new Error(
-              result.stderr || result.stdout || "remove-background failed"
-            );
-          }
-          if (!import_fs11.default.existsSync(matteOut)) {
-            throw new Error("Cutout file was not produced");
-          }
-          let keptAudio = false;
-          if (keep_audio) {
-            const muxed = await muxSourceAudio(
-              cutoutSilentPath,
-              inputPath,
-              cutoutPath
-            );
-            keptAudio = muxed.kept_audio;
-          }
-          const cutoutTemp = getTempPath(`${ctx.sessionId}_rb_cutout.webm`);
-          import_fs11.default.copyFileSync(cutoutPath, cutoutTemp);
-          const cutoutStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/cutout.webm`;
-          const cutoutUrl = await uploadToStorage(
-            cutoutTemp,
-            cutoutStoragePath
-          );
-          await writeAssetUrl(
-            ctx.userId,
-            ctx.sessionId,
-            "cutout_video",
-            cutoutUrl
-          );
-          let plateUrl;
-          if (emit_background_plate) {
-            const plateMatte = keep_audio ? plateSilentPath : platePath;
-            if (!import_fs11.default.existsSync(plateMatte)) {
-              throw new Error("Background plate file was not produced");
-            }
-            if (keep_audio) {
-              await muxSourceAudio(plateSilentPath, inputPath, platePath);
-            }
-            const plateTemp = getTempPath(`${ctx.sessionId}_rb_plate.webm`);
-            import_fs11.default.copyFileSync(platePath, plateTemp);
-            const plateStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/plate.webm`;
-            plateUrl = await uploadToStorage(plateTemp, plateStoragePath);
-            await writeAssetUrl(
-              ctx.userId,
-              ctx.sessionId,
-              "plate_video",
-              plateUrl
-            );
-          }
-          return {
-            cutout_url: cutoutUrl,
-            ...plateUrl ? { plate_url: plateUrl } : {},
-            quality,
-            emit_background_plate,
-            keep_audio,
-            kept_audio: keep_audio ? keptAudio : false,
-            cli_log: (result.stdout || result.stderr || "").slice(0, 500)
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[remove_background]", ctx.sessionId, message);
-          throw new Error(`Background removal failed: ${message}`);
-        }
-      }
-    })
-  };
-}
-
-// src/tools/pipeline/compositeSubject.ts
-var import_fs12 = __toESM(require("fs"));
-var import_path12 = __toESM(require("path"));
-init_dist5();
-init_zod();
-init_storage();
-async function ffprobeJson(filePath) {
-  const result = await execCommand(
-    `ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,duration -show_entries format=duration,format_name -of json "${filePath}"`,
-    { timeoutSeconds: 60 }
-  );
-  if (!result.success) {
-    throw new Error(result.stderr || "ffprobe failed");
-  }
-  return JSON.parse(result.stdout);
-}
-function pickVideoStream(probe) {
-  return probe.streams?.find((s) => s.codec_type === "video") ?? null;
-}
-function hasAudio(probe) {
-  return Boolean(probe.streams?.some((s) => s.codec_type === "audio"));
-}
-function parseDuration(probe) {
-  const fromFormat = Number(probe.format?.duration);
-  if (Number.isFinite(fromFormat) && fromFormat > 0) return fromFormat;
-  for (const stream of probe.streams ?? []) {
-    const d = Number(stream.duration);
-    if (Number.isFinite(d) && d > 0) return d;
-  }
-  return 0;
-}
-function isImageFile(filePath, probe) {
-  const ext = import_path12.default.extname(filePath).toLowerCase();
-  if ([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"].includes(ext)) {
-    return true;
-  }
-  const format = (probe.format?.format_name ?? "").toLowerCase();
-  if (format.includes("image") || format.includes("png") || format.includes("jpeg")) {
-    return true;
-  }
-  const video = pickVideoStream(probe);
-  const duration3 = parseDuration(probe);
-  return Boolean(video?.width && duration3 > 0 && duration3 < 0.15);
-}
-function createCompositeSubjectTools(ctx) {
-  return {
-    composite_subject: tool({
-      description: `Composite a transparent subject cutout (WebM/MOV with alpha) over a background image or video using ffmpeg. Preserves cutout audio when present. Uploads the final MP4 to Firebase Storage and returns the public URL.`,
-      inputSchema: external_exports2.object({
-        cutout_url: external_exports2.string().describe("Firebase URL of the transparent cutout video (alpha WebM)"),
-        background_url: external_exports2.string().describe(
-          "Firebase URL of the background image (png/jpg) or background video (mp4/webm)"
-        ),
-        layout: external_exports2.enum(["fill", "fit", "bottom-center"]).optional().describe(
-          "Subject placement: fill (default), fit (letterboxed), bottom-center (talking-head)"
-        ),
-        width: external_exports2.number().optional().describe("Output width; default = cutout width"),
-        height: external_exports2.number().optional().describe("Output height; default = cutout height")
-      }),
-      execute: async ({
-        cutout_url,
-        background_url,
-        layout = "fill",
-        width,
-        height
-      }) => {
-        try {
-          const workdir = getSessionWorkdir(ctx.sessionId);
-          const cutoutPath = import_path12.default.join(workdir, "composite_cutout.webm");
-          const bgPath = import_path12.default.join(workdir, "composite_bg");
-          const outPath = import_path12.default.join(workdir, "composite_out.mp4");
-          await downloadFile(cutout_url, cutoutPath);
-          await downloadFile(background_url, bgPath);
-          const cutoutProbe = await ffprobeJson(cutoutPath);
-          const bgProbe = await ffprobeJson(bgPath);
-          const cutoutVideo = pickVideoStream(cutoutProbe);
-          if (!cutoutVideo?.width || !cutoutVideo?.height) {
-            throw new Error("Cutout has no video stream");
-          }
-          const outW = width ?? cutoutVideo.width;
-          const outH = height ?? cutoutVideo.height;
-          const bgIsImage = isImageFile(bgPath, bgProbe);
-          const cutoutHasAudio = hasAudio(cutoutProbe);
-          const bgHasAudio = !bgIsImage && hasAudio(bgProbe);
-          const bgScale = `[0:v]scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH},setsar=1[bg]`;
-          let fgScale;
-          let overlayPos;
-          if (layout === "bottom-center") {
-            fgScale = `[1:v]format=rgba,scale=${Math.round(outW * 0.75)}:-1:flags=lanczos[fg]`;
-            overlayPos = "(W-w)/2:H-h";
-          } else if (layout === "fit") {
-            fgScale = `[1:v]format=rgba,scale=${outW}:${outH}:force_original_aspect_ratio=decrease[fg]`;
-            overlayPos = "(W-w)/2:(H-h)/2";
-          } else {
-            fgScale = `[1:v]format=rgba,scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH}[fg]`;
-            overlayPos = "0:0";
-          }
-          const filter3 = `${bgScale};${fgScale};[bg][fg]overlay=${overlayPos}:format=auto,format=yuv420p[v]`;
-          const bgInput = bgIsImage ? `-loop 1 -i "${bgPath}"` : `-i "${bgPath}"`;
-          const cutoutInput = `-c:v libvpx-vp9 -i "${cutoutPath}"`;
-          let mapAudio = "";
-          if (cutoutHasAudio) {
-            mapAudio = "-map 1:a:0 -c:a aac -b:a 192k";
-          } else if (bgHasAudio) {
-            mapAudio = "-map 0:a:0 -c:a aac -b:a 192k";
-          } else {
-            mapAudio = "-an";
-          }
-          const cmd = `ffmpeg -y ${bgInput} ${cutoutInput} -filter_complex "${filter3}" -map "[v]" ${mapAudio} -shortest -movflags +faststart "${outPath}"`;
-          const render = await execCommand(cmd, {
-            cwd: workdir,
-            timeoutSeconds: 600
-          });
-          if (!render.success) {
-            throw new Error(render.stderr || render.stdout || "ffmpeg composite failed");
-          }
-          if (!import_fs12.default.existsSync(outPath)) {
-            throw new Error("Composite output was not produced");
-          }
-          const tempPath = getTempPath(`${ctx.sessionId}_composite.mp4`);
-          import_fs12.default.copyFileSync(outPath, tempPath);
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composite.mp4`;
-          const videoUrl = await uploadToStorage(tempPath, storagePath);
-          await writeAssetUrl(
-            ctx.userId,
-            ctx.sessionId,
-            "composite_video",
-            videoUrl
-          );
-          await writeAssetUrl(
-            ctx.userId,
-            ctx.sessionId,
-            "draft_video",
-            videoUrl
-          );
-          const outProbe = await ffprobeJson(outPath);
-          return {
-            video_url: videoUrl,
-            layout,
-            width: outW,
-            height: outH,
-            background_type: bgIsImage ? "image" : "video",
-            kept_audio: cutoutHasAudio || bgHasAudio,
-            audio_source: cutoutHasAudio ? "cutout" : bgHasAudio ? "background" : "none",
-            duration_seconds: parseDuration(outProbe) || null
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[composite_subject]", ctx.sessionId, message);
-          throw new Error(`Composite failed: ${message}`);
-        }
-      }
-    })
-  };
-}
-
 // src/tools/index.ts
 function buildTools(ctx, skills = []) {
   const all = {
@@ -38920,10 +38884,8 @@ function buildTools(ctx, skills = []) {
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
-    ...createRemoveBackgroundTools(ctx),
     ...createImageGenerateTools(ctx),
-    ...createVideoGenerateTools(ctx),
-    ...createCompositeSubjectTools(ctx)
+    ...createVideoGenerateTools(ctx)
   };
   const skillList = [...skills];
   const baseNames = skillList.length === 1 && SKILL_BASE_OVERRIDES[skillList[0]] ? SKILL_BASE_OVERRIDES[skillList[0]] : BASE_TOOLS;
