@@ -1,6 +1,7 @@
 ---
 
 ## name: edu-video
+
 description: >
   Transform a teacher video recording into an educational video with Manim animations,
   karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only.
@@ -39,7 +40,9 @@ After the user responds, pick the next tool freely based on their answer. Do not
 
 ## UI Activity Trace vs User Text
 
-Activity trace shows each step as collapsible cards. Keep text responses brief.
+`[[STATUS: …]]` markers belong in **reasoning** only (see AGENT.md). User-facing
+progress is normal assistant **text** — short conversational narration after each
+major confirmed milestone. Never put status markers in user-visible text.
 
 **Never state a step is done unless that turn’s tool result confirms success.** Mapping:
 
@@ -56,13 +59,18 @@ Activity trace shows each step as collapsible cards. Keep text responses brief.
 
 If a tool was not called or returned failure: say so in one plain sentence. Do not invent counts (“all 6 clips”), colors, styles, or other completed work. Same rule after checkpoint resume: no status claims until this turn’s tool results confirm them.
 
-Only after confirmed tool success (keep brevity):
+After each confirmed milestone, write 1–2 short conversational sentences: what just
+finished in plain language, and what’s next. Tone bar: warm and concrete, like a
+colleague updating you mid-build — not a bullet card.
 
-- Transcription: title and duration only, one sentence
-- Concepts: how many Manim concepts found, one sentence
-- Timeline: confirm timeline ready, one sentence
-- Animations: "animations ready", one sentence
-- Render dispatch: final render is running in the background
+Examples (adapt to actual results; never invent numbers):
+
+- Transcription: “Got the transcript — about 12 minutes, roughly 1,800 words. Pulling out the concepts worth animating next.”
+- Concepts: “Found 4 concepts worth animating. I’ll generate and render those animations next.”
+- Animations: “Animations are ready. Lining up the timeline so each clip lands with the right segment.”
+- Timeline: “Timeline’s set. Setting up the video composition next.”
+- Scaffold: “Your video’s structure is ready. Kicking off the final render in the background.”
+- Render dispatch: “Final render is running in the background — I’ll surface the MP4 when it’s ready.”
 
 Never mention tool names, file paths, or technical details to the user.
 
@@ -109,7 +117,7 @@ Never mention tool names, file paths, or technical details to the user.
 For **each** concept from extract_concepts:
 
 1. Read `Skills/manim-video/SKILL.md` before the first `generate_manim_script` for that concept
-2. `generate_manim_script` — pass concept_name, explanation, duration_seconds=(end_seconds - start_seconds), and the same optional `brand_colors` you will pass to `scaffold_hf_project` (omit to use template defaults: primary #f97316 orange, accent #fb923c, bg_dark #0a0a0a black; caption text is white)
+2. `generate_manim_script` — pass concept_name, explanation, window_seconds=(end_seconds - start_seconds) as pacing context only (not a target), and the same optional `brand_colors` you will pass to `scaffold_hf_project` (omit to use template defaults: primary #f97316 orange, accent #fb923c, bg_dark #0a0a0a black; caption text is white)
 3. `render_manim_clip` — pass script_path (from generate_manim_script), class_name, concept_name, start_seconds, end_seconds
 4. Collect successful results into manim_clips[] for Phase 3
 
@@ -121,7 +129,7 @@ For **each** concept from extract_concepts:
 4. `write_file` a minimal patch — change only the broken lines/blocks; preserve class name, imports, scene structure, and working animations
 5. `render_manim_clip` again with script_path — do not re-paste the full script through context
 
-**Patch by default for:** LaTeX/raw-string issues, VGroup vs Group errors, invalid Text() kwargs, missing self.wait(), buff/FadeOut issues, any localized traceback.
+**Patch by default for:** LaTeX/raw-string issues, VGroup vs Group errors, invalid Text() kwargs, missing self.wait(), buff/FadeOut issues, any localized traceback, `AssertionError` from `VisibleTracker.check` / "N tracked visible items (...), max is MAX_VISIBLE — hide() some before adding more" (Group related eqs into one VGroup, `tracker.hide()` spent labels/rects, or `clear_scene` between beats — not a full-regen case). **Never raise `MAX_VISIBLE`** — it is immutable at 6.
 
 **Full regenerate via** `generate_manim_script` **only when:** 3 patch cycles exhausted and error persists, script is structurally wrong (wrong scene class, empty construct, fundamentally wrong approach), or error spans most of the file.
 
@@ -223,6 +231,7 @@ Always read the relevant skill file before using that tool:
 - Before `generate_manim_script`: read `Skills/manim-video/SKILL.md`
 - On Manim render failure: read `Skills/manim-video/references/troubleshooting.md`
 - Before `render_hyperframes`: read `Skills/hyperframes/hyperframes-cli/SKILL.md`
+- On edit requests for an existing draft: read `Skills/edu-video/references/edit-requests.md`
 
 
 
@@ -240,58 +249,7 @@ One plain sentence to the user. Never mention tool names, file paths, or technic
 
 ## On Edit Requests
 
-Local session files (transcript, manim scripts, hf-project) are restored from Firebase Storage automatically when missing on disk. **Never ask the user to re-upload** if this session already has Storage assets. Only ask for a new upload when a tool reports nothing stored for that session (cold session / empty Storage).
-
-Before any edit, always:
-
-1. `read_file("{project_dir}/COMPOSITION_MANIFEST.json")` — get file map and current values (restores hf-project from Storage if needed)
-2. If manifest missing, `search_files(directory: project_dir, pattern: "*.html")` to locate files
-3. `read_file` the specific file before patching — understand existing structure first
-4. `write_file` to patch only the specific file
-5. `render_hyperframes` to re-render
-
-Identify which phase is affected. Re-run only from that phase forward. Never restart the full pipeline.
-
-### Speaker position edits
-
-"move speaker to top right" / "make speaker smaller" / "circular frame" / "center the video" / "corner":
-
-- Read manifest `speaker.presets` for named presets: FS, PIP_MANIM, TOP_RIGHT, CENTER, CIRCLE
-- `read_file("{project_dir}/index.html")` to see current GSAP tween calls
-- `write_file` to patch `tl.set('#speaker-wrap', ...)` and `tl.to('#speaker-wrap', ...)` in index.html
-- `render_hyperframes`
-
-
-
-### Caption style edits
-
-"bigger captions" / "different color" / "move captions up" / "smaller text":
-
-- Read manifest `captions.current` for current font_size, color, position_bottom values
-- `write_file` to patch those values in `compositions/captions-overlay.html`
-- `render_hyperframes`
-
-
-
-### Segment edits
-
-"add an animation at 30s" / "remove the last animation":
-
-- Adding Manim: `generate_manim_script` + `render_manim_clip` for new concept
-- `plan_segments` with updated clip list
-- `scaffold_hf_project` with updated segments
-- `render_hyperframes`
-
-
-
-### Brand/color edits
-
-"change the accent color" / "use red instead of blue":
-
-- `scaffold_hf_project` with updated brand_colors
-- `render_hyperframes`
-
-
+Before making any edit to an existing draft, read `Skills/edu-video/references/edit-requests.md`.
 
 ## Background job rule
 

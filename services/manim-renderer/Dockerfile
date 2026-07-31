@@ -12,6 +12,15 @@ RUN apt-get update && apt-get install -y \
   dvipng \
   cm-super \
   curl \
+  unzip \
+  fontconfig \
+  fonts-dejavu-core \
+  && (apt-get install -y fonts-jetbrains-mono \
+      || (mkdir -p /usr/share/fonts/truetype/jetbrains-mono \
+          && curl -fsSL https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -o /tmp/jbm.zip \
+          && unzip -j /tmp/jbm.zip 'fonts/ttf/*.ttf' -d /usr/share/fonts/truetype/jetbrains-mono \
+          && rm -f /tmp/jbm.zip \
+          && fc-cache -f)) \
   && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*

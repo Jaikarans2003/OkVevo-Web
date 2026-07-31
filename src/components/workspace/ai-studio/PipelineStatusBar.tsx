@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { auth } from '@/config/firebase';
 import type { PipelineState } from '@/hooks/usePipelineState';
+import { isAgentDevTrace } from '@/lib/agent/agentTraceMode';
 
 const PHASE_LABELS: Record<number, string> = {
   2: 'Transcribing video...',
@@ -22,6 +23,10 @@ export function PipelineStatusBar({
   sessionId,
 }: PipelineStatusBarProps) {
   const [checking, setChecking] = useState(false);
+
+  if (!isAgentDevTrace()) {
+    return null;
+  }
 
   if (pipelineState === null || pipelineState.pipelinePhase === 0) {
     return null;

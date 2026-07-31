@@ -44,6 +44,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dvipng \
     dvisvgm \
     fontconfig \
+    fonts-dejavu-core \
+    && (apt-get install -y --no-install-recommends fonts-jetbrains-mono \
+        || (mkdir -p /usr/share/fonts/truetype/jetbrains-mono \
+            && curl -fsSL https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -o /tmp/jbm.zip \
+            && unzip -j /tmp/jbm.zip 'fonts/ttf/*.ttf' -d /usr/share/fonts/truetype/jetbrains-mono \
+            && rm -f /tmp/jbm.zip \
+            && fc-cache -f)) \
     && pip install --no-cache-dir manim \
     && apt-get purge -y build-essential \
     && apt-get autoremove -y \

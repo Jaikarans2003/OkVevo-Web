@@ -90,7 +90,11 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         setCouponError('');
     };
 
+    // ponytail: temporary — flip to true to restore Starter/Hobby/Pro cards
+    const SHOW_PAID_PLANS = false;
+
    const plans = [
+    ...(SHOW_PAID_PLANS ? [
     {
         name: 'Starter',
         icon: Sparkles,
@@ -149,16 +153,17 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
         highlighted: true,
         cta: 'Get Plan',
     },
+    ] : []),
    {
     name: 'Enterprise',
     icon: Crown,
     // price: 'Custom',
     // period: 'contact sales',
-    description: 'For organizations scaling AI content with full control and collaboration',
+    description: 'For Ed-Tech organizations scaling AI content with full control and collaboration',
     features: [
-        'Everything in Pro',
         'Unlimited team seats',
         'Custom organization setup',
+        'Custom Token Allocation',
         'Admin access & controls',
         'Team management dashboard',
         'Content pipeline view',
@@ -260,11 +265,11 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                         transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-[#a1a1aa] text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed"
                     >
-                        Choose your Creative Power <span className="text-orange-500 text-xs md:text-sm">(AI Studio)</span>
+                        Choose your Creative Power <span className="text-orange-500 text-xs md:text-sm"></span>
                     </motion.p>
 
                     {/* Centralized Toggle Button */}
-                    <motion.div
+                    {/* <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -302,10 +307,11 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                                 15% Off
                             </span>
                         </div>
-                    </motion.div>
+                    </motion.div> */}
                 </div>
 
                 {/* Pricing Cards - Main Plans */}
+                {SHOW_PAID_PLANS && (
                 <div className={`grid gap-5 mx-auto ${
                     showOnlyPlan
                         ? 'max-w-[480px]'
@@ -470,6 +476,7 @@ const Pricing = ({ user, onSuccessHobby, onSuccessPro, showOnlyPlan }: PricingPr
                         );
                     })}
                 </div>
+                )}
 
                 {/* Enterprise Card - Separate Row (Horizontal Layout) */}
                 {!showOnlyPlan && (

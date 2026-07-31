@@ -1,5 +1,6 @@
 import {
   streamText,
+  smoothStream,
   stepCountIs,
   pipeUIMessageStreamToResponse,
   type ModelMessage,
@@ -89,12 +90,12 @@ function firstConceptResumeHint(sessionId: string): string {
     if (!first.concept_name || !first.explanation) return '';
     const start = typeof first.start_seconds === 'number' ? first.start_seconds : 0;
     const end = typeof first.end_seconds === 'number' ? first.end_seconds : start;
-    const duration = Math.max(1, end - start);
+    const window_seconds = Math.max(1, end - start);
     return `
 First concept to animate now:
 - concept_name: ${first.concept_name}
 - explanation: ${first.explanation}
-- duration_seconds: ${duration}
+- window_seconds: ${window_seconds}
 Call generate_manim_script with these fields.`.trim();
   } catch {
     return '';
@@ -271,6 +272,10 @@ export async function runAgent(params: RunAgentParams) {
     system: systemPrompt,
     messages,
     tools: tools as ToolSet,
+    experimental_transform: smoothStream({
+      chunking: 'word',
+      delayInMs: 18,
+    }),
     stopWhen: ({ steps }) => {
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });

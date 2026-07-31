@@ -68,12 +68,12 @@ Monospace fonts have fixed character widths — zero kerning issues by design.
 
 | Use case | Font | Fallback |
 |----------|------|----------|
-| **All text (default)** | `"Menlo"` | `"Courier New"`, `"DejaVu Sans Mono"` |
-| Code, labels | `"JetBrains Mono"`, `"SF Mono"` | `"Menlo"` |
+| **All text (default)** | `"JetBrains Mono"` | `"Space Mono"`, `"DejaVu Sans Mono"` |
+| Code, labels | `"JetBrains Mono"` | `"Space Mono"`, `"DejaVu Sans Mono"` |
 | Math | Use `MathTex` (renders via LaTeX, not Pango) | — |
 
 ```python
-MONO = "Menlo"  # define once at top of file
+MONO = "JetBrains Mono"  # fallbacks: "Space Mono", "DejaVu Sans Mono"
 
 title = Text("Fourier Series", font_size=48, color=PRIMARY, weight=BOLD, font=MONO)
 label = Text("n=1: (4/pi) sin(x)", font_size=20, color=BLUE, font=MONO)
@@ -89,11 +89,11 @@ Large title text (font_size >= 48) with short strings (1-3 words) can use propor
 
 ### Font Availability
 
-- **macOS**: Menlo (pre-installed), SF Mono
-- **Linux**: DejaVu Sans Mono (pre-installed), Liberation Mono
-- **Cross-platform**: JetBrains Mono (install from jetbrains.com)
+- **macOS**: JetBrains Mono (Homebrew cask `font-jetbrains-mono`), Menlo (pre-installed fallback)
+- **Linux**: install JetBrains Mono (+ `fonts-dejavu-core`); Space Mono optional
+- **Cross-platform fallbacks**: `"Space Mono"`, `"DejaVu Sans Mono"`
 
-`"Menlo"` is the safest default — pre-installed on macOS, and Linux systems fall back to DejaVu Sans Mono.
+`"JetBrains Mono"` is the default. Fallbacks: `"Space Mono"`, then `"DejaVu Sans Mono"`.
 
 ### Fine-Grained Text Control
 
@@ -101,13 +101,13 @@ Large title text (font_size >= 48) with short strings (1-3 words) can use propor
 
 ```python
 # Letter spacing (Pango units: 1/1024 of a point)
-MarkupText('<span letter_spacing="6000">HERMES</span>', font_size=18, font="Menlo")
+MarkupText('<span letter_spacing="6000">HERMES</span>', font_size=18, font="JetBrains Mono")
 
 # Bold specific words
-MarkupText('This is <b>important</b>', font_size=24, font="Menlo")
+MarkupText('This is <b>important</b>', font_size=24, font="JetBrains Mono")
 
 # Color specific words
-MarkupText('Red <span foreground="#FF6B6B">warning</span>', font_size=24, font="Menlo")
+MarkupText('Red <span foreground="#FF6B6B">warning</span>', font_size=24, font="JetBrains Mono")
 ```
 
 ### Minimum Font Size

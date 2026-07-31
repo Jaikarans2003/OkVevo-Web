@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AiStudioChatBar,
+  resolveModelApiValue,
   type PendingAttachment,
 } from '@/components/workspace/ai-studio/AiStudioChatBar';
 import { AiStudioHeroExtras } from '@/components/workspace/ai-studio/AiStudioHeroExtras';
@@ -26,7 +27,7 @@ import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { type TaggedAsset } from '@/lib/agent/taggedAssets';
+import { hasAssetMention, type TaggedAsset } from '@/lib/agent/taggedAssets';
 
 type SessionAsset = TaggedAsset & {
   id: string;
@@ -116,11 +117,6 @@ async function ensureSessionDoc(sessionId: string): Promise<void> {
   if (!response.ok) throw new Error('Failed to ensure session');
 }
 
-function hasAssetMention(text: string, label: string): boolean {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`).test(text);
-}
-
 function messageHasMediaUrl(
   list: Array<{ metadata?: unknown }>,
   url: string,
@@ -207,7 +203,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         body: () => {
           const ready = pendingAttachmentsRef.current.filter((a) => a.downloadUrl);
           return {
-            model: selectedModelRef.current,
+            model: resolveModelApiValue(selectedModelRef.current),
             sessionId: chatIdRef.current,
             // Server derives userId from Bearer token; kept for local-agent attribution only.
             userId: userIdRef.current,
@@ -252,6 +248,12 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   }, [chatId]);
 
   useEffect(() => {
+    setDraftTaggedAssets((current) =>
+      current.filter((asset) => hasAssetMention(input, asset.label))
+    );
+  }, [input]);
+
+  useEffect(() => {
     if (pipelineState?.skillId) {
       setActiveSkill(pipelineState.skillId);
     }
@@ -268,7 +270,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       { text: answer.text },
       {
         body: {
-          model: selectedModel,
+          model: resolveModelApiValue(selectedModel),
           sessionId: chatId,
           userId,
           pipelineMode,
@@ -612,7 +614,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       },
       {
         body: {
-          model: selectedModel,
+          model: resolveModelApiValue(selectedModel),
           sessionId: chatId,
           userId,
           videoUrl: sentVideoUrl,
@@ -768,6 +770,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     status === 'streaming' && lastAssistantIndex >= 0
       ? messages[lastAssistantIndex]?.id
       : null;
+  const isPendingTurn = status === 'submitted' || status === 'streaming';
 
   const timelineMessages = messages.map((message) => {
     const metadata = message.metadata as
@@ -868,6 +871,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           <AiStudioTimeline
             messages={timelineMessages}
             streamingAssistantId={streamingAssistantId}
+            isPendingTurn={isPendingTurn}
+            chatStatus={status}
             bottomRef={bottomRef}
             onCheckpointAnswer={sendCheckpointAnswer}
             pendingCheckpointId={pipelineState?.pendingCheckpointId}

@@ -13,6 +13,7 @@ import {
   resolveToolPath,
   sanitizedShellEnv,
 } from '../lib/utils';
+import { assertManimMaxVisible, isManimScriptPath } from '../lib/manimGuard';
 import { walkDir } from '../../storage';
 import type { ResolvedTaggedAsset } from '../../taggedAssets';
 
@@ -103,6 +104,13 @@ Paths are relative to the session work directory unless absolute.`,
         // Restore parent artifact family when patching a missing session file
         if (!fs.existsSync(resolved)) {
           await ensurePathArtifacts(ctx, resolved);
+        }
+
+        if (isManimScriptPath(resolved)) {
+          const maxVisibleError = assertManimMaxVisible(content);
+          if (maxVisibleError) {
+            return { error: maxVisibleError, path: resolved };
+          }
         }
 
         fs.mkdirSync(path.dirname(resolved), { recursive: true });
@@ -316,6 +324,14 @@ Paths are relative to the session work directory unless absolute.`,
           }
 
           const updated = content.replace(old_string, new_string);
+
+          if (isManimScriptPath(resolved)) {
+            const maxVisibleError = assertManimMaxVisible(updated);
+            if (maxVisibleError) {
+              return { error: maxVisibleError, path: resolved };
+            }
+          }
+
           fs.writeFileSync(resolved, updated, 'utf-8');
 
           return {

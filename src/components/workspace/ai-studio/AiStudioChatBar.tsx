@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { SkillsPopup } from '@/components/workspace/ai-studio/SkillsPopup';
 import { TypewriterPlaceholder } from '@/components/workspace/ai-studio/TypewriterPlaceholder';
-import type { TaggedAsset } from '@/lib/agent/taggedAssets';
+import { findMentionAtCaret, type TaggedAsset } from '@/lib/agent/taggedAssets';
 
 export type PendingAttachment = {
   id: string;
@@ -29,48 +29,53 @@ const HERO_ROTATING_PROMPTS = [
   'Cut my interview into vertical clips',
 ] as const;
 
-type ModelOption = { label: string; value: string };
+type ModelOption = { id: string; label: string; value: string };
 
 const MODEL_GROUPS: { company: string; models: ModelOption[] }[] = [
   {
     company: 'OkVevo',
-    models: [{ label: 'OkVevo', value: 'minimax/minimax-m3' }],
+    models: [{ id: 'okvevo', label: 'OkVevo Auto', value: 'minimax/minimax-m3' }],
   },
   {
     company: 'Anthropic',
     models: [
-      { label: 'Claude Sonnet 4.6', value: 'anthropic/claude-sonnet-4-6' },
-      { label: 'Claude Opus 4.7', value: 'anthropic/claude-opus-4-7' },
-      { label: 'Claude Opus 4.8', value: 'anthropic/claude-opus-4-8' },
+      { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet 4.6', value: 'anthropic/claude-sonnet-4-6' },
+      { id: 'anthropic/claude-opus-4-7', label: 'Claude Opus 4.7', value: 'anthropic/claude-opus-4-7' },
+      { id: 'anthropic/claude-opus-4-8', label: 'Claude Opus 4.8', value: 'anthropic/claude-opus-4-8' },
     ],
   },
   {
     company: 'OpenAI',
     models: [
-      { label: 'GPT-5.3 Codex', value: 'openai/gpt-5.3-codex' },
-      { label: 'GPT-5.4', value: 'openai/gpt-5.4' },
-      { label: 'GPT-5.5', value: 'openai/gpt-5.5' },
+      { id: 'openai/gpt-5.3-codex', label: 'GPT-5.3 Codex', value: 'openai/gpt-5.3-codex' },
+      { id: 'openai/gpt-5.4', label: 'GPT-5.4', value: 'openai/gpt-5.4' },
+      { id: 'openai/gpt-5.5', label: 'GPT-5.5', value: 'openai/gpt-5.5' },
     ],
   },
   {
     company: 'Google',
-    models: [{ label: 'Gemini 3.5 Flash', value: 'google/gemini-3.5-flash' }],
+    models: [{ id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', value: 'google/gemini-3.5-flash' }],
   },
   {
     company: 'xAI',
-    models: [{ label: 'Grok Build 0.1', value: 'x-ai/grok-build-0.1' }],
+    models: [{ id: 'x-ai/grok-build-0.1', label: 'Grok Build 0.1', value: 'x-ai/grok-build-0.1' }],
   },
   {
     company: 'Moonshot',
-    models: [{ label: 'Kimi K2.7 Code', value: 'moonshotai/kimi-k2.7-code' }],
+    models: [{ id: 'moonshotai/kimi-k2.7-code', label: 'Kimi K2.7 Code', value: 'moonshotai/kimi-k2.7-code' }],
   },
   {
     company: 'MiniMax',
-    models: [{ label: 'MiniMax M3', value: 'minimax/minimax-m3' }],
+    models: [{ id: 'minimax-m3', label: 'MiniMax M3', value: 'minimax/minimax-m3' }],
   },
 ];
 
 const ALL_MODELS = MODEL_GROUPS.flatMap((g) => g.models);
+
+/** UI selection id → OpenRouter model slug (aliases share the same value). */
+export function resolveModelApiValue(modelId: string): string {
+  return ALL_MODELS.find((m) => m.id === modelId)?.value ?? modelId;
+}
 
 const PIPELINE_MODES = [
   { label: 'Ask me', value: 'ask' as const },
@@ -100,9 +105,10 @@ function AssetThumb({
     return (
       <video
         src={asset.url}
+        autoPlay
         muted
+        loop
         playsInline
-        preload="metadata"
         className={`${className} object-cover`}
       />
     );
@@ -196,7 +202,7 @@ export function AiStudioChatBar({
   const [mentionIndex, setMentionIndex] = useState(0);
   const mentionMatches = mention ? fuzzyAssets(assets, mention.query) : [];
 
-  const activeModel = ALL_MODELS.find((m) => m.value === selectedModel) ?? ALL_MODELS[0];
+  const activeModel = ALL_MODELS.find((m) => m.id === selectedModel) ?? ALL_MODELS[0];
   const activePipeline =
     PIPELINE_MODES.find((p) => p.value === pipelineMode) ?? PIPELINE_MODES[0];
   const showTypewriter = isHero && !input.trim();
@@ -208,8 +214,6 @@ export function AiStudioChatBar({
     !isUploading &&
     !sending &&
     status === 'ready';
-  const showEduVideoHint =
-    activeSkill === 'edu-video' && readyCount > 0 && !isUploading;
 
   useEffect(() => {
     if (!modelOpen && !pipelineOpen) return;
@@ -253,6 +257,22 @@ export function AiStudioChatBar({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const caret = e.currentTarget.selectionStart ?? 0;
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const direction = e.key === 'Backspace' ? 'backspace' : 'delete';
+      const hit = findMentionAtCaret(input, caret, selectedAssets, direction);
+      if (hit) {
+        e.preventDefault();
+        const next = input.slice(0, hit.start) + input.slice(hit.end);
+        setInput(next);
+        onAssetRemove?.(hit.asset);
+        requestAnimationFrame(() => {
+          inputRef?.current?.focus();
+          inputRef?.current?.setSelectionRange(hit.start, hit.start);
+        });
+        return;
+      }
+    }
     if (mentionMatches.length > 0) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -287,8 +307,9 @@ export function AiStudioChatBar({
           {pendingAttachments.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {pendingAttachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center gap-2">
-                  <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
+                <div key={attachment.id} className="relative h-[50px] w-[88px]">
+                  {/* overflow-hidden stays on media only — video+spin in same overflow box freezes CSS rotate */}
+                  <div className="h-full w-full overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
                     {attachment.kind === 'video' ? (
                       <video
                         src={attachment.objectUrl}
@@ -296,63 +317,48 @@ export function AiStudioChatBar({
                         muted
                         loop
                         playsInline
-                        className="h-full w-full rounded-xl object-cover"
+                        className="h-full w-full object-cover"
                       />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={attachment.objectUrl}
                         alt={attachment.name}
-                        className="h-full w-full rounded-xl object-cover"
+                        className="h-full w-full object-cover"
                       />
                     )}
-                    {attachment.progress !== null ? (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60">
-                        <Loader2 size={22} className="animate-spin text-orange-500" />
-                      </div>
-                    ) : attachment.downloadUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => onClearAttachment?.(attachment.id)}
-                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
-                        aria-label={`Remove ${attachment.name}`}
-                      >
-                        <X size={12} />
-                      </button>
-                    ) : null}
                   </div>
-                  {attachment.downloadUrl ? (
-                    <span className="max-w-[140px] truncate rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-xs text-white/60">
-                      {attachment.name}
-                    </span>
+                  {attachment.progress !== null ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/60">
+                      <Loader2 size={22} className="animate-spin text-orange-500" />
+                    </div>
+                  ) : attachment.downloadUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => onClearAttachment?.(attachment.id)}
+                      className="absolute right-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
+                      aria-label={`Remove ${attachment.name}`}
+                    >
+                      <X size={12} />
+                    </button>
                   ) : null}
                 </div>
               ))}
-              {showEduVideoHint ? (
-                <span className="text-xs text-orange-300/80">
-                  Video attached — send to start transcription
-                </span>
-              ) : null}
             </div>
           ) : null}
           {selectedAssets.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {selectedAssets.map((asset) => (
-                <div key={asset.id ?? asset.url} className="flex items-center gap-2">
-                  <div className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
-                    <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
-                    <button
-                      type="button"
-                      onClick={() => onAssetRemove?.(asset)}
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
-                      aria-label={`Remove ${asset.label}`}
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <span className="max-w-[200px] truncate rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-xs text-white/60">
-                    @{asset.label}
-                  </span>
+                <div key={asset.id ?? asset.url} className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
+                  <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
+                  <button
+                    type="button"
+                    onClick={() => onAssetRemove?.(asset)}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
+                    aria-label={`Remove ${asset.label}`}
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -451,14 +457,14 @@ export function AiStudioChatBar({
                         </div>
                         {group.models.map((m) => (
                           <button
-                            key={m.value}
+                            key={m.id}
                             type="button"
                             onClick={() => {
-                              setSelectedModel(m.value);
+                              setSelectedModel(m.id);
                               setModelOpen(false);
                             }}
                             className={`flex w-full px-3 py-2 text-left text-sm transition hover:bg-white/[0.05] ${
-                              m.value === selectedModel
+                              m.id === selectedModel
                                 ? 'text-orange-300'
                                 : 'text-white/70'
                             }`}

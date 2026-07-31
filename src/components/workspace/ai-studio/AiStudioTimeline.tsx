@@ -1,11 +1,22 @@
 'use client';
 
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { AgentActivityTrace } from '@/components/workspace/ai-studio/AgentActivityTrace';
+import { AgentConsumerStatus } from '@/components/workspace/ai-studio/AgentConsumerStatus';
 import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
+import {
+  CheckpointCard,
+  type CheckpointCardData,
+} from '@/components/workspace/ai-studio/CheckpointCard';
 import {
   AI_STUDIO_CHAT_BODY_CLASS,
   AI_STUDIO_CHAT_COLUMN,
+  AI_STUDIO_CHAT_PROSE_CLASS,
 } from '@/components/workspace/ai-studio/constants';
+import { isAgentDevTrace } from '@/lib/agent/agentTraceMode';
+import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
+import { cn } from '@/lib/utils';
 
 interface TimelineMessagePart {
   type: string;
@@ -16,6 +27,12 @@ interface TimelineMessagePart {
   output?: unknown;
   errorText?: string;
   toolCallId?: string;
+}
+
+function getCheckpointId(part: TimelineMessagePart): string | undefined {
+  if (part.type !== 'data-checkpoint') return undefined;
+  const data = (part as { data?: { checkpointId?: string } }).data;
+  return data?.checkpointId;
 }
 
 export interface TimelineMessage {
@@ -29,6 +46,8 @@ export interface TimelineMessage {
   mediaUrls?: string[];
   mediaNames?: string[];
 }
+
+const MARKDOWN_PLUGINS = [remarkGfm];
 
 function isLikelyImageUrl(url: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
@@ -70,23 +89,96 @@ function getUserText(parts: TimelineMessagePart[]): string {
     .join('');
 }
 
+function isCheckpointPart(
+  part: TimelineMessagePart
+): part is TimelineMessagePart & { data: CheckpointCardData } {
+  return part.type === 'data-checkpoint' && (part as { data?: unknown }).data != null;
+}
+
+function ConsumerAssistantBody({
+  parts,
+  showTextCursor,
+  onCheckpointAnswer,
+  checkpointInteractionDisabled,
+}: {
+  parts: TimelineMessagePart[];
+  showTextCursor?: boolean;
+  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
+  checkpointInteractionDisabled?: boolean;
+}) {
+  const lastTextIndex = parts.reduce((last, part, index) => {
+    if (part.type !== 'text' || !part.text?.trim()) return last;
+    // ponytail: narrative check after strip so marker-only parts don't steal the cursor
+    return cleanNarrativeText(part.text, { scrubStackNames: true }) ? index : last;
+  }, -1);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (isCheckpointPart(part) && onCheckpointAnswer) {
+          const data = (part as { data: CheckpointCardData }).data;
+          return (
+            <CheckpointCard
+              key={`checkpoint-${data.checkpointId}`}
+              data={data}
+              disabled={checkpointInteractionDisabled}
+              onAnswer={onCheckpointAnswer}
+            />
+          );
+        }
+
+        if (part.type === 'text' && part.text?.trim()) {
+          const cleaned = cleanNarrativeText(part.text, { scrubStackNames: true });
+          // Marker-only text: hide entirely (no cursor-only bubble).
+          if (!cleaned) return null;
+          return (
+            <div
+              key={`text-${index}`}
+              className={cn(AI_STUDIO_CHAT_BODY_CLASS, 'text-white/90')}
+            >
+              <div className={AI_STUDIO_CHAT_PROSE_CLASS}>
+                <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS}>{cleaned}</ReactMarkdown>
+                {showTextCursor && index === lastTextIndex ? (
+                  <span className="ml-0.5 inline-block animate-pulse text-orange-400">▍</span>
+                ) : null}
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })}
+    </>
+  );
+}
+
 export function AiStudioTimeline({
   messages,
   streamingAssistantId,
+  isPendingTurn = false,
+  chatStatus = 'ready',
   bottomRef,
   onCheckpointAnswer,
   pendingCheckpointId,
 }: {
   messages: TimelineMessage[];
   streamingAssistantId?: string | null;
+  isPendingTurn?: boolean;
+  chatStatus?: 'submitted' | 'streaming' | 'ready' | 'error';
   bottomRef?: React.RefObject<HTMLDivElement | null>;
   onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
   pendingCheckpointId?: string | null;
 }) {
+  const devTrace = isAgentDevTrace();
+  const lastAssistantIndex = messages.reduce(
+    (last, message, index) => (message.role === 'assistant' ? index : last),
+    -1
+  );
+
   return (
     <div className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
       <div className={`${AI_STUDIO_CHAT_COLUMN} flex flex-col gap-6 pt-6 pb-4`}>
-        {messages.map((message) => {
+        {messages.map((message, messageIndex) => {
           const time = message.createdAt ? formatMessageTime(message.createdAt) : null;
           if (message.role === 'user') {
             const text = getUserText(message.parts);
@@ -127,25 +219,49 @@ export function AiStudioTimeline({
           }
 
           const isStreaming = streamingAssistantId === message.id;
+          const isLastAssistant = messageIndex === lastAssistantIndex;
+          const isTurnComplete = isLastAssistant ? chatStatus === 'ready' : true;
+          const isLiveConsumerTurn =
+            !devTrace && isLastAssistant && (isStreaming || isPendingTurn);
 
           return (
             <div key={message.id} className="w-full">
-              <div className={`w-full py-1 ${AI_STUDIO_CHAT_BODY_CLASS}`}>
-                <AgentActivityTrace
-                  parts={message.parts}
-                  isStreaming={isStreaming}
-                  showTextCursor={isStreaming}
-                  onCheckpointAnswer={onCheckpointAnswer}
-                  checkpointInteractionDisabled={
-                    pendingCheckpointId != null &&
-                    !message.parts.some(
-                      (p) =>
-                        p.type === 'data-checkpoint' &&
-                        (p as { data?: { checkpointId?: string } }).data?.checkpointId ===
-                          pendingCheckpointId
-                    )
-                  }
-                />
+              <div className={`w-full space-y-3 py-1 ${AI_STUDIO_CHAT_BODY_CLASS}`}>
+                {devTrace ? (
+                  <AgentActivityTrace
+                    parts={message.parts}
+                    isStreaming={isStreaming}
+                    showTextCursor={isStreaming}
+                    onCheckpointAnswer={onCheckpointAnswer}
+                    checkpointInteractionDisabled={
+                      pendingCheckpointId != null &&
+                      !message.parts.some(
+                        (p) => getCheckpointId(p) === pendingCheckpointId
+                      )
+                    }
+                  />
+                ) : (
+                  <>
+                    <AgentConsumerStatus
+                      variant={isLiveConsumerTurn ? 'live' : 'history'}
+                      parts={message.parts}
+                      isStreaming={isLiveConsumerTurn && !isTurnComplete}
+                      isTurnComplete={isTurnComplete}
+                      messageCreatedAt={message.createdAt}
+                    />
+                    <ConsumerAssistantBody
+                      parts={message.parts}
+                      showTextCursor={isStreaming}
+                      onCheckpointAnswer={onCheckpointAnswer}
+                      checkpointInteractionDisabled={
+                        pendingCheckpointId != null &&
+                        !message.parts.some(
+                          (p) => getCheckpointId(p) === pendingCheckpointId
+                        )
+                      }
+                    />
+                  </>
+                )}
               </div>
               {message.imageUrl ? (
                 <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
@@ -173,6 +289,11 @@ export function AiStudioTimeline({
             </div>
           );
         })}
+        {!devTrace && isPendingTurn && !streamingAssistantId ? (
+          <div className="w-full py-1">
+            <AgentConsumerStatus variant="live" parts={[]} isStreaming />
+          </div>
+        ) : null}
         <div ref={bottomRef} />
       </div>
     </div>

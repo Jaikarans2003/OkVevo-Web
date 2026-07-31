@@ -1,4 +1,4 @@
----
+    ---
 
 ## name: manim-video
 
@@ -41,6 +41,8 @@ Run `scripts/setup.sh` to verify all dependencies. Requires: Python 3.10+, Manim
 | **3D visualization**        | 3D concept            | Rotating surfaces, parametric curves, spatial geometry | `references/camera-and-3d.md`   |
 
 
+
+
 ## Stack
 
 Single Python script per project. No browser, no Node.js, no GPU required.
@@ -52,6 +54,8 @@ Single Python script per project. No browser, no Node.js, no GPU required.
 | Math      | LaTeX (texlive/MiKTeX)            | Equation rendering via `MathTex`                 |
 | Video I/O | ffmpeg                            | Scene stitching, format conversion, audio muxing |
 | TTS       | ElevenLabs / Qwen3-TTS (optional) | Narration voiceover                              |
+
+
 
 
 ## Pipeline
@@ -67,9 +71,13 @@ PLAN --> CODE --> RENDER --> STITCH --> AUDIO (optional) --> REVIEW
 5. **AUDIO** (optional) — Add voiceover and/or background music via ffmpeg. See `references/rendering.md`
 6. **REVIEW** — Render preview stills, verify against plan, adjust
 
+
+
 ### Edu-video integration
 
 When used inside the edu-video pipeline, each concept gets one `generate_manim_script` call. Colors come from `brand_colors` (or edu-video template defaults: bg `#0a0a0a`, accent `#fb923c`, primary `#f97316`) — not Classic 3B1B. On `render_manim_clip` failure, patch the persisted script via `read_file` + `write_file` and re-render with `script_path` — see `references/troubleshooting.md` (Edu-Video Patch Loop). Full regeneration is the exception, not the default.
+
+Edu-video concept scenes are single clips embedded into a fixed-duration window — do NOT FadeOut at the end of the scene (that's for the standalone multi-scene workflow only). Instead, after the last reveal, hold the completed visual state with a generous `self.wait()` — reserve at least the last 20% of the concept's window (minimum 2 seconds) as a hold with nothing changing on screen, so the viewer has time to read the finished diagram before the pipeline cuts to the speaker. The clip should end mid-hold, not mid-fade and not on a blank frame.
 
 ## Project Structure
 
@@ -83,7 +91,11 @@ project-name/
     videos/script/480p15/
 ```
 
+
+
 ## Creative Direction
+
+
 
 ### Color Palettes
 
@@ -94,6 +106,8 @@ project-name/
 | **Warm academic** | `#2D2B55`  | `#FF6B6B`        | `#FFD93D`         | `#6BCB77`          | Approachable          |
 | **Neon tech**     | `#0A0A0A`  | `#00F5FF`        | `#FF00FF`         | `#39FF14`          | Systems, architecture |
 | **Monochrome**    | `#1A1A2E`  | `#EAEAEA`        | `#888888`         | `#FFFFFF`          | Minimalist            |
+
+
 
 
 ### Animation Speed
@@ -109,6 +123,8 @@ project-name/
 | "Aha moment" reveal | 2.5s     | 3.0s              |
 
 
+
+
 ### Typography Scale
 
 
@@ -121,12 +137,14 @@ project-name/
 | Caption | 20        | Subtitles, fine print          |
 
 
+
+
 ### Fonts
 
 **Use monospace fonts for all text.** Manim's Pango renderer produces broken kerning with proportional fonts at all sizes. See `references/visual-design.md` for full recommendations.
 
 ```python
-MONO = "Menlo"  # define once at top of file
+MONO = "JetBrains Mono"  # fallbacks: "Space Mono", "DejaVu Sans Mono"
 
 Text("Fourier Series", font_size=48, font=MONO, weight=BOLD)  # titles
 Text("n=1: sin(x)", font_size=20, font=MONO)                  # labels
@@ -144,33 +162,117 @@ Never use identical config for all scenes. For each scene:
 - **Different animation entry** — vary between Write, FadeIn, GrowFromCenter, Create
 - **Different visual weight** — some scenes dense, others sparse
 
+
+
 ## Workflow
 
-### Step 1: Plan (plan.md)
+
+
+### Step 1: Plan ([plan.md](http://plan.md))
 
 Before any code, write `plan.md`. See `references/scene-planning.md` for the comprehensive template.
 
-### Step 2: Code (script.py)
+### Step 2: Code ([script.py](http://script.py))
 
 One class per scene. Every scene is independently renderable.
 
+#### Anti-overlap boilerplate (copy verbatim)
+
+Every generated script **must** start with this block — copy verbatim, do not paraphrase:
+
 ```python
 from manim import *
+
+MAX_VISIBLE = 6
+SAFE_WIDTH = config.frame_width - 1.0
+
+def safe_text(text, **kwargs):
+    t = Text(text, **kwargs)
+    if t.width > SAFE_WIDTH:
+        t.set_width(SAFE_WIDTH)
+    return t
+
+def clear_scene(self):
+    if self.mobjects:
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.5)
+        self.wait(0.3)
+
+class VisibleTracker:
+    def __init__(self):
+        self.items = {}
+    def show(self, key, mobject):
+        self.items[key] = mobject
+    def hide(self, key):
+        self.items.pop(key, None)
+    def check(self):
+        assert len(self.items) <= MAX_VISIBLE, (
+            f"{len(self.items)} tracked visible items ({list(self.items)}), "
+            f"max is {MAX_VISIBLE} — hide() some before adding more"
+        )
+```
+
+**Rules:** All `Text()` calls go through `safe_text()`, not raw `Text()`. Call `clear_scene(self)` before introducing a new concept's content. Instantiate `tracker = VisibleTracker()`, call `tracker.show(key, mobject)` when adding content, `tracker.hide(key)` when removing it, and `tracker.check()` after every `self.play()` that adds mobjects.
+
+```python
+from manim import *
+
+MAX_VISIBLE = 6
+SAFE_WIDTH = config.frame_width - 1.0
+
+def safe_text(text, **kwargs):
+    t = Text(text, **kwargs)
+    if t.width > SAFE_WIDTH:
+        t.set_width(SAFE_WIDTH)
+    return t
+
+def clear_scene(self):
+    if self.mobjects:
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.5)
+        self.wait(0.3)
+
+class VisibleTracker:
+    def __init__(self):
+        self.items = {}
+    def show(self, key, mobject):
+        self.items[key] = mobject
+    def hide(self, key):
+        self.items.pop(key, None)
+    def check(self):
+        assert len(self.items) <= MAX_VISIBLE, (
+            f"{len(self.items)} tracked visible items ({list(self.items)}), "
+            f"max is {MAX_VISIBLE} — hide() some before adding more"
+        )
 
 BG = "#1C1C1C"
 PRIMARY = "#58C4DD"
 SECONDARY = "#83C167"
 ACCENT = "#FFFF00"
-MONO = "Menlo"
+MONO = "JetBrains Mono"
 
 class Scene1_Introduction(Scene):
     def construct(self):
         self.camera.background_color = BG
-        title = Text("Why Does This Work?", font_size=48, color=PRIMARY, weight=BOLD, font=MONO)
+        tracker = VisibleTracker()
+        title = safe_text("Why Does This Work?", font_size=48, color=PRIMARY, weight=BOLD, font=MONO)
         self.add_subcaption("Why does this work?", duration=2)
         self.play(Write(title), run_time=1.5)
+        tracker.show("title", title)
+        tracker.check()
         self.wait(1.0)
-        self.play(FadeOut(title), run_time=0.5)
+        subtitle = safe_text("A closer look", font_size=32, color=SECONDARY, font=MONO)
+        self.play(FadeOut(title), FadeIn(subtitle), run_time=1.0)
+        tracker.hide("title")
+        tracker.show("subtitle", subtitle)
+        tracker.check()
+        self.wait(1.0)
+        # edu-video ending: hold finished state (do not FadeOut)
+        self.wait(2.0)
+```
+
+**Standalone multi-scene ending** (ffmpeg concat workflow only — not edu-video):
+
+```python
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.5)
 ```
 
 Key patterns:
@@ -178,7 +280,10 @@ Key patterns:
 - **Subtitles** on every animation: `self.add_subcaption("text", duration=N)` or `subcaption="text"` on `self.play()`
 - **Shared color constants** at file top for cross-scene consistency
 - `**self.camera.background_color`** set in every scene
-- **Clean exits** — FadeOut all mobjects at scene end: `self.play(FadeOut(Group(*self.mobjects)))`
+- **Edu-video ending** — hold the finished state (see Edu-video integration); do not FadeOut at scene end
+- **Standalone clean exits** — FadeOut all mobjects at scene end for multi-scene concat: `self.play(FadeOut(Group(*self.mobjects)))`
+
+
 
 ### Step 3: Render
 
@@ -186,6 +291,8 @@ Key patterns:
 manim -ql script.py Scene1_Introduction Scene2_CoreConcept  # draft
 manim -qh script.py Scene1_Introduction Scene2_CoreConcept  # production
 ```
+
+
 
 ### Step 4: Stitch
 
@@ -197,13 +304,19 @@ EOF
 ffmpeg -y -f concat -safe 0 -i concat.txt -c copy final.mp4
 ```
 
+
+
 ### Step 5: Review
 
 ```bash
 manim -ql --format=png -s script.py Scene2_CoreConcept  # preview still
 ```
 
+
+
 ## Critical Implementation Notes
+
+
 
 ### Raw Strings for LaTeX
 
@@ -213,11 +326,15 @@ manim -ql --format=png -s script.py Scene2_CoreConcept  # preview still
 MathTex(r"\frac{1}{2}")
 ```
 
+
+
 ### buff >= 0.5 for Edge Text
 
 ```python
 label.to_edge(DOWN, buff=0.5)  # never < 0.5
 ```
+
+
 
 ### FadeOut Before Replacing Text
 
@@ -225,12 +342,25 @@ label.to_edge(DOWN, buff=0.5)  # never < 0.5
 self.play(ReplacementTransform(note1, note2))  # not Write(note2) on top
 ```
 
+
+
+### Anti-ghost / anti-collision
+
+- **Equation structure change** (add `\frac`, wrap `\text{softmax}`, grow/shrink substantially): prefer `FadeOut(old)+Write(new)` or `FadeTransform`. Use `TransformMatchingTex` only with `substrings_to_isolate` on shared tokens; never bare `Transform(step, next)` for dissimilar eq shapes.
+- **Labels under MathTex**: `next_to(..., DOWN, buff>=0.6)`; under fractions `buff>=0.8` (or bottom note zone). Edge buff rule stays separate.
+- **Annotations / SurroundingRectangle labels**: never place `next_to(highlight, RIGHT)` when sibling terms sit there — use `UP`/`DOWN`/`Brace`, or left of the whole equation block.
+- **`MAX_VISIBLE = 6` is immutable** — never change the constant. On assert: Group related eqs into one VGroup, FadeOut spent labels/rects, or `clear_scene` between beats.
+
+
+
 ### Never Animate Non-Added Mobjects
 
 ```python
 self.play(Create(circle))  # must add first
 self.play(circle.animate.set_color(RED))  # then animate
 ```
+
+
 
 ## Performance Targets
 
@@ -267,12 +397,16 @@ Always iterate at `-ql`. Only render `-qh` for final output.
 
 ---
 
+
+
 ## Creative Divergence (use only when user requests experimental/creative/unique output)
 
 If the user asks for creative, experimental, or unconventional explanatory approaches, select a strategy and reason through it BEFORE designing the animation.
 
 - **SCAMPER** — when the user wants a fresh take on a standard explanation
 - **Assumption Reversal** — when the user wants to challenge how something is typically taught
+
+
 
 ### SCAMPER Transformation
 
@@ -283,6 +417,8 @@ Take a standard mathematical/technical visualization and transform it:
 - **Reverse**: derive backward — start from the result and deconstruct to axioms
 - **Modify**: exaggerate a parameter to show why it matters (10x the learning rate, 1000x the sample size)
 - **Eliminate**: remove all notation — explain purely through animation and spatial relationships
+
+
 
 ### Assumption Reversal
 

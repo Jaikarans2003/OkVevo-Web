@@ -4,6 +4,7 @@ import { loadAgentMd, loadSkillMd } from './skills';
 
 const SKILLS_DIR = path.resolve(__dirname, '../../../Skills');
 
+// ponytail: local agent auto-invalidates on AGENT.md/SKILL.md mtime; AgentCore needs image redeploy (COPY Skills).
 type CacheEntry = {
   prompt: string;
   skillName: string | null;

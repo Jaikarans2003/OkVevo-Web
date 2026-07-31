@@ -26386,7 +26386,97 @@ async function convertToModelMessages(messages, options) {
 function createDownload(options) {
   return ({ url: url2, abortSignal }) => download({ url: url2, maxBytes: options == null ? void 0 : options.maxBytes, abortSignal });
 }
-var __defProp2, __export2, name16, marker17, symbol18, _a17, InvalidArgumentError2, name23, marker23, symbol23, _a23, name33, marker33, symbol33, _a33, InvalidToolApprovalError, name43, marker43, symbol43, _a43, InvalidToolApprovalSignatureError, name53, marker53, symbol53, _a53, InvalidToolInputError, name63, marker63, symbol63, _a63, ToolCallNotFoundForApprovalError, name73, marker73, symbol73, _a73, MissingToolResultsError, name83, marker83, symbol83, _a83, name93, marker93, symbol93, _a93, NoObjectGeneratedError, name102, marker103, symbol103, _a103, NoOutputGeneratedError, name112, marker112, symbol112, _a112, name122, marker122, symbol122, _a122, name132, marker132, symbol132, _a132, name142, marker142, symbol142, _a142, NoSuchToolError, name152, marker152, symbol152, _a152, ToolCallRepairError, UnsupportedModelVersionError, name162, marker162, symbol162, _a162, UIMessageStreamError, name17, marker172, symbol172, _a172, name18, marker18, symbol182, _a18, InvalidMessageRoleError, name19, marker19, symbol19, _a19, MessageConversionError, name20, marker20, symbol20, _a20, RetryError, FIRST_WARNING_INFO_MESSAGE, hasLoggedBefore, logWarnings, imageMediaTypeSignatures, stripID3, VERSION4, download, createDefaultDownloadFunction, dataContentSchema, jsonValueSchema, providerMetadataSchema, textPartSchema, imagePartSchema, filePartSchema, reasoningPartSchema, toolCallPartSchema, outputSchema, toolResultPartSchema, toolApprovalRequestSchema, toolApprovalResponseSchema, systemModelMessageSchema, userModelMessageSchema, assistantModelMessageSchema, toolModelMessageSchema, modelMessageSchema, noopTracer, noopSpan, noopSpanContext, retryWithExponentialBackoffRespectingRetryHeaders, DefaultGeneratedFile, DefaultGeneratedFileWithType, encoder, output_exports, text, object2, array2, choice, json2, DefaultStepResult, originalGenerateId, JsonToSseTransformStream, UI_MESSAGE_STREAM_HEADERS, toolMetadataSchema, uiMessageChunkSchema, originalGenerateId2, isOutputChunkType, DefaultStreamTextResult, toolMetadataSchema2, uiMessagesSchema, originalGenerateId3, originalGenerateId4, defaultDownload, name21, marker21, symbol21, _a21, defaultDownload2;
+function smoothStream({
+  delayInMs = 10,
+  chunking = "word",
+  _internal: { delay: delay22 = delay } = {}
+} = {}) {
+  let detectChunk;
+  if (chunking != null && typeof chunking === "object" && "segment" in chunking && typeof chunking.segment === "function") {
+    const segmenter = chunking;
+    detectChunk = (buffer) => {
+      if (buffer.length === 0)
+        return null;
+      const iterator = segmenter.segment(buffer)[Symbol.iterator]();
+      const first = iterator.next().value;
+      return (first == null ? void 0 : first.segment) || null;
+    };
+  } else if (typeof chunking === "function") {
+    detectChunk = (buffer) => {
+      const match = chunking(buffer);
+      if (match == null) {
+        return null;
+      }
+      if (!match.length) {
+        throw new Error(`Chunking function must return a non-empty string.`);
+      }
+      if (!buffer.startsWith(match)) {
+        throw new Error(
+          `Chunking function must return a match that is a prefix of the buffer. Received: "${match}" expected to start with "${buffer}"`
+        );
+      }
+      return match;
+    };
+  } else {
+    const chunkingRegex = typeof chunking === "string" ? CHUNKING_REGEXPS[chunking] : chunking instanceof RegExp ? chunking : void 0;
+    if (chunkingRegex == null) {
+      throw new InvalidArgumentError({
+        argument: "chunking",
+        message: `Chunking must be "word", "line", a RegExp, an Intl.Segmenter, or a ChunkDetector function. Received: ${chunking}`
+      });
+    }
+    detectChunk = (buffer) => {
+      const match = chunkingRegex.exec(buffer);
+      if (!match) {
+        return null;
+      }
+      return buffer.slice(0, match.index) + (match == null ? void 0 : match[0]);
+    };
+  }
+  return () => {
+    let buffer = "";
+    let id = "";
+    let type = void 0;
+    let providerMetadata = void 0;
+    function flushBuffer(controller) {
+      if (buffer.length > 0 && type !== void 0) {
+        controller.enqueue({
+          type,
+          text: buffer,
+          id,
+          ...providerMetadata != null ? { providerMetadata } : {}
+        });
+        buffer = "";
+        providerMetadata = void 0;
+      }
+    }
+    return new TransformStream({
+      async transform(chunk, controller) {
+        if (chunk.type !== "text-delta" && chunk.type !== "reasoning-delta") {
+          flushBuffer(controller);
+          controller.enqueue(chunk);
+          return;
+        }
+        if ((chunk.type !== type || chunk.id !== id) && buffer.length > 0) {
+          flushBuffer(controller);
+        }
+        buffer += chunk.text;
+        id = chunk.id;
+        type = chunk.type;
+        if (chunk.providerMetadata != null) {
+          providerMetadata = chunk.providerMetadata;
+        }
+        let match;
+        while ((match = detectChunk(buffer)) != null) {
+          controller.enqueue({ type, text: match, id });
+          buffer = buffer.slice(match.length);
+          await delay22(delayInMs);
+        }
+      }
+    });
+  };
+}
+var __defProp2, __export2, name16, marker17, symbol18, _a17, InvalidArgumentError2, name23, marker23, symbol23, _a23, name33, marker33, symbol33, _a33, InvalidToolApprovalError, name43, marker43, symbol43, _a43, InvalidToolApprovalSignatureError, name53, marker53, symbol53, _a53, InvalidToolInputError, name63, marker63, symbol63, _a63, ToolCallNotFoundForApprovalError, name73, marker73, symbol73, _a73, MissingToolResultsError, name83, marker83, symbol83, _a83, name93, marker93, symbol93, _a93, NoObjectGeneratedError, name102, marker103, symbol103, _a103, NoOutputGeneratedError, name112, marker112, symbol112, _a112, name122, marker122, symbol122, _a122, name132, marker132, symbol132, _a132, name142, marker142, symbol142, _a142, NoSuchToolError, name152, marker152, symbol152, _a152, ToolCallRepairError, UnsupportedModelVersionError, name162, marker162, symbol162, _a162, UIMessageStreamError, name17, marker172, symbol172, _a172, name18, marker18, symbol182, _a18, InvalidMessageRoleError, name19, marker19, symbol19, _a19, MessageConversionError, name20, marker20, symbol20, _a20, RetryError, FIRST_WARNING_INFO_MESSAGE, hasLoggedBefore, logWarnings, imageMediaTypeSignatures, stripID3, VERSION4, download, createDefaultDownloadFunction, dataContentSchema, jsonValueSchema, providerMetadataSchema, textPartSchema, imagePartSchema, filePartSchema, reasoningPartSchema, toolCallPartSchema, outputSchema, toolResultPartSchema, toolApprovalRequestSchema, toolApprovalResponseSchema, systemModelMessageSchema, userModelMessageSchema, assistantModelMessageSchema, toolModelMessageSchema, modelMessageSchema, noopTracer, noopSpan, noopSpanContext, retryWithExponentialBackoffRespectingRetryHeaders, DefaultGeneratedFile, DefaultGeneratedFileWithType, encoder, output_exports, text, object2, array2, choice, json2, DefaultStepResult, originalGenerateId, JsonToSseTransformStream, UI_MESSAGE_STREAM_HEADERS, toolMetadataSchema, uiMessageChunkSchema, originalGenerateId2, isOutputChunkType, DefaultStreamTextResult, toolMetadataSchema2, uiMessagesSchema, originalGenerateId3, originalGenerateId4, CHUNKING_REGEXPS, defaultDownload, name21, marker21, symbol21, _a21, defaultDownload2;
 var init_dist5 = __esm({
   "node_modules/ai/dist/index.mjs"() {
     init_dist3();
@@ -26448,6 +26538,8 @@ var init_dist5 = __esm({
     init_v4();
     init_dist3();
     init_dist3();
+    init_dist3();
+    init_dist();
     __defProp2 = Object.defineProperty;
     __export2 = (target, all) => {
       for (var name222 in all)
@@ -29763,6 +29855,10 @@ var init_dist5 = __esm({
     );
     originalGenerateId3 = createIdGenerator({ prefix: "aiobj", size: 24 });
     originalGenerateId4 = createIdGenerator({ prefix: "aiobj", size: 24 });
+    CHUNKING_REGEXPS = {
+      word: /\S+\s+/m,
+      line: /\n+/m
+    };
     defaultDownload = createDownload();
     name21 = "AI_NoSuchProviderError";
     marker21 = `vercel.ai.error.${name21}`;
@@ -36614,6 +36710,24 @@ function substitutePlaceholders(template, replacements) {
   return result;
 }
 
+// src/tools/lib/manimGuard.ts
+var SCENE_CLASS_RE = /class\s+Scene\w*\s*\(\s*Scene\s*\)\s*:/;
+var TRACKER_REMOVED = "Anti-overlap tracking (VisibleTracker) was removed from this script \u2014 it must remain wired in; fix the layout, don't delete the safety check.";
+function assertManimMaxVisible(content) {
+  if (/\bMAX_VISIBLE\s*=/.test(content) && !/\bMAX_VISIBLE\s*=\s*6\b/.test(content)) {
+    return "MAX_VISIBLE must remain 6 (immutable). Do not raise it \u2014 Group related mobjects, FadeOut spent labels/rects, or clear_scene between beats, then retry.";
+  }
+  if (SCENE_CLASS_RE.test(content)) {
+    if (!/\bVisibleTracker\b/.test(content) || !/\.check\s*\(/.test(content)) {
+      return TRACKER_REMOVED;
+    }
+  }
+  return null;
+}
+function isManimScriptPath(resolvedPath) {
+  return /[/\\]manim_scripts[/\\].+\.py$/i.test(resolvedPath);
+}
+
 // src/tools/general/filesystem.ts
 init_storage();
 async function ensurePathArtifacts(ctx, resolvedPath) {
@@ -36681,6 +36795,12 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = import_path5.default.isAbsolute(filePath) ? filePath : import_path5.default.join(baseDir, filePath);
         if (!import_fs5.default.existsSync(resolved)) {
           await ensurePathArtifacts(ctx, resolved);
+        }
+        if (isManimScriptPath(resolved)) {
+          const maxVisibleError = assertManimMaxVisible(content);
+          if (maxVisibleError) {
+            return { error: maxVisibleError, path: resolved };
+          }
         }
         import_fs5.default.mkdirSync(import_path5.default.dirname(resolved), { recursive: true });
         import_fs5.default.writeFileSync(resolved, content, "utf-8");
@@ -36840,6 +36960,12 @@ Paths are relative to the session work directory unless absolute.`,
             };
           }
           const updated = content.replace(old_string, new_string);
+          if (isManimScriptPath(resolved)) {
+            const maxVisibleError = assertManimMaxVisible(updated);
+            if (maxVisibleError) {
+              return { error: maxVisibleError, path: resolved };
+            }
+          }
           import_fs5.default.writeFileSync(resolved, updated, "utf-8");
           return {
             path: resolved,
@@ -37889,7 +38015,7 @@ ${retryHint}` : userMessage
               {
                 phase_label: "Concepts extracted",
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
-                question: `${concept_count} concept(s) ready for Manim. Review and continue when ready.`,
+                question: `${concept_count} concept(s) ready to animate. Review and continue when ready.`,
                 allowFreeform: true
               }
             );
@@ -38608,10 +38734,12 @@ function createManimTools(ctx) {
       inputSchema: external_exports2.object({
         concept_name: external_exports2.string().describe("Name of the teaching concept to animate"),
         explanation: external_exports2.string().describe("Full explanation of the concept from extract_concepts"),
-        duration_seconds: external_exports2.number().describe("Target duration for the animation in seconds (start_seconds to end_seconds)"),
+        window_seconds: external_exports2.number().describe(
+          "Mode A window length in seconds (end_seconds - start_seconds) \u2014 informational pacing context only, not a target"
+        ),
         brand_colors: brandColorsSchema2.optional().describe("Optional brand palette \u2014 same values as scaffold_hf_project; defaults match edu-video templates")
       }),
-      execute: async ({ concept_name, explanation, duration_seconds, brand_colors }) => {
+      execute: async ({ concept_name, explanation, window_seconds, brand_colors }) => {
         const safeName = manimSafeName(concept_name);
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
@@ -38619,32 +38747,42 @@ function createManimTools(ctx) {
         const manimSkill = loadSkillFile("manim-video/SKILL.md");
         const troubleshooting = loadSkillFile("manim-video/references/troubleshooting.md");
         const animations = loadSkillFile("manim-video/references/animations.md");
+        const productionQuality = loadSkillFile("manim-video/references/production-quality.md");
         const conceptRef = loadSkillFile(selectManimReference(explanation));
         const systemPrompt = `You are a Manim CE expert. Write a single Python script for one animation scene. Return ONLY valid Python code. No markdown fences. No explanation. No comments except inline code comments.
 The script MUST:
 - Import from manim: from manim import *
+- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker) \u2014 copy verbatim, do not paraphrase
+- All Text() via safe_text(), not raw Text(); call clear_scene(self) before new concept content; instantiate tracker = VisibleTracker(), call tracker.show(key, mobject) when adding, tracker.hide(key) when removing, and tracker.check() after every self.play() that adds mobjects
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
 ${palettePrompt}
-- Target duration: ${duration_seconds} seconds
 - Use self.wait() after every animation
-- End with FadeOut(Group(*self.mobjects))
+- End by holding the finished visual state with a generous self.wait() \u2014 reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
 - Never animate mobjects not yet added to scene
-- Use buff >= 0.5 for all edge text`;
+- Use buff >= 0.5 for all edge text
+- Equation structure change (add frac, wrap softmax, reshape): FadeOut+Write or FadeTransform \u2014 TransformMatchingTex only with substrings_to_isolate; never bare Transform between dissimilar MathTex
+- Labels under MathTex: next_to(..., DOWN, buff>=0.6); under fractions buff>=0.8
+- Annotation / SurroundingRectangle labels: never next_to(highlight, RIGHT) when sibling terms sit there \u2014 use UP/DOWN/Brace or left of the whole equation
+- Write()/Create() require VMobject \u2014 Group() (Text mixed with MathTex/Matrix/shapes) is NOT a VMobject and fails with TypeError; use FadeIn() for any Group containing Text; VGroup() is fine with Write()/Create() only when ALL members are VMobjects (no raw Text)
+- MAX_VISIBLE = 6 is immutable \u2014 never raise it; on density assert Group related eqs, FadeOut spent labels/rects, or clear_scene between beats
+- Do not deduce or explain why self.mobjects/tracker.items returned a particular count \u2014 on VisibleTracker assert, immediately (a) tracker.hide() spent items before adding new ones, or (b) combine into one tracked unit with a single tracker.show(); do not spend turns reasoning about the exact number`;
         const baseUserPrompt = `${manimSkill}
 
 ${troubleshooting}
 
 ${animations}
 
+${productionQuality}
+
 ${conceptRef}
 
 Now write the animation for:
 Concept: ${concept_name}
 Explanation: ${explanation}
-Duration: ${duration_seconds}s`;
+This clip's window is ~${window_seconds}s.`;
         let userPrompt = baseUserPrompt;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
         let cleanScript = stripCodeFences(scriptText);
@@ -38668,6 +38806,30 @@ Fix these specific issues and return corrected Python only.`;
 Script:
 ${cleanScript}`
             );
+          }
+        }
+        let maxVisibleError = assertManimMaxVisible(cleanScript);
+        if (maxVisibleError) {
+          console.error(`Manim MAX_VISIBLE check failed for ${concept_name}:`, maxVisibleError);
+          userPrompt = `${baseUserPrompt}
+
+The previous script failed validation: ${maxVisibleError}
+Fix these specific issues and return corrected Python only.`;
+          scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+          cleanScript = stripCodeFences(scriptText);
+          import_fs9.default.writeFileSync(validatePath, cleanScript);
+          validation = validatePythonSyntax(validatePath);
+          if (!validation.ok) {
+            throw new Error(
+              `Manim script syntax validation failed: ${validation.error}
+
+Script:
+${cleanScript}`
+            );
+          }
+          maxVisibleError = assertManimMaxVisible(cleanScript);
+          if (maxVisibleError) {
+            throw new Error(maxVisibleError);
           }
         }
         const scriptDir = import_path9.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
@@ -38960,12 +39122,12 @@ function firstConceptResumeHint(sessionId) {
     if (!first.concept_name || !first.explanation) return "";
     const start = typeof first.start_seconds === "number" ? first.start_seconds : 0;
     const end = typeof first.end_seconds === "number" ? first.end_seconds : start;
-    const duration3 = Math.max(1, end - start);
+    const window_seconds = Math.max(1, end - start);
     return `
 First concept to animate now:
 - concept_name: ${first.concept_name}
 - explanation: ${first.explanation}
-- duration_seconds: ${duration3}
+- window_seconds: ${window_seconds}
 Call generate_manim_script with these fields.`.trim();
   } catch {
     return "";
@@ -39124,6 +39286,10 @@ ${resumeSystemAppend}`;
     system: systemPrompt,
     messages,
     tools,
+    experimental_transform: smoothStream({
+      chunking: "word",
+      delayInMs: 18
+    }),
     stopWhen: ({ steps }) => {
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });

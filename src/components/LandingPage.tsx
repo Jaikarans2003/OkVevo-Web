@@ -99,7 +99,7 @@ export default function LandingPage() {
                     <HowItWorks />
                 </div>
                 {/* <BuiltForCreators /> */}
-                <MasivCollaboration />
+                {/* <MasivCollaboration /> */}
                 <div id="pricing">
                     <Pricing user={user} />
                 </div>

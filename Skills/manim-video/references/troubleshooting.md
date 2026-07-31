@@ -143,6 +143,10 @@ When `render_manim_clip` fails in the edu-video pipeline, **patch the existing s
 3. `write_file` a minimal fix — only the broken lines/blocks
 4. Re-render with `render_manim_clip` using `script_path` (not inline script)
 
-**Patch by default:** LaTeX/raw-string, VGroup/Group, Text kwargs, missing waits, localized tracebacks.
+**Patch by default:** LaTeX/raw-string, VGroup/Group, Text kwargs, missing waits, localized tracebacks, `AssertionError` from `VisibleTracker.check` / "N tracked visible items (...), max is MAX_VISIBLE — hide() some before adding more" (Group related eqs into one VGroup, `tracker.hide()` spent labels/rects, or `clear_scene` between beats — then re-render with `script_path`; density-cap asserts are **not** a full-regen case). **Never raise `MAX_VISIBLE`** — it is immutable at 6; raising it is rejected on write.
+
+**Write()/Create() require VMobject.** `Group()` (used when mixing Text with MathTex/Matrix/shapes) is NOT a VMobject and will fail with `TypeError: Write only works for vectorized Mobjects`. Use `FadeIn()` for any Group containing Text. `VGroup()` is fine with Write()/Create() only when ALL members are VMobjects (MathTex, Matrix, shapes — no raw Text).
+
+Do not attempt to deduce or explain why `self.mobjects`/`tracker.items` returned a particular count — Manim's internal grouping behavior is not predictable from reading the code. On a VisibleTracker assert failure, immediately do one of: (a) `tracker.hide()` the items whose content is no longer needed before adding new ones, (b) reduce how many semantically distinct items get shown at once by combining them into one tracked unit with a single `tracker.show()` call. Do not spend multiple turns reasoning about the exact number.
 
 **Full regen only after 3 patch cycles:** structurally wrong script, empty construct, or errors spanning most of the file.

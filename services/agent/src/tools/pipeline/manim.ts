@@ -16,6 +16,7 @@ import {
   resolveBrandColors,
   buildManimPalettePrompt,
 } from '../lib/utils';
+import { assertManimMaxVisible } from '../lib/manimGuard';
 import { getTempPath, uploadToStorage, walkDir, writeAssetUrl } from '../../storage';
 import { db } from '../../firebase';
 import { formatDuration } from '../../checkpoint';
@@ -98,14 +99,16 @@ export function createManimTools(ctx: ToolCtx) {
       inputSchema: z.object({
         concept_name: z.string().describe('Name of the teaching concept to animate'),
         explanation: z.string().describe('Full explanation of the concept from extract_concepts'),
-        duration_seconds: z
+        window_seconds: z
           .number()
-          .describe('Target duration for the animation in seconds (start_seconds to end_seconds)'),
+          .describe(
+            'Mode A window length in seconds (end_seconds - start_seconds) — informational pacing context only, not a target'
+          ),
         brand_colors: brandColorsSchema
           .optional()
           .describe('Optional brand palette — same values as scaffold_hf_project; defaults match edu-video templates'),
       }),
-      execute: async ({ concept_name, explanation, duration_seconds, brand_colors }) => {
+      execute: async ({ concept_name, explanation, window_seconds, brand_colors }) => {
         const safeName = manimSafeName(concept_name);
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
@@ -114,21 +117,29 @@ export function createManimTools(ctx: ToolCtx) {
         const manimSkill = loadSkillFile('manim-video/SKILL.md');
         const troubleshooting = loadSkillFile('manim-video/references/troubleshooting.md');
         const animations = loadSkillFile('manim-video/references/animations.md');
+        const productionQuality = loadSkillFile('manim-video/references/production-quality.md');
         const conceptRef = loadSkillFile(selectManimReference(explanation));
 
         const systemPrompt = `You are a Manim CE expert. Write a single Python script for one animation scene. Return ONLY valid Python code. No markdown fences. No explanation. No comments except inline code comments.
 The script MUST:
 - Import from manim: from manim import *
+- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker) — copy verbatim, do not paraphrase
+- All Text() via safe_text(), not raw Text(); call clear_scene(self) before new concept content; instantiate tracker = VisibleTracker(), call tracker.show(key, mobject) when adding, tracker.hide(key) when removing, and tracker.check() after every self.play() that adds mobjects
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
 ${palettePrompt}
-- Target duration: ${duration_seconds} seconds
 - Use self.wait() after every animation
-- End with FadeOut(Group(*self.mobjects))
+- End by holding the finished visual state with a generous self.wait() — reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
 - Never animate mobjects not yet added to scene
-- Use buff >= 0.5 for all edge text`;
+- Use buff >= 0.5 for all edge text
+- Equation structure change (add frac, wrap softmax, reshape): FadeOut+Write or FadeTransform — TransformMatchingTex only with substrings_to_isolate; never bare Transform between dissimilar MathTex
+- Labels under MathTex: next_to(..., DOWN, buff>=0.6); under fractions buff>=0.8
+- Annotation / SurroundingRectangle labels: never next_to(highlight, RIGHT) when sibling terms sit there — use UP/DOWN/Brace or left of the whole equation
+- Write()/Create() require VMobject — Group() (Text mixed with MathTex/Matrix/shapes) is NOT a VMobject and fails with TypeError; use FadeIn() for any Group containing Text; VGroup() is fine with Write()/Create() only when ALL members are VMobjects (no raw Text)
+- MAX_VISIBLE = 6 is immutable — never raise it; on density assert Group related eqs, FadeOut spent labels/rects, or clear_scene between beats
+- Do not deduce or explain why self.mobjects/tracker.items returned a particular count — on VisibleTracker assert, immediately (a) tracker.hide() spent items before adding new ones, or (b) combine into one tracked unit with a single tracker.show(); do not spend turns reasoning about the exact number`;
 
         const baseUserPrompt = `${manimSkill}
 
@@ -136,12 +147,14 @@ ${troubleshooting}
 
 ${animations}
 
+${productionQuality}
+
 ${conceptRef}
 
 Now write the animation for:
 Concept: ${concept_name}
 Explanation: ${explanation}
-Duration: ${duration_seconds}s`;
+This clip's window is ~${window_seconds}s.`;
 
         let userPrompt = baseUserPrompt;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
@@ -165,6 +178,28 @@ Fix these specific issues and return corrected Python only.`;
             throw new Error(
               `Manim script syntax validation failed: ${validation.error}\n\nScript:\n${cleanScript}`
             );
+          }
+        }
+
+        let maxVisibleError = assertManimMaxVisible(cleanScript);
+        if (maxVisibleError) {
+          console.error(`Manim MAX_VISIBLE check failed for ${concept_name}:`, maxVisibleError);
+          userPrompt = `${baseUserPrompt}
+
+The previous script failed validation: ${maxVisibleError}
+Fix these specific issues and return corrected Python only.`;
+          scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+          cleanScript = stripCodeFences(scriptText);
+          fs.writeFileSync(validatePath, cleanScript);
+          validation = validatePythonSyntax(validatePath);
+          if (!validation.ok) {
+            throw new Error(
+              `Manim script syntax validation failed: ${validation.error}\n\nScript:\n${cleanScript}`
+            );
+          }
+          maxVisibleError = assertManimMaxVisible(cleanScript);
+          if (maxVisibleError) {
+            throw new Error(maxVisibleError);
           }
         }
 

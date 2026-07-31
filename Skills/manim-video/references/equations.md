@@ -11,12 +11,23 @@ eq = MathTex(r"f(x) &= x^2 + 2x + 1 \\ &= (x + 1)^2")  # multi-line aligned
 
 ## Step-by-Step Derivations
 
+Similar-shape morph — isolate shared tokens so unmatched pieces don't linger as ghosts:
+
 ```python
-step1 = MathTex(r"a^2 + b^2 = c^2")
-step2 = MathTex(r"a^2 = c^2 - b^2")
+step1 = MathTex(r"a^2 + b^2 = c^2", substrings_to_isolate=["a^2", "b^2", "c^2"])
+step2 = MathTex(r"a^2 = c^2 - b^2", substrings_to_isolate=["a^2", "b^2", "c^2"])
 self.play(Write(step1), run_time=1.5)
 self.wait(1.5)
 self.play(TransformMatchingTex(step1, step2), run_time=1.5)
+```
+
+Structure change (add `\frac`, wrap `\text{softmax}`, reshape substantially) — do not bare-`Transform` dissimilar shapes; ghosts = unmatched pieces left on screen:
+
+```python
+step1 = MathTex(r"Q \cdot K^{T}")
+step2 = MathTex(r"\frac{Q \cdot K^{T}}{\sqrt{d_k}}")
+self.play(FadeOut(step1), Write(step2), run_time=1.5)
+# or: self.play(FadeTransform(step1, step2), run_time=1.5)
 ```
 
 ## Selective Color
@@ -26,6 +37,8 @@ eq = MathTex(r"a^2", r"+", r"b^2", r"=", r"c^2")
 eq[0].set_color(RED)
 eq[4].set_color(GREEN)
 ```
+
+`interpolate_color` needs Manim colors (`ManimColor(PRIMARY)`), not raw hex strings.
 
 ## Building Incrementally
 
@@ -116,7 +129,9 @@ Note: `MathTex` wraps content in `align*` by default. Override with `tex_environ
 MathTex(r"...", tex_environment="gather*")
 ```
 
-## Derivation Pattern
+## Derivation Pattern (multi-line layout — not in-place morph)
+
+Stack a new line below and dim the prior line. This is intentional multi-line layout, not an in-place equation morph:
 
 ```python
 class DerivationScene(Scene):

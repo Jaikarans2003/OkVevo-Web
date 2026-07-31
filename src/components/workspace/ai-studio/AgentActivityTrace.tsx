@@ -19,6 +19,7 @@ import {
   isToolActivityPart,
   summarizeToolPart,
 } from '@/lib/agent-tool-summaries';
+import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
 import { cn } from '@/lib/utils';
 import {
   CheckpointCard,
@@ -34,22 +35,6 @@ import {
 } from 'lucide-react';
 
 const MARKDOWN_PLUGINS = [remarkGfm];
-
-/** Hide storage/media URLs in chat — assets render as photo/video, not links. */
-function stripAssetUrls(text: string): string {
-  return text
-    .replace(
-      /https?:\/\/(?:firebasestorage\.googleapis\.com|storage\.googleapis\.com|v\d*\.fal\.media)\S*/gi,
-      ''
-    )
-    .replace(
-      /https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|svg|mp4|webm|mov|mkv)(?:\?\S*)?/gi,
-      ''
-    )
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 type ActivityPart = {
   type: string;
@@ -100,7 +85,7 @@ function AssistantMarkdown({
   content: string;
   showCursor?: boolean;
 }) {
-  const cleaned = stripAssetUrls(content);
+  const cleaned = cleanNarrativeText(content, { scrubStackNames: false });
   if (!cleaned && !showCursor) return null;
   return (
     <div className={AI_STUDIO_CHAT_PROSE_CLASS}>
@@ -320,7 +305,7 @@ export function AgentActivityTrace({
         }
 
         if (part.type === 'text' && part.text?.trim()) {
-          const cleaned = stripAssetUrls(part.text);
+          const cleaned = cleanNarrativeText(part.text, { scrubStackNames: false });
           if (!cleaned && !(showTextCursor && index === lastTextIndex)) {
             return null;
           }

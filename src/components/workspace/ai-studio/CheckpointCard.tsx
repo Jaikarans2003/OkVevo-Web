@@ -1,5 +1,6 @@
 'use client';
 
+import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
 import { cn } from '@/lib/utils';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -29,16 +30,25 @@ interface CheckpointCardProps {
   onAnswer: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
 }
 
+function scrub(text: string): string {
+  return cleanNarrativeText(text, { scrubStackNames: true });
+}
+
 export function CheckpointCard({ data, disabled, onAnswer }: CheckpointCardProps) {
   const isAnswered = data.status === 'answered' || Boolean(data.answer);
   const isQuestion = data.kind === 'question';
+  const title = scrub(data.title);
+  const bullets = data.bullets.map(scrub).filter(Boolean);
+  const nextLabel = scrub(data.nextLabel);
+  const nextDescription = scrub(data.nextDescription);
+  const question = data.question ? scrub(data.question) : undefined;
 
   if (isAnswered && data.answer) {
     return (
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
         <div className="mb-2 flex items-center gap-2 text-sm text-emerald-400">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span className="font-medium">{data.title}</span>
+          <span className="font-medium">{title}</span>
         </div>
         <p className="text-sm text-white/60">
           {data.answer.text}
@@ -49,24 +59,24 @@ export function CheckpointCard({ data, disabled, onAnswer }: CheckpointCardProps
 
   return (
     <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.06] p-4">
-      <h4 className="text-sm font-semibold text-white/90">{data.title}</h4>
-      {data.bullets.length > 0 ? (
+      <h4 className="text-sm font-semibold text-white/90">{title}</h4>
+      {bullets.length > 0 ? (
         <ul className="mt-2 space-y-1 text-sm text-white/65">
-          {data.bullets.filter(Boolean).map((bullet, i) => (
+          {bullets.map((bullet, i) => (
             <li key={i}>• {bullet}</li>
           ))}
         </ul>
       ) : null}
 
-      {isQuestion && data.question ? (
-        <p className="mt-3 text-sm font-medium text-white/80">{data.question}</p>
+      {isQuestion && question ? (
+        <p className="mt-3 text-sm font-medium text-white/80">{question}</p>
       ) : null}
 
       {!isQuestion ? (
         <div className="mt-3 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">
           <p className="text-xs uppercase tracking-wide text-white/35">Up next</p>
-          <p className="text-sm font-medium text-white/80">{data.nextLabel}</p>
-          <p className="mt-0.5 text-xs text-white/50">{data.nextDescription}</p>
+          <p className="text-sm font-medium text-white/80">{nextLabel}</p>
+          <p className="mt-0.5 text-xs text-white/50">{nextDescription}</p>
         </div>
       ) : null}
 

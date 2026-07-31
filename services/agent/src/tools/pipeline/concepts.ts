@@ -215,7 +215,7 @@ export function createConceptsTools(ctx: ToolCtx) {
               {
                 phase_label: 'Concepts extracted',
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
-                question: `${concept_count} concept(s) ready for Manim. Review and continue when ready.`,
+                question: `${concept_count} concept(s) ready to animate. Review and continue when ready.`,
                 allowFreeform: true,
               }
             );
