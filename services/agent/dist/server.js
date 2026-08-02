@@ -112,8 +112,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs12 = require("fs");
-    var path12 = require("path");
+    var fs14 = require("fs");
+    var path14 = require("path");
     var os3 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
@@ -221,7 +221,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs12.existsSync(filepath)) {
+            if (fs14.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +229,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path12.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path14.resolve(process.cwd(), ".env.vault");
       }
-      if (fs12.existsSync(possibleVaultPath)) {
+      if (fs14.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path12.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path14.join(os3.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path12.resolve(process.cwd(), ".env");
+      const dotenvPath = path14.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path13 of optionPaths) {
+      for (const path15 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs12.readFileSync(path13, { encoding }));
+          const parsed = DotenvModule.parse(fs14.readFileSync(path15, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path13} ${e.message}`);
+            _debug(`Failed to load ${path15} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path12.relative(process.cwd(), filePath);
+            const relative = path14.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path12) {
-  if (!path12)
+function getElementAtPath(obj, path14) {
+  if (!path14)
     return obj;
-  return path12.reduce((acc, key) => acc?.[key], obj);
+  return path14.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path12, issues) {
+function prefixIssues(path14, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path12);
+    iss.path.unshift(path14);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path12 = []) => {
+  const processError = (error41, path14 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path12, ...issue2.path];
+        const fullpath = [...path14, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path12) {
+function toDotPath(path14) {
   const segs = [];
-  for (const seg of path12) {
+  for (const seg of path14) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -10625,7 +10625,7 @@ var init_to_json_schema = __esm({
             return;
           }
           const seen = entry[1];
-          const { ref, defId } = makeURI(entry);
+          const { ref: ref2, defId } = makeURI(entry);
           seen.def = { ...seen.schema };
           if (defId)
             seen.defId = defId;
@@ -10633,7 +10633,7 @@ var init_to_json_schema = __esm({
           for (const key in schema2) {
             delete schema2[key];
           }
-          schema2.$ref = ref;
+          schema2.$ref = ref2;
         };
         if (params.cycles === "throw") {
           for (const entry of this.seen.entries()) {
@@ -10681,11 +10681,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
           if (seen.ref === null) {
             return;
           }
-          const ref = seen.ref;
+          const ref2 = seen.ref;
           seen.ref = null;
-          if (ref) {
-            flattenRef(ref, params2);
-            const refSchema = this.seen.get(ref).schema;
+          if (ref2) {
+            flattenRef(ref2, params2);
+            const refSchema = this.seen.get(ref2).schema;
             if (refSchema.$ref && params2.target === "draft-7") {
               schema2.allOf = schema2.allOf ?? [];
               schema2.allOf.push(refSchema);
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path12, errorMaps, issueData } = params;
-      const fullPath = [...path12, ...issueData.path || []];
+      const { data, path: path14, errorMaps, issueData } = params;
+      const fullPath = [...path14, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path12, key) {
+      constructor(parent, value, path14, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path12;
+        this._path = path14;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path11 = __toESM2(require("path"));
-    var import_fs11 = __toESM2(require("fs"));
+    var import_path13 = __toESM2(require("path"));
+    var import_fs13 = __toESM2(require("fs"));
     var import_os3 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path11.default.dirname(dir)) {
-          const pkgPath = import_path11.default.join(dir, ".vercel");
-          if (import_fs11.default.existsSync(pkgPath)) {
+        while (dir !== import_path13.default.dirname(dir)) {
+          const pkgPath = import_path13.default.join(dir, ".vercel");
+          if (import_fs13.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path11.default.dirname(dir);
+          dir = import_path13.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19076,9 +19076,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os3.default.platform()) {
         case "darwin":
-          return import_path11.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path13.default.join(import_os3.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path11.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path13.default.join(import_os3.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19129,8 +19129,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS(auth_config_exports);
-    var fs12 = __toESM2(require("fs"));
-    var path12 = __toESM2(require("path"));
+    var fs14 = __toESM2(require("fs"));
+    var path14 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19139,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path12.join(dataDir, "auth.json");
+      return path14.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs12.existsSync(authPath)) {
+        if (!fs14.existsSync(authPath)) {
           return null;
         }
-        const content = fs12.readFileSync(authPath, "utf8");
+        const content = fs14.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19158,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path12.dirname(authPath);
-      if (!fs12.existsSync(authDir)) {
-        fs12.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path14.dirname(authPath);
+      if (!fs14.existsSync(authDir)) {
+        fs14.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs12.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs14.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19353,8 +19353,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path12 = __toESM2(require("path"));
-    var fs12 = __toESM2(require("fs"));
+    var path14 = __toESM2(require("path"));
+    var fs14 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path12.join(dataDir, vercelFolder);
+      return path14.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19442,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path12.join(dir, ".vercel", "project.json");
-      if (!fs12.existsSync(prjPath)) {
+      const prjPath = path14.join(dir, ".vercel", "project.json");
+      if (!fs14.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs12.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs14.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19463,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs12.mkdirSync(path12.dirname(tokenPath), { mode: 504, recursive: true });
-      fs12.writeFileSync(tokenPath, tokenJson);
-      fs12.chmodSync(tokenPath, 432);
+      fs14.mkdirSync(path14.dirname(tokenPath), { mode: 504, recursive: true });
+      fs14.writeFileSync(tokenPath, tokenJson);
+      fs14.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path12.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs12.existsSync(tokenPath)) {
+      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs14.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs12.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs14.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -29920,6 +29920,86 @@ var init_firebase = __esm({
   }
 });
 
+// src/taggedAssets.ts
+function parseTaggedAssets(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { id, label, url: url2, type } = item;
+    if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
+      return [];
+    }
+    if (id !== void 0 && (typeof id !== "string" || !id.trim() || id.length > 120 || /[\r\n]/.test(id))) {
+      return [];
+    }
+    try {
+      if (new URL(url2).protocol !== "https:") return [];
+    } catch {
+      return [];
+    }
+    return [
+      {
+        ...typeof id === "string" && id.trim() ? { id: id.trim() } : {},
+        label: label.trim(),
+        url: url2,
+        type: type.trim()
+      }
+    ];
+  });
+}
+function formatReferencedAssets(assets) {
+  if (assets.length === 0) return "";
+  return [
+    "Referenced assets:",
+    ...assets.map(({ id, label, type, url: url2, localPath }) => {
+      const idPart = id ? ` id ${id} |` : "";
+      return `- ${label} (${type}):${idPart} URL ${url2} | internal path ${localPath}`;
+    }),
+    "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path.",
+    "Only use Referenced assets above. Do not use other session media or history URLs unless listed here."
+  ].join("\n");
+}
+function selectProcessingMedia(tagged, uploadUrls, uploadNames) {
+  if (tagged.length > 0) {
+    const media = tagged.filter(
+      (a) => a.type === "video" || a.type === "image"
+    );
+    return {
+      urls: media.map((a) => a.url),
+      names: media.map((a) => a.label)
+    };
+  }
+  return { urls: uploadUrls, names: uploadNames };
+}
+function assertTaggedUrlAllowed(url2, taggedArtifacts) {
+  const allowed = taggedArtifacts.map((a) => a.url).filter((u) => {
+    try {
+      return new URL(u).protocol === "https:";
+    } catch {
+      return false;
+    }
+  });
+  if (allowed.length === 0) return;
+  let isHttps = false;
+  try {
+    isHttps = new URL(url2).protocol === "https:";
+  } catch {
+    return;
+  }
+  if (!isHttps) return;
+  if (allowed.includes(url2)) return;
+  throw new Error(
+    `URL not in tagged allowlist. Retry with one of: ${allowed.join(", ")}`
+  );
+}
+var MAX_TAGGED_ASSETS;
+var init_taggedAssets = __esm({
+  "src/taggedAssets.ts"() {
+    "use strict";
+    MAX_TAGGED_ASSETS = 8;
+  }
+});
+
 // src/session.ts
 function textParts(content) {
   return content ? [{ type: "text", text: content }] : [];
@@ -29931,8 +30011,8 @@ function withVideoUrlInContent(content, videoUrl) {
 Video URL for processing: ${videoUrl}`;
 }
 async function ensureSession(sessionId, userId, title, extras) {
-  const ref = db.collection("sessions").doc(sessionId);
-  const existing = await ref.get();
+  const ref2 = db.collection("sessions").doc(sessionId);
+  const existing = await ref2.get();
   const payload = {
     userId,
     status: "active"
@@ -29945,7 +30025,7 @@ async function ensureSession(sessionId, userId, title, extras) {
   }
   if (extras?.videoUrl) payload.videoUrl = extras.videoUrl;
   if (extras?.videoName) payload.videoName = extras.videoName;
-  await ref.set(payload, { merge: true });
+  await ref2.set(payload, { merge: true });
 }
 async function loadMessages(sessionId, _userId) {
   try {
@@ -29991,6 +30071,7 @@ async function loadMessages(sessionId, _userId) {
   }
 }
 async function saveMessage(sessionId, _userId, role, content, parts, extras) {
+  const taggedAssets = extras?.taggedAssets?.length ? parseTaggedAssets(extras.taggedAssets) : [];
   await db.collection("sessions").doc(sessionId).collection("messages").add({
     role,
     content,
@@ -29998,6 +30079,7 @@ async function saveMessage(sessionId, _userId, role, content, parts, extras) {
     ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
     ...extras?.videoName ? { videoName: extras.videoName } : {},
     ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {},
+    ...taggedAssets.length > 0 ? { taggedAssets } : {},
     createdAt: import_firestore3.FieldValue.serverTimestamp()
   });
   await db.collection("sessions").doc(sessionId).set(
@@ -30018,12 +30100,32 @@ var init_session = __esm({
     import_firestore3 = require("firebase-admin/firestore");
     init_dist5();
     init_firebase();
+    init_taggedAssets();
+  }
+});
+
+// src/finalVideoBasename.ts
+function nextFinalVideoBasename(existingNames) {
+  const taken = new Set(
+    [...existingNames].map((name26) => name26.toLowerCase())
+  );
+  if (!taken.has("final.mp4")) return "final.mp4";
+  let n = 2;
+  while (taken.has(`final_${n}.mp4`)) n += 1;
+  return `final_${n}.mp4`;
+}
+var FINAL_VIDEO_NAME_RE;
+var init_finalVideoBasename = __esm({
+  "src/finalVideoBasename.ts"() {
+    "use strict";
+    FINAL_VIDEO_NAME_RE = /^(final(?:_\d+)?|draft_video)\.mp4$/i;
   }
 });
 
 // src/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
+  allocateFinalVideoBasename: () => allocateFinalVideoBasename,
   backgroundAssetIdentity: () => backgroundAssetIdentity,
   claimHeygenEvent: () => claimHeygenEvent,
   downloadStoragePrefixToDir: () => downloadStoragePrefixToDir,
@@ -30035,11 +30137,13 @@ __export(storage_exports, {
   getHfSegmentsPlan: () => getHfSegmentsPlan,
   getRenderJob: () => getRenderJob,
   getTempPath: () => getTempPath,
+  nextFinalVideoBasename: () => nextFinalVideoBasename,
   parseStoragePathFromPublicUrl: () => parseStoragePathFromPublicUrl,
   persistRenderJob: () => persistRenderJob,
   recordRenderFailure: () => recordRenderFailure,
   selfcheckBackgroundIdentity: () => selfcheckBackgroundIdentity,
   uploadDirectoryToStorage: () => uploadDirectoryToStorage,
+  uploadFileToStorageKeepLocal: () => uploadFileToStorageKeepLocal,
   uploadToStorage: () => uploadToStorage,
   walkDir: () => walkDir,
   writeAssetUrl: () => writeAssetUrl,
@@ -30115,6 +30219,9 @@ async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
 async function uploadToStorage(localFilePath, storagePath) {
   return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: true });
 }
+async function uploadFileToStorageKeepLocal(localFilePath, storagePath) {
+  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: false });
+}
 async function uploadDirectoryToStorage(localDir, storagePrefix) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
   const prefixUrl = getPublicUrl(bucket.name, storagePrefix);
@@ -30174,6 +30281,23 @@ async function getHfSegmentsPlan(userId, sessionId) {
   const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").get();
   return snap.exists ? snap.data() : null;
 }
+async function allocateFinalVideoBasename(userId, sessionId) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names = [];
+  for (const file2 of files) {
+    const name26 = file2.name.slice(prefix.length);
+    if (!name26 || name26.includes("/")) continue;
+    if (FINAL_VIDEO_NAME_RE.test(name26)) names.push(name26);
+  }
+  const session = (await db.collection("sessions").doc(sessionId).get()).data();
+  if (session?.userId === userId && session.renderStatus === "RUNNING" && typeof session.renderOutputKey === "string") {
+    const reserved = import_path3.default.basename(session.renderOutputKey);
+    if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
+  }
+  return nextFinalVideoBasename(names);
+}
 async function persistRenderJob(userId, sessionId, job) {
   const payload = {
     renderExecutionArn: job.executionArn,
@@ -30201,16 +30325,17 @@ async function getRenderJob(userId, sessionId) {
     compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
   };
 }
-async function finalizeRenderFromLocalFile(userId, sessionId, tempPath) {
+async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferredBasename) {
   const sessionRef = db.collection("sessions").doc(sessionId);
   const current = (await sessionRef.get()).data();
   if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
     return current.draftVideoUrl;
   }
-  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const basename = preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename) ? preferredBasename : await allocateFinalVideoBasename(userId, sessionId);
+  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
   await writeAssetUrl(userId, sessionId, "draft_video", videoUrl, {
-    label: "Draft Video",
+    label: basename,
     mimeType: "video/mp4"
   });
   await sessionRef.set(
@@ -30265,7 +30390,12 @@ async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, re
   const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
   import_fs3.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
   try {
-    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+    return await finalizeRenderFromLocalFile(
+      userId,
+      sessionId,
+      tempPath,
+      import_path3.default.basename(outputKey)
+    );
   } finally {
     import_fs3.default.rmSync(tempPath, { force: true });
   }
@@ -30363,6 +30493,8 @@ var init_storage = __esm({
     import_storage = require("firebase-admin/storage");
     init_firebase();
     init_session();
+    init_finalVideoBasename();
+    init_finalVideoBasename();
   }
 });
 
@@ -35541,7 +35673,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35549,7 +35681,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35557,21 +35689,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path12 }) => `${baseURL}${path12}`,
+    url: ({ path: path14 }) => `${baseURL}${path14}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -36160,8 +36292,8 @@ function getCachedSystemPrompt(sessionId, skillName) {
 }
 
 // src/tools/general/filesystem.ts
-var import_fs5 = __toESM(require("fs"));
-var import_path5 = __toESM(require("path"));
+var import_fs6 = __toESM(require("fs"));
+var import_path6 = __toESM(require("path"));
 init_dist5();
 init_zod();
 
@@ -36728,10 +36860,74 @@ function isManimScriptPath(resolvedPath) {
   return /[/\\]manim_scripts[/\\].+\.py$/i.test(resolvedPath);
 }
 
+// src/tools/lib/strReplaceDecode.ts
+function decodeModelStringEscapes(s) {
+  return s.replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r");
+}
+function pickStrReplacePair(content, old_string, new_string) {
+  const exact = content.split(old_string).length - 1;
+  if (exact >= 1) {
+    return { old_string, new_string, matches: exact };
+  }
+  if (!/\\[ntr]/.test(old_string)) {
+    return { old_string, new_string, matches: 0 };
+  }
+  const decodedOld = decodeModelStringEscapes(old_string);
+  const decodedNew = decodeModelStringEscapes(new_string);
+  return {
+    old_string: decodedOld,
+    new_string: decodedNew,
+    matches: content.split(decodedOld).length - 1
+  };
+}
+
+// src/tools/lib/hfProjectSync.ts
+var import_fs5 = __toESM(require("fs"));
+var import_path5 = __toESM(require("path"));
+function isHfProjectPath(resolvedPath) {
+  return /[/\\]hf-project[/\\]/.test(resolvedPath);
+}
+function oldStringNotFoundError(resolvedPath) {
+  if (!isHfProjectPath(resolvedPath)) return "old_string not found";
+  return `old_string not found. Call read_file on "${resolvedPath}" before retrying str_replace \u2014 do not guess content and do not use run_command.`;
+}
+function hfProjectObjectPath(userId, sessionId, resolvedPath, workdir = getSessionWorkdir(sessionId)) {
+  const projectDir = import_path5.default.join(workdir, "hf-project");
+  const rel = import_path5.default.relative(projectDir, resolvedPath).replace(/\\/g, "/");
+  if (!rel || rel.startsWith("..") || import_path5.default.isAbsolute(rel)) return null;
+  return `users/${userId}/sessions/${sessionId}/hf-project/${rel}`;
+}
+async function syncHfProjectFileAfterEdit(userId, sessionId, resolvedPath, upload, workdir = getSessionWorkdir(sessionId)) {
+  if (!isHfProjectPath(resolvedPath) || !import_fs5.default.existsSync(resolvedPath)) {
+    return null;
+  }
+  const storagePath = hfProjectObjectPath(userId, sessionId, resolvedPath, workdir);
+  if (!storagePath) return null;
+  try {
+    await upload(resolvedPath, storagePath);
+    return { storagePath };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[hfProjectSync] upload failed (local edit kept):", message);
+    return {
+      storagePath,
+      warning: `hf-project GCS sync failed (local edit kept): ${message}`
+    };
+  }
+}
+
+// src/tools/lib/ownedEditFiles.ts
+var OWNED_PATH = /(?:^|[\s"'`=/])(?:(?:\.?\.?\/)*(?:[^\s'"`]*\/)?)?(?:hf-project\/(?:index\.html|compositions\/[^\s'"`]*\.html|COMPOSITION_MANIFEST\.json)|manim_scripts\/[^\s'"`]*\.py)\b/i;
+function commandTargetsOwnedEditFile(command) {
+  const scrubbed = command.replace(/hf-project\/capture\/assets\/[^\s'"`]*/gi, "").replace(/hf-project\/assets\/[^\s'"`]*/gi, "");
+  return OWNED_PATH.test(scrubbed);
+}
+var OWNED_EDIT_SHELL_STDERR = "Shell edits of composition/script files are not allowed. Use write_file or str_replace on hf-project index/compositions/COMPOSITION_MANIFEST or manim_scripts/*.py. Asset pulls under hf-project/capture/assets or hf-project/assets remain allowed via shell.";
+
 // src/tools/general/filesystem.ts
 init_storage();
 async function ensurePathArtifacts(ctx, resolvedPath) {
-  if (import_fs5.default.existsSync(resolvedPath)) return;
+  if (import_fs6.default.existsSync(resolvedPath)) return;
   const needs = artifactNeedsForResolvedPath(
     ctx.sessionId,
     resolvedPath,
@@ -36750,7 +36946,12 @@ function createFilesystemTools(ctx) {
 Use this to run Manim scripts, HyperFrames CLI, ffmpeg, or any other
 tool installed in the container. Never reimplement a missing pipeline tool
 with shell/CLI and never read credentials from environment variables; if a
-pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code.`,
+pipeline tool is missing, say so and stop.
+Do not use shell to rewrite owned edit files (hf-project/index.html,
+hf-project/compositions/**/*.html, hf-project/COMPOSITION_MANIFEST.json,
+manim_scripts/**/*.py) \u2014 use write_file or str_replace. Asset ingestion under
+hf-project/capture/assets or hf-project/assets via mkdir/curl/cp is allowed.
+Returns stdout, stderr, and exit code.`,
       inputSchema: external_exports2.object({
         command: external_exports2.string().describe("Shell command to execute"),
         timeout_seconds: external_exports2.number().optional().default(300).describe("Max seconds to wait. Default 300. Use 600 for Manim/HyperFrames renders.")
@@ -36760,6 +36961,14 @@ pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code
           return {
             stdout: "",
             stderr: "Reading process environments is not allowed.",
+            exit_code: 1,
+            success: false
+          };
+        }
+        if (commandTargetsOwnedEditFile(command)) {
+          return {
+            stdout: "",
+            stderr: OWNED_EDIT_SHELL_STDERR,
             exit_code: 1,
             success: false
           };
@@ -36792,8 +37001,8 @@ Paths are relative to the session work directory unless absolute.`,
       }),
       execute: async ({ path: filePath, content }) => {
         const baseDir = getSessionWorkdir(ctx.sessionId);
-        const resolved = import_path5.default.isAbsolute(filePath) ? filePath : import_path5.default.join(baseDir, filePath);
-        if (!import_fs5.default.existsSync(resolved)) {
+        const resolved = import_path6.default.isAbsolute(filePath) ? filePath : import_path6.default.join(baseDir, filePath);
+        if (!import_fs6.default.existsSync(resolved)) {
           await ensurePathArtifacts(ctx, resolved);
         }
         if (isManimScriptPath(resolved)) {
@@ -36802,12 +37011,22 @@ Paths are relative to the session work directory unless absolute.`,
             return { error: maxVisibleError, path: resolved };
           }
         }
-        import_fs5.default.mkdirSync(import_path5.default.dirname(resolved), { recursive: true });
-        import_fs5.default.writeFileSync(resolved, content, "utf-8");
-        return {
+        import_fs6.default.mkdirSync(import_path6.default.dirname(resolved), { recursive: true });
+        import_fs6.default.writeFileSync(resolved, content, "utf-8");
+        const result = {
           path: resolved,
           bytes_written: Buffer.byteLength(content, "utf-8")
         };
+        if (isHfProjectPath(resolved)) {
+          const sync = await syncHfProjectFileAfterEdit(
+            ctx.userId,
+            ctx.sessionId,
+            resolved,
+            uploadFileToStorageKeepLocal
+          );
+          if (sync?.warning) result.sync_warning = sync.warning;
+        }
+        return result;
       }
     }),
     read_file: tool({
@@ -36822,14 +37041,14 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs5.default.existsSync(resolved)) {
+          if (!import_fs6.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs5.default.statSync(resolved);
+          const stat = import_fs6.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs5.default.readFileSync(resolved);
+          const buf = import_fs6.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return {
               path: resolved,
@@ -36874,7 +37093,7 @@ Paths are relative to the session work directory unless absolute.`,
       execute: async ({ directory, pattern, content_search, max_results }) => {
         const resolved = resolveToolPath(ctx.sessionId, directory);
         await ensurePathArtifacts(ctx, resolved);
-        if (!import_fs5.default.existsSync(resolved)) {
+        if (!import_fs6.default.existsSync(resolved)) {
           return { error: "Directory not found", matches: [] };
         }
         let allFiles;
@@ -36885,7 +37104,7 @@ Paths are relative to the session work directory unless absolute.`,
           return { error: message, matches: [] };
         }
         const globRegex = pattern ? globToRegex(pattern) : null;
-        const candidates = globRegex ? allFiles.filter((file2) => globRegex.test(import_path5.default.basename(file2))) : allFiles;
+        const candidates = globRegex ? allFiles.filter((file2) => globRegex.test(import_path6.default.basename(file2))) : allFiles;
         const matches = [];
         for (const file2 of candidates) {
           if (matches.length >= max_results) {
@@ -36893,11 +37112,11 @@ Paths are relative to the session work directory unless absolute.`,
           }
           const entry = {
             path: file2,
-            relative: import_path5.default.relative(resolved, file2)
+            relative: import_path6.default.relative(resolved, file2)
           };
           if (content_search) {
             try {
-              const buf = import_fs5.default.readFileSync(file2);
+              const buf = import_fs6.default.readFileSync(file2);
               if (isBinaryBuffer(buf)) {
                 continue;
               }
@@ -36929,48 +37148,58 @@ Paths are relative to the session work directory unless absolute.`,
       description: "Replace exactly one occurrence of a string in a text file. Fails if old_string is not found or appears more than once. Paths are resolved like read_file.",
       inputSchema: external_exports2.object({
         path: external_exports2.string().describe("Absolute path or path relative to session workdir"),
-        old_string: external_exports2.string().describe("Exact text to find (must match once)"),
-        new_string: external_exports2.string().describe("Replacement text")
+        old_string: external_exports2.string().describe("Exact text to find (must match once; use real newlines, not \\n escapes)"),
+        new_string: external_exports2.string().describe("Replacement text (use real newlines, not \\n escapes)")
       }),
       execute: async ({ path: filePath, old_string, new_string }) => {
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs5.default.existsSync(resolved)) {
+          if (!import_fs6.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs5.default.statSync(resolved);
+          const stat = import_fs6.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs5.default.readFileSync(resolved);
+          const buf = import_fs6.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return { error: "File is binary and cannot be edited as text", path: resolved };
           }
           const content = buf.toString("utf-8");
-          const matches = content.split(old_string).length - 1;
-          if (matches === 0) {
-            return { error: "old_string not found", path: resolved };
+          const picked = pickStrReplacePair(content, old_string, new_string);
+          if (picked.matches === 0) {
+            return { error: oldStringNotFoundError(resolved), path: resolved };
           }
-          if (matches > 1) {
+          if (picked.matches > 1) {
             return {
               error: "old_string matched multiple times",
               path: resolved,
-              matches
+              matches: picked.matches
             };
           }
-          const updated = content.replace(old_string, new_string);
+          const updated = content.replace(picked.old_string, picked.new_string);
           if (isManimScriptPath(resolved)) {
             const maxVisibleError = assertManimMaxVisible(updated);
             if (maxVisibleError) {
               return { error: maxVisibleError, path: resolved };
             }
           }
-          import_fs5.default.writeFileSync(resolved, updated, "utf-8");
-          return {
+          import_fs6.default.writeFileSync(resolved, updated, "utf-8");
+          const result = {
             path: resolved,
             bytes_written: Buffer.byteLength(updated, "utf-8")
           };
+          if (isHfProjectPath(resolved)) {
+            const sync = await syncHfProjectFileAfterEdit(
+              ctx.userId,
+              ctx.sessionId,
+              resolved,
+              uploadFileToStorageKeepLocal
+            );
+            if (sync?.warning) result.sync_warning = sync.warning;
+          }
+          return result;
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           return { error: message, path: resolved };
@@ -37067,8 +37296,8 @@ a URL they want analysed.`,
 }
 
 // src/tools/general/vision.ts
-var import_fs6 = __toESM(require("fs"));
-var import_path6 = __toESM(require("path"));
+var import_fs7 = __toESM(require("fs"));
+var import_path7 = __toESM(require("path"));
 init_dist5();
 init_zod();
 var VISION_MODEL = process.env.VISION_MODEL ?? "google/gemini-2.5-flash";
@@ -37110,7 +37339,7 @@ async function callOpenRouterVision(imageBase64, mimeType, question) {
   return content;
 }
 function detectMimeType(filePath) {
-  const ext = import_path6.default.extname(filePath).toLowerCase();
+  const ext = import_path7.default.extname(filePath).toLowerCase();
   const map2 = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -37131,8 +37360,8 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
         question: external_exports2.string().describe("What you want to know about the image. Be specific.")
       }),
       execute: async ({ image_url, question }) => {
-        const ext = import_path6.default.extname(new URL(image_url).pathname) || ".jpg";
-        const tempPath = import_path6.default.join(
+        const ext = import_path7.default.extname(new URL(image_url).pathname) || ".jpg";
+        const tempPath = import_path7.default.join(
           require("os").tmpdir(),
           "okvevo",
           ctx.sessionId,
@@ -37140,7 +37369,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
         );
         try {
           await downloadFile(image_url, tempPath);
-          const buf = import_fs6.default.readFileSync(tempPath);
+          const buf = import_fs7.default.readFileSync(tempPath);
           const base643 = buf.toString("base64");
           const mimeType = detectMimeType(tempPath);
           const analysis = await callOpenRouterVision(base643, mimeType, question);
@@ -37150,7 +37379,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
           throw new Error(`Vision analysis failed: ${message}`);
         } finally {
           try {
-            if (import_fs6.default.existsSync(tempPath)) import_fs6.default.unlinkSync(tempPath);
+            if (import_fs7.default.existsSync(tempPath)) import_fs7.default.unlinkSync(tempPath);
           } catch {
           }
         }
@@ -37718,25 +37947,30 @@ function createVideoGenerateTools(ctx) {
 }
 
 // src/tools/pipeline/concepts.ts
-var import_fs7 = __toESM(require("fs"));
-var import_path7 = __toESM(require("path"));
+var import_fs8 = __toESM(require("fs"));
+var import_path8 = __toESM(require("path"));
 init_dist5();
 init_zod();
 
 // src/lib/timelinePlanning.ts
 var TIMELINE_EPSILON = 0.5;
+var MIN_MODE_C_GAP_SECONDS = 1.5;
 function partitionTimeline(items, totalDuration, gapFillType, epsilon = TIMELINE_EPSILON) {
   const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
   const segments = [];
   let cursor = 0;
   for (const anchor of sorted) {
     const gap = anchor.start - cursor;
-    if (gap > epsilon) {
+    if (segments.length === 0) {
+      if (gap > epsilon) {
+        segments.push({ start: cursor, end: anchor.start, type: gapFillType });
+      } else if (gap > 0) {
+        anchor.start = cursor;
+      }
+    } else if (gap > MIN_MODE_C_GAP_SECONDS) {
       segments.push({ start: cursor, end: anchor.start, type: gapFillType });
-    } else if (gap > 0 && segments.length > 0) {
-      segments[segments.length - 1].end = anchor.start;
     } else if (gap > 0) {
-      anchor.start = cursor;
+      segments[segments.length - 1].end = anchor.start;
     }
     segments.push({ ...anchor });
     cursor = anchor.end;
@@ -37996,10 +38230,10 @@ ${retryHint}` : userMessage
           }
           const concept_count = concepts.length;
           const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
-          import_fs7.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
-          import_fs7.default.copyFileSync(
+          import_fs8.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
+          import_fs8.default.copyFileSync(
             conceptsPath,
-            import_path7.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
+            import_path8.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/concepts.json`;
           const conceptsUrl = await uploadToStorage(conceptsPath, storagePath);
@@ -38042,8 +38276,8 @@ ${retryHint}` : userMessage
 
 // src/tools/pipeline/hyperframes.ts
 var import_crypto = __toESM(require("crypto"));
-var import_fs8 = __toESM(require("fs"));
-var import_path8 = __toESM(require("path"));
+var import_fs9 = __toESM(require("fs"));
+var import_path9 = __toESM(require("path"));
 init_dist5();
 init_zod();
 
@@ -38115,6 +38349,7 @@ function isSfnExecutionArn(arn) {
 }
 
 // src/tools/pipeline/hyperframes.ts
+init_taggedAssets();
 init_storage();
 var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
 var RENDER_FINGERPRINT_EXCLUDE = /* @__PURE__ */ new Set(["COMPOSITION_MANIFEST.json"]);
@@ -38134,12 +38369,12 @@ function renderIdempotencyKey(sessionId, projectDir) {
   const hash = import_crypto.default.createHash("sha256");
   const files = walkDir(projectDir).map((abs) => ({
     abs,
-    rel: import_path8.default.relative(projectDir, abs).split(import_path8.default.sep).join("/")
+    rel: import_path9.default.relative(projectDir, abs).split(import_path9.default.sep).join("/")
   })).filter((f) => !RENDER_FINGERPRINT_EXCLUDE.has(f.rel)).sort((a, b) => a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0);
   for (const { abs, rel } of files) {
     hash.update(rel);
     hash.update("\0");
-    hash.update(import_fs8.default.readFileSync(abs));
+    hash.update(import_fs9.default.readFileSync(abs));
   }
   return `${sessionId}.${hash.digest("hex").slice(0, 16)}`;
 }
@@ -38184,12 +38419,12 @@ var ZIP_PY_SCRIPT = [
   ""
 ].join("\n");
 async function zipHyperframesProject(projectDir, zipPath) {
-  if (!import_fs8.default.existsSync(import_path8.default.join(projectDir, "index.html"))) {
+  if (!import_fs9.default.existsSync(import_path9.default.join(projectDir, "index.html"))) {
     throw new Error("NON_RETRYABLE: HyperFrames project missing root index.html");
   }
-  import_fs8.default.rmSync(zipPath, { force: true });
+  import_fs9.default.rmSync(zipPath, { force: true });
   const pyPath = `${zipPath}.py`;
-  import_fs8.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
+  import_fs9.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
   try {
     const result = await execCommand(
       `python3 ${JSON.stringify(pyPath)} ${JSON.stringify(projectDir)} ${JSON.stringify(zipPath)}`,
@@ -38199,11 +38434,11 @@ async function zipHyperframesProject(projectDir, zipPath) {
       throw new Error(result.stderr || result.stdout || "Failed to zip HyperFrames project");
     }
   } finally {
-    import_fs8.default.rmSync(pyPath, { force: true });
+    import_fs9.default.rmSync(pyPath, { force: true });
   }
 }
 async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
-  const size_bytes = import_fs8.default.statSync(zipPath).size;
+  const size_bytes = import_fs9.default.statSync(zipPath).size;
   const initResp = await fetch(`${HEYGEN_API_BASE2}/v3/assets/direct-uploads`, {
     method: "POST",
     headers: {
@@ -38212,7 +38447,7 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
       "Idempotency-Key": idempotencyKey
     },
     body: JSON.stringify({
-      filename: import_path8.default.basename(zipPath),
+      filename: import_path9.default.basename(zipPath),
       content_type: "application/zip",
       size_bytes
     })
@@ -38227,7 +38462,7 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
   const putResp = await fetch(upload_url, {
     method: "PUT",
     headers: upload_headers ?? {},
-    body: import_fs8.default.readFileSync(zipPath)
+    body: import_fs9.default.readFileSync(zipPath)
   });
   if (!putResp.ok) {
     const putText = await putResp.text().catch(() => "");
@@ -38268,9 +38503,9 @@ var plannedSegmentSchema = external_exports2.object({
   concept_name: external_exports2.string().optional()
 });
 async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId) {
-  import_fs8.default.mkdirSync(import_path8.default.join(projectDir, "compositions", "components"), { recursive: true });
-  import_fs8.default.mkdirSync(import_path8.default.join(projectDir, "assets"), { recursive: true });
-  import_fs8.default.writeFileSync(import_path8.default.join(projectDir, "index.html"), htmlContent);
+  import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "compositions", "components"), { recursive: true });
+  import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "assets"), { recursive: true });
+  import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), htmlContent);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
     name: "Educational Video",
@@ -38278,10 +38513,10 @@ async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId) {
     height: 1080,
     fps: 30
   };
-  import_fs8.default.writeFileSync(import_path8.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
-  const hfPath = import_path8.default.join(projectDir, "hyperframes.json");
-  if (!import_fs8.default.existsSync(hfPath)) {
-    import_fs8.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
+  import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
+  const hfPath = import_path9.default.join(projectDir, "hyperframes.json");
+  if (!import_fs9.default.existsSync(hfPath)) {
+    import_fs9.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
   }
 }
 function createHyperframesTools(ctx) {
@@ -38351,11 +38586,16 @@ function createHyperframesTools(ctx) {
       }),
       execute: async ({
         speaker_video_url,
+        speaker_audio_url,
         manim_clips,
         transcript_words,
         total_duration,
         brand_colors
       }) => {
+        assertTaggedUrlAllowed(speaker_video_url, ctx.taggedArtifacts);
+        if (speaker_audio_url) {
+          assertTaggedUrlAllowed(speaker_audio_url, ctx.taggedArtifacts);
+        }
         const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
         if (!storedPlan?.segments?.length) {
           throw new Error("No segment plan found. Call plan_segments first.");
@@ -38364,16 +38604,16 @@ function createHyperframesTools(ctx) {
         validatePlannedSegments(segments, total_duration, manim_clips.length > 0);
         const colors = resolveBrandColors(brand_colors);
         const brandCss = buildBrandCssVars(colors);
-        const projectDir = import_path8.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
+        const projectDir = import_path9.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
         await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
-        import_fs8.default.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
+        import_fs9.default.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
         const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
-        const assetsDir = import_path8.default.join(projectDir, "assets");
-        import_fs8.default.mkdirSync(assetsDir, { recursive: true });
-        const speakerRawPath = import_path8.default.join(assetsDir, "speaker_raw.mp4");
-        const speakerVideoPath = import_path8.default.join(assetsDir, "speaker_noaudio.mp4");
+        const assetsDir = import_path9.default.join(projectDir, "assets");
+        import_fs9.default.mkdirSync(assetsDir, { recursive: true });
+        const speakerRawPath = import_path9.default.join(assetsDir, "speaker_raw.mp4");
+        const speakerVideoPath = import_path9.default.join(assetsDir, "speaker_noaudio.mp4");
         await downloadFile(speaker_video_url, speakerRawPath);
-        const audioPath = import_path8.default.join(assetsDir, "audio.mp3");
+        const audioPath = import_path9.default.join(assetsDir, "audio.mp3");
         const audioExtract = await execCommand(
           `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
           { timeoutSeconds: 120 }
@@ -38382,8 +38622,8 @@ function createHyperframesTools(ctx) {
           throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
         }
         await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-        import_fs8.default.unlinkSync(speakerRawPath);
-        const speakerBytes = import_fs8.default.statSync(speakerVideoPath).size;
+        import_fs9.default.unlinkSync(speakerRawPath);
+        const speakerBytes = import_fs9.default.statSync(speakerVideoPath).size;
         if (speakerBytes > SPEAKER_MAX_BYTES) {
           throw new Error(
             "Speaker video is too long to upload after 1080p normalization"
@@ -38399,12 +38639,12 @@ function createHyperframesTools(ctx) {
         for (let index = 0; index < manim_clips.length; index++) {
           await downloadFile(
             manim_clips[index].clip_url,
-            import_path8.default.join(assetsDir, `manim-${index}.mp4`)
+            import_path9.default.join(assetsDir, `manim-${index}.mp4`)
           );
         }
         const sectionMeta = [];
-        const sectionsDir = import_path8.default.join(projectDir, "compositions", "sections");
-        import_fs8.default.mkdirSync(sectionsDir, { recursive: true });
+        const sectionsDir = import_path9.default.join(projectDir, "compositions", "sections");
+        import_fs9.default.mkdirSync(sectionsDir, { recursive: true });
         for (let index = 0; index < segments.length; index++) {
           const seg = segments[index];
           if (seg.mode === "A" && seg.manim_index == null) {
@@ -38418,15 +38658,15 @@ function createHyperframesTools(ctx) {
             projectDir
           );
           sectionMeta.push(built.meta);
-          import_fs8.default.writeFileSync(import_path8.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
+          import_fs9.default.writeFileSync(import_path9.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
         }
         const segmentWiring = buildSegmentWiring(segments, sectionMeta);
         const manimClipsHtml = buildManimClipsHtml(manim_clips);
         const speakerGsap = buildSpeakerGsap(segments);
         const manimGsap = buildManimGsap(segments);
         const captionsJson = JSON.stringify(groupCaptionWords(words));
-        const indexRootPath = import_path8.default.join(projectDir, "index-root.html");
-        const indexHtml = substitutePlaceholders(import_fs8.default.readFileSync(indexRootPath, "utf-8"), {
+        const indexRootPath = import_path9.default.join(projectDir, "index-root.html");
+        const indexHtml = substitutePlaceholders(import_fs9.default.readFileSync(indexRootPath, "utf-8"), {
           TOTAL_DURATION: String(effectiveDuration),
           SEGMENT_WIRING: segmentWiring,
           MANIM_CLIPS: manimClipsHtml,
@@ -38435,17 +38675,17 @@ function createHyperframesTools(ctx) {
           LIQUID_GLASS_INIT: "",
           TRANSITION_WIRING: ""
         });
-        import_fs8.default.writeFileSync(import_path8.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-        const captionsPath = import_path8.default.join(projectDir, "compositions", "captions-overlay.html");
-        const captionsHtml = substitutePlaceholders(import_fs8.default.readFileSync(captionsPath, "utf-8"), {
+        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+        const captionsPath = import_path9.default.join(projectDir, "compositions", "captions-overlay.html");
+        const captionsHtml = substitutePlaceholders(import_fs9.default.readFileSync(captionsPath, "utf-8"), {
           CAPTIONS_JSON: captionsJson,
           TOTAL_DURATION: String(effectiveDuration),
           BRAND_CSS_VARS: brandCss
         });
-        import_fs8.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
-        import_fs8.default.writeFileSync(import_path8.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
-        import_fs8.default.writeFileSync(
-          import_path8.default.join(assetsDir, "transcript.json"),
+        import_fs9.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
+        import_fs9.default.writeFileSync(import_path9.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+        import_fs9.default.writeFileSync(
+          import_path9.default.join(assetsDir, "transcript.json"),
           JSON.stringify({ words }, null, 2),
           "utf-8"
         );
@@ -38456,18 +38696,18 @@ function createHyperframesTools(ctx) {
           height: 1080,
           fps: 30
         };
-        import_fs8.default.writeFileSync(import_path8.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
-        import_fs8.default.rmSync(import_path8.default.join(projectDir, "index-root.html"), { force: true });
+        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
+        import_fs9.default.rmSync(import_path9.default.join(projectDir, "index-root.html"), { force: true });
         for (const m of ["a", "c"]) {
-          import_fs8.default.rmSync(import_path8.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
+          import_fs9.default.rmSync(import_path9.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
         }
         const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
         const indexUrl = await uploadToStorage(
-          import_path8.default.join(projectDir, "index.html"),
+          import_path9.default.join(projectDir, "index.html"),
           compositionStoragePath
         );
         await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
-        import_fs8.default.writeFileSync(import_path8.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), indexHtml, "utf-8");
         const manifest = buildCompositionManifest({
           projectDir,
           total_duration: effectiveDuration,
@@ -38476,8 +38716,8 @@ function createHyperframesTools(ctx) {
           sectionMeta,
           manim_clips
         });
-        import_fs8.default.writeFileSync(
-          import_path8.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
+        import_fs9.default.writeFileSync(
+          import_path9.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
           JSON.stringify(manifest, null, 2),
           "utf-8"
         );
@@ -38504,14 +38744,14 @@ function createHyperframesTools(ctx) {
       execute: async ({ composition_url }) => {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
-          const projectDir = import_path8.default.join(workdir, "hf-project");
+          const projectDir = import_path9.default.join(workdir, "hf-project");
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
-          const hasLocalProject = import_fs8.default.existsSync(import_path8.default.join(projectDir, "index.html"));
+          const hasLocalProject = import_fs9.default.existsSync(import_path9.default.join(projectDir, "index.html"));
           if (!hasLocalProject) {
-            import_fs8.default.mkdirSync(projectDir, { recursive: true });
-            const htmlPath = import_path8.default.join(projectDir, "index.html");
+            import_fs9.default.mkdirSync(projectDir, { recursive: true });
+            const htmlPath = import_path9.default.join(projectDir, "index.html");
             await downloadFile(composition_url, htmlPath);
-            const htmlContent = import_fs8.default.readFileSync(htmlPath, "utf-8");
+            const htmlContent = import_fs9.default.readFileSync(htmlPath, "utf-8");
             await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId);
           }
           const cliPath = process.env.HYPERFRAMES_CLI ?? "/opt/hyperframes/packages/cli/dist/cli.js";
@@ -38567,11 +38807,11 @@ function createHyperframesTools(ctx) {
               exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
             });
             const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-            const zipPath = import_path8.default.join(workdir, `render-${fingerprint}.zip`);
+            const zipPath = import_path9.default.join(workdir, `render-${fingerprint}.zip`);
             let cloudCmdSource = "";
             try {
               await zipHyperframesProject(projectDir, zipPath);
-              const zipBytes = import_fs8.default.statSync(zipPath).size;
+              const zipBytes = import_fs9.default.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
                 `[render_hyperframes] fingerprint=${fingerprint} zip_bytes=${zipBytes} ingest=${ingest}`
@@ -38587,7 +38827,7 @@ function createHyperframesTools(ctx) {
                 cloudCmdSource = `--asset-id ${JSON.stringify(assetId)}`;
               }
             } finally {
-              import_fs8.default.rmSync(zipPath, { force: true });
+              import_fs9.default.rmSync(zipPath, { force: true });
             }
             const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
             const cloudResult = await execCommand(cloudCmd, {
@@ -38631,7 +38871,11 @@ function createHyperframesTools(ctx) {
             bucketName,
             region
           });
-          const outputKey = `renders/users/${encodeURIComponent(ctx.userId)}/sessions/${encodeURIComponent(ctx.sessionId)}/draft_video.mp4`;
+          const finalBasename = await allocateFinalVideoBasename(
+            ctx.userId,
+            ctx.sessionId
+          );
+          const outputKey = `renders/users/${encodeURIComponent(ctx.userId)}/sessions/${encodeURIComponent(ctx.sessionId)}/${finalBasename}`;
           const handle = await renderToLambda({
             siteHandle,
             bucketName,
@@ -38669,8 +38913,8 @@ function createHyperframesTools(ctx) {
 }
 
 // src/tools/pipeline/manim.ts
-var import_fs9 = __toESM(require("fs"));
-var import_path9 = __toESM(require("path"));
+var import_fs10 = __toESM(require("fs"));
+var import_path10 = __toESM(require("path"));
 var import_child_process2 = require("child_process");
 init_dist5();
 init_zod();
@@ -38711,10 +38955,10 @@ function validatePythonSyntax(scriptPath) {
   }
 }
 function loadSessionConcepts(sessionId) {
-  const conceptsPath = import_path9.default.join(getSessionWorkdir(sessionId), "concepts.json");
-  if (!import_fs9.default.existsSync(conceptsPath)) return [];
+  const conceptsPath = import_path10.default.join(getSessionWorkdir(sessionId), "concepts.json");
+  if (!import_fs10.default.existsSync(conceptsPath)) return [];
   try {
-    const parsed = JSON.parse(import_fs9.default.readFileSync(conceptsPath, "utf-8"));
+    const parsed = JSON.parse(import_fs10.default.readFileSync(conceptsPath, "utf-8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -38787,7 +39031,7 @@ This clip's window is ~${window_seconds}s.`;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
         let cleanScript = stripCodeFences(scriptText);
         const validatePath = getTempPath(`${ctx.sessionId}_${safeName}_validate.py`);
-        import_fs9.default.writeFileSync(validatePath, cleanScript);
+        import_fs10.default.writeFileSync(validatePath, cleanScript);
         let validation = validatePythonSyntax(validatePath);
         if (!validation.ok) {
           console.error(`Manim syntax check failed for ${concept_name}:`, validation.error);
@@ -38797,7 +39041,7 @@ The previous script failed syntax check: ${validation.error}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs9.default.writeFileSync(validatePath, cleanScript);
+          import_fs10.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -38817,7 +39061,7 @@ The previous script failed validation: ${maxVisibleError}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs9.default.writeFileSync(validatePath, cleanScript);
+          import_fs10.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -38832,16 +39076,16 @@ ${cleanScript}`
             throw new Error(maxVisibleError);
           }
         }
-        const scriptDir = import_path9.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
-        import_fs9.default.mkdirSync(scriptDir, { recursive: true });
-        const scriptPath = import_path9.default.join(scriptDir, `${safeName}.py`);
-        import_fs9.default.writeFileSync(scriptPath, cleanScript);
+        const scriptDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
+        import_fs10.default.mkdirSync(scriptDir, { recursive: true });
+        const scriptPath = import_path10.default.join(scriptDir, `${safeName}.py`);
+        import_fs10.default.writeFileSync(scriptPath, cleanScript);
         const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim_scripts/${safeName}.py`;
         const scriptUrl = await uploadToStorage(scriptPath, storagePath);
         await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_script_${safeName}`, scriptUrl);
-        import_fs9.default.writeFileSync(scriptPath, cleanScript);
+        import_fs10.default.writeFileSync(scriptPath, cleanScript);
         try {
-          import_fs9.default.unlinkSync(validatePath);
+          import_fs10.default.unlinkSync(validatePath);
         } catch {
         }
         return {
@@ -38877,10 +39121,10 @@ ${cleanScript}`
         const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
         try {
           if (script_path) {
-            if (!import_fs9.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs10.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs9.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs10.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts \u2014 regenerate or re-upload.`
               );
@@ -38888,7 +39132,7 @@ ${cleanScript}`
           } else if (!script) {
             throw new Error("Provide script or script_path");
           } else {
-            import_fs9.default.writeFileSync(resolvedScriptPath, script);
+            import_fs10.default.writeFileSync(resolvedScriptPath, script);
           }
           const cmd = [
             "manim",
@@ -38907,17 +39151,17 @@ ${cleanScript}`
               `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}. Read Skills/manim-video/references/troubleshooting.md, read_file the script at ${resolvedScriptPath}, patch only the broken lines with write_file, then re-render with script_path \u2014 do not call generate_manim_script again unless the script needs a full rewrite.`
             );
           }
-          const scriptBaseName = import_path9.default.basename(resolvedScriptPath, ".py");
-          const expectedPath = import_path9.default.join(
+          const scriptBaseName = import_path10.default.basename(resolvedScriptPath, ".py");
+          const expectedPath = import_path10.default.join(
             outputDir,
             "videos",
             scriptBaseName,
             "480p15",
             "output.mp4"
           );
-          let outputMp4Path = import_fs9.default.existsSync(expectedPath) ? expectedPath : null;
+          let outputMp4Path = import_fs10.default.existsSync(expectedPath) ? expectedPath : null;
           if (!outputMp4Path) {
-            const found = walkDir(outputDir).filter((p) => import_path9.default.basename(p) === "output.mp4");
+            const found = walkDir(outputDir).filter((p) => import_path10.default.basename(p) === "output.mp4");
             outputMp4Path = found[0] ?? null;
           }
           if (!outputMp4Path) {
@@ -38926,13 +39170,13 @@ ${cleanScript}`
             );
           }
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
-          const canonicalPath = import_path9.default.join(
+          const canonicalPath = import_path10.default.join(
             getSessionWorkdir(ctx.sessionId),
             "manim",
             `${safeName}.mp4`
           );
-          import_fs9.default.mkdirSync(import_path9.default.dirname(canonicalPath), { recursive: true });
-          import_fs9.default.copyFileSync(outputMp4Path, canonicalPath);
+          import_fs10.default.mkdirSync(import_path10.default.dirname(canonicalPath), { recursive: true });
+          import_fs10.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
           const concepts = loadSessionConcepts(ctx.sessionId);
@@ -38948,13 +39192,13 @@ ${cleanScript}`
           };
         } finally {
           try {
-            if (wroteTempScript && import_fs9.default.existsSync(resolvedScriptPath)) {
-              import_fs9.default.unlinkSync(resolvedScriptPath);
+            if (wroteTempScript && import_fs10.default.existsSync(resolvedScriptPath)) {
+              import_fs10.default.unlinkSync(resolvedScriptPath);
             }
           } catch {
           }
           try {
-            if (import_fs9.default.existsSync(outputDir)) import_fs9.default.rmSync(outputDir, { recursive: true, force: true });
+            if (import_fs10.default.existsSync(outputDir)) import_fs10.default.rmSync(outputDir, { recursive: true, force: true });
           } catch {
           }
         }
@@ -38964,12 +39208,13 @@ ${cleanScript}`
 }
 
 // src/tools/pipeline/transcribe.ts
-var import_fs10 = __toESM(require("fs"));
-var import_path10 = __toESM(require("path"));
+var import_fs11 = __toESM(require("fs"));
+var import_path11 = __toESM(require("path"));
 var import_groq_sdk = __toESM(require("groq-sdk"));
 init_dist5();
 init_zod();
 init_storage();
+init_taggedAssets();
 function createTranscribeTools(ctx) {
   return {
     transcribe_video: tool({
@@ -38979,10 +39224,11 @@ function createTranscribeTools(ctx) {
       }),
       execute: async ({ video_url }) => {
         try {
+          assertTaggedUrlAllowed(video_url, ctx.taggedArtifacts);
           const videoPath = getTempPath(`${ctx.sessionId}_video.mp4`);
           await downloadFile(video_url, videoPath);
           let inputFile = videoPath;
-          const stats = import_fs10.default.statSync(videoPath);
+          const stats = import_fs11.default.statSync(videoPath);
           if (stats.size > 24 * 1024 * 1024) {
             const audioPath = getTempPath(`${ctx.sessionId}_audio.mp3`);
             const ffmpeg = await execCommand(
@@ -38996,7 +39242,7 @@ function createTranscribeTools(ctx) {
           }
           const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
           const transcription = await groq.audio.transcriptions.create({
-            file: import_fs10.default.createReadStream(inputFile),
+            file: import_fs11.default.createReadStream(inputFile),
             model: "whisper-large-v3",
             response_format: "verbose_json",
             timestamp_granularities: ["word", "segment"]
@@ -39009,14 +39255,13 @@ function createTranscribeTools(ctx) {
             duration_seconds: verbose.duration ?? 0
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs10.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs10.default.writeFileSync(
-            import_path10.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs11.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs11.default.writeFileSync(
+            import_path11.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
           const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, "transcript", transcriptUrl);
           await writeAssetUrl(ctx.userId, ctx.sessionId, "transcript", transcriptUrl);
           return {
             transcript_url: transcriptUrl,
@@ -39063,48 +39308,300 @@ function buildTools(ctx, skills = []) {
   );
 }
 
-// src/taggedAssets.ts
-var MAX_TAGGED_ASSETS = 8;
-function parseTaggedAssets(value) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const { id, label, url: url2, type } = item;
-    if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
-      return [];
-    }
-    if (id !== void 0 && (typeof id !== "string" || !id.trim() || id.length > 120 || /[\r\n]/.test(id))) {
-      return [];
-    }
-    try {
-      if (new URL(url2).protocol !== "https:") return [];
-    } catch {
-      return [];
-    }
-    return [
-      {
-        ...typeof id === "string" && id.trim() ? { id: id.trim() } : {},
-        label: label.trim(),
-        url: url2,
-        type: type.trim()
-      }
-    ];
+// src/agent.ts
+init_taggedAssets();
+
+// src/editTargets.ts
+var import_fs12 = __toESM(require("fs"));
+var import_path12 = __toESM(require("path"));
+init_finalVideoBasename();
+var MAX_INJECT_BYTES = 5e4;
+function manimSafeName2(conceptName) {
+  let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
+  if (/^[0-9]/.test(safe)) safe = `_${safe}`;
+  return safe;
+}
+function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
+  if (!import_fs12.default.existsSync(filePath) || !import_fs12.default.statSync(filePath).isFile()) return null;
+  const buf = import_fs12.default.readFileSync(filePath);
+  const truncated = buf.length > maxBytes;
+  let content = (truncated ? buf.subarray(0, maxBytes) : buf).toString("utf-8");
+  if (truncated) content += `
+[truncated \u2014 file has ${buf.length} total bytes]`;
+  return { content, truncated };
+}
+function listSectionHtml(projectDir) {
+  const dir = import_path12.default.join(projectDir, "compositions", "sections");
+  if (!import_fs12.default.existsSync(dir)) return [];
+  return import_fs12.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path12.default.join(dir, f)).sort();
+}
+function uniqFiles(files) {
+  const seen = /* @__PURE__ */ new Set();
+  return files.filter((f) => {
+    if (seen.has(f.path)) return false;
+    seen.add(f.path);
+    return true;
   });
 }
-function formatReferencedAssets(assets) {
-  if (assets.length === 0) return "";
-  return [
-    "Referenced assets:",
-    ...assets.map(({ id, label, type, url: url2, localPath }) => {
-      const idPart = id ? ` id ${id} |` : "";
-      return `- ${label} (${type}):${idPart} URL ${url2} | internal path ${localPath}`;
-    }),
-    "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path."
-  ].join("\n");
+function ref(projectDir, relative) {
+  return { path: import_path12.default.join(projectDir, relative), relative };
+}
+function classifyTaggedForEdit(asset, workdir) {
+  const local = asset.localPath.replace(/\\/g, "/");
+  const base = import_path12.default.basename(local);
+  if (FINAL_VIDEO_NAME_RE.test(base)) return { kind: "draft_final" };
+  const manimMatch = local.match(/\/manim\/([^/]+)\.mp4$/i);
+  if (manimMatch) return { kind: "manim", safeName: manimMatch[1] };
+  const rel = import_path12.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
+  if (rel.startsWith("uploads/") || /\/uploads\//.test(local)) {
+    return { kind: "new_media" };
+  }
+  return null;
+}
+var EDIT_SIGNAL = /\b(edit|change|update|fix|replace|remove|move|resize|bigger|smaller|style|color|background|caption|captions|karaoke|speaker|overlay|badge|crimson|make\s+it|should\s+be|become)\b/i;
+var COLD_PIPELINE = /\b(create|generate|scaffold|start)\b[\s\S]{0,40}\b(edu[- ]?video|new video|from scratch)\b/i;
+function looksLikeEditIntent(message, hasHfProject) {
+  if (COLD_PIPELINE.test(message) && !hasHfProject) return false;
+  if (EDIT_SIGNAL.test(message)) return true;
+  return false;
+}
+function classifyEditIntent(message) {
+  const cats = [];
+  const m = message.toLowerCase();
+  if (/\b(caption|captions|karaoke|subtitle|subtitles)\b/.test(m)) {
+    cats.push("captions");
+  }
+  if (/\b(background|bg|#stage|crimson|brand color|accent color)\b/.test(m) || /\b(color|coloured|colored)\b/.test(m) && /\b(red|blue|dark|crimson)\b/.test(m)) {
+    cats.push("background");
+  }
+  if (/\b(speaker|pip|circle frame|tall.?rect|speaker-wrap)\b/.test(m)) {
+    cats.push("speaker");
+  }
+  if (/\b(overlay|badge|sticker|graphic|logo)\b/.test(m)) {
+    cats.push("overlay");
+  }
+  if (/\b(animation|manim|concept|segment|clip)\b/.test(m)) {
+    cats.push("concept");
+  }
+  return cats;
+}
+function findOverlayMarkers(indexHtml) {
+  const ids = /* @__PURE__ */ new Set();
+  for (const m of indexHtml.matchAll(/\bid=["']([^"']+)["']/gi)) {
+    const id = m[1];
+    if (/overlay|badge/i.test(id)) ids.add(`#${id}`);
+  }
+  if (/#bg-overlay\b/.test(indexHtml) || /\bid=["']bg-overlay["']/i.test(indexHtml)) {
+    ids.add("#bg-overlay");
+  }
+  return [...ids];
+}
+function conceptFilesFromMessage(message, projectDir, workdir) {
+  const out = [];
+  const manifestPath = import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  let segments = [];
+  if (import_fs12.default.existsSync(manifestPath)) {
+    try {
+      const data = JSON.parse(import_fs12.default.readFileSync(manifestPath, "utf-8"));
+      segments = data.segments ?? [];
+    } catch {
+      segments = [];
+    }
+  }
+  const lower = message.toLowerCase();
+  for (const seg of segments) {
+    const name26 = (seg.concept_name ?? "").trim();
+    if (!name26) continue;
+    if (!lower.includes(name26.toLowerCase())) continue;
+    if (seg.file) out.push(ref(projectDir, seg.file));
+    if (/\b(animation|manim|script|content)\b/i.test(message)) {
+      const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName2(name26)}.py`);
+      out.push({
+        path: script,
+        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
+      });
+    }
+  }
+  const conceptsPath = import_path12.default.join(workdir, "concepts.json");
+  if (import_fs12.default.existsSync(conceptsPath) && out.length === 0) {
+    try {
+      const concepts = JSON.parse(import_fs12.default.readFileSync(conceptsPath, "utf-8"));
+      for (const c of concepts) {
+        const name26 = (c.name ?? "").trim();
+        if (!name26 || !lower.includes(name26.toLowerCase())) continue;
+        const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName2(name26)}.py`);
+        out.push({
+          path: script,
+          relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
+        });
+      }
+    } catch {
+    }
+  }
+  return out;
+}
+function filesForIntentCategories(categories, projectDir, workdir, message) {
+  const files = [];
+  const indexPath = import_path12.default.join(projectDir, "index.html");
+  const indexHtml = import_fs12.default.existsSync(indexPath) ? import_fs12.default.readFileSync(indexPath, "utf-8") : "";
+  for (const cat of categories) {
+    if (cat === "captions") {
+      files.push(ref(projectDir, "compositions/captions-overlay.html"));
+    } else if (cat === "background") {
+      files.push(ref(projectDir, "index.html"));
+      for (const s of listSectionHtml(projectDir)) {
+        files.push({
+          path: s,
+          relative: import_path12.default.relative(projectDir, s).replace(/\\/g, "/")
+        });
+      }
+    } else if (cat === "speaker") {
+      files.push(ref(projectDir, "index.html"));
+    } else if (cat === "overlay") {
+      files.push(ref(projectDir, "index.html"));
+      const markers = findOverlayMarkers(indexHtml);
+      if (markers.length > 0) {
+        files[files.length - 1] = {
+          ...files[files.length - 1],
+          relative: `index.html (overlays: ${markers.join(", ")})`
+        };
+      }
+    } else if (cat === "concept") {
+      files.push(...conceptFilesFromMessage(message, projectDir, workdir));
+    }
+  }
+  return uniqFiles(files);
+}
+function resolveEditTargets(opts) {
+  const workdir = opts.workdir ?? getSessionWorkdir(opts.sessionId);
+  const projectDir = import_path12.default.join(workdir, "hf-project");
+  const files = [];
+  let newMedia = false;
+  for (const asset of opts.taggedArtifacts) {
+    const kind = classifyTaggedForEdit(asset, workdir);
+    if (!kind) continue;
+    if (kind.kind === "new_media") {
+      newMedia = true;
+      continue;
+    }
+    if (kind.kind === "draft_final") {
+      files.push(ref(projectDir, "index.html"));
+      files.push(ref(projectDir, "compositions/captions-overlay.html"));
+    } else if (kind.kind === "manim" && kind.safeName) {
+      const script = import_path12.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
+      files.push({
+        path: script,
+        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
+      });
+    }
+  }
+  if (files.length > 0) {
+    return {
+      files: uniqFiles(files),
+      projectDir,
+      newMedia,
+      needsClarification: false
+    };
+  }
+  if (!looksLikeEditIntent(opts.userMessage, opts.hasHfProject)) {
+    return { files: [], projectDir, newMedia, needsClarification: false };
+  }
+  const categories = classifyEditIntent(opts.userMessage);
+  const conceptHits = conceptFilesFromMessage(
+    opts.userMessage,
+    projectDir,
+    workdir
+  );
+  const intentFiles = categories.length > 0 ? filesForIntentCategories(
+    categories,
+    projectDir,
+    workdir,
+    opts.userMessage
+  ) : [];
+  const merged = uniqFiles([...intentFiles, ...conceptHits]);
+  if (merged.length === 0) {
+    return {
+      files: [],
+      projectDir,
+      newMedia,
+      needsClarification: true
+    };
+  }
+  return {
+    files: merged,
+    projectDir,
+    newMedia,
+    needsClarification: false
+  };
+}
+function formatEditTargetsBlock(result, readFile = readTruncated) {
+  if (result.needsClarification) {
+    return [
+      "Edit targets: intent unclear \u2014 call ask_clarification before editing.",
+      "Do not invent file paths."
+    ].join("\n");
+  }
+  if (result.files.length === 0) return "";
+  const lines = [
+    "Edit targets (fresh disk reads \u2014 prefer these over guessing):",
+    `project_dir: ${result.projectDir}`
+  ];
+  if (result.newMedia) {
+    lines.push("new_media: true (tagged upload is new media, not an edit target file)");
+  }
+  for (const f of result.files) {
+    const body = readFile(f.path);
+    lines.push(`--- ${f.relative} (${f.path}) ---`);
+    if (!body) {
+      lines.push("[file missing on disk \u2014 restore hf_project / manim_scripts then read_file]");
+    } else {
+      lines.push(body.content);
+    }
+  }
+  lines.push(
+    "Use str_replace/write_file on these paths. Still use read_file for any other unlisted section files."
+  );
+  return lines.join("\n");
+}
+function shouldInjectEditTargets(result) {
+  return result.needsClarification || result.files.length > 0;
 }
 
 // src/agent.ts
+init_storage();
 init_session();
+
+// src/sessionTokenGate.ts
+var SESSION_WARN_TOKENS = 8e4;
+var SESSION_HARD_LIMIT_TOKENS = 13e4;
+function estimateMessageTokens(messages) {
+  return Math.ceil(JSON.stringify(messages).length / 4);
+}
+var SessionLimitReachedError = class extends Error {
+  code = "session_limit_reached";
+  sessionId;
+  estimatedTokens;
+  constructor(sessionId, estimatedTokens) {
+    super(
+      `Session context limit reached (~${estimatedTokens} tokens). Start a new chat or export this project.`
+    );
+    this.name = "SessionLimitReachedError";
+    this.sessionId = sessionId;
+    this.estimatedTokens = estimatedTokens;
+  }
+};
+function gateSessionTokens(messages, sessionId) {
+  const estimatedTokens = estimateMessageTokens(messages);
+  if (estimatedTokens >= SESSION_HARD_LIMIT_TOKENS) {
+    throw new SessionLimitReachedError(sessionId, estimatedTokens);
+  }
+  if (estimatedTokens >= SESSION_WARN_TOKENS) {
+    return { estimatedTokens, warning: { estimatedTokens } };
+  }
+  return { estimatedTokens, warning: null };
+}
+
+// src/agent.ts
 var openrouter2 = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY
 });
@@ -39206,15 +39703,20 @@ ${hint}`;
   );
   const mediaUrls = params.mediaUrls && params.mediaUrls.length > 0 ? params.mediaUrls : params.videoUrl ? [params.videoUrl] : [];
   const mediaNames = params.mediaNames ?? [];
+  const processing = selectProcessingMedia(
+    params.taggedAssets ?? [],
+    mediaUrls,
+    mediaNames
+  );
   let userContent = params.userMessage;
-  if (mediaUrls.length === 1) {
-    const label = mediaNames[0] ? ` (${mediaNames[0]})` : "";
+  if (processing.urls.length === 1) {
+    const label = processing.names[0] ? ` (${processing.names[0]})` : "";
     userContent += `
 
-Media URL for processing${label}: ${mediaUrls[0]}`;
-  } else if (mediaUrls.length > 1) {
-    const lines = mediaUrls.map((url2, i) => {
-      const name26 = mediaNames[i] ? ` \u2014 ${mediaNames[i]}` : "";
+Media URL for processing${label}: ${processing.urls[0]}`;
+  } else if (processing.urls.length > 1) {
+    const lines = processing.urls.map((url2, i) => {
+      const name26 = processing.names[i] ? ` \u2014 ${processing.names[i]}` : "";
       return `${i + 1}.${name26} ${url2}`;
     });
     userContent += `
@@ -39223,24 +39725,83 @@ Media URLs for processing (in upload order \u2014 use these Firebase URLs direct
 ${lines.join("\n")}`;
     userContent += "\n\nIf compositing: prefer a .webm / transparent cutout as cutout_url and an image or opaque .mp4 as background_url.";
   }
+  if ((params.taggedAssets ?? []).length > 0) {
+    userContent += "\n\nOnly use Referenced assets; do not use other session media or history URLs unless listed.";
+  }
   const referencedAssets = formatReferencedAssets(taggedArtifacts);
   if (referencedAssets) {
     userContent += `
 
 ${referencedAssets}`;
   }
+  {
+    const workdir = getSessionWorkdir(params.sessionId);
+    let hasHfProject = sessionArtifactPresent(workdir, "hf_project");
+    if (!hasHfProject) {
+      try {
+        hasHfProject = !!await getAssetUrl(
+          params.userId,
+          params.sessionId,
+          "hf_project"
+        );
+      } catch {
+        hasHfProject = false;
+      }
+    }
+    const editTargets = resolveEditTargets({
+      sessionId: params.sessionId,
+      userMessage: params.userMessage,
+      taggedArtifacts,
+      workdir,
+      hasHfProject
+    });
+    if (shouldInjectEditTargets(editTargets)) {
+      const needs = [];
+      if (editTargets.files.some(
+        (f) => f.path.startsWith(editTargets.projectDir + import_node_path.default.sep)
+      ) || taggedArtifacts.some(
+        (a) => /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(import_node_path.default.basename(a.localPath))
+      )) {
+        needs.push("hf_project");
+      }
+      if (editTargets.files.some(
+        (f) => f.path.includes(`${import_node_path.default.sep}manim_scripts${import_node_path.default.sep}`)
+      )) {
+        needs.push("manim_scripts");
+      }
+      if (needs.length > 0) {
+        await ensureSessionArtifacts(params.userId, params.sessionId, needs);
+      }
+      const block = formatEditTargetsBlock(editTargets);
+      if (block) userContent += `
+
+${block}`;
+    }
+  }
+  const saveExtras = {};
+  if (params.videoUrl) {
+    saveExtras.videoUrl = params.videoUrl;
+    saveExtras.videoName = params.videoName;
+  }
+  if ((params.taggedAssets ?? []).length > 0) {
+    saveExtras.taggedAssets = params.taggedAssets;
+  }
+  const messages = pruneToolResults([
+    ...history,
+    { role: "user", content: userContent }
+  ]);
+  const { warning: sessionTokenWarning } = gateSessionTokens(
+    messages,
+    params.sessionId
+  );
   await saveMessage(
     params.sessionId,
     params.userId,
     "user",
     userContent,
     void 0,
-    params.videoUrl ? { videoUrl: params.videoUrl, videoName: params.videoName } : void 0
+    Object.keys(saveExtras).length > 0 ? saveExtras : void 0
   );
-  const messages = pruneToolResults([
-    ...history,
-    { role: "user", content: userContent }
-  ]);
   const resolvedSkill = resolveSkill(params.skillId, params.userMessage);
   const capabilitySkills = new Set(sessionFields.skillsUsed);
   if (resolvedSkill) capabilitySkills.add(resolvedSkill);
@@ -39335,7 +39896,11 @@ ${resumeSystemAppend}`;
       }
     }
   });
-  return { result, getCheckpointDisplay: () => capturedCheckpointDisplay };
+  return {
+    result,
+    getCheckpointDisplay: () => capturedCheckpointDisplay,
+    sessionTokenWarning
+  };
 }
 function getTextFromParts(parts) {
   return parts.filter((part) => part.type === "text").map((part) => part.text).join("");
@@ -39350,7 +39915,14 @@ function injectCheckpointPart(parts, display) {
   return [...parts, checkpointPart];
 }
 function pipeAgentStream(agentRun, response, params) {
-  const { result, getCheckpointDisplay } = agentRun;
+  const { result, getCheckpointDisplay, sessionTokenWarning } = agentRun;
+  if (sessionTokenWarning) {
+    response.setHeader("x-okvevo-session-token-warning", "1");
+    response.setHeader(
+      "x-okvevo-estimated-tokens",
+      String(sessionTokenWarning.estimatedTokens)
+    );
+  }
   const uiStream = result.toUIMessageStream({
     onError: (error40) => errorMessage(error40),
     onFinish: async ({ responseMessage }) => {
@@ -39378,6 +39950,14 @@ function pipeAgentStream(agentRun, response, params) {
   });
   const withLiveParts = uiStream.pipeThrough(
     new TransformStream({
+      start(controller) {
+        if (sessionTokenWarning) {
+          controller.enqueue({
+            type: "data-session-token-warning",
+            data: { estimatedTokens: sessionTokenWarning.estimatedTokens }
+          });
+        }
+      },
       transform(chunk, controller) {
         controller.enqueue(chunk);
       },
@@ -39478,6 +40058,7 @@ async function deliverEvent(session, event) {
 }
 
 // src/server.ts
+init_taggedAssets();
 if (process.env.DOCKER_AGENT !== "1") {
   console.error(
     "Agent runs in Docker only: docker compose up agent --build\n(Local npm run dev/start is disabled to avoid port 3001 conflicts.)"
@@ -39648,6 +40229,14 @@ app2.post("/invocations", async (req, res) => {
     const message = error40 instanceof Error ? error40.message : "Invocation failed";
     console.error("[agentcore] /invocations error:", message);
     if (!res.headersSent) {
+      if (error40 instanceof SessionLimitReachedError) {
+        res.status(413).json({
+          error: "session_limit_reached",
+          sessionId: error40.sessionId,
+          estimatedTokens: error40.estimatedTokens
+        });
+        return;
+      }
       const status = error40 instanceof CheckpointConflictError ? 409 : 500;
       res.status(status).json({ error: message });
     } else {
@@ -39782,6 +40371,14 @@ app2.post("/chat", async (req, res) => {
   } catch (error40) {
     const message = error40 instanceof Error ? error40.message : "Unknown error";
     if (!res.headersSent) {
+      if (error40 instanceof SessionLimitReachedError) {
+        res.status(413).json({
+          error: "session_limit_reached",
+          sessionId: error40.sessionId,
+          estimatedTokens: error40.estimatedTokens
+        });
+        return;
+      }
       const status = error40 instanceof CheckpointConflictError ? 409 : 500;
       res.status(status).json({ error: message });
     } else {

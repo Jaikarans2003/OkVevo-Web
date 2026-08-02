@@ -14,7 +14,17 @@ import {
   sanitizedShellEnv,
 } from '../lib/utils';
 import { assertManimMaxVisible, isManimScriptPath } from '../lib/manimGuard';
-import { walkDir } from '../../storage';
+import { pickStrReplacePair } from '../lib/strReplaceDecode';
+import {
+  isHfProjectPath,
+  oldStringNotFoundError,
+  syncHfProjectFileAfterEdit,
+} from '../lib/hfProjectSync';
+import {
+  commandTargetsOwnedEditFile,
+  OWNED_EDIT_SHELL_STDERR,
+} from '../lib/ownedEditFiles';
+import { uploadFileToStorageKeepLocal, walkDir } from '../../storage';
 import type { ResolvedTaggedAsset } from '../../taggedAssets';
 
 async function ensurePathArtifacts(
@@ -50,7 +60,12 @@ export function createFilesystemTools(ctx: {
 Use this to run Manim scripts, HyperFrames CLI, ffmpeg, or any other
 tool installed in the container. Never reimplement a missing pipeline tool
 with shell/CLI and never read credentials from environment variables; if a
-pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code.`,
+pipeline tool is missing, say so and stop.
+Do not use shell to rewrite owned edit files (hf-project/index.html,
+hf-project/compositions/**/*.html, hf-project/COMPOSITION_MANIFEST.json,
+manim_scripts/**/*.py) — use write_file or str_replace. Asset ingestion under
+hf-project/capture/assets or hf-project/assets via mkdir/curl/cp is allowed.
+Returns stdout, stderr, and exit code.`,
       inputSchema: z.object({
         command: z.string().describe('Shell command to execute'),
         timeout_seconds: z
@@ -65,6 +80,14 @@ pipeline tool is missing, say so and stop. Returns stdout, stderr, and exit code
           return {
             stdout: '',
             stderr: 'Reading process environments is not allowed.',
+            exit_code: 1,
+            success: false,
+          };
+        }
+        if (commandTargetsOwnedEditFile(command)) {
+          return {
+            stdout: '',
+            stderr: OWNED_EDIT_SHELL_STDERR,
             exit_code: 1,
             success: false,
           };
@@ -116,10 +139,24 @@ Paths are relative to the session work directory unless absolute.`,
         fs.mkdirSync(path.dirname(resolved), { recursive: true });
         fs.writeFileSync(resolved, content, 'utf-8');
 
-        return {
+        const result: {
+          path: string;
+          bytes_written: number;
+          sync_warning?: string;
+        } = {
           path: resolved,
           bytes_written: Buffer.byteLength(content, 'utf-8'),
         };
+        if (isHfProjectPath(resolved)) {
+          const sync = await syncHfProjectFileAfterEdit(
+            ctx.userId,
+            ctx.sessionId,
+            resolved,
+            uploadFileToStorageKeepLocal
+          );
+          if (sync?.warning) result.sync_warning = sync.warning;
+        }
+        return result;
       },
     }),
 
@@ -288,8 +325,12 @@ Paths are relative to the session work directory unless absolute.`,
         'Replace exactly one occurrence of a string in a text file. Fails if old_string is not found or appears more than once. Paths are resolved like read_file.',
       inputSchema: z.object({
         path: z.string().describe('Absolute path or path relative to session workdir'),
-        old_string: z.string().describe('Exact text to find (must match once)'),
-        new_string: z.string().describe('Replacement text'),
+        old_string: z
+          .string()
+          .describe('Exact text to find (must match once; use real newlines, not \\n escapes)'),
+        new_string: z
+          .string()
+          .describe('Replacement text (use real newlines, not \\n escapes)'),
       }),
       execute: async ({ path: filePath, old_string, new_string }) => {
         const resolved = resolveToolPath(ctx.sessionId, filePath);
@@ -311,19 +352,19 @@ Paths are relative to the session work directory unless absolute.`,
           }
 
           const content = buf.toString('utf-8');
-          const matches = content.split(old_string).length - 1;
-          if (matches === 0) {
-            return { error: 'old_string not found', path: resolved };
+          const picked = pickStrReplacePair(content, old_string, new_string);
+          if (picked.matches === 0) {
+            return { error: oldStringNotFoundError(resolved), path: resolved };
           }
-          if (matches > 1) {
+          if (picked.matches > 1) {
             return {
               error: 'old_string matched multiple times',
               path: resolved,
-              matches,
+              matches: picked.matches,
             };
           }
 
-          const updated = content.replace(old_string, new_string);
+          const updated = content.replace(picked.old_string, picked.new_string);
 
           if (isManimScriptPath(resolved)) {
             const maxVisibleError = assertManimMaxVisible(updated);
@@ -334,10 +375,24 @@ Paths are relative to the session work directory unless absolute.`,
 
           fs.writeFileSync(resolved, updated, 'utf-8');
 
-          return {
+          const result: {
+            path: string;
+            bytes_written: number;
+            sync_warning?: string;
+          } = {
             path: resolved,
             bytes_written: Buffer.byteLength(updated, 'utf-8'),
           };
+          if (isHfProjectPath(resolved)) {
+            const sync = await syncHfProjectFileAfterEdit(
+              ctx.userId,
+              ctx.sessionId,
+              resolved,
+              uploadFileToStorageKeepLocal
+            );
+            if (sync?.warning) result.sync_warning = sync.warning;
+          }
+          return result;
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           return { error: message, path: resolved };

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AgentActivityTrace } from '@/components/workspace/ai-studio/AgentActivityTrace';
@@ -16,7 +17,14 @@ import {
 } from '@/components/workspace/ai-studio/constants';
 import { isAgentDevTrace } from '@/lib/agent/agentTraceMode';
 import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
+import {
+  segmentAssetMentions,
+  type TaggedAsset,
+} from '@/lib/agent/taggedAssets';
 import { cn } from '@/lib/utils';
+import { AssetMentionPill } from '@/components/workspace/ai-studio/AssetMentionPill';
+
+const NEAR_BOTTOM_PX = 80;
 
 interface TimelineMessagePart {
   type: string;
@@ -45,6 +53,7 @@ export interface TimelineMessage {
   imageUrl?: string;
   mediaUrls?: string[];
   mediaNames?: string[];
+  taggedAssets?: TaggedAsset[];
 }
 
 const MARKDOWN_PLUGINS = [remarkGfm];
@@ -87,6 +96,30 @@ function getUserText(parts: TimelineMessagePart[]): string {
     )
     .map((part) => part.text)
     .join('');
+}
+
+function UserBubbleText({
+  text,
+  taggedAssets,
+}: {
+  text: string;
+  taggedAssets?: TaggedAsset[];
+}) {
+  const segments = segmentAssetMentions(text, taggedAssets ?? []);
+  if (!segments.some((s) => s.kind === 'mention')) {
+    return <>{text}</>;
+  }
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.kind === 'mention' ? (
+          <AssetMentionPill key={`m-${i}-${seg.label}`} asset={seg.asset} />
+        ) : (
+          <span key={`t-${i}`}>{seg.text}</span>
+        )
+      )}
+    </>
+  );
 }
 
 function isCheckpointPart(
@@ -170,14 +203,44 @@ export function AiStudioTimeline({
   pendingCheckpointId?: string | null;
 }) {
   const devTrace = isAgentDevTrace();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const lastAssistantIndex = messages.reduce(
     (last, message, index) => (message.role === 'assistant' ? index : last),
     -1
   );
 
+  const scrollToBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  };
+
+  const updateStickFromScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distance < NEAR_BOTTOM_PX;
+  };
+
+  useEffect(() => {
+    if (chatStatus === 'submitted') {
+      stickToBottomRef.current = true;
+      scrollToBottom();
+    }
+  }, [chatStatus]);
+
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
+    scrollToBottom();
+  }, [messages, isPendingTurn, streamingAssistantId]);
+
   return (
-    <div className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-      <div className={`${AI_STUDIO_CHAT_COLUMN} flex flex-col gap-6 pt-6 pb-4`}>
+    <div
+      ref={scrollRef}
+      onScroll={updateStickFromScroll}
+      className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto"
+    >      <div className={`${AI_STUDIO_CHAT_COLUMN} flex flex-col gap-6 pt-6 pb-4`}>
         {messages.map((message, messageIndex) => {
           const time = message.createdAt ? formatMessageTime(message.createdAt) : null;
           if (message.role === 'user') {
@@ -205,9 +268,12 @@ export function AiStudioTimeline({
                   ) : null}
                   {text ? (
                     <div
-                      className={`rounded-3xl bg-[#2f2f2f] px-4 py-3 ${AI_STUDIO_CHAT_BODY_CLASS} text-white/95`}
+                      className={`rounded-3xl bg-[#2f2f2f] px-4 py-3 ${AI_STUDIO_CHAT_BODY_CLASS} whitespace-pre-wrap text-white/95`}
                     >
-                      {text}
+                      <UserBubbleText
+                        text={text}
+                        taggedAssets={message.taggedAssets}
+                      />
                     </div>
                   ) : null}
                   {time ? (

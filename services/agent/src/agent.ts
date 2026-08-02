@@ -36,17 +36,37 @@ import {
   ensureSessionArtifacts,
   getSessionWorkdir,
   resolveTaggedArtifacts,
+  sessionArtifactPresent,
+  type ArtifactNeed,
 } from './tools/lib/utils';
 import {
   formatReferencedAssets,
+  selectProcessingMedia,
   type TaggedAsset,
 } from './taggedAssets';
+import {
+  formatEditTargetsBlock,
+  resolveEditTargets,
+  shouldInjectEditTargets,
+} from './editTargets';
+import { getAssetUrl } from './storage';
 import {
   ensureSession,
   loadMessages,
   saveMessage,
   type StoredMessagePart,
 } from './session';
+import {
+  gateSessionTokens,
+} from './sessionTokenGate';
+
+export {
+  SESSION_WARN_TOKENS,
+  SESSION_HARD_LIMIT_TOKENS,
+  SessionLimitReachedError,
+  estimateMessageTokens,
+  gateSessionTokens,
+} from './sessionTokenGate';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
@@ -184,24 +204,106 @@ export async function runAgent(params: RunAgentParams) {
         ? [params.videoUrl]
         : [];
   const mediaNames = params.mediaNames ?? [];
+  // When the user tagged assets, only those URLs are processing media — not untagged uploads/history.
+  const processing = selectProcessingMedia(
+    params.taggedAssets ?? [],
+    mediaUrls,
+    mediaNames
+  );
 
   let userContent = params.userMessage;
-  if (mediaUrls.length === 1) {
-    const label = mediaNames[0] ? ` (${mediaNames[0]})` : '';
-    userContent += `\n\nMedia URL for processing${label}: ${mediaUrls[0]}`;
-  } else if (mediaUrls.length > 1) {
-    const lines = mediaUrls.map((url, i) => {
-      const name = mediaNames[i] ? ` — ${mediaNames[i]}` : '';
+  if (processing.urls.length === 1) {
+    const label = processing.names[0] ? ` (${processing.names[0]})` : '';
+    userContent += `\n\nMedia URL for processing${label}: ${processing.urls[0]}`;
+  } else if (processing.urls.length > 1) {
+    const lines = processing.urls.map((url, i) => {
+      const name = processing.names[i] ? ` — ${processing.names[i]}` : '';
       return `${i + 1}.${name} ${url}`;
     });
     userContent += `\n\nMedia URLs for processing (in upload order — use these Firebase URLs directly; do not ask the user for links):\n${lines.join('\n')}`;
     userContent +=
       '\n\nIf compositing: prefer a .webm / transparent cutout as cutout_url and an image or opaque .mp4 as background_url.';
   }
+  if ((params.taggedAssets ?? []).length > 0) {
+    userContent +=
+      '\n\nOnly use Referenced assets; do not use other session media or history URLs unless listed.';
+  }
   const referencedAssets = formatReferencedAssets(taggedArtifacts);
   if (referencedAssets) {
     userContent += `\n\n${referencedAssets}`;
   }
+
+  // FIX 0 / 0b: pre-resolve edit targets + inject fresh file bodies before tools run.
+  {
+    const workdir = getSessionWorkdir(params.sessionId);
+    let hasHfProject = sessionArtifactPresent(workdir, 'hf_project');
+    if (!hasHfProject) {
+      try {
+        hasHfProject = !!(await getAssetUrl(
+          params.userId,
+          params.sessionId,
+          'hf_project'
+        ));
+      } catch {
+        hasHfProject = false;
+      }
+    }
+    const editTargets = resolveEditTargets({
+      sessionId: params.sessionId,
+      userMessage: params.userMessage,
+      taggedArtifacts,
+      workdir,
+      hasHfProject,
+    });
+    if (shouldInjectEditTargets(editTargets)) {
+      const needs: ArtifactNeed[] = [];
+      if (
+        editTargets.files.some((f) =>
+          f.path.startsWith(editTargets.projectDir + path.sep)
+        ) ||
+        taggedArtifacts.some((a) =>
+          /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(path.basename(a.localPath))
+        )
+      ) {
+        needs.push('hf_project');
+      }
+      if (
+        editTargets.files.some((f) =>
+          f.path.includes(`${path.sep}manim_scripts${path.sep}`)
+        )
+      ) {
+        needs.push('manim_scripts');
+      }
+      if (needs.length > 0) {
+        await ensureSessionArtifacts(params.userId, params.sessionId, needs);
+      }
+      const block = formatEditTargetsBlock(editTargets);
+      if (block) userContent += `\n\n${block}`;
+    }
+  }
+
+  const saveExtras: {
+    videoUrl?: string;
+    videoName?: string;
+    taggedAssets?: TaggedAsset[];
+  } = {};
+  if (params.videoUrl) {
+    saveExtras.videoUrl = params.videoUrl;
+    saveExtras.videoName = params.videoName;
+  }
+  if ((params.taggedAssets ?? []).length > 0) {
+    saveExtras.taggedAssets = params.taggedAssets;
+  }
+
+  // Prune + estimate before save so hard-limit turns never persist the new user message.
+  const messages: ModelMessage[] = pruneToolResults([
+    ...history,
+    { role: 'user', content: userContent },
+  ]);
+  const { warning: sessionTokenWarning } = gateSessionTokens(
+    messages,
+    params.sessionId
+  );
 
   await saveMessage(
     params.sessionId,
@@ -209,15 +311,8 @@ export async function runAgent(params: RunAgentParams) {
     'user',
     userContent,
     undefined,
-    params.videoUrl
-      ? { videoUrl: params.videoUrl, videoName: params.videoName }
-      : undefined
+    Object.keys(saveExtras).length > 0 ? saveExtras : undefined
   );
-
-  const messages: ModelMessage[] = pruneToolResults([
-    ...history,
-    { role: 'user', content: userContent },
-  ]);
 
   const resolvedSkill = resolveSkill(params.skillId, params.userMessage);
   const capabilitySkills = new Set(sessionFields.skillsUsed);
@@ -332,7 +427,11 @@ export async function runAgent(params: RunAgentParams) {
     },
   });
 
-  return { result, getCheckpointDisplay: () => capturedCheckpointDisplay };
+  return {
+    result,
+    getCheckpointDisplay: () => capturedCheckpointDisplay,
+    sessionTokenWarning,
+  };
 }
 
 function getTextFromParts(parts: UIMessage['parts']): string {
@@ -360,7 +459,15 @@ export function pipeAgentStream(
   response: ServerResponse,
   params: { sessionId: string; userId: string }
 ) {
-  const { result, getCheckpointDisplay } = agentRun;
+  const { result, getCheckpointDisplay, sessionTokenWarning } = agentRun;
+
+  if (sessionTokenWarning) {
+    response.setHeader('x-okvevo-session-token-warning', '1');
+    response.setHeader(
+      'x-okvevo-estimated-tokens',
+      String(sessionTokenWarning.estimatedTokens)
+    );
+  }
 
   const uiStream = result.toUIMessageStream({
     onError: (error) => errorMessage(error),
@@ -392,6 +499,14 @@ export function pipeAgentStream(
 
   const withLiveParts = uiStream.pipeThrough(
     new TransformStream({
+      start(controller) {
+        if (sessionTokenWarning) {
+          controller.enqueue({
+            type: 'data-session-token-warning',
+            data: { estimatedTokens: sessionTokenWarning.estimatedTokens },
+          });
+        }
+      },
       transform(chunk, controller) {
         controller.enqueue(chunk);
       },

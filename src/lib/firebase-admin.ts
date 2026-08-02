@@ -1,6 +1,8 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
+import { env } from '@/config/env';
 
 function getAdminApp(): App {
   if (getApps().length > 0) {
@@ -21,6 +23,7 @@ function getAdminApp(): App {
 
   return initializeApp({
     credential: cert(serviceAccount),
+    storageBucket: env.firebase.storageBucket,
   });
 }
 
@@ -28,6 +31,10 @@ const app = getAdminApp();
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+export function getAdminBucket() {
+  return getStorage(app).bucket(env.firebase.storageBucket);
+}
 
 export async function verifyAdminToken(token: string): Promise<boolean> {
   try {

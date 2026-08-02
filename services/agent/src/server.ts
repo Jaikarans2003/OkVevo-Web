@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import { pipeAgentStream, runAgent } from './agent';
 import { CheckpointConflictError } from './checkpoint';
+import { SessionLimitReachedError } from './sessionTokenGate';
 import { auth, db } from './firebase';
 import {
   fetchHeygenRender,
@@ -270,6 +271,14 @@ app.post('/invocations', async (req, res) => {
     const message = error instanceof Error ? error.message : 'Invocation failed';
     console.error('[agentcore] /invocations error:', message);
     if (!res.headersSent) {
+      if (error instanceof SessionLimitReachedError) {
+        res.status(413).json({
+          error: 'session_limit_reached',
+          sessionId: error.sessionId,
+          estimatedTokens: error.estimatedTokens,
+        });
+        return;
+      }
       const status = error instanceof CheckpointConflictError ? 409 : 500;
       res.status(status).json({ error: message });
     } else {
@@ -436,6 +445,14 @@ app.post('/chat', async (req, res) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (!res.headersSent) {
+      if (error instanceof SessionLimitReachedError) {
+        res.status(413).json({
+          error: 'session_limit_reached',
+          sessionId: error.sessionId,
+          estimatedTokens: error.estimatedTokens,
+        });
+        return;
+      }
       const status = error instanceof CheckpointConflictError ? 409 : 500;
       res.status(status).json({ error: message });
     } else {

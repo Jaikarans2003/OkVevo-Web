@@ -116,7 +116,55 @@ async function handleAgentCore(
     checkpointAnswer: body.checkpointAnswer,
   });
 
-  return new Response(stream, {
+  // AgentCore often surfaces container JSON errors as a 200 body — peek first chunk.
+  const reader = stream.getReader();
+  const first = await reader.read();
+  if (first.value) {
+    const preview = new TextDecoder().decode(first.value).trimStart();
+    if (preview.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(preview) as {
+          error?: string;
+          sessionId?: string;
+          estimatedTokens?: number;
+        };
+        if (parsed.error === 'session_limit_reached') {
+          await reader.cancel().catch(() => undefined);
+          return Response.json(parsed, {
+            status: 413,
+            headers: corsHeaders(req),
+          });
+        }
+      } catch {
+        // Partial / non-JSON SSE — fall through and re-stream.
+      }
+    }
+  }
+
+  const rebuilt = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      if (first.value) controller.enqueue(first.value);
+      if (first.done) {
+        controller.close();
+        return;
+      }
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) controller.enqueue(value);
+        }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel() {
+      return reader.cancel();
+    },
+  });
+
+  return new Response(rebuilt, {
     status: 200,
     headers: sseHeaders(req),
   });
@@ -138,10 +186,18 @@ async function handleLocalProxy(
   });
 
   if (!response.ok) {
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as unknown;
+      return Response.json(data, {
+        status: response.status,
+        headers: corsHeaders(req),
+      });
+    }
     const error = await response.text();
     return Response.json(
       { error: error || 'Agent service error' },
-      { status: response.status }
+      { status: response.status, headers: corsHeaders(req) }
     );
   }
 
@@ -152,6 +208,10 @@ async function handleLocalProxy(
   if (uiStream) {
     headers.set('x-vercel-ai-ui-message-stream', uiStream);
   }
+  const tokenWarn = response.headers.get('x-okvevo-session-token-warning');
+  if (tokenWarn) headers.set('x-okvevo-session-token-warning', tokenWarn);
+  const estimated = response.headers.get('x-okvevo-estimated-tokens');
+  if (estimated) headers.set('x-okvevo-estimated-tokens', estimated);
 
   return new Response(response.body, {
     status: response.status,

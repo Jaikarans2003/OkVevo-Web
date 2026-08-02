@@ -67,5 +67,59 @@ export function formatReferencedAssets(assets: ResolvedTaggedAsset[]): string {
       return `- ${label} (${type}):${idPart} URL ${url} | internal path ${localPath}`;
     }),
     'For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path.',
+    'Only use Referenced assets above. Do not use other session media or history URLs unless listed here.',
   ].join('\n');
 }
+
+/** Prefer tagged media URLs when tags are present; otherwise use this-turn uploads. */
+export function selectProcessingMedia(
+  tagged: TaggedAsset[],
+  uploadUrls: string[],
+  uploadNames: string[]
+): { urls: string[]; names: string[] } {
+  if (tagged.length > 0) {
+    const media = tagged.filter(
+      (a) => a.type === 'video' || a.type === 'image'
+    );
+    return {
+      urls: media.map((a) => a.url),
+      names: media.map((a) => a.label),
+    };
+  }
+  return { urls: uploadUrls, names: uploadNames };
+}
+
+/**
+ * When taggedArtifacts has ≥1 https URL, reject tool HTTPS URLs outside that set.
+ * Local / workdir paths are allowed (derived outputs). Empty tags = no allowlist.
+ */
+export function assertTaggedUrlAllowed(
+  url: string,
+  taggedArtifacts: { url: string }[]
+): void {
+  const allowed = taggedArtifacts
+    .map((a) => a.url)
+    .filter((u) => {
+      try {
+        return new URL(u).protocol === 'https:';
+      } catch {
+        return false;
+      }
+    });
+  if (allowed.length === 0) return;
+
+  let isHttps = false;
+  try {
+    isHttps = new URL(url).protocol === 'https:';
+  } catch {
+    // Non-URL local paths are allowed.
+    return;
+  }
+  if (!isHttps) return;
+  if (allowed.includes(url)) return;
+
+  throw new Error(
+    `URL not in tagged allowlist. Retry with one of: ${allowed.join(', ')}`
+  );
+}
+

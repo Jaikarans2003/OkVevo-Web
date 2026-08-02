@@ -67,6 +67,7 @@
 
 
 
+/* ponytail: unused by Next (app loads globals.css); keep in sync with src/app/globals.css shimmer utils or delete */
 @layer base {
   * {
     @apply border-border;

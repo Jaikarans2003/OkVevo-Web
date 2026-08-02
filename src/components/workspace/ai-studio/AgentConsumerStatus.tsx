@@ -19,14 +19,25 @@ import {
   isPartInFlight,
   isToolActivityPart,
 } from '@/lib/agent-tool-summaries';
+import { cn } from '@/lib/utils';
 
 const IDLE_ROTATION_MS = 2500;
 const LOADING_VIDEO = '/videos/OkVevo_Loading_GIF.mp4';
+const SHIMMER_TEXT_CLASS = 'shimmer shimmer-invert text-white/60';
 
 function getLatestCompletedToolLabel(parts: ActivityPart[]): string | null {
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const part = parts[i];
     if (!isToolActivityPart(part) || isPartInFlight(part)) continue;
+    return getToolFriendlyLabel(getToolNameFromPart(part));
+  }
+  return null;
+}
+
+function getLatestInFlightToolLabel(parts: ActivityPart[]): string | null {
+  for (let i = parts.length - 1; i >= 0; i -= 1) {
+    const part = parts[i];
+    if (!isToolActivityPart(part) || !isPartInFlight(part)) continue;
     return getToolFriendlyLabel(getToolNameFromPart(part));
   }
   return null;
@@ -40,10 +51,12 @@ function StatusToggleRow({
   label,
   showChevron,
   showVideo,
+  shimmer,
 }: {
   label: string;
   showChevron: boolean;
   showVideo: boolean;
+  shimmer: boolean;
 }) {
   return (
     <CollapsibleTrigger className="flex min-w-0 items-center gap-2 text-left text-sm text-white/80 transition-opacity hover:opacity-90">
@@ -59,7 +72,14 @@ function StatusToggleRow({
           />
         </div>
       ) : null}
-      <span className="truncate font-medium">{label}</span>
+      <span
+        className={cn(
+          'min-w-0 truncate font-medium',
+          shimmer ? SHIMMER_TEXT_CLASS : null
+        )}
+      >
+        {label}
+      </span>
       {showChevron ? (
         <ChevronDown className="h-4 w-4 shrink-0 text-white/40 transition-transform group-data-[state=open]:rotate-180" />
       ) : null}
@@ -117,21 +137,55 @@ export function AgentConsumerStatus({
         ? historyLines
         : liveLines
       : liveLines;
+  const inFlight = hasInFlightTools(parts);
+  const inFlightLabel = getLatestInFlightToolLabel(parts);
   const showDone =
-    isTurnComplete && !hasInFlightTools(parts) && (variant === 'history' || !isStreaming);
-  const dropdownLines = showDone
-    ? [...statusLines, { text: 'Done', timestamp: Date.now() }]
-    : statusLines;
+    isTurnComplete && !inFlight && (variant === 'history' || !isStreaming);
 
   const latestMarker = getLatestStatusMarker(parts);
   const latestToolLabel = getLatestCompletedToolLabel(parts);
   const showLiveHeader = variant === 'live';
+  const isIdleThinking = !latestMarker && !latestToolLabel && !inFlightLabel;
 
+  // Prefer the in-flight tool over completed labels so completed tools don't look active.
   const collapsedLabel =
-    latestMarker ?? latestToolLabel ?? IDLE_STATUS_WORDS[idleIndex];
+    inFlightLabel ?? latestMarker ?? latestToolLabel ?? IDLE_STATUS_WORDS[idleIndex];
+
+  // Live current step: in-flight tool, STATUS marker, or idle — not a stale completed-only label.
+  const headerShimmer =
+    showLiveHeader &&
+    !showDone &&
+    (Boolean(inFlightLabel) || Boolean(latestMarker) || isIdleThinking);
+
+  // Live trail: append in-flight if needed; mark the current (last) step active for shimmer.
+  let dropdownLines: Array<StatusLine & { active?: boolean }>;
+  if (showDone) {
+    dropdownLines = [...statusLines, { text: 'Done', timestamp: Date.now() }];
+  } else if (variant === 'live' && inFlightLabel) {
+    const last = statusLines[statusLines.length - 1];
+    const alreadyLast =
+      last != null &&
+      last.text.trim().toLowerCase() === inFlightLabel.trim().toLowerCase();
+    const withActive = alreadyLast
+      ? statusLines.map((line, i) =>
+          i === statusLines.length - 1 ? { ...line, active: true } : line
+        )
+      : [
+          ...statusLines,
+          { text: inFlightLabel, timestamp: Date.now(), active: true },
+        ];
+    dropdownLines = withActive;
+  } else if (variant === 'live' && statusLines.length > 0 && headerShimmer) {
+    // Current STATUS/header step is the last trail line — shimmer only that one.
+    dropdownLines = statusLines.map((line, i) =>
+      i === statusLines.length - 1 ? { ...line, active: true } : line
+    );
+  } else {
+    dropdownLines = statusLines;
+  }
 
   useEffect(() => {
-    if (variant !== 'live' || latestMarker || latestToolLabel) {
+    if (variant !== 'live' || latestMarker || latestToolLabel || inFlightLabel) {
       return undefined;
     }
 
@@ -140,7 +194,7 @@ export function AgentConsumerStatus({
     }, IDLE_ROTATION_MS);
 
     return () => window.clearInterval(timer);
-  }, [variant, latestMarker, latestToolLabel]);
+  }, [variant, latestMarker, latestToolLabel, inFlightLabel]);
 
   if (variant === 'history' && dropdownLines.length === 0) {
     return null;
@@ -153,13 +207,19 @@ export function AgentConsumerStatus({
     <Collapsible defaultOpen={false} className="group">
       {showLiveHeader ? (
         <div className="mb-1">
-          <StatusToggleRow label={collapsedLabel} showChevron showVideo />
+          <StatusToggleRow
+            label={collapsedLabel}
+            showChevron
+            showVideo
+            shimmer={headerShimmer}
+          />
         </div>
       ) : (
         <StatusToggleRow
           label={historyToggleLabel}
           showChevron
           showVideo={false}
+          shimmer={false}
         />
       )}
 
@@ -168,6 +228,7 @@ export function AgentConsumerStatus({
           {dropdownLines.map((line, index) => {
             const isDoneLine = showDone && index === dropdownLines.length - 1;
             const isLast = index === dropdownLines.length - 1;
+            const isActive = line.active === true;
             return (
               <li
                 key={`${line.text}-${line.timestamp}-${index}`}
@@ -183,7 +244,13 @@ export function AgentConsumerStatus({
                     <span aria-hidden className="mt-1 w-px flex-1 bg-white/15" />
                   ) : null}
                 </div>
-                <span className={`min-w-0 flex-1 ${isLast ? '' : 'pb-2.5'}`}>
+                <span
+                  className={cn(
+                    'min-w-0 flex-1',
+                    isLast ? null : 'pb-2.5',
+                    isActive ? cn('font-medium', SHIMMER_TEXT_CLASS) : null
+                  )}
+                >
                   {line.text}
                 </span>
               </li>

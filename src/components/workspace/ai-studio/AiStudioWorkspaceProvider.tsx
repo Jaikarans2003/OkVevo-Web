@@ -29,6 +29,7 @@ export interface DeliverableImage {
   id: string;
   label: string;
   url: string;
+  kind?: string;
 }
 
 interface AiStudioWorkspaceContextValue {

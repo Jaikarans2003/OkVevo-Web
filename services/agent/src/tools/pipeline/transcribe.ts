@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { downloadFile, execCommand, getSessionWorkdir } from '../lib/utils';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
 import { formatDuration } from '../../checkpoint';
+import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 
 export function createTranscribeTools(ctx: ToolCtx) {
@@ -18,6 +19,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
       }),
       execute: async ({ video_url }) => {
         try {
+          assertTaggedUrlAllowed(video_url, ctx.taggedArtifacts);
           const videoPath = getTempPath(`${ctx.sessionId}_video.mp4`);
           await downloadFile(video_url, videoPath);
 
@@ -66,8 +68,6 @@ export function createTranscribeTools(ctx: ToolCtx) {
 
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
           const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, 'transcript', transcriptUrl);
-
           await writeAssetUrl(ctx.userId, ctx.sessionId, 'transcript', transcriptUrl);
 
           return {

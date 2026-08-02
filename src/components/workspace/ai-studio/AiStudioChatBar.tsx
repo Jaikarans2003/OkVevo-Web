@@ -8,10 +8,16 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { SkillsPopup } from '@/components/workspace/ai-studio/SkillsPopup';
+import { AssetMentionPill } from '@/components/workspace/ai-studio/AssetMentionPill';
 import { TypewriterPlaceholder } from '@/components/workspace/ai-studio/TypewriterPlaceholder';
-import { findMentionAtCaret, type TaggedAsset } from '@/lib/agent/taggedAssets';
+import {
+  findMentionAtCaret,
+  segmentAssetMentions,
+  type TextSegment,
+  type TaggedAsset,
+} from '@/lib/agent/taggedAssets';
 
 export type PendingAttachment = {
   id: string;
@@ -138,8 +144,65 @@ function fuzzyAssets(assets: TaggedAsset[], query: string): TaggedAsset[] {
       return [{ asset, score: label.startsWith(needle) ? 0 : cursor }];
     })
     .sort((a, b) => a.score - b.score || a.asset.label.localeCompare(b.asset.label))
-    .slice(0, 6)
     .map(({ asset }) => asset);
+}
+
+/** Overlay pills are wider than `@label` — paint caret from overlay geometry, not the textarea. */
+function MentionOverlayContent({
+  segments,
+  caret,
+  showCaret,
+}: {
+  segments: TextSegment[];
+  caret: number;
+  showCaret: boolean;
+}) {
+  const nodes: ReactNode[] = [];
+  let pos = 0;
+  let placed = false;
+
+  const pushCaret = (key: string) => {
+    if (!showCaret || placed) return;
+    nodes.push(
+      <span
+        key={key}
+        className="inline-block w-px animate-pulse bg-white align-baseline"
+        style={{ height: '1em' }}
+      />
+    );
+    placed = true;
+  };
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]!;
+    if (seg.kind === 'mention') {
+      const len = 1 + seg.label.length;
+      if (!placed && caret <= pos) pushCaret(`c-before-${i}`);
+      nodes.push(
+        <AssetMentionPill key={`m-${i}-${seg.label}`} asset={seg.asset} />
+      );
+      pos += len;
+      // Caret inside an atomic mention sits after the pill.
+      if (!placed && caret <= pos) pushCaret(`c-after-${i}`);
+    } else {
+      const text = seg.text;
+      if (!placed && caret >= pos && caret <= pos + text.length) {
+        const split = caret - pos;
+        if (split > 0) {
+          nodes.push(<span key={`t-${i}-a`}>{text.slice(0, split)}</span>);
+        }
+        pushCaret(`c-${i}`);
+        if (split < text.length) {
+          nodes.push(<span key={`t-${i}-b`}>{text.slice(split)}</span>);
+        }
+      } else {
+        nodes.push(<span key={`t-${i}`}>{text}</span>);
+      }
+      pos += text.length;
+    }
+  }
+  if (!placed) pushCaret('c-end');
+  return <>{nodes}</>;
 }
 
 export function AiStudioChatBar({
@@ -201,6 +264,10 @@ export function AiStudioChatBar({
   } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const mentionMatches = mention ? fuzzyAssets(assets, mention.query) : [];
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [caret, setCaret] = useState(0);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [selCollapsed, setSelCollapsed] = useState(true);
 
   const activeModel = ALL_MODELS.find((m) => m.id === selectedModel) ?? ALL_MODELS[0];
   const activePipeline =
@@ -214,6 +281,15 @@ export function AiStudioChatBar({
     !isUploading &&
     !sending &&
     status === 'ready';
+  const mentionSegments = segmentAssetMentions(input, selectedAssets);
+  const hasMentionPills = mentionSegments.some((s) => s.kind === 'mention');
+  const showOverlayCaret =
+    hasMentionPills && inputFocused && selCollapsed && !disabled && !sending;
+
+  const syncCaretFromEl = (el: HTMLTextAreaElement) => {
+    setCaret(el.selectionStart ?? 0);
+    setSelCollapsed(el.selectionStart === el.selectionEnd);
+  };
 
   useEffect(() => {
     if (!modelOpen && !pipelineOpen) return;
@@ -232,6 +308,14 @@ export function AiStudioChatBar({
   useEffect(() => {
     setMentionIndex(0);
   }, [mention?.query, assets]);
+
+  // Grow with content up to max-h, then scroll inside.
+  useEffect(() => {
+    const el = inputRef?.current;
+    if (!el) return;
+    el.style.height = '0px';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input, inputRef, isHero]);
 
   const updateMention = (value: string, caret: number | null) => {
     if (caret === null) return setMention(null);
@@ -253,14 +337,15 @@ export function AiStudioChatBar({
     requestAnimationFrame(() => {
       inputRef?.current?.focus();
       inputRef?.current?.setSelectionRange(caret, caret);
+      if (inputRef?.current) syncCaretFromEl(inputRef.current);
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const caret = e.currentTarget.selectionStart ?? 0;
+    const caretPos = e.currentTarget.selectionStart ?? 0;
     if (e.key === 'Backspace' || e.key === 'Delete') {
       const direction = e.key === 'Backspace' ? 'backspace' : 'delete';
-      const hit = findMentionAtCaret(input, caret, selectedAssets, direction);
+      const hit = findMentionAtCaret(input, caretPos, selectedAssets, direction);
       if (hit) {
         e.preventDefault();
         const next = input.slice(0, hit.start) + input.slice(hit.end);
@@ -269,6 +354,7 @@ export function AiStudioChatBar({
         requestAnimationFrame(() => {
           inputRef?.current?.focus();
           inputRef?.current?.setSelectionRange(hit.start, hit.start);
+          if (inputRef?.current) syncCaretFromEl(inputRef.current);
         });
         return;
       }
@@ -304,10 +390,10 @@ export function AiStudioChatBar({
     <div className={`mx-auto w-full ${isHero ? 'max-w-4xl' : 'max-w-full'}`}>
       <div className={chatBoxClass}>
         <div className={`relative z-10 px-4 sm:px-5 ${isHero ? 'pb-2 pt-2.5' : 'pb-3 pt-4'}`}>
-          {pendingAttachments.length > 0 ? (
+          {pendingAttachments.length > 0 || selectedAssets.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {pendingAttachments.map((attachment) => (
-                <div key={attachment.id} className="relative h-[50px] w-[88px]">
+                <div key={attachment.id} className="relative h-[64px] w-[112px]">
                   {/* overflow-hidden stays on media only — video+spin in same overflow box freezes CSS rotate */}
                   <div className="h-full w-full overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
                     {attachment.kind === 'video' ? (
@@ -344,23 +430,27 @@ export function AiStudioChatBar({
                   ) : null}
                 </div>
               ))}
-            </div>
-          ) : null}
-          {selectedAssets.length > 0 ? (
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {selectedAssets.map((asset) => (
-                <div key={asset.id ?? asset.url} className="relative h-[50px] w-[88px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]">
-                  <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
-                  <button
-                    type="button"
-                    onClick={() => onAssetRemove?.(asset)}
-                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
-                    aria-label={`Remove ${asset.label}`}
+              {selectedAssets
+                .filter(
+                  (asset) =>
+                    !pendingAttachments.some((p) => p.downloadUrl === asset.url)
+                )
+                .map((asset) => (
+                  <div
+                    key={asset.id ?? asset.url}
+                    className="relative h-[64px] w-[112px] overflow-hidden rounded-xl ring-1 ring-white/[0.08]"
                   >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
+                    <AssetThumb asset={asset} className="h-full w-full rounded-xl" />
+                    <button
+                      type="button"
+                      onClick={() => onAssetRemove?.(asset)}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/80"
+                      aria-label={`Remove ${asset.label}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
             </div>
           ) : null}
           <div className="relative">
@@ -395,22 +485,55 @@ export function AiStudioChatBar({
               </div>
             ) : null}
             <TypewriterPlaceholder prompts={HERO_ROTATING_PROMPTS} active={showTypewriter} />
+            {hasMentionPills ? (
+              <div
+                ref={overlayRef}
+                aria-hidden
+                className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-sm leading-normal text-white/90 ${
+                  isHero ? 'min-h-[2.35rem]' : 'min-h-[3rem]'
+                }`}
+              >
+                <MentionOverlayContent
+                  segments={mentionSegments}
+                  caret={caret}
+                  showCaret={showOverlayCaret}
+                />
+              </div>
+            ) : null}
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
+                syncCaretFromEl(e.target);
                 updateMention(e.target.value, e.target.selectionStart);
               }}
-              onSelect={(e) =>
-                updateMention(e.currentTarget.value, e.currentTarget.selectionStart)
-              }
+              onSelect={(e) => {
+                syncCaretFromEl(e.currentTarget);
+                updateMention(e.currentTarget.value, e.currentTarget.selectionStart);
+              }}
+              onKeyUp={(e) => syncCaretFromEl(e.currentTarget)}
+              onClick={(e) => syncCaretFromEl(e.currentTarget)}
+              onFocus={(e) => {
+                setInputFocused(true);
+                syncCaretFromEl(e.currentTarget);
+              }}
+              onBlur={() => setInputFocused(false)}
+              onScroll={(e) => {
+                if (overlayRef.current) {
+                  overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+                }
+              }}
               onKeyDown={handleKeyDown}
               disabled={disabled || sending}
               placeholder={isHero ? '' : 'Describe your edit…'}
-              rows={isHero ? 1 : 2}
-              className={`w-full resize-none bg-transparent text-sm leading-normal text-white/90 outline-none disabled:opacity-40 ${
-                isHero ? 'min-h-[2.35rem]' : 'min-h-[3rem]'
+              rows={1}
+              className={`relative z-10 w-full resize-none overflow-y-auto bg-transparent text-sm leading-normal outline-none disabled:opacity-40 ${
+                hasMentionPills
+                  ? 'text-transparent caret-transparent'
+                  : 'text-white/90 caret-white'
+              } ${
+                isHero ? 'min-h-[2.35rem] max-h-[6rem]' : 'min-h-[3rem] max-h-[7rem]'
               }`}
             />
           </div>

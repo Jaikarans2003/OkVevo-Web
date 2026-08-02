@@ -1,5 +1,8 @@
 export const TIMELINE_EPSILON = 0.5;
 
+/** Mid Mode-A gaps must exceed this (strict >) to emit Mode C; ≤ absorbs into prior A. */
+export const MIN_MODE_C_GAP_SECONDS = 1.5;
+
 function itemsOverlap(
   a: { start: number; end: number },
   b: { start: number; end: number }
@@ -40,12 +43,17 @@ export function partitionTimeline<T extends { start: number; end: number; type: 
 
   for (const anchor of sorted) {
     const gap = anchor.start - cursor;
-    if (gap > epsilon) {
+    if (segments.length === 0) {
+      // leading: TIMELINE_EPSILON — real speaker intro, not a flicker
+      if (gap > epsilon) {
+        segments.push({ start: cursor, end: anchor.start, type: gapFillType });
+      } else if (gap > 0) {
+        anchor.start = cursor;
+      }
+    } else if (gap > MIN_MODE_C_GAP_SECONDS) {
       segments.push({ start: cursor, end: anchor.start, type: gapFillType });
-    } else if (gap > 0 && segments.length > 0) {
-      segments[segments.length - 1].end = anchor.start;
     } else if (gap > 0) {
-      anchor.start = cursor;
+      segments[segments.length - 1].end = anchor.start;
     }
     segments.push({ ...anchor });
     cursor = anchor.end;

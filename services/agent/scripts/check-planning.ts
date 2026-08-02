@@ -117,4 +117,92 @@ assert.throws(
   /Overlapping segments/
 );
 
+// --- mid-gap Mode C threshold (MIN_MODE_C_GAP_SECONDS = 1.5, strict >) ---
+
+// Session: five back-to-back clips → only leading + trailing Mode C
+const sessionDuration = 120;
+const sessionSegments = buildDeterministicSegments(
+  [
+    { concept_name: 'c0', start_seconds: 9.84, end_seconds: 20.48 },
+    { concept_name: 'c1', start_seconds: 20.48, end_seconds: 42.68 },
+    { concept_name: 'c2', start_seconds: 42.68, end_seconds: 66.42 },
+    { concept_name: 'c3', start_seconds: 66.42, end_seconds: 86.98 },
+    { concept_name: 'c4', start_seconds: 86.98, end_seconds: 107.9 },
+  ],
+  sessionDuration
+);
+const sessionA = sessionSegments.filter((s) => s.mode === 'A');
+const sessionC = sessionSegments.filter((s) => s.mode === 'C');
+assert.equal(sessionA.length, 5, 'session: mode_a_count == 5');
+assert.equal(sessionC.length, 2, 'session: only leading + trailing Mode C');
+assert.deepEqual(
+  sessionC.map((s) => [s.start, s.end]),
+  [
+    [0, 9.84],
+    [107.9, 120],
+  ]
+);
+assert(
+  !sessionC.some((s) => s.start >= 9.84 && s.end <= 107.9),
+  'session: no mid Mode C between manim clips'
+);
+
+// 0.5s mid gap → absorb into previous Mode A (no Mode C)
+const absorbSegments = buildDeterministicSegments(
+  [
+    { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
+    { concept_name: 'b', start_seconds: 10.5, end_seconds: 15 },
+  ],
+  20
+);
+assert.deepEqual(
+  absorbSegments.map((s) => [s.start, s.end, s.mode]),
+  [
+    [0, 5, 'C'],
+    [5, 10.5, 'A'],
+    [10.5, 15, 'A'],
+    [15, 20, 'C'],
+  ],
+  '0.5s mid gap must be absorbed into previous Mode A'
+);
+
+// Boundary: gap == 1.5 → absorb (strict >, not >=)
+const boundarySegments = buildDeterministicSegments(
+  [
+    { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
+    { concept_name: 'b', start_seconds: 11.5, end_seconds: 15 },
+  ],
+  20
+);
+assert.deepEqual(
+  boundarySegments.map((s) => [s.start, s.end, s.mode]),
+  [
+    [0, 5, 'C'],
+    [5, 11.5, 'A'],
+    [11.5, 15, 'A'],
+    [15, 20, 'C'],
+  ],
+  'gap == 1.5 must be absorbed into previous Mode A'
+);
+
+// gap > 1.5 → Mode C
+const gapSegments = buildDeterministicSegments(
+  [
+    { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
+    { concept_name: 'b', start_seconds: 12, end_seconds: 15 },
+  ],
+  20
+);
+assert.deepEqual(
+  gapSegments.map((s) => [s.start, s.end, s.mode]),
+  [
+    [0, 5, 'C'],
+    [5, 10, 'A'],
+    [10, 12, 'C'],
+    [12, 15, 'A'],
+    [15, 20, 'C'],
+  ],
+  'gap > 1.5 must emit Mode C'
+);
+
 console.log('check-planning: OK');

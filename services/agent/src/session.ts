@@ -5,6 +5,7 @@ import {
   type UIMessage,
 } from 'ai';
 import { db } from './firebase';
+import { parseTaggedAssets, type TaggedAsset } from './taggedAssets';
 
 export type StoredMessagePart = Record<string, unknown>;
 
@@ -16,6 +17,13 @@ function withVideoUrlInContent(content: string, videoUrl?: string): string {
   if (!videoUrl || content.includes(videoUrl)) return content;
   return `${content}\n\nVideo URL for processing: ${videoUrl}`;
 }
+
+export type SaveMessageExtras = {
+  videoUrl?: string;
+  videoName?: string;
+  imageUrl?: string;
+  taggedAssets?: TaggedAsset[];
+};
 
 export async function ensureSession(
   sessionId: string,
@@ -112,8 +120,11 @@ export async function saveMessage(
   role: 'user' | 'assistant',
   content: string,
   parts?: StoredMessagePart[],
-  extras?: { videoUrl?: string; videoName?: string; imageUrl?: string }
+  extras?: SaveMessageExtras
 ): Promise<void> {
+  const taggedAssets = extras?.taggedAssets?.length
+    ? parseTaggedAssets(extras.taggedAssets)
+    : [];
   await db
     .collection('sessions')
     .doc(sessionId)
@@ -125,6 +136,7 @@ export async function saveMessage(
       ...(extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
       ...(extras?.videoName ? { videoName: extras.videoName } : {}),
       ...(extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}),
+      ...(taggedAssets.length > 0 ? { taggedAssets } : {}),
       createdAt: FieldValue.serverTimestamp(),
     });
 

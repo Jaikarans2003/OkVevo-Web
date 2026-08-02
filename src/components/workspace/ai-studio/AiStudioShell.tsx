@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from 'ai';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AiStudioChatBar,
   resolveModelApiValue,
@@ -20,6 +21,7 @@ import {
 } from '@/components/workspace/ai-studio/constants';
 import { HeroTypewriterHeading } from '@/components/workspace/ai-studio/HeroTypewriterHeading';
 import { PipelineStatusBar } from '@/components/workspace/ai-studio/PipelineStatusBar';
+import { SessionLimitModal } from '@/components/workspace/ai-studio/SessionLimitModal';
 import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
 import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
 import { auth, storage } from '@/config/firebase';
@@ -28,6 +30,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { hasAssetMention, type TaggedAsset } from '@/lib/agent/taggedAssets';
+import {
+  UPLOADED_PHOTO_PREFIX,
+  UPLOADED_VIDEO_PREFIX,
+  nextUploadLabel,
+} from '@/lib/agent/uploadAssetLabel';
 
 type SessionAsset = TaggedAsset & {
   id: string;
@@ -77,6 +84,7 @@ async function fetchSessionMessages(sessionId: string) {
     videoUrl?: string;
     videoName?: string;
     imageUrl?: string;
+    taggedAssets?: TaggedAsset[];
   }[];
 
   return data.map((msg, index) => ({
@@ -91,6 +99,7 @@ async function fetchSessionMessages(sessionId: string) {
       ...(msg.videoUrl ? { videoUrl: msg.videoUrl } : {}),
       ...(msg.videoName ? { videoName: msg.videoName } : {}),
       ...(msg.imageUrl ? { imageUrl: msg.imageUrl } : {}),
+      ...(msg.taggedAssets?.length ? { taggedAssets: msg.taggedAssets } : {}),
     },
   }));
 }
@@ -115,6 +124,58 @@ async function ensureSessionDoc(sessionId: string): Promise<void> {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error('Failed to ensure session');
+}
+
+function triggerBlobDownload(blob: Blob, label: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = label || 'download';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+/** Download whole-session zip; returns exportToken from response header. */
+async function downloadSessionExport(sessionId: string): Promise<string> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await fetch(`/api/agent/sessions/${sessionId}/export`, {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Export failed: ${response.status}`);
+  }
+  const exportToken = response.headers.get('x-okvevo-export-token');
+  if (!exportToken) throw new Error('Export missing confirmation token');
+  triggerBlobDownload(
+    await response.blob(),
+    `session-${sessionId}.zip`
+  );
+  return exportToken;
+}
+
+async function purgeSession(
+  sessionId: string,
+  exportToken: string
+): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await fetch(`/api/agent/sessions/${sessionId}/purge`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ confirm: true, exportToken }),
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || `Purge failed: ${response.status}`);
+  }
 }
 
 function messageHasMediaUrl(
@@ -142,6 +203,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     setDraftVideoUrl,
     setRenderedVideos,
     setDeliverableImages,
+    startNewProject,
   } = useAiStudioWorkspace();
   const chatId = activeSessionId ?? draftChatId;
   const [input, setInput] = useState('');
@@ -155,6 +217,19 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [availableAssets, setAvailableAssets] = useState<SessionAsset[]>([]);
   const [draftTaggedAssets, setDraftTaggedAssets] = useState<TaggedAsset[]>([]);
+  const [sessionLimitOpen, setSessionLimitOpen] = useState(false);
+  const [sessionLimitTokens, setSessionLimitTokens] = useState<number | null>(
+    null
+  );
+  const [sessionTokenWarning, setSessionTokenWarning] = useState<number | null>(
+    null
+  );
+  const [exportBusy, setExportBusy] = useState(false);
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
+  const [pendingExportToken, setPendingExportToken] = useState<string | null>(
+    null
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,6 +265,36 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     .map((a) => a.downloadUrl as string);
   const isUploading = pendingAttachments.some((a) => a.progress !== null);
 
+  // Ready pendings share nextUploadLabel + kind filter with PATCH registerUpload.
+  const mentionableAssets = useMemo(() => {
+    const registeredUrls = new Set(availableAssets.map((a) => a.url));
+    const videoLabels = availableAssets
+      .filter((a) => a.kind === 'uploaded_video')
+      .map((a) => a.label);
+    const photoLabels = availableAssets
+      .filter((a) => a.kind === 'uploaded_image')
+      .map((a) => a.label);
+    const provisional: TaggedAsset[] = [];
+    for (const pending of pendingAttachments) {
+      if (!pending.downloadUrl || registeredUrls.has(pending.downloadUrl)) continue;
+      const isVideo = pending.kind === 'video';
+      const prefix = isVideo ? UPLOADED_VIDEO_PREFIX : UPLOADED_PHOTO_PREFIX;
+      const minted = provisional
+        .filter((a) => a.type === pending.kind)
+        .map((a) => a.label);
+      const label = nextUploadLabel(
+        [...(isVideo ? videoLabels : photoLabels), ...minted],
+        prefix
+      );
+      provisional.push({
+        label,
+        url: pending.downloadUrl,
+        type: pending.kind,
+      });
+    }
+    return [...availableAssets, ...provisional];
+  }, [availableAssets, pendingAttachments]);
+
   const firstName = user?.displayName?.split(' ')[0];
 
   const transport = useMemo(
@@ -220,6 +325,34 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
               : {}),
           };
         },
+        fetch: async (input, init) => {
+          const response = await globalThis.fetch(input, init);
+          const warn = response.headers.get('x-okvevo-session-token-warning');
+          if (warn === '1') {
+            const n = Number(response.headers.get('x-okvevo-estimated-tokens'));
+            if (Number.isFinite(n)) setSessionTokenWarning(n);
+          }
+          if (response.status === 413) {
+            try {
+              const data = (await response.clone().json()) as {
+                error?: string;
+                estimatedTokens?: number;
+              };
+              if (data.error === 'session_limit_reached') {
+                setSessionLimitTokens(
+                  typeof data.estimatedTokens === 'number'
+                    ? data.estimatedTokens
+                    : null
+                );
+                setSessionLimitOpen(true);
+              }
+            } catch {
+              // non-JSON 413 — still open modal as best-effort
+              setSessionLimitOpen(true);
+            }
+          }
+          return response;
+        },
       }),
     [chatId]
   );
@@ -246,6 +379,42 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     draftTaggedAssetsRef.current = [];
     setDraftTaggedAssets([]);
   }, [chatId]);
+
+  useEffect(() => {
+    setSessionTokenWarning(null);
+    setSessionLimitOpen(false);
+    setSessionLimitTokens(null);
+  }, [chatId]);
+
+  useEffect(() => {
+    for (const msg of messages) {
+      for (const part of msg.parts ?? []) {
+        if (
+          part.type === 'data-session-token-warning' &&
+          part.data &&
+          typeof part.data === 'object' &&
+          'estimatedTokens' in part.data &&
+          typeof (part.data as { estimatedTokens: unknown }).estimatedTokens ===
+            'number'
+        ) {
+          setSessionTokenWarning(
+            (part.data as { estimatedTokens: number }).estimatedTokens
+          );
+        }
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!error) return;
+    const msg = error.message ?? '';
+    if (
+      msg.includes('session_limit_reached') ||
+      msg.includes('Session context limit reached')
+    ) {
+      setSessionLimitOpen(true);
+    }
+  }, [error]);
 
   useEffect(() => {
     setDraftTaggedAssets((current) =>
@@ -387,29 +556,20 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     return () => clearInterval(id);
   }, [sessionReady, activeSessionId, status, refreshAssets]);
 
-  // Every rendered video (Manim clips etc.) goes to the Deliverables rail;
+  // Every session video/image (incl. uploads) goes to the Deliverables rail;
   // the final draft video is shown there separately and is the only one in chat.
   useEffect(() => {
     setRenderedVideos(
       availableAssets
-        .filter(
-          (asset) =>
-            asset.type === 'video' &&
-            asset.kind !== 'draft_video' &&
-            asset.kind !== 'uploaded_video'
-        )
+        .filter((asset) => asset.type === 'video')
         .map(({ id, kind, label, url }) => ({ id, kind, label, url }))
     );
     setDeliverableImages(
       availableAssets
         .filter((asset) => asset.type === 'image')
-        .map(({ id, label, url }) => ({ id, label, url }))
+        .map(({ id, kind, label, url }) => ({ id, kind, label, url }))
     );
   }, [availableAssets, setRenderedVideos, setDeliverableImages]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   useEffect(() => {
     return () => {
@@ -427,14 +587,36 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   };
 
   const clearPendingAttachment = (id: string) => {
-    setPendingAttachments((prev) => {
-      const target = prev.find((a) => a.id === id);
-      if (target) URL.revokeObjectURL(target.objectUrl);
-      return prev.filter((a) => a.id !== id);
-    });
+    const target = pendingAttachments.find((a) => a.id === id);
+    if (!target) return;
+    if (target.downloadUrl) {
+      const url = target.downloadUrl;
+      const labels = new Set(
+        draftTaggedAssets.filter((a) => a.url === url).map((a) => a.label)
+      );
+      const provisional = mentionableAssets.find((a) => a.url === url);
+      if (provisional) labels.add(provisional.label);
+      if (labels.size > 0) {
+        let next = input;
+        for (const label of labels) {
+          const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          next = next.replace(
+            new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`, 'g'),
+            '$1'
+          );
+        }
+        setInput(next.trimStart());
+      }
+      setDraftTaggedAssets((current) => current.filter((a) => a.url !== url));
+    }
+    URL.revokeObjectURL(target.objectUrl);
+    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const persistVideoToSession = async (videoUrl: string, videoName: string) => {
+  const persistUploadsToSession = async (
+    attachments: Array<{ downloadUrl: string; name: string; kind: 'video' | 'image' }>
+  ) => {
+    if (attachments.length === 0) return;
     const token = await auth.currentUser?.getIdToken();
     if (!token) return;
 
@@ -445,9 +627,15 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ videoUrl, videoName }),
+      body: JSON.stringify({
+        uploads: attachments.map((a) => ({
+          url: a.downloadUrl,
+          mediaKind: a.kind,
+          originalName: a.name,
+        })),
+      }),
     });
-    if (!response.ok) throw new Error('Failed to register uploaded video');
+    if (!response.ok) throw new Error('Failed to register uploaded media');
   };
 
   const handleMediaSelect = async (file: File) => {
@@ -510,9 +698,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
               a.id === id ? { ...a, downloadUrl, progress: null } : a
             )
           );
-          if (isVideo) {
-            void persistVideoToSession(downloadUrl, file.name);
-          }
         } catch {
           setUploadError('Failed to get file URL. Please try again.');
           setPendingAttachments((prev) => {
@@ -563,11 +748,14 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     }
 
     const sentMediaUrls = [...readyMediaUrls];
-    const sentMediaNames = pendingAttachments
-      .filter((a) => a.downloadUrl)
-      .map((a) => a.name);
-    const sentVideoUrl = sentMediaUrls[0];
-    const sentVideoName = sentMediaNames[0];
+    const readyAttachments = pendingAttachments.filter(
+      (a): a is PendingAttachment & { downloadUrl: string } =>
+        Boolean(a.downloadUrl)
+    );
+    const sentMediaNames = readyAttachments.map((a) => a.name);
+    const sentVideoUrl = readyAttachments.find((a) => a.kind === 'video')
+      ?.downloadUrl;
+    const sentVideoName = readyAttachments.find((a) => a.kind === 'video')?.name;
     const taggedAssets = draftTaggedAssets.filter((asset) =>
       hasAssetMention(messageText, asset.label)
     );
@@ -590,6 +778,18 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       );
     }
 
+    if (readyAttachments.length > 0) {
+      try {
+        await persistUploadsToSession(readyAttachments);
+      } catch (error) {
+        console.error('Failed to register uploads before send:', error);
+        setUploadError('Could not register uploaded media. Please try again.');
+        return;
+      }
+      // Await so availableAssets has server labels before pending clear.
+      await refreshAssets(chatId).catch(() => {});
+    }
+
     const pendingCheckpointId = pipelineState?.pendingCheckpointId;
     const checkpointAnswer =
       pendingCheckpointId && input.trim()
@@ -600,17 +800,24 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           }
         : undefined;
 
+    const messageMetadata = {
+      ...(sentVideoUrl
+        ? {
+            videoUrl: sentVideoUrl,
+            videoName: sentVideoName,
+            mediaUrls: sentMediaUrls,
+            mediaNames: sentMediaNames,
+          }
+        : {}),
+      ...(taggedAssets.length > 0 ? { taggedAssets } : {}),
+    };
+
     sendMessage(
       {
         text: messageText,
-        metadata: sentVideoUrl
-          ? {
-              videoUrl: sentVideoUrl,
-              videoName: sentVideoName,
-              mediaUrls: sentMediaUrls,
-              mediaNames: sentMediaNames,
-            }
-          : undefined,
+        ...(Object.keys(messageMetadata).length > 0
+          ? { metadata: messageMetadata }
+          : {}),
       },
       {
         body: {
@@ -781,6 +988,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           imageUrl?: string;
           mediaUrls?: string[];
           mediaNames?: string[];
+          taggedAssets?: TaggedAsset[];
         }
       | undefined;
     return {
@@ -793,6 +1001,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       imageUrl: metadata?.imageUrl,
       mediaUrls: metadata?.mediaUrls,
       mediaNames: metadata?.mediaNames,
+      taggedAssets: metadata?.taggedAssets,
     };
   });
 
@@ -827,7 +1036,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         setPipelineMode={setPipelineMode}
         onSkillSelect={handleSkillSelect}
         inputRef={inputRef}
-        assets={availableAssets}
+        assets={mentionableAssets}
         onAssetSelect={handleAssetSelect}
         selectedAssets={draftTaggedAssets}
         onAssetRemove={handleAssetRemove}
@@ -835,8 +1044,79 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     </>
   );
 
+  const handleDownloadProject = useCallback(async () => {
+    if (!activeSessionId) return;
+    setExportBusy(true);
+    setUploadError(null);
+    try {
+      await downloadSessionExport(activeSessionId);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setExportBusy(false);
+    }
+  }, [activeSessionId]);
+
+  const handleDownloadAndDelete = useCallback(async () => {
+    if (!activeSessionId) return;
+    setPurgeBusy(true);
+    setUploadError(null);
+    try {
+      const exportToken = await downloadSessionExport(activeSessionId);
+      setPendingExportToken(exportToken);
+      setPurgeConfirmOpen(true);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setPurgeBusy(false);
+    }
+  }, [activeSessionId]);
+
+  const confirmPurge = useCallback(async () => {
+    if (!activeSessionId || !pendingExportToken) return;
+    setPurgeBusy(true);
+    setUploadError(null);
+    try {
+      await purgeSession(activeSessionId, pendingExportToken);
+      setPurgeConfirmOpen(false);
+      setPendingExportToken(null);
+      setSessionLimitOpen(false);
+      startNewProject();
+      await refreshSessions();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setPurgeBusy(false);
+    }
+  }, [activeSessionId, pendingExportToken, refreshSessions, startNewProject]);
+
   return (
     <>
+      <SessionLimitModal
+        open={sessionLimitOpen}
+        estimatedTokens={sessionLimitTokens}
+        onClose={() => setSessionLimitOpen(false)}
+        onStartNewChat={() => {
+          setSessionLimitOpen(false);
+          startNewProject();
+        }}
+        downloadEnabled={Boolean(activeSessionId)}
+        deleteEnabled={Boolean(activeSessionId)}
+        downloadBusy={exportBusy}
+        deleteBusy={purgeBusy}
+        onDownloadProject={() => void handleDownloadProject()}
+        onDownloadAndDelete={() => void handleDownloadAndDelete()}
+      />
+      {purgeConfirmOpen ? (
+        <PurgeConfirmDialog
+          busy={purgeBusy}
+          onCancel={() => {
+            setPurgeConfirmOpen(false);
+            setPendingExportToken(null);
+          }}
+          onConfirm={() => void confirmPurge()}
+        />
+      ) : null}
       {messagesLoading ? (
         <AiStudioProjectLoader loadKey={chatId} />
       ) : heroView ? (
@@ -879,7 +1159,24 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           />
           <div className="shrink-0 pb-6 pt-2">
             <div className={AI_STUDIO_CHAT_COLUMN}>
-              {error ? (
+              {sessionTokenWarning != null ? (
+                <div className="mb-2 flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
+                  <p>
+                    This chat is getting large (~
+                    {Math.round(sessionTokenWarning / 1000)}k tokens). Consider
+                    starting a new chat soon.
+                  </p>
+                  <button
+                    type="button"
+                    className="shrink-0 text-amber-200/70 hover:text-amber-100"
+                    onClick={() => setSessionTokenWarning(null)}
+                    aria-label="Dismiss warning"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : null}
+              {error && !sessionLimitOpen && !isSessionLimitError(error) ? (
                 <p className="mb-2 text-sm text-red-400">{error.message}</p>
               ) : null}
               {uploadError ? (
@@ -891,5 +1188,75 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         </div>
       )}
     </>
+  );
+}
+
+function isSessionLimitError(error: { message?: string } | null | undefined) {
+  const msg = error?.message ?? '';
+  return (
+    msg.includes('session_limit_reached') ||
+    msg.includes('Session context limit reached')
+  );
+}
+
+function PurgeConfirmDialog({
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center px-4"
+      role="presentation"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+        aria-label="Cancel delete"
+        onClick={onCancel}
+        disabled={busy}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="purge-confirm-title"
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#141414] p-5 shadow-[0_8px_48px_rgba(0,0,0,0.55)]"
+      >
+        <h2
+          id="purge-confirm-title"
+          className="text-lg font-semibold text-white/90"
+        >
+          Delete permanently?
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/65">
+          This cannot be undone. The project download already started — continue
+          only if you are sure you want every cloud copy removed.
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onConfirm}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-40"
+          >
+            {busy ? 'Deleting…' : 'Yes, delete permanently'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/85 transition hover:bg-white/10 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

@@ -6,6 +6,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { db, getStorageBucketName } from './firebase';
 import { saveMessage } from './session';
+import { FINAL_VIDEO_NAME_RE, nextFinalVideoBasename } from './finalVideoBasename';
+
+export { nextFinalVideoBasename } from './finalVideoBasename';
 
 export type HfSegmentsPlan = {
   segments: unknown[];
@@ -101,6 +104,14 @@ export async function uploadToStorage(
   storagePath: string
 ): Promise<string> {
   return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: true });
+}
+
+/** Single-file upload that leaves the local file in place (hf-project edit sync). */
+export async function uploadFileToStorageKeepLocal(
+  localFilePath: string,
+  storagePath: string
+): Promise<string> {
+  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: false });
 }
 
 export async function uploadDirectoryToStorage(
@@ -233,6 +244,33 @@ export async function getHfSegmentsPlan(
   return snap.exists ? (snap.data() as HfSegmentsPlan) : null;
 }
 
+/** Allocate next free final*.mp4 under the session GCS prefix. */
+export async function allocateFinalVideoBasename(
+  userId: string,
+  sessionId: string
+): Promise<string> {
+  const bucket = getStorage().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names: string[] = [];
+  for (const file of files) {
+    const name = file.name.slice(prefix.length);
+    if (!name || name.includes('/')) continue;
+    if (FINAL_VIDEO_NAME_RE.test(name)) names.push(name);
+  }
+  // In-flight render already reserved a basename on S3 — don't reuse it.
+  const session = (await db.collection('sessions').doc(sessionId).get()).data();
+  if (
+    session?.userId === userId &&
+    session.renderStatus === 'RUNNING' &&
+    typeof session.renderOutputKey === 'string'
+  ) {
+    const reserved = path.basename(session.renderOutputKey);
+    if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
+  }
+  return nextFinalVideoBasename(names);
+}
+
 export type RenderJob = {
   executionArn: string;
   outputKey: string;
@@ -280,7 +318,8 @@ export async function getRenderJob(
 export async function finalizeRenderFromLocalFile(
   userId: string,
   sessionId: string,
-  tempPath: string
+  tempPath: string,
+  preferredBasename?: string
 ): Promise<string> {
   const sessionRef = db.collection('sessions').doc(sessionId);
   const current = (await sessionRef.get()).data();
@@ -292,10 +331,14 @@ export async function finalizeRenderFromLocalFile(
     return current.draftVideoUrl;
   }
 
-  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const basename =
+    preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename)
+      ? preferredBasename
+      : await allocateFinalVideoBasename(userId, sessionId);
+  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
   await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl, {
-    label: 'Draft Video',
+    label: basename,
     mimeType: 'video/mp4',
   });
   await sessionRef.set(
@@ -377,7 +420,12 @@ export async function finalizeRenderFromS3(
   const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
   fs.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
   try {
-    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+    return await finalizeRenderFromLocalFile(
+      userId,
+      sessionId,
+      tempPath,
+      path.basename(outputKey)
+    );
   } finally {
     fs.rmSync(tempPath, { force: true });
   }

@@ -33,8 +33,10 @@ import {
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import { signCallbackToken } from '../../callbackToken';
 import { formatDuration } from '../../checkpoint';
+import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 import {
+  allocateFinalVideoBasename,
   getHfSegmentsPlan,
   getRenderJob,
   persistRenderJob,
@@ -346,11 +348,16 @@ export function createHyperframesTools(ctx: ToolCtx) {
       }),
       execute: async ({
         speaker_video_url,
+        speaker_audio_url,
         manim_clips,
         transcript_words,
         total_duration,
         brand_colors,
       }) => {
+        assertTaggedUrlAllowed(speaker_video_url, ctx.taggedArtifacts);
+        if (speaker_audio_url) {
+          assertTaggedUrlAllowed(speaker_audio_url, ctx.taggedArtifacts);
+        }
         const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
         if (!storedPlan?.segments?.length) {
           throw new Error('No segment plan found. Call plan_segments first.');
@@ -687,9 +694,13 @@ export function createHyperframesTools(ctx: ToolCtx) {
             bucketName,
             region,
           });
+          const finalBasename = await allocateFinalVideoBasename(
+            ctx.userId,
+            ctx.sessionId
+          );
           const outputKey =
             `renders/users/${encodeURIComponent(ctx.userId)}` +
-            `/sessions/${encodeURIComponent(ctx.sessionId)}/draft_video.mp4`;
+            `/sessions/${encodeURIComponent(ctx.sessionId)}/${finalBasename}`;
           const handle = await renderToLambda({
             siteHandle,
             bucketName,

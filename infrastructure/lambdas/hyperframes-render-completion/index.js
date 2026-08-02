@@ -32,11 +32,15 @@ function parseS3Uri(uri) {
 }
 
 export function parseOutputKey(key) {
-  const match = /^renders\/users\/([^/]+)\/sessions\/([^/]+)\/draft_video\.mp4$/.exec(key);
+  const match =
+    /^renders\/users\/([^/]+)\/sessions\/([^/]+)\/((?:final(?:_\d+)?|draft_video)\.mp4)$/.exec(
+      key
+    );
   if (!match) throw new Error('Unexpected render output key');
 
   const userId = decodeURIComponent(match[1]);
   const sessionId = decodeURIComponent(match[2]);
+  const basename = match[3];
   if (
     !userId ||
     !sessionId ||
@@ -47,7 +51,7 @@ export function parseOutputKey(key) {
   ) {
     throw new Error('Invalid user or session identifier in render output key');
   }
-  return { userId, sessionId };
+  return { userId, sessionId, basename };
 }
 
 async function getFirebase() {
@@ -68,7 +72,7 @@ async function getFirebase() {
   };
 }
 
-async function completeSuccessfulRender(userId, sessionId, s3Location) {
+async function completeSuccessfulRender(userId, sessionId, s3Location, basename) {
   const { db, bucket } = await getFirebase();
   const sessionRef = db.collection('sessions').doc(sessionId);
   const current = await sessionRef.get();
@@ -87,7 +91,7 @@ async function completeSuccessfulRender(userId, sessionId, s3Location) {
   );
   if (!object.Body) throw new Error('Successful render has no S3 object body');
 
-  const firebasePath = `users/${userId}/sessions/${sessionId}/draft_video.mp4`;
+  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const file = bucket.file(firebasePath);
   await pipeline(
     object.Body,
@@ -108,7 +112,7 @@ async function completeSuccessfulRender(userId, sessionId, s3Location) {
     .add({
       kind: 'draft_video',
       url: videoUrl,
-      label: 'Draft Video',
+      label: basename,
       status: 'ready',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -138,10 +142,15 @@ export async function handler(event) {
   const output = parseJson(execution.output, 'execution output');
   const outputS3Uri = output?.Output?.OutputS3Uri || input.OutputS3Uri;
   const s3Location = parseS3Uri(outputS3Uri);
-  const { userId, sessionId } = parseOutputKey(s3Location.key);
+  const { userId, sessionId, basename } = parseOutputKey(s3Location.key);
 
   if (eventStatus === 'SUCCEEDED') {
-    const draftVideoUrl = await completeSuccessfulRender(userId, sessionId, s3Location);
+    const draftVideoUrl = await completeSuccessfulRender(
+      userId,
+      sessionId,
+      s3Location,
+      basename
+    );
     return { renderStatus: eventStatus, draftVideoUrl };
   }
 

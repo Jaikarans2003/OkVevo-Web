@@ -10,6 +10,51 @@ export function hasAssetMention(text: string, label: string): boolean {
   return new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`).test(text);
 }
 
+export type TextSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'mention'; label: string; asset: TaggedAsset };
+
+/**
+ * Split `text` into plain / @label segments using a fixed label list.
+ * Longest label wins when labels share a prefix.
+ */
+export function segmentAssetMentions(
+  text: string,
+  assets: TaggedAsset[]
+): TextSegment[] {
+  if (!text || assets.length === 0) {
+    return text ? [{ kind: 'text', text }] : [];
+  }
+
+  const byLabel = new Map<string, TaggedAsset>();
+  for (const asset of assets) {
+    if (!byLabel.has(asset.label)) byLabel.set(asset.label, asset);
+  }
+  const labels = [...byLabel.keys()].sort((a, b) => b.length - a.length);
+  if (labels.length === 0) return [{ kind: 'text', text }];
+
+  const alternation = labels.map(escapeMentionLabel).join('|');
+  const regex = new RegExp(`(^|\\s)@(${alternation})(?=\\s|$)`, 'g');
+  const segments: TextSegment[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const atPos = match.index + match[1].length;
+    const label = match[2];
+    const asset = byLabel.get(label);
+    if (!asset) continue;
+    if (atPos > cursor) {
+      segments.push({ kind: 'text', text: text.slice(cursor, atPos) });
+    }
+    segments.push({ kind: 'mention', label, asset });
+    cursor = atPos + 1 + label.length;
+  }
+  if (cursor < text.length) {
+    segments.push({ kind: 'text', text: text.slice(cursor) });
+  }
+  return segments.length > 0 ? segments : [{ kind: 'text', text }];
+}
+
 export type MentionAtCaret = {
   start: number;
   end: number;
