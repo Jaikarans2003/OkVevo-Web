@@ -49,13 +49,18 @@ export function createTranscribeTools(ctx: ToolCtx) {
             segments?: { start: number; end: number; text: string }[];
             words?: { word: string; start: number; end: number }[];
             duration?: number;
+            language?: string;
           };
+
+          const language =
+            typeof verbose.language === 'string' ? verbose.language : undefined;
 
           const transcriptData = {
             text: transcription.text,
             words: verbose.words ?? [],
             segments: verbose.segments ?? [],
             duration_seconds: verbose.duration ?? 0,
+            ...(language !== undefined ? { language } : {}),
           };
 
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
@@ -76,6 +81,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
             duration_seconds: verbose.duration ?? 0,
             word_count: verbose.words?.length ?? 0,
             duration: formatDuration(verbose.duration ?? 0),
+            ...(language !== undefined ? { language } : {}),
           };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);

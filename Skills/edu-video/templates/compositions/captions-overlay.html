@@ -10,6 +10,15 @@
     <style>
       {{BRAND_CSS_VARS}}
 
+      /* Bundled for HyperFrames Cloud — system/apt fonts are not on the cloud render path */
+      @font-face {
+        font-family: 'Noto Sans Kannada';
+        src: url('../assets/fonts/NotoSansKannada-Bold.woff2') format('woff2');
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+
       #captions-overlay {
         position: relative;
         width: 1920px;
@@ -49,7 +58,8 @@
       }
 
       #captions-overlay .hl-word {
-        font-family: 'Inter', system-ui, sans-serif;
+        /* Inter for Latin; Noto Sans Kannada via @font-face for Indic glyphs */
+        font-family: 'Inter', 'Noto Sans Kannada', system-ui, sans-serif;
         font-weight: 800;
         font-size: inherit;
         text-transform: uppercase;
@@ -121,7 +131,7 @@
         var container = document.querySelector('#captions-overlay #hl-container');
         var brandFont = getComputedStyle(document.querySelector('#captions-overlay'))
           .getPropertyValue('--brand-font')
-          .trim() || 'Inter, system-ui, sans-serif';
+          .trim() || 'Inter, Noto Sans Kannada, system-ui, sans-serif';
         var tl = gsap.timeline({ paused: true });
 
         GROUPS.forEach(function (g, gi) {

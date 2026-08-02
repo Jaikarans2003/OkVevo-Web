@@ -36616,7 +36616,8 @@ function loadSessionTranscript(sessionId) {
     return {
       text: text2,
       words,
-      duration_seconds: typeof saved.duration_seconds === "number" ? saved.duration_seconds : 0
+      duration_seconds: typeof saved.duration_seconds === "number" ? saved.duration_seconds : 0,
+      ...typeof saved.language === "string" ? { language: saved.language } : {}
     };
   } catch {
     return null;
@@ -36630,7 +36631,7 @@ function loadSessionTranscriptWords(sessionId, fallback) {
   return fallback;
 }
 function normalizeTokens(text2) {
-  return text2.toLowerCase().replace(/[^\w\s]/g, " ").split(/\s+/).filter(Boolean);
+  return text2.toLowerCase().replace(/[^\p{L}\p{M}\p{N}_\s]/gu, " ").split(/\s+/).filter(Boolean);
 }
 function snapToWords(excerpt, words, duration_seconds) {
   const fallback = {
@@ -39249,11 +39250,13 @@ function createTranscribeTools(ctx) {
             timestamp_granularities: ["word", "segment"]
           });
           const verbose = transcription;
+          const language = typeof verbose.language === "string" ? verbose.language : void 0;
           const transcriptData = {
             text: transcription.text,
             words: verbose.words ?? [],
             segments: verbose.segments ?? [],
-            duration_seconds: verbose.duration ?? 0
+            duration_seconds: verbose.duration ?? 0,
+            ...language !== void 0 ? { language } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
           import_fs11.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
@@ -39269,7 +39272,8 @@ function createTranscribeTools(ctx) {
             transcript_text: transcription.text,
             duration_seconds: verbose.duration ?? 0,
             word_count: verbose.words?.length ?? 0,
-            duration: formatDuration(verbose.duration ?? 0)
+            duration: formatDuration(verbose.duration ?? 0),
+            ...language !== void 0 ? { language } : {}
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);

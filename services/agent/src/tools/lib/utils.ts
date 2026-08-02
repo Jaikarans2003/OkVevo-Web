@@ -465,6 +465,7 @@ export type SessionTranscript = {
   text: string;
   words: TranscriptWord[];
   duration_seconds: number;
+  language?: string;
 };
 
 export function loadSessionTranscript(sessionId: string): SessionTranscript | null {
@@ -475,6 +476,7 @@ export function loadSessionTranscript(sessionId: string): SessionTranscript | nu
       text?: string;
       words?: TranscriptWord[];
       duration_seconds?: number;
+      language?: string;
     };
     const text = typeof saved.text === 'string' ? saved.text : '';
     const words = Array.isArray(saved.words) ? saved.words : [];
@@ -484,6 +486,7 @@ export function loadSessionTranscript(sessionId: string): SessionTranscript | nu
       words,
       duration_seconds:
         typeof saved.duration_seconds === 'number' ? saved.duration_seconds : 0,
+      ...(typeof saved.language === 'string' ? { language: saved.language } : {}),
     };
   } catch {
     return null;
@@ -502,9 +505,10 @@ export function loadSessionTranscriptWords(
 }
 
 export function normalizeTokens(text: string): string[] {
+  // Keep letters, marks (Indic matras), numbers, underscore — strip other punctuation.
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^\p{L}\p{M}\p{N}_\s]/gu, ' ')
     .split(/\s+/)
     .filter(Boolean);
 }
