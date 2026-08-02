@@ -30019,6 +30019,7 @@ async function ensureSession(sessionId, userId, title, extras) {
   };
   if (!existing.exists) {
     payload.createdAt = import_firestore3.FieldValue.serverTimestamp();
+    payload.lastMessageAt = import_firestore3.FieldValue.serverTimestamp();
   }
   if (!existing.exists || !existing.data()?.title) {
     payload.title = title.slice(0, 80) || "Untitled Chat";
@@ -39798,7 +39799,7 @@ ${block}`;
     params.sessionId,
     params.userId,
     "user",
-    userContent,
+    params.userMessage,
     void 0,
     Object.keys(saveExtras).length > 0 ? saveExtras : void 0
   );

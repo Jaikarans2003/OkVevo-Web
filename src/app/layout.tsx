@@ -20,7 +20,7 @@ const dancingScript = Dancing_Script({
 
 export const metadata: Metadata = {
     metadataBase: new URL(env.siteUrl),
-    title: "OKVEVO - AI Video Generator | Create Videos from Text Instantly",
+    title: "OKVEVO | Create Videos from Text Instantly",
     description: "OKVEVO AI - Best AI video generator for Instagram reels, YouTube shorts & faceless content. Create viral videos using AI without camera. Text to video AI tool for creators in India.",
     keywords: [
         // Brand Keywords
@@ -48,12 +48,12 @@ export const metadata: Metadata = {
         'faceless Instagram growth AI', 'AI influencer creation tool', 'automate content creation AI',
     ],
     icons: {
-        icon: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
-        shortcut: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
-        apple: '/OKVEVO Logos With BackGrounds/OrangeBackGround.svg',
+        icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+        shortcut: '/favicon.svg',
+        apple: '/favicon.svg',
     },
     openGraph: {
-        title: 'OKVEVO AI - Best AI Video Generator for Creators',
+        title: 'OKVEVO | Create Videos from Text Instantly',
         description: 'Create viral reels & videos using AI. No camera needed. Perfect for Instagram, YouTube & faceless content creation.',
         type: 'website',
         locale: 'en_IN',
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'OKVEVO AI - AI Video Generator India',
+        title: 'OKVEVO | Create Videos from Text Instantly',
         description: 'Best AI video generator for Instagram reels, YouTube shorts. Create faceless videos with AI.',
     },
     alternates: {

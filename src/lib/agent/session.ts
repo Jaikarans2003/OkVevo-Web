@@ -15,6 +15,10 @@ export async function ensureSession(sessionId: string, userId: string): Promise<
   if (!existing.exists || !existing.data()?.createdAt) {
     payload.createdAt = FieldValue.serverTimestamp();
   }
+  if (!existing.exists || !existing.data()?.lastMessageAt) {
+    // Required for sidebar orderBy(lastMessageAt) before first message.
+    payload.lastMessageAt = FieldValue.serverTimestamp();
+  }
 
   await ref.set(payload, { merge: true });
 }

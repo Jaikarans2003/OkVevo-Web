@@ -22,7 +22,11 @@ const STATUS_MARKER_GLOBAL_RE = /\[\[STATUS:\s*[^\]]+?\s*\]\]/g;
 
 export function parseStatusMarker(text: string): string | null {
   const match = STATUS_MARKER_RE.exec(text);
-  return match ? match[1].trim() : null;
+  if (!match) return null;
+  const phrase = match[1].trim();
+  // Reject prompt-template leftovers like "<short plain-English phrase>".
+  if (!phrase || /[<>]/.test(phrase)) return null;
+  return phrase;
 }
 
 export function stripStatusMarkers(text: string): string {

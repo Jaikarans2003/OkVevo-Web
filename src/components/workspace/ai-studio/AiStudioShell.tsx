@@ -252,6 +252,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const wasFirstMessageRef = useRef(false);
   const draftTaggedAssetsRef = useRef<TaggedAsset[]>([]);
   const messagesRef = useRef<UIMessage[]>([]);
+  const submittingRef = useRef(false);
+  const [isPreparingSend, setIsPreparingSend] = useState(false);
   selectedModelRef.current = selectedModel;
   userIdRef.current = userId;
   pendingAttachmentsRef.current = pendingAttachments;
@@ -461,6 +463,12 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       void refreshSessions();
     }
   }, [status, refreshSessions]);
+
+  useEffect(() => {
+    if (status === 'ready') return;
+    submittingRef.current = false;
+    setIsPreparingSend(false);
+  }, [status]);
 
   useEffect(() => {
     const sessionFromUrl = searchParams.get('session');
@@ -735,10 +743,19 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   };
 
   const handleSubmit = async () => {
+    const originalInput = input.trim();
     const messageText =
-      input.trim() ||
+      originalInput ||
       (readyMediaUrls.length > 0 ? 'Process my uploaded media' : '');
-    if (!messageText || status !== 'ready' || isUploading) return;
+    if (
+      !messageText ||
+      status !== 'ready' ||
+      isUploading ||
+      submittingRef.current ||
+      isPreparingSend
+    ) {
+      return;
+    }
 
     const hasVideo =
       readyMediaUrls.length > 0 || Boolean(pipelineState?.videoUrl);
@@ -746,6 +763,9 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       setUploadError('Upload a teacher video before starting Edu-Video.');
       return;
     }
+
+    submittingRef.current = true;
+    setIsPreparingSend(true);
 
     const sentMediaUrls = [...readyMediaUrls];
     const readyAttachments = pendingAttachments.filter(
@@ -759,6 +779,23 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     const taggedAssets = draftTaggedAssets.filter((asset) =>
       hasAssetMention(messageText, asset.label)
     );
+    const pendingCheckpointId = pipelineState?.pendingCheckpointId;
+    const checkpointAnswer =
+      pendingCheckpointId && originalInput
+        ? {
+            checkpointId: pendingCheckpointId,
+            type: 'freeform' as const,
+            text: originalInput,
+          }
+        : undefined;
+
+    // Instant feedback: lock + clear composer before any network wait.
+    setInput('');
+
+    const unlockPrepare = () => {
+      submittingRef.current = false;
+      setIsPreparingSend(false);
+    };
 
     if (messages.length === 0 && activeSessionId === null) {
       try {
@@ -766,6 +803,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       } catch (error) {
         console.error('Failed to ensure session before send:', error);
         setUploadError('Could not start session. Please try again.');
+        setInput(originalInput);
+        unlockPrepare();
         return;
       }
       wasFirstMessageRef.current = true;
@@ -777,28 +816,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`
       );
     }
-
-    if (readyAttachments.length > 0) {
-      try {
-        await persistUploadsToSession(readyAttachments);
-      } catch (error) {
-        console.error('Failed to register uploads before send:', error);
-        setUploadError('Could not register uploaded media. Please try again.');
-        return;
-      }
-      // Await so availableAssets has server labels before pending clear.
-      await refreshAssets(chatId).catch(() => {});
-    }
-
-    const pendingCheckpointId = pipelineState?.pendingCheckpointId;
-    const checkpointAnswer =
-      pendingCheckpointId && input.trim()
-        ? {
-            checkpointId: pendingCheckpointId,
-            type: 'freeform' as const,
-            text: input.trim(),
-          }
-        : undefined;
 
     const messageMetadata = {
       ...(sentVideoUrl
@@ -812,29 +829,51 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       ...(taggedAssets.length > 0 ? { taggedAssets } : {}),
     };
 
-    sendMessage(
-      {
-        text: messageText,
-        ...(Object.keys(messageMetadata).length > 0
-          ? { metadata: messageMetadata }
-          : {}),
-      },
-      {
-        body: {
-          model: resolveModelApiValue(selectedModel),
-          sessionId: chatId,
-          userId,
-          videoUrl: sentVideoUrl,
-          videoName: sentVideoName,
-          taggedAssets,
-          mediaUrls: sentMediaUrls,
-          mediaNames: sentMediaNames,
-          pipelineMode,
-          skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
-          ...(checkpointAnswer ? { checkpointAnswer } : {}),
+    try {
+      sendMessage(
+        {
+          text: messageText,
+          ...(Object.keys(messageMetadata).length > 0
+            ? { metadata: messageMetadata }
+            : {}),
         },
-      }
-    );
+        {
+          body: {
+            model: resolveModelApiValue(selectedModel),
+            sessionId: chatId,
+            userId,
+            videoUrl: sentVideoUrl,
+            videoName: sentVideoName,
+            taggedAssets,
+            mediaUrls: sentMediaUrls,
+            mediaNames: sentMediaNames,
+            pipelineMode,
+            skillId: activeSkill ?? pipelineState?.skillId ?? undefined,
+            ...(checkpointAnswer ? { checkpointAnswer } : {}),
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setUploadError('Could not send message. Please try again.');
+      setInput(originalInput);
+      unlockPrepare();
+      return;
+    }
+    // Keep isPreparingSend until useChat status leaves 'ready' (effect below).
+
+    // Register uploads after stream starts — mediaUrls already go in the request body.
+    if (readyAttachments.length > 0) {
+      void persistUploadsToSession(readyAttachments)
+        .then(() => refreshAssets(chatId).catch(() => {}))
+        .catch((error) => {
+          console.error('Failed to register uploads after send:', error);
+          setUploadError(
+            'Could not register uploaded media. Please try again.'
+          );
+        });
+    }
+
     // Defer clear so the transport body snapshot cannot race with send.
     queueMicrotask(() => {
       clearPendingAttachments();
@@ -842,7 +881,6 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       draftTaggedAssetsRef.current = [];
       setDraftTaggedAssets([]);
     });
-    setInput('');
   };
 
   const sameTaggedAsset = (a: TaggedAsset, b: TaggedAsset) =>
@@ -1026,6 +1064,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
         status={status}
+        isPreparingSend={isPreparingSend}
         onSubmit={handleSubmit}
         onPlusClick={() => fileInputRef.current?.click()}
         pendingAttachments={pendingAttachments}

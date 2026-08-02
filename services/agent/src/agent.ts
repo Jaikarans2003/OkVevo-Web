@@ -305,11 +305,12 @@ export async function runAgent(params: RunAgentParams) {
     params.sessionId
   );
 
+  // Persist display text only; media/edit-target injection stays on userContent for streamText.
   await saveMessage(
     params.sessionId,
     params.userId,
     'user',
-    userContent,
+    params.userMessage,
     undefined,
     Object.keys(saveExtras).length > 0 ? saveExtras : undefined
   );

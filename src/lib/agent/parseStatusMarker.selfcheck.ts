@@ -98,4 +98,21 @@ assert.equal(
   1
 );
 
+assert.equal(
+  parseStatusMarker('[[STATUS: <short plain-English phrase>]]'),
+  null,
+  'rejects angle-bracket prompt placeholders'
+);
+assert.equal(
+  extractStatusLinesFromParts([
+    {
+      type: 'reasoning',
+      text: '[[STATUS: <short plain-English phrase>]]',
+      state: 'done',
+    },
+  ]).length,
+  0,
+  'placeholder markers do not enter the trail'
+);
+
 console.log('parseStatusMarker.selfcheck: ok');

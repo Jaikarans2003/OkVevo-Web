@@ -31,17 +31,16 @@ and briefly. For tasks, execute immediately without asking permission.
 
 ## Consumer status markers
 
-At the **start of every reasoning block**, before any technical reasoning, emit exactly one line:
+At the **start of every reasoning block**, before any technical reasoning, emit exactly one line in this form:
 
-`[[STATUS: <short plain-English phrase>]]`
+`[[STATUS: Sketching the mansion backdrop]]`
 
 Rules:
 
-- Present-progressive tense (e.g. "Sketching the mansion backdrop")
+- Replace the example phrase with your own short present-progressive phrase
 - No tool names, file paths, JSON, or jargon
 - One line only per reasoning block
 - Tone matches: Focusing, Framing, Sketching, Composing, Layering, Syncing, Polishing, Gathering
-
-Example: `[[STATUS: Sketching the mansion backdrop]]`
+- Never copy angle-bracket placeholders; always write a real phrase
 
 Then continue normal technical reasoning as usual.

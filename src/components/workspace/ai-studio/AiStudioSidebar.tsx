@@ -48,10 +48,19 @@ export default function AiStudioSidebar({
   onNewProject,
 }: AiStudioSidebarProps) {
   const pathname = usePathname();
-  const { sessions, sessionsLoading, sessionsError } = useAiStudioWorkspace();
+  const {
+    sessions,
+    sessionsLoading,
+    sessionsLoadingMore,
+    sessionsHasMore,
+    sessionsError,
+    loadMoreSessions,
+  } = useAiStudioWorkspace();
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const isFilesPage = pathname.endsWith('/files');
 
@@ -65,6 +74,24 @@ export default function AiStudioSidebar({
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [menuOpen]);
+
+  // ponytail: search filters only loaded pages — server-side ?q= is the follow-up
+  useEffect(() => {
+    const root = listScrollRef.current;
+    const sentinel = sentinelRef.current;
+    if (!root || !sentinel || !sessionsHasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          void loadMoreSessions();
+        }
+      },
+      { root, rootMargin: '80px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sessionsHasMore, loadMoreSessions, sessions.length]);
 
   const filtered = sessions.filter((s) =>
     (s.title || 'Untitled Chat').toLowerCase().includes(search.toLowerCase())
@@ -204,7 +231,10 @@ export default function AiStudioSidebar({
             </nav>
           </div>
 
-          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          <div
+            ref={listScrollRef}
+            className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          >
             <p className="px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-white/40">
               Projects
             </p>
@@ -240,6 +270,12 @@ export default function AiStudioSidebar({
                 })
               )}
             </div>
+            {sessionsHasMore ? (
+              <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
+            ) : null}
+            {sessionsLoadingMore ? (
+              <p className="px-2.5 py-2 text-sm text-white/30">Loading...</p>
+            ) : null}
           </div>
         </motion.div>
       )}
