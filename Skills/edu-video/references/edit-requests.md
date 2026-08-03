@@ -16,7 +16,7 @@ Universal loop for every edit (listed playbook or not):
 
 **Hard rules:**
 
-- Never `run_command` / ffmpeg for composition or draft-video edits. Unlisted request types still follow this methodology on the logically involved files.
+- Never `run_command` / ffmpeg / curl for composition-affecting ops (format, resolution, re-encode, orientation, draft-video edits). Use pipeline tools (`scaffold_hf_project`, `render_hyperframes`, …) or `ask_clarification` with choices grounded in real tools — never invent a shell workaround. Unlisted request types still follow this methodology on the logically involved files.
 - `ask_clarification` only for unclear intent — not because a playbook is missing.
 - Always verify a frame before claiming the edit is visible.
 
@@ -70,12 +70,27 @@ Universal loop for every edit (listed playbook or not):
 
 ## Orientation edits
 
-"make it vertical" / "switch to 9:16" / "change to horizontal" / "portrait instead":
+"make it vertical" / "make this into horizontal video" / "make this into vertical video" / "switch to 9:16" / "change to horizontal" / "portrait instead":
 
-- **Destructive:** switching horizontal ↔ vertical is a full re-scaffold **and** typically requires regenerating Manim clips (vertical needs square `--resolution 1080,1080` **and** equal `config.frame_width`/`frame_height`; horizontal stays `-ql` 16:9). Layout, speaker GSAP, captions, and meta dimensions all change.
-- **Data-loss warning:** same wipe as brand re-scaffold — prior hand edits are discarded. Warn the user before proceeding. When Gate B (`confirm_overwrite_hand_edits`) exists, require it before overwrite.
-- Persist the new orientation on the session, regenerate Manim for each concept with the new orientation, re-`plan_segments`, re-`scaffold_hf_project`, then `render_hyperframes`.
-- Verify a frame (and that Manim fills the pod without letterbox/crop) before claiming success
+- **Reuse by default:** wipe + re-`scaffold_hf_project` with the matching orientation template; pass existing session Manim `clip_url`s (object-fit: contain). Do **not** auto-regen every Manim clip.
+- **Data-loss warning:** re-scaffold discards hand edits (overlays, caption style, custom speaker GSAP). Warn the user. When Gate B (`confirm_overwrite_hand_edits`) exists, require it before overwrite.
+- Persist the new orientation on the session via `scaffold_hf_project({ orientation })`. `render_hyperframes` hard-throws if HTML stage size ≠ session orientation — do not patch meta/CSS alone.
+- Relay `manim_fit_note` from the render tool return if present (soft letterbox/pillarbox warning).
+- **Cramped after contain:** regenerate only that single concept with the new `orientation` arg, then re-scaffold that clip — never batch-regen by default.
+- `scaffold_hf_project` / `restore_generation` refuse while `renderStatus === RUNNING` (do not wipe mid-flight).
+- Verify a frame before claiming success.
+
+
+
+## Restore a tagged past final
+
+`@final_2` / tagged `draft_video` then edit:
+
+- Call `restore_generation({ asset_id })` first — reconstructs the live project from the **full scaffold recipe** snapshotted onto that draft (orientation, speaker URLs, manim clips, transcript words, segments plan).
+- Then apply the content edit (captions, speaker, etc.) and/or the orientation rebuild playbook if the user also asked to switch aspect.
+- Combined (`@final_2` + "make vertical"): `restore_generation` → orientation rebuild playbook → remaining content edits → `render_hyperframes`.
+- Incomplete / pre-snapshot metadata → tool throws honestly — do not fall back to the live session speaker, latest Manim pointers, or live `hf_segments/plan`.
+- Does not auto-render; call `render_hyperframes` after edits.
 
 
 

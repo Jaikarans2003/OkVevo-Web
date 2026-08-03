@@ -26,6 +26,8 @@ export type ToolCtx = {
   pipelineMode: 'ask' | 'auto';
   skillName: string;
   taggedArtifacts: ResolvedTaggedAsset[];
+  /** Speaker URLs from restore_generation this turn — merged into scaffold allowlist. */
+  restoreAllowlistUrls: string[];
 };
 
 export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {

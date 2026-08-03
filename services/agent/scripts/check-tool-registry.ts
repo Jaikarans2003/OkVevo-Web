@@ -42,6 +42,7 @@ const ctx = {
   pipelineMode: 'auto' as const,
   skillName: 'edu-video',
   taggedArtifacts: [],
+  restoreAllowlistUrls: [],
 };
 
 const baseBuilt = buildTools(ctx);

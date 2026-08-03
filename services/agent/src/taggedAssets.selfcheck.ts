@@ -46,6 +46,20 @@ assert.doesNotThrow(() =>
   'local path allowed even when tags present'
 );
 
+// Restore allowlist merge (scaffold site): tagged final + restored speaker URL
+const restoredSpeaker = 'https://cdn.example.com/speaker_noaudio.mp4';
+const mergedAllowlist = [taggedA, { url: restoredSpeaker }];
+assert.doesNotThrow(() =>
+  assertTaggedUrlAllowed(restoredSpeaker, mergedAllowlist),
+  'restored speaker URL allowed when merged into allowlist'
+);
+assert.throws(
+  () =>
+    assertTaggedUrlAllowed('https://cdn.example.com/evil.mp4', mergedAllowlist),
+  /not in tagged allowlist/,
+  'unrelated HTTPS still rejected with merged allowlist'
+);
+
 const resolved: ResolvedTaggedAsset = {
   ...taggedA,
   key: 'tagged_0',

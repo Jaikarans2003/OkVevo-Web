@@ -1,5 +1,19 @@
 import type { VideoOrientation } from './utils';
 
+/**
+ * Arg wins when present (and should be persisted); otherwise session orientation.
+ * persist=true only when the tool arg explicitly set orientation.
+ */
+export function resolveToolOrientation(
+  arg: VideoOrientation | undefined,
+  session: VideoOrientation
+): { orientation: VideoOrientation; persist: boolean } {
+  if (arg === 'horizontal' || arg === 'vertical') {
+    return { orientation: arg, persist: true };
+  }
+  return { orientation: session, persist: false };
+}
+
 /** Build manim CLI; vertical requires square pixels. */
 export function buildManimRenderCmd(opts: {
   scriptPath: string;

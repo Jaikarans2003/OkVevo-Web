@@ -20,6 +20,7 @@ export const SKILL_TOOLS: Record<string, string[]> = {
     'render_manim_clip',
     'plan_segments',
     'scaffold_hf_project',
+    'restore_generation',
     'render_hyperframes',
   ],
   'manim-video': ['generate_manim_script', 'render_manim_clip'],

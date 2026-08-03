@@ -90,7 +90,7 @@ Never mention tool names, file paths, or technical details to the user.
 - `plan_segments` — deterministic timeline: Mode A at Manim clips, Mode C fills gaps
 - `scaffold_hf_project` — deterministic template injector, no LLM, writes full HyperFrames project to disk and Firebase Storage
 - `render_hyperframes` — runs HyperFrames lint, dispatches an AWS Lambda render, and returns the background job
-- `run_command` — run shell commands (used for ffmpeg, etc.)
+- `run_command` — run shell commands (misc utilities). Not for orientation / format / re-encode of the composition — those go through pipeline tools (`scaffold_hf_project`, `render_hyperframes`, …) or `ask_clarification`.
 - `write_file` — write files to disk (used for Manim script patches and lint fixes)
 - `read_file` — read any file from disk (used before patching scripts or manifest)
 - `search_files` — find files by name or content (used when manifest is missing)

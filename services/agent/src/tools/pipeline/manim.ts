@@ -15,14 +15,14 @@ import {
   resolveToolPath,
   resolveBrandColors,
   buildManimPalettePrompt,
-  type VideoOrientation,
 } from '../lib/utils';
 import { assertManimMaxVisible } from '../lib/manimGuard';
 import { getTempPath, uploadToStorage, walkDir, writeAssetUrl } from '../../storage';
-import { db } from '../../firebase';
-import { formatDuration, getSessionOrientation } from '../../checkpoint';
+import { formatDuration, getSessionOrientation, persistOrientation } from '../../checkpoint';
 import type { ToolCtx } from '../index';
-import { assertSquareManimFrame, buildManimRenderCmd } from '../lib/manimOrientation';
+import { assertSquareManimFrame, buildManimRenderCmd, resolveToolOrientation } from '../lib/manimOrientation';
+import { countRenderedManimClips } from '../lib/sessionManimClips';
+import { defaultSessionManimScriptPath } from '../lib/manimScriptPath';
 
 const brandColorsSchema = z.object({
   primary: z.string(),
@@ -77,25 +77,6 @@ function loadSessionConcepts(sessionId: string): { concept_name: string }[] {
   }
 }
 
-async function countRenderedManimClips(userId: string, sessionId: string): Promise<number> {
-  const snap = await db
-    .collection('users')
-    .doc(userId)
-    .collection('sessions')
-    .doc(sessionId)
-    .collection('assets')
-    .get();
-  // Same semantics as old map-key filter; kind rename to manim_clip deferred.
-  return snap.docs.filter((doc) => {
-    const kind = doc.data()?.kind;
-    return (
-      typeof kind === 'string' &&
-      kind.startsWith('manim_') &&
-      !kind.startsWith('manim_script_')
-    );
-  }).length;
-}
-
 export function createManimTools(ctx: ToolCtx) {
   return {
     generate_manim_script: tool({
@@ -120,8 +101,12 @@ export function createManimTools(ctx: ToolCtx) {
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
         const palettePrompt = buildManimPalettePrompt(colors);
-        const orientation: VideoOrientation =
-          orientationArg ?? (await getSessionOrientation(ctx.sessionId));
+        const sessionOrientation = await getSessionOrientation(ctx.sessionId);
+        const { orientation, persist } = resolveToolOrientation(
+          orientationArg,
+          sessionOrientation
+        );
+        if (persist) await persistOrientation(ctx.sessionId, orientation);
 
         const manimSkill = loadSkillFile('manim-video/SKILL.md');
         const troubleshooting = loadSkillFile('manim-video/references/troubleshooting.md');
@@ -279,7 +264,7 @@ Return corrected Python only.`;
     }),
 
     render_manim_clip: tool({
-      description: `Render a Manim Python script to an MP4 clip. Call after generate_manim_script for each concept. On render failure, read Skills/manim-video/references/troubleshooting.md and patch the script via read_file + write_file — do NOT regenerate unless a full rewrite is needed.`,
+      description: `Render a Manim Python script to an MP4 clip. Call after generate_manim_script for each concept. Prefer script_path from generate_manim_script. If script and script_path are both omitted, loads manim_scripts/{class without Scene}.py from the session. On render failure, read Skills/manim-video/references/troubleshooting.md and patch via read_file + write_file — do NOT regenerate unless a full rewrite is needed.`,
       inputSchema: z.object({
         script: z
           .string()
@@ -288,7 +273,9 @@ Return corrected Python only.`;
         script_path: z
           .string()
           .optional()
-          .describe('Path from generate_manim_script — preferred after patching on disk'),
+          .describe(
+            'Path from generate_manim_script — preferred after patching on disk. If omitted with no script, loads session manim_scripts/{class without Scene}.py'
+          ),
         class_name: z.string().describe('Scene class name from generate_manim_script e.g. SceneMyTopic'),
         concept_name: z.string(),
         start_seconds: z.number(),
@@ -307,13 +294,25 @@ Return corrected Python only.`;
         orientation: orientationArg,
       }) => {
         const safeName = class_name.replace('Scene', '');
-        const resolvedScriptPath = script_path
-          ? resolveToolPath(ctx.sessionId, script_path)
-          : getTempPath(`${ctx.sessionId}_${safeName}.py`);
-        const wroteTempScript = !script_path;
+        let resolvedScriptPath: string;
+        let wroteTempScript: boolean;
+        if (script_path) {
+          resolvedScriptPath = resolveToolPath(ctx.sessionId, script_path);
+          wroteTempScript = false;
+        } else if (script) {
+          resolvedScriptPath = getTempPath(`${ctx.sessionId}_${safeName}.py`);
+          wroteTempScript = true;
+        } else {
+          resolvedScriptPath = defaultSessionManimScriptPath(ctx.sessionId, class_name);
+          wroteTempScript = false;
+        }
         const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
-        const orientation: VideoOrientation =
-          orientationArg ?? (await getSessionOrientation(ctx.sessionId));
+        const sessionOrientation = await getSessionOrientation(ctx.sessionId);
+        const { orientation, persist } = resolveToolOrientation(
+          orientationArg,
+          sessionOrientation
+        );
+        if (persist) await persistOrientation(ctx.sessionId, orientation);
 
         try {
           if (script_path) {
@@ -325,10 +324,17 @@ Return corrected Python only.`;
                 `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts — regenerate or re-upload.`
               );
             }
-          } else if (!script) {
-            throw new Error('Provide script or script_path');
-          } else {
+          } else if (script) {
             fs.writeFileSync(resolvedScriptPath, script);
+          } else {
+            if (!fs.existsSync(resolvedScriptPath)) {
+              await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['manim_scripts']);
+            }
+            if (!fs.existsSync(resolvedScriptPath)) {
+              throw new Error(
+                `No script or script_path for "${concept_name}". Expected session script at ${resolvedScriptPath} — call generate_manim_script first.`
+              );
+            }
           }
 
           if (orientation === 'vertical') {

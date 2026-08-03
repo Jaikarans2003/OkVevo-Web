@@ -31,6 +31,43 @@ function parseS3Uri(uri) {
   return { bucket: match[1], key: match[2] };
 }
 
+/** keep in sync with services/agent/src/storage.ts renderSnapshot → draft_video.metadata
+ * Locked keys: orientation, speaker_video_url, speaker_audio_url, manim_clips,
+ * transcript_words, total_duration, segments_plan, composition_manifest_url, brand_colors
+ */
+function draftMetadataFromRenderSnapshot(snap) {
+  if (!snap || typeof snap !== 'object') return undefined;
+  if (
+    (snap.orientation !== 'horizontal' && snap.orientation !== 'vertical') ||
+    typeof snap.speaker_video_url !== 'string' ||
+    !Array.isArray(snap.manim_clips) ||
+    !Array.isArray(snap.transcript_words) ||
+    typeof snap.total_duration !== 'number' ||
+    !snap.segments_plan ||
+    !Array.isArray(snap.segments_plan.segments)
+  ) {
+    return undefined;
+  }
+  const meta = {
+    orientation: snap.orientation,
+    speaker_video_url: snap.speaker_video_url,
+    manim_clips: snap.manim_clips,
+    transcript_words: snap.transcript_words,
+    total_duration: snap.total_duration,
+    segments_plan: snap.segments_plan,
+  };
+  if (snap.speaker_audio_url != null && snap.speaker_audio_url !== '') {
+    meta.speaker_audio_url = snap.speaker_audio_url;
+  }
+  if (typeof snap.composition_manifest_url === 'string' && snap.composition_manifest_url) {
+    meta.composition_manifest_url = snap.composition_manifest_url;
+  }
+  if (snap.brand_colors) {
+    meta.brand_colors = snap.brand_colors;
+  }
+  return meta;
+}
+
 export function parseOutputKey(key) {
   const match =
     /^renders\/users\/([^/]+)\/sessions\/([^/]+)\/((?:final(?:_\d+)?|draft_video)\.mp4)$/.exec(
@@ -79,6 +116,8 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
   if (!current.exists || current.data()?.userId !== userId) {
     throw new Error('Render session ownership mismatch');
   }
+  // SUCCEEDED + draftVideoUrl → return existing URL; do not touch renderSnapshot.
+  // keep in sync with services/agent/src/storage.ts finalizeRenderFromLocalFile
   if (
     current.data()?.renderStatus === 'SUCCEEDED' &&
     typeof current.data()?.draftVideoUrl === 'string'
@@ -103,6 +142,8 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
   await file.makePublic();
   const videoUrl = `https://storage.googleapis.com/${bucket.name}/${firebasePath}`;
 
+  // keep in sync with services/agent/src/storage.ts renderSnapshot → draft_video.metadata
+  const metadata = draftMetadataFromRenderSnapshot(current.data()?.renderSnapshot);
   await db
     .collection('users')
     .doc(userId)
@@ -115,6 +156,7 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
       label: basename,
       status: 'ready',
       createdAt: FieldValue.serverTimestamp(),
+      ...(metadata ? { metadata } : {}),
     });
   await sessionRef.set(
     {
@@ -124,6 +166,8 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
       pipelinePhase: 7,
       pipelineStatus: 'complete',
       pipelineUpdatedAt: FieldValue.serverTimestamp(),
+      // First success only: clear stash so a later scaffold does not attach to this draft.
+      renderSnapshot: FieldValue.delete(),
     },
     { merge: true }
   );

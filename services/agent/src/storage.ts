@@ -7,6 +7,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { db, getStorageBucketName } from './firebase';
 import { saveMessage } from './session';
 import { FINAL_VIDEO_NAME_RE, nextFinalVideoBasename } from './finalVideoBasename';
+import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
 
@@ -323,6 +324,8 @@ export async function finalizeRenderFromLocalFile(
 ): Promise<string> {
   const sessionRef = db.collection('sessions').doc(sessionId);
   const current = (await sessionRef.get()).data();
+  // SUCCEEDED + draftVideoUrl → return existing URL; do not touch renderSnapshot.
+  // keep in sync with infrastructure/lambdas/hyperframes-render-completion/index.js
   if (
     current?.userId === userId &&
     current.renderStatus === 'SUCCEEDED' &&
@@ -337,9 +340,14 @@ export async function finalizeRenderFromLocalFile(
       : await allocateFinalVideoBasename(userId, sessionId);
   const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  // keep in sync with infrastructure/lambdas/hyperframes-render-completion/index.js draft_video metadata
+  const metadata = draftMetadataFromRenderSnapshot(
+    current?.renderSnapshot as Parameters<typeof draftMetadataFromRenderSnapshot>[0]
+  );
   await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl, {
     label: basename,
     mimeType: 'video/mp4',
+    ...(metadata ? { metadata } : {}),
   });
   await sessionRef.set(
     {
@@ -349,6 +357,8 @@ export async function finalizeRenderFromLocalFile(
       pipelinePhase: 7,
       pipelineStatus: 'complete',
       pipelineUpdatedAt: FieldValue.serverTimestamp(),
+      // First success only: clear stash so a later scaffold does not attach to this draft.
+      renderSnapshot: FieldValue.delete(),
     },
     { merge: true }
   );

@@ -3,7 +3,24 @@
  * Run: npx tsx src/tools/lib/manimOrientation.selfcheck.ts
  */
 import assert from 'node:assert';
-import { assertSquareManimFrame, buildManimRenderCmd } from './manimOrientation';
+import {
+  assertSquareManimFrame,
+  buildManimRenderCmd,
+  resolveToolOrientation,
+} from './manimOrientation';
+
+assert.deepStrictEqual(resolveToolOrientation('vertical', 'horizontal'), {
+  orientation: 'vertical',
+  persist: true,
+});
+assert.deepStrictEqual(resolveToolOrientation(undefined, 'vertical'), {
+  orientation: 'vertical',
+  persist: false,
+});
+assert.deepStrictEqual(resolveToolOrientation(undefined, 'horizontal'), {
+  orientation: 'horizontal',
+  persist: false,
+});
 
 const hCmd = buildManimRenderCmd({
   scriptPath: '/tmp/s.py',

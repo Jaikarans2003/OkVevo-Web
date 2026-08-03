@@ -113,7 +113,7 @@ var require_package = __commonJS({
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
     var fs14 = require("fs");
-    var path14 = require("path");
+    var path15 = require("path");
     var os3 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
@@ -229,7 +229,7 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path14.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path15.resolve(process.cwd(), ".env.vault");
       }
       if (fs14.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
@@ -237,7 +237,7 @@ var require_main = __commonJS({
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path14.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path15.join(os3.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path14.resolve(process.cwd(), ".env");
+      const dotenvPath = path15.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path15 of optionPaths) {
+      for (const path16 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs14.readFileSync(path15, { encoding }));
+          const parsed = DotenvModule.parse(fs14.readFileSync(path16, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path15} ${e.message}`);
+            _debug(`Failed to load ${path16} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path14.relative(process.cwd(), filePath);
+            const relative = path15.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path14) {
-  if (!path14)
+function getElementAtPath(obj, path15) {
+  if (!path15)
     return obj;
-  return path14.reduce((acc, key) => acc?.[key], obj);
+  return path15.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path14, issues) {
+function prefixIssues(path15, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path14);
+    iss.path.unshift(path15);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path14 = []) => {
+  const processError = (error41, path15 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path14, ...issue2.path];
+        const fullpath = [...path15, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path14) {
+function toDotPath(path15) {
   const segs = [];
-  for (const seg of path14) {
+  for (const seg of path15) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path14, errorMaps, issueData } = params;
-      const fullPath = [...path14, ...issueData.path || []];
+      const { data, path: path15, errorMaps, issueData } = params;
+      const fullPath = [...path15, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path14, key) {
+      constructor(parent, value, path15, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path14;
+        this._path = path15;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path13 = __toESM2(require("path"));
+    var import_path14 = __toESM2(require("path"));
     var import_fs13 = __toESM2(require("fs"));
     var import_os3 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path13.default.dirname(dir)) {
-          const pkgPath = import_path13.default.join(dir, ".vercel");
+        while (dir !== import_path14.default.dirname(dir)) {
+          const pkgPath = import_path14.default.join(dir, ".vercel");
           if (import_fs13.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path13.default.dirname(dir);
+          dir = import_path14.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19076,9 +19076,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os3.default.platform()) {
         case "darwin":
-          return import_path13.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path14.default.join(import_os3.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path13.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path14.default.join(import_os3.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19130,7 +19130,7 @@ var require_auth_config = __commonJS({
     });
     module2.exports = __toCommonJS(auth_config_exports);
     var fs14 = __toESM2(require("fs"));
-    var path14 = __toESM2(require("path"));
+    var path15 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,7 +19139,7 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path14.join(dataDir, "auth.json");
+      return path15.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
@@ -19158,7 +19158,7 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path14.dirname(authPath);
+      const authDir = path15.dirname(authPath);
       if (!fs14.existsSync(authDir)) {
         fs14.mkdirSync(authDir, { mode: 504, recursive: true });
       }
@@ -19353,7 +19353,7 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path14 = __toESM2(require("path"));
+    var path15 = __toESM2(require("path"));
     var fs14 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path14.join(dataDir, vercelFolder);
+      return path15.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,7 +19442,7 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path14.join(dir, ".vercel", "project.json");
+      const prjPath = path15.join(dir, ".vercel", "project.json");
       if (!fs14.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
@@ -19463,9 +19463,9 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path15.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs14.mkdirSync(path14.dirname(tokenPath), { mode: 504, recursive: true });
+      fs14.mkdirSync(path15.dirname(tokenPath), { mode: 504, recursive: true });
       fs14.writeFileSync(tokenPath, tokenJson);
       fs14.chmodSync(tokenPath, 432);
       return;
@@ -19477,7 +19477,7 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path14.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path15.join(dir, "com.vercel.token", `${projectId}.json`);
       if (!fs14.existsSync(tokenPath)) {
         return null;
       }
@@ -29883,6 +29883,12 @@ var init_env = __esm({
 });
 
 // src/firebase.ts
+var firebase_exports = {};
+__export(firebase_exports, {
+  auth: () => auth,
+  db: () => db,
+  getStorageBucketName: () => getStorageBucketName
+});
 function loadServiceAccount() {
   const json3 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (json3) {
@@ -30123,6 +30129,73 @@ var init_finalVideoBasename = __esm({
   }
 });
 
+// src/tools/lib/renderSnapshot.ts
+function draftMetadataFromRenderSnapshot(snap) {
+  if (!snap || typeof snap !== "object") return void 0;
+  if (snap.orientation !== "horizontal" && snap.orientation !== "vertical" || typeof snap.speaker_video_url !== "string" || !Array.isArray(snap.manim_clips) || !Array.isArray(snap.transcript_words) || typeof snap.total_duration !== "number" || !snap.segments_plan || !Array.isArray(snap.segments_plan.segments)) {
+    return void 0;
+  }
+  const meta = {
+    orientation: snap.orientation,
+    speaker_video_url: snap.speaker_video_url,
+    manim_clips: snap.manim_clips,
+    transcript_words: snap.transcript_words,
+    total_duration: snap.total_duration,
+    segments_plan: snap.segments_plan
+  };
+  if (snap.speaker_audio_url != null && snap.speaker_audio_url !== "") {
+    meta.speaker_audio_url = snap.speaker_audio_url;
+  }
+  if (typeof snap.composition_manifest_url === "string" && snap.composition_manifest_url) {
+    meta.composition_manifest_url = snap.composition_manifest_url;
+  }
+  if (snap.brand_colors) {
+    meta.brand_colors = snap.brand_colors;
+  }
+  return meta;
+}
+function parseRestoreRecipe(metadata) {
+  if (!metadata || typeof metadata !== "object") {
+    throw new Error(
+      "This draft_video has no restore snapshot (pre-snapshot final or incomplete metadata). Tag a final rendered after snapshot support, or rebuild from the live session."
+    );
+  }
+  const m = metadata;
+  if (m.orientation !== "horizontal" && m.orientation !== "vertical") {
+    throw incomplete("orientation");
+  }
+  if (typeof m.speaker_video_url !== "string" || !m.speaker_video_url) {
+    throw incomplete("speaker_video_url");
+  }
+  if (!Array.isArray(m.manim_clips)) throw incomplete("manim_clips");
+  if (!Array.isArray(m.transcript_words)) throw incomplete("transcript_words");
+  if (typeof m.total_duration !== "number") throw incomplete("total_duration");
+  const plan = m.segments_plan;
+  if (!plan || !Array.isArray(plan.segments) || typeof plan.total_duration !== "number") {
+    throw incomplete("segments_plan");
+  }
+  return {
+    orientation: m.orientation,
+    speaker_video_url: m.speaker_video_url,
+    ...typeof m.speaker_audio_url === "string" && m.speaker_audio_url ? { speaker_audio_url: m.speaker_audio_url } : {},
+    manim_clips: m.manim_clips,
+    transcript_words: m.transcript_words,
+    total_duration: m.total_duration,
+    segments_plan: { segments: plan.segments, total_duration: plan.total_duration },
+    ...m.brand_colors && typeof m.brand_colors === "object" ? { brand_colors: m.brand_colors } : {}
+  };
+}
+function incomplete(field) {
+  return new Error(
+    `This draft_video restore snapshot is incomplete (missing ${field}). Pre-snapshot finals cannot be restored \u2014 rebuild from the live session or re-render a new final.`
+  );
+}
+var init_renderSnapshot = __esm({
+  "src/tools/lib/renderSnapshot.ts"() {
+    "use strict";
+  }
+});
+
 // src/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -30335,9 +30408,13 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferre
   const basename = preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename) ? preferredBasename : await allocateFinalVideoBasename(userId, sessionId);
   const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  const metadata = draftMetadataFromRenderSnapshot(
+    current?.renderSnapshot
+  );
   await writeAssetUrl(userId, sessionId, "draft_video", videoUrl, {
     label: basename,
-    mimeType: "video/mp4"
+    mimeType: "video/mp4",
+    ...metadata ? { metadata } : {}
   });
   await sessionRef.set(
     {
@@ -30346,7 +30423,9 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferre
       draftVideoUrl: videoUrl,
       pipelinePhase: 7,
       pipelineStatus: "complete",
-      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
+      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp(),
+      // First success only: clear stash so a later scaffold does not attach to this draft.
+      renderSnapshot: import_firestore4.FieldValue.delete()
     },
     { merge: true }
   );
@@ -30495,6 +30574,7 @@ var init_storage = __esm({
     init_firebase();
     init_session();
     init_finalVideoBasename();
+    init_renderSnapshot();
     init_finalVideoBasename();
   }
 });
@@ -30932,10 +31012,10 @@ function createParser2(callbacks) {
   const { onEvent = noop2, onError = noop2, onRetry = noop2, onComment } = callbacks;
   let incompleteLine = "", isFirstChunk = true, id, data = "", eventType = "";
   function feed(newChunk) {
-    const chunk = isFirstChunk ? newChunk.replace(/^\xEF\xBB\xBF/, "") : newChunk, [complete, incomplete] = splitLines(`${incompleteLine}${chunk}`);
+    const chunk = isFirstChunk ? newChunk.replace(/^\xEF\xBB\xBF/, "") : newChunk, [complete, incomplete2] = splitLines(`${incompleteLine}${chunk}`);
     for (const line of complete)
       parseLine(line);
-    incompleteLine = incomplete, isFirstChunk = false;
+    incompleteLine = incomplete2, isFirstChunk = false;
   }
   function parseLine(line) {
     if (line === "") {
@@ -35674,7 +35754,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path15 }) => `${baseURL}${path15}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35682,7 +35762,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path15 }) => `${baseURL}${path15}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35690,21 +35770,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path15 }) => `${baseURL}${path15}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path15 }) => `${baseURL}${path15}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path14 }) => `${baseURL}${path14}`,
+    url: ({ path: path15 }) => `${baseURL}${path15}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35768,6 +35848,7 @@ var SKILL_TOOLS = {
     "render_manim_clip",
     "plan_segments",
     "scaffold_hf_project",
+    "restore_generation",
     "render_hyperframes"
   ],
   "manim-video": ["generate_manim_script", "render_manim_clip"],
@@ -38352,8 +38433,8 @@ ${retryHint}` : userMessage
 
 // src/tools/pipeline/hyperframes.ts
 var import_crypto = __toESM(require("crypto"));
-var import_fs9 = __toESM(require("fs"));
-var import_path9 = __toESM(require("path"));
+var import_fs10 = __toESM(require("fs"));
+var import_path10 = __toESM(require("path"));
 init_dist5();
 init_zod();
 
@@ -38426,7 +38507,496 @@ function isSfnExecutionArn(arn) {
 
 // src/tools/pipeline/hyperframes.ts
 init_taggedAssets();
+init_firebase();
 init_storage();
+
+// src/tools/lib/sessionManimClips.ts
+function isRenderedManimClipKind(kind) {
+  return typeof kind === "string" && kind.startsWith("manim_") && !kind.startsWith("manim_script_");
+}
+function sessionManimClipFromDoc(data) {
+  if (!isRenderedManimClipKind(data.kind)) return null;
+  const url2 = data.url;
+  if (typeof url2 !== "string" || !url2) return null;
+  return {
+    safeName: data.kind.slice("manim_".length),
+    clip_url: url2
+  };
+}
+function createdAtMs(data) {
+  const c = data.createdAt;
+  if (c && typeof c === "object" && typeof c.toMillis === "function") return c.toMillis();
+  if (typeof c === "number") return c;
+  return 0;
+}
+function listSessionManimClipsFromDocs(docs) {
+  const ranked = [];
+  for (const doc of docs) {
+    const data = doc.data();
+    const clip = sessionManimClipFromDoc(data);
+    if (!clip) continue;
+    ranked.push({ clip, t: createdAtMs(data) });
+  }
+  ranked.sort((a, b) => b.t - a.t);
+  const bySafe = /* @__PURE__ */ new Map();
+  for (const { clip } of ranked) {
+    if (!bySafe.has(clip.safeName)) bySafe.set(clip.safeName, clip);
+  }
+  return [...bySafe.values()];
+}
+async function listSessionManimClips(userId, sessionId) {
+  const { db: db2 } = await Promise.resolve().then(() => (init_firebase(), firebase_exports));
+  const snap = await db2.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
+  return listSessionManimClipsFromDocs(snap.docs);
+}
+async function countRenderedManimClips(userId, sessionId) {
+  return (await listSessionManimClips(userId, sessionId)).length;
+}
+
+// src/tools/lib/orientationGuard.ts
+function parseStageCanvasSize(html) {
+  const stageData = html.match(
+    /id=["']stage["'][^>]*data-width=["'](\d+)["'][^>]*data-height=["'](\d+)["']/i
+  );
+  if (stageData) {
+    return { width: Number(stageData[1]), height: Number(stageData[2]) };
+  }
+  const stageDataAlt = html.match(
+    /id=["']stage["'][^>]*data-height=["'](\d+)["'][^>]*data-width=["'](\d+)["']/i
+  );
+  if (stageDataAlt) {
+    return { width: Number(stageDataAlt[2]), height: Number(stageDataAlt[1]) };
+  }
+  const css = html.match(
+    /#stage\s*\{[^}]*width:\s*(\d+)px[^}]*height:\s*(\d+)px/i
+  );
+  if (css) return { width: Number(css[1]), height: Number(css[2]) };
+  const body = html.match(
+    /html,\s*body\s*\{[^}]*width:\s*(\d+)px[^}]*height:\s*(\d+)px/i
+  );
+  if (body) return { width: Number(body[1]), height: Number(body[2]) };
+  return null;
+}
+function assertHtmlMatchesOrientation(html, orientation, expected) {
+  const parsed = parseStageCanvasSize(html);
+  if (!parsed) {
+    throw new Error(
+      `Composition HTML has no readable #stage/body size. Re-run scaffold_hf_project with orientation=${orientation} \u2014 do not patch meta/CSS alone.`
+    );
+  }
+  if (parsed.width !== expected.width || parsed.height !== expected.height) {
+    throw new Error(
+      `Composition HTML stage is ${parsed.width}\xD7${parsed.height} but session orientation is ${orientation} (${expected.width}\xD7${expected.height}). Re-run scaffold_hf_project with the matching orientation template \u2014 do not patch meta/CSS alone.`
+    );
+  }
+}
+function manimFitNoteForClip(orientation, width, height) {
+  if (!(width > 0 && height > 0)) return null;
+  const ratio = width / height;
+  if (orientation === "vertical" && ratio > 1.2) {
+    return `Manim clip is landscape (${width}\xD7${height}) in a vertical (square) pod \u2014 object-fit:contain will letterbox. Regenerate that concept with orientation=vertical only if cramped.`;
+  }
+  if (orientation === "horizontal" && ratio < 1.2) {
+    return `Manim clip is square/portrait (${width}\xD7${height}) in a horizontal 16:9 pod \u2014 object-fit:contain will pillarbox. Regenerate that concept with orientation=horizontal only if cramped.`;
+  }
+  return null;
+}
+
+// src/tools/pipeline/hyperframes.ts
+init_renderSnapshot();
+
+// src/editTargets.ts
+var import_fs9 = __toESM(require("fs"));
+var import_path9 = __toESM(require("path"));
+init_finalVideoBasename();
+var MAX_INJECT_BYTES = 5e4;
+function manimSafeName(conceptName) {
+  let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
+  if (/^[0-9]/.test(safe)) safe = `_${safe}`;
+  return safe;
+}
+function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
+  if (!import_fs9.default.existsSync(filePath) || !import_fs9.default.statSync(filePath).isFile()) return null;
+  const buf = import_fs9.default.readFileSync(filePath);
+  const truncated = buf.length > maxBytes;
+  let content = (truncated ? buf.subarray(0, maxBytes) : buf).toString("utf-8");
+  if (truncated) content += `
+[truncated \u2014 file has ${buf.length} total bytes]`;
+  return { content, truncated };
+}
+function listSectionHtml(projectDir) {
+  const dir = import_path9.default.join(projectDir, "compositions", "sections");
+  if (!import_fs9.default.existsSync(dir)) return [];
+  return import_fs9.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path9.default.join(dir, f)).sort();
+}
+function uniqFiles(files) {
+  const seen = /* @__PURE__ */ new Set();
+  return files.filter((f) => {
+    if (seen.has(f.path)) return false;
+    seen.add(f.path);
+    return true;
+  });
+}
+function ref(projectDir, relative) {
+  return { path: import_path9.default.join(projectDir, relative), relative };
+}
+function classifyTaggedForEdit(asset, workdir) {
+  const local = asset.localPath.replace(/\\/g, "/");
+  const base = import_path9.default.basename(local);
+  if (FINAL_VIDEO_NAME_RE.test(base)) return { kind: "draft_final" };
+  const manimMatch = local.match(/\/manim\/([^/]+)\.mp4$/i);
+  if (manimMatch) return { kind: "manim", safeName: manimMatch[1] };
+  const rel = import_path9.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
+  if (rel.startsWith("uploads/") || /\/uploads\//.test(local)) {
+    return { kind: "new_media" };
+  }
+  return null;
+}
+var EDIT_SIGNAL = /\b(edit|change|update|fix|replace|remove|move|resize|bigger|smaller|style|color|background|caption|captions|karaoke|speaker|overlay|badge|crimson|make\s+it|should\s+be|become|vertical|horizontal|portrait|landscape|aspect\s*ratio|9\s*:\s*16|16\s*:\s*9)\b/i;
+var COLD_PIPELINE = /\b(create|generate|scaffold|start)\b[\s\S]{0,40}\b(edu[- ]?video|new video|from scratch)\b/i;
+function looksLikeEditIntent(message, hasHfProject) {
+  if (COLD_PIPELINE.test(message) && !hasHfProject) return false;
+  if (EDIT_SIGNAL.test(message)) return true;
+  return false;
+}
+function parseOrientationTarget(message) {
+  const m = message.toLowerCase();
+  const geometryNoise = /\bvertical\s+(rectangle|rect|bar|strip|pip)\b/.test(m);
+  const ratioV = /\b9\s*:\s*16\b/.test(m) || /\bportrait\b/.test(m);
+  const ratioH = /\b16\s*:\s*9\b/.test(m) || /\blandscape\b/.test(m);
+  const intoV = /\bmake\s+(this|it)\s+into\b[\s\S]{0,40}\b(vertical|portrait|9\s*:\s*16)\b/.test(m);
+  const intoH = /\bmake\s+(this|it)\s+into\b[\s\S]{0,40}\b(horizontal|landscape|16\s*:\s*9)\b/.test(m);
+  const videoV = !geometryNoise && /\b(make|switch|change|convert|into)\b[\s\S]{0,40}\bvertical\s+video\b/.test(m);
+  const videoH = /\b(make|switch|change|convert|into)\b[\s\S]{0,40}\bhorizontal\s+video\b/.test(m);
+  const switchV = !geometryNoise && (/\b(make\s+it|switch\s+to|change\s+to|convert\s+to)\s+vertical\b/.test(m) || /\bvertical\s+(orientation|format|mode|layout)\b/.test(m) || intoV || videoV || /\baspect\s*ratio\b/.test(m) && /\b9\s*:\s*16\b/.test(m));
+  const switchH = /\b(make\s+it|switch\s+to|change\s+to|convert\s+to)\s+horizontal\b/.test(m) || /\bhorizontal\s+(orientation|format|mode|layout)\b/.test(m) || intoH || videoH || /\baspect\s*ratio\b/.test(m) && /\b16\s*:\s*9\b/.test(m);
+  if ((ratioV || switchV) && !ratioH && !switchH) return "vertical";
+  if ((ratioH || switchH) && !ratioV && !switchV) return "horizontal";
+  return null;
+}
+function classifyEditIntent(message) {
+  const cats = [];
+  const m = message.toLowerCase();
+  if (/\b(caption|captions|karaoke|subtitle|subtitles)\b/.test(m)) {
+    cats.push("captions");
+  }
+  if (/\b(background|bg|#stage|crimson|brand color|accent color)\b/.test(m) || /\b(color|coloured|colored)\b/.test(m) && /\b(red|blue|dark|crimson)\b/.test(m)) {
+    cats.push("background");
+  }
+  if (/\b(speaker|pip|circle frame|tall.?rect|speaker-wrap)\b/.test(m)) {
+    cats.push("speaker");
+  }
+  if (/\b(overlay|badge|sticker|graphic|logo)\b/.test(m)) {
+    cats.push("overlay");
+  }
+  if (parseOrientationTarget(message)) {
+    cats.push("orientation");
+  }
+  if (/\b(animation|manim|concept|segment|clip)\b/.test(m)) {
+    cats.push("concept");
+  }
+  return cats;
+}
+function findOverlayMarkers(indexHtml) {
+  const ids = /* @__PURE__ */ new Set();
+  for (const m of indexHtml.matchAll(/\bid=["']([^"']+)["']/gi)) {
+    const id = m[1];
+    if (/overlay|badge/i.test(id)) ids.add(`#${id}`);
+  }
+  if (/#bg-overlay\b/.test(indexHtml) || /\bid=["']bg-overlay["']/i.test(indexHtml)) {
+    ids.add("#bg-overlay");
+  }
+  return [...ids];
+}
+function conceptFilesFromMessage(message, projectDir, workdir) {
+  const out = [];
+  const manifestPath = import_path9.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  let segments = [];
+  if (import_fs9.default.existsSync(manifestPath)) {
+    try {
+      const data = JSON.parse(import_fs9.default.readFileSync(manifestPath, "utf-8"));
+      segments = data.segments ?? [];
+    } catch {
+      segments = [];
+    }
+  }
+  const lower = message.toLowerCase();
+  for (const seg of segments) {
+    const name26 = (seg.concept_name ?? "").trim();
+    if (!name26) continue;
+    if (!lower.includes(name26.toLowerCase())) continue;
+    if (seg.file) out.push(ref(projectDir, seg.file));
+    if (/\b(animation|manim|script|content)\b/i.test(message)) {
+      const script = import_path9.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+      out.push({
+        path: script,
+        relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+      });
+    }
+  }
+  const conceptsPath = import_path9.default.join(workdir, "concepts.json");
+  if (import_fs9.default.existsSync(conceptsPath) && out.length === 0) {
+    try {
+      const concepts = JSON.parse(import_fs9.default.readFileSync(conceptsPath, "utf-8"));
+      for (const c of concepts) {
+        const name26 = (c.name ?? "").trim();
+        if (!name26 || !lower.includes(name26.toLowerCase())) continue;
+        const script = import_path9.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+        out.push({
+          path: script,
+          relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+        });
+      }
+    } catch {
+    }
+  }
+  return out;
+}
+function filesForIntentCategories(categories, projectDir, workdir, message) {
+  const files = [];
+  const indexPath = import_path9.default.join(projectDir, "index.html");
+  const indexHtml = import_fs9.default.existsSync(indexPath) ? import_fs9.default.readFileSync(indexPath, "utf-8") : "";
+  for (const cat of categories) {
+    if (cat === "orientation") {
+      continue;
+    }
+    if (cat === "captions") {
+      files.push(ref(projectDir, "compositions/captions-overlay.html"));
+    } else if (cat === "background") {
+      files.push(ref(projectDir, "index.html"));
+      for (const s of listSectionHtml(projectDir)) {
+        files.push({
+          path: s,
+          relative: import_path9.default.relative(projectDir, s).replace(/\\/g, "/")
+        });
+      }
+    } else if (cat === "speaker") {
+      files.push(ref(projectDir, "index.html"));
+    } else if (cat === "overlay") {
+      files.push(ref(projectDir, "index.html"));
+      const markers = findOverlayMarkers(indexHtml);
+      if (markers.length > 0) {
+        files[files.length - 1] = {
+          ...files[files.length - 1],
+          relative: `index.html (overlays: ${markers.join(", ")})`
+        };
+      }
+    } else if (cat === "concept") {
+      files.push(...conceptFilesFromMessage(message, projectDir, workdir));
+    }
+  }
+  return uniqFiles(files);
+}
+function findRestoreGenerationTarget(taggedArtifacts, workdir) {
+  for (const asset of taggedArtifacts) {
+    const kind = classifyTaggedForEdit(asset, workdir);
+    if (kind?.kind !== "draft_final") continue;
+    return {
+      ...asset.id ? { assetId: asset.id } : {},
+      url: asset.url,
+      label: asset.label
+    };
+  }
+  return void 0;
+}
+function resolveEditTargets(opts) {
+  const workdir = opts.workdir ?? getSessionWorkdir(opts.sessionId);
+  const projectDir = import_path9.default.join(workdir, "hf-project");
+  const files = [];
+  let newMedia = false;
+  const restoreGeneration = findRestoreGenerationTarget(
+    opts.taggedArtifacts,
+    workdir
+  );
+  const orientationTarget = parseOrientationTarget(opts.userMessage);
+  const orientationRebuild = orientationTarget ? { target: orientationTarget } : void 0;
+  for (const asset of opts.taggedArtifacts) {
+    const kind = classifyTaggedForEdit(asset, workdir);
+    if (!kind) continue;
+    if (kind.kind === "new_media") {
+      newMedia = true;
+      continue;
+    }
+    if (kind.kind === "draft_final") {
+      if (!orientationRebuild) {
+        files.push(ref(projectDir, "index.html"));
+        files.push(ref(projectDir, "compositions/captions-overlay.html"));
+      }
+    } else if (kind.kind === "manim" && kind.safeName) {
+      const script = import_path9.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
+      files.push({
+        path: script,
+        relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+      });
+    }
+  }
+  if (orientationRebuild) {
+    const categories2 = classifyEditIntent(opts.userMessage).filter(
+      (c) => c !== "orientation"
+    );
+    const contentFiles = categories2.length > 0 ? filesForIntentCategories(
+      categories2,
+      projectDir,
+      workdir,
+      opts.userMessage
+    ) : [];
+    return {
+      files: uniqFiles([...files, ...contentFiles]),
+      projectDir,
+      newMedia,
+      needsClarification: false,
+      orientationRebuild,
+      ...restoreGeneration ? { restoreGeneration } : {}
+    };
+  }
+  if (files.length > 0) {
+    return {
+      files: uniqFiles(files),
+      projectDir,
+      newMedia,
+      needsClarification: false,
+      ...restoreGeneration ? { restoreGeneration } : {}
+    };
+  }
+  if (!looksLikeEditIntent(opts.userMessage, opts.hasHfProject)) {
+    return {
+      files: [],
+      projectDir,
+      newMedia,
+      needsClarification: false,
+      ...restoreGeneration ? { restoreGeneration } : {}
+    };
+  }
+  const categories = classifyEditIntent(opts.userMessage);
+  const conceptHits = conceptFilesFromMessage(
+    opts.userMessage,
+    projectDir,
+    workdir
+  );
+  const intentFiles = categories.length > 0 ? filesForIntentCategories(
+    categories,
+    projectDir,
+    workdir,
+    opts.userMessage
+  ) : [];
+  const merged = uniqFiles([...intentFiles, ...conceptHits]);
+  if (merged.length === 0 && !restoreGeneration) {
+    return {
+      files: [],
+      projectDir,
+      newMedia,
+      needsClarification: true
+    };
+  }
+  return {
+    files: merged,
+    projectDir,
+    newMedia,
+    needsClarification: false,
+    ...restoreGeneration ? { restoreGeneration } : {}
+  };
+}
+function formatOrientationPlaybook(target, sessionManimClips, opts) {
+  const clipsJson = JSON.stringify(
+    sessionManimClips.map((c) => ({
+      concept_name: c.safeName,
+      clip_url: c.clip_url,
+      // start/end come from the live Mode A segment plan — pass those windows
+      start_seconds: 0,
+      end_seconds: 1
+    })),
+    null,
+    2
+  );
+  const speakerSrc = opts?.fromRestore ? "speaker_video_url + transcript_words + total_duration from the restore_generation return / restored recipe \u2014 not the pre-restore live session" : "speaker_video_url + transcript_words + total_duration from the LIVE session \u2014 not a past final";
+  const clipsStep = opts?.fromRestore ? "1. Build manim_clips from the restore_generation return (manim_clips) verbatim \u2014 set start_seconds/end_seconds from the restored segments plan. Do not invent URLs; do not call generate_manim_script / render_manim_clip." : "1. Build manim_clips from the session clip URLs below \u2014 set start_seconds/end_seconds from the current Mode A segments in the live plan (manim_index order). Do not invent URLs.";
+  return [
+    "Orientation rebuild (reuse Manim clips \u2014 do NOT auto-regen all clips):",
+    `target_orientation: ${target}`,
+    "WARNING: scaffold_hf_project wipes the local hf-project and discards hand edits (overlays, caption style, custom speaker GSAP).",
+    clipsStep,
+    ...opts?.fromRestore ? [] : [`session_manim_clips: ${clipsJson}`],
+    `2. scaffold_hf_project({ orientation: "${target}", manim_clips: <from above with plan windows>, ${speakerSrc} })`,
+    "3. plan_segments only if layout wiring needs refresh after scaffold",
+    "4. render_hyperframes \u2014 relay manim_fit_note from the tool return if present",
+    "5. Only if a clip looks cramped after contain-fit: regenerate that single concept with orientation arg, then re-scaffold that clip \u2014 never batch-regen by default"
+  ].join("\n");
+}
+var RESTORE_GENERATION_MESSAGE = "Restored scaffold recipe from draft_video snapshot. For orientation rebuild, call scaffold_hf_project({ orientation, manim_clips: restored list verbatim, speaker_video_url from this return }) \u2014 do not call generate_manim_script or render_manim_clip again unless the user separately says a clip looks wrong. Then render_hyperframes.";
+function formatRestorePreamble(target) {
+  const idPart = target.assetId ? `asset_id: "${target.assetId}"` : `url: "${target.url}"`;
+  return [
+    `Restore past final first (${target.label}):`,
+    `1. restore_generation({ ${idPart} }) \u2014 uses the draft_video snapshot recipe only; do not fall back to live session speaker/plan/clips if it throws`,
+    `2. ${RESTORE_GENERATION_MESSAGE}`,
+    "3. Then apply the remaining edit steps below"
+  ].join("\n");
+}
+function formatEditTargetsBlock(result, readFile = readTruncated, opts) {
+  const parts = [];
+  if (result.restoreGeneration && result.orientationRebuild) {
+    parts.push(formatRestorePreamble(result.restoreGeneration));
+    parts.push(
+      formatOrientationPlaybook(
+        result.orientationRebuild.target,
+        opts?.sessionManimClips ?? [],
+        { fromRestore: true }
+      )
+    );
+    if (result.files.length > 0) {
+      parts.push(
+        "After restore + orientation rebuild, apply remaining content edits on:"
+      );
+    }
+  } else if (result.restoreGeneration) {
+    parts.push(formatRestorePreamble(result.restoreGeneration));
+  } else if (result.orientationRebuild) {
+    parts.push(
+      formatOrientationPlaybook(
+        result.orientationRebuild.target,
+        opts?.sessionManimClips ?? []
+      )
+    );
+  }
+  if (result.needsClarification) {
+    parts.push(
+      [
+        "Edit targets: intent unclear \u2014 call ask_clarification before editing.",
+        "Do not invent file paths."
+      ].join("\n")
+    );
+    return parts.join("\n\n");
+  }
+  if (result.files.length === 0) {
+    return parts.join("\n\n");
+  }
+  const lines = [
+    "Edit targets (fresh disk reads \u2014 prefer these over guessing):",
+    `project_dir: ${result.projectDir}`
+  ];
+  if (result.newMedia) {
+    lines.push("new_media: true (tagged upload is new media, not an edit target file)");
+  }
+  for (const f of result.files) {
+    const body = readFile(f.path);
+    lines.push(`--- ${f.relative} (${f.path}) ---`);
+    if (!body) {
+      lines.push("[file missing on disk \u2014 restore hf_project / manim_scripts then read_file]");
+    } else {
+      lines.push(body.content);
+    }
+  }
+  lines.push(
+    "Use str_replace/write_file on these paths. Still use read_file for any other unlisted section files."
+  );
+  parts.push(lines.join("\n"));
+  return parts.join("\n\n");
+}
+function shouldInjectEditTargets(result) {
+  return result.needsClarification || result.files.length > 0 || !!result.orientationRebuild || !!result.restoreGeneration;
+}
+
+// src/tools/pipeline/hyperframes.ts
 var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
 var RENDER_FINGERPRINT_EXCLUDE = /* @__PURE__ */ new Set(["COMPOSITION_MANIFEST.json"]);
 var HEYGEN_API_BASE2 = "https://api.heygen.com";
@@ -38445,12 +39015,12 @@ function renderIdempotencyKey(sessionId, projectDir) {
   const hash = import_crypto.default.createHash("sha256");
   const files = walkDir(projectDir).map((abs) => ({
     abs,
-    rel: import_path9.default.relative(projectDir, abs).split(import_path9.default.sep).join("/")
+    rel: import_path10.default.relative(projectDir, abs).split(import_path10.default.sep).join("/")
   })).filter((f) => !RENDER_FINGERPRINT_EXCLUDE.has(f.rel)).sort((a, b) => a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0);
   for (const { abs, rel } of files) {
     hash.update(rel);
     hash.update("\0");
-    hash.update(import_fs9.default.readFileSync(abs));
+    hash.update(import_fs10.default.readFileSync(abs));
   }
   return `${sessionId}.${hash.digest("hex").slice(0, 16)}`;
 }
@@ -38476,6 +39046,233 @@ function throwCloudSubmitError(detail) {
   }
   throw new Error(msg);
 }
+async function assertSessionNotRendering(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  if (snap.data()?.renderStatus === "RUNNING") {
+    throw new Error(
+      "A render is already in progress for this session. Wait for it to finish before scaffolding or restoring \u2014 do not wipe the project mid-flight."
+    );
+  }
+}
+function manimSafeName2(conceptName) {
+  let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
+  if (/^[0-9]/.test(safe)) safe = `_${safe}`;
+  return safe;
+}
+async function resolveManimClipsForScaffold(userId, sessionId, manim_clips, needsManim) {
+  const sessionClips = await listSessionManimClips(userId, sessionId);
+  const bySafe = new Map(sessionClips.map((c) => [c.safeName, c.clip_url]));
+  let resolved = manim_clips.map((c) => {
+    if (c.clip_url) return c;
+    const url2 = bySafe.get(manimSafeName2(c.concept_name)) ?? "";
+    return { ...c, clip_url: url2 };
+  });
+  if (needsManim && resolved.length === 0 && sessionClips.length > 0) {
+    resolved = sessionClips.map((c) => ({
+      concept_name: c.safeName,
+      clip_url: c.clip_url,
+      start_seconds: 0,
+      end_seconds: 1
+    }));
+  }
+  if (needsManim && (resolved.length === 0 || resolved.some((c) => !c.clip_url))) {
+    throw new Error(
+      "Mode A needs manim clip URLs. Pass manim_clips with clip_url from session assets (list via orientation playbook / prior render_manim_clip), or render clips first \u2014 do not invent URLs."
+    );
+  }
+  return resolved;
+}
+async function runScaffoldHfProject(ctx, args) {
+  await assertSessionNotRendering(ctx.sessionId);
+  if (!args.skipTaggedAllowlist) {
+    const allowlist = [
+      ...ctx.taggedArtifacts,
+      ...ctx.restoreAllowlistUrls.map((u) => ({ url: u }))
+    ];
+    assertTaggedUrlAllowed(args.speaker_video_url, allowlist);
+    if (args.speaker_audio_url) {
+      assertTaggedUrlAllowed(args.speaker_audio_url, allowlist);
+    }
+  }
+  const orientation = args.orientation ?? await getSessionOrientation(ctx.sessionId);
+  await persistOrientation(ctx.sessionId, orientation);
+  const { width, height } = canvasForOrientation(orientation);
+  const templateDir = templateDirFor(orientation);
+  const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
+  if (!storedPlan?.segments?.length) {
+    throw new Error("No segment plan found. Call plan_segments first.");
+  }
+  const segments = external_exports2.array(plannedSegmentSchema).parse(storedPlan.segments);
+  const needsManim = segments.some((s) => s.mode === "A");
+  const manim_clips = await resolveManimClipsForScaffold(
+    ctx.userId,
+    ctx.sessionId,
+    args.manim_clips,
+    needsManim
+  );
+  validatePlannedSegments(segments, args.total_duration, manim_clips.length > 0);
+  const colors = resolveBrandColors(args.brand_colors);
+  const brandCss = buildBrandCssVars(colors);
+  const projectDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
+  await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
+  import_fs10.default.rmSync(projectDir, { recursive: true, force: true });
+  import_fs10.default.cpSync(templateDir, projectDir, { recursive: true });
+  const words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
+  const assetsDir = import_path10.default.join(projectDir, "assets");
+  import_fs10.default.mkdirSync(assetsDir, { recursive: true });
+  const speakerRawPath = import_path10.default.join(assetsDir, "speaker_raw.mp4");
+  const speakerVideoPath = import_path10.default.join(assetsDir, "speaker_noaudio.mp4");
+  await downloadFile(args.speaker_video_url, speakerRawPath);
+  const audioPath = import_path10.default.join(assetsDir, "audio.mp3");
+  const audioExtract = await execCommand(
+    `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+    { timeoutSeconds: 120 }
+  );
+  if (!audioExtract.success) {
+    throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
+  }
+  await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
+  import_fs10.default.unlinkSync(speakerRawPath);
+  const speakerBytes = import_fs10.default.statSync(speakerVideoPath).size;
+  if (speakerBytes > SPEAKER_MAX_BYTES) {
+    throw new Error("Speaker video is too long to upload after 1080p normalization");
+  }
+  const ffprobe = await execCommand(
+    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
+  const effectiveDuration = Math.max(args.total_duration, probedDuration, lastWordEnd);
+  for (let index = 0; index < manim_clips.length; index++) {
+    await downloadFile(
+      manim_clips[index].clip_url,
+      import_path10.default.join(assetsDir, `manim-${index}.mp4`)
+    );
+  }
+  const sectionMeta = [];
+  const sectionsDir = import_path10.default.join(projectDir, "compositions", "sections");
+  import_fs10.default.mkdirSync(sectionsDir, { recursive: true });
+  for (let index = 0; index < segments.length; index++) {
+    const seg = segments[index];
+    if (seg.mode === "A" && seg.manim_index == null) {
+      throw new Error(`Segment ${index + 1} mode A requires manim_index`);
+    }
+    const built = buildSegmentSection(seg, index, manim_clips, brandCss, projectDir);
+    sectionMeta.push(built.meta);
+    import_fs10.default.writeFileSync(import_path10.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
+  }
+  const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
+  const manimClipsHtml = buildManimClipsHtml(manim_clips);
+  const speakerGsap = buildSpeakerGsap(segments, orientation);
+  const captionPosGsap = buildCaptionPosGsap(segments, orientation);
+  const manimGsap = buildManimGsap(segments);
+  const captionsJson = JSON.stringify(groupCaptionWords(words));
+  const indexRootPath = import_path10.default.join(projectDir, "index-root.html");
+  const indexHtml = substitutePlaceholders(import_fs10.default.readFileSync(indexRootPath, "utf-8"), {
+    TOTAL_DURATION: String(effectiveDuration),
+    SEGMENT_WIRING: segmentWiring,
+    MANIM_CLIPS: manimClipsHtml,
+    SPEAKER_GSAP: speakerGsap,
+    MANIM_GSAP: manimGsap,
+    LIQUID_GLASS_INIT: "",
+    TRANSITION_WIRING: ""
+  });
+  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  const captionsPath = import_path10.default.join(projectDir, "compositions", "captions-overlay.html");
+  const captionsHtml = substitutePlaceholders(import_fs10.default.readFileSync(captionsPath, "utf-8"), {
+    CAPTIONS_JSON: captionsJson,
+    TOTAL_DURATION: String(effectiveDuration),
+    BRAND_CSS_VARS: brandCss,
+    CAPTION_POS_GSAP: captionPosGsap
+  });
+  import_fs10.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
+  import_fs10.default.writeFileSync(import_path10.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+  import_fs10.default.writeFileSync(
+    import_path10.default.join(assetsDir, "transcript.json"),
+    JSON.stringify({ words }, null, 2),
+    "utf-8"
+  );
+  const meta = {
+    id: `edu-${ctx.sessionId.slice(0, 8)}`,
+    total_duration: effectiveDuration,
+    width,
+    height,
+    fps: 30,
+    orientation
+  };
+  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
+  import_fs10.default.rmSync(import_path10.default.join(projectDir, "index-root.html"), { force: true });
+  for (const m of ["a", "c"]) {
+    import_fs10.default.rmSync(import_path10.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
+  }
+  const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
+  const indexUrl = await uploadToStorage(
+    import_path10.default.join(projectDir, "index.html"),
+    compositionStoragePath
+  );
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
+  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  const manifest = buildCompositionManifest({
+    projectDir,
+    total_duration: effectiveDuration,
+    colors,
+    segments,
+    sectionMeta,
+    manim_clips,
+    orientation
+  });
+  import_fs10.default.writeFileSync(
+    import_path10.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
+    JSON.stringify(manifest, null, 2),
+    "utf-8"
+  );
+  const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
+  const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "hf_project", prefixUrl);
+  const composition_manifest_url = `${prefixUrl}/COMPOSITION_MANIFEST.json`;
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "composition_manifest", composition_manifest_url);
+  const renderSnapshot = {
+    orientation,
+    speaker_video_url: args.speaker_video_url,
+    ...args.speaker_audio_url != null ? { speaker_audio_url: args.speaker_audio_url } : {},
+    manim_clips,
+    transcript_words: words,
+    total_duration: args.total_duration,
+    segments_plan: {
+      segments: storedPlan.segments,
+      total_duration: storedPlan.total_duration
+    },
+    composition_manifest_url,
+    ...args.brand_colors ? { brand_colors: colors } : {},
+    scaffoldedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  await db.collection("sessions").doc(ctx.sessionId).set({ renderSnapshot }, { merge: true });
+  return {
+    project_dir: projectDir,
+    composition_url: indexUrl,
+    orientation,
+    width,
+    height
+  };
+}
+async function probeManimFitNotes(projectDir, orientation) {
+  const assetsDir = import_path10.default.join(projectDir, "assets");
+  if (!import_fs10.default.existsSync(assetsDir)) return void 0;
+  const notes = [];
+  const files = import_fs10.default.readdirSync(assetsDir).filter((f) => /^manim-\d+\.mp4$/i.test(f)).sort();
+  for (const file2 of files) {
+    const probe = await execCommand(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${import_path10.default.join(assetsDir, file2)}"`,
+      { timeoutSeconds: 30 }
+    );
+    if (!probe.success) continue;
+    const [wStr, hStr] = probe.stdout.trim().split("x");
+    const note = manimFitNoteForClip(orientation, Number(wStr), Number(hStr));
+    if (note) notes.push(`${file2}: ${note}`);
+  }
+  return notes.length > 0 ? notes.join(" ") : void 0;
+}
 var ZIP_PY_SCRIPT = [
   "import os, sys, zipfile",
   "src, dst = sys.argv[1], sys.argv[2]",
@@ -38495,12 +39292,12 @@ var ZIP_PY_SCRIPT = [
   ""
 ].join("\n");
 async function zipHyperframesProject(projectDir, zipPath) {
-  if (!import_fs9.default.existsSync(import_path9.default.join(projectDir, "index.html"))) {
+  if (!import_fs10.default.existsSync(import_path10.default.join(projectDir, "index.html"))) {
     throw new Error("NON_RETRYABLE: HyperFrames project missing root index.html");
   }
-  import_fs9.default.rmSync(zipPath, { force: true });
+  import_fs10.default.rmSync(zipPath, { force: true });
   const pyPath = `${zipPath}.py`;
-  import_fs9.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
+  import_fs10.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
   try {
     const result = await execCommand(
       `python3 ${JSON.stringify(pyPath)} ${JSON.stringify(projectDir)} ${JSON.stringify(zipPath)}`,
@@ -38510,11 +39307,11 @@ async function zipHyperframesProject(projectDir, zipPath) {
       throw new Error(result.stderr || result.stdout || "Failed to zip HyperFrames project");
     }
   } finally {
-    import_fs9.default.rmSync(pyPath, { force: true });
+    import_fs10.default.rmSync(pyPath, { force: true });
   }
 }
 async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
-  const size_bytes = import_fs9.default.statSync(zipPath).size;
+  const size_bytes = import_fs10.default.statSync(zipPath).size;
   const initResp = await fetch(`${HEYGEN_API_BASE2}/v3/assets/direct-uploads`, {
     method: "POST",
     headers: {
@@ -38523,7 +39320,7 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
       "Idempotency-Key": idempotencyKey
     },
     body: JSON.stringify({
-      filename: import_path9.default.basename(zipPath),
+      filename: import_path10.default.basename(zipPath),
       content_type: "application/zip",
       size_bytes
     })
@@ -38538,7 +39335,7 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
   const putResp = await fetch(upload_url, {
     method: "PUT",
     headers: upload_headers ?? {},
-    body: import_fs9.default.readFileSync(zipPath)
+    body: import_fs10.default.readFileSync(zipPath)
   });
   if (!putResp.ok) {
     const putText = await putResp.text().catch(() => "");
@@ -38579,9 +39376,9 @@ var plannedSegmentSchema = external_exports2.object({
   concept_name: external_exports2.string().optional()
 });
 async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, orientation = "horizontal") {
-  import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "compositions", "components"), { recursive: true });
-  import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "assets"), { recursive: true });
-  import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), htmlContent);
+  import_fs10.default.mkdirSync(import_path10.default.join(projectDir, "compositions", "components"), { recursive: true });
+  import_fs10.default.mkdirSync(import_path10.default.join(projectDir, "assets"), { recursive: true });
+  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), htmlContent);
   const { width, height } = canvasForOrientation(orientation);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
@@ -38590,10 +39387,10 @@ async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, or
     height,
     fps: 30
   };
-  import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
-  const hfPath = import_path9.default.join(projectDir, "hyperframes.json");
-  if (!import_fs9.default.existsSync(hfPath)) {
-    import_fs9.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
+  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
+  const hfPath = import_path10.default.join(projectDir, "hyperframes.json");
+  if (!import_fs10.default.existsSync(hfPath)) {
+    import_fs10.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
   }
 }
 function createHyperframesTools(ctx) {
@@ -38671,157 +39468,73 @@ function createHyperframesTools(ctx) {
         brand_colors,
         orientation: orientationArg
       }) => {
-        assertTaggedUrlAllowed(speaker_video_url, ctx.taggedArtifacts);
-        if (speaker_audio_url) {
-          assertTaggedUrlAllowed(speaker_audio_url, ctx.taggedArtifacts);
-        }
-        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
-        const { width, height } = canvasForOrientation(orientation);
-        const templateDir = templateDirFor(orientation);
-        const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
-        if (!storedPlan?.segments?.length) {
-          throw new Error("No segment plan found. Call plan_segments first.");
-        }
-        const segments = external_exports2.array(plannedSegmentSchema).parse(storedPlan.segments);
-        validatePlannedSegments(segments, total_duration, manim_clips.length > 0);
-        const colors = resolveBrandColors(brand_colors);
-        const brandCss = buildBrandCssVars(colors);
-        const projectDir = import_path9.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
-        await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
-        import_fs9.default.cpSync(templateDir, projectDir, { recursive: true });
-        const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
-        const assetsDir = import_path9.default.join(projectDir, "assets");
-        import_fs9.default.mkdirSync(assetsDir, { recursive: true });
-        const speakerRawPath = import_path9.default.join(assetsDir, "speaker_raw.mp4");
-        const speakerVideoPath = import_path9.default.join(assetsDir, "speaker_noaudio.mp4");
-        await downloadFile(speaker_video_url, speakerRawPath);
-        const audioPath = import_path9.default.join(assetsDir, "audio.mp3");
-        const audioExtract = await execCommand(
-          `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
-          { timeoutSeconds: 120 }
-        );
-        if (!audioExtract.success) {
-          throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
-        }
-        await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-        import_fs9.default.unlinkSync(speakerRawPath);
-        const speakerBytes = import_fs9.default.statSync(speakerVideoPath).size;
-        if (speakerBytes > SPEAKER_MAX_BYTES) {
-          throw new Error(
-            "Speaker video is too long to upload after 1080p normalization"
-          );
-        }
-        const ffprobe = await execCommand(
-          `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
-          { timeoutSeconds: 60 }
-        );
-        const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
-        const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
-        const effectiveDuration = Math.max(total_duration, probedDuration, lastWordEnd);
-        for (let index = 0; index < manim_clips.length; index++) {
-          await downloadFile(
-            manim_clips[index].clip_url,
-            import_path9.default.join(assetsDir, `manim-${index}.mp4`)
-          );
-        }
-        const sectionMeta = [];
-        const sectionsDir = import_path9.default.join(projectDir, "compositions", "sections");
-        import_fs9.default.mkdirSync(sectionsDir, { recursive: true });
-        for (let index = 0; index < segments.length; index++) {
-          const seg = segments[index];
-          if (seg.mode === "A" && seg.manim_index == null) {
-            throw new Error(`Segment ${index + 1} mode A requires manim_index`);
-          }
-          const built = buildSegmentSection(
-            seg,
-            index,
-            manim_clips,
-            brandCss,
-            projectDir
-          );
-          sectionMeta.push(built.meta);
-          import_fs9.default.writeFileSync(import_path9.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
-        }
-        const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
-        const manimClipsHtml = buildManimClipsHtml(manim_clips);
-        const speakerGsap = buildSpeakerGsap(segments, orientation);
-        const captionPosGsap = buildCaptionPosGsap(segments, orientation);
-        const manimGsap = buildManimGsap(segments);
-        const captionsJson = JSON.stringify(groupCaptionWords(words));
-        const indexRootPath = import_path9.default.join(projectDir, "index-root.html");
-        const indexHtml = substitutePlaceholders(import_fs9.default.readFileSync(indexRootPath, "utf-8"), {
-          TOTAL_DURATION: String(effectiveDuration),
-          SEGMENT_WIRING: segmentWiring,
-          MANIM_CLIPS: manimClipsHtml,
-          SPEAKER_GSAP: speakerGsap,
-          MANIM_GSAP: manimGsap,
-          LIQUID_GLASS_INIT: "",
-          TRANSITION_WIRING: ""
-        });
-        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-        const captionsPath = import_path9.default.join(projectDir, "compositions", "captions-overlay.html");
-        const captionsHtml = substitutePlaceholders(import_fs9.default.readFileSync(captionsPath, "utf-8"), {
-          CAPTIONS_JSON: captionsJson,
-          TOTAL_DURATION: String(effectiveDuration),
-          BRAND_CSS_VARS: brandCss,
-          CAPTION_POS_GSAP: captionPosGsap
-        });
-        import_fs9.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
-        import_fs9.default.writeFileSync(import_path9.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
-        import_fs9.default.writeFileSync(
-          import_path9.default.join(assetsDir, "transcript.json"),
-          JSON.stringify({ words }, null, 2),
-          "utf-8"
-        );
-        const meta = {
-          id: `edu-${ctx.sessionId.slice(0, 8)}`,
-          total_duration: effectiveDuration,
-          width,
-          height,
-          fps: 30,
-          orientation
-        };
-        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
-        import_fs9.default.rmSync(import_path9.default.join(projectDir, "index-root.html"), { force: true });
-        for (const m of ["a", "c"]) {
-          import_fs9.default.rmSync(import_path9.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
-        }
-        const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
-        const indexUrl = await uploadToStorage(
-          import_path9.default.join(projectDir, "index.html"),
-          compositionStoragePath
-        );
-        await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
-        import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-        const manifest = buildCompositionManifest({
-          projectDir,
-          total_duration: effectiveDuration,
-          colors,
-          segments,
-          sectionMeta,
+        return runScaffoldHfProject(ctx, {
+          speaker_video_url,
+          speaker_audio_url,
           manim_clips,
-          orientation
+          transcript_words,
+          total_duration,
+          brand_colors,
+          orientation: orientationArg
         });
-        import_fs9.default.writeFileSync(
-          import_path9.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
-          JSON.stringify(manifest, null, 2),
-          "utf-8"
-        );
-        const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
-        const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
-        await writeAssetUrl(ctx.userId, ctx.sessionId, "hf_project", prefixUrl);
-        await writeAssetUrl(
-          ctx.userId,
-          ctx.sessionId,
-          "composition_manifest",
-          `${prefixUrl}/COMPOSITION_MANIFEST.json`
-        );
+      }
+    }),
+    restore_generation: tool({
+      description: `Restore the live hf-project from a tagged draft_video's full scaffold snapshot (orientation, speaker, manim clips, transcript, segments plan). Call before editing a past final. Does not auto-render.`,
+      inputSchema: external_exports2.object({
+        asset_id: external_exports2.string().optional().describe("Firestore assets doc id of the draft_video (preferred)"),
+        url: external_exports2.string().optional().describe("draft_video HTTPS URL when asset_id is unknown")
+      }),
+      execute: async ({ asset_id, url: url2 }) => {
+        await assertSessionNotRendering(ctx.sessionId);
+        if (!asset_id && !url2) {
+          throw new Error("restore_generation requires asset_id or url of a draft_video");
+        }
+        const assetsCol = db.collection("users").doc(ctx.userId).collection("sessions").doc(ctx.sessionId).collection("assets");
+        let data = null;
+        if (asset_id) {
+          const snap = await assetsCol.doc(asset_id).get();
+          if (!snap.exists) {
+            throw new Error(`No asset found for asset_id=${asset_id}`);
+          }
+          data = snap.data();
+        } else {
+          const snap = await assetsCol.where("url", "==", url2).limit(5).get();
+          const draft = snap.docs.find((d) => d.data()?.kind === "draft_video");
+          if (!draft) {
+            throw new Error(`No draft_video asset found for url=${url2}`);
+          }
+          data = draft.data();
+        }
+        if (data?.kind !== "draft_video") {
+          throw new Error(
+            `Asset kind is ${data?.kind ?? "unknown"}, expected draft_video`
+          );
+        }
+        const recipe = parseRestoreRecipe(data.metadata);
+        ctx.restoreAllowlistUrls.push(recipe.speaker_video_url);
+        if (recipe.speaker_audio_url) {
+          ctx.restoreAllowlistUrls.push(recipe.speaker_audio_url);
+        }
+        await writeHfSegmentsPlan(ctx.userId, ctx.sessionId, recipe.segments_plan);
+        await persistOrientation(ctx.sessionId, recipe.orientation);
+        const result = await runScaffoldHfProject(ctx, {
+          speaker_video_url: recipe.speaker_video_url,
+          speaker_audio_url: recipe.speaker_audio_url,
+          manim_clips: recipe.manim_clips,
+          transcript_words: recipe.transcript_words,
+          total_duration: recipe.total_duration,
+          brand_colors: recipe.brand_colors,
+          orientation: recipe.orientation,
+          skipTaggedAllowlist: true
+        });
         return {
-          project_dir: projectDir,
-          composition_url: indexUrl,
-          orientation,
-          width,
-          height
+          ...result,
+          restored: true,
+          speaker_video_url: recipe.speaker_video_url,
+          ...recipe.speaker_audio_url ? { speaker_audio_url: recipe.speaker_audio_url } : {},
+          manim_clips: recipe.manim_clips,
+          message: RESTORE_GENERATION_MESSAGE
         };
       }
     }),
@@ -38833,18 +39546,27 @@ function createHyperframesTools(ctx) {
       execute: async ({ composition_url }) => {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
-          const projectDir = import_path9.default.join(workdir, "hf-project");
+          const projectDir = import_path10.default.join(workdir, "hf-project");
           const orientation = await getSessionOrientation(ctx.sessionId);
           const { width, height, aspectRatio } = canvasForOrientation(orientation);
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
-          const hasLocalProject = import_fs9.default.existsSync(import_path9.default.join(projectDir, "index.html"));
+          const hasLocalProject = import_fs10.default.existsSync(import_path10.default.join(projectDir, "index.html"));
           if (!hasLocalProject) {
-            import_fs9.default.mkdirSync(projectDir, { recursive: true });
-            const htmlPath = import_path9.default.join(projectDir, "index.html");
+            import_fs10.default.mkdirSync(projectDir, { recursive: true });
+            const htmlPath = import_path10.default.join(projectDir, "index.html");
             await downloadFile(composition_url, htmlPath);
-            const htmlContent = import_fs9.default.readFileSync(htmlPath, "utf-8");
+            const htmlContent = import_fs10.default.readFileSync(htmlPath, "utf-8");
             await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId, orientation);
           }
+          const indexHtmlPath = import_path10.default.join(projectDir, "index.html");
+          if (import_fs10.default.existsSync(indexHtmlPath)) {
+            assertHtmlMatchesOrientation(
+              import_fs10.default.readFileSync(indexHtmlPath, "utf-8"),
+              orientation,
+              { width, height }
+            );
+          }
+          const manim_fit_note = await probeManimFitNotes(projectDir, orientation);
           const cliPath = process.env.HYPERFRAMES_CLI ?? "/opt/hyperframes/packages/cli/dist/cli.js";
           const hfCliSkill = loadSkillFile("hyperframes/hyperframes-cli/SKILL.md");
           console.log(
@@ -38859,7 +39581,8 @@ function createHyperframesTools(ctx) {
             return {
               success: false,
               lint_errors: lintResult.stdout + "\n" + lintResult.stderr,
-              project_dir: projectDir
+              project_dir: projectDir,
+              ...manim_fit_note ? { manim_fit_note } : {}
             };
           }
           if (RENDER_BACKEND === "heygen_cloud") {
@@ -38876,7 +39599,8 @@ function createHyperframesTools(ctx) {
                   composition_url,
                   execution_arn: existing.executionArn,
                   output_key: existing.outputKey,
-                  render_status: existing.renderStatus
+                  render_status: existing.renderStatus,
+                  ...manim_fit_note ? { manim_fit_note } : {}
                 };
               }
               return {
@@ -38884,7 +39608,8 @@ function createHyperframesTools(ctx) {
                 error: "A render is already in progress for this session. Wait for it to finish before submitting a changed composition.",
                 execution_arn: existing.executionArn,
                 output_key: existing.outputKey,
-                render_status: existing.renderStatus
+                render_status: existing.renderStatus,
+                ...manim_fit_note ? { manim_fit_note } : {}
               };
             }
             const apiKey = process.env.HEYGEN_API_KEY;
@@ -38898,11 +39623,11 @@ function createHyperframesTools(ctx) {
               exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
             });
             const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-            const zipPath = import_path9.default.join(workdir, `render-${fingerprint}.zip`);
+            const zipPath = import_path10.default.join(workdir, `render-${fingerprint}.zip`);
             let cloudCmdSource = "";
             try {
               await zipHyperframesProject(projectDir, zipPath);
-              const zipBytes = import_fs9.default.statSync(zipPath).size;
+              const zipBytes = import_fs10.default.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
                 `[render_hyperframes] fingerprint=${fingerprint} zip_bytes=${zipBytes} ingest=${ingest}`
@@ -38918,7 +39643,7 @@ function createHyperframesTools(ctx) {
                 cloudCmdSource = `--asset-id ${JSON.stringify(assetId)}`;
               }
             } finally {
-              import_fs9.default.rmSync(zipPath, { force: true });
+              import_fs10.default.rmSync(zipPath, { force: true });
             }
             const cloudFlags = cloudRenderFlags(orientation);
             const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 ${cloudFlags} --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
@@ -38949,7 +39674,8 @@ function createHyperframesTools(ctx) {
               composition_url,
               execution_arn: job2.executionArn,
               output_key: job2.outputKey,
-              render_status: job2.renderStatus
+              render_status: job2.renderStatus,
+              ...manim_fit_note ? { manim_fit_note } : {}
             };
           }
           const region = process.env.AWS_REGION;
@@ -38997,7 +39723,8 @@ function createHyperframesTools(ctx) {
             composition_url,
             execution_arn: job.executionArn,
             output_key: job.outputKey,
-            render_status: job.renderStatus
+            render_status: job.renderStatus,
+            ...manim_fit_note ? { manim_fit_note } : {}
           };
         } catch (err) {
           throw err;
@@ -39008,15 +39735,20 @@ function createHyperframesTools(ctx) {
 }
 
 // src/tools/pipeline/manim.ts
-var import_fs10 = __toESM(require("fs"));
-var import_path10 = __toESM(require("path"));
+var import_fs11 = __toESM(require("fs"));
+var import_path12 = __toESM(require("path"));
 var import_child_process2 = require("child_process");
 init_dist5();
 init_zod();
 init_storage();
-init_firebase();
 
 // src/tools/lib/manimOrientation.ts
+function resolveToolOrientation(arg, session) {
+  if (arg === "horizontal" || arg === "vertical") {
+    return { orientation: arg, persist: true };
+  }
+  return { orientation: session, persist: false };
+}
 function buildManimRenderCmd(opts) {
   const parts = [
     "manim",
@@ -39044,6 +39776,13 @@ function assertSquareManimFrame(script) {
   return null;
 }
 
+// src/tools/lib/manimScriptPath.ts
+var import_path11 = __toESM(require("path"));
+function defaultSessionManimScriptPath(sessionId, className) {
+  const safeName = className.replace("Scene", "");
+  return import_path11.default.join(getSessionWorkdir(sessionId), "manim_scripts", `${safeName}.py`);
+}
+
 // src/tools/pipeline/manim.ts
 var brandColorsSchema2 = external_exports2.object({
   primary: external_exports2.string(),
@@ -39051,7 +39790,7 @@ var brandColorsSchema2 = external_exports2.object({
   bg_dark: external_exports2.string()
 });
 var orientationSchema = external_exports2.enum(["horizontal", "vertical"]);
-function manimSafeName(conceptName) {
+function manimSafeName3(conceptName) {
   let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   if (/^[0-9]/.test(safe)) {
     safe = `_${safe}`;
@@ -39081,21 +39820,14 @@ function validatePythonSyntax(scriptPath) {
   }
 }
 function loadSessionConcepts(sessionId) {
-  const conceptsPath = import_path10.default.join(getSessionWorkdir(sessionId), "concepts.json");
-  if (!import_fs10.default.existsSync(conceptsPath)) return [];
+  const conceptsPath = import_path12.default.join(getSessionWorkdir(sessionId), "concepts.json");
+  if (!import_fs11.default.existsSync(conceptsPath)) return [];
   try {
-    const parsed = JSON.parse(import_fs10.default.readFileSync(conceptsPath, "utf-8"));
+    const parsed = JSON.parse(import_fs11.default.readFileSync(conceptsPath, "utf-8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
-}
-async function countRenderedManimClips(userId, sessionId) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
-  return snap.docs.filter((doc) => {
-    const kind = doc.data()?.kind;
-    return typeof kind === "string" && kind.startsWith("manim_") && !kind.startsWith("manim_script_");
-  }).length;
 }
 function createManimTools(ctx) {
   return {
@@ -39111,11 +39843,16 @@ function createManimTools(ctx) {
         orientation: orientationSchema.optional().describe("horizontal = 16:9 defaults; vertical = square frame units required. Session wins if omitted.")
       }),
       execute: async ({ concept_name, explanation, window_seconds, brand_colors, orientation: orientationArg }) => {
-        const safeName = manimSafeName(concept_name);
+        const safeName = manimSafeName3(concept_name);
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
         const palettePrompt = buildManimPalettePrompt(colors);
-        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
+        const sessionOrientation = await getSessionOrientation(ctx.sessionId);
+        const { orientation, persist } = resolveToolOrientation(
+          orientationArg,
+          sessionOrientation
+        );
+        if (persist) await persistOrientation(ctx.sessionId, orientation);
         const manimSkill = loadSkillFile("manim-video/SKILL.md");
         const troubleshooting = loadSkillFile("manim-video/references/troubleshooting.md");
         const animations = loadSkillFile("manim-video/references/animations.md");
@@ -39168,7 +39905,7 @@ This clip's window is ~${window_seconds}s.`;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
         let cleanScript = stripCodeFences(scriptText);
         const validatePath = getTempPath(`${ctx.sessionId}_${safeName}_validate.py`);
-        import_fs10.default.writeFileSync(validatePath, cleanScript);
+        import_fs11.default.writeFileSync(validatePath, cleanScript);
         let validation = validatePythonSyntax(validatePath);
         if (!validation.ok) {
           console.error(`Manim syntax check failed for ${concept_name}:`, validation.error);
@@ -39178,7 +39915,7 @@ The previous script failed syntax check: ${validation.error}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs10.default.writeFileSync(validatePath, cleanScript);
+          import_fs11.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -39198,7 +39935,7 @@ The previous script failed validation: ${maxVisibleError}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs10.default.writeFileSync(validatePath, cleanScript);
+          import_fs11.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -39226,7 +39963,7 @@ config.frame_height = 8
 Return corrected Python only.`;
             scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
             cleanScript = stripCodeFences(scriptText);
-            import_fs10.default.writeFileSync(validatePath, cleanScript);
+            import_fs11.default.writeFileSync(validatePath, cleanScript);
             validation = validatePythonSyntax(validatePath);
             if (!validation.ok) {
               throw new Error(
@@ -39242,16 +39979,16 @@ ${cleanScript}`
             }
           }
         }
-        const scriptDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
-        import_fs10.default.mkdirSync(scriptDir, { recursive: true });
-        const scriptPath = import_path10.default.join(scriptDir, `${safeName}.py`);
-        import_fs10.default.writeFileSync(scriptPath, cleanScript);
+        const scriptDir = import_path12.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
+        import_fs11.default.mkdirSync(scriptDir, { recursive: true });
+        const scriptPath = import_path12.default.join(scriptDir, `${safeName}.py`);
+        import_fs11.default.writeFileSync(scriptPath, cleanScript);
         const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim_scripts/${safeName}.py`;
         const scriptUrl = await uploadToStorage(scriptPath, storagePath);
         await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_script_${safeName}`, scriptUrl);
-        import_fs10.default.writeFileSync(scriptPath, cleanScript);
+        import_fs11.default.writeFileSync(scriptPath, cleanScript);
         try {
-          import_fs10.default.unlinkSync(validatePath);
+          import_fs11.default.unlinkSync(validatePath);
         } catch {
         }
         return {
@@ -39264,10 +40001,12 @@ ${cleanScript}`
       }
     }),
     render_manim_clip: tool({
-      description: `Render a Manim Python script to an MP4 clip. Call after generate_manim_script for each concept. On render failure, read Skills/manim-video/references/troubleshooting.md and patch the script via read_file + write_file \u2014 do NOT regenerate unless a full rewrite is needed.`,
+      description: `Render a Manim Python script to an MP4 clip. Call after generate_manim_script for each concept. Prefer script_path from generate_manim_script. If script and script_path are both omitted, loads manim_scripts/{class without Scene}.py from the session. On render failure, read Skills/manim-video/references/troubleshooting.md and patch via read_file + write_file \u2014 do NOT regenerate unless a full rewrite is needed.`,
       inputSchema: external_exports2.object({
         script: external_exports2.string().optional().describe("Inline script string \u2014 omit when script_path is provided"),
-        script_path: external_exports2.string().optional().describe("Path from generate_manim_script \u2014 preferred after patching on disk"),
+        script_path: external_exports2.string().optional().describe(
+          "Path from generate_manim_script \u2014 preferred after patching on disk. If omitted with no script, loads session manim_scripts/{class without Scene}.py"
+        ),
         class_name: external_exports2.string().describe("Scene class name from generate_manim_script e.g. SceneMyTopic"),
         concept_name: external_exports2.string(),
         start_seconds: external_exports2.number(),
@@ -39284,27 +40023,49 @@ ${cleanScript}`
         orientation: orientationArg
       }) => {
         const safeName = class_name.replace("Scene", "");
-        const resolvedScriptPath = script_path ? resolveToolPath(ctx.sessionId, script_path) : getTempPath(`${ctx.sessionId}_${safeName}.py`);
-        const wroteTempScript = !script_path;
+        let resolvedScriptPath;
+        let wroteTempScript;
+        if (script_path) {
+          resolvedScriptPath = resolveToolPath(ctx.sessionId, script_path);
+          wroteTempScript = false;
+        } else if (script) {
+          resolvedScriptPath = getTempPath(`${ctx.sessionId}_${safeName}.py`);
+          wroteTempScript = true;
+        } else {
+          resolvedScriptPath = defaultSessionManimScriptPath(ctx.sessionId, class_name);
+          wroteTempScript = false;
+        }
         const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
-        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
+        const sessionOrientation = await getSessionOrientation(ctx.sessionId);
+        const { orientation, persist } = resolveToolOrientation(
+          orientationArg,
+          sessionOrientation
+        );
+        if (persist) await persistOrientation(ctx.sessionId, orientation);
         try {
           if (script_path) {
-            if (!import_fs10.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs10.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts \u2014 regenerate or re-upload.`
               );
             }
-          } else if (!script) {
-            throw new Error("Provide script or script_path");
+          } else if (script) {
+            import_fs11.default.writeFileSync(resolvedScriptPath, script);
           } else {
-            import_fs10.default.writeFileSync(resolvedScriptPath, script);
+            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+              await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
+            }
+            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+              throw new Error(
+                `No script or script_path for "${concept_name}". Expected session script at ${resolvedScriptPath} \u2014 call generate_manim_script first.`
+              );
+            }
           }
           if (orientation === "vertical") {
-            const scriptText = import_fs10.default.readFileSync(resolvedScriptPath, "utf-8");
+            const scriptText = import_fs11.default.readFileSync(resolvedScriptPath, "utf-8");
             const frameErr = assertSquareManimFrame(scriptText);
             if (frameErr) {
               throw new Error(
@@ -39324,17 +40085,17 @@ ${cleanScript}`
               `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}. Read Skills/manim-video/references/troubleshooting.md, read_file the script at ${resolvedScriptPath}, patch only the broken lines with write_file, then re-render with script_path \u2014 do not call generate_manim_script again unless the script needs a full rewrite.`
             );
           }
-          const scriptBaseName = import_path10.default.basename(resolvedScriptPath, ".py");
-          const expectedPath = import_path10.default.join(
+          const scriptBaseName = import_path12.default.basename(resolvedScriptPath, ".py");
+          const expectedPath = import_path12.default.join(
             outputDir,
             "videos",
             scriptBaseName,
             "480p15",
             "output.mp4"
           );
-          let outputMp4Path = import_fs10.default.existsSync(expectedPath) ? expectedPath : null;
+          let outputMp4Path = import_fs11.default.existsSync(expectedPath) ? expectedPath : null;
           if (!outputMp4Path) {
-            const found = walkDir(outputDir).filter((p) => import_path10.default.basename(p) === "output.mp4");
+            const found = walkDir(outputDir).filter((p) => import_path12.default.basename(p) === "output.mp4");
             outputMp4Path = found[0] ?? null;
           }
           if (!outputMp4Path) {
@@ -39343,13 +40104,13 @@ ${cleanScript}`
             );
           }
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
-          const canonicalPath = import_path10.default.join(
+          const canonicalPath = import_path12.default.join(
             getSessionWorkdir(ctx.sessionId),
             "manim",
             `${safeName}.mp4`
           );
-          import_fs10.default.mkdirSync(import_path10.default.dirname(canonicalPath), { recursive: true });
-          import_fs10.default.copyFileSync(outputMp4Path, canonicalPath);
+          import_fs11.default.mkdirSync(import_path12.default.dirname(canonicalPath), { recursive: true });
+          import_fs11.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
           const concepts = loadSessionConcepts(ctx.sessionId);
@@ -39365,13 +40126,13 @@ ${cleanScript}`
           };
         } finally {
           try {
-            if (wroteTempScript && import_fs10.default.existsSync(resolvedScriptPath)) {
-              import_fs10.default.unlinkSync(resolvedScriptPath);
+            if (wroteTempScript && import_fs11.default.existsSync(resolvedScriptPath)) {
+              import_fs11.default.unlinkSync(resolvedScriptPath);
             }
           } catch {
           }
           try {
-            if (import_fs10.default.existsSync(outputDir)) import_fs10.default.rmSync(outputDir, { recursive: true, force: true });
+            if (import_fs11.default.existsSync(outputDir)) import_fs11.default.rmSync(outputDir, { recursive: true, force: true });
           } catch {
           }
         }
@@ -39381,8 +40142,8 @@ ${cleanScript}`
 }
 
 // src/tools/pipeline/transcribe.ts
-var import_fs11 = __toESM(require("fs"));
-var import_path11 = __toESM(require("path"));
+var import_fs12 = __toESM(require("fs"));
+var import_path13 = __toESM(require("path"));
 var import_groq_sdk = __toESM(require("groq-sdk"));
 init_dist5();
 init_zod();
@@ -39401,7 +40162,7 @@ function createTranscribeTools(ctx) {
           const videoPath = getTempPath(`${ctx.sessionId}_video.mp4`);
           await downloadFile(video_url, videoPath);
           let inputFile = videoPath;
-          const stats = import_fs11.default.statSync(videoPath);
+          const stats = import_fs12.default.statSync(videoPath);
           if (stats.size > 24 * 1024 * 1024) {
             const audioPath = getTempPath(`${ctx.sessionId}_audio.mp3`);
             const ffmpeg = await execCommand(
@@ -39415,7 +40176,7 @@ function createTranscribeTools(ctx) {
           }
           const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
           const transcription = await groq.audio.transcriptions.create({
-            file: import_fs11.default.createReadStream(inputFile),
+            file: import_fs12.default.createReadStream(inputFile),
             model: "whisper-large-v3",
             response_format: "verbose_json",
             timestamp_granularities: ["word", "segment"]
@@ -39430,9 +40191,9 @@ function createTranscribeTools(ctx) {
             ...language !== void 0 ? { language } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs11.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs11.default.writeFileSync(
-            import_path11.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs12.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs12.default.writeFileSync(
+            import_path13.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
@@ -39486,264 +40247,6 @@ function buildTools(ctx, skills = []) {
 
 // src/agent.ts
 init_taggedAssets();
-
-// src/editTargets.ts
-var import_fs12 = __toESM(require("fs"));
-var import_path12 = __toESM(require("path"));
-init_finalVideoBasename();
-var MAX_INJECT_BYTES = 5e4;
-function manimSafeName2(conceptName) {
-  let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
-  if (/^[0-9]/.test(safe)) safe = `_${safe}`;
-  return safe;
-}
-function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
-  if (!import_fs12.default.existsSync(filePath) || !import_fs12.default.statSync(filePath).isFile()) return null;
-  const buf = import_fs12.default.readFileSync(filePath);
-  const truncated = buf.length > maxBytes;
-  let content = (truncated ? buf.subarray(0, maxBytes) : buf).toString("utf-8");
-  if (truncated) content += `
-[truncated \u2014 file has ${buf.length} total bytes]`;
-  return { content, truncated };
-}
-function listSectionHtml(projectDir) {
-  const dir = import_path12.default.join(projectDir, "compositions", "sections");
-  if (!import_fs12.default.existsSync(dir)) return [];
-  return import_fs12.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path12.default.join(dir, f)).sort();
-}
-function uniqFiles(files) {
-  const seen = /* @__PURE__ */ new Set();
-  return files.filter((f) => {
-    if (seen.has(f.path)) return false;
-    seen.add(f.path);
-    return true;
-  });
-}
-function ref(projectDir, relative) {
-  return { path: import_path12.default.join(projectDir, relative), relative };
-}
-function classifyTaggedForEdit(asset, workdir) {
-  const local = asset.localPath.replace(/\\/g, "/");
-  const base = import_path12.default.basename(local);
-  if (FINAL_VIDEO_NAME_RE.test(base)) return { kind: "draft_final" };
-  const manimMatch = local.match(/\/manim\/([^/]+)\.mp4$/i);
-  if (manimMatch) return { kind: "manim", safeName: manimMatch[1] };
-  const rel = import_path12.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
-  if (rel.startsWith("uploads/") || /\/uploads\//.test(local)) {
-    return { kind: "new_media" };
-  }
-  return null;
-}
-var EDIT_SIGNAL = /\b(edit|change|update|fix|replace|remove|move|resize|bigger|smaller|style|color|background|caption|captions|karaoke|speaker|overlay|badge|crimson|make\s+it|should\s+be|become)\b/i;
-var COLD_PIPELINE = /\b(create|generate|scaffold|start)\b[\s\S]{0,40}\b(edu[- ]?video|new video|from scratch)\b/i;
-function looksLikeEditIntent(message, hasHfProject) {
-  if (COLD_PIPELINE.test(message) && !hasHfProject) return false;
-  if (EDIT_SIGNAL.test(message)) return true;
-  return false;
-}
-function classifyEditIntent(message) {
-  const cats = [];
-  const m = message.toLowerCase();
-  if (/\b(caption|captions|karaoke|subtitle|subtitles)\b/.test(m)) {
-    cats.push("captions");
-  }
-  if (/\b(background|bg|#stage|crimson|brand color|accent color)\b/.test(m) || /\b(color|coloured|colored)\b/.test(m) && /\b(red|blue|dark|crimson)\b/.test(m)) {
-    cats.push("background");
-  }
-  if (/\b(speaker|pip|circle frame|tall.?rect|speaker-wrap)\b/.test(m)) {
-    cats.push("speaker");
-  }
-  if (/\b(overlay|badge|sticker|graphic|logo)\b/.test(m)) {
-    cats.push("overlay");
-  }
-  if (/\b(animation|manim|concept|segment|clip)\b/.test(m)) {
-    cats.push("concept");
-  }
-  return cats;
-}
-function findOverlayMarkers(indexHtml) {
-  const ids = /* @__PURE__ */ new Set();
-  for (const m of indexHtml.matchAll(/\bid=["']([^"']+)["']/gi)) {
-    const id = m[1];
-    if (/overlay|badge/i.test(id)) ids.add(`#${id}`);
-  }
-  if (/#bg-overlay\b/.test(indexHtml) || /\bid=["']bg-overlay["']/i.test(indexHtml)) {
-    ids.add("#bg-overlay");
-  }
-  return [...ids];
-}
-function conceptFilesFromMessage(message, projectDir, workdir) {
-  const out = [];
-  const manifestPath = import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json");
-  let segments = [];
-  if (import_fs12.default.existsSync(manifestPath)) {
-    try {
-      const data = JSON.parse(import_fs12.default.readFileSync(manifestPath, "utf-8"));
-      segments = data.segments ?? [];
-    } catch {
-      segments = [];
-    }
-  }
-  const lower = message.toLowerCase();
-  for (const seg of segments) {
-    const name26 = (seg.concept_name ?? "").trim();
-    if (!name26) continue;
-    if (!lower.includes(name26.toLowerCase())) continue;
-    if (seg.file) out.push(ref(projectDir, seg.file));
-    if (/\b(animation|manim|script|content)\b/i.test(message)) {
-      const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName2(name26)}.py`);
-      out.push({
-        path: script,
-        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
-      });
-    }
-  }
-  const conceptsPath = import_path12.default.join(workdir, "concepts.json");
-  if (import_fs12.default.existsSync(conceptsPath) && out.length === 0) {
-    try {
-      const concepts = JSON.parse(import_fs12.default.readFileSync(conceptsPath, "utf-8"));
-      for (const c of concepts) {
-        const name26 = (c.name ?? "").trim();
-        if (!name26 || !lower.includes(name26.toLowerCase())) continue;
-        const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName2(name26)}.py`);
-        out.push({
-          path: script,
-          relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
-        });
-      }
-    } catch {
-    }
-  }
-  return out;
-}
-function filesForIntentCategories(categories, projectDir, workdir, message) {
-  const files = [];
-  const indexPath = import_path12.default.join(projectDir, "index.html");
-  const indexHtml = import_fs12.default.existsSync(indexPath) ? import_fs12.default.readFileSync(indexPath, "utf-8") : "";
-  for (const cat of categories) {
-    if (cat === "captions") {
-      files.push(ref(projectDir, "compositions/captions-overlay.html"));
-    } else if (cat === "background") {
-      files.push(ref(projectDir, "index.html"));
-      for (const s of listSectionHtml(projectDir)) {
-        files.push({
-          path: s,
-          relative: import_path12.default.relative(projectDir, s).replace(/\\/g, "/")
-        });
-      }
-    } else if (cat === "speaker") {
-      files.push(ref(projectDir, "index.html"));
-    } else if (cat === "overlay") {
-      files.push(ref(projectDir, "index.html"));
-      const markers = findOverlayMarkers(indexHtml);
-      if (markers.length > 0) {
-        files[files.length - 1] = {
-          ...files[files.length - 1],
-          relative: `index.html (overlays: ${markers.join(", ")})`
-        };
-      }
-    } else if (cat === "concept") {
-      files.push(...conceptFilesFromMessage(message, projectDir, workdir));
-    }
-  }
-  return uniqFiles(files);
-}
-function resolveEditTargets(opts) {
-  const workdir = opts.workdir ?? getSessionWorkdir(opts.sessionId);
-  const projectDir = import_path12.default.join(workdir, "hf-project");
-  const files = [];
-  let newMedia = false;
-  for (const asset of opts.taggedArtifacts) {
-    const kind = classifyTaggedForEdit(asset, workdir);
-    if (!kind) continue;
-    if (kind.kind === "new_media") {
-      newMedia = true;
-      continue;
-    }
-    if (kind.kind === "draft_final") {
-      files.push(ref(projectDir, "index.html"));
-      files.push(ref(projectDir, "compositions/captions-overlay.html"));
-    } else if (kind.kind === "manim" && kind.safeName) {
-      const script = import_path12.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
-      files.push({
-        path: script,
-        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
-      });
-    }
-  }
-  if (files.length > 0) {
-    return {
-      files: uniqFiles(files),
-      projectDir,
-      newMedia,
-      needsClarification: false
-    };
-  }
-  if (!looksLikeEditIntent(opts.userMessage, opts.hasHfProject)) {
-    return { files: [], projectDir, newMedia, needsClarification: false };
-  }
-  const categories = classifyEditIntent(opts.userMessage);
-  const conceptHits = conceptFilesFromMessage(
-    opts.userMessage,
-    projectDir,
-    workdir
-  );
-  const intentFiles = categories.length > 0 ? filesForIntentCategories(
-    categories,
-    projectDir,
-    workdir,
-    opts.userMessage
-  ) : [];
-  const merged = uniqFiles([...intentFiles, ...conceptHits]);
-  if (merged.length === 0) {
-    return {
-      files: [],
-      projectDir,
-      newMedia,
-      needsClarification: true
-    };
-  }
-  return {
-    files: merged,
-    projectDir,
-    newMedia,
-    needsClarification: false
-  };
-}
-function formatEditTargetsBlock(result, readFile = readTruncated) {
-  if (result.needsClarification) {
-    return [
-      "Edit targets: intent unclear \u2014 call ask_clarification before editing.",
-      "Do not invent file paths."
-    ].join("\n");
-  }
-  if (result.files.length === 0) return "";
-  const lines = [
-    "Edit targets (fresh disk reads \u2014 prefer these over guessing):",
-    `project_dir: ${result.projectDir}`
-  ];
-  if (result.newMedia) {
-    lines.push("new_media: true (tagged upload is new media, not an edit target file)");
-  }
-  for (const f of result.files) {
-    const body = readFile(f.path);
-    lines.push(`--- ${f.relative} (${f.path}) ---`);
-    if (!body) {
-      lines.push("[file missing on disk \u2014 restore hf_project / manim_scripts then read_file]");
-    } else {
-      lines.push(body.content);
-    }
-  }
-  lines.push(
-    "Use str_replace/write_file on these paths. Still use read_file for any other unlisted section files."
-  );
-  return lines.join("\n");
-}
-function shouldInjectEditTargets(result) {
-  return result.needsClarification || result.files.length > 0;
-}
-
-// src/agent.ts
 init_storage();
 init_session();
 
@@ -39940,7 +40443,7 @@ ${referencedAssets}`;
         (f) => f.path.startsWith(editTargets.projectDir + import_node_path.default.sep)
       ) || taggedArtifacts.some(
         (a) => /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(import_node_path.default.basename(a.localPath))
-      )) {
+      ) || editTargets.orientationRebuild || editTargets.restoreGeneration) {
         needs.push("hf_project");
       }
       if (editTargets.files.some(
@@ -39951,7 +40454,10 @@ ${referencedAssets}`;
       if (needs.length > 0) {
         await ensureSessionArtifacts(params.userId, params.sessionId, needs);
       }
-      const block = formatEditTargetsBlock(editTargets);
+      const sessionManimClips = editTargets.orientationRebuild ? await listSessionManimClips(params.userId, params.sessionId) : void 0;
+      const block = formatEditTargetsBlock(editTargets, void 0, {
+        sessionManimClips
+      });
       if (block) userContent += `
 
 ${block}`;
@@ -40002,7 +40508,8 @@ ${resumeSystemAppend}`;
     userId: params.userId,
     pipelineMode: effectiveMode,
     skillName: resolvedSkill ?? sessionFields.skillsUsed[0] ?? "edu-video",
-    taggedArtifacts
+    taggedArtifacts,
+    restoreAllowlistUrls: []
   };
   const tools = buildTools(toolCtx, capabilitySkills);
   if (conceptsResumeForce) {

@@ -86,6 +86,14 @@ for (const orient of orientations) {
     !/url\(['"]?\.\.\//.test(captionsHtml),
     `${orient}/captions-overlay.html must use root-relative assets/…, not ../assets/`
   );
+  const indexRootFit = fs.readFileSync(
+    path.join(templatesRoot, orient, 'index-root.html'),
+    'utf-8'
+  );
+  assert(
+    /#manim-wrap\s+video\s*\{[^}]*object-fit:\s*contain/s.test(indexRootFit),
+    `${orient}/index-root.html #manim-wrap video must use object-fit: contain`
+  );
   if (orient === 'vertical') {
     const indexRoot = fs.readFileSync(
       path.join(templatesRoot, orient, 'index-root.html'),

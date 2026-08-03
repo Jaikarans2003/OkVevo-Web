@@ -50,6 +50,7 @@ import {
   resolveEditTargets,
   shouldInjectEditTargets,
 } from './editTargets';
+import { listSessionManimClips } from './tools/lib/sessionManimClips';
 import { getAssetUrl } from './storage';
 import {
   ensureSession,
@@ -268,7 +269,9 @@ export async function runAgent(params: RunAgentParams) {
         ) ||
         taggedArtifacts.some((a) =>
           /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(path.basename(a.localPath))
-        )
+        ) ||
+        editTargets.orientationRebuild ||
+        editTargets.restoreGeneration
       ) {
         needs.push('hf_project');
       }
@@ -282,7 +285,12 @@ export async function runAgent(params: RunAgentParams) {
       if (needs.length > 0) {
         await ensureSessionArtifacts(params.userId, params.sessionId, needs);
       }
-      const block = formatEditTargetsBlock(editTargets);
+      const sessionManimClips = editTargets.orientationRebuild
+        ? await listSessionManimClips(params.userId, params.sessionId)
+        : undefined;
+      const block = formatEditTargetsBlock(editTargets, undefined, {
+        sessionManimClips,
+      });
       if (block) userContent += `\n\n${block}`;
     }
   }
@@ -346,6 +354,7 @@ export async function runAgent(params: RunAgentParams) {
     pipelineMode: effectiveMode,
     skillName: resolvedSkill ?? sessionFields.skillsUsed[0] ?? 'edu-video',
     taggedArtifacts,
+    restoreAllowlistUrls: [] as string[],
   };
 
   const tools = buildTools(toolCtx, capabilitySkills);
