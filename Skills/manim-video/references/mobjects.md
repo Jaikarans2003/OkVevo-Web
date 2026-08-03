@@ -130,8 +130,8 @@ mob.set_z_index(1)                         # layering
 nl = NumberLine(x_range=[-3, 3, 1], length=8, include_numbers=True)
 table = Table([["A", "B"], ["C", "D"]], row_labels=[Text("R1"), Text("R2")])
 code = Code("example.py", tab_width=4, font_size=20, language="python")
-highlight = SurroundingRectangle(target, color=YELLOW, buff=0.2)
-bg = BackgroundRectangle(equation, fill_opacity=0.7, buff=0.2)
+highlight = SurroundingRectangle(target, color=YELLOW, buff=0.35)  # token highlight: buff >= 0.25
+bg = BackgroundRectangle(equation, fill_opacity=0.7, buff=0.35)
 ```
 
 ## Custom Mobjects
@@ -140,9 +140,13 @@ bg = BackgroundRectangle(equation, fill_opacity=0.7, buff=0.2)
 class NetworkNode(Group):
     def __init__(self, label_text, color=BLUE, **kwargs):
         super().__init__(**kwargs)
-        self.circle = Circle(radius=0.4, color=color, fill_opacity=0.3)
-        self.label = Text(label_text, font_size=20).move_to(self.circle)
+        # Size circle from text — never fixed radius=0.4 then cram label
+        self.label = Text(label_text, font_size=20)
+        r = max(self.label.width, self.label.height) / 2 + 0.35
+        self.circle = Circle(radius=r, color=color, fill_opacity=0.3)
+        self.label.move_to(self.circle)
         self.add(self.circle, self.label)
+        # Or: self.add(*padded_label_circle(label_text, color=color, font_size=20))
 ```
 
 ## Matrix Mobjects

@@ -15,10 +15,12 @@ import {
   buildManimGsap,
   buildSegmentSection,
   buildSegmentWiring,
+  buildCaptionPosGsap,
   buildSpeakerGsap,
+  canvasForOrientation,
+  cloudRenderFlags,
   DEFAULT_HYPERFRAMES_JSON,
   downloadFile,
-  EDU_VIDEO_TEMPLATE_DIR,
   ensureSessionArtifacts,
   execCommand,
   getSessionWorkdir,
@@ -29,10 +31,12 @@ import {
   resolveBrandColors,
   SPEAKER_MAX_BYTES,
   substitutePlaceholders,
+  templateDirFor,
+  type VideoOrientation,
 } from '../lib/utils';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import { signCallbackToken } from '../../callbackToken';
-import { formatDuration } from '../../checkpoint';
+import { formatDuration, getSessionOrientation } from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 import {
@@ -251,18 +255,20 @@ const plannedSegmentSchema = z.object({
 async function scaffoldHyperframesProject(
   projectDir: string,
   htmlContent: string,
-  sessionId: string
+  sessionId: string,
+  orientation: VideoOrientation = 'horizontal'
 ): Promise<void> {
   fs.mkdirSync(path.join(projectDir, 'compositions', 'components'), { recursive: true });
   fs.mkdirSync(path.join(projectDir, 'assets'), { recursive: true });
 
   fs.writeFileSync(path.join(projectDir, 'index.html'), htmlContent);
 
+  const { width, height } = canvasForOrientation(orientation);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
     name: 'Educational Video',
-    width: 1920,
-    height: 1080,
+    width,
+    height,
     fps: 30,
   };
   fs.writeFileSync(path.join(projectDir, 'meta.json'), JSON.stringify(meta, null, 2));
@@ -345,6 +351,10 @@ export function createHyperframesTools(ctx: ToolCtx) {
         ),
         total_duration: z.number(),
         brand_colors: brandColorsSchema.optional(),
+        orientation: z
+          .enum(['horizontal', 'vertical'])
+          .optional()
+          .describe('Canvas orientation — reads session when omitted; defaults horizontal'),
       }),
       execute: async ({
         speaker_video_url,
@@ -353,11 +363,17 @@ export function createHyperframesTools(ctx: ToolCtx) {
         transcript_words,
         total_duration,
         brand_colors,
+        orientation: orientationArg,
       }) => {
         assertTaggedUrlAllowed(speaker_video_url, ctx.taggedArtifacts);
         if (speaker_audio_url) {
           assertTaggedUrlAllowed(speaker_audio_url, ctx.taggedArtifacts);
         }
+        const orientation: VideoOrientation =
+          orientationArg ?? (await getSessionOrientation(ctx.sessionId));
+        const { width, height } = canvasForOrientation(orientation);
+        const templateDir = templateDirFor(orientation);
+
         const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
         if (!storedPlan?.segments?.length) {
           throw new Error('No segment plan found. Call plan_segments first.');
@@ -371,7 +387,7 @@ export function createHyperframesTools(ctx: ToolCtx) {
 
         await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['transcript']);
 
-        fs.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
+        fs.cpSync(templateDir, projectDir, { recursive: true });
 
         const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
 
@@ -437,9 +453,10 @@ export function createHyperframesTools(ctx: ToolCtx) {
           fs.writeFileSync(path.join(sectionsDir, built.meta.filename), built.html, 'utf-8');
         }
 
-        const segmentWiring = buildSegmentWiring(segments, sectionMeta);
+        const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
         const manimClipsHtml = buildManimClipsHtml(manim_clips);
-        const speakerGsap = buildSpeakerGsap(segments);
+        const speakerGsap = buildSpeakerGsap(segments, orientation);
+        const captionPosGsap = buildCaptionPosGsap(segments, orientation);
         const manimGsap = buildManimGsap(segments);
         const captionsJson = JSON.stringify(groupCaptionWords(words));
 
@@ -460,6 +477,7 @@ export function createHyperframesTools(ctx: ToolCtx) {
           CAPTIONS_JSON: captionsJson,
           TOTAL_DURATION: String(effectiveDuration),
           BRAND_CSS_VARS: brandCss,
+          CAPTION_POS_GSAP: captionPosGsap,
         });
         fs.writeFileSync(captionsPath, captionsHtml, 'utf-8');
 
@@ -473,9 +491,10 @@ export function createHyperframesTools(ctx: ToolCtx) {
         const meta = {
           id: `edu-${ctx.sessionId.slice(0, 8)}`,
           total_duration: effectiveDuration,
-          width: 1920,
-          height: 1080,
+          width,
+          height,
           fps: 30,
+          orientation,
         };
         fs.writeFileSync(path.join(projectDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf-8');
 
@@ -499,6 +518,7 @@ export function createHyperframesTools(ctx: ToolCtx) {
           segments,
           sectionMeta,
           manim_clips,
+          orientation,
         });
         fs.writeFileSync(
           path.join(projectDir, 'COMPOSITION_MANIFEST.json'),
@@ -519,6 +539,9 @@ export function createHyperframesTools(ctx: ToolCtx) {
         return {
           project_dir: projectDir,
           composition_url: indexUrl,
+          orientation,
+          width,
+          height,
         };
       },
     }),
@@ -532,6 +555,8 @@ export function createHyperframesTools(ctx: ToolCtx) {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
           const projectDir = path.join(workdir, 'hf-project');
+          const orientation = await getSessionOrientation(ctx.sessionId);
+          const { width, height, aspectRatio } = canvasForOrientation(orientation);
 
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['hf_project']);
           const hasLocalProject = fs.existsSync(path.join(projectDir, 'index.html'));
@@ -541,7 +566,7 @@ export function createHyperframesTools(ctx: ToolCtx) {
             const htmlPath = path.join(projectDir, 'index.html');
             await downloadFile(composition_url, htmlPath);
             const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
-            await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId);
+            await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId, orientation);
           }
 
           const cliPath =
@@ -640,13 +665,17 @@ export function createHyperframesTools(ctx: ToolCtx) {
             }
 
             // CLI inherits HEYGEN_API_KEY from process env. Never `cloud render .`.
+            const cloudFlags = cloudRenderFlags(orientation);
             const cloudCmd =
               `node "${cliPath}" cloud render ${cloudCmdSource}` +
-              ` --fps 30 --quality standard --format mp4 --resolution 1080p` +
+              ` --fps 30 --quality standard --format mp4 ${cloudFlags}` +
               ` --callback-url "${callbackUrl}"` +
               ` --callback-id "${ctx.sessionId}"` +
               ` --idempotency-key "${idempotencyKey}"` +
               ` --no-wait --json`;
+            console.log(
+              `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
+            );
             const cloudResult = await execCommand(cloudCmd, {
               cwd: projectDir,
               timeoutSeconds: 600,
@@ -659,7 +688,7 @@ export function createHyperframesTools(ctx: ToolCtx) {
 
             const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
             console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(' ')[0]}`
+              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(' ')[0]} ${cloudFlags}`
             );
             const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
               executionArn: renderId,
@@ -709,8 +738,8 @@ export function createHyperframesTools(ctx: ToolCtx) {
             outputKey,
             config: {
               fps: 30,
-              width: 1920,
-              height: 1080,
+              width,
+              height,
               format: 'mp4',
               chunkSize: 240,
               maxParallelChunks: 2,

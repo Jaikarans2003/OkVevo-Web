@@ -29,10 +29,36 @@ export function sanitizedShellEnv(): NodeJS.ProcessEnv {
 }
 
 export const SKILLS_DIR = path.resolve(__dirname, '../../../../../Skills');
-export const EDU_VIDEO_TEMPLATE_DIR =
-  process.env.EDU_VIDEO_TEMPLATE_DIR ??
-  path.join(SKILLS_DIR, 'edu-video/templates');
+export type VideoOrientation = 'horizontal' | 'vertical';
+
+export const EDU_VIDEO_TEMPLATES_ROOT = path.join(SKILLS_DIR, 'edu-video/templates');
+
+/** Env override points at a concrete orientation dir; else root/{orientation}. */
+export function templateDirFor(orientation: VideoOrientation = 'horizontal'): string {
+  if (process.env.EDU_VIDEO_TEMPLATE_DIR) return process.env.EDU_VIDEO_TEMPLATE_DIR;
+  return path.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
+}
+
+/** @deprecated use templateDirFor(orientation) — kept for callers defaulting horizontal */
+export const EDU_VIDEO_TEMPLATE_DIR = templateDirFor('horizontal');
 export const TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? 'anthropic/claude-sonnet-4-5';
+
+export function canvasForOrientation(orientation: VideoOrientation): {
+  width: number;
+  height: number;
+  aspectRatio: '9:16' | '16:9';
+} {
+  return orientation === 'vertical'
+    ? { width: 1080, height: 1920, aspectRatio: '9:16' }
+    : { width: 1920, height: 1080, aspectRatio: '16:9' };
+}
+
+/** HeyGen cloud CLI: resolution is 1080p|4k; orientation is --aspect-ratio. */
+export function cloudRenderFlags(orientation: VideoOrientation): string {
+  const { aspectRatio } = canvasForOrientation(orientation);
+  // ponytail: always 1080p — add 4k path if UI ever exposes resolution
+  return `--resolution 1080p --aspect-ratio ${aspectRatio}`;
+}
 
 export type BrandColors = { primary: string; accent: string; bg_dark: string };
 
@@ -646,7 +672,12 @@ export function buildSegmentSection(
   };
 }
 
-export function buildSegmentWiring(segments: SegmentInput[], sectionMeta: SectionMeta[]): string {
+export function buildSegmentWiring(
+  segments: SegmentInput[],
+  sectionMeta: SectionMeta[],
+  orientation: VideoOrientation = 'horizontal'
+): string {
+  const { width, height } = canvasForOrientation(orientation);
   return segments
     .map((seg, index) => {
       const nn = padSegmentNum(index);
@@ -654,7 +685,7 @@ export function buildSegmentWiring(segments: SegmentInput[], sectionMeta: Sectio
       const dataStart = index === 0 ? '0' : `sec-${padSegmentNum(index - 1)}`;
       return `<div id="sec-${nn}" data-composition-id="${meta.segmentId}" data-composition-src="compositions/sections/${meta.filename}"
      data-start="${dataStart}" data-duration="${meta.duration}" data-track-index="1"
-     data-width="1920" data-height="1080" class="scene-layer"></div>`;
+     data-width="${width}" data-height="${height}" class="scene-layer"></div>`;
     })
     .join('\n\n    ');
 }
@@ -689,6 +720,7 @@ export function buildCompositionManifest({
   segments,
   sectionMeta,
   manim_clips,
+  orientation = 'horizontal',
 }: {
   projectDir: string;
   total_duration: number;
@@ -696,11 +728,13 @@ export function buildCompositionManifest({
   segments: SegmentInput[];
   sectionMeta: SectionMeta[];
   manim_clips: ManimClipInput[];
+  orientation?: VideoOrientation;
 }) {
   return {
     project_dir: projectDir,
     total_duration,
     generated_at: new Date().toISOString(),
+    orientation,
     brand_colors: colors,
     files: {
       root: 'index.html',
@@ -743,23 +777,76 @@ export function buildCompositionManifest({
   };
 }
 
-export function buildSpeakerGsap(segments: SegmentInput[]): string {
+export function buildSpeakerGsap(
+  segments: SegmentInput[],
+  orientation: VideoOrientation = 'horizontal'
+): string {
+  const xfade = 0.35;
   const lines = ["tl.set('#speaker-wrap', FS, 0);"];
 
   for (const seg of segments) {
-    if (seg.mode === 'A') {
+    if (seg.mode !== 'A') continue;
+    if (orientation === 'vertical') {
+      // Vertical Mode A: speaker BOTTOM; Mode C: FS. Caption pos lives in captions-overlay timeline.
       lines.push(
-        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: 0.35, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+      );
+      lines.push(
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+      );
+    } else {
+      lines.push(
+        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
       );
       lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${seg.start});`);
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: 0.35, ease: 'power2.inOut' }, ${seg.end - 0.35});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
       );
       lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${seg.end});`);
     }
   }
 
   return lines.join('\n    ');
+}
+
+/** Vertical only: Mode A → mid captions, Mode C → bottom. Fade out/in across speaker xfade. */
+export function buildCaptionPosGsap(
+  segments: SegmentInput[],
+  orientation: VideoOrientation = 'horizontal'
+): string {
+  if (orientation !== 'vertical') return '';
+  const xfade = 0.35;
+  const half = xfade / 2;
+  const t = (n: number) => Math.round(n * 1000) / 1000;
+  const lines = [
+    `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, 0);`,
+    `tl.set('#hl-container', { opacity: 1 }, 0);`,
+  ];
+  for (const seg of segments) {
+    if (seg.mode !== 'A') continue;
+    // Enter Mode A: fade → mid → fade (same window as speaker BOTTOM tween)
+    lines.push(
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(seg.start)});`
+    );
+    lines.push(
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(seg.start + half)});`
+    );
+    lines.push(
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(seg.start + half)});`
+    );
+    // Leave Mode A: fade → bottom → fade (same window as speaker FS tween)
+    const leave = seg.end - xfade;
+    lines.push(
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(leave)});`
+    );
+    lines.push(
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, ${t(leave + half)});`
+    );
+    lines.push(
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(leave + half)});`
+    );
+  }
+  return lines.join('\n        ');
 }
 
 export function groupCaptionWords(

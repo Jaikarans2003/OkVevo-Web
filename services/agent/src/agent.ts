@@ -19,6 +19,7 @@ import {
   getSessionPipelineFields,
   isHaltTurnOutput,
   loadCheckpoint,
+  persistOrientation,
   persistPipelineMode,
   persistSkillId,
   recordSkillsUsed,
@@ -181,6 +182,10 @@ export async function runAgent(params: RunAgentParams) {
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
         conceptsResumeForce = isConceptsApproveChoiceResume(resumeCheckpoint);
         if (conceptsResumeForce) {
+          const choiceId = resumeCheckpoint.answer?.choiceId;
+          const orientation =
+            choiceId === 'vertical' || choiceId === 'horizontal' ? choiceId : 'horizontal';
+          await persistOrientation(params.sessionId, orientation);
           const hint = firstConceptResumeHint(params.sessionId);
           if (hint) {
             resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;

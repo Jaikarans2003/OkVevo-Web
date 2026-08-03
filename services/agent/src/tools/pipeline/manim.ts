@@ -15,18 +15,22 @@ import {
   resolveToolPath,
   resolveBrandColors,
   buildManimPalettePrompt,
+  type VideoOrientation,
 } from '../lib/utils';
 import { assertManimMaxVisible } from '../lib/manimGuard';
 import { getTempPath, uploadToStorage, walkDir, writeAssetUrl } from '../../storage';
 import { db } from '../../firebase';
-import { formatDuration } from '../../checkpoint';
+import { formatDuration, getSessionOrientation } from '../../checkpoint';
 import type { ToolCtx } from '../index';
+import { assertSquareManimFrame, buildManimRenderCmd } from '../lib/manimOrientation';
 
 const brandColorsSchema = z.object({
   primary: z.string(),
   accent: z.string(),
   bg_dark: z.string(),
 });
+
+const orientationSchema = z.enum(['horizontal', 'vertical']);
 
 function manimSafeName(conceptName: string): string {
   let safe = conceptName
@@ -107,12 +111,17 @@ export function createManimTools(ctx: ToolCtx) {
         brand_colors: brandColorsSchema
           .optional()
           .describe('Optional brand palette — same values as scaffold_hf_project; defaults match edu-video templates'),
+        orientation: orientationSchema
+          .optional()
+          .describe('horizontal = 16:9 defaults; vertical = square frame units required. Session wins if omitted.'),
       }),
-      execute: async ({ concept_name, explanation, window_seconds, brand_colors }) => {
+      execute: async ({ concept_name, explanation, window_seconds, brand_colors, orientation: orientationArg }) => {
         const safeName = manimSafeName(concept_name);
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
         const palettePrompt = buildManimPalettePrompt(colors);
+        const orientation: VideoOrientation =
+          orientationArg ?? (await getSessionOrientation(ctx.sessionId));
 
         const manimSkill = loadSkillFile('manim-video/SKILL.md');
         const troubleshooting = loadSkillFile('manim-video/references/troubleshooting.md');
@@ -120,15 +129,24 @@ export function createManimTools(ctx: ToolCtx) {
         const productionQuality = loadSkillFile('manim-video/references/production-quality.md');
         const conceptRef = loadSkillFile(selectManimReference(explanation));
 
+        const squareFrameRules =
+          orientation === 'vertical'
+            ? `
+- VERTICAL orientation (mandatory): near the top of the file after imports, set a square Manim coordinate space:
+  config.frame_width = 8
+  config.frame_height = 8
+  (equal numeric values required — layout must be 1:1, not leftover 16:9 frame units)`
+            : '';
+
         const systemPrompt = `You are a Manim CE expert. Write a single Python script for one animation scene. Return ONLY valid Python code. No markdown fences. No explanation. No comments except inline code comments.
 The script MUST:
 - Import from manim: from manim import *
-- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker) — copy verbatim, do not paraphrase
+- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker, padded_label_box, padded_label_circle) — copy verbatim, do not paraphrase
 - All Text() via safe_text(), not raw Text(); call clear_scene(self) before new concept content; instantiate tracker = VisibleTracker(), call tracker.show(key, mobject) when adding, tracker.hide(key) when removing, and tracker.check() after every self.play() that adds mobjects
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
-${palettePrompt}
+${palettePrompt}${squareFrameRules}
 - Use self.wait() after every animation
 - End by holding the finished visual state with a generous self.wait() — reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
@@ -137,6 +155,10 @@ ${palettePrompt}
 - Equation structure change (add frac, wrap softmax, reshape): FadeOut+Write or FadeTransform — TransformMatchingTex only with substrings_to_isolate; never bare Transform between dissimilar MathTex
 - Labels under MathTex: next_to(..., DOWN, buff>=0.6); under fractions buff>=0.8
 - Annotation / SurroundingRectangle labels: never next_to(highlight, RIGHT) when sibling terms sit there — use UP/DOWN/Brace or left of the whole equation
+- Enclosing shapes: never fixed small Circle/RoundedRectangle then cram text — build text first; use padded_label_box / padded_label_circle (or SurroundingRectangle buff>=0.35 / Circle radius=max(w,h)/2+0.35). Prefer boxes for multi-word/multi-line; Circles only for short 1–2 word nodes
+- SurroundingRectangle / BackgroundRectangle: buff>=0.35 (never 0.1); single MathTex token highlights may use buff>=0.25
+- Diagram nodes: arrange/next_to peer buff>=0.5; title ↔ diagram buff>=0.6 (or title.to_edge(UP) then clear gap below)
+- Arrows into labeled nodes: tip buff>=0.15 so tip stops outside the shape, not through the glyph
 - Write()/Create() require VMobject — Group() (Text mixed with MathTex/Matrix/shapes) is NOT a VMobject and fails with TypeError; use FadeIn() for any Group containing Text; VGroup() is fine with Write()/Create() only when ALL members are VMobjects (no raw Text)
 - MAX_VISIBLE = 6 is immutable — never raise it; on density assert Group related eqs, FadeOut spent labels/rects, or clear_scene between beats
 - Do not deduce or explain why self.mobjects/tracker.items returned a particular count — on VisibleTracker assert, immediately (a) tracker.hide() spent items before adding new ones, or (b) combine into one tracked unit with a single tracker.show(); do not spend turns reasoning about the exact number`;
@@ -203,6 +225,33 @@ Fix these specific issues and return corrected Python only.`;
           }
         }
 
+        if (orientation === 'vertical') {
+          let frameErr = assertSquareManimFrame(cleanScript);
+          if (frameErr) {
+            console.error(`Manim square-frame check failed for ${concept_name}:`, frameErr);
+            userPrompt = `${baseUserPrompt}
+
+The previous script failed validation: ${frameErr}
+Add near the top after imports:
+config.frame_width = 8
+config.frame_height = 8
+Return corrected Python only.`;
+            scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+            cleanScript = stripCodeFences(scriptText);
+            fs.writeFileSync(validatePath, cleanScript);
+            validation = validatePythonSyntax(validatePath);
+            if (!validation.ok) {
+              throw new Error(
+                `Manim script syntax validation failed: ${validation.error}\n\nScript:\n${cleanScript}`
+              );
+            }
+            frameErr = assertSquareManimFrame(cleanScript);
+            if (frameErr) {
+              throw new Error(frameErr);
+            }
+          }
+        }
+
         const scriptDir = path.join(getSessionWorkdir(ctx.sessionId), 'manim_scripts');
         fs.mkdirSync(scriptDir, { recursive: true });
         const scriptPath = path.join(scriptDir, `${safeName}.py`);
@@ -244,6 +293,9 @@ Fix these specific issues and return corrected Python only.`;
         concept_name: z.string(),
         start_seconds: z.number(),
         end_seconds: z.number(),
+        orientation: orientationSchema
+          .optional()
+          .describe('Must match generate_manim_script; session wins if omitted'),
       }),
       execute: async ({
         script,
@@ -252,6 +304,7 @@ Fix these specific issues and return corrected Python only.`;
         concept_name,
         start_seconds,
         end_seconds,
+        orientation: orientationArg,
       }) => {
         const safeName = class_name.replace('Scene', '');
         const resolvedScriptPath = script_path
@@ -259,6 +312,8 @@ Fix these specific issues and return corrected Python only.`;
           : getTempPath(`${ctx.sessionId}_${safeName}.py`);
         const wroteTempScript = !script_path;
         const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
+        const orientation: VideoOrientation =
+          orientationArg ?? (await getSessionOrientation(ctx.sessionId));
 
         try {
           if (script_path) {
@@ -276,17 +331,22 @@ Fix these specific issues and return corrected Python only.`;
             fs.writeFileSync(resolvedScriptPath, script);
           }
 
-          const cmd = [
-            'manim',
-            'render',
-            '-ql',
-            '--output_file',
-            'output.mp4',
-            '--media_dir',
+          if (orientation === 'vertical') {
+            const scriptText = fs.readFileSync(resolvedScriptPath, 'utf-8');
+            const frameErr = assertSquareManimFrame(scriptText);
+            if (frameErr) {
+              throw new Error(
+                `${frameErr}. Patch the script (config.frame_width == config.frame_height) then re-render — do not render square pixels with landscape frame units.`
+              );
+            }
+          }
+
+          const cmd = buildManimRenderCmd({
+            scriptPath: resolvedScriptPath,
+            className: class_name,
             outputDir,
-            resolvedScriptPath,
-            class_name,
-          ].join(' ');
+            orientation,
+          });
 
           const renderResult = await execCommand(cmd, { timeoutSeconds: 600 });
 

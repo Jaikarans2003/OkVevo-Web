@@ -68,6 +68,17 @@ Universal loop for every edit (listed playbook or not):
 
 
 
+## Orientation edits
+
+"make it vertical" / "switch to 9:16" / "change to horizontal" / "portrait instead":
+
+- **Destructive:** switching horizontal ↔ vertical is a full re-scaffold **and** typically requires regenerating Manim clips (vertical needs square `--resolution 1080,1080` **and** equal `config.frame_width`/`frame_height`; horizontal stays `-ql` 16:9). Layout, speaker GSAP, captions, and meta dimensions all change.
+- **Data-loss warning:** same wipe as brand re-scaffold — prior hand edits are discarded. Warn the user before proceeding. When Gate B (`confirm_overwrite_hand_edits`) exists, require it before overwrite.
+- Persist the new orientation on the session, regenerate Manim for each concept with the new orientation, re-`plan_segments`, re-`scaffold_hf_project`, then `render_hyperframes`.
+- Verify a frame (and that Manim fills the pod without letterbox/crop) before claiming success
+
+
+
 ## Timed image overlay edits
 
 "put this image at 15–25s" / "overlay the graphic in the top right" / "show the background image from 10s to 20s" / "add the generated image on screen" / "remove the overlay" / "move the overlay" / "make the overlay bigger":

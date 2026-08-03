@@ -173,6 +173,7 @@ Before running `manim -qh`:
 - [ ] No text smaller than font_size=18
 - [ ] No text using proportional fonts (use monospace)
 - [ ] buff >= 0.5 on all `.to_edge()` calls
+- [ ] Enclosing shapes: buff >= 0.35 (token highlight >= 0.25); title ↔ diagram buff >= 0.6; arrow tip buff >= 0.15
 - [ ] Clean exit (FadeOut all) at end of every scene
 - [ ] `self.wait()` after every reveal
 - [ ] Color constants used (no hardcoded hex strings in scene code)

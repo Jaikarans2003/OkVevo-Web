@@ -35890,7 +35890,8 @@ async function writeCheckpointDoc(ctx, input) {
   };
 }
 async function writeAskCheckpoint(ctx, input) {
-  const isPhaseGate = Boolean(input.phase_label);
+  const hasChoices = Boolean(input.choices?.length);
+  const isPhaseGate = Boolean(input.phase_label) && !hasChoices;
   const allowFreeform = input.allowFreeform ?? true;
   const written = await writeCheckpointDoc(ctx, {
     kind: isPhaseGate ? "phase_gate" : "question",
@@ -35991,6 +35992,13 @@ async function recordSkillsUsed(sessionId, skills) {
 async function persistPipelineMode(sessionId, pipelineMode) {
   await db.collection("sessions").doc(sessionId).set({ pipelineMode }, { merge: true });
 }
+async function persistOrientation(sessionId, orientation) {
+  await db.collection("sessions").doc(sessionId).set({ orientation }, { merge: true });
+}
+async function getSessionOrientation(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  return snap.data()?.orientation === "vertical" ? "vertical" : "horizontal";
+}
 async function clearPendingCheckpoint(sessionId) {
   const sessionRef = db.collection("sessions").doc(sessionId);
   const snap = await sessionRef.get();
@@ -36010,9 +36018,12 @@ async function clearPendingCheckpoint(sessionId) {
 function buildResumeSystemContext(checkpoint) {
   const answer = checkpoint.answer;
   const answerLine = answer ? `- User response: ${answer.type}: "${answer.text}"` : "- User response: (none recorded)";
+  const choiceId = answer?.choiceId;
+  const orientationChosen = choiceId === "horizontal" || choiceId === "vertical" ? choiceId : null;
   const conceptsApproved = checkpoint.completedPhaseLabel === "Concepts extracted" ? `
 - concepts.json is restored and user-approved. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
-- Do not ask for a video URL \u2014 transcription already completed; next step is Manim via concepts.json.` : "";
+- Do not ask for a video URL \u2014 transcription already completed; next step is Manim via concepts.json.${orientationChosen ? `
+- Orientation chosen: ${orientationChosen}. Session already stores it \u2014 generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.` : ""}` : "";
   return `
 CHECKPOINT RESUME
 - Completed: ${checkpoint.completedPhaseLabel} \u2014 ${checkpoint.summary.title}
@@ -36325,8 +36336,20 @@ function sanitizedShellEnv() {
   );
 }
 var SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../../../Skills");
-var EDU_VIDEO_TEMPLATE_DIR = process.env.EDU_VIDEO_TEMPLATE_DIR ?? import_path4.default.join(SKILLS_DIR3, "edu-video/templates");
+var EDU_VIDEO_TEMPLATES_ROOT = import_path4.default.join(SKILLS_DIR3, "edu-video/templates");
+function templateDirFor(orientation = "horizontal") {
+  if (process.env.EDU_VIDEO_TEMPLATE_DIR) return process.env.EDU_VIDEO_TEMPLATE_DIR;
+  return import_path4.default.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
+}
+var EDU_VIDEO_TEMPLATE_DIR = templateDirFor("horizontal");
 var TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
+function canvasForOrientation(orientation) {
+  return orientation === "vertical" ? { width: 1080, height: 1920, aspectRatio: "9:16" } : { width: 1920, height: 1080, aspectRatio: "16:9" };
+}
+function cloudRenderFlags(orientation) {
+  const { aspectRatio } = canvasForOrientation(orientation);
+  return `--resolution 1080p --aspect-ratio ${aspectRatio}`;
+}
 var DEFAULT_BRAND_COLORS = {
   primary: "#f97316",
   accent: "#fb923c",
@@ -36713,14 +36736,15 @@ function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
     html
   };
 }
-function buildSegmentWiring(segments, sectionMeta) {
+function buildSegmentWiring(segments, sectionMeta, orientation = "horizontal") {
+  const { width, height } = canvasForOrientation(orientation);
   return segments.map((seg, index) => {
     const nn = padSegmentNum(index);
     const meta = sectionMeta[index];
     const dataStart = index === 0 ? "0" : `sec-${padSegmentNum(index - 1)}`;
     return `<div id="sec-${nn}" data-composition-id="${meta.segmentId}" data-composition-src="compositions/sections/${meta.filename}"
      data-start="${dataStart}" data-duration="${meta.duration}" data-track-index="1"
-     data-width="1920" data-height="1080" class="scene-layer"></div>`;
+     data-width="${width}" data-height="${height}" class="scene-layer"></div>`;
   }).join("\n\n    ");
 }
 function buildManimClipsHtml(manimClips) {
@@ -36748,12 +36772,14 @@ function buildCompositionManifest({
   colors,
   segments,
   sectionMeta,
-  manim_clips
+  manim_clips,
+  orientation = "horizontal"
 }) {
   return {
     project_dir: projectDir,
     total_duration,
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    orientation,
     brand_colors: colors,
     files: {
       root: "index.html",
@@ -36792,21 +36818,63 @@ function buildCompositionManifest({
     }))
   };
 }
-function buildSpeakerGsap(segments) {
+function buildSpeakerGsap(segments, orientation = "horizontal") {
+  const xfade = 0.35;
   const lines = ["tl.set('#speaker-wrap', FS, 0);"];
   for (const seg of segments) {
-    if (seg.mode === "A") {
+    if (seg.mode !== "A") continue;
+    if (orientation === "vertical") {
       lines.push(
-        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: 0.35, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+      );
+      lines.push(
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+      );
+    } else {
+      lines.push(
+        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
       );
       lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${seg.start});`);
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: 0.35, ease: 'power2.inOut' }, ${seg.end - 0.35});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
       );
       lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${seg.end});`);
     }
   }
   return lines.join("\n    ");
+}
+function buildCaptionPosGsap(segments, orientation = "horizontal") {
+  if (orientation !== "vertical") return "";
+  const xfade = 0.35;
+  const half = xfade / 2;
+  const t = (n) => Math.round(n * 1e3) / 1e3;
+  const lines = [
+    `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, 0);`,
+    `tl.set('#hl-container', { opacity: 1 }, 0);`
+  ];
+  for (const seg of segments) {
+    if (seg.mode !== "A") continue;
+    lines.push(
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(seg.start)});`
+    );
+    lines.push(
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(seg.start + half)});`
+    );
+    lines.push(
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(seg.start + half)});`
+    );
+    const leave = seg.end - xfade;
+    lines.push(
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(leave)});`
+    );
+    lines.push(
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, ${t(leave + half)});`
+    );
+    lines.push(
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(leave + half)});`
+    );
+  }
+  return lines.join("\n        ");
 }
 function groupCaptionWords(words) {
   const groups = [];
@@ -37956,7 +38024,7 @@ init_zod();
 
 // src/lib/timelinePlanning.ts
 var TIMELINE_EPSILON = 0.5;
-var MIN_MODE_C_GAP_SECONDS = 1.5;
+var MIN_MODE_C_GAP_SECONDS = 3;
 function partitionTimeline(items, totalDuration, gapFillType, epsilon = TIMELINE_EPSILON) {
   const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
   const segments = [];
@@ -37969,7 +38037,7 @@ function partitionTimeline(items, totalDuration, gapFillType, epsilon = TIMELINE
       } else if (gap > 0) {
         anchor.start = cursor;
       }
-    } else if (gap > MIN_MODE_C_GAP_SECONDS) {
+    } else if (gap >= MIN_MODE_C_GAP_SECONDS) {
       segments.push({ start: cursor, end: anchor.start, type: gapFillType });
     } else if (gap > 0) {
       segments[segments.length - 1].end = anchor.start;
@@ -38251,8 +38319,12 @@ ${retryHint}` : userMessage
               {
                 phase_label: "Concepts extracted",
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
-                question: `${concept_count} concept(s) ready to animate. Review and continue when ready.`,
-                allowFreeform: true
+                question: `${concept_count} concept(s) ready. Choose video orientation to continue.`,
+                choices: [
+                  { id: "horizontal", label: "Horizontal (16:9)" },
+                  { id: "vertical", label: "Vertical (9:16)" }
+                ],
+                allowFreeform: false
               }
             );
             return {
@@ -38262,10 +38334,12 @@ ${retryHint}` : userMessage
               ...written
             };
           }
+          await persistOrientation(ctx.sessionId, "horizontal");
           return {
             concepts_url: conceptsUrl,
             concepts,
-            concept_count
+            concept_count,
+            orientation: "horizontal"
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -38504,15 +38578,16 @@ var plannedSegmentSchema = external_exports2.object({
   manim_index: external_exports2.number().optional(),
   concept_name: external_exports2.string().optional()
 });
-async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId) {
+async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, orientation = "horizontal") {
   import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "compositions", "components"), { recursive: true });
   import_fs9.default.mkdirSync(import_path9.default.join(projectDir, "assets"), { recursive: true });
   import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "index.html"), htmlContent);
+  const { width, height } = canvasForOrientation(orientation);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
     name: "Educational Video",
-    width: 1920,
-    height: 1080,
+    width,
+    height,
     fps: 30
   };
   import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
@@ -38584,7 +38659,8 @@ function createHyperframesTools(ctx) {
           })
         ),
         total_duration: external_exports2.number(),
-        brand_colors: brandColorsSchema.optional()
+        brand_colors: brandColorsSchema.optional(),
+        orientation: external_exports2.enum(["horizontal", "vertical"]).optional().describe("Canvas orientation \u2014 reads session when omitted; defaults horizontal")
       }),
       execute: async ({
         speaker_video_url,
@@ -38592,12 +38668,16 @@ function createHyperframesTools(ctx) {
         manim_clips,
         transcript_words,
         total_duration,
-        brand_colors
+        brand_colors,
+        orientation: orientationArg
       }) => {
         assertTaggedUrlAllowed(speaker_video_url, ctx.taggedArtifacts);
         if (speaker_audio_url) {
           assertTaggedUrlAllowed(speaker_audio_url, ctx.taggedArtifacts);
         }
+        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
+        const { width, height } = canvasForOrientation(orientation);
+        const templateDir = templateDirFor(orientation);
         const storedPlan = await getHfSegmentsPlan(ctx.userId, ctx.sessionId);
         if (!storedPlan?.segments?.length) {
           throw new Error("No segment plan found. Call plan_segments first.");
@@ -38608,7 +38688,7 @@ function createHyperframesTools(ctx) {
         const brandCss = buildBrandCssVars(colors);
         const projectDir = import_path9.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
         await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
-        import_fs9.default.cpSync(EDU_VIDEO_TEMPLATE_DIR, projectDir, { recursive: true });
+        import_fs9.default.cpSync(templateDir, projectDir, { recursive: true });
         const words = loadSessionTranscriptWords(ctx.sessionId, transcript_words);
         const assetsDir = import_path9.default.join(projectDir, "assets");
         import_fs9.default.mkdirSync(assetsDir, { recursive: true });
@@ -38662,9 +38742,10 @@ function createHyperframesTools(ctx) {
           sectionMeta.push(built.meta);
           import_fs9.default.writeFileSync(import_path9.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
         }
-        const segmentWiring = buildSegmentWiring(segments, sectionMeta);
+        const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
         const manimClipsHtml = buildManimClipsHtml(manim_clips);
-        const speakerGsap = buildSpeakerGsap(segments);
+        const speakerGsap = buildSpeakerGsap(segments, orientation);
+        const captionPosGsap = buildCaptionPosGsap(segments, orientation);
         const manimGsap = buildManimGsap(segments);
         const captionsJson = JSON.stringify(groupCaptionWords(words));
         const indexRootPath = import_path9.default.join(projectDir, "index-root.html");
@@ -38682,7 +38763,8 @@ function createHyperframesTools(ctx) {
         const captionsHtml = substitutePlaceholders(import_fs9.default.readFileSync(captionsPath, "utf-8"), {
           CAPTIONS_JSON: captionsJson,
           TOTAL_DURATION: String(effectiveDuration),
-          BRAND_CSS_VARS: brandCss
+          BRAND_CSS_VARS: brandCss,
+          CAPTION_POS_GSAP: captionPosGsap
         });
         import_fs9.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
         import_fs9.default.writeFileSync(import_path9.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
@@ -38694,9 +38776,10 @@ function createHyperframesTools(ctx) {
         const meta = {
           id: `edu-${ctx.sessionId.slice(0, 8)}`,
           total_duration: effectiveDuration,
-          width: 1920,
-          height: 1080,
-          fps: 30
+          width,
+          height,
+          fps: 30,
+          orientation
         };
         import_fs9.default.writeFileSync(import_path9.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
         import_fs9.default.rmSync(import_path9.default.join(projectDir, "index-root.html"), { force: true });
@@ -38716,7 +38799,8 @@ function createHyperframesTools(ctx) {
           colors,
           segments,
           sectionMeta,
-          manim_clips
+          manim_clips,
+          orientation
         });
         import_fs9.default.writeFileSync(
           import_path9.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
@@ -38734,7 +38818,10 @@ function createHyperframesTools(ctx) {
         );
         return {
           project_dir: projectDir,
-          composition_url: indexUrl
+          composition_url: indexUrl,
+          orientation,
+          width,
+          height
         };
       }
     }),
@@ -38747,6 +38834,8 @@ function createHyperframesTools(ctx) {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
           const projectDir = import_path9.default.join(workdir, "hf-project");
+          const orientation = await getSessionOrientation(ctx.sessionId);
+          const { width, height, aspectRatio } = canvasForOrientation(orientation);
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
           const hasLocalProject = import_fs9.default.existsSync(import_path9.default.join(projectDir, "index.html"));
           if (!hasLocalProject) {
@@ -38754,7 +38843,7 @@ function createHyperframesTools(ctx) {
             const htmlPath = import_path9.default.join(projectDir, "index.html");
             await downloadFile(composition_url, htmlPath);
             const htmlContent = import_fs9.default.readFileSync(htmlPath, "utf-8");
-            await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId);
+            await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId, orientation);
           }
           const cliPath = process.env.HYPERFRAMES_CLI ?? "/opt/hyperframes/packages/cli/dist/cli.js";
           const hfCliSkill = loadSkillFile("hyperframes/hyperframes-cli/SKILL.md");
@@ -38831,7 +38920,11 @@ function createHyperframesTools(ctx) {
             } finally {
               import_fs9.default.rmSync(zipPath, { force: true });
             }
-            const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 --resolution 1080p --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
+            const cloudFlags = cloudRenderFlags(orientation);
+            const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 ${cloudFlags} --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
+            console.log(
+              `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
+            );
             const cloudResult = await execCommand(cloudCmd, {
               cwd: projectDir,
               timeoutSeconds: 600
@@ -38843,7 +38936,7 @@ function createHyperframesTools(ctx) {
             }
             const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
             console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(" ")[0]}`
+              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(" ")[0]} ${cloudFlags}`
             );
             const job2 = await persistRenderJob(ctx.userId, ctx.sessionId, {
               executionArn: renderId,
@@ -38886,8 +38979,8 @@ function createHyperframesTools(ctx) {
             outputKey,
             config: {
               fps: 30,
-              width: 1920,
-              height: 1080,
+              width,
+              height,
               format: "mp4",
               chunkSize: 240,
               maxParallelChunks: 2,
@@ -38922,11 +39015,42 @@ init_dist5();
 init_zod();
 init_storage();
 init_firebase();
+
+// src/tools/lib/manimOrientation.ts
+function buildManimRenderCmd(opts) {
+  const parts = [
+    "manim",
+    "render",
+    "-ql",
+    ...opts.orientation === "vertical" ? ["--resolution", "1080,1080"] : [],
+    "--output_file",
+    "output.mp4",
+    "--media_dir",
+    opts.outputDir,
+    opts.scriptPath,
+    opts.className
+  ];
+  return parts.join(" ");
+}
+function assertSquareManimFrame(script) {
+  const w = script.match(/config\.frame_width\s*=\s*([\d.]+)/);
+  const h = script.match(/config\.frame_height\s*=\s*([\d.]+)/);
+  if (!w || !h) {
+    return "vertical Manim scripts must set config.frame_width and config.frame_height to equal values (e.g. 8)";
+  }
+  if (Number(w[1]) !== Number(h[1])) {
+    return `vertical Manim frame_width (${w[1]}) must equal frame_height (${h[1]})`;
+  }
+  return null;
+}
+
+// src/tools/pipeline/manim.ts
 var brandColorsSchema2 = external_exports2.object({
   primary: external_exports2.string(),
   accent: external_exports2.string(),
   bg_dark: external_exports2.string()
 });
+var orientationSchema = external_exports2.enum(["horizontal", "vertical"]);
 function manimSafeName(conceptName) {
   let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   if (/^[0-9]/.test(safe)) {
@@ -38983,27 +39107,34 @@ function createManimTools(ctx) {
         window_seconds: external_exports2.number().describe(
           "Mode A window length in seconds (end_seconds - start_seconds) \u2014 informational pacing context only, not a target"
         ),
-        brand_colors: brandColorsSchema2.optional().describe("Optional brand palette \u2014 same values as scaffold_hf_project; defaults match edu-video templates")
+        brand_colors: brandColorsSchema2.optional().describe("Optional brand palette \u2014 same values as scaffold_hf_project; defaults match edu-video templates"),
+        orientation: orientationSchema.optional().describe("horizontal = 16:9 defaults; vertical = square frame units required. Session wins if omitted.")
       }),
-      execute: async ({ concept_name, explanation, window_seconds, brand_colors }) => {
+      execute: async ({ concept_name, explanation, window_seconds, brand_colors, orientation: orientationArg }) => {
         const safeName = manimSafeName(concept_name);
         const className = `Scene${safeName}`;
         const colors = resolveBrandColors(brand_colors);
         const palettePrompt = buildManimPalettePrompt(colors);
+        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
         const manimSkill = loadSkillFile("manim-video/SKILL.md");
         const troubleshooting = loadSkillFile("manim-video/references/troubleshooting.md");
         const animations = loadSkillFile("manim-video/references/animations.md");
         const productionQuality = loadSkillFile("manim-video/references/production-quality.md");
         const conceptRef = loadSkillFile(selectManimReference(explanation));
+        const squareFrameRules = orientation === "vertical" ? `
+- VERTICAL orientation (mandatory): near the top of the file after imports, set a square Manim coordinate space:
+  config.frame_width = 8
+  config.frame_height = 8
+  (equal numeric values required \u2014 layout must be 1:1, not leftover 16:9 frame units)` : "";
         const systemPrompt = `You are a Manim CE expert. Write a single Python script for one animation scene. Return ONLY valid Python code. No markdown fences. No explanation. No comments except inline code comments.
 The script MUST:
 - Import from manim: from manim import *
-- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker) \u2014 copy verbatim, do not paraphrase
+- Start with the Anti-overlap boilerplate from SKILL.md (MAX_VISIBLE, safe_text, clear_scene, VisibleTracker, padded_label_box, padded_label_circle) \u2014 copy verbatim, do not paraphrase
 - All Text() via safe_text(), not raw Text(); call clear_scene(self) before new concept content; instantiate tracker = VisibleTracker(), call tracker.show(key, mobject) when adding, tracker.hide(key) when removing, and tracker.check() after every self.play() that adds mobjects
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
-${palettePrompt}
+${palettePrompt}${squareFrameRules}
 - Use self.wait() after every animation
 - End by holding the finished visual state with a generous self.wait() \u2014 reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
@@ -39012,6 +39143,10 @@ ${palettePrompt}
 - Equation structure change (add frac, wrap softmax, reshape): FadeOut+Write or FadeTransform \u2014 TransformMatchingTex only with substrings_to_isolate; never bare Transform between dissimilar MathTex
 - Labels under MathTex: next_to(..., DOWN, buff>=0.6); under fractions buff>=0.8
 - Annotation / SurroundingRectangle labels: never next_to(highlight, RIGHT) when sibling terms sit there \u2014 use UP/DOWN/Brace or left of the whole equation
+- Enclosing shapes: never fixed small Circle/RoundedRectangle then cram text \u2014 build text first; use padded_label_box / padded_label_circle (or SurroundingRectangle buff>=0.35 / Circle radius=max(w,h)/2+0.35). Prefer boxes for multi-word/multi-line; Circles only for short 1\u20132 word nodes
+- SurroundingRectangle / BackgroundRectangle: buff>=0.35 (never 0.1); single MathTex token highlights may use buff>=0.25
+- Diagram nodes: arrange/next_to peer buff>=0.5; title \u2194 diagram buff>=0.6 (or title.to_edge(UP) then clear gap below)
+- Arrows into labeled nodes: tip buff>=0.15 so tip stops outside the shape, not through the glyph
 - Write()/Create() require VMobject \u2014 Group() (Text mixed with MathTex/Matrix/shapes) is NOT a VMobject and fails with TypeError; use FadeIn() for any Group containing Text; VGroup() is fine with Write()/Create() only when ALL members are VMobjects (no raw Text)
 - MAX_VISIBLE = 6 is immutable \u2014 never raise it; on density assert Group related eqs, FadeOut spent labels/rects, or clear_scene between beats
 - Do not deduce or explain why self.mobjects/tracker.items returned a particular count \u2014 on VisibleTracker assert, immediately (a) tracker.hide() spent items before adding new ones, or (b) combine into one tracked unit with a single tracker.show(); do not spend turns reasoning about the exact number`;
@@ -39078,6 +39213,35 @@ ${cleanScript}`
             throw new Error(maxVisibleError);
           }
         }
+        if (orientation === "vertical") {
+          let frameErr = assertSquareManimFrame(cleanScript);
+          if (frameErr) {
+            console.error(`Manim square-frame check failed for ${concept_name}:`, frameErr);
+            userPrompt = `${baseUserPrompt}
+
+The previous script failed validation: ${frameErr}
+Add near the top after imports:
+config.frame_width = 8
+config.frame_height = 8
+Return corrected Python only.`;
+            scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
+            cleanScript = stripCodeFences(scriptText);
+            import_fs10.default.writeFileSync(validatePath, cleanScript);
+            validation = validatePythonSyntax(validatePath);
+            if (!validation.ok) {
+              throw new Error(
+                `Manim script syntax validation failed: ${validation.error}
+
+Script:
+${cleanScript}`
+              );
+            }
+            frameErr = assertSquareManimFrame(cleanScript);
+            if (frameErr) {
+              throw new Error(frameErr);
+            }
+          }
+        }
         const scriptDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
         import_fs10.default.mkdirSync(scriptDir, { recursive: true });
         const scriptPath = import_path10.default.join(scriptDir, `${safeName}.py`);
@@ -39107,7 +39271,8 @@ ${cleanScript}`
         class_name: external_exports2.string().describe("Scene class name from generate_manim_script e.g. SceneMyTopic"),
         concept_name: external_exports2.string(),
         start_seconds: external_exports2.number(),
-        end_seconds: external_exports2.number()
+        end_seconds: external_exports2.number(),
+        orientation: orientationSchema.optional().describe("Must match generate_manim_script; session wins if omitted")
       }),
       execute: async ({
         script,
@@ -39115,12 +39280,14 @@ ${cleanScript}`
         class_name,
         concept_name,
         start_seconds,
-        end_seconds
+        end_seconds,
+        orientation: orientationArg
       }) => {
         const safeName = class_name.replace("Scene", "");
         const resolvedScriptPath = script_path ? resolveToolPath(ctx.sessionId, script_path) : getTempPath(`${ctx.sessionId}_${safeName}.py`);
         const wroteTempScript = !script_path;
         const outputDir = getTempPath(`manim_${ctx.sessionId}_${safeName}`);
+        const orientation = orientationArg ?? await getSessionOrientation(ctx.sessionId);
         try {
           if (script_path) {
             if (!import_fs10.default.existsSync(resolvedScriptPath)) {
@@ -39136,17 +39303,21 @@ ${cleanScript}`
           } else {
             import_fs10.default.writeFileSync(resolvedScriptPath, script);
           }
-          const cmd = [
-            "manim",
-            "render",
-            "-ql",
-            "--output_file",
-            "output.mp4",
-            "--media_dir",
+          if (orientation === "vertical") {
+            const scriptText = import_fs10.default.readFileSync(resolvedScriptPath, "utf-8");
+            const frameErr = assertSquareManimFrame(scriptText);
+            if (frameErr) {
+              throw new Error(
+                `${frameErr}. Patch the script (config.frame_width == config.frame_height) then re-render \u2014 do not render square pixels with landscape frame units.`
+              );
+            }
+          }
+          const cmd = buildManimRenderCmd({
+            scriptPath: resolvedScriptPath,
+            className: class_name,
             outputDir,
-            resolvedScriptPath,
-            class_name
-          ].join(" ");
+            orientation
+          });
           const renderResult = await execCommand(cmd, { timeoutSeconds: 600 });
           if (!renderResult.success) {
             throw new Error(
@@ -39690,6 +39861,9 @@ async function runAgent(params) {
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
         conceptsResumeForce = isConceptsApproveChoiceResume(resumeCheckpoint);
         if (conceptsResumeForce) {
+          const choiceId = resumeCheckpoint.answer?.choiceId;
+          const orientation = choiceId === "vertical" || choiceId === "horizontal" ? choiceId : "horizontal";
+          await persistOrientation(params.sessionId, orientation);
           const hint = firstConceptResumeHint(params.sessionId);
           if (hint) {
             resumeSystemAppend = `${resumeSystemAppend}

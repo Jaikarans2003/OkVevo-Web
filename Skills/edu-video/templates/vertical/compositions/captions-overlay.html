@@ -2,9 +2,10 @@
   <div
     id="captions-overlay"
     data-composition-id="captions-overlay"
+    data-pos="bottom"
     data-start="0"
-    data-width="1920"
-    data-height="1080"
+    data-width="1080"
+    data-height="1920"
     data-duration="{{TOTAL_DURATION}}"
   >
     <style>
@@ -13,7 +14,7 @@
       /* Bundled for HyperFrames Cloud — system/apt fonts are not on the cloud render path */
       @font-face {
         font-family: 'Noto Sans Kannada';
-        src: url('../assets/fonts/NotoSansKannada-Bold.woff2') format('woff2');
+        src: url('assets/fonts/NotoSansKannada-Bold.woff2') format('woff2');
         font-weight: 700;
         font-style: normal;
         font-display: block;
@@ -21,14 +22,13 @@
 
       #captions-overlay {
         position: relative;
-        width: 1920px;
-        height: 1080px;
+        width: 1080px;
+        height: 1920px;
         overflow: visible;
         background: transparent;
         pointer-events: none;
       }
 
-      /* caption-highlight catalog patterns */
       #captions-overlay #hl-container {
         position: absolute;
         inset: 0;
@@ -36,29 +36,42 @@
         pointer-events: none;
       }
 
+      /* Shared group chrome. Position via data-pos: Mode C bottom, Mode A mid-gap. */
       #captions-overlay .hl-group {
         position: absolute;
-        bottom: 56px;
         left: 0;
         right: 0;
         width: 100%;
-        max-width: 1400px;
+        max-width: 980px;
         margin: 0 auto;
         display: flex;
         flex-wrap: nowrap;
-        align-items: flex-end;
+        align-items: center;
         justify-content: center;
         gap: 6px;
         padding: 0;
-        font-size: 42px;
+        font-size: 36px;
         line-height: 1.15;
         white-space: nowrap;
         opacity: 0;
         visibility: hidden;
       }
 
+      /* Mode C default: lower third, clear of face */
+      #captions-overlay[data-pos="bottom"] .hl-group {
+        top: auto;
+        bottom: 160px;
+        transform: none;
+      }
+
+      /* Mode A: center gap between manim/speaker pods */
+      #captions-overlay[data-pos="mid"] .hl-group {
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+      }
+
       #captions-overlay .hl-word {
-        /* Inter for Latin; Noto Sans Kannada via @font-face for Indic glyphs */
         font-family: 'Inter', 'Noto Sans Kannada', system-ui, sans-serif;
         font-weight: 800;
         font-size: inherit;
@@ -150,7 +163,7 @@
               return String(w.text || '').toUpperCase();
             })
             .join(' ');
-          var computedSize = fitFontSize(groupText, 42, '800', brandFont, 1400);
+          var computedSize = fitFontSize(groupText, 36, '800', brandFont, 980);
 
           words.forEach(function (w, wi) {
             var wordEl = document.createElement('span');
@@ -176,8 +189,6 @@
           tl.set(grp, { visibility: 'visible' }, g.start);
           tl.fromTo(grp, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: 'power2.out' }, g.start);
 
-          // Seek-safe karaoke: exactly one active word — demote on NEXT word start, not w.end.
-          // (Tweening bg at w.end overlaps the next word when timestamps are tight.)
           words.forEach(function (w, wi) {
             var wordEl = document.getElementById('hl-w-' + gi + '-' + wi);
             if (!wordEl) return;
@@ -205,6 +216,9 @@
           tl.to(grp, { opacity: 0, duration: 0.1, ease: 'power2.in' }, g.end - 0.1);
           tl.set(grp, { opacity: 0, visibility: 'hidden' }, g.end);
         });
+
+        /* {{CAPTION_POS_GSAP}} — Mode A mid / Mode C bottom; stamped at scaffold */
+        {{CAPTION_POS_GSAP}}
 
         tl.set({}, {}, TOTAL_DURATION);
         tl.seek(0);

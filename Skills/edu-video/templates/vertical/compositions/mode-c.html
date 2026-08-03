@@ -1,0 +1,64 @@
+<template id="seg-mode-c-template">
+  <div
+    id="{{SEGMENT_ID}}"
+    data-composition-id="{{SEGMENT_ID}}"
+    data-start="0"
+    data-width="1080"
+    data-height="1920"
+    data-duration="{{SEGMENT_DURATION}}"
+  >
+    <div id="brand-bg"></div>
+    <div id="speaker-float"></div>
+
+    <style>
+      {{BRAND_CSS_VARS}}
+
+      #{{SEGMENT_ID}} {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+      }
+
+      #{{SEGMENT_ID}} #brand-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background: linear-gradient(
+          135deg,
+          var(--brand-bg-dark, #0a0a0a) 0%,
+          var(--brand-primary, #f97316) 45%,
+          var(--brand-secondary, var(--brand-primary, #f97316)) 100%
+        );
+      }
+
+      /* Edge-to-edge speaker marker (matches root FS) */
+      #{{SEGMENT_ID}} #speaker-float {
+        position: absolute;
+        inset: 0;
+        width: 1080px;
+        height: 1920px;
+        border-radius: 0;
+        overflow: hidden;
+        box-shadow: none;
+        border: none;
+        z-index: 1;
+        pointer-events: none;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        const SEGMENT_DURATION = {{SEGMENT_DURATION}};
+        const tl = gsap.timeline({ paused: true });
+
+        {{MODE_GSAP}}
+
+        tl.set({}, {}, SEGMENT_DURATION);
+        window.__timelines = window.__timelines || {};
+        window.__timelines['{{SEGMENT_ID}}'] = tl;
+      })();
+    </script>
+  </div>
+</template>

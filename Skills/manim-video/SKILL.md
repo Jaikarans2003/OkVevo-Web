@@ -209,9 +209,22 @@ class VisibleTracker:
             f"{len(self.items)} tracked visible items ({list(self.items)}), "
             f"max is {MAX_VISIBLE} — hide() some before adding more"
         )
+
+# After PRIMARY / MONO are defined (palette block below):
+def padded_label_box(text, color=None, font_size=28, buff=0.35):
+    label = safe_text(text, font_size=font_size, color=color or PRIMARY, font=MONO)
+    box = SurroundingRectangle(label, color=color or PRIMARY, buff=buff, corner_radius=0.15)
+    return VGroup(box, label)
+
+def padded_label_circle(text, color=None, font_size=28, pad=0.35):
+    label = safe_text(text, font_size=font_size, color=color or PRIMARY, font=MONO)
+    r = max(label.width, label.height) / 2 + pad
+    ring = Circle(radius=r, color=color or PRIMARY)
+    label.move_to(ring)
+    return VGroup(ring, label)
 ```
 
-**Rules:** All `Text()` calls go through `safe_text()`, not raw `Text()`. Call `clear_scene(self)` before introducing a new concept's content. Instantiate `tracker = VisibleTracker()`, call `tracker.show(key, mobject)` when adding content, `tracker.hide(key)` when removing it, and `tracker.check()` after every `self.play()` that adds mobjects.
+**Rules:** All `Text()` calls go through `safe_text()`, not raw `Text()`. Call `clear_scene(self)` before introducing a new concept's content. Instantiate `tracker = VisibleTracker()`, call `tracker.show(key, mobject)` when adding content, `tracker.hide(key)` when removing it, and `tracker.check()` after every `self.play()` that adds mobjects. Define palette (`PRIMARY`, `MONO`, …) before calling `padded_label_box` / `padded_label_circle`. Diagram node labels go through these helpers (or equivalent size-from-text), not bare `Circle(radius=0.4)+Text`.
 
 ```python
 from manim import *
@@ -248,6 +261,18 @@ PRIMARY = "#58C4DD"
 SECONDARY = "#83C167"
 ACCENT = "#FFFF00"
 MONO = "JetBrains Mono"
+
+def padded_label_box(text, color=None, font_size=28, buff=0.35):
+    label = safe_text(text, font_size=font_size, color=color or PRIMARY, font=MONO)
+    box = SurroundingRectangle(label, color=color or PRIMARY, buff=buff, corner_radius=0.15)
+    return VGroup(box, label)
+
+def padded_label_circle(text, color=None, font_size=28, pad=0.35):
+    label = safe_text(text, font_size=font_size, color=color or PRIMARY, font=MONO)
+    r = max(label.width, label.height) / 2 + pad
+    ring = Circle(radius=r, color=color or PRIMARY)
+    label.move_to(ring)
+    return VGroup(ring, label)
 
 class Scene1_Introduction(Scene):
     def construct(self):
@@ -350,6 +375,15 @@ self.play(ReplacementTransform(note1, note2))  # not Write(note2) on top
 - **Labels under MathTex**: `next_to(..., DOWN, buff>=0.6)`; under fractions `buff>=0.8` (or bottom note zone). Edge buff rule stays separate.
 - **Annotations / SurroundingRectangle labels**: never place `next_to(highlight, RIGHT)` when sibling terms sit there — use `UP`/`DOWN`/`Brace`, or left of the whole equation block.
 - **`MAX_VISIBLE = 6` is immutable** — never change the constant. On assert: Group related eqs into one VGroup, FadeOut spent labels/rects, or `clear_scene` between beats.
+
+### Enclosing shapes / diagram spacing
+
+- **Never** fixed small `Circle`/`RoundedRectangle` then cram text. Build text first; wrap with `SurroundingRectangle(label, buff>=0.35)` or size the circle from text: `Circle(radius=max(label.width, label.height)/2 + 0.35)`. Prefer `padded_label_box` / `padded_label_circle`.
+- Prefer `SurroundingRectangle` / `RoundedRectangle` for multi-word or multi-line labels; Circles only for short 1–2 word nodes with the radius rule above.
+- `SurroundingRectangle` / `BackgroundRectangle`: **`buff >= 0.35`** (never 0.1). Highlights on single MathTex tokens may use **`buff >= 0.25`**.
+- Diagram nodes: `arrange` / `next_to` between peer nodes **`buff >= 0.5`**; title ↔ diagram **`buff >= 0.6`** (or `title.to_edge(UP)` then diagram below with clear gap).
+- Arrows into labeled nodes: tip **`buff >= 0.15`** so tip stops outside the shape (not through the glyph).
+- Keep FadeOut-before-replace + MathTex label rules above.
 
 
 

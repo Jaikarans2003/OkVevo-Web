@@ -117,7 +117,7 @@ assert.throws(
   /Overlapping segments/
 );
 
-// --- mid-gap Mode C threshold (MIN_MODE_C_GAP_SECONDS = 1.5, strict >) ---
+// --- mid-gap Mode C threshold (MIN_MODE_C_GAP_SECONDS = 3, inclusive >=) ---
 
 // Session: five back-to-back clips → only leading + trailing Mode C
 const sessionDuration = 120;
@@ -166,11 +166,30 @@ assert.deepEqual(
   '0.5s mid gap must be absorbed into previous Mode A'
 );
 
-// Boundary: gap == 1.5 → absorb (strict >, not >=)
+// Below threshold: gap == 2.9 → absorb (no Mode C)
+const belowSegments = buildDeterministicSegments(
+  [
+    { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
+    { concept_name: 'b', start_seconds: 12.9, end_seconds: 15 },
+  ],
+  20
+);
+assert.deepEqual(
+  belowSegments.map((s) => [s.start, s.end, s.mode]),
+  [
+    [0, 5, 'C'],
+    [5, 12.9, 'A'],
+    [12.9, 15, 'A'],
+    [15, 20, 'C'],
+  ],
+  'gap == 2.9 must be absorbed into previous Mode A'
+);
+
+// Boundary: gap == 3 → Mode C (inclusive >=)
 const boundarySegments = buildDeterministicSegments(
   [
     { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
-    { concept_name: 'b', start_seconds: 11.5, end_seconds: 15 },
+    { concept_name: 'b', start_seconds: 13, end_seconds: 15 },
   ],
   20
 );
@@ -178,18 +197,19 @@ assert.deepEqual(
   boundarySegments.map((s) => [s.start, s.end, s.mode]),
   [
     [0, 5, 'C'],
-    [5, 11.5, 'A'],
-    [11.5, 15, 'A'],
+    [5, 10, 'A'],
+    [10, 13, 'C'],
+    [13, 15, 'A'],
     [15, 20, 'C'],
   ],
-  'gap == 1.5 must be absorbed into previous Mode A'
+  'gap == 3 must emit Mode C'
 );
 
-// gap > 1.5 → Mode C
+// gap > 3 → Mode C
 const gapSegments = buildDeterministicSegments(
   [
     { concept_name: 'a', start_seconds: 5, end_seconds: 10 },
-    { concept_name: 'b', start_seconds: 12, end_seconds: 15 },
+    { concept_name: 'b', start_seconds: 14, end_seconds: 15 },
   ],
   20
 );
@@ -198,11 +218,11 @@ assert.deepEqual(
   [
     [0, 5, 'C'],
     [5, 10, 'A'],
-    [10, 12, 'C'],
-    [12, 15, 'A'],
+    [10, 14, 'C'],
+    [14, 15, 'A'],
     [15, 20, 'C'],
   ],
-  'gap > 1.5 must emit Mode C'
+  'gap > 3 must emit Mode C'
 );
 
 console.log('check-planning: OK');

@@ -10,7 +10,7 @@ Draws a rectangle around any mobject. The go-to for highlighting:
 highlight = SurroundingRectangle(
     equation[2],            # the term to highlight
     color=YELLOW,
-    buff=0.15,              # padding between content and border
+    buff=0.35,              # enclose pad; token highlight may use >= 0.25
     corner_radius=0.1,      # rounded corners
     stroke_width=2
 )
@@ -23,9 +23,9 @@ self.play(FadeOut(highlight))
 
 ```python
 eq = MathTex(r"E", r"=", r"m", r"c^2")
-box = SurroundingRectangle(eq[2:], color=YELLOW, buff=0.1)  # highlight "mc²"
+box = SurroundingRectangle(eq[2:], color=YELLOW, buff=0.25)  # token highlight >= 0.25
 label = Text("mass-energy", font_size=18, font="Menlo", color=YELLOW)
-label.next_to(box, DOWN, buff=0.2)
+label.next_to(box, DOWN, buff=0.35)
 self.play(Create(box), FadeIn(label))
 ```
 
@@ -34,7 +34,7 @@ self.play(Create(box), FadeIn(label))
 Semi-transparent background behind text for readability over complex scenes:
 
 ```python
-bg = BackgroundRectangle(equation, fill_opacity=0.7, buff=0.2, color=BLACK)
+bg = BackgroundRectangle(equation, fill_opacity=0.7, buff=0.35, color=BLACK)
 self.play(FadeIn(bg), Write(equation))
 
 # Or using set_stroke for a "backdrop" effect on the text itself:
@@ -79,7 +79,7 @@ arrow = Arrow(
     end=target.get_top(),
     color=YELLOW,
     stroke_width=2,
-    buff=0.1,                    # gap between arrow tip and target
+    buff=0.15,                   # tip stops outside target (never through glyph)
     max_tip_length_to_length_ratio=0.15  # small arrowhead
 )
 self.play(GrowArrow(arrow), FadeIn(label))
@@ -181,7 +181,7 @@ Layer multiple annotations for emphasis:
 
 ```python
 # Highlight a term, add a brace, and an arrow — in sequence
-box = SurroundingRectangle(eq[2], color=YELLOW, buff=0.1)
+box = SurroundingRectangle(eq[2], color=YELLOW, buff=0.25)  # token highlight >= 0.25
 brace = Brace(eq[2], DOWN, color=YELLOW)
 label = brace.get_text("learning rate", font_size=18)
 

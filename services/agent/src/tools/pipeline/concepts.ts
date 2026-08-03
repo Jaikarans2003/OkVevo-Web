@@ -17,7 +17,7 @@ import {
   resolveNonOverlappingConcepts,
   type TimedConcept,
 } from '../../skills/eduVideo/planning';
-import { writeAskCheckpoint } from '../../checkpoint';
+import { persistOrientation, writeAskCheckpoint } from '../../checkpoint';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
 import type { ToolCtx } from '../index';
 
@@ -215,8 +215,12 @@ export function createConceptsTools(ctx: ToolCtx) {
               {
                 phase_label: 'Concepts extracted',
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
-                question: `${concept_count} concept(s) ready to animate. Review and continue when ready.`,
-                allowFreeform: true,
+                question: `${concept_count} concept(s) ready. Choose video orientation to continue.`,
+                choices: [
+                  { id: 'horizontal', label: 'Horizontal (16:9)' },
+                  { id: 'vertical', label: 'Vertical (9:16)' },
+                ],
+                allowFreeform: false,
               }
             );
             return {
@@ -227,10 +231,13 @@ export function createConceptsTools(ctx: ToolCtx) {
             };
           }
 
+          await persistOrientation(ctx.sessionId, 'horizontal');
+
           return {
             concepts_url: conceptsUrl,
             concepts,
             concept_count,
+            orientation: 'horizontal',
           };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);

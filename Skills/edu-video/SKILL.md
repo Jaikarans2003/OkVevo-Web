@@ -10,13 +10,20 @@ description: >
 
 # Edu-Video Pipeline — Orchestration Skill
 
-Transforms a teacher's video recording into a 1920×1080 educational video.
+Transforms a teacher's video recording into an educational video (horizontal 1920×1080 or vertical 1080×1920).
 Every extracted concept is animated with Manim. HyperFrames assembles and renders the final composite — no per-segment creative HTML generation.
+
+**Orientation:** Ask-Me mode offers Horizontal / Vertical on the Concepts extracted checkpoint (forced choice). Auto-Run silently uses horizontal. Session field `orientation` drives Manim (vertical = square 1080×1080 pixels + equal `config.frame_width`/`frame_height`) and which template tree is copied.
 
 Two display modes, auto-assigned per transcript segment:
 
-- **Mode A:** Ambient gradient background + Manim animation centered 85% canvas + speaker circular PIP bottom-right (237px) + karaoke captions
-- **Mode C:** Ambient gradient background + speaker video centered 65% canvas + karaoke captions
+**Horizontal (16:9):**
+- **Mode A:** Ambient gradient + Manim centered 85% canvas + speaker circular PIP bottom-right (237px) + karaoke captions
+- **Mode C:** Ambient gradient + speaker video centered 65% canvas + karaoke captions
+
+**Vertical (9:16):**
+- **Mode A:** Square Manim pod top ~50% + speaker rounded bottom ~50% + captions in the center gap (plain rounded corners, no liquid-glass)
+- **Mode C:** Edge-to-edge speaker + bottom captions (Mode A mid-gap captions unchanged; no liquid-glass)
 
 Mode C covers intros, transitions, narrative, and any time not covered by a successful Manim clip. Zero concepts on a very short or meta-only recording is valid (all Mode C).
 
@@ -24,7 +31,7 @@ Mode C covers intros, transitions, narrative, and any time not covered by a succ
 
 These apply **only in Ask-Me mode** (`pipelineMode: ask`). In Auto-Run mode, do not call `ask_clarification` for routine phase boundaries — proceed autonomously.
 
-**Mandatory:** Ask-Me mode auto-pauses after `extract_concepts` (tool-enforced checkpoint). Do not call `ask_clarification` again for concepts — wait for the user to continue from the checkpoint card.
+**Mandatory:** Ask-Me mode auto-pauses after `extract_concepts` (tool-enforced checkpoint with Horizontal / Vertical orientation choices). Do not call `ask_clarification` again for concepts — wait for the user to pick orientation from the checkpoint card.
 
 In Ask-Me mode, **consider** calling `ask_clarification` after each major milestone when you want the user to review before continuing:
 
@@ -66,7 +73,7 @@ colleague updating you mid-build — not a bullet card.
 Examples (adapt to actual results; never invent numbers):
 
 - Transcription: “Got the transcript — about 12 minutes, roughly 1,800 words. Pulling out the concepts worth animating next.”
-- Concepts: “Found 4 concepts worth animating. I’ll generate and render those animations next.”
+- Concepts: “Found 4 concepts worth animating — pick horizontal or vertical and I’ll generate those animations next.”
 - Animations: “Animations are ready. Lining up the timeline so each clip lands with the right segment.”
 - Timeline: “Timeline’s set. Setting up the video composition next.”
 - Scaffold: “Your video’s structure is ready. Kicking off the final render in the background.”
@@ -162,9 +169,10 @@ Pass:
 
 What scaffold_hf_project does (deterministic, zero LLM calls):
 
-- Copies template scaffold from Skills/edu-video/templates/
+- Copies template scaffold from `Skills/edu-video/templates/{horizontal|vertical}/` based on session orientation
 - For Mode A and C segments: uses mode-a.html / mode-c.html templates
 - Injects all segment wiring, Manim clip HTML, speaker GSAP transitions, Manim show/hide on the root timeline, karaoke captions
+- Writes orientation into meta.json and COMPOSITION_MANIFEST.json
 - Downloads speaker video, always normalizes to ≤1080p H.264 (CRF 20, 30fps, no audio track), extracts audio.mp3 from the raw download, then downloads Manim clips to assets/
 - If normalized speaker still exceeds ~180MB → fail; tell user one plain sentence (see On Failure)
 - Writes COMPOSITION_MANIFEST.json

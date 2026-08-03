@@ -2,7 +2,9 @@ import crypto from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase';
 import { isKnownSkill, resolveSessionSkillState } from './sessionSkills';
-import type { SessionArtifactNeed } from './tools/lib/utils';
+import type { SessionArtifactNeed, VideoOrientation } from './tools/lib/utils';
+
+export type { VideoOrientation };
 
 export type CheckpointPhase =
   | 'transcription'
@@ -169,7 +171,9 @@ export async function writeAskCheckpoint(
     phase_label?: string;
   }
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
-  const isPhaseGate = Boolean(input.phase_label);
+  // Choices need kind=question so CheckpointCard renders buttons (phase_gate = Continue only).
+  const hasChoices = Boolean(input.choices?.length);
+  const isPhaseGate = Boolean(input.phase_label) && !hasChoices;
   const allowFreeform = input.allowFreeform ?? true;
 
   const written = await writeCheckpointDoc(ctx, {
@@ -359,6 +363,18 @@ export async function persistPipelineMode(
   await db.collection('sessions').doc(sessionId).set({ pipelineMode }, { merge: true });
 }
 
+export async function persistOrientation(
+  sessionId: string,
+  orientation: VideoOrientation
+): Promise<void> {
+  await db.collection('sessions').doc(sessionId).set({ orientation }, { merge: true });
+}
+
+export async function getSessionOrientation(sessionId: string): Promise<VideoOrientation> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  return snap.data()?.orientation === 'vertical' ? 'vertical' : 'horizontal';
+}
+
 export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   const sessionRef = db.collection('sessions').doc(sessionId);
   const snap = await sessionRef.get();
@@ -385,11 +401,19 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
     ? `- User response: ${answer.type}: "${answer.text}"`
     : '- User response: (none recorded)';
 
+  const choiceId = answer?.choiceId;
+  const orientationChosen =
+    choiceId === 'horizontal' || choiceId === 'vertical' ? choiceId : null;
+
   const conceptsApproved =
     checkpoint.completedPhaseLabel === 'Concepts extracted'
       ? `
 - concepts.json is restored and user-approved. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
-- Do not ask for a video URL — transcription already completed; next step is Manim via concepts.json.`
+- Do not ask for a video URL — transcription already completed; next step is Manim via concepts.json.${
+          orientationChosen
+            ? `\n- Orientation chosen: ${orientationChosen}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
+            : ''
+        }`
       : '';
 
   return `

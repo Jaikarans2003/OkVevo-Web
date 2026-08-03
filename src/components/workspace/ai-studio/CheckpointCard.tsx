@@ -118,7 +118,7 @@ export function CheckpointCard({ data, disabled, onAnswer }: CheckpointCardProps
         <p className="mt-3 text-xs text-white/40">Waiting for response…</p>
       ) : null}
 
-      {!isAnswered && !disabled && (isQuestion || data.allowFreeform !== false) ? (
+      {!isAnswered && !disabled && data.allowFreeform !== false ? (
         <p className="mt-3 text-xs text-white/40">
           {isQuestion
             ? 'Or type your answer in the chat bar below.'

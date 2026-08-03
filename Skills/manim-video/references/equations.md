@@ -54,7 +54,7 @@ self.play(Write(parts[3:]))
 ## Highlighting
 
 ```python
-highlight = SurroundingRectangle(eq[2], color=YELLOW, buff=0.1)
+highlight = SurroundingRectangle(eq[2], color=YELLOW, buff=0.25)  # token highlight >= 0.25
 self.play(Create(highlight))
 self.play(Indicate(eq[4], color=YELLOW))
 ```

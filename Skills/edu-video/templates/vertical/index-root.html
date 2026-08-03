@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920" />
+  <link rel="stylesheet" href="assets/brand-tokens.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+    #stage {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: #000;
+    }
+    #manim-stage {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* Mode A: square Manim pod, top ~50% with minimal padding */
+    #manim-wrap {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 1032px;
+      height: 1032px;
+      max-height: calc(50% - 48px);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      pointer-events: none;
+      background: #000;
+    }
+    #manim-wrap video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: transparent;
+    }
+    /* Speaker: Mode C edge-to-edge (FS) / Mode A bottom half (BOTTOM) via GSAP */
+    #speaker-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1080px;
+      height: 1920px;
+      border-radius: 0;
+      z-index: 3;
+      overflow: hidden;
+      border: none;
+      box-shadow: none;
+    }
+    #speaker-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div
+    id="stage"
+    data-composition-id="root"
+    data-start="0"
+    data-duration="{{TOTAL_DURATION}}"
+    data-width="1080"
+    data-height="1920"
+  >
+    <audio
+      id="audio-master"
+      class="clip"
+      data-start="0"
+      data-duration="{{TOTAL_DURATION}}"
+      data-track-index="20"
+      data-volume="1.0"
+      src="assets/audio.mp3"
+    ></audio>
+
+    {{SEGMENT_WIRING}}
+
+    {{TRANSITION_WIRING}}
+
+    <div id="manim-stage">
+      <div id="manim-wrap">
+        {{MANIM_CLIPS}}
+      </div>
+    </div>
+
+    <div id="speaker-wrap">
+      <video
+        id="speaker-main"
+        class="clip"
+        data-start="0"
+        data-duration="{{TOTAL_DURATION}}"
+        data-track-index="3"
+        src="assets/speaker_noaudio.mp4"
+        muted
+        playsinline
+      ></video>
+    </div>
+
+    <div
+      id="captions"
+      data-composition-id="captions-overlay"
+      data-composition-src="compositions/captions-overlay.html"
+      data-start="0"
+      data-duration="{{TOTAL_DURATION}}"
+      data-track-index="5"
+      data-width="1080"
+      data-height="1920"
+    ></div>
+  </div>
+
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+
+    // Mode C: edge-to-edge speaker (no brand padding/chrome)
+    const FS = { top: 0, left: 0, xPercent: 0, yPercent: 0, width: 1080, height: 1920, borderRadius: 0, borderWidth: 0, boxShadow: 'none' };
+    // Mode A: bottom ~50% speaker pod (below square manim + caption gap)
+    const BOTTOM = { top: 1000, left: 24, xPercent: 0, yPercent: 0, width: 1032, height: 896, borderRadius: 24 };
+
+    /* {{SPEAKER_GSAP}} — stamped at scaffold */
+    {{SPEAKER_GSAP}}
+
+    /* MANIM_GSAP below is stamped by scaffold_hf_project */
+    {{MANIM_GSAP}}
+
+    {{LIQUID_GLASS_INIT}}
+
+    window.__timelines['root'] = tl;
+  </script>
+</body>
+</html>
