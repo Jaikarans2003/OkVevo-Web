@@ -6,7 +6,14 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { downloadFile, getSessionWorkdir } from '../lib/utils';
 import { getTempPath, uploadToStorage, writeAssetUrl, getAssetUrl } from '../../storage';
-import { formatDuration, getSessionRequestedLanguage, loadCheckpoint, writeAskCheckpoint } from '../../checkpoint';
+import {
+  formatDuration,
+  getSessionCaptionMode,
+  getSessionRequestedLanguage,
+  loadCheckpoint,
+  persistCaptionMode,
+  writeAskCheckpoint,
+} from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 import {
@@ -23,6 +30,12 @@ import {
   unlinkQuiet,
   type AudioWindow,
 } from '../lib/audioChunks';
+import {
+  flacMatchesVideo,
+  flacSourceUrlLocalPath,
+  writeFlacSourceUrl,
+} from '../lib/flacSourceUrl';
+import { invalidateFullAudio } from '../lib/ensureFullAudio';
 import {
   stitchChunkTranscripts,
   type ChunkTranscript,
@@ -363,12 +376,15 @@ async function ensureFlac(
   videoPath: string
 ): Promise<{ flacPath: string; durationSeconds: number }> {
   const flacPath = path.join(transcriptionDir(sessionId), 'audio.flac');
-  if (!fs.existsSync(flacPath)) {
+  if (!flacMatchesVideo(flacPath, videoUrl)) {
+    unlinkQuiet(flacPath);
+    unlinkQuiet(flacSourceUrlLocalPath(flacPath));
     logTmpDisk(sessionId, 'pre-extract');
     if (!fs.existsSync(videoPath)) {
       await downloadFile(videoUrl, videoPath);
     }
     await extractFlac(videoPath, flacPath);
+    writeFlacSourceUrl(flacPath, videoUrl);
     unlinkQuiet(videoPath);
     logTmpDisk(sessionId, 'post-extract');
   }
@@ -400,6 +416,12 @@ export function createTranscribeTools(ctx: ToolCtx) {
             });
             await clearTranscriptionProgress(ctx.sessionId);
             await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
+            await invalidateFullAudio(ctx.userId, ctx.sessionId);
+            cleanupTranscriptionLocals(ctx.sessionId);
+            const caption = await getSessionCaptionMode(ctx.sessionId);
+            if (caption.captionMode) {
+              await persistCaptionMode(ctx.sessionId, caption.captionMode, false);
+            }
             progress = null;
           }
 
