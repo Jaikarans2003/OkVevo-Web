@@ -39,19 +39,22 @@ import { signCallbackToken } from '../../callbackToken';
 import { formatDuration, getSessionOrientation, persistOrientation } from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
-import { db } from '../../firebase';
+import { db, getStorageBucketName } from '../../firebase';
 import {
   allocateFinalVideoBasename,
   getHfSegmentsPlan,
   getRenderJob,
+  listSessionAssetUrls,
   persistRenderJob,
   uploadDirectoryToStorage,
+  uploadFileToStorageKeepLocal,
   uploadToStorage,
   walkDir,
   writeAssetUrl,
   writeHfSegmentsPlan,
 } from '../../storage';
 import { listSessionManimClips } from '../lib/sessionManimClips';
+import { sanitizeTranscriptWords } from '../lib/transcriptSanitize';
 import {
   assertHtmlMatchesOrientation,
   manimFitNoteForClip,
@@ -60,10 +63,14 @@ import {
   parseRestoreRecipe,
   type RenderSnapshot,
 } from '../lib/renderSnapshot';
+import {
+  diffScaffoldInputs,
+  preferSessionManimClipUrl,
+  type ScaffoldPriorInputs,
+} from '../lib/scaffoldInputDiff';
 import { RESTORE_GENERATION_MESSAGE } from '../../editTargets';
 
 const RENDER_BACKEND = process.env.RENDER_BACKEND ?? 'heygen_cloud';
-const RENDER_FINGERPRINT_EXCLUDE = new Set(['COMPOSITION_MANIFEST.json']);
 const HEYGEN_API_BASE = 'https://api.heygen.com';
 /** URL / multipart asset ceiling — Firebase zip + `cloud render --url`. */
 export const RENDER_ZIP_URL_CAP_BYTES = 32 * 1024 * 1024;
@@ -80,27 +87,12 @@ const ZIP_SKIP_DIRS = new Set([
   'coverage',
 ]);
 
-// Project-wide content hash so Manim/media/caption edits get a fresh HeyGen key
-// (avoids the 24h idempotent replay of the old upload/render), while a crash-safe
-// retry of the identical project still replays instead of double-billing.
-// Manifest is excluded: its generated_at timestamp changes every scaffold.
-export function renderIdempotencyKey(sessionId: string, projectDir: string): string {
-  const hash = crypto.createHash('sha256');
-  const files = walkDir(projectDir)
-    .map((abs) => ({
-      abs,
-      rel: path.relative(projectDir, abs).split(path.sep).join('/'),
-    }))
-    .filter((f) => !RENDER_FINGERPRINT_EXCLUDE.has(f.rel))
-    .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
-
-  for (const { abs, rel } of files) {
-    hash.update(rel);
-    hash.update('\0');
-    hash.update(fs.readFileSync(abs));
-  }
-
-  return `${sessionId}.${hash.digest('hex').slice(0, 16)}`;
+// Key off zip bytes (what HeyGen size_bytes signs), not a project-tree walk.
+// Tree walk excluded COMPOSITION_MANIFEST.json while the zip included it → same
+// Idempotency-Key + different size_bytes → HeyGen replayed a stale presigned URL.
+export function renderIdempotencyKeyFromZip(sessionId: string, zipPath: string): string {
+  const hash = crypto.createHash('sha256').update(fs.readFileSync(zipPath)).digest('hex');
+  return `${sessionId}.${hash.slice(0, 16)}`;
 }
 
 /** Fail-closed size routing: url ≤32 MiB, asset_id ≤200 MiB, else throw. */
@@ -125,6 +117,10 @@ function isNonRetryableCloudError(text: string): boolean {
     lower.includes('payload too large') ||
     /\b413\b/.test(text)
   );
+}
+
+function isSignatureMismatch(text: string): boolean {
+  return /SignatureDoesNotMatch/i.test(text);
 }
 
 function throwCloudSubmitError(detail: string): never {
@@ -166,10 +162,13 @@ async function resolveManimClipsForScaffold(
   const sessionClips = await listSessionManimClips(userId, sessionId);
   const bySafe = new Map(sessionClips.map((c) => [c.safeName, c.clip_url]));
 
+  // Session-latest wins over agent-supplied clip_url (stale chat URLs after re-render).
   let resolved = manim_clips.map((c) => {
-    if (c.clip_url) return c;
-    const url = bySafe.get(manimSafeName(c.concept_name)) ?? '';
-    return { ...c, clip_url: url };
+    const sessionUrl = bySafe.get(manimSafeName(c.concept_name));
+    return {
+      ...c,
+      clip_url: preferSessionManimClipUrl(c.clip_url, sessionUrl),
+    };
   });
 
   if (needsManim && resolved.length === 0 && sessionClips.length > 0) {
@@ -189,6 +188,69 @@ async function resolveManimClipsForScaffold(
   return resolved;
 }
 
+function priorInputsFromSnapshot(
+  snap: RenderSnapshot | null | undefined
+): ScaffoldPriorInputs | null {
+  if (!snap || typeof snap !== 'object') return null;
+  if (snap.orientation !== 'horizontal' && snap.orientation !== 'vertical') {
+    return null;
+  }
+  return {
+    orientation: snap.orientation,
+    speaker_video_url:
+      typeof snap.speaker_video_url === 'string' ? snap.speaker_video_url : undefined,
+    manim_clip_urls: Array.isArray(snap.manim_clips)
+      ? snap.manim_clips.map((c) =>
+          c && typeof c.clip_url === 'string' ? c.clip_url : undefined
+        )
+      : [],
+    brand: snap.brand_colors
+      ? resolveBrandColors(snap.brand_colors)
+      : resolveBrandColors(undefined),
+  };
+}
+
+/** Fallback when renderSnapshot missing — manim URLs + brand/orientation from local manifest. */
+function priorInputsFromManifest(projectDir: string): ScaffoldPriorInputs | null {
+  const manifestPath = path.join(projectDir, 'COMPOSITION_MANIFEST.json');
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    const m = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
+      orientation?: string;
+      brand_colors?: { primary: string; accent: string; bg_dark: string };
+      segments?: Array<{ manim_index?: number | null; manim_clip_url?: string | null }>;
+    };
+    const urls: Array<string | undefined> = [];
+    for (const seg of m.segments ?? []) {
+      if (
+        typeof seg.manim_index === 'number' &&
+        typeof seg.manim_clip_url === 'string' &&
+        seg.manim_clip_url
+      ) {
+        urls[seg.manim_index] = seg.manim_clip_url;
+      }
+    }
+    return {
+      orientation:
+        m.orientation === 'horizontal' || m.orientation === 'vertical'
+          ? m.orientation
+          : undefined,
+      // Manifest has no original speaker URL — speaker treated as changed.
+      manim_clip_urls: urls,
+      brand: m.brand_colors ? resolveBrandColors(m.brand_colors) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function copyIfExists(src: string, dest: string): boolean {
+  if (!fs.existsSync(src)) return false;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+  return true;
+}
+
 type ScaffoldArgs = {
   speaker_video_url: string;
   speaker_audio_url?: string;
@@ -205,9 +267,12 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   await assertSessionNotRendering(ctx.sessionId);
 
   if (!args.skipTaggedAllowlist) {
+    // Expand with this-session Firestore asset URLs only (never arbitrary agent strings).
+    const sessionAssetUrls = await listSessionAssetUrls(ctx.userId, ctx.sessionId);
     const allowlist = [
       ...ctx.taggedArtifacts,
       ...ctx.restoreAllowlistUrls.map((u) => ({ url: u })),
+      ...sessionAssetUrls.map((u) => ({ url: u })),
     ];
     assertTaggedUrlAllowed(args.speaker_video_url, allowlist);
     if (args.speaker_audio_url) {
@@ -241,34 +306,111 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
 
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['transcript']);
 
+  const sessionDoc = await db.collection('sessions').doc(ctx.sessionId).get();
+  const prior =
+    priorInputsFromSnapshot(sessionDoc.data()?.renderSnapshot as RenderSnapshot | undefined) ??
+    priorInputsFromManifest(projectDir);
+
+  let diff = diffScaffoldInputs(prior, {
+    orientation,
+    speaker_video_url: args.speaker_video_url,
+    manim_clip_urls: manim_clips.map((c) => c.clip_url),
+    brand: colors,
+  });
+
+  if (!diff.fullMediaInvalidation) {
+    const assetsMarker = path.join(projectDir, 'assets');
+    if (!fs.existsSync(path.join(assetsMarker, 'speaker_noaudio.mp4'))) {
+      await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['hf_project']);
+    }
+    if (!fs.existsSync(path.join(assetsMarker, 'speaker_noaudio.mp4'))) {
+      // No reusable media on disk — fall back to full media rebuild.
+      diff = diffScaffoldInputs(null, {
+        orientation,
+        speaker_video_url: args.speaker_video_url,
+        manim_clip_urls: manim_clips.map((c) => c.clip_url),
+        brand: colors,
+      });
+    }
+  }
+
+  const assetsDir = path.join(projectDir, 'assets');
+  let stashDir: string | null = null;
+  if (!diff.fullMediaInvalidation && fs.existsSync(assetsDir)) {
+    stashDir = path.join(
+      getSessionWorkdir(ctx.sessionId),
+      `_hf_assets_stash_${Date.now()}`
+    );
+    fs.cpSync(assetsDir, stashDir, { recursive: true });
+  }
+
   // Wipe then copy — merge-only left leftover vertical HTML on orientation switch.
   fs.rmSync(projectDir, { recursive: true, force: true });
   fs.cpSync(templateDir, projectDir, { recursive: true });
-
-  const words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
-
-  const assetsDir = path.join(projectDir, 'assets');
   fs.mkdirSync(assetsDir, { recursive: true });
 
-  const speakerRawPath = path.join(assetsDir, 'speaker_raw.mp4');
-  const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
-  await downloadFile(args.speaker_video_url, speakerRawPath);
-
-  const audioPath = path.join(assetsDir, 'audio.mp3');
-  const audioExtract = await execCommand(
-    `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
-    { timeoutSeconds: 120 }
-  );
-  if (!audioExtract.success) {
-    throw new Error(audioExtract.stderr || 'ffmpeg audio extraction failed');
+  // Restore unchanged media from stash; mark missing as changed.
+  let speakerChanged = diff.speakerChanged;
+  let brandChanged = diff.brandChanged;
+  const manimNeedDownload = new Set(diff.manimChangedIndices);
+  if (stashDir) {
+    if (!speakerChanged) {
+      const ok =
+        copyIfExists(
+          path.join(stashDir, 'speaker_noaudio.mp4'),
+          path.join(assetsDir, 'speaker_noaudio.mp4')
+        ) &&
+        copyIfExists(path.join(stashDir, 'audio.mp3'), path.join(assetsDir, 'audio.mp3'));
+      if (!ok) speakerChanged = true;
+    }
+    for (let index = 0; index < manim_clips.length; index++) {
+      if (manimNeedDownload.has(index)) continue;
+      if (
+        !copyIfExists(
+          path.join(stashDir, `manim-${index}.mp4`),
+          path.join(assetsDir, `manim-${index}.mp4`)
+        )
+      ) {
+        manimNeedDownload.add(index);
+      }
+    }
+    if (!brandChanged) {
+      if (
+        !copyIfExists(
+          path.join(stashDir, 'brand-tokens.css'),
+          path.join(assetsDir, 'brand-tokens.css')
+        )
+      ) {
+        brandChanged = true;
+      }
+    }
+    fs.rmSync(stashDir, { recursive: true, force: true });
   }
 
-  await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-  fs.unlinkSync(speakerRawPath);
+  let words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
 
-  const speakerBytes = fs.statSync(speakerVideoPath).size;
-  if (speakerBytes > SPEAKER_MAX_BYTES) {
-    throw new Error('Speaker video is too long to upload after 1080p normalization');
+  const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
+  const audioPath = path.join(assetsDir, 'audio.mp3');
+
+  if (speakerChanged) {
+    const speakerRawPath = path.join(assetsDir, 'speaker_raw.mp4');
+    await downloadFile(args.speaker_video_url, speakerRawPath);
+
+    const audioExtract = await execCommand(
+      `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+      { timeoutSeconds: 120 }
+    );
+    if (!audioExtract.success) {
+      throw new Error(audioExtract.stderr || 'ffmpeg audio extraction failed');
+    }
+
+    await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
+    fs.unlinkSync(speakerRawPath);
+
+    const speakerBytes = fs.statSync(speakerVideoPath).size;
+    if (speakerBytes > SPEAKER_MAX_BYTES) {
+      throw new Error('Speaker video is too long to upload after 1080p normalization');
+    }
   }
 
   const ffprobe = await execCommand(
@@ -276,10 +418,13 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
     { timeoutSeconds: 60 }
   );
   const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+  // Repair broken word timestamps (runaway tails, zero-duration bursts) before
+  // they can inflate effectiveDuration or produce stuck caption groups.
+  words = sanitizeTranscriptWords(words, Math.max(args.total_duration, probedDuration));
   const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
   const effectiveDuration = Math.max(args.total_duration, probedDuration, lastWordEnd);
 
-  for (let index = 0; index < manim_clips.length; index++) {
+  for (const index of manimNeedDownload) {
     await downloadFile(
       manim_clips[index].clip_url,
       path.join(assetsDir, `manim-${index}.mp4`)
@@ -302,7 +447,7 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   }
 
   const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
-  const manimClipsHtml = buildManimClipsHtml(manim_clips);
+  const manimClipsHtml = buildManimClipsHtml(manim_clips, segments);
   const speakerGsap = buildSpeakerGsap(segments, orientation);
   const captionPosGsap = buildCaptionPosGsap(segments, orientation);
   const manimGsap = buildManimGsap(segments);
@@ -329,7 +474,9 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   });
   fs.writeFileSync(captionsPath, captionsHtml, 'utf-8');
 
-  fs.writeFileSync(path.join(assetsDir, 'brand-tokens.css'), brandCss, 'utf-8');
+  if (brandChanged) {
+    fs.writeFileSync(path.join(assetsDir, 'brand-tokens.css'), brandCss, 'utf-8');
+  }
   fs.writeFileSync(
     path.join(assetsDir, 'transcript.json'),
     JSON.stringify({ words }, null, 2),
@@ -375,7 +522,43 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   );
 
   const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
-  const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
+  let prefixUrl: string;
+  if (diff.fullMediaInvalidation) {
+    ({ prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix));
+  } else {
+    // Upload regenerated HTML/manifest + only touched media; leave unchanged GCS assets.
+    const uploadRels = new Set<string>();
+    for (const abs of walkDir(projectDir)) {
+      const rel = path.relative(projectDir, abs).split(path.sep).join('/');
+      if (
+        rel === 'index.html' ||
+        rel === 'meta.json' ||
+        rel === 'COMPOSITION_MANIFEST.json' ||
+        rel === 'hyperframes.json' ||
+        rel.startsWith('compositions/') ||
+        rel === 'assets/transcript.json'
+      ) {
+        uploadRels.add(rel);
+      }
+    }
+    if (speakerChanged) {
+      uploadRels.add('assets/speaker_noaudio.mp4');
+      uploadRels.add('assets/audio.mp3');
+    }
+    for (const index of manimNeedDownload) {
+      uploadRels.add(`assets/manim-${index}.mp4`);
+    }
+    if (brandChanged) uploadRels.add('assets/brand-tokens.css');
+
+    for (const rel of uploadRels) {
+      const abs = path.join(projectDir, rel);
+      if (fs.existsSync(abs)) {
+        await uploadFileToStorageKeepLocal(abs, `${hfProjectPrefix}/${rel}`);
+      }
+    }
+    const bucketName = getStorageBucketName();
+    prefixUrl = `https://storage.googleapis.com/${bucketName}/${hfProjectPrefix}`;
+  }
   await writeAssetUrl(ctx.userId, ctx.sessionId, 'hf_project', prefixUrl);
   const composition_manifest_url = `${prefixUrl}/COMPOSITION_MANIFEST.json`;
   await writeAssetUrl(ctx.userId, ctx.sessionId, 'composition_manifest', composition_manifest_url);
@@ -478,12 +661,18 @@ export async function zipHyperframesProject(
 }
 
 /** Direct-to-S3 asset upload without checksum_sha256 (avoids CLI BadDigest). */
-async function uploadZipAssetId(
+async function uploadZipAssetIdOnce(
   zipPath: string,
   apiKey: string,
-  idempotencyKey: string
+  idempotencyKey: string,
+  zipBytes: number,
+  attempt: number
 ): Promise<string> {
-  const size_bytes = fs.statSync(zipPath).size;
+  const fingerprint = idempotencyKey.split('.')[1] ?? idempotencyKey;
+  console.log(
+    `[uploadZipAssetId] fingerprint=${fingerprint} zip_bytes=${zipBytes} attempt=${attempt}`
+  );
+
   const initResp = await fetch(`${HEYGEN_API_BASE}/v3/assets/direct-uploads`, {
     method: 'POST',
     headers: {
@@ -494,7 +683,7 @@ async function uploadZipAssetId(
     body: JSON.stringify({
       filename: path.basename(zipPath),
       content_type: 'application/zip',
-      size_bytes,
+      size_bytes: zipBytes,
     }),
   });
   const initBody = (await initResp.json().catch(() => ({}))) as {
@@ -517,6 +706,7 @@ async function uploadZipAssetId(
   });
   if (!putResp.ok) {
     const putText = await putResp.text().catch(() => '');
+    // Do not complete under a failed PUT — would bind the wrong / orphaned asset.
     throwCloudSubmitError(
       putText || `direct-upload PUT failed: HTTP ${putResp.status}`
     );
@@ -545,6 +735,51 @@ async function uploadZipAssetId(
     );
   }
   return asset_id;
+}
+
+/**
+ * Upload zip via HeyGen direct-upload. On SignatureDoesNotMatch (stale
+ * idempotent presign), one retry under key+'.r1'. Returns the key that succeeded.
+ */
+async function uploadZipAssetId(
+  zipPath: string,
+  apiKey: string,
+  idempotencyKey: string
+): Promise<{ assetId: string; idempotencyKey: string }> {
+  const zipBytes = fs.statSync(zipPath).size;
+  try {
+    const assetId = await uploadZipAssetIdOnce(
+      zipPath,
+      apiKey,
+      idempotencyKey,
+      zipBytes,
+      1
+    );
+    return { assetId, idempotencyKey };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    if (!isSignatureMismatch(detail)) throw err;
+
+    const retryKey = `${idempotencyKey}.r1`;
+    console.log(
+      `[uploadZipAssetId] Upload signature mismatch — retrying with a fresh upload URL` +
+        ` fingerprint=${idempotencyKey.split('.')[1]} zip_bytes=${zipBytes} retry_key=${retryKey}`
+    );
+    try {
+      const assetId = await uploadZipAssetIdOnce(zipPath, apiKey, retryKey, zipBytes, 2);
+      console.log(
+        `[uploadZipAssetId] signature retry recovered fingerprint=${retryKey.split('.')[1]}` +
+          ` zip_bytes=${zipBytes} attempt=2`
+      );
+      return { assetId, idempotencyKey: retryKey };
+    } catch (retryErr) {
+      const retryDetail =
+        retryErr instanceof Error ? retryErr.message : String(retryErr);
+      throw new Error(
+        `Upload signature mismatch — retry with a fresh upload URL also failed. ${retryDetail}`
+      );
+    }
+  }
 }
 
 const brandColorsSchema = z.object({
@@ -822,59 +1057,61 @@ export function createHyperframesTools(ctx: ToolCtx) {
           }
 
           if (RENDER_BACKEND === 'heygen_cloud') {
-            const idempotencyKey = renderIdempotencyKey(ctx.sessionId, projectDir);
-            const fingerprint = idempotencyKey.split('.')[1];
-
-            const existing = await getRenderJob(ctx.userId, ctx.sessionId);
-            if (
-              existing?.renderStatus === 'RUNNING' &&
-              existing.executionArn &&
-              !isSfnExecutionArn(existing.executionArn)
-            ) {
-              if (existing.renderFingerprint === fingerprint) {
-                console.log(
-                  `[render_hyperframes] reusing in-flight render fingerprint=${fingerprint} render_id=${existing.executionArn}`
-                );
-                return {
-                  success: true,
-                  composition_url,
-                  execution_arn: existing.executionArn,
-                  output_key: existing.outputKey,
-                  render_status: existing.renderStatus,
-                  ...(manim_fit_note ? { manim_fit_note } : {}),
-                };
-              }
-              return {
-                success: false,
-                error:
-                  'A render is already in progress for this session. Wait for it to finish before submitting a changed composition.',
-                execution_arn: existing.executionArn,
-                output_key: existing.outputKey,
-                render_status: existing.renderStatus,
-                ...(manim_fit_note ? { manim_fit_note } : {}),
-              };
-            }
-
             const apiKey = process.env.HEYGEN_API_KEY;
             const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
             if (!apiKey || !baseCallbackUrl) {
               throw new Error('Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL');
             }
 
-            // Auth for the Next receiver: HMAC-signed token carrying the session.
-            const token = signCallbackToken({
-              sessionId: ctx.sessionId,
-              taskId: ctx.sessionId,
-              exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-            });
-            const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-
-            // Bypass CLI local zip+upload (BadDigest): zip ourselves, then
-            // --url (≤32 MiB) or checksum-free direct-upload → --asset-id.
-            const zipPath = path.join(workdir, `render-${fingerprint}.zip`);
+            // Zip first, then key off zip bytes (what size_bytes signs).
+            const zipPath = path.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
+            let idempotencyKey = '';
+            let fingerprint = '';
             let cloudCmdSource = '';
             try {
               await zipHyperframesProject(projectDir, zipPath);
+              idempotencyKey = renderIdempotencyKeyFromZip(ctx.sessionId, zipPath);
+              fingerprint = idempotencyKey.split('.')[1];
+
+              const existing = await getRenderJob(ctx.userId, ctx.sessionId);
+              if (
+                existing?.renderStatus === 'RUNNING' &&
+                existing.executionArn &&
+                !isSfnExecutionArn(existing.executionArn)
+              ) {
+                // ponytail: renderFingerprint is never written/read by persist/getRenderJob — this reuse branch never hits.
+                if (existing.renderFingerprint === fingerprint) {
+                  console.log(
+                    `[render_hyperframes] reusing in-flight render fingerprint=${fingerprint} render_id=${existing.executionArn}`
+                  );
+                  return {
+                    success: true,
+                    composition_url,
+                    execution_arn: existing.executionArn,
+                    output_key: existing.outputKey,
+                    render_status: existing.renderStatus,
+                    ...(manim_fit_note ? { manim_fit_note } : {}),
+                  };
+                }
+                return {
+                  success: false,
+                  error:
+                    'A render is already in progress for this session. Wait for it to finish before submitting a changed composition.',
+                  execution_arn: existing.executionArn,
+                  output_key: existing.outputKey,
+                  render_status: existing.renderStatus,
+                  ...(manim_fit_note ? { manim_fit_note } : {}),
+                };
+              }
+
+              // Auth for the Next receiver: HMAC-signed token carrying the session.
+              const token = signCallbackToken({
+                sessionId: ctx.sessionId,
+                taskId: ctx.sessionId,
+                exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+              });
+              const callbackUrl = `${baseCallbackUrl}?token=${token}`;
+
               const zipBytes = fs.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
@@ -888,54 +1125,56 @@ export function createHyperframesTools(ctx: ToolCtx) {
                 );
                 cloudCmdSource = `--url ${JSON.stringify(zipUrl)}`;
               } else {
-                const assetId = await uploadZipAssetId(zipPath, apiKey, idempotencyKey);
-                cloudCmdSource = `--asset-id ${JSON.stringify(assetId)}`;
+                const uploaded = await uploadZipAssetId(zipPath, apiKey, idempotencyKey);
+                idempotencyKey = uploaded.idempotencyKey;
+                cloudCmdSource = `--asset-id ${JSON.stringify(uploaded.assetId)}`;
               }
+
+              // CLI inherits HEYGEN_API_KEY from process env. Never `cloud render .`.
+              // Must use the key that actually succeeded (base or .r1 after recovery).
+              const cloudFlags = cloudRenderFlags(orientation);
+              const cloudCmd =
+                `node "${cliPath}" cloud render ${cloudCmdSource}` +
+                ` --fps 30 --quality standard --format mp4 ${cloudFlags}` +
+                ` --callback-url "${callbackUrl}"` +
+                ` --callback-id "${ctx.sessionId}"` +
+                ` --idempotency-key "${idempotencyKey}"` +
+                ` --no-wait --json`;
+              console.log(
+                `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
+              );
+              const cloudResult = await execCommand(cloudCmd, {
+                cwd: projectDir,
+                timeoutSeconds: 600,
+              });
+              if (!cloudResult.success) {
+                throwCloudSubmitError(
+                  cloudResult.stderr || cloudResult.stdout || 'HeyGen cloud render submit failed'
+                );
+              }
+
+              const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
+              console.log(
+                `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(' ')[0]} ${cloudFlags}`
+              );
+              const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
+                executionArn: renderId,
+                outputKey: 'heygen-cloud',
+                compositionUrl: composition_url,
+                renderFingerprint: fingerprint,
+              });
+
+              return {
+                success: true,
+                composition_url,
+                execution_arn: job.executionArn,
+                output_key: job.outputKey,
+                render_status: job.renderStatus,
+                ...(manim_fit_note ? { manim_fit_note } : {}),
+              };
             } finally {
               fs.rmSync(zipPath, { force: true });
             }
-
-            // CLI inherits HEYGEN_API_KEY from process env. Never `cloud render .`.
-            const cloudFlags = cloudRenderFlags(orientation);
-            const cloudCmd =
-              `node "${cliPath}" cloud render ${cloudCmdSource}` +
-              ` --fps 30 --quality standard --format mp4 ${cloudFlags}` +
-              ` --callback-url "${callbackUrl}"` +
-              ` --callback-id "${ctx.sessionId}"` +
-              ` --idempotency-key "${idempotencyKey}"` +
-              ` --no-wait --json`;
-            console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
-            );
-            const cloudResult = await execCommand(cloudCmd, {
-              cwd: projectDir,
-              timeoutSeconds: 600,
-            });
-            if (!cloudResult.success) {
-              throwCloudSubmitError(
-                cloudResult.stderr || cloudResult.stdout || 'HeyGen cloud render submit failed'
-              );
-            }
-
-            const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
-            console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(' ')[0]} ${cloudFlags}`
-            );
-            const job = await persistRenderJob(ctx.userId, ctx.sessionId, {
-              executionArn: renderId,
-              outputKey: 'heygen-cloud',
-              compositionUrl: composition_url,
-              renderFingerprint: fingerprint,
-            });
-
-            return {
-              success: true,
-              composition_url,
-              execution_arn: job.executionArn,
-              output_key: job.outputKey,
-              render_status: job.renderStatus,
-              ...(manim_fit_note ? { manim_fit_note } : {}),
-            };
           }
 
           const region = process.env.AWS_REGION;

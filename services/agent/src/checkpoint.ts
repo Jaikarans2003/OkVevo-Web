@@ -25,6 +25,8 @@ export type CheckpointAnswer = {
   text: string;
 };
 
+export type CheckpointPresentation = 'buttons' | 'select';
+
 export type CheckpointDisplayData = {
   checkpointId: string;
   kind: CheckpointKind;
@@ -36,6 +38,10 @@ export type CheckpointDisplayData = {
   question?: string;
   choices?: { id: string; label: string }[];
   allowFreeform: boolean;
+  /** Default: buttons. Language ask uses native <select>. */
+  presentation?: CheckpointPresentation;
+  /** Pre-selected choice id when presentation is select (e.g. 'en'). */
+  defaultChoiceId?: string;
   answer?: { type: string; text: string; choiceId?: string };
 };
 
@@ -75,6 +81,8 @@ type WriteCheckpointInput = {
       prompt: string;
       choices?: { id: string; label: string }[];
       allowFreeform: boolean;
+      presentation?: CheckpointPresentation;
+      defaultChoiceId?: string;
     };
   };
 };
@@ -101,6 +109,12 @@ function toDisplayData(
     question: input.resume.question?.prompt,
     choices: input.resume.question?.choices,
     allowFreeform: input.resume.question?.allowFreeform ?? true,
+    ...(input.resume.question?.presentation
+      ? { presentation: input.resume.question.presentation }
+      : {}),
+    ...(input.resume.question?.defaultChoiceId
+      ? { defaultChoiceId: input.resume.question.defaultChoiceId }
+      : {}),
   };
 }
 
@@ -168,7 +182,11 @@ export async function writeAskCheckpoint(
     bullets?: string[];
     choices?: { id: string; label: string }[];
     allowFreeform?: boolean;
+    presentation?: CheckpointPresentation;
+    defaultChoiceId?: string;
     phase_label?: string;
+    /** Override default phase (choices→concepts, phase_gate→clarification). */
+    completedPhase?: CheckpointPhase | string;
   }
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
   // Choices need kind=question so CheckpointCard renders buttons (phase_gate = Continue only).
@@ -178,7 +196,8 @@ export async function writeAskCheckpoint(
 
   const written = await writeCheckpointDoc(ctx, {
     kind: isPhaseGate ? 'phase_gate' : 'question',
-    completedPhase: isPhaseGate ? 'clarification' : 'concepts',
+    completedPhase:
+      input.completedPhase ?? (isPhaseGate ? 'clarification' : 'concepts'),
     completedPhaseLabel: input.phase_label ?? 'Clarification',
     summary: {
       title: input.phase_label ?? 'Need your input',
@@ -195,6 +214,8 @@ export async function writeAskCheckpoint(
         prompt: input.question,
         choices: input.choices,
         allowFreeform,
+        ...(input.presentation ? { presentation: input.presentation } : {}),
+        ...(input.defaultChoiceId ? { defaultChoiceId: input.defaultChoiceId } : {}),
       },
     },
   });
@@ -301,7 +322,13 @@ export async function loadPendingCheckpointDisplay(
   const summary = data.summary as { title: string; bullets: string[] };
   const next = data.next as { label: string; description: string };
   const resume = data.resume as {
-    question?: { prompt: string; choices?: { id: string; label: string }[]; allowFreeform: boolean };
+    question?: {
+      prompt: string;
+      choices?: { id: string; label: string }[];
+      allowFreeform: boolean;
+      presentation?: CheckpointPresentation;
+      defaultChoiceId?: string;
+    };
   };
 
   return {
@@ -315,6 +342,12 @@ export async function loadPendingCheckpointDisplay(
     question: resume.question?.prompt,
     choices: resume.question?.choices,
     allowFreeform: resume.question?.allowFreeform ?? true,
+    ...(resume.question?.presentation
+      ? { presentation: resume.question.presentation }
+      : {}),
+    ...(resume.question?.defaultChoiceId
+      ? { defaultChoiceId: resume.question.defaultChoiceId }
+      : {}),
   };
 }
 
@@ -375,6 +408,56 @@ export async function getSessionOrientation(sessionId: string): Promise<VideoOri
   return snap.data()?.orientation === 'vertical' ? 'vertical' : 'horizontal';
 }
 
+export type CaptionMode = 'native' | 'english_worded';
+
+export async function persistCaptionMode(
+  sessionId: string,
+  captionMode: CaptionMode,
+  captionModeApplied: boolean
+): Promise<void> {
+  await db
+    .collection('sessions')
+    .doc(sessionId)
+    .set({ captionMode, captionModeApplied }, { merge: true });
+}
+
+export async function getSessionCaptionMode(sessionId: string): Promise<{
+  captionMode?: CaptionMode;
+  captionModeApplied: boolean;
+}> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const data = snap.data() ?? {};
+  const raw = data.captionMode;
+  const captionMode =
+    raw === 'native' || raw === 'english_worded' ? (raw as CaptionMode) : undefined;
+  return {
+    ...(captionMode ? { captionMode } : {}),
+    captionModeApplied: data.captionModeApplied === true,
+  };
+}
+
+/** Ask-mode transcription language: Whisper code or 'auto'. */
+export type RequestedLanguage = string | 'auto';
+
+export async function persistRequestedLanguage(
+  sessionId: string,
+  requestedLanguage: RequestedLanguage
+): Promise<void> {
+  await db
+    .collection('sessions')
+    .doc(sessionId)
+    .set({ requestedLanguage }, { merge: true });
+}
+
+export async function getSessionRequestedLanguage(
+  sessionId: string
+): Promise<RequestedLanguage | undefined> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const raw = snap.data()?.requestedLanguage;
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  return raw.trim().toLowerCase();
+}
+
 export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   const sessionRef = db.collection('sessions').doc(sessionId);
   const snap = await sessionRef.get();
@@ -395,6 +478,17 @@ export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   );
 }
 
+/** Directive preamble after Concepts extracted revision/freeform — model must open orientation gate. */
+export const CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL
+1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
+2. Immediately after those edits succeed, call ask_clarification exactly once with:
+   - phase_label: "Video orientation"
+   - question: "Choose video orientation to continue."
+   - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
+   - allowFreeform: false
+3. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn.
+4. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
+
 export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const answer = checkpoint.answer;
   const answerLine = answer
@@ -404,23 +498,49 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const choiceId = answer?.choiceId;
   const orientationChosen =
     choiceId === 'horizontal' || choiceId === 'vertical' ? choiceId : null;
+  const answerType = answer?.type;
 
-  const conceptsApproved =
-    checkpoint.completedPhaseLabel === 'Concepts extracted'
-      ? `
-- concepts.json is restored and user-approved. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
+  let phaseGuidance = '';
+  if (checkpoint.completedPhaseLabel === 'Concepts extracted') {
+    if (answerType === 'revision' || answerType === 'freeform') {
+      phaseGuidance = `\n\n${CONCEPTS_REVISION_RESUME_MANDATORY}`;
+    } else {
+      phaseGuidance = `
+- concepts.json is restored and user-approved. Do NOT call extract_concepts again.
+- Do not ask for a video URL — transcription already completed.
+- Do NOT call generate_manim_script yet — video orientation is next.`;
+    }
+  } else if (checkpoint.completedPhaseLabel === 'Video orientation') {
+    phaseGuidance = `
+- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
 - Do not ask for a video URL — transcription already completed; next step is Manim via concepts.json.${
-          orientationChosen
-            ? `\n- Orientation chosen: ${orientationChosen}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
-            : ''
-        }`
-      : '';
+      orientationChosen
+        ? `\n- Orientation chosen: ${orientationChosen}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
+        : ''
+    }`;
+  } else if (checkpoint.completedPhaseLabel === 'Transcription language') {
+    phaseGuidance = `
+- Call transcribe_video again with the same video_url to continue with the chosen language.
+- Do NOT call extract_concepts, transliterate_captions, or scaffold yet.`;
+  } else if (checkpoint.completedPhaseLabel === 'Caption style') {
+    phaseGuidance = `
+- Call transliterate_captions once to apply the caption-style choice (Native / English Worded).
+- Do NOT call extract_concepts until transliterate_captions returns with caption_mode_applied.
+- Native: near-instant, no script change. English Worded: one Sarvam Batch translit job mapped onto Groq word timestamps (may re-extract audio on first use).`;
+  }
+
+  const continueLine =
+    checkpoint.completedPhaseLabel === 'Transcription language'
+      ? '- Continue after transcribe_video succeeds — then transliterate_captions in Ask mode.'
+      : checkpoint.completedPhaseLabel === 'Caption style'
+        ? '- Continue after transliterate_captions succeeds — then extract_concepts.'
+        : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
 
   return `
 CHECKPOINT RESUME
 - Completed: ${checkpoint.completedPhaseLabel} — ${checkpoint.summary.title}
-${answerLine}${conceptsApproved}
-- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.
+${answerLine}${phaseGuidance}
+${continueLine}
 - Do not invent counts, concept names, or status for work not confirmed by this turn's tool results. Prior phases already shown on the checkpoint card — do not re-narrate them.`.trim();
 }
 

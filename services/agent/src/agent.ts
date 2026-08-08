@@ -20,9 +20,12 @@ import {
   isHaltTurnOutput,
   loadCheckpoint,
   persistOrientation,
+  persistCaptionMode,
+  persistRequestedLanguage,
   persistPipelineMode,
   persistSkillId,
   recordSkillsUsed,
+  writeAskCheckpoint,
   type CheckpointAnswer,
   type CheckpointDisplayData,
   type LoadedCheckpoint,
@@ -96,7 +99,7 @@ function stepsHitHaltTurn(steps: { toolResults?: { output?: unknown }[] }[]): bo
   );
 }
 
-/** First concept fields for forced generate_manim_script after concepts Continue. */
+/** First concept fields for forced generate_manim_script after Video orientation. */
 function firstConceptResumeHint(sessionId: string): string {
   const conceptsPath = path.join(getSessionWorkdir(sessionId), 'concepts.json');
   if (!fs.existsSync(conceptsPath)) return '';
@@ -124,11 +127,40 @@ Call generate_manim_script with these fields.`.trim();
   }
 }
 
-function isConceptsApproveChoiceResume(checkpoint: LoadedCheckpoint): boolean {
-  if (checkpoint.completedPhaseLabel !== 'Concepts extracted') return false;
+function isConceptsApproveResume(checkpoint: LoadedCheckpoint): boolean {
+  return (
+    checkpoint.completedPhaseLabel === 'Concepts extracted' &&
+    checkpoint.answer?.type === 'approve'
+  );
+}
+
+function isOrientationChoiceResume(checkpoint: LoadedCheckpoint): boolean {
+  if (checkpoint.completedPhaseLabel !== 'Video orientation') return false;
   const type = checkpoint.answer?.type;
   return type === 'approve' || type === 'choice';
 }
+
+function isCaptionStyleChoiceResume(checkpoint: LoadedCheckpoint): boolean {
+  if (checkpoint.completedPhaseLabel !== 'Caption style') return false;
+  const id = checkpoint.answer?.choiceId;
+  return id === 'native' || id === 'english_worded';
+}
+
+function isTranscriptionLanguageResume(checkpoint: LoadedCheckpoint): boolean {
+  if (checkpoint.completedPhaseLabel !== 'Transcription language') return false;
+  const id = checkpoint.answer?.choiceId;
+  return typeof id === 'string' && id.length > 0;
+}
+
+const VIDEO_ORIENTATION_CHECKPOINT = {
+  phase_label: 'Video orientation',
+  question: 'Choose video orientation to continue.',
+  choices: [
+    { id: 'horizontal', label: 'Horizontal (16:9)' },
+    { id: 'vertical', label: 'Vertical (9:16)' },
+  ],
+  allowFreeform: false as boolean,
+};
 
 export async function runAgent(params: RunAgentParams) {
   const pipelineMode = params.pipelineMode ?? 'ask';
@@ -144,7 +176,9 @@ export async function runAgent(params: RunAgentParams) {
 
   let resumeCheckpoint: LoadedCheckpoint | null = null;
   let resumeSystemAppend = '';
-  let conceptsResumeForce = false;
+  let orientationResumeForce = false;
+  let conceptsApproveChain = false;
+  let capturedCheckpointDisplay: CheckpointDisplayData | null = null;
 
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
   if (isCancelMessage && sessionFields.pendingCheckpointId) {
@@ -181,8 +215,22 @@ export async function runAgent(params: RunAgentParams) {
           resumeCheckpoint.resume.artifactNeeds
         );
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
-        conceptsResumeForce = isConceptsApproveChoiceResume(resumeCheckpoint);
-        if (conceptsResumeForce) {
+
+        if (isConceptsApproveResume(resumeCheckpoint)) {
+          // Deterministic next gate — no model discretion / no Manim yet.
+          const written = await writeAskCheckpoint(
+            {
+              sessionId: params.sessionId,
+              userId: params.userId,
+              skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? 'edu-video',
+              pipelineMode: effectiveMode,
+            },
+            { ...VIDEO_ORIENTATION_CHECKPOINT }
+          );
+          capturedCheckpointDisplay = written.checkpointDisplay;
+          conceptsApproveChain = true;
+        } else if (isOrientationChoiceResume(resumeCheckpoint)) {
+          orientationResumeForce = true;
           const choiceId = resumeCheckpoint.answer?.choiceId;
           const orientation =
             choiceId === 'vertical' || choiceId === 'horizontal' ? choiceId : 'horizontal';
@@ -191,6 +239,19 @@ export async function runAgent(params: RunAgentParams) {
           if (hint) {
             resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
           }
+        } else if (isTranscriptionLanguageResume(resumeCheckpoint)) {
+          const choiceId = resumeCheckpoint.answer?.choiceId ?? 'auto';
+          await persistRequestedLanguage(
+            params.sessionId,
+            choiceId === 'auto' ? 'auto' : choiceId
+          );
+        } else if (isCaptionStyleChoiceResume(resumeCheckpoint)) {
+          const choiceId = resumeCheckpoint.answer?.choiceId;
+          const captionMode =
+            choiceId === 'english_worded' || choiceId === 'native'
+              ? choiceId
+              : 'native';
+          await persistCaptionMode(params.sessionId, captionMode, false);
         }
       }
     }
@@ -359,23 +420,21 @@ export async function runAgent(params: RunAgentParams) {
 
   const tools = buildTools(toolCtx, capabilitySkills);
 
-  if (conceptsResumeForce) {
+  if (orientationResumeForce) {
     if (!('generate_manim_script' in tools)) {
-      console.error('[agent] concepts resume force failed: generate_manim_script missing', {
+      console.error('[agent] orientation resume force failed: generate_manim_script missing', {
         sessionId: params.sessionId,
         resolvedSkill,
         toolNames: Object.keys(tools),
       });
       throw new Error(
-        'Concepts resume cannot proceed: generate_manim_script not in tool registry (skillId?)'
+        'Orientation resume cannot proceed: generate_manim_script not in tool registry (skillId?)'
       );
     }
     console.log(
-      `[agent] checkpoint.resume conceptsForce tx=ok skill=${resolvedSkill ?? 'null'} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
+      `[agent] checkpoint.resume orientationForce tx=ok skill=${resolvedSkill ?? 'null'} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
     );
   }
-
-  let capturedCheckpointDisplay: CheckpointDisplayData | null = null;
 
   const result = streamText({
     model: openrouter(modelId),
@@ -387,16 +446,18 @@ export async function runAgent(params: RunAgentParams) {
       delayInMs: 18,
     }),
     stopWhen: ({ steps }) => {
+      if (conceptsApproveChain && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      // Concepts Continue (approve/choice) only — force first Manim tool on step 0
-      if (
-        conceptsResumeForce &&
-        stepNumber === 0
-      ) {
+      // Concepts approve already wrote Video orientation — text-only short stream
+      if (conceptsApproveChain) {
+        return { ...base, activeTools: [] as string[] };
+      }
+      // Video orientation choice only — force first Manim tool on step 0
+      if (orientationResumeForce && stepNumber === 0) {
         return {
           ...base,
           toolChoice: {

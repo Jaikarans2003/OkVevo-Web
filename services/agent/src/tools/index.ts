@@ -8,6 +8,7 @@ import { createConceptsTools } from './pipeline/concepts';
 import { createHyperframesTools } from './pipeline/hyperframes';
 import { createManimTools } from './pipeline/manim';
 import { createTranscribeTools } from './pipeline/transcribe';
+import { createTransliterateCaptionsTools } from './pipeline/transliterateCaptions';
 import { BASE_TOOLS, SKILL_BASE_OVERRIDES, SKILL_TOOLS } from './catalog';
 import type { ResolvedTaggedAsset } from '../taggedAssets';
 
@@ -37,6 +38,7 @@ export function buildTools(ctx: ToolCtx, skills: Iterable<string> = []) {
     ...createVisionTools(ctx),
     ...createClarifyTools(ctx),
     ...createTranscribeTools(ctx),
+    ...createTransliterateCaptionsTools(ctx),
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),

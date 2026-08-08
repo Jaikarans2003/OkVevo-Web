@@ -70,4 +70,22 @@ const groups = groupCaptionWords([
 assert.equal(groups[0]?.words[0]?.text, kn, 'CAPTIONS_JSON preserves Kannada');
 assert.equal('ಕನ್ನಡ'.toUpperCase(), 'ಕನ್ನಡ', 'toUpperCase no-op for Kannada');
 
+// ── Display-word safety net: blob entry must not be one 14-word karaoke group ──
+{
+  const blob =
+    'one two three four five six seven eight nine ten eleven twelve thirteen fourteen';
+  const blobGroups = groupCaptionWords([{ word: blob, start: 0, end: 14 }]);
+  const maxDisplay = Math.max(
+    ...blobGroups.map((g) => g.words.length),
+    0
+  );
+  assert.ok(maxDisplay <= 4, `blob group display words <=4, got ${maxDisplay}`);
+  assert.ok(
+    blobGroups.every((g) => g.words.every((w) => !/\s/.test(w.text))),
+    'no space-containing karaoke tokens after flatten'
+  );
+  const flatCount = blobGroups.reduce((n, g) => n + g.words.length, 0);
+  assert.equal(flatCount, 14, 'all 14 display words preserved across groups');
+}
+
 console.log('normalizeTokens.selfcheck: ok');

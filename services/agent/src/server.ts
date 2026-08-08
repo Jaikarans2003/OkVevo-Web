@@ -21,6 +21,7 @@ import {
 } from './storage';
 import { deliverEvent, parseWebhookEvent } from './deliverEvent';
 import { parseTaggedAssets } from './taggedAssets';
+import { runGroqDiagnostics } from './diagnostics/groqConnectivity';
 
 // ponytail: Docker-only — local `node` on 3001 collides with `docker compose up agent`
 if (process.env.DOCKER_AGENT !== '1') {
@@ -161,6 +162,25 @@ app.get('/ping', (_req, res) => {
 app.post('/invocations', async (req, res) => {
   try {
     const input = (req.body?.input ?? req.body ?? {}) as Record<string, unknown>;
+
+    // IAM-gated via invoke-agent-runtime only — no public diagnostics route.
+    if (input.action === 'diagnostics.groq') {
+      const result = await runGroqDiagnostics();
+      res.json({
+        output: {
+          message: JSON.stringify(result),
+          diagnostics: result,
+          sessionId:
+            (typeof input.sessionId === 'string' && input.sessionId) ||
+            'groq-diagnostics',
+          userId:
+            (typeof input.userId === 'string' && input.userId) || 'groq-diag',
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
     const prompt =
       (typeof input.prompt === 'string' && input.prompt) ||
       (typeof input.userMessage === 'string' && input.userMessage) ||

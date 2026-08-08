@@ -15,6 +15,7 @@ export const BASE_TOOLS: string[] = [
 export const SKILL_TOOLS: Record<string, string[]> = {
   'edu-video': [
     'transcribe_video',
+    'transliterate_captions',
     'extract_concepts',
     'generate_manim_script',
     'render_manim_clip',

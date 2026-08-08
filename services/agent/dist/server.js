@@ -112,9 +112,9 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs14 = require("fs");
-    var path15 = require("path");
-    var os3 = require("os");
+    var fs19 = require("fs");
+    var path20 = require("path");
+    var os4 = require("os");
     var crypto7 = require("crypto");
     var packageJson = require_package();
     var version2 = packageJson.version;
@@ -221,7 +221,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs14.existsSync(filepath)) {
+            if (fs19.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +229,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path15.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path20.resolve(process.cwd(), ".env.vault");
       }
-      if (fs14.existsSync(possibleVaultPath)) {
+      if (fs19.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path15.join(os3.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path20.join(os4.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +254,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path15.resolve(process.cwd(), ".env");
+      const dotenvPath = path20.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +278,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path16 of optionPaths) {
+      for (const path21 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs14.readFileSync(path16, { encoding }));
+          const parsed = DotenvModule.parse(fs19.readFileSync(path21, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path16} ${e.message}`);
+            _debug(`Failed to load ${path21} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +299,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path15.relative(process.cwd(), filePath);
+            const relative = path20.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -969,10 +969,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path15) {
-  if (!path15)
+function getElementAtPath(obj, path20) {
+  if (!path20)
     return obj;
-  return path15.reduce((acc, key) => acc?.[key], obj);
+  return path20.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1221,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path15, issues) {
+function prefixIssues(path20, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path15);
+    iss.path.unshift(path20);
     return iss;
   });
 }
@@ -1414,7 +1414,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path15 = []) => {
+  const processError = (error41, path20 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1424,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path15, ...issue2.path];
+        const fullpath = [...path20, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1454,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path15) {
+function toDotPath(path20) {
   const segs = [];
-  for (const seg of path15) {
+  for (const seg of path20) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12789,8 +12789,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path15, errorMaps, issueData } = params;
-      const fullPath = [...path15, ...issueData.path || []];
+      const { data, path: path20, errorMaps, issueData } = params;
+      const fullPath = [...path20, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13098,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path15, key) {
+      constructor(parent, value, path20, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path15;
+        this._path = path20;
         this._key = key;
       }
       get path() {
@@ -19049,19 +19049,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS(token_io_exports);
-    var import_path14 = __toESM2(require("path"));
-    var import_fs13 = __toESM2(require("fs"));
-    var import_os3 = __toESM2(require("os"));
+    var import_path19 = __toESM2(require("path"));
+    var import_fs18 = __toESM2(require("fs"));
+    var import_os4 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path14.default.dirname(dir)) {
-          const pkgPath = import_path14.default.join(dir, ".vercel");
-          if (import_fs13.default.existsSync(pkgPath)) {
+        while (dir !== import_path19.default.dirname(dir)) {
+          const pkgPath = import_path19.default.join(dir, ".vercel");
+          if (import_fs18.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path14.default.dirname(dir);
+          dir = import_path19.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19074,11 +19074,11 @@ var require_token_io = __commonJS({
       if (process.env.XDG_DATA_HOME) {
         return process.env.XDG_DATA_HOME;
       }
-      switch (import_os3.default.platform()) {
+      switch (import_os4.default.platform()) {
         case "darwin":
-          return import_path14.default.join(import_os3.default.homedir(), "Library/Application Support");
+          return import_path19.default.join(import_os4.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path14.default.join(import_os3.default.homedir(), ".local/share");
+          return import_path19.default.join(import_os4.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19129,8 +19129,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS(auth_config_exports);
-    var fs14 = __toESM2(require("fs"));
-    var path15 = __toESM2(require("path"));
+    var fs19 = __toESM2(require("fs"));
+    var path20 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19139,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path15.join(dataDir, "auth.json");
+      return path20.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs14.existsSync(authPath)) {
+        if (!fs19.existsSync(authPath)) {
           return null;
         }
-        const content = fs14.readFileSync(authPath, "utf8");
+        const content = fs19.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19158,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path15.dirname(authPath);
-      if (!fs14.existsSync(authDir)) {
-        fs14.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path20.dirname(authPath);
+      if (!fs19.existsSync(authDir)) {
+        fs19.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs14.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs19.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19203,10 +19203,10 @@ var require_oauth = __commonJS({
       refreshTokenRequest: () => refreshTokenRequest
     });
     module2.exports = __toCommonJS(oauth_exports);
-    var import_os3 = require("os");
+    var import_os4 = require("os");
     var VERCEL_ISSUER = "https://vercel.com";
     var VERCEL_CLI_CLIENT_ID = "cl_HYyOPBNtFMfHhaUn9L4QPfTZz6TP47bp";
-    var userAgent = `@vercel/oidc node-${process.version} ${(0, import_os3.platform)()} (${(0, import_os3.arch)()}) ${(0, import_os3.hostname)()}`;
+    var userAgent = `@vercel/oidc node-${process.version} ${(0, import_os4.platform)()} (${(0, import_os4.arch)()}) ${(0, import_os4.hostname)()}`;
     var _tokenEndpoint = null;
     async function getTokenEndpoint() {
       if (_tokenEndpoint) {
@@ -19353,8 +19353,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS(token_util_exports);
-    var path15 = __toESM2(require("path"));
-    var fs14 = __toESM2(require("fs"));
+    var path20 = __toESM2(require("path"));
+    var fs19 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19366,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path15.join(dataDir, vercelFolder);
+      return path20.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19442,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path15.join(dir, ".vercel", "project.json");
-      if (!fs14.existsSync(prjPath)) {
+      const prjPath = path20.join(dir, ".vercel", "project.json");
+      if (!fs19.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs14.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs19.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19463,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path15.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs14.mkdirSync(path15.dirname(tokenPath), { mode: 504, recursive: true });
-      fs14.writeFileSync(tokenPath, tokenJson);
-      fs14.chmodSync(tokenPath, 432);
+      fs19.mkdirSync(path20.dirname(tokenPath), { mode: 504, recursive: true });
+      fs19.writeFileSync(tokenPath, tokenJson);
+      fs19.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path15.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs14.existsSync(tokenPath)) {
+      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs19.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs14.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs19.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -20045,13 +20045,13 @@ function createGatewayProvider(options = {}) {
   return provider;
 }
 async function getGatewayAuthToken(options) {
-  const apiKey = loadOptionalSetting({
+  const apiKey2 = loadOptionalSetting({
     settingValue: options.apiKey,
     environmentVariableName: "AI_GATEWAY_API_KEY"
   });
-  if (apiKey) {
+  if (apiKey2) {
     return {
-      token: apiKey,
+      token: apiKey2,
       authMethod: "api-key"
     };
   }
@@ -30129,6 +30129,21 @@ var init_finalVideoBasename = __esm({
   }
 });
 
+// src/manimClipBasename.ts
+function nextManimClipBasename(safeName, existingBasenames) {
+  const taken = new Set([...existingBasenames].map((name26) => name26.toLowerCase()));
+  const first = `${safeName}.mp4`;
+  if (!taken.has(first.toLowerCase())) return first;
+  let n = 2;
+  while (taken.has(`${safeName}_${n}.mp4`.toLowerCase())) n += 1;
+  return `${safeName}_${n}.mp4`;
+}
+var init_manimClipBasename = __esm({
+  "src/manimClipBasename.ts"() {
+    "use strict";
+  }
+});
+
 // src/tools/lib/renderSnapshot.ts
 function draftMetadataFromRenderSnapshot(snap) {
   if (!snap || typeof snap !== "object") return void 0;
@@ -30200,6 +30215,7 @@ var init_renderSnapshot = __esm({
 var storage_exports = {};
 __export(storage_exports, {
   allocateFinalVideoBasename: () => allocateFinalVideoBasename,
+  allocateManimClipBasename: () => allocateManimClipBasename,
   backgroundAssetIdentity: () => backgroundAssetIdentity,
   claimHeygenEvent: () => claimHeygenEvent,
   downloadStoragePrefixToDir: () => downloadStoragePrefixToDir,
@@ -30211,7 +30227,9 @@ __export(storage_exports, {
   getHfSegmentsPlan: () => getHfSegmentsPlan,
   getRenderJob: () => getRenderJob,
   getTempPath: () => getTempPath,
+  listSessionAssetUrls: () => listSessionAssetUrls,
   nextFinalVideoBasename: () => nextFinalVideoBasename,
+  nextManimClipBasename: () => nextManimClipBasename,
   parseStoragePathFromPublicUrl: () => parseStoragePathFromPublicUrl,
   persistRenderJob: () => persistRenderJob,
   recordRenderFailure: () => recordRenderFailure,
@@ -30256,6 +30274,8 @@ function contentTypeForPath(filePath) {
       return "video/quicktime";
     case ".mp3":
       return "audio/mpeg";
+    case ".flac":
+      return "audio/flac";
     case ".png":
       return "image/png";
     case ".jpg":
@@ -30371,6 +30391,27 @@ async function allocateFinalVideoBasename(userId, sessionId) {
     if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
   }
   return nextFinalVideoBasename(names);
+}
+async function allocateManimClipBasename(userId, sessionId, safeName) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/manim/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names = [];
+  for (const file2 of files) {
+    const name26 = file2.name.slice(prefix.length);
+    if (!name26 || name26.includes("/")) continue;
+    names.push(name26);
+  }
+  return nextManimClipBasename(safeName, names);
+}
+async function listSessionAssetUrls(userId, sessionId) {
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
+  const urls = [];
+  for (const doc of snap.docs) {
+    const url2 = doc.data()?.url;
+    if (typeof url2 === "string" && url2) urls.push(url2);
+  }
+  return urls;
 }
 async function persistRenderJob(userId, sessionId, job) {
   const payload = {
@@ -30574,8 +30615,10 @@ var init_storage = __esm({
     init_firebase();
     init_session();
     init_finalVideoBasename();
+    init_manimClipBasename();
     init_renderSnapshot();
     init_finalVideoBasename();
+    init_manimClipBasename();
   }
 });
 
@@ -31387,15 +31430,15 @@ var getFromApi2 = async ({
   }
 };
 function loadApiKey({
-  apiKey,
+  apiKey: apiKey2,
   environmentVariableName,
   apiKeyParameterName = "apiKey",
   description
 }) {
-  if (typeof apiKey === "string") {
-    return apiKey;
+  if (typeof apiKey2 === "string") {
+    return apiKey2;
   }
-  if (apiKey != null) {
+  if (apiKey2 != null) {
     throw new LoadAPIKeyError2({
       message: `${description} API key must be a string.`
     });
@@ -31405,18 +31448,18 @@ function loadApiKey({
       message: `${description} API key is missing. Pass it using the '${apiKeyParameterName}' parameter. Environment variables are not supported in this environment.`
     });
   }
-  apiKey = process.env[environmentVariableName];
-  if (apiKey == null) {
+  apiKey2 = process.env[environmentVariableName];
+  if (apiKey2 == null) {
     throw new LoadAPIKeyError2({
       message: `${description} API key is missing. Pass it using the '${apiKeyParameterName}' parameter or the ${environmentVariableName} environment variable.`
     });
   }
-  if (typeof apiKey !== "string") {
+  if (typeof apiKey2 !== "string") {
     throw new LoadAPIKeyError2({
       message: `${description} API key must be a string. The value of the ${environmentVariableName} environment variable is not a string.`
     });
   }
-  return apiKey;
+  return apiKey2;
 }
 var suspectProtoRx2 = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
 var suspectConstructorRx2 = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
@@ -35754,7 +35797,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path15 }) => `${baseURL}${path15}`,
+    url: ({ path: path20 }) => `${baseURL}${path20}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35762,7 +35805,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path15 }) => `${baseURL}${path15}`,
+    url: ({ path: path20 }) => `${baseURL}${path20}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35770,21 +35813,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path15 }) => `${baseURL}${path15}`,
+    url: ({ path: path20 }) => `${baseURL}${path20}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path15 }) => `${baseURL}${path15}`,
+    url: ({ path: path20 }) => `${baseURL}${path20}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path15 }) => `${baseURL}${path15}`,
+    url: ({ path: path20 }) => `${baseURL}${path20}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35843,6 +35886,7 @@ var BASE_TOOLS = [
 var SKILL_TOOLS = {
   "edu-video": [
     "transcribe_video",
+    "transliterate_captions",
     "extract_concepts",
     "generate_manim_script",
     "render_manim_clip",
@@ -35926,7 +35970,9 @@ function toDisplayData(checkpointId, input, status = "pending") {
     nextDescription: input.next.description,
     question: input.resume.question?.prompt,
     choices: input.resume.question?.choices,
-    allowFreeform: input.resume.question?.allowFreeform ?? true
+    allowFreeform: input.resume.question?.allowFreeform ?? true,
+    ...input.resume.question?.presentation ? { presentation: input.resume.question.presentation } : {},
+    ...input.resume.question?.defaultChoiceId ? { defaultChoiceId: input.resume.question.defaultChoiceId } : {}
   };
 }
 async function supersedePendingCheckpoints(sessionId) {
@@ -35976,7 +36022,7 @@ async function writeAskCheckpoint(ctx, input) {
   const allowFreeform = input.allowFreeform ?? true;
   const written = await writeCheckpointDoc(ctx, {
     kind: isPhaseGate ? "phase_gate" : "question",
-    completedPhase: isPhaseGate ? "clarification" : "concepts",
+    completedPhase: input.completedPhase ?? (isPhaseGate ? "clarification" : "concepts"),
     completedPhaseLabel: input.phase_label ?? "Clarification",
     summary: {
       title: input.phase_label ?? "Need your input",
@@ -35992,7 +36038,9 @@ async function writeAskCheckpoint(ctx, input) {
       question: {
         prompt: input.question,
         choices: input.choices,
-        allowFreeform
+        allowFreeform,
+        ...input.presentation ? { presentation: input.presentation } : {},
+        ...input.defaultChoiceId ? { defaultChoiceId: input.defaultChoiceId } : {}
       }
     }
   });
@@ -36080,6 +36128,28 @@ async function getSessionOrientation(sessionId) {
   const snap = await db.collection("sessions").doc(sessionId).get();
   return snap.data()?.orientation === "vertical" ? "vertical" : "horizontal";
 }
+async function persistCaptionMode(sessionId, captionMode, captionModeApplied) {
+  await db.collection("sessions").doc(sessionId).set({ captionMode, captionModeApplied }, { merge: true });
+}
+async function getSessionCaptionMode(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const data = snap.data() ?? {};
+  const raw = data.captionMode;
+  const captionMode = raw === "native" || raw === "english_worded" ? raw : void 0;
+  return {
+    ...captionMode ? { captionMode } : {},
+    captionModeApplied: data.captionModeApplied === true
+  };
+}
+async function persistRequestedLanguage(sessionId, requestedLanguage) {
+  await db.collection("sessions").doc(sessionId).set({ requestedLanguage }, { merge: true });
+}
+async function getSessionRequestedLanguage(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.requestedLanguage;
+  if (typeof raw !== "string" || !raw.trim()) return void 0;
+  return raw.trim().toLowerCase();
+}
 async function clearPendingCheckpoint(sessionId) {
   const sessionRef = db.collection("sessions").doc(sessionId);
   const snap = await sessionRef.get();
@@ -36096,20 +36166,54 @@ async function clearPendingCheckpoint(sessionId) {
     { merge: true }
   );
 }
+var CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME \u2014 MANDATORY NEXT TOOL
+1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
+2. Immediately after those edits succeed, call ask_clarification exactly once with:
+   - phase_label: "Video orientation"
+   - question: "Choose video orientation to continue."
+   - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
+   - allowFreeform: false
+3. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn.
+4. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
 function buildResumeSystemContext(checkpoint) {
   const answer = checkpoint.answer;
   const answerLine = answer ? `- User response: ${answer.type}: "${answer.text}"` : "- User response: (none recorded)";
   const choiceId = answer?.choiceId;
   const orientationChosen = choiceId === "horizontal" || choiceId === "vertical" ? choiceId : null;
-  const conceptsApproved = checkpoint.completedPhaseLabel === "Concepts extracted" ? `
-- concepts.json is restored and user-approved. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
+  const answerType = answer?.type;
+  let phaseGuidance = "";
+  if (checkpoint.completedPhaseLabel === "Concepts extracted") {
+    if (answerType === "revision" || answerType === "freeform") {
+      phaseGuidance = `
+
+${CONCEPTS_REVISION_RESUME_MANDATORY}`;
+    } else {
+      phaseGuidance = `
+- concepts.json is restored and user-approved. Do NOT call extract_concepts again.
+- Do not ask for a video URL \u2014 transcription already completed.
+- Do NOT call generate_manim_script yet \u2014 video orientation is next.`;
+    }
+  } else if (checkpoint.completedPhaseLabel === "Video orientation") {
+    phaseGuidance = `
+- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
 - Do not ask for a video URL \u2014 transcription already completed; next step is Manim via concepts.json.${orientationChosen ? `
-- Orientation chosen: ${orientationChosen}. Session already stores it \u2014 generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.` : ""}` : "";
+- Orientation chosen: ${orientationChosen}. Session already stores it \u2014 generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.` : ""}`;
+  } else if (checkpoint.completedPhaseLabel === "Transcription language") {
+    phaseGuidance = `
+- Call transcribe_video again with the same video_url to continue with the chosen language.
+- Do NOT call extract_concepts, transliterate_captions, or scaffold yet.`;
+  } else if (checkpoint.completedPhaseLabel === "Caption style") {
+    phaseGuidance = `
+- Call transliterate_captions once to apply the caption-style choice (Native / English Worded).
+- Do NOT call extract_concepts until transliterate_captions returns with caption_mode_applied.
+- Native: near-instant, no script change. English Worded: one Sarvam Batch translit job mapped onto Groq word timestamps (may re-extract audio on first use).`;
+  }
+  const continueLine = checkpoint.completedPhaseLabel === "Transcription language" ? "- Continue after transcribe_video succeeds \u2014 then transliterate_captions in Ask mode." : checkpoint.completedPhaseLabel === "Caption style" ? "- Continue after transliterate_captions succeeds \u2014 then extract_concepts." : "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
   return `
 CHECKPOINT RESUME
 - Completed: ${checkpoint.completedPhaseLabel} \u2014 ${checkpoint.summary.title}
-${answerLine}${conceptsApproved}
-- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.
+${answerLine}${phaseGuidance}
+${continueLine}
 - Do not invent counts, concept names, or status for work not confirmed by this turn's tool results. Prior phases already shown on the checkpoint card \u2014 do not re-narrate them.`.trim();
 }
 function isHaltTurnOutput(output) {
@@ -36395,6 +36499,8 @@ var import_child_process = require("child_process");
 var import_fs4 = __toESM(require("fs"));
 var import_os2 = __toESM(require("os"));
 var import_path4 = __toESM(require("path"));
+var import_stream2 = require("stream");
+var import_promises = require("stream/promises");
 var import_util6 = require("util");
 var execAsync = (0, import_util6.promisify)(import_child_process.exec);
 var SHELL_ENV_KEYS = [
@@ -36632,6 +36738,12 @@ async function execCommand(command, options = {}) {
   } catch (err) {
     const error40 = err;
     if (error40.killed || error40.signal === "SIGKILL") {
+      console.error("[execCommand] timed out", {
+        timeoutSeconds,
+        command: command.slice(0, 500),
+        stdout: (error40.stdout ?? "").slice(0, 4e3),
+        stderr: (error40.stderr ?? "").slice(0, 4e3)
+      });
       throw new Error(`Command timed out after ${timeoutSeconds} seconds`);
     }
     return {
@@ -36681,9 +36793,14 @@ async function downloadFile(url2, destPath) {
   if (!response.ok) {
     throw new Error(`Download failed: ${response.status} ${url2}`);
   }
-  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!response.body) {
+    throw new Error(`Download failed: empty body ${url2}`);
+  }
   import_fs4.default.mkdirSync(import_path4.default.dirname(destPath), { recursive: true });
-  import_fs4.default.writeFileSync(destPath, buffer);
+  await (0, import_promises.pipeline)(
+    import_stream2.Readable.fromWeb(response.body),
+    import_fs4.default.createWriteStream(destPath)
+  );
 }
 var SPEAKER_MAX_BYTES = 180 * 1024 * 1024;
 var SPEAKER_NORMALIZE_CRF = 20;
@@ -36828,22 +36945,60 @@ function buildSegmentWiring(segments, sectionMeta, orientation = "horizontal") {
      data-width="${width}" data-height="${height}" class="scene-layer"></div>`;
   }).join("\n\n    ");
 }
-function buildManimClipsHtml(manimClips) {
+function buildManimClipsHtml(manimClips, segments = []) {
   return manimClips.map((clip, index) => {
-    const duration3 = clip.end_seconds - clip.start_seconds;
-    return `<video id="manim-${index}" class="clip" data-start="${clip.start_seconds}" data-duration="${duration3}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
+    const seg = segments.find((s) => s.mode === "A" && s.manim_index === index);
+    const start = seg ? seg.start : clip.start_seconds;
+    const end = seg ? seg.end : clip.end_seconds;
+    const duration3 = end - start;
+    return `<video id="manim-${index}" class="clip" data-start="${start}" data-duration="${duration3}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
   }).join("\n      ");
 }
-function buildManimGsap(segments) {
-  const lines = [];
+function coalesceModeARuns(segments) {
+  const runs = [];
   for (const seg of segments) {
-    if (seg.mode === "A" && seg.manim_index != null) {
-      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 1 }, ${seg.start});`);
-      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 0 }, ${seg.end});`);
+    if (seg.mode !== "A") continue;
+    const last = runs[runs.length - 1];
+    if (last && Math.abs(last.end - seg.start) < 1e-3) {
+      last.end = seg.end;
+      last.segs.push(seg);
+    } else {
+      runs.push({ start: seg.start, end: seg.end, segs: [seg] });
     }
   }
-  if (lines.length > 0) {
-    lines.unshift(`tl.set('#manim-stage video', { autoAlpha: 0 }, 0);`);
+  return runs;
+}
+function buildManimGsap(segments) {
+  const xfade = 0.5;
+  const runs = coalesceModeARuns(segments);
+  if (runs.length === 0) return "";
+  const lines = [`tl.set('#manim-stage video', { autoAlpha: 0 }, 0);`];
+  for (const run of runs) {
+    for (let i = 0; i < run.segs.length; i++) {
+      const seg = run.segs[i];
+      if (seg.manim_index == null) continue;
+      const idx = seg.manim_index;
+      if (i === 0) {
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 1, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+        );
+      } else {
+        const prev = run.segs[i - 1];
+        if (prev.manim_index != null) {
+          lines.push(
+            `tl.to('#manim-${prev.manim_index}', { autoAlpha: 0, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+          );
+        }
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 1, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+        );
+      }
+      if (i === run.segs.length - 1) {
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 0, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.end - xfade});`
+        );
+      }
+    }
   }
   return lines.join("\n    ");
 }
@@ -36900,51 +37055,51 @@ function buildCompositionManifest({
   };
 }
 function buildSpeakerGsap(segments, orientation = "horizontal") {
-  const xfade = 0.35;
+  const xfade = 0.5;
   const lines = ["tl.set('#speaker-wrap', FS, 0);"];
-  for (const seg of segments) {
-    if (seg.mode !== "A") continue;
+  const runs = coalesceModeARuns(segments);
+  for (const run of runs) {
     if (orientation === "vertical") {
       lines.push(
-        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power3.inOut' }, ${run.start});`
       );
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power3.inOut' }, ${run.end - xfade});`
       );
     } else {
       lines.push(
-        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power3.inOut' }, ${run.start});`
       );
-      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${seg.start});`);
+      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${run.start});`);
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power3.inOut' }, ${run.end - xfade});`
       );
-      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${seg.end});`);
+      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${run.end});`);
     }
   }
   return lines.join("\n    ");
 }
 function buildCaptionPosGsap(segments, orientation = "horizontal") {
   if (orientation !== "vertical") return "";
-  const xfade = 0.35;
+  const xfade = 0.5;
   const half = xfade / 2;
   const t = (n) => Math.round(n * 1e3) / 1e3;
   const lines = [
     `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, 0);`,
     `tl.set('#hl-container', { opacity: 1 }, 0);`
   ];
-  for (const seg of segments) {
-    if (seg.mode !== "A") continue;
+  const runs = coalesceModeARuns(segments);
+  for (const run of runs) {
     lines.push(
-      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(seg.start)});`
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(run.start)});`
     );
     lines.push(
-      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(seg.start + half)});`
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(run.start + half)});`
     );
     lines.push(
-      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(seg.start + half)});`
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(run.start + half)});`
     );
-    const leave = seg.end - xfade;
+    const leave = run.end - xfade;
     lines.push(
       `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(leave)});`
     );
@@ -36957,11 +37112,33 @@ function buildCaptionPosGsap(segments, orientation = "horizontal") {
   }
   return lines.join("\n        ");
 }
+function flattenDisplayWords(words) {
+  const out = [];
+  for (const w of words) {
+    const parts = String(w.word ?? "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) {
+      if (parts.length === 1) out.push({ ...w, word: parts[0] });
+      continue;
+    }
+    const dur = Math.max(0, w.end - w.start);
+    const slot = dur / parts.length;
+    for (let i = 0; i < parts.length; i++) {
+      out.push({
+        word: parts[i],
+        start: w.start + i * slot,
+        end: w.start + (i + 1) * slot
+      });
+    }
+  }
+  return out;
+}
 function groupCaptionWords(words) {
   const groups = [];
   const maxWords = 4;
   const pauseGap = 0.15;
+  const maxGroupSeconds = 4;
   let chunk = [];
+  const flat = flattenDisplayWords(words);
   const flush = () => {
     if (chunk.length === 0) return;
     groups.push({
@@ -36975,10 +37152,11 @@ function groupCaptionWords(words) {
     });
     chunk = [];
   };
-  for (const word of words) {
+  for (const word of flat) {
     if (chunk.length > 0) {
       const gap = word.start - chunk[chunk.length - 1].end;
-      if (gap >= pauseGap || chunk.length >= maxWords) flush();
+      if (gap >= pauseGap || chunk.length >= maxWords || word.end - chunk[0].start > maxGroupSeconds)
+        flush();
     }
     chunk.push(word);
   }
@@ -38106,28 +38284,26 @@ init_zod();
 // src/lib/timelinePlanning.ts
 var TIMELINE_EPSILON = 0.5;
 var MIN_MODE_C_GAP_SECONDS = 3;
-function partitionTimeline(items, totalDuration, gapFillType, epsilon = TIMELINE_EPSILON) {
+function partitionTimeline(items, totalDuration, gapFillType, _epsilon = TIMELINE_EPSILON) {
   const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
   const segments = [];
   let cursor = 0;
   for (const anchor of sorted) {
     const gap = anchor.start - cursor;
-    if (segments.length === 0) {
-      if (gap > epsilon) {
-        segments.push({ start: cursor, end: anchor.start, type: gapFillType });
-      } else if (gap > 0) {
-        anchor.start = cursor;
-      }
-    } else if (gap >= MIN_MODE_C_GAP_SECONDS) {
+    if (gap >= MIN_MODE_C_GAP_SECONDS) {
       segments.push({ start: cursor, end: anchor.start, type: gapFillType });
     } else if (gap > 0) {
-      segments[segments.length - 1].end = anchor.start;
+      if (segments.length === 0) {
+        anchor.start = cursor;
+      } else {
+        segments[segments.length - 1].end = anchor.start;
+      }
     }
     segments.push({ ...anchor });
     cursor = anchor.end;
   }
   const tail = totalDuration - cursor;
-  if (tail > epsilon) {
+  if (tail >= MIN_MODE_C_GAP_SECONDS) {
     segments.push({ start: cursor, end: totalDuration, type: gapFillType });
   } else if (tail > 0 && segments.length > 0) {
     segments[segments.length - 1].end = totalDuration;
@@ -38155,6 +38331,17 @@ function resolveNonOverlappingConcepts(concepts) {
     }
     if (end_seconds - start_seconds < MIN_CONCEPT_SECONDS) continue;
     result.push({ ...concept, start_seconds, end_seconds });
+  }
+  return result;
+}
+function bridgeConceptGaps(concepts) {
+  if (concepts.length < 2) return concepts.map((c) => ({ ...c }));
+  const result = concepts.map((c) => ({ ...c }));
+  for (let i = 0; i < result.length - 1; i++) {
+    const gap = result[i + 1].start_seconds - result[i].end_seconds;
+    if (gap > 0 && gap < MIN_MODE_C_GAP_SECONDS) {
+      result[i].end_seconds = result[i + 1].start_seconds;
+    }
   }
   return result;
 }
@@ -38207,7 +38394,7 @@ function segmentsCoverTimeline(segments, totalDuration) {
 function segmentsHaveRequiredModes(segments, hasManimClips) {
   const modes = new Set(segments.map((s) => s.mode));
   if (hasManimClips) {
-    return modes.has("A") && modes.has("C");
+    return modes.has("A");
   }
   return modes.has("C");
 }
@@ -38227,7 +38414,7 @@ function validatePlannedSegments(segments, totalDuration, hasManimClips) {
     throw new Error("Segments do not cover the full timeline contiguously");
   }
   if (hasManimClips && !segmentsHaveRequiredModes(segments, true)) {
-    throw new Error("Timeline with Manim clips must include both Mode A and Mode C");
+    throw new Error("Timeline with Manim clips must include Mode A");
   }
   for (const seg of segments) {
     if (seg.mode === "A" && seg.manim_index == null) {
@@ -38273,37 +38460,44 @@ function snapConceptsFromLlm(parsedConcepts, snapWords, duration_seconds) {
   return snapped;
 }
 function finalizeExtractedConcepts(concepts) {
-  return resolveNonOverlappingConcepts(concepts);
+  return bridgeConceptGaps(resolveNonOverlappingConcepts(concepts));
 }
 function buildExtractConceptsSystemPrompt(scenePlanning) {
   return `You extract Manim animation moments from lecture transcripts for educational video production.
 
-Mode B (HTML overlays) is removed \u2014 Manim is the only visual layer besides speaker-only Mode C. Extract aggressively so conceptual teaching is visualized, not left as long uninterrupted speaker-only stretches.
+Mode B (HTML overlays) is removed \u2014 Manim is the only visual layer besides speaker-only Mode C. Extract every distinct teachable beat so no long stretch of conceptual teaching goes unvisualized \u2014 but covering the entire timeline with back-to-back concepts is NOT the goal. Deliberate speaker-only (Mode C) moments between animations are part of a good video.
 
 ## Scene Planning (topic selection)
 ${scenePlanning}
 
-Work in two phases within this single response:
+Work in three phases within this single response:
 1. Understand the whole lecture \u2014 read the full transcript and word timings; infer topic, audience, and narrative arc before picking excerpts.
-2. Extract Manim moments \u2014 for each teachable concept, return concept_name, explanation, and excerpt.
+2. Protect speaker moments \u2014 identify the beats where attention belongs on the speaker (personal stories, direct appeals, emotional emphasis, rhetorical questions, closing punchlines). These stay unextracted, each at least ${MIN_MODE_C_GAP_SECONDS}s of the timeline. Any recording over ~20s has at least one; pick the strongest and protect it.
+3. Extract Manim moments \u2014 for each teachable concept outside those beats, return concept_name, explanation, and excerpt.
 
 Every returned concept will be animated with Manim. Do NOT extract moments that should stay as speaker-only (Mode C).
 
-Leave as speaker-only (do NOT extract):
+Leave as speaker-only (do NOT extract) \u2014 moments where attention belongs on the speaker:
 - Intro/outro, greetings, housekeeping
 - Simple narrative connectors ("so today we'll\u2026")
-- Personal anecdotes with no teachable structure
+- Personal anecdotes and stories with no teachable structure
 - Brief transitions between topics
+- Direct-to-camera appeals, emotional emphasis, rhetorical questions
+- Key spoken takeaways the speaker delivers with weight (no diagram needed)
 
 Extract as Manim concept:
 - Formulas, algorithms, geometry, step-by-step processes
 - Comparisons, frameworks, diagrams, cause-effect chains
 - Definitions, derivations, "how it works" explanations
-- Comparison layouts, framework diagrams, before/after, scope diagrams, emotional tension visuals
+- Comparison layouts, framework diagrams, before/after, scope diagrams
 - Dense conceptual blocks that would leave too long a speaker-only stretch unvisualized
 
-Density guidance:
-- Target short, focused excerpts (5\u201315s each) \u2014 one visual idea per concept
+When a passage could go either way, ask: does a diagram add teaching value here, or is the power in the speaker's delivery? Emotional appeals, warnings, and closing punchlines belong on the speaker (Mode C), not in an animation. In particular, if the recording ends on an appeal, warning, or call-to-action, end your last excerpt before it.
+
+Density and gap planning:
+- Target short, focused excerpts (5\u201315s each) \u2014 one visual idea per concept. Hard limit: no excerpt may span more than 15 seconds of the timeline \u2014 a longer one almost always swallows a speaker-attention beat; split it and leave the speaker beat out
+- Deliberately leave speaker-only (Mode C) breathing room between concepts wherever the speaker says something that deserves attention on the speaker \u2014 personal stories, direct-to-camera appeals, emotional emphasis, key spoken takeaways, rhetorical questions. Make every such gap at least ${MIN_MODE_C_GAP_SECONDS} seconds long (check the word timings). Most recordings over ~20s contain at least one such beat \u2014 find it and leave it unextracted rather than covering the timeline end-to-end
+- If the natural pause between two teachable beats is under ${MIN_MODE_C_GAP_SECONDS}s, extend the excerpts to be contiguous instead \u2014 continuous animation is fine; never leave a sub-${MIN_MODE_C_GAP_SECONDS}s sliver (those become flicker-prone speaker-only flashes)
 - For ~30s videos: 2\u20134 concepts when content has distinct teachable beats (frameworks, comparisons, cause-effect, dilemmas, process steps)
 - Scale concept count to video length; avoid long stretches of conceptual teaching without a visual
 - Excerpts must not overlap in transcript text \u2014 pick non-overlapping windows for each beat
@@ -38314,6 +38508,8 @@ For each concept:
 - excerpt \u2014 exact contiguous words from the transcript where the speaker teaches it (used only for timestamp snapping)
 
 The user message includes video duration and a word-timed transcript. Use those timings \u2014 never invent timestamps. Do NOT return start_seconds or end_seconds.
+
+Mandatory self-check before returning: compare your excerpts against the word timings. The speaker beat you protected in phase 2 must remain a >=${MIN_MODE_C_GAP_SECONDS}s stretch of unextracted speech \u2014 if any excerpt overlaps it, trim that excerpt's start or end words until the full stretch is free. Do not skip this check.
 
 Return JSON array with fields: concept_name, explanation, excerpt.
 Return a JSON array only. No explanation text. No markdown. Just the raw JSON array.`;
@@ -38332,12 +38528,21 @@ ${transcript_text}${timed}`;
 function createConceptsTools(ctx) {
   return {
     extract_concepts: tool({
-      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video \u2014 pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
+      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video \u2014 pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video (and after transliterate_captions when a caption-style choice is pending).`,
       inputSchema: external_exports2.object({
         duration_seconds: external_exports2.number().optional()
       }),
       execute: async ({ duration_seconds }) => {
         try {
+          const caption = await getSessionCaptionMode(ctx.sessionId);
+          if (caption.captionMode && !caption.captionModeApplied) {
+            return {
+              ok: false,
+              error: "Caption style choice is pending. Call transliterate_captions first to apply Native / English Worded before extract_concepts.",
+              caption_mode: caption.captionMode,
+              caption_mode_applied: false
+            };
+          }
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
           const transcript = loadSessionTranscript(ctx.sessionId);
           if (!transcript || !transcript.text.trim() && transcript.words.length === 0) {
@@ -38400,12 +38605,8 @@ ${retryHint}` : userMessage
               {
                 phase_label: "Concepts extracted",
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
-                question: `${concept_count} concept(s) ready. Choose video orientation to continue.`,
-                choices: [
-                  { id: "horizontal", label: "Horizontal (16:9)" },
-                  { id: "vertical", label: "Vertical (9:16)" }
-                ],
-                allowFreeform: false
+                question: `${concept_count} concept(s) ready. Approve these concepts, or describe edits below.`,
+                allowFreeform: true
               }
             );
             return {
@@ -38470,10 +38671,10 @@ function videoUrlFromEventData(eventData) {
   return null;
 }
 async function fetchHeygenRender(renderId) {
-  const apiKey = process.env.HEYGEN_API_KEY;
-  if (!apiKey) throw new Error("Missing HEYGEN_API_KEY");
+  const apiKey2 = process.env.HEYGEN_API_KEY;
+  if (!apiKey2) throw new Error("Missing HEYGEN_API_KEY");
   const response = await fetch(`${HEYGEN_API_BASE}/v3/hyperframes/renders/${renderId}`, {
-    headers: { "X-Api-Key": apiKey }
+    headers: { "X-Api-Key": apiKey2 }
   });
   if (!response.ok) {
     throw new Error(`HeyGen render GET failed: ${response.status}`);
@@ -38553,6 +38754,56 @@ async function countRenderedManimClips(userId, sessionId) {
   return (await listSessionManimClips(userId, sessionId)).length;
 }
 
+// src/tools/lib/transcriptSanitize.ts
+var MIN_WORD_SECONDS = 0.05;
+var MAX_WORD_SECONDS = 2.5;
+var MAX_SPREAD_PER_WORD = 1;
+function sanitizeTranscriptWords(words, durationSeconds) {
+  if (words.length === 0) return [];
+  const out = words.map((word) => ({ ...word })).sort((a, b) => a.start - b.start);
+  const clampMax = durationSeconds > 0 ? durationSeconds : Infinity;
+  for (const word of out) {
+    word.start = Math.min(Math.max(word.start, 0), clampMax);
+    word.end = Math.min(Math.max(word.end, word.start), clampMax);
+  }
+  for (let i2 = 0; i2 < out.length - 1; i2++) {
+    const next = out[i2 + 1];
+    if (next.start > out[i2].start && out[i2].end > next.start) {
+      out[i2].end = next.start;
+    }
+  }
+  for (const word of out) {
+    if (word.end - word.start > MAX_WORD_SECONDS) {
+      word.end = word.start + MAX_WORD_SECONDS;
+    }
+  }
+  for (let i2 = 1; i2 < out.length; i2++) {
+    if (out[i2].start < out[i2 - 1].end) out[i2].start = out[i2 - 1].end;
+    if (out[i2].end < out[i2].start) out[i2].end = out[i2].start;
+  }
+  let i = 0;
+  while (i < out.length) {
+    if (out[i].end - out[i].start >= MIN_WORD_SECONDS) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < out.length && out[j].end - out[j].start < MIN_WORD_SECONDS) j++;
+    const runStart = out[i].start;
+    const count = j - i;
+    const hardCap = j < out.length ? out[j].start : Math.min(clampMax, runStart + count * MAX_SPREAD_PER_WORD);
+    const perWord = Math.min((hardCap - runStart) / count, MAX_SPREAD_PER_WORD);
+    if (perWord >= MIN_WORD_SECONDS) {
+      for (let k = 0; k < count; k++) {
+        out[i + k].start = runStart + perWord * k;
+        out[i + k].end = runStart + perWord * (k + 1);
+      }
+    }
+    i = j;
+  }
+  return out;
+}
+
 // src/tools/lib/orientationGuard.ts
 function parseStageCanvasSize(html) {
   const stageData = html.match(
@@ -38604,6 +38855,39 @@ function manimFitNoteForClip(orientation, width, height) {
 
 // src/tools/pipeline/hyperframes.ts
 init_renderSnapshot();
+
+// src/tools/lib/scaffoldInputDiff.ts
+function brandColorsEqual(a, b) {
+  return a.primary.toLowerCase() === b.primary.toLowerCase() && a.accent.toLowerCase() === b.accent.toLowerCase() && a.bg_dark.toLowerCase() === b.bg_dark.toLowerCase();
+}
+function diffScaffoldInputs(prior, next) {
+  const allManim = next.manim_clip_urls.map((_, i) => i);
+  if (!prior || prior.orientation !== next.orientation) {
+    return {
+      fullMediaInvalidation: true,
+      speakerChanged: true,
+      brandChanged: true,
+      manimChangedIndices: allManim
+    };
+  }
+  const speakerChanged = !prior.speaker_video_url || prior.speaker_video_url !== next.speaker_video_url;
+  const brandChanged = !prior.brand || !brandColorsEqual(prior.brand, next.brand);
+  const manimChangedIndices = [];
+  for (let i = 0; i < next.manim_clip_urls.length; i++) {
+    if (prior.manim_clip_urls?.[i] !== next.manim_clip_urls[i]) {
+      manimChangedIndices.push(i);
+    }
+  }
+  return {
+    fullMediaInvalidation: false,
+    speakerChanged,
+    brandChanged,
+    manimChangedIndices
+  };
+}
+function preferSessionManimClipUrl(agentClipUrl, sessionLatestUrl) {
+  return sessionLatestUrl || agentClipUrl;
+}
 
 // src/editTargets.ts
 var import_fs9 = __toESM(require("fs"));
@@ -38998,7 +39282,6 @@ function shouldInjectEditTargets(result) {
 
 // src/tools/pipeline/hyperframes.ts
 var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
-var RENDER_FINGERPRINT_EXCLUDE = /* @__PURE__ */ new Set(["COMPOSITION_MANIFEST.json"]);
 var HEYGEN_API_BASE2 = "https://api.heygen.com";
 var RENDER_ZIP_URL_CAP_BYTES = 32 * 1024 * 1024;
 var RENDER_ZIP_DIRECT_CAP_BYTES = 200 * 1024 * 1024;
@@ -39011,18 +39294,9 @@ var ZIP_SKIP_DIRS = /* @__PURE__ */ new Set([
   ".next",
   "coverage"
 ]);
-function renderIdempotencyKey(sessionId, projectDir) {
-  const hash = import_crypto.default.createHash("sha256");
-  const files = walkDir(projectDir).map((abs) => ({
-    abs,
-    rel: import_path10.default.relative(projectDir, abs).split(import_path10.default.sep).join("/")
-  })).filter((f) => !RENDER_FINGERPRINT_EXCLUDE.has(f.rel)).sort((a, b) => a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0);
-  for (const { abs, rel } of files) {
-    hash.update(rel);
-    hash.update("\0");
-    hash.update(import_fs10.default.readFileSync(abs));
-  }
-  return `${sessionId}.${hash.digest("hex").slice(0, 16)}`;
+function renderIdempotencyKeyFromZip(sessionId, zipPath) {
+  const hash = import_crypto.default.createHash("sha256").update(import_fs10.default.readFileSync(zipPath)).digest("hex");
+  return `${sessionId}.${hash.slice(0, 16)}`;
 }
 function renderIngestMode(zipBytes) {
   if (!Number.isFinite(zipBytes) || zipBytes < 0) {
@@ -39038,6 +39312,9 @@ function renderIngestMode(zipBytes) {
 function isNonRetryableCloudError(text2) {
   const lower = text2.toLowerCase();
   return lower.includes("baddigest") || lower.includes("hyperframes_project_too_large") || lower.includes("payload too large") || /\b413\b/.test(text2);
+}
+function isSignatureMismatch(text2) {
+  return /SignatureDoesNotMatch/i.test(text2);
 }
 function throwCloudSubmitError(detail) {
   const msg = detail || "HeyGen cloud render submit failed";
@@ -39063,9 +39340,11 @@ async function resolveManimClipsForScaffold(userId, sessionId, manim_clips, need
   const sessionClips = await listSessionManimClips(userId, sessionId);
   const bySafe = new Map(sessionClips.map((c) => [c.safeName, c.clip_url]));
   let resolved = manim_clips.map((c) => {
-    if (c.clip_url) return c;
-    const url2 = bySafe.get(manimSafeName2(c.concept_name)) ?? "";
-    return { ...c, clip_url: url2 };
+    const sessionUrl = bySafe.get(manimSafeName2(c.concept_name));
+    return {
+      ...c,
+      clip_url: preferSessionManimClipUrl(c.clip_url, sessionUrl)
+    };
   });
   if (needsManim && resolved.length === 0 && sessionClips.length > 0) {
     resolved = sessionClips.map((c) => ({
@@ -39082,12 +39361,55 @@ async function resolveManimClipsForScaffold(userId, sessionId, manim_clips, need
   }
   return resolved;
 }
+function priorInputsFromSnapshot(snap) {
+  if (!snap || typeof snap !== "object") return null;
+  if (snap.orientation !== "horizontal" && snap.orientation !== "vertical") {
+    return null;
+  }
+  return {
+    orientation: snap.orientation,
+    speaker_video_url: typeof snap.speaker_video_url === "string" ? snap.speaker_video_url : void 0,
+    manim_clip_urls: Array.isArray(snap.manim_clips) ? snap.manim_clips.map(
+      (c) => c && typeof c.clip_url === "string" ? c.clip_url : void 0
+    ) : [],
+    brand: snap.brand_colors ? resolveBrandColors(snap.brand_colors) : resolveBrandColors(void 0)
+  };
+}
+function priorInputsFromManifest(projectDir) {
+  const manifestPath = import_path10.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  if (!import_fs10.default.existsSync(manifestPath)) return null;
+  try {
+    const m = JSON.parse(import_fs10.default.readFileSync(manifestPath, "utf-8"));
+    const urls = [];
+    for (const seg of m.segments ?? []) {
+      if (typeof seg.manim_index === "number" && typeof seg.manim_clip_url === "string" && seg.manim_clip_url) {
+        urls[seg.manim_index] = seg.manim_clip_url;
+      }
+    }
+    return {
+      orientation: m.orientation === "horizontal" || m.orientation === "vertical" ? m.orientation : void 0,
+      // Manifest has no original speaker URL — speaker treated as changed.
+      manim_clip_urls: urls,
+      brand: m.brand_colors ? resolveBrandColors(m.brand_colors) : void 0
+    };
+  } catch {
+    return null;
+  }
+}
+function copyIfExists(src, dest) {
+  if (!import_fs10.default.existsSync(src)) return false;
+  import_fs10.default.mkdirSync(import_path10.default.dirname(dest), { recursive: true });
+  import_fs10.default.copyFileSync(src, dest);
+  return true;
+}
 async function runScaffoldHfProject(ctx, args) {
   await assertSessionNotRendering(ctx.sessionId);
   if (!args.skipTaggedAllowlist) {
+    const sessionAssetUrls = await listSessionAssetUrls(ctx.userId, ctx.sessionId);
     const allowlist = [
       ...ctx.taggedArtifacts,
-      ...ctx.restoreAllowlistUrls.map((u) => ({ url: u }))
+      ...ctx.restoreAllowlistUrls.map((u) => ({ url: u })),
+      ...sessionAssetUrls.map((u) => ({ url: u }))
     ];
     assertTaggedUrlAllowed(args.speaker_video_url, allowlist);
     if (args.speaker_audio_url) {
@@ -39115,36 +39437,99 @@ async function runScaffoldHfProject(ctx, args) {
   const brandCss = buildBrandCssVars(colors);
   const projectDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
+  const sessionDoc = await db.collection("sessions").doc(ctx.sessionId).get();
+  const prior = priorInputsFromSnapshot(sessionDoc.data()?.renderSnapshot) ?? priorInputsFromManifest(projectDir);
+  let diff = diffScaffoldInputs(prior, {
+    orientation,
+    speaker_video_url: args.speaker_video_url,
+    manim_clip_urls: manim_clips.map((c) => c.clip_url),
+    brand: colors
+  });
+  if (!diff.fullMediaInvalidation) {
+    const assetsMarker = import_path10.default.join(projectDir, "assets");
+    if (!import_fs10.default.existsSync(import_path10.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+      await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
+    }
+    if (!import_fs10.default.existsSync(import_path10.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+      diff = diffScaffoldInputs(null, {
+        orientation,
+        speaker_video_url: args.speaker_video_url,
+        manim_clip_urls: manim_clips.map((c) => c.clip_url),
+        brand: colors
+      });
+    }
+  }
+  const assetsDir = import_path10.default.join(projectDir, "assets");
+  let stashDir = null;
+  if (!diff.fullMediaInvalidation && import_fs10.default.existsSync(assetsDir)) {
+    stashDir = import_path10.default.join(
+      getSessionWorkdir(ctx.sessionId),
+      `_hf_assets_stash_${Date.now()}`
+    );
+    import_fs10.default.cpSync(assetsDir, stashDir, { recursive: true });
+  }
   import_fs10.default.rmSync(projectDir, { recursive: true, force: true });
   import_fs10.default.cpSync(templateDir, projectDir, { recursive: true });
-  const words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
-  const assetsDir = import_path10.default.join(projectDir, "assets");
   import_fs10.default.mkdirSync(assetsDir, { recursive: true });
-  const speakerRawPath = import_path10.default.join(assetsDir, "speaker_raw.mp4");
-  const speakerVideoPath = import_path10.default.join(assetsDir, "speaker_noaudio.mp4");
-  await downloadFile(args.speaker_video_url, speakerRawPath);
-  const audioPath = import_path10.default.join(assetsDir, "audio.mp3");
-  const audioExtract = await execCommand(
-    `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
-    { timeoutSeconds: 120 }
-  );
-  if (!audioExtract.success) {
-    throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
+  let speakerChanged = diff.speakerChanged;
+  let brandChanged = diff.brandChanged;
+  const manimNeedDownload = new Set(diff.manimChangedIndices);
+  if (stashDir) {
+    if (!speakerChanged) {
+      const ok = copyIfExists(
+        import_path10.default.join(stashDir, "speaker_noaudio.mp4"),
+        import_path10.default.join(assetsDir, "speaker_noaudio.mp4")
+      ) && copyIfExists(import_path10.default.join(stashDir, "audio.mp3"), import_path10.default.join(assetsDir, "audio.mp3"));
+      if (!ok) speakerChanged = true;
+    }
+    for (let index = 0; index < manim_clips.length; index++) {
+      if (manimNeedDownload.has(index)) continue;
+      if (!copyIfExists(
+        import_path10.default.join(stashDir, `manim-${index}.mp4`),
+        import_path10.default.join(assetsDir, `manim-${index}.mp4`)
+      )) {
+        manimNeedDownload.add(index);
+      }
+    }
+    if (!brandChanged) {
+      if (!copyIfExists(
+        import_path10.default.join(stashDir, "brand-tokens.css"),
+        import_path10.default.join(assetsDir, "brand-tokens.css")
+      )) {
+        brandChanged = true;
+      }
+    }
+    import_fs10.default.rmSync(stashDir, { recursive: true, force: true });
   }
-  await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-  import_fs10.default.unlinkSync(speakerRawPath);
-  const speakerBytes = import_fs10.default.statSync(speakerVideoPath).size;
-  if (speakerBytes > SPEAKER_MAX_BYTES) {
-    throw new Error("Speaker video is too long to upload after 1080p normalization");
+  let words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
+  const speakerVideoPath = import_path10.default.join(assetsDir, "speaker_noaudio.mp4");
+  const audioPath = import_path10.default.join(assetsDir, "audio.mp3");
+  if (speakerChanged) {
+    const speakerRawPath = import_path10.default.join(assetsDir, "speaker_raw.mp4");
+    await downloadFile(args.speaker_video_url, speakerRawPath);
+    const audioExtract = await execCommand(
+      `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+      { timeoutSeconds: 120 }
+    );
+    if (!audioExtract.success) {
+      throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
+    }
+    await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
+    import_fs10.default.unlinkSync(speakerRawPath);
+    const speakerBytes = import_fs10.default.statSync(speakerVideoPath).size;
+    if (speakerBytes > SPEAKER_MAX_BYTES) {
+      throw new Error("Speaker video is too long to upload after 1080p normalization");
+    }
   }
   const ffprobe = await execCommand(
     `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
     { timeoutSeconds: 60 }
   );
   const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+  words = sanitizeTranscriptWords(words, Math.max(args.total_duration, probedDuration));
   const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
   const effectiveDuration = Math.max(args.total_duration, probedDuration, lastWordEnd);
-  for (let index = 0; index < manim_clips.length; index++) {
+  for (const index of manimNeedDownload) {
     await downloadFile(
       manim_clips[index].clip_url,
       import_path10.default.join(assetsDir, `manim-${index}.mp4`)
@@ -39163,7 +39548,7 @@ async function runScaffoldHfProject(ctx, args) {
     import_fs10.default.writeFileSync(import_path10.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
   }
   const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
-  const manimClipsHtml = buildManimClipsHtml(manim_clips);
+  const manimClipsHtml = buildManimClipsHtml(manim_clips, segments);
   const speakerGsap = buildSpeakerGsap(segments, orientation);
   const captionPosGsap = buildCaptionPosGsap(segments, orientation);
   const manimGsap = buildManimGsap(segments);
@@ -39187,7 +39572,9 @@ async function runScaffoldHfProject(ctx, args) {
     CAPTION_POS_GSAP: captionPosGsap
   });
   import_fs10.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
-  import_fs10.default.writeFileSync(import_path10.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+  if (brandChanged) {
+    import_fs10.default.writeFileSync(import_path10.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+  }
   import_fs10.default.writeFileSync(
     import_path10.default.join(assetsDir, "transcript.json"),
     JSON.stringify({ words }, null, 2),
@@ -39228,7 +39615,34 @@ async function runScaffoldHfProject(ctx, args) {
     "utf-8"
   );
   const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
-  const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
+  let prefixUrl;
+  if (diff.fullMediaInvalidation) {
+    ({ prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix));
+  } else {
+    const uploadRels = /* @__PURE__ */ new Set();
+    for (const abs of walkDir(projectDir)) {
+      const rel = import_path10.default.relative(projectDir, abs).split(import_path10.default.sep).join("/");
+      if (rel === "index.html" || rel === "meta.json" || rel === "COMPOSITION_MANIFEST.json" || rel === "hyperframes.json" || rel.startsWith("compositions/") || rel === "assets/transcript.json") {
+        uploadRels.add(rel);
+      }
+    }
+    if (speakerChanged) {
+      uploadRels.add("assets/speaker_noaudio.mp4");
+      uploadRels.add("assets/audio.mp3");
+    }
+    for (const index of manimNeedDownload) {
+      uploadRels.add(`assets/manim-${index}.mp4`);
+    }
+    if (brandChanged) uploadRels.add("assets/brand-tokens.css");
+    for (const rel of uploadRels) {
+      const abs = import_path10.default.join(projectDir, rel);
+      if (import_fs10.default.existsSync(abs)) {
+        await uploadFileToStorageKeepLocal(abs, `${hfProjectPrefix}/${rel}`);
+      }
+    }
+    const bucketName = getStorageBucketName();
+    prefixUrl = `https://storage.googleapis.com/${bucketName}/${hfProjectPrefix}`;
+  }
   await writeAssetUrl(ctx.userId, ctx.sessionId, "hf_project", prefixUrl);
   const composition_manifest_url = `${prefixUrl}/COMPOSITION_MANIFEST.json`;
   await writeAssetUrl(ctx.userId, ctx.sessionId, "composition_manifest", composition_manifest_url);
@@ -39310,19 +39724,22 @@ async function zipHyperframesProject(projectDir, zipPath) {
     import_fs10.default.rmSync(pyPath, { force: true });
   }
 }
-async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
-  const size_bytes = import_fs10.default.statSync(zipPath).size;
+async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, attempt) {
+  const fingerprint = idempotencyKey.split(".")[1] ?? idempotencyKey;
+  console.log(
+    `[uploadZipAssetId] fingerprint=${fingerprint} zip_bytes=${zipBytes} attempt=${attempt}`
+  );
   const initResp = await fetch(`${HEYGEN_API_BASE2}/v3/assets/direct-uploads`, {
     method: "POST",
     headers: {
-      "X-Api-Key": apiKey,
+      "X-Api-Key": apiKey2,
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey
     },
     body: JSON.stringify({
       filename: import_path10.default.basename(zipPath),
       content_type: "application/zip",
-      size_bytes
+      size_bytes: zipBytes
     })
   });
   const initBody = await initResp.json().catch(() => ({}));
@@ -39348,7 +39765,7 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
     {
       method: "POST",
       headers: {
-        "X-Api-Key": apiKey,
+        "X-Api-Key": apiKey2,
         "Content-Type": "application/json",
         "Idempotency-Key": idempotencyKey
       },
@@ -39362,6 +39779,38 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
     );
   }
   return asset_id;
+}
+async function uploadZipAssetId(zipPath, apiKey2, idempotencyKey) {
+  const zipBytes = import_fs10.default.statSync(zipPath).size;
+  try {
+    const assetId = await uploadZipAssetIdOnce(
+      zipPath,
+      apiKey2,
+      idempotencyKey,
+      zipBytes,
+      1
+    );
+    return { assetId, idempotencyKey };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    if (!isSignatureMismatch(detail)) throw err;
+    const retryKey = `${idempotencyKey}.r1`;
+    console.log(
+      `[uploadZipAssetId] Upload signature mismatch \u2014 retrying with a fresh upload URL fingerprint=${idempotencyKey.split(".")[1]} zip_bytes=${zipBytes} retry_key=${retryKey}`
+    );
+    try {
+      const assetId = await uploadZipAssetIdOnce(zipPath, apiKey2, retryKey, zipBytes, 2);
+      console.log(
+        `[uploadZipAssetId] signature retry recovered fingerprint=${retryKey.split(".")[1]} zip_bytes=${zipBytes} attempt=2`
+      );
+      return { assetId, idempotencyKey: retryKey };
+    } catch (retryErr) {
+      const retryDetail = retryErr instanceof Error ? retryErr.message : String(retryErr);
+      throw new Error(
+        `Upload signature mismatch \u2014 retry with a fresh upload URL also failed. ${retryDetail}`
+      );
+    }
+  }
 }
 var brandColorsSchema = external_exports2.object({
   primary: external_exports2.string(),
@@ -39586,47 +40035,49 @@ function createHyperframesTools(ctx) {
             };
           }
           if (RENDER_BACKEND === "heygen_cloud") {
-            const idempotencyKey = renderIdempotencyKey(ctx.sessionId, projectDir);
-            const fingerprint = idempotencyKey.split(".")[1];
-            const existing = await getRenderJob(ctx.userId, ctx.sessionId);
-            if (existing?.renderStatus === "RUNNING" && existing.executionArn && !isSfnExecutionArn(existing.executionArn)) {
-              if (existing.renderFingerprint === fingerprint) {
-                console.log(
-                  `[render_hyperframes] reusing in-flight render fingerprint=${fingerprint} render_id=${existing.executionArn}`
-                );
+            const apiKey2 = process.env.HEYGEN_API_KEY;
+            const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
+            if (!apiKey2 || !baseCallbackUrl) {
+              throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
+            }
+            const zipPath = import_path10.default.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
+            let idempotencyKey = "";
+            let fingerprint = "";
+            let cloudCmdSource = "";
+            try {
+              await zipHyperframesProject(projectDir, zipPath);
+              idempotencyKey = renderIdempotencyKeyFromZip(ctx.sessionId, zipPath);
+              fingerprint = idempotencyKey.split(".")[1];
+              const existing = await getRenderJob(ctx.userId, ctx.sessionId);
+              if (existing?.renderStatus === "RUNNING" && existing.executionArn && !isSfnExecutionArn(existing.executionArn)) {
+                if (existing.renderFingerprint === fingerprint) {
+                  console.log(
+                    `[render_hyperframes] reusing in-flight render fingerprint=${fingerprint} render_id=${existing.executionArn}`
+                  );
+                  return {
+                    success: true,
+                    composition_url,
+                    execution_arn: existing.executionArn,
+                    output_key: existing.outputKey,
+                    render_status: existing.renderStatus,
+                    ...manim_fit_note ? { manim_fit_note } : {}
+                  };
+                }
                 return {
-                  success: true,
-                  composition_url,
+                  success: false,
+                  error: "A render is already in progress for this session. Wait for it to finish before submitting a changed composition.",
                   execution_arn: existing.executionArn,
                   output_key: existing.outputKey,
                   render_status: existing.renderStatus,
                   ...manim_fit_note ? { manim_fit_note } : {}
                 };
               }
-              return {
-                success: false,
-                error: "A render is already in progress for this session. Wait for it to finish before submitting a changed composition.",
-                execution_arn: existing.executionArn,
-                output_key: existing.outputKey,
-                render_status: existing.renderStatus,
-                ...manim_fit_note ? { manim_fit_note } : {}
-              };
-            }
-            const apiKey = process.env.HEYGEN_API_KEY;
-            const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
-            if (!apiKey || !baseCallbackUrl) {
-              throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
-            }
-            const token = signCallbackToken({
-              sessionId: ctx.sessionId,
-              taskId: ctx.sessionId,
-              exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
-            });
-            const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-            const zipPath = import_path10.default.join(workdir, `render-${fingerprint}.zip`);
-            let cloudCmdSource = "";
-            try {
-              await zipHyperframesProject(projectDir, zipPath);
+              const token = signCallbackToken({
+                sessionId: ctx.sessionId,
+                taskId: ctx.sessionId,
+                exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
+              });
+              const callbackUrl = `${baseCallbackUrl}?token=${token}`;
               const zipBytes = import_fs10.default.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
@@ -39639,44 +40090,45 @@ function createHyperframesTools(ctx) {
                 );
                 cloudCmdSource = `--url ${JSON.stringify(zipUrl)}`;
               } else {
-                const assetId = await uploadZipAssetId(zipPath, apiKey, idempotencyKey);
-                cloudCmdSource = `--asset-id ${JSON.stringify(assetId)}`;
+                const uploaded = await uploadZipAssetId(zipPath, apiKey2, idempotencyKey);
+                idempotencyKey = uploaded.idempotencyKey;
+                cloudCmdSource = `--asset-id ${JSON.stringify(uploaded.assetId)}`;
               }
+              const cloudFlags = cloudRenderFlags(orientation);
+              const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 ${cloudFlags} --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
+              console.log(
+                `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
+              );
+              const cloudResult = await execCommand(cloudCmd, {
+                cwd: projectDir,
+                timeoutSeconds: 600
+              });
+              if (!cloudResult.success) {
+                throwCloudSubmitError(
+                  cloudResult.stderr || cloudResult.stdout || "HeyGen cloud render submit failed"
+                );
+              }
+              const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
+              console.log(
+                `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(" ")[0]} ${cloudFlags}`
+              );
+              const job2 = await persistRenderJob(ctx.userId, ctx.sessionId, {
+                executionArn: renderId,
+                outputKey: "heygen-cloud",
+                compositionUrl: composition_url,
+                renderFingerprint: fingerprint
+              });
+              return {
+                success: true,
+                composition_url,
+                execution_arn: job2.executionArn,
+                output_key: job2.outputKey,
+                render_status: job2.renderStatus,
+                ...manim_fit_note ? { manim_fit_note } : {}
+              };
             } finally {
               import_fs10.default.rmSync(zipPath, { force: true });
             }
-            const cloudFlags = cloudRenderFlags(orientation);
-            const cloudCmd = `node "${cliPath}" cloud render ${cloudCmdSource} --fps 30 --quality standard --format mp4 ${cloudFlags} --callback-url "${callbackUrl}" --callback-id "${ctx.sessionId}" --idempotency-key "${idempotencyKey}" --no-wait --json`;
-            console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} ${cloudFlags} aspectRatio=${aspectRatio}`
-            );
-            const cloudResult = await execCommand(cloudCmd, {
-              cwd: projectDir,
-              timeoutSeconds: 600
-            });
-            if (!cloudResult.success) {
-              throwCloudSubmitError(
-                cloudResult.stderr || cloudResult.stdout || "HeyGen cloud render submit failed"
-              );
-            }
-            const renderId = parseCloudRenderId(cloudResult.stdout || cloudResult.stderr);
-            console.log(
-              `[render_hyperframes] fingerprint=${fingerprint} render_id=${renderId} via=${cloudCmdSource.split(" ")[0]} ${cloudFlags}`
-            );
-            const job2 = await persistRenderJob(ctx.userId, ctx.sessionId, {
-              executionArn: renderId,
-              outputKey: "heygen-cloud",
-              compositionUrl: composition_url,
-              renderFingerprint: fingerprint
-            });
-            return {
-              success: true,
-              composition_url,
-              execution_arn: job2.executionArn,
-              output_key: job2.outputKey,
-              render_status: job2.renderStatus,
-              ...manim_fit_note ? { manim_fit_note } : {}
-            };
           }
           const region = process.env.AWS_REGION;
           const bucketName = process.env.HYPERFRAMES_BUCKET;
@@ -40103,7 +40555,12 @@ ${cleanScript}`
               `Manim render succeeded but output.mp4 was not found for "${concept_name}": ${renderResult.stderr || "no output file"}`
             );
           }
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
+          const basename = await allocateManimClipBasename(
+            ctx.userId,
+            ctx.sessionId,
+            safeName
+          );
+          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${basename}`;
           const canonicalPath = import_path12.default.join(
             getSessionWorkdir(ctx.sessionId),
             "manim",
@@ -40112,7 +40569,9 @@ ${cleanScript}`
           import_fs11.default.mkdirSync(import_path12.default.dirname(canonicalPath), { recursive: true });
           import_fs11.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
+          await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl, {
+            label: basename
+          });
           const concepts = loadSessionConcepts(ctx.sessionId);
           const manim_count = await countRenderedManimClips(ctx.userId, ctx.sessionId);
           const dropped_count = Math.max(0, concepts.length - manim_count);
@@ -40142,75 +40601,1935 @@ ${cleanScript}`
 }
 
 // src/tools/pipeline/transcribe.ts
-var import_fs12 = __toESM(require("fs"));
-var import_path13 = __toESM(require("path"));
+var import_fs15 = __toESM(require("fs"));
+var import_path16 = __toESM(require("path"));
 var import_groq_sdk = __toESM(require("groq-sdk"));
 init_dist5();
 init_zod();
 init_storage();
 init_taggedAssets();
+
+// src/tools/lib/audioChunks.ts
+var import_fs12 = __toESM(require("fs"));
+var import_os3 = __toESM(require("os"));
+var import_path13 = __toESM(require("path"));
+var CHUNK_STEP_SECONDS = 480;
+var CHUNK_OVERLAP_SECONDS = 2.5;
+var MAX_CHUNK_BYTES = 15 * 1024 * 1024;
+var EXTRACT_TIMEOUT_SECONDS = 900;
+var CHUNK_FFMPEG_TIMEOUT_SECONDS = 300;
+var MAX_RESPLIT_DEPTH = 2;
+function transcriptionDir(sessionId) {
+  const dir = import_path13.default.join(getSessionWorkdir(sessionId), "transcription");
+  import_fs12.default.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+function logTmpDisk(sessionId, tag) {
+  try {
+    const s = import_fs12.default.statfsSync(import_os3.default.tmpdir());
+    const freeMb = Math.round(Number(s.bavail) * Number(s.bsize) / (1024 * 1024));
+    console.error("[transcribe_video] disk", sessionId, tag, { freeMb });
+  } catch {
+    console.error("[transcribe_video] disk", sessionId, tag, "unavailable");
+  }
+}
+function unlinkQuiet(filePath) {
+  if (!filePath) return;
+  try {
+    import_fs12.default.unlinkSync(filePath);
+  } catch {
+  }
+}
+function cleanupTranscriptionLocals(sessionId, extra = []) {
+  for (const p of extra) unlinkQuiet(p);
+  const dir = import_path13.default.join(getSessionWorkdir(sessionId), "transcription");
+  if (!import_fs12.default.existsSync(dir)) return;
+  for (const name26 of import_fs12.default.readdirSync(dir)) {
+    unlinkQuiet(import_path13.default.join(dir, name26));
+  }
+}
+async function probeDurationSeconds(mediaPath) {
+  const probe = await execCommand(
+    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${mediaPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  if (!probe.success) {
+    throw new Error(probe.stderr || "ffprobe duration failed");
+  }
+  const duration3 = Number.parseFloat(probe.stdout.trim());
+  if (!Number.isFinite(duration3) || duration3 <= 0) {
+    throw new Error(`ffprobe returned invalid duration: ${probe.stdout.trim()}`);
+  }
+  return duration3;
+}
+async function extractFlac(inputPath, flacPath) {
+  import_fs12.default.mkdirSync(import_path13.default.dirname(flacPath), { recursive: true });
+  const cmd = `ffmpeg -y -i "${inputPath}" -map 0:a:0 -vn -ar 16000 -ac 1 -c:a flac "${flacPath}"`;
+  let result;
+  try {
+    result = await execCommand(cmd, { timeoutSeconds: EXTRACT_TIMEOUT_SECONDS });
+  } catch (err) {
+    const code = err?.code;
+    if (code === "ENOSPC") {
+      throw new Error("ENOSPC: insufficient disk space during FLAC extract");
+    }
+    throw err;
+  }
+  if (!result.success) {
+    const errText = result.stderr || result.stdout || "ffmpeg FLAC extract failed";
+    if (/no space left|ENOSPC/i.test(errText)) {
+      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
+    }
+    throw new Error(errText);
+  }
+}
+function planWindows(totalDurationSeconds) {
+  const windows = [];
+  let start = 0;
+  let index = 0;
+  while (start < totalDurationSeconds - 1e-6) {
+    const remaining = totalDurationSeconds - start;
+    const isLast = remaining <= CHUNK_STEP_SECONDS + 1e-6;
+    const duration3 = isLast ? remaining : Math.min(CHUNK_STEP_SECONDS + CHUNK_OVERLAP_SECONDS, remaining);
+    windows.push({
+      index,
+      startOffsetSeconds: start,
+      durationSeconds: duration3
+    });
+    if (isLast) break;
+    start += CHUNK_STEP_SECONDS;
+    index += 1;
+  }
+  return windows;
+}
+async function extractWindow(flacPath, startOffsetSeconds, durationSeconds, outPath) {
+  import_fs12.default.mkdirSync(import_path13.default.dirname(outPath), { recursive: true });
+  const cmd = `ffmpeg -y -ss ${startOffsetSeconds} -t ${durationSeconds} -i "${flacPath}" -c copy "${outPath}"`;
+  const result = await execCommand(cmd, { timeoutSeconds: CHUNK_FFMPEG_TIMEOUT_SECONDS });
+  if (!result.success) {
+    const errText = result.stderr || result.stdout || "ffmpeg chunk extract failed";
+    if (/no space left|ENOSPC/i.test(errText)) {
+      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
+    }
+    throw new Error(errText);
+  }
+}
+async function materializeWindows(flacPath, sessionId, planned) {
+  const dir = transcriptionDir(sessionId);
+  const out = [];
+  async function materializeOne(win, depth, suffix) {
+    const outPath = import_path13.default.join(dir, `chunk-${win.index}${suffix}.flac`);
+    await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
+    const bytes = import_fs12.default.statSync(outPath).size;
+    if (bytes <= MAX_CHUNK_BYTES || win.durationSeconds <= 30 || depth >= MAX_RESPLIT_DEPTH) {
+      out.push({ ...win, path: outPath });
+      return;
+    }
+    unlinkQuiet(outPath);
+    const half = win.durationSeconds / 2;
+    const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
+    await materializeOne(
+      {
+        index: win.index,
+        startOffsetSeconds: win.startOffsetSeconds,
+        durationSeconds: half + overlap
+      },
+      depth + 1,
+      `${suffix}a`
+    );
+    await materializeOne(
+      {
+        index: win.index,
+        startOffsetSeconds: win.startOffsetSeconds + half,
+        durationSeconds: win.durationSeconds - half
+      },
+      depth + 1,
+      `${suffix}b`
+    );
+  }
+  for (const win of planned) {
+    await materializeOne(win, 0, "");
+  }
+  return out;
+}
+async function extractSingleWindow(flacPath, sessionId, win, suffix = "") {
+  const outPath = import_path13.default.join(
+    transcriptionDir(sessionId),
+    `chunk-${win.index}${suffix}.flac`
+  );
+  await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
+  return { ...win, path: outPath };
+}
+async function splitWindowInHalf(flacPath, sessionId, win, depth) {
+  const half = win.durationSeconds / 2;
+  const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
+  const a = await extractSingleWindow(
+    flacPath,
+    sessionId,
+    {
+      index: win.index,
+      startOffsetSeconds: win.startOffsetSeconds,
+      durationSeconds: half + overlap
+    },
+    `-d${depth}a`
+  );
+  const b = await extractSingleWindow(
+    flacPath,
+    sessionId,
+    {
+      index: win.index,
+      startOffsetSeconds: win.startOffsetSeconds + half,
+      durationSeconds: win.durationSeconds - half
+    },
+    `-d${depth}b`
+  );
+  return [a, b];
+}
+function validateLocalChunkMeta(local, expected) {
+  return Math.abs(local.startOffsetSeconds - expected.startOffsetSeconds) < 1e-3 && Math.abs(local.durationSeconds - expected.durationSeconds) < 1e-3;
+}
+
+// src/tools/lib/transcriptStitch.ts
+function offsetItems(items, offset) {
+  return items.map((item) => ({
+    ...item,
+    start: item.start + offset,
+    end: item.end + offset
+  }));
+}
+function stitchChunkTranscripts(chunks, totalDurationSeconds) {
+  const ordered = [...chunks].sort(
+    (a, b) => a.startOffsetSeconds - b.startOffsetSeconds || a.durationSeconds - b.durationSeconds
+  );
+  const gaps = [];
+  const words = [];
+  const segments = [];
+  let language;
+  let prev = null;
+  for (let i = 0; i < ordered.length; i++) {
+    const chunk = ordered[i];
+    if (chunk.language && !language) language = chunk.language;
+    if (chunk.skipped) {
+      gaps.push({
+        index: i,
+        startOffsetSeconds: chunk.startOffsetSeconds,
+        durationSeconds: chunk.durationSeconds
+      });
+      prev = null;
+      continue;
+    }
+    const absWords = offsetItems(chunk.words ?? [], chunk.startOffsetSeconds);
+    const absSegments = offsetItems(chunk.segments ?? [], chunk.startOffsetSeconds);
+    if (!prev) {
+      words.push(...absWords);
+      segments.push(...absSegments);
+      prev = { ...chunk, absWords, absSegments };
+      continue;
+    }
+    const overlapStart = chunk.startOffsetSeconds;
+    const overlapEnd = prev.startOffsetSeconds + prev.durationSeconds;
+    const hasOverlap = overlapEnd > overlapStart + 1e-6;
+    if (!hasOverlap) {
+      words.push(...absWords);
+      segments.push(...absSegments);
+      prev = { ...chunk, absWords, absSegments };
+      continue;
+    }
+    const cut = (overlapStart + overlapEnd) / 2;
+    while (words.length > 0 && words[words.length - 1].start >= cut) {
+      words.pop();
+    }
+    while (segments.length > 0 && segments[segments.length - 1].start >= cut) {
+      segments.pop();
+    }
+    for (const w of absWords) {
+      if (w.start >= cut) words.push(w);
+    }
+    for (const s of absSegments) {
+      if (s.start >= cut) segments.push(s);
+    }
+    prev = { ...chunk, absWords, absSegments };
+  }
+  const text2 = words.map((w) => w.word).join(" ").replace(/\s+/g, " ").trim();
+  return {
+    text: text2,
+    words,
+    segments,
+    duration_seconds: totalDurationSeconds,
+    ...language !== void 0 ? { language } : {},
+    gaps
+  };
+}
+
+// src/tools/lib/transcriptionProgress.ts
+var import_fs13 = __toESM(require("fs"));
+var import_path14 = __toESM(require("path"));
+var import_firestore5 = require("firebase-admin/firestore");
+var import_storage6 = require("firebase-admin/storage");
+init_firebase();
+init_storage();
+async function readTranscriptionProgress(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.transcriptionProgress;
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw;
+  if (typeof p.videoUrl !== "string" || !Array.isArray(p.completedChunkIndices)) {
+    return null;
+  }
+  return p;
+}
+async function writeTranscriptionProgress(sessionId, progress) {
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      transcriptionProgress: {
+        ...progress,
+        updatedAt: import_firestore5.FieldValue.serverTimestamp()
+      }
+    },
+    { merge: true }
+  );
+}
+async function clearTranscriptionProgress(sessionId) {
+  await db.collection("sessions").doc(sessionId).set({ transcriptionProgress: import_firestore5.FieldValue.delete() }, { merge: true });
+}
+function chunkStoragePath(userId, sessionId, index) {
+  return `users/${userId}/sessions/${sessionId}/transcription_chunks/chunk-${index}.json`;
+}
+async function persistChunkResult(userId, sessionId, chunk) {
+  const payload = {
+    words: chunk.words,
+    segments: chunk.segments,
+    text: chunk.text,
+    startOffsetSeconds: chunk.startOffsetSeconds,
+    durationSeconds: chunk.durationSeconds,
+    ...chunk.language !== void 0 ? { language: chunk.language } : {},
+    ...chunk.provider !== void 0 ? { provider: chunk.provider } : {},
+    ...chunk.skipped ? { skipped: true } : {}
+  };
+  const localPath = import_path14.default.join(transcriptionDir(sessionId), `chunk-${chunk.index}.json`);
+  import_fs13.default.mkdirSync(import_path14.default.dirname(localPath), { recursive: true });
+  import_fs13.default.writeFileSync(localPath, JSON.stringify(payload, null, 2));
+  const storagePath = chunkStoragePath(userId, sessionId, chunk.index);
+  const url2 = await uploadFileToStorageKeepLocal(localPath, storagePath);
+  await writeAssetUrl(userId, sessionId, "transcription_chunk", url2, {
+    sourceTool: "transcribe_video",
+    metadata: {
+      index: chunk.index,
+      startOffsetSeconds: chunk.startOffsetSeconds,
+      durationSeconds: chunk.durationSeconds
+    }
+  });
+  return url2;
+}
+async function loadChunkResult(userId, sessionId, index, expected) {
+  const localPath = import_path14.default.join(transcriptionDir(sessionId), `chunk-${index}.json`);
+  if (import_fs13.default.existsSync(localPath)) {
+    try {
+      const parsed = JSON.parse(import_fs13.default.readFileSync(localPath, "utf-8"));
+      if (validateLocalChunkMeta(
+        {
+          startOffsetSeconds: parsed.startOffsetSeconds,
+          durationSeconds: parsed.durationSeconds
+        },
+        expected
+      )) {
+        return parsed;
+      }
+    } catch {
+    }
+  }
+  try {
+    const bucket = (0, import_storage6.getStorage)().bucket(getStorageBucketName());
+    const file2 = bucket.file(chunkStoragePath(userId, sessionId, index));
+    const [exists] = await file2.exists();
+    if (!exists) return null;
+    const [buf] = await file2.download();
+    const parsed = JSON.parse(buf.toString("utf-8"));
+    if (!validateLocalChunkMeta(
+      {
+        startOffsetSeconds: parsed.startOffsetSeconds,
+        durationSeconds: parsed.durationSeconds
+      },
+      expected
+    )) {
+      return null;
+    }
+    import_fs13.default.mkdirSync(import_path14.default.dirname(localPath), { recursive: true });
+    import_fs13.default.writeFileSync(localPath, JSON.stringify(parsed, null, 2));
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+async function deleteTranscriptionChunkObjects(userId, sessionId) {
+  try {
+    const bucket = (0, import_storage6.getStorage)().bucket(getStorageBucketName());
+    await bucket.deleteFiles({
+      prefix: `users/${userId}/sessions/${sessionId}/transcription_chunks/`
+    });
+  } catch (err) {
+    console.error("[transcribe_video] chunk cleanup", sessionId, err);
+  }
+}
+
+// src/tools/lib/sarvamBatch.ts
+var import_fs14 = __toESM(require("fs"));
+var import_path15 = __toESM(require("path"));
+var BASE = "https://api.sarvam.ai";
+var POLL_MS = 5e3;
+var MAX_POLLS = 120;
+var SarvamBatchError = class extends Error {
+  kind;
+  status;
+  constructor(message, kind, status) {
+    super(message);
+    this.name = "SarvamBatchError";
+    this.kind = kind;
+    this.status = status;
+  }
+};
+function apiKey() {
+  const key = process.env.SARVAM_API_KEY?.trim();
+  if (!key) {
+    throw new SarvamBatchError("SARVAM_API_KEY is not set", "permanent");
+  }
+  return key;
+}
+function classifyStatus(status) {
+  if (status === 429 || status === 500 || status === 502 || status === 503) return "transient";
+  return "permanent";
+}
+async function sarvamJson(method, urlPath, body) {
+  const headers = {
+    "api-subscription-key": apiKey()
+  };
+  let payload;
+  if (body !== void 0) {
+    headers["Content-Type"] = "application/json";
+    payload = JSON.stringify(body);
+  }
+  let res;
+  try {
+    res = await fetch(`${BASE}${urlPath}`, { method, headers, body: payload });
+  } catch (err) {
+    throw new SarvamBatchError(
+      `Sarvam network error: ${err instanceof Error ? err.message : String(err)}`,
+      "transient"
+    );
+  }
+  const text2 = await res.text();
+  let parsed = null;
+  try {
+    parsed = text2 ? JSON.parse(text2) : null;
+  } catch {
+    parsed = null;
+  }
+  if (!res.ok) {
+    throw new SarvamBatchError(
+      `Sarvam ${method} ${urlPath} \u2192 ${res.status}: ${text2.slice(0, 400)}`,
+      classifyStatus(res.status),
+      res.status
+    );
+  }
+  return parsed;
+}
+function firstFileUrl(container) {
+  if (!container) return void 0;
+  if (Array.isArray(container)) {
+    for (const item of container) {
+      if (typeof item === "string" && item) return item;
+      if (item && typeof item === "object") {
+        const u = item.file_url ?? item.url;
+        if (u) return u;
+      }
+    }
+    return void 0;
+  }
+  for (const v of Object.values(container)) {
+    if (typeof v === "string" && v) return v;
+    if (v && typeof v === "object" && typeof v.file_url === "string") return v.file_url;
+  }
+  return void 0;
+}
+function contentTypeForAudio(filePath) {
+  const ext = import_path15.default.extname(filePath).toLowerCase();
+  switch (ext) {
+    case ".flac":
+      return "audio/flac";
+    case ".wav":
+      return "audio/wav";
+    case ".mp3":
+      return "audio/mpeg";
+    case ".m4a":
+      return "audio/mp4";
+    default:
+      return "application/octet-stream";
+  }
+}
+function parseSarvamTimestamps(raw) {
+  if (!raw || typeof raw !== "object") {
+    throw new SarvamBatchError("Sarvam response missing timestamps object", "missing_timestamps");
+  }
+  const ts = raw;
+  const textsRaw = Array.isArray(ts.chunks) ? ts.chunks : Array.isArray(ts.words) ? ts.words : null;
+  const starts = ts.start_time_seconds;
+  const ends = ts.end_time_seconds;
+  if (!textsRaw || !Array.isArray(starts) || !Array.isArray(ends)) {
+    throw new SarvamBatchError(
+      "Sarvam timestamps missing chunks/words + start/end arrays",
+      "missing_timestamps"
+    );
+  }
+  if (textsRaw.length === 0) {
+    throw new SarvamBatchError("Sarvam timestamps empty", "missing_timestamps");
+  }
+  if (textsRaw.length !== starts.length || textsRaw.length !== ends.length) {
+    throw new SarvamBatchError(
+      `Sarvam timestamp length mismatch texts=${textsRaw.length} starts=${starts.length} ends=${ends.length}`,
+      "missing_timestamps"
+    );
+  }
+  const out = [];
+  for (let i = 0; i < textsRaw.length; i++) {
+    const text2 = textsRaw[i];
+    const start = starts[i];
+    const end = ends[i];
+    if (typeof text2 !== "string" || typeof start !== "number" || typeof end !== "number") {
+      throw new SarvamBatchError(`Sarvam timestamp entry ${i} malformed`, "missing_timestamps");
+    }
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+      throw new SarvamBatchError(`Sarvam timestamp entry ${i} bad range`, "missing_timestamps");
+    }
+    out.push({ text: text2, start, end });
+  }
+  return out;
+}
+async function putAudio(uploadUrl, filePath) {
+  const bytes = import_fs14.default.readFileSync(filePath);
+  let res;
+  try {
+    res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentTypeForAudio(filePath),
+        "x-ms-blob-type": "BlockBlob"
+      },
+      body: bytes
+    });
+  } catch (err) {
+    throw new SarvamBatchError(
+      `Sarvam upload PUT network error: ${err instanceof Error ? err.message : String(err)}`,
+      "transient"
+    );
+  }
+  if (!res.ok) {
+    const text2 = await res.text().catch(() => "");
+    throw new SarvamBatchError(
+      `Sarvam upload PUT \u2192 ${res.status}: ${text2.slice(0, 300)}`,
+      classifyStatus(res.status),
+      res.status
+    );
+  }
+}
+async function runSarvamTranslitBatch(audioPath) {
+  if (!import_fs14.default.existsSync(audioPath)) {
+    throw new SarvamBatchError(`Audio not found: ${audioPath}`, "permanent");
+  }
+  const fileName = import_path15.default.basename(audioPath);
+  const created = await sarvamJson("POST", "/speech-to-text/job/v1", {
+    job_parameters: {
+      model: "saaras:v4",
+      mode: "translit",
+      with_timestamps: true,
+      language_code: "unknown"
+    }
+  });
+  const jobId = created.job_id;
+  if (!jobId) {
+    throw new SarvamBatchError("Sarvam create job missing job_id", "permanent");
+  }
+  const uploadMeta = await sarvamJson(
+    "POST",
+    "/speech-to-text/job/v1/upload-files",
+    { job_id: jobId, files: [fileName] }
+  );
+  const putUrl = firstFileUrl(uploadMeta.upload_urls);
+  if (!putUrl) {
+    throw new SarvamBatchError("Sarvam upload-files missing upload URL", "permanent");
+  }
+  await putAudio(putUrl, audioPath);
+  await sarvamJson("POST", `/speech-to-text/job/v1/${jobId}/start`, {});
+  let status = null;
+  for (let i = 0; i < MAX_POLLS; i++) {
+    const polled = await sarvamJson("GET", `/speech-to-text/job/v1/${jobId}/status`);
+    status = polled;
+    const state = polled.job_state;
+    if (state === "Completed" || state === "PartiallyCompleted") break;
+    if (state === "Failed") {
+      throw new SarvamBatchError(
+        `Sarvam job Failed: ${polled.error_message ?? "(no message)"}`,
+        "permanent"
+      );
+    }
+    await new Promise((r) => setTimeout(r, POLL_MS));
+  }
+  if (!status || status.job_state !== "Completed" && status.job_state !== "PartiallyCompleted") {
+    throw new SarvamBatchError(
+      `Sarvam job timed out (last state=${status?.job_state ?? "unknown"})`,
+      "transient"
+    );
+  }
+  const completed = status;
+  const files = [];
+  for (const d of completed.job_details ?? []) {
+    for (const o of d.outputs ?? []) {
+      if (o.file_name) files.push(o.file_name);
+    }
+  }
+  if (files.length === 0) files.push("0.json");
+  const dl = await sarvamJson(
+    "POST",
+    "/speech-to-text/job/v1/download-files",
+    { job_id: jobId, files }
+  );
+  const getUrl = firstFileUrl(dl.download_urls);
+  if (!getUrl) {
+    throw new SarvamBatchError("Sarvam download-files missing URL", "permanent");
+  }
+  let bodyText;
+  try {
+    const res = await fetch(getUrl);
+    if (!res.ok) {
+      throw new SarvamBatchError(
+        `Sarvam result GET \u2192 ${res.status}`,
+        classifyStatus(res.status),
+        res.status
+      );
+    }
+    bodyText = await res.text();
+  } catch (err) {
+    if (err instanceof SarvamBatchError) throw err;
+    throw new SarvamBatchError(
+      `Sarvam result download failed: ${err instanceof Error ? err.message : String(err)}`,
+      "transient"
+    );
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    throw new SarvamBatchError("Sarvam result JSON parse failed", "permanent");
+  }
+  const rec = parsed;
+  return {
+    phrases: parseSarvamTimestamps(rec.timestamps),
+    raw: parsed
+  };
+}
+
+// src/tools/lib/transliteration/abbreviationDictionary.ts
+var BUNDLED_ABBREVIATIONS = {
+  kn: {
+    \u0CAC\u0CBF\u0CAA\u0CBF: "BP",
+    \u0CAA\u0CBF\u0CB8\u0CBF\u0C92\u0CA1\u0CBF: "PCOD",
+    \u0CAA\u0CBF\u0CB8\u0CBF\u0C92\u0C8E\u0CB8\u0CCD: "PCOS"
+  }
+};
+function normalizeLang(code) {
+  if (!code) return void 0;
+  const raw = code.trim().toLowerCase();
+  if (!raw) return void 0;
+  if (raw === "kannada") return "kn";
+  return raw.split(/[-_]/)[0] || void 0;
+}
+function abbreviationDictionaryPath(code) {
+  return `config/transliteration_abbreviations/langs/${code}`;
+}
+async function loadAbbreviationDictionary(languageCode) {
+  const code = normalizeLang(languageCode);
+  const defaults = code && BUNDLED_ABBREVIATIONS[code] || {};
+  if (!code) return { ...defaults };
+  try {
+    const { db: db2 } = await Promise.resolve().then(() => (init_firebase(), firebase_exports));
+    const snap = await db2.doc(abbreviationDictionaryPath(code)).get();
+    if (!snap.exists) {
+      console.error("[abbreviationDictionary] miss", abbreviationDictionaryPath(code));
+      return { ...defaults };
+    }
+    const raw = snap.data()?.entries;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      console.error("[abbreviationDictionary] bad entries shape", code);
+      return { ...defaults };
+    }
+    const overlay = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string") overlay[k] = v;
+    }
+    return { ...defaults, ...overlay };
+  } catch (err) {
+    console.error(
+      "[abbreviationDictionary] load failed",
+      code,
+      err instanceof Error ? err.message.slice(0, 200) : String(err)
+    );
+    return { ...defaults };
+  }
+}
+
+// src/tools/lib/transliteration/mapSarvamToGroqTiming.ts
+var SKEW_RATIO_THRESHOLD = 2;
+function wordsForPhraseWindow(words, start, end, isLast) {
+  const out = [];
+  for (let g = 0; g < words.length; g++) {
+    const w = words[g];
+    const mid = (w.start + w.end) / 2;
+    const inWin = isLast ? mid >= start && mid <= end : mid >= start && mid < end;
+    if (inWin) out.push({ globalIndex: g, word: w });
+  }
+  return out;
+}
+function tokenize(text2) {
+  return text2.trim().split(/\s+/).filter(Boolean);
+}
+function assignTokensDurationWeight(tokens, durations) {
+  const n = durations.length;
+  if (n === 0) return [];
+  if (tokens.length === 0) return Array.from({ length: n }, () => "");
+  if (n === 1) return [tokens.join(" ")];
+  const total = durations.reduce((a, b) => a + Math.max(0, b), 0);
+  if (!(total > 0)) return assignTokensEven(tokens, n);
+  const slots = Array.from({ length: n }, () => []);
+  let tokenIdx = 0;
+  let cumFrac = 0;
+  for (let i = 0; i < n; i++) {
+    if (i === n - 1) {
+      while (tokenIdx < tokens.length) slots[i].push(tokens[tokenIdx++]);
+      break;
+    }
+    cumFrac += Math.max(0, durations[i]) / total;
+    const targetCount = Math.max(tokenIdx, Math.round(cumFrac * tokens.length));
+    while (tokenIdx < targetCount && tokenIdx < tokens.length) {
+      slots[i].push(tokens[tokenIdx++]);
+    }
+  }
+  while (tokenIdx < tokens.length) slots[n - 1].push(tokens[tokenIdx++]);
+  return slots.map((s) => s.join(" "));
+}
+function assignTokensEven(tokens, n) {
+  if (n <= 0) return [];
+  if (tokens.length === 0) return Array.from({ length: n }, () => "");
+  if (n === 1) return [tokens.join(" ")];
+  const slots = Array.from({ length: n }, () => []);
+  for (let t = 0; t < tokens.length; t++) {
+    const slot = Math.min(n - 1, Math.floor(t * n / tokens.length));
+    slots[slot].push(tokens[t]);
+  }
+  return slots.map((s) => s.join(" "));
+}
+function evenlySpacedWords(tokens, start, end) {
+  const n = tokens.length;
+  if (n === 0) return [];
+  const dur = Math.max(0, end - start);
+  const slot = n > 0 ? dur / n : 0;
+  return tokens.map((word, i) => ({
+    word,
+    start: start + i * slot,
+    end: start + (i + 1) * slot
+  }));
+}
+function expandMultiWordTokens(words) {
+  const out = [];
+  for (const w of words) {
+    const parts = w.word.trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) {
+      if (parts.length === 1) out.push({ ...w, word: parts[0] });
+      continue;
+    }
+    const dur = Math.max(0, w.end - w.start);
+    const slot = dur / parts.length;
+    for (let i = 0; i < parts.length; i++) {
+      out.push({
+        word: parts[i],
+        start: w.start + i * slot,
+        end: w.start + (i + 1) * slot
+      });
+    }
+  }
+  return out;
+}
+function mapSarvamToGroqTiming(groqWords, phrases, mode = "duration_weight") {
+  const phraseBlocks = [];
+  const fallbackBlocks = [];
+  const fallbackPhraseIndices = [];
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const P = phrases[pi];
+    const members = wordsForPhraseWindow(
+      groqWords,
+      P.start,
+      P.end,
+      pi === phrases.length - 1
+    );
+    const tokens = tokenize(P.text);
+    if (members.length === 0) {
+      fallbackPhraseIndices.push(pi);
+      if (tokens.length > 0) {
+        fallbackBlocks.push(...evenlySpacedWords(tokens, P.start, P.end));
+      }
+      continue;
+    }
+    const skew = members.length > 0 ? tokens.length / members.length : Infinity;
+    if (tokens.length === 0) {
+      continue;
+    }
+    if (skew > SKEW_RATIO_THRESHOLD) {
+      phraseBlocks.push({
+        insertAfterClaimedMax: Math.max(...members.map((m) => m.globalIndex)),
+        words: evenlySpacedWords(tokens, P.start, P.end)
+      });
+      continue;
+    }
+    const durations = members.map(
+      (m) => Math.max(0, m.word.end - m.word.start)
+    );
+    const pieces = mode === "even" ? assignTokensEven(tokens, members.length) : assignTokensDurationWeight(tokens, durations);
+    const packed = [];
+    for (let i = 0; i < members.length; i++) {
+      const text2 = (pieces[i] ?? "").trim();
+      if (!text2) continue;
+      const slot = members[i].word;
+      packed.push({ word: text2, start: slot.start, end: slot.end });
+    }
+    phraseBlocks.push({
+      insertAfterClaimedMax: Math.max(...members.map((m) => m.globalIndex)),
+      words: packed
+    });
+  }
+  phraseBlocks.sort(
+    (a, b) => a.insertAfterClaimedMax - b.insertAfterClaimedMax
+  );
+  const assembled = [];
+  for (const block of phraseBlocks) assembled.push(...block.words);
+  assembled.push(...fallbackBlocks);
+  return {
+    words: expandMultiWordTokens(assembled),
+    fallbackPhraseIndices
+  };
+}
+
+// src/tools/lib/transliteration/sarvamLanguages.ts
+var SARVAM_SUPPORTED_LANGUAGES = [
+  "as",
+  "bn",
+  "brx",
+  "doi",
+  "en",
+  "gu",
+  "hi",
+  "kn",
+  "kok",
+  "ks",
+  "mai",
+  "ml",
+  "mni",
+  "mr",
+  "ne",
+  "od",
+  "pa",
+  "sa",
+  "sat",
+  "sd",
+  "ta",
+  "te",
+  "ur"
+];
+var CAPTION_LANGUAGE_CHECKPOINT_CODES = [
+  "as",
+  "bn",
+  "en",
+  "gu",
+  "hi",
+  "kn",
+  "ml",
+  "mr",
+  "ne",
+  "pa",
+  "sa",
+  "sd",
+  "ta",
+  "te",
+  "ur"
+];
+var CHECKPOINT_LABELS = {
+  as: "Assamese",
+  bn: "Bengali",
+  en: "English",
+  gu: "Gujarati",
+  hi: "Hindi",
+  kn: "Kannada",
+  ml: "Malayalam",
+  mr: "Marathi",
+  ne: "Nepali",
+  pa: "Punjabi",
+  sa: "Sanskrit",
+  sd: "Sindhi",
+  ta: "Tamil",
+  te: "Telugu",
+  ur: "Urdu"
+};
+var CAPTION_LANGUAGE_CHECKPOINT_CHOICES = [
+  { id: "auto", label: "Auto-detect" },
+  ...CAPTION_LANGUAGE_CHECKPOINT_CODES.map((id) => ({
+    id,
+    label: CHECKPOINT_LABELS[id]
+  }))
+];
+var SARVAM_SET = new Set(SARVAM_SUPPORTED_LANGUAGES);
+function isSarvamSupportedLanguage(normalizedCode) {
+  return Boolean(normalizedCode && SARVAM_SET.has(normalizedCode));
+}
+
+// src/tools/lib/transliteration/transliterateWords.ts
+function normalizeLanguageCode(code) {
+  if (!code) return void 0;
+  const raw = code.trim().toLowerCase();
+  if (!raw) return void 0;
+  if (raw === "kannada") return "kn";
+  return raw.split(/[-_]/)[0] || void 0;
+}
+function applyAbbrevOverride(nativeWord, mappedText, seed) {
+  const hit = seed[nativeWord];
+  return hit !== void 0 ? hit : mappedText;
+}
+function nativeAtMappedTime(groqWords, mapped) {
+  const mid = (mapped.start + mapped.end) / 2;
+  for (const g of groqWords) {
+    if (mid >= g.start && mid < g.end) return g.word;
+    if (mid === g.end) return g.word;
+  }
+  return "";
+}
+function rebuildSegments(words, segments) {
+  return segments.map((seg, si) => {
+    const isLast = si === segments.length - 1;
+    const parts = [];
+    for (const w of words) {
+      const mid = (w.start + w.end) / 2;
+      const inSeg = isLast ? mid >= seg.start && mid <= seg.end : mid >= seg.start && mid < seg.end;
+      if (inSeg) parts.push(w.word);
+    }
+    return { ...seg, text: parts.join(" ") };
+  });
+}
+function unwrapSarvam(out) {
+  if (Array.isArray(out)) return { phrases: out };
+  return { phrases: out.phrases, raw: out.raw };
+}
+async function transliterateWords(input, deps = {}) {
+  const norm = normalizeLanguageCode(input.language);
+  if (!isSarvamSupportedLanguage(norm)) {
+    console.error(
+      "[transliterateWords] language not in Sarvam allowlist",
+      input.language
+    );
+    return {
+      words: input.words,
+      segments: input.segments,
+      text: input.text ?? input.words.map((w) => w.word).join(" ")
+    };
+  }
+  const runSarvam = deps.runSarvam ?? runSarvamTranslitBatch;
+  const loadDictionary = deps.loadDictionary ?? loadAbbreviationDictionary;
+  let phrases;
+  let sarvamRaw;
+  try {
+    const unwrapped = unwrapSarvam(await runSarvam(input.audioPath));
+    phrases = unwrapped.phrases;
+    sarvamRaw = unwrapped.raw;
+  } catch (err) {
+    if (err instanceof SarvamBatchError) throw err;
+    throw new SarvamBatchError(
+      `Sarvam batch failed: ${err instanceof Error ? err.message : String(err)}`,
+      "transient"
+    );
+  }
+  const mapped = mapSarvamToGroqTiming(input.words, phrases, "duration_weight");
+  const abbrev = await loadDictionary(input.language);
+  const words = mapped.words.map((w) => {
+    const native = nativeAtMappedTime(input.words, w);
+    return { ...w, word: applyAbbrevOverride(native, w.word, abbrev) };
+  });
+  const segments = rebuildSegments(words, input.segments);
+  const text2 = words.map((w) => w.word).join(" ");
+  return {
+    words,
+    segments,
+    text: text2,
+    ...mapped.fallbackPhraseIndices.length > 0 ? { transliterationFallbacks: mapped.fallbackPhraseIndices } : {},
+    ...sarvamRaw !== void 0 ? { sarvamRaw } : {}
+  };
+}
+
+// src/tools/lib/forceLanguageRepass.ts
+function languageForDetectRepass(opts) {
+  if (opts.firstCallHadLanguage || opts.forceFail) return void 0;
+  const pin = normalizeLanguageCode(opts.detectedLanguage) ?? opts.detectedLanguage;
+  if (!pin || pin === "en") return void 0;
+  return pin;
+}
+
+// src/tools/lib/transcriptionLanguage.ts
+function pinnedLanguageFromRequest(requested, existingPin) {
+  if (existingPin) return existingPin;
+  if (!requested || requested === "auto") return void 0;
+  return normalizeLanguageCode(requested) ?? requested;
+}
+
+// src/tools/pipeline/transcribe.ts
+var FAIL_CHOICES = /* @__PURE__ */ new Set(["retry", "continue", "abort"]);
+function keepPinnedLanguage(p) {
+  return {
+    ...p?.pinnedLanguage ? { pinnedLanguage: p.pinnedLanguage } : {}
+  };
+}
+var ProviderError = class extends Error {
+  status;
+  kind;
+  provider;
+  constructor(message, opts) {
+    super(message);
+    this.status = opts.status;
+    this.kind = opts.kind;
+    this.provider = opts.provider;
+  }
+};
+function statusOf(err) {
+  if (!err || typeof err !== "object") return void 0;
+  const e = err;
+  return e.status ?? e.statusCode ?? e.error?.status;
+}
+function classifyHttpStatus(status) {
+  if (status === 413) return "too_large";
+  if (status === 429 || status === 498 || status === 500 || status === 502 || status === 503) {
+    return "transient";
+  }
+  if (status === 400 || status === 401 || status === 403 || status === 404 || status === 422) {
+    return "permanent";
+  }
+  return "transient";
+}
+function assertWordsPresent(raw, provider) {
+  if (!("words" in raw) || raw.words == null) {
+    throw new ProviderError(`${provider}: words key missing/null`, {
+      kind: "words_missing",
+      provider
+    });
+  }
+  if (!Array.isArray(raw.words)) {
+    throw new ProviderError(`${provider}: words is not an array`, {
+      kind: "words_missing",
+      provider
+    });
+  }
+}
+function normalizeVerbose(raw) {
+  const words = raw.words ?? [];
+  const segments = raw.segments ?? [];
+  return {
+    text: typeof raw.text === "string" ? raw.text : words.map((w) => w.word).join(" "),
+    words,
+    segments,
+    duration: typeof raw.duration === "number" ? raw.duration : void 0,
+    language: typeof raw.language === "string" ? raw.language : void 0
+  };
+}
+async function callGroq(chunkPath, language) {
+  if (process.env.TRANSCRIBE_FORCE_GROQ_FAIL === "1") {
+    throw new ProviderError("TRANSCRIBE_FORCE_GROQ_FAIL", {
+      status: 503,
+      kind: "transient",
+      provider: "groq"
+    });
+  }
+  const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
+  try {
+    const transcription = await groq.audio.transcriptions.create({
+      file: import_fs15.default.createReadStream(chunkPath),
+      model: "whisper-large-v3-turbo",
+      response_format: "verbose_json",
+      timestamp_granularities: ["word", "segment"],
+      ...language ? { language } : {}
+    });
+    const raw = transcription;
+    assertWordsPresent(raw, "groq");
+    return normalizeVerbose(raw);
+  } catch (err) {
+    if (err instanceof ProviderError) throw err;
+    const status = statusOf(err);
+    throw new ProviderError(
+      err instanceof Error ? err.message : String(err),
+      { status, kind: classifyHttpStatus(status), provider: "groq" }
+    );
+  }
+}
+async function callOpenRouterAudio(chunkPath, language) {
+  const buf = import_fs15.default.readFileSync(chunkPath);
+  const form = new FormData();
+  form.append(
+    "file",
+    new File([buf], import_path16.default.basename(chunkPath), { type: "audio/flac" })
+  );
+  form.append("model", "openai/whisper-large-v3-turbo");
+  form.append("response_format", "verbose_json");
+  form.append("timestamp_granularities[]", "word");
+  form.append("timestamp_granularities[]", "segment");
+  if (language) form.append("language", language);
+  let response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`
+      },
+      body: form
+    });
+  } catch (err) {
+    throw new ProviderError(err instanceof Error ? err.message : String(err), {
+      kind: "transient",
+      provider: "openrouter"
+    });
+  }
+  if (!response.ok) {
+    const text2 = await response.text();
+    throw new ProviderError(`OpenRouter ${response.status}: ${text2.slice(0, 400)}`, {
+      status: response.status,
+      kind: classifyHttpStatus(response.status),
+      provider: "openrouter"
+    });
+  }
+  const raw = await response.json();
+  assertWordsPresent(raw, "openrouter");
+  return normalizeVerbose(raw);
+}
+async function transcribeOnce(chunkPath, language) {
+  async function tryProvider(provider, fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      const pe = err instanceof ProviderError ? err : new ProviderError(String(err), { kind: "transient", provider });
+      console.error("[transcribe_video] provider_fail", {
+        provider,
+        kind: pe.kind,
+        status: pe.status,
+        message: pe.message.slice(0, 300)
+      });
+      if (pe.kind === "too_large") throw pe;
+      if (pe.kind === "transient") {
+        try {
+          return await fn();
+        } catch (err2) {
+          const pe2 = err2 instanceof ProviderError ? err2 : new ProviderError(String(err2), { kind: "transient", provider });
+          console.error("[transcribe_video] provider_fail", {
+            provider,
+            kind: pe2.kind,
+            status: pe2.status,
+            message: pe2.message.slice(0, 300),
+            retry: true
+          });
+          if (pe2.kind === "too_large") throw pe2;
+          throw pe2;
+        }
+      }
+      throw pe;
+    }
+  }
+  try {
+    const result2 = await tryProvider("groq", () => callGroq(chunkPath, language));
+    return { result: result2, provider: "groq" };
+  } catch (err) {
+    if (err instanceof ProviderError && err.kind === "too_large") throw err;
+    console.error("[transcribe_video] falling_back_openrouter", {
+      reason: err instanceof Error ? err.message.slice(0, 200) : String(err)
+    });
+  }
+  const result = await tryProvider(
+    "openrouter",
+    () => callOpenRouterAudio(chunkPath, language)
+  );
+  return { result, provider: "openrouter" };
+}
+async function transcribeWindowWithResplit(flacPath, sessionId, win, depth, language) {
+  try {
+    const { result, provider } = await transcribeOnce(win.path, language);
+    console.error("[transcribe_video] chunk_ok", sessionId, {
+      index: win.index,
+      provider,
+      depth,
+      start: win.startOffsetSeconds,
+      duration: win.durationSeconds,
+      words: result.words.length,
+      language: result.language ?? language
+    });
+    return {
+      words: result.words,
+      segments: result.segments,
+      text: result.text,
+      startOffsetSeconds: win.startOffsetSeconds,
+      durationSeconds: win.durationSeconds,
+      provider,
+      ...result.language !== void 0 ? { language: result.language } : language ? { language } : {}
+    };
+  } catch (err) {
+    if (err instanceof ProviderError && err.kind === "too_large" && depth < MAX_RESPLIT_DEPTH) {
+      console.error("[transcribe_video] resplit_413", sessionId, {
+        index: win.index,
+        depth
+      });
+      const [a, b] = await splitWindowInHalf(flacPath, sessionId, win, depth + 1);
+      const left = await transcribeWindowWithResplit(
+        flacPath,
+        sessionId,
+        a,
+        depth + 1,
+        language
+      );
+      const right = await transcribeWindowWithResplit(
+        flacPath,
+        sessionId,
+        b,
+        depth + 1,
+        language
+      );
+      const stitched = stitchChunkTranscripts(
+        [left, right],
+        win.durationSeconds
+      );
+      return {
+        words: stitched.words.map((w) => ({
+          ...w,
+          start: w.start - win.startOffsetSeconds,
+          end: w.end - win.startOffsetSeconds
+        })),
+        segments: stitched.segments.map((s) => ({
+          ...s,
+          start: s.start - win.startOffsetSeconds,
+          end: s.end - win.startOffsetSeconds
+        })),
+        text: stitched.text,
+        startOffsetSeconds: win.startOffsetSeconds,
+        durationSeconds: win.durationSeconds,
+        ...stitched.language !== void 0 ? { language: stitched.language } : {},
+        ...left.provider ? { provider: left.provider } : {}
+      };
+    }
+    throw err;
+  }
+}
+async function ensureFlac(sessionId, videoUrl, videoPath) {
+  const flacPath = import_path16.default.join(transcriptionDir(sessionId), "audio.flac");
+  if (!import_fs15.default.existsSync(flacPath)) {
+    logTmpDisk(sessionId, "pre-extract");
+    if (!import_fs15.default.existsSync(videoPath)) {
+      await downloadFile(videoUrl, videoPath);
+    }
+    await extractFlac(videoPath, flacPath);
+    unlinkQuiet(videoPath);
+    logTmpDisk(sessionId, "post-extract");
+  }
+  const durationSeconds = await probeDurationSeconds(flacPath);
+  return { flacPath, durationSeconds };
+}
 function createTranscribeTools(ctx) {
   return {
     transcribe_video: tool({
-      description: `Transcribe a teacher video using Groq Whisper. Call this first when the user provides a video URL. Downloads the video, transcribes it, uploads the transcript JSON to Firebase Storage, and returns the transcript text and storage URL.`,
+      description: `Transcribe a teacher video (Groq Whisper with OpenRouter fallback, chunked for long videos). Downloads the video, extracts FLAC, transcribes overlapping chunks, uploads transcript JSON to Firebase Storage, and returns the transcript text and storage URL.`,
       inputSchema: external_exports2.object({
         video_url: external_exports2.string().describe("Firebase Storage URL of the teacher video")
       }),
       execute: async ({ video_url }) => {
+        const videoPath = getTempPath(`${ctx.sessionId}_video.mp4`);
+        const localsExtra = [videoPath];
         try {
           assertTaggedUrlAllowed(video_url, ctx.taggedArtifacts);
-          const videoPath = getTempPath(`${ctx.sessionId}_video.mp4`);
-          await downloadFile(video_url, videoPath);
-          let inputFile = videoPath;
-          const stats = import_fs12.default.statSync(videoPath);
-          if (stats.size > 24 * 1024 * 1024) {
-            const audioPath = getTempPath(`${ctx.sessionId}_audio.mp3`);
-            const ffmpeg = await execCommand(
-              `ffmpeg -i "${videoPath}" -vn -acodec mp3 -ar 16000 -ac 1 "${audioPath}"`,
-              { timeoutSeconds: 120 }
-            );
-            if (!ffmpeg.success) {
-              throw new Error(ffmpeg.stderr || "ffmpeg audio extraction failed");
-            }
-            inputFile = audioPath;
+          let progress = await readTranscriptionProgress(ctx.sessionId);
+          if (progress && progress.videoUrl !== video_url) {
+            console.error("[transcribe_video] stale_progress", ctx.sessionId, {
+              progressUrl: progress.videoUrl,
+              video_url
+            });
+            await clearTranscriptionProgress(ctx.sessionId);
+            await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
+            progress = null;
           }
-          const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
-          const transcription = await groq.audio.transcriptions.create({
-            file: import_fs12.default.createReadStream(inputFile),
-            model: "whisper-large-v3",
-            response_format: "verbose_json",
-            timestamp_granularities: ["word", "segment"]
-          });
-          const verbose = transcription;
-          const language = typeof verbose.language === "string" ? verbose.language : void 0;
-          const transcriptData = {
-            text: transcription.text,
-            words: verbose.words ?? [],
-            segments: verbose.segments ?? [],
-            duration_seconds: verbose.duration ?? 0,
-            ...language !== void 0 ? { language } : {}
+          if (progress?.status === "complete") {
+            const existingUrl = await getAssetUrl(ctx.userId, ctx.sessionId, "transcript");
+            const local = import_path16.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
+            if (existingUrl && !import_fs15.default.existsSync(local)) {
+              try {
+                await downloadFile(existingUrl, local);
+              } catch {
+              }
+            }
+            if (existingUrl && import_fs15.default.existsSync(local)) {
+              const saved = JSON.parse(import_fs15.default.readFileSync(local, "utf-8"));
+              return {
+                transcript_url: existingUrl,
+                transcript_text: saved.text ?? "",
+                duration_seconds: saved.duration_seconds ?? 0,
+                word_count: Array.isArray(saved.words) ? saved.words.length : 0,
+                duration: formatDuration(saved.duration_seconds ?? 0),
+                reused: true,
+                ...saved.language ? { language: saved.language } : {}
+              };
+            }
+          }
+          const requestedLanguage = ctx.pipelineMode === "ask" ? await getSessionRequestedLanguage(ctx.sessionId) : void 0;
+          if (ctx.pipelineMode === "ask" && !requestedLanguage) {
+            const written = await writeAskCheckpoint(
+              {
+                sessionId: ctx.sessionId,
+                userId: ctx.userId,
+                skillName: ctx.skillName,
+                pipelineMode: ctx.pipelineMode
+              },
+              {
+                phase_label: "Transcription language",
+                completedPhase: "transcription",
+                question: "Choose language you require captions in.",
+                choices: CAPTION_LANGUAGE_CHECKPOINT_CHOICES,
+                allowFreeform: false,
+                presentation: "select",
+                defaultChoiceId: "en"
+              }
+            );
+            return {
+              haltTurn: true,
+              checkpointId: written.checkpointId,
+              checkpointDisplay: written.checkpointDisplay,
+              transcription_language_paused: true
+            };
+          }
+          let resumeChoice;
+          let retryIndex;
+          if (progress?.status === "awaiting_user") {
+            if (progress.checkpointId) {
+              const cp = await loadCheckpoint(ctx.sessionId, progress.checkpointId);
+              resumeChoice = cp?.answer?.choiceId;
+            }
+            if (!resumeChoice) {
+              throw new Error(
+                "Transcription awaiting user choice \u2014 answer the checkpoint first"
+              );
+            }
+            if (resumeChoice === "abort") {
+              await clearTranscriptionProgress(ctx.sessionId);
+              await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
+              cleanupTranscriptionLocals(ctx.sessionId, localsExtra);
+              throw new Error("Transcription aborted by user");
+            } else if (resumeChoice === "retry" && progress.failedChunk) {
+              retryIndex = progress.failedChunk.index;
+            } else if (!FAIL_CHOICES.has(resumeChoice)) {
+              throw new Error(
+                `Unknown transcription checkpoint choice: ${resumeChoice}`
+              );
+            }
+          }
+          const { flacPath, durationSeconds } = await ensureFlac(
+            ctx.sessionId,
+            video_url,
+            videoPath
+          );
+          localsExtra.push(flacPath);
+          const planned = planWindows(durationSeconds);
+          const completedSet = new Set(progress?.completedChunkIndices ?? []);
+          let pinnedLanguage = progress?.pinnedLanguage;
+          if (resumeChoice === "continue" && progress?.failedChunk) {
+            const fc = progress.failedChunk;
+            await persistChunkResult(ctx.userId, ctx.sessionId, {
+              index: fc.index,
+              words: [],
+              segments: [],
+              text: "",
+              startOffsetSeconds: fc.startOffsetSeconds,
+              durationSeconds: fc.durationSeconds,
+              skipped: true
+            });
+            completedSet.add(fc.index);
+            progress = {
+              videoUrl: video_url,
+              totalChunks: planned.length,
+              completedChunkIndices: [...completedSet].sort((a, b) => a - b),
+              status: "in_progress",
+              gaps: [
+                ...progress.gaps ?? [],
+                {
+                  index: fc.index,
+                  startOffsetSeconds: fc.startOffsetSeconds,
+                  durationSeconds: fc.durationSeconds
+                }
+              ],
+              ...keepPinnedLanguage(progress),
+              ...pinnedLanguage ? { pinnedLanguage } : {}
+            };
+            await writeTranscriptionProgress(ctx.sessionId, progress);
+          } else if (!progress || progress.status === "aborted" || progress.status === "complete") {
+            completedSet.clear();
+            pinnedLanguage = pinnedLanguageFromRequest(requestedLanguage);
+            progress = {
+              videoUrl: video_url,
+              totalChunks: planned.length,
+              completedChunkIndices: [],
+              status: "in_progress",
+              ...pinnedLanguage ? { pinnedLanguage } : {}
+            };
+            await writeTranscriptionProgress(ctx.sessionId, progress);
+          } else {
+            pinnedLanguage = pinnedLanguageFromRequest(
+              requestedLanguage,
+              pinnedLanguage
+            );
+            progress = {
+              ...progress,
+              totalChunks: planned.length,
+              status: "in_progress",
+              failedChunk: resumeChoice === "retry" ? void 0 : progress.failedChunk,
+              ...pinnedLanguage ? { pinnedLanguage } : {}
+            };
+            await writeTranscriptionProgress(ctx.sessionId, progress);
+          }
+          const needIndices = planned.filter((w) => {
+            if (retryIndex !== void 0) {
+              return w.index === retryIndex || !completedSet.has(w.index);
+            }
+            return !completedSet.has(w.index);
+          }).map((w) => w.index);
+          const windowsToRun = planned.filter((w) => needIndices.includes(w.index));
+          const materialized = windowsToRun.length > 0 ? await materializeWindows(flacPath, ctx.sessionId, windowsToRun) : [];
+          logTmpDisk(ctx.sessionId, "post-chunk");
+          const byIndex = /* @__PURE__ */ new Map();
+          for (const w of materialized) {
+            const list = byIndex.get(w.index) ?? [];
+            list.push(w);
+            byIndex.set(w.index, list);
+          }
+          const gaps = [
+            ...progress.gaps ?? []
+          ];
+          for (const plan of planned) {
+            if (completedSet.has(plan.index) && plan.index !== retryIndex) {
+              continue;
+            }
+            const pieces = byIndex.get(plan.index) ?? [
+              await extractSingleWindow(flacPath, ctx.sessionId, plan)
+            ];
+            const runChunk = async () => {
+              const langArg = pinnedLanguage;
+              if (pieces.length === 1) {
+                return transcribeWindowWithResplit(
+                  flacPath,
+                  ctx.sessionId,
+                  pieces[0],
+                  0,
+                  langArg
+                );
+              }
+              const parts = [];
+              for (const piece of pieces) {
+                parts.push(
+                  await transcribeWindowWithResplit(
+                    flacPath,
+                    ctx.sessionId,
+                    piece,
+                    0,
+                    langArg
+                  )
+                );
+              }
+              const stitched2 = stitchChunkTranscripts(parts, plan.durationSeconds);
+              return {
+                words: stitched2.words.map((w) => ({
+                  ...w,
+                  start: w.start - plan.startOffsetSeconds,
+                  end: w.end - plan.startOffsetSeconds
+                })),
+                segments: stitched2.segments.map((s) => ({
+                  ...s,
+                  start: s.start - plan.startOffsetSeconds,
+                  end: s.end - plan.startOffsetSeconds
+                })),
+                text: stitched2.text,
+                startOffsetSeconds: plan.startOffsetSeconds,
+                durationSeconds: plan.durationSeconds,
+                ...stitched2.language !== void 0 ? { language: stitched2.language } : {},
+                ...parts[0]?.provider ? { provider: parts[0].provider } : {}
+              };
+            };
+            let chunkResult = null;
+            let failReason = "";
+            const firstCallHadLanguage = Boolean(pinnedLanguage);
+            const applyDetectRepass = async (first) => {
+              if (!pinnedLanguage && first.language) {
+                pinnedLanguage = normalizeLanguageCode(first.language) ?? first.language;
+              }
+              const forceLang = languageForDetectRepass({
+                firstCallHadLanguage,
+                detectedLanguage: pinnedLanguage,
+                forceFail: process.env.TRANSCRIBE_FORCE_GROQ_FAIL === "1"
+              });
+              if (!forceLang) return first;
+              console.error("[transcribe_video] twopass_force_language", ctx.sessionId, {
+                index: plan.index,
+                language: forceLang
+              });
+              return runChunk();
+            };
+            try {
+              chunkResult = await applyDetectRepass(await runChunk());
+            } catch (err) {
+              failReason = err instanceof Error ? err.message : String(err);
+              if (ctx.pipelineMode === "ask") {
+                const failedChunk = {
+                  index: plan.index,
+                  startOffsetSeconds: plan.startOffsetSeconds,
+                  durationSeconds: plan.durationSeconds,
+                  reason: failReason.slice(0, 500)
+                };
+                const written = await writeAskCheckpoint(
+                  {
+                    sessionId: ctx.sessionId,
+                    userId: ctx.userId,
+                    skillName: ctx.skillName,
+                    pipelineMode: ctx.pipelineMode
+                  },
+                  {
+                    phase_label: "Transcription paused",
+                    question: `Chunk ${plan.index + 1}/${planned.length} failed (${formatDuration(plan.startOffsetSeconds)}\u2013${formatDuration(plan.startOffsetSeconds + plan.durationSeconds)}). Retry, continue with a gap, or abort?`,
+                    context: failReason.slice(0, 300),
+                    choices: [
+                      { id: "retry", label: "Retry this chunk" },
+                      { id: "continue", label: "Continue with gap" },
+                      { id: "abort", label: "Abort transcription" }
+                    ],
+                    allowFreeform: false
+                  }
+                );
+                await writeTranscriptionProgress(ctx.sessionId, {
+                  videoUrl: video_url,
+                  totalChunks: planned.length,
+                  completedChunkIndices: [...completedSet].sort((a, b) => a - b),
+                  failedChunk,
+                  status: "awaiting_user",
+                  checkpointId: written.checkpointId,
+                  gaps,
+                  ...keepPinnedLanguage(progress),
+                  ...pinnedLanguage ? { pinnedLanguage } : {}
+                });
+                return {
+                  haltTurn: true,
+                  checkpointId: written.checkpointId,
+                  checkpointDisplay: written.checkpointDisplay,
+                  transcription_paused: true,
+                  failed_chunk: failedChunk
+                };
+              }
+              for (let autoTry = 1; autoTry <= 2; autoTry++) {
+                try {
+                  console.error("[transcribe_video] auto_retry", ctx.sessionId, {
+                    index: plan.index,
+                    autoTry
+                  });
+                  const fresh = await extractSingleWindow(flacPath, ctx.sessionId, plan);
+                  chunkResult = await applyDetectRepass(
+                    await transcribeWindowWithResplit(
+                      flacPath,
+                      ctx.sessionId,
+                      fresh,
+                      0,
+                      pinnedLanguage
+                    )
+                  );
+                  failReason = "";
+                  break;
+                } catch (retryErr) {
+                  failReason = retryErr instanceof Error ? retryErr.message : String(retryErr);
+                }
+              }
+              if (!chunkResult) {
+                console.error("[transcribe_video] auto_gap", ctx.sessionId, {
+                  index: plan.index,
+                  reason: failReason.slice(0, 300)
+                });
+                chunkResult = {
+                  words: [],
+                  segments: [],
+                  text: "",
+                  startOffsetSeconds: plan.startOffsetSeconds,
+                  durationSeconds: plan.durationSeconds,
+                  skipped: true
+                };
+                gaps.push({
+                  index: plan.index,
+                  startOffsetSeconds: plan.startOffsetSeconds,
+                  durationSeconds: plan.durationSeconds
+                });
+              }
+            }
+            await persistChunkResult(ctx.userId, ctx.sessionId, {
+              index: plan.index,
+              ...chunkResult
+            });
+            completedSet.add(plan.index);
+            if (!pinnedLanguage && chunkResult.language) {
+              pinnedLanguage = normalizeLanguageCode(chunkResult.language) ?? chunkResult.language;
+            }
+            progress = {
+              videoUrl: video_url,
+              totalChunks: planned.length,
+              completedChunkIndices: [...completedSet].sort((a, b) => a - b),
+              status: "in_progress",
+              gaps,
+              ...keepPinnedLanguage(progress),
+              ...pinnedLanguage ? { pinnedLanguage } : {}
+            };
+            await writeTranscriptionProgress(ctx.sessionId, progress);
+          }
+          const assembled = [];
+          for (const plan of planned) {
+            const loaded = await loadChunkResult(ctx.userId, ctx.sessionId, plan.index, {
+              startOffsetSeconds: plan.startOffsetSeconds,
+              durationSeconds: plan.durationSeconds
+            });
+            if (!loaded) {
+              throw new Error(
+                `Missing transcription chunk ${plan.index} after processing \u2014 cannot stitch`
+              );
+            }
+            assembled.push({ ...loaded, index: plan.index });
+            if (!pinnedLanguage && loaded.language) {
+              pinnedLanguage = normalizeLanguageCode(loaded.language) ?? loaded.language;
+            }
+          }
+          const stitched = stitchChunkTranscripts(assembled, durationSeconds);
+          if (!pinnedLanguage && stitched.language) {
+            pinnedLanguage = normalizeLanguageCode(stitched.language) ?? stitched.language;
+          }
+          let transcriptData = {
+            text: stitched.text,
+            words: sanitizeTranscriptWords(stitched.words, durationSeconds),
+            segments: stitched.segments,
+            duration_seconds: stitched.duration_seconds,
+            ...stitched.language !== void 0 ? { language: stitched.language } : pinnedLanguage ? { language: pinnedLanguage } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs12.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs12.default.writeFileSync(
-            import_path13.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs15.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs15.default.writeFileSync(
+            import_path16.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
           const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, "transcript", transcriptUrl);
+          await writeTranscriptionProgress(ctx.sessionId, {
+            videoUrl: video_url,
+            totalChunks: planned.length,
+            completedChunkIndices: planned.map((p) => p.index),
+            status: "complete",
+            gaps: stitched.gaps.length > 0 ? stitched.gaps : gaps,
+            ...pinnedLanguage ? { pinnedLanguage } : {}
+          });
+          await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
+          cleanupTranscriptionLocals(ctx.sessionId, localsExtra);
           return {
             transcript_url: transcriptUrl,
-            transcript_text: transcription.text,
-            duration_seconds: verbose.duration ?? 0,
-            word_count: verbose.words?.length ?? 0,
-            duration: formatDuration(verbose.duration ?? 0),
-            ...language !== void 0 ? { language } : {}
+            transcript_text: transcriptData.text,
+            duration_seconds: transcriptData.duration_seconds,
+            word_count: transcriptData.words.length,
+            duration: formatDuration(transcriptData.duration_seconds),
+            ...transcriptData.language !== void 0 ? { language: transcriptData.language } : {},
+            ...stitched.gaps.length > 0 || gaps.length > 0 ? {
+              gaps: (stitched.gaps.length > 0 ? stitched.gaps : gaps).map((g) => ({
+                index: g.index,
+                start: g.startOffsetSeconds,
+                end: g.startOffsetSeconds + g.durationSeconds,
+                range: `${formatDuration(g.startOffsetSeconds)}\u2013${formatDuration(g.startOffsetSeconds + g.durationSeconds)}`
+              }))
+            } : {}
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          console.error("[transcribe_video]", ctx.sessionId, message);
+          const cause = err instanceof Error ? err.cause : void 0;
+          const apiErr = err;
+          console.error("[transcribe_video]", ctx.sessionId, {
+            message,
+            name: err instanceof Error ? err.name : void 0,
+            stack: err instanceof Error ? err.stack : void 0,
+            status: apiErr.status ?? apiErr.statusCode,
+            errorBody: apiErr.error,
+            cause: cause instanceof Error ? {
+              message: cause.message,
+              name: cause.name,
+              stack: cause.stack,
+              code: cause.code
+            } : cause
+          });
+          const prog = await readTranscriptionProgress(ctx.sessionId).catch(() => null);
+          if (prog?.status !== "awaiting_user") {
+            cleanupTranscriptionLocals(ctx.sessionId, localsExtra);
+          }
+          if (message.includes("aborted by user")) throw err;
           throw new Error(`Transcription failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+
+// src/tools/pipeline/transliterateCaptions.ts
+var import_fs17 = __toESM(require("fs"));
+var import_path18 = __toESM(require("path"));
+init_dist5();
+init_zod();
+init_storage();
+
+// src/tools/lib/ensureFullAudio.ts
+var import_fs16 = __toESM(require("fs"));
+var import_path17 = __toESM(require("path"));
+var import_storage9 = require("firebase-admin/storage");
+init_firebase();
+init_storage();
+function fullAudioStoragePath(userId, sessionId) {
+  return `users/${userId}/sessions/${sessionId}/transcription/audio.flac`;
+}
+function fullAudioLocalPath(sessionId) {
+  return import_path17.default.join(transcriptionDir(sessionId), "audio.flac");
+}
+async function downloadStorageFile(storagePath, dest) {
+  try {
+    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
+    const file2 = bucket.file(storagePath);
+    const [exists] = await file2.exists();
+    if (!exists) return false;
+    import_fs16.default.mkdirSync(import_path17.default.dirname(dest), { recursive: true });
+    await file2.download({ destination: dest });
+    return import_fs16.default.existsSync(dest) && import_fs16.default.statSync(dest).size > 0;
+  } catch (err) {
+    console.error(
+      "[ensureFullAudio] storage download failed",
+      storagePath,
+      err instanceof Error ? err.message.slice(0, 200) : String(err)
+    );
+    return false;
+  }
+}
+async function ensureFullAudio(opts) {
+  const local = fullAudioLocalPath(opts.sessionId);
+  if (import_fs16.default.existsSync(local) && import_fs16.default.statSync(local).size > 0) {
+    return local;
+  }
+  const storagePath = fullAudioStoragePath(opts.userId, opts.sessionId);
+  if (await downloadStorageFile(storagePath, local)) {
+    return local;
+  }
+  const workdir = getSessionWorkdir(opts.sessionId);
+  const videoPath = import_path17.default.join(workdir, "transcription", "_source_video_tmp");
+  import_fs16.default.mkdirSync(import_path17.default.dirname(videoPath), { recursive: true });
+  try {
+    await downloadFile(opts.videoUrl, videoPath);
+    await extractFlac(videoPath, local);
+    if (!import_fs16.default.existsSync(local) || import_fs16.default.statSync(local).size <= 0) {
+      throw new Error("FLAC extract produced empty file");
+    }
+    await uploadFileToStorageKeepLocal(local, storagePath);
+    return local;
+  } finally {
+    unlinkQuiet(videoPath);
+  }
+}
+
+// src/tools/pipeline/transliterateCaptions.ts
+var NATIVE_BACKUP = "transcript.native.json";
+var SARVAM_RAW = "sarvam_translit.json";
+function loadTranscriptDoc(sessionId) {
+  const p = import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (!import_fs17.default.existsSync(p)) return null;
+  try {
+    const saved = JSON.parse(import_fs17.default.readFileSync(p, "utf-8"));
+    if (!saved || !saved.text && !(saved.words?.length > 0)) return null;
+    return {
+      text: typeof saved.text === "string" ? saved.text : "",
+      words: Array.isArray(saved.words) ? saved.words : [],
+      segments: Array.isArray(saved.segments) ? saved.segments : [],
+      duration_seconds: typeof saved.duration_seconds === "number" ? saved.duration_seconds : 0,
+      ...typeof saved.language === "string" ? { language: saved.language } : {}
+    };
+  } catch {
+    return null;
+  }
+}
+async function persistTranscript(ctx, doc) {
+  const workdir = getSessionWorkdir(ctx.sessionId);
+  const local = import_path18.default.join(workdir, "transcript.json");
+  import_fs17.default.writeFileSync(local, JSON.stringify(doc, null, 2));
+  const tmp = getTempPath(`${ctx.sessionId}_transcript.json`);
+  import_fs17.default.writeFileSync(tmp, JSON.stringify(doc, null, 2));
+  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
+  const url2 = await uploadToStorage(tmp, storagePath);
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "transcript", url2);
+  return url2;
+}
+async function backupNative(ctx, doc) {
+  const workdir = getSessionWorkdir(ctx.sessionId);
+  const local = import_path18.default.join(workdir, NATIVE_BACKUP);
+  import_fs17.default.writeFileSync(local, JSON.stringify(doc, null, 2));
+  const tmp = getTempPath(`${ctx.sessionId}_transcript.native.json`);
+  import_fs17.default.writeFileSync(tmp, JSON.stringify(doc, null, 2));
+  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/${NATIVE_BACKUP}`;
+  await uploadToStorage(tmp, storagePath);
+}
+async function persistSarvamRaw(ctx, raw) {
+  const workdir = getSessionWorkdir(ctx.sessionId);
+  const local = import_path18.default.join(workdir, SARVAM_RAW);
+  import_fs17.default.writeFileSync(local, JSON.stringify(raw, null, 2));
+  const tmp = getTempPath(`${ctx.sessionId}_${SARVAM_RAW}`);
+  import_fs17.default.writeFileSync(tmp, JSON.stringify(raw, null, 2));
+  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/${SARVAM_RAW}`;
+  await uploadToStorage(tmp, storagePath);
+}
+function createTransliterateCaptionsTools(ctx) {
+  return {
+    transliterate_captions: tool({
+      description: `Ask-only caption style gate. After transcribe_video, choose Native vs English Worded captions. English Worded runs one Sarvam Batch translit job and maps text onto Groq word timestamps. Auto-run no-ops (native). Call before extract_concepts when a caption style choice is pending.`,
+      inputSchema: external_exports2.object({}),
+      execute: async () => {
+        if (ctx.pipelineMode !== "ask") {
+          return {
+            ok: true,
+            noop: true,
+            caption_mode: "native",
+            message: "Caption style selection only available in Ask mode; captions remain native."
+          };
+        }
+        await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
+        const existing = await getSessionCaptionMode(ctx.sessionId);
+        if (existing.captionMode && existing.captionModeApplied) {
+          return {
+            ok: true,
+            noop: true,
+            caption_mode: existing.captionMode,
+            caption_mode_applied: true,
+            message: "Caption style already applied."
+          };
+        }
+        const transcript = loadTranscriptDoc(ctx.sessionId);
+        if (!transcript) {
+          throw new Error(
+            "No session transcript. Call transcribe_video first before transliterate_captions."
+          );
+        }
+        const lang = transcript.language ?? (await readTranscriptionProgress(ctx.sessionId))?.pinnedLanguage;
+        const sarvamOk = isSarvamSupportedLanguage(normalizeLanguageCode(lang));
+        if (!sarvamOk) {
+          await persistCaptionMode(ctx.sessionId, "native", true);
+          return {
+            ok: true,
+            caption_mode: "native",
+            caption_mode_applied: true,
+            message: "English Worded captions unavailable for this language; left native.",
+            ...lang ? { language: lang } : {}
+          };
+        }
+        if (!existing.captionMode) {
+          const written = await writeAskCheckpoint(
+            {
+              sessionId: ctx.sessionId,
+              userId: ctx.userId,
+              skillName: ctx.skillName,
+              pipelineMode: ctx.pipelineMode
+            },
+            {
+              phase_label: "Caption style",
+              completedPhase: "transcription",
+              question: "How should captions be written for this video?",
+              context: "Native Language Captions keep the original script (e.g. Kannada, Hindi). English Worded Captions use romanized Latin letters for the same speech (Sarvam translit + Groq timings).",
+              choices: [
+                { id: "native", label: "Native Language Captions" },
+                { id: "english_worded", label: "English Worded Captions" }
+              ],
+              allowFreeform: false
+            }
+          );
+          return {
+            haltTurn: true,
+            checkpointId: written.checkpointId,
+            checkpointDisplay: written.checkpointDisplay,
+            caption_style_paused: true
+          };
+        }
+        if (existing.captionMode === "native") {
+          await persistCaptionMode(ctx.sessionId, "native", true);
+          const url2 = await persistTranscript(ctx, transcript);
+          return {
+            ok: true,
+            caption_mode: "native",
+            caption_mode_applied: true,
+            transcript_url: url2,
+            word_count: transcript.words.length,
+            duration: formatDuration(transcript.duration_seconds)
+          };
+        }
+        const progress = await readTranscriptionProgress(ctx.sessionId);
+        const videoUrl = progress?.videoUrl;
+        if (!videoUrl) {
+          throw new Error(
+            "Missing transcriptionProgress.videoUrl \u2014 cannot re-extract audio for English Worded captions."
+          );
+        }
+        try {
+          await backupNative(ctx, transcript);
+          const audioPath = await ensureFullAudio({
+            userId: ctx.userId,
+            sessionId: ctx.sessionId,
+            videoUrl
+          });
+          const romanized = await transliterateWords({
+            words: transcript.words,
+            segments: transcript.segments,
+            text: transcript.text,
+            language: lang,
+            audioPath
+          });
+          if (romanized.sarvamRaw !== void 0) {
+            await persistSarvamRaw(ctx, romanized.sarvamRaw);
+          }
+          const out = {
+            ...transcript,
+            text: romanized.text,
+            words: romanized.words,
+            segments: romanized.segments,
+            ...romanized.transliterationFallbacks ? { transliterationFallbacks: romanized.transliterationFallbacks } : {}
+          };
+          const url2 = await persistTranscript(ctx, out);
+          await persistCaptionMode(ctx.sessionId, "english_worded", true);
+          return {
+            ok: true,
+            caption_mode: "english_worded",
+            caption_mode_applied: true,
+            transcript_url: url2,
+            transcript_text: out.text,
+            word_count: out.words.length,
+            duration: formatDuration(out.duration_seconds),
+            ...out.language ? { language: out.language } : {},
+            ...out.transliterationFallbacks ? { transliterationFallbacks: out.transliterationFallbacks } : {}
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const kind = err instanceof SarvamBatchError ? err.kind : "permanent";
+          console.error("[transliterate_captions] fail", {
+            kind,
+            message: message.slice(0, 400)
+          });
+          throw new Error(
+            kind === "transient" ? `English Worded captions failed (transient): ${message}. Retry transliterate_captions.` : `English Worded captions failed: ${message}`
+          );
         }
       }
     })
@@ -40225,6 +42544,7 @@ function buildTools(ctx, skills = []) {
     ...createVisionTools(ctx),
     ...createClarifyTools(ctx),
     ...createTranscribeTools(ctx),
+    ...createTransliterateCaptionsTools(ctx),
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
@@ -40309,11 +42629,33 @@ Call generate_manim_script with these fields.`.trim();
     return "";
   }
 }
-function isConceptsApproveChoiceResume(checkpoint) {
-  if (checkpoint.completedPhaseLabel !== "Concepts extracted") return false;
+function isConceptsApproveResume(checkpoint) {
+  return checkpoint.completedPhaseLabel === "Concepts extracted" && checkpoint.answer?.type === "approve";
+}
+function isOrientationChoiceResume(checkpoint) {
+  if (checkpoint.completedPhaseLabel !== "Video orientation") return false;
   const type = checkpoint.answer?.type;
   return type === "approve" || type === "choice";
 }
+function isCaptionStyleChoiceResume(checkpoint) {
+  if (checkpoint.completedPhaseLabel !== "Caption style") return false;
+  const id = checkpoint.answer?.choiceId;
+  return id === "native" || id === "english_worded";
+}
+function isTranscriptionLanguageResume(checkpoint) {
+  if (checkpoint.completedPhaseLabel !== "Transcription language") return false;
+  const id = checkpoint.answer?.choiceId;
+  return typeof id === "string" && id.length > 0;
+}
+var VIDEO_ORIENTATION_CHECKPOINT = {
+  phase_label: "Video orientation",
+  question: "Choose video orientation to continue.",
+  choices: [
+    { id: "horizontal", label: "Horizontal (16:9)" },
+    { id: "vertical", label: "Vertical (9:16)" }
+  ],
+  allowFreeform: false
+};
 async function runAgent(params) {
   const pipelineMode = params.pipelineMode ?? "ask";
   const title = params.userMessage.trim().slice(0, 80) || "Untitled Chat";
@@ -40326,7 +42668,9 @@ async function runAgent(params) {
   const effectiveMode = pipelineMode ?? sessionFields.pipelineMode;
   let resumeCheckpoint = null;
   let resumeSystemAppend = "";
-  let conceptsResumeForce = false;
+  let orientationResumeForce = false;
+  let conceptsApproveChain = false;
+  let capturedCheckpointDisplay = null;
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
   if (isCancelMessage && sessionFields.pendingCheckpointId) {
     await clearPendingCheckpoint(params.sessionId);
@@ -40362,8 +42706,20 @@ async function runAgent(params) {
           resumeCheckpoint.resume.artifactNeeds
         );
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
-        conceptsResumeForce = isConceptsApproveChoiceResume(resumeCheckpoint);
-        if (conceptsResumeForce) {
+        if (isConceptsApproveResume(resumeCheckpoint)) {
+          const written = await writeAskCheckpoint(
+            {
+              sessionId: params.sessionId,
+              userId: params.userId,
+              skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? "edu-video",
+              pipelineMode: effectiveMode
+            },
+            { ...VIDEO_ORIENTATION_CHECKPOINT }
+          );
+          capturedCheckpointDisplay = written.checkpointDisplay;
+          conceptsApproveChain = true;
+        } else if (isOrientationChoiceResume(resumeCheckpoint)) {
+          orientationResumeForce = true;
           const choiceId = resumeCheckpoint.answer?.choiceId;
           const orientation = choiceId === "vertical" || choiceId === "horizontal" ? choiceId : "horizontal";
           await persistOrientation(params.sessionId, orientation);
@@ -40373,6 +42729,16 @@ async function runAgent(params) {
 
 ${hint}`;
           }
+        } else if (isTranscriptionLanguageResume(resumeCheckpoint)) {
+          const choiceId = resumeCheckpoint.answer?.choiceId ?? "auto";
+          await persistRequestedLanguage(
+            params.sessionId,
+            choiceId === "auto" ? "auto" : choiceId
+          );
+        } else if (isCaptionStyleChoiceResume(resumeCheckpoint)) {
+          const choiceId = resumeCheckpoint.answer?.choiceId;
+          const captionMode = choiceId === "english_worded" || choiceId === "native" ? choiceId : "native";
+          await persistCaptionMode(params.sessionId, captionMode, false);
         }
       }
     }
@@ -40512,22 +42878,21 @@ ${resumeSystemAppend}`;
     restoreAllowlistUrls: []
   };
   const tools = buildTools(toolCtx, capabilitySkills);
-  if (conceptsResumeForce) {
+  if (orientationResumeForce) {
     if (!("generate_manim_script" in tools)) {
-      console.error("[agent] concepts resume force failed: generate_manim_script missing", {
+      console.error("[agent] orientation resume force failed: generate_manim_script missing", {
         sessionId: params.sessionId,
         resolvedSkill,
         toolNames: Object.keys(tools)
       });
       throw new Error(
-        "Concepts resume cannot proceed: generate_manim_script not in tool registry (skillId?)"
+        "Orientation resume cannot proceed: generate_manim_script not in tool registry (skillId?)"
       );
     }
     console.log(
-      `[agent] checkpoint.resume conceptsForce tx=ok skill=${resolvedSkill ?? "null"} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
+      `[agent] checkpoint.resume orientationForce tx=ok skill=${resolvedSkill ?? "null"} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
     );
   }
-  let capturedCheckpointDisplay = null;
   const result = streamText({
     model: openrouter2(modelId),
     system: systemPrompt,
@@ -40538,12 +42903,16 @@ ${resumeSystemAppend}`;
       delayInMs: 18
     }),
     stopWhen: ({ steps }) => {
+      if (conceptsApproveChain && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      if (conceptsResumeForce && stepNumber === 0) {
+      if (conceptsApproveChain) {
+        return { ...base, activeTools: [] };
+      }
+      if (orientationResumeForce && stepNumber === 0) {
         return {
           ...base,
           toolChoice: {
@@ -40745,6 +43114,139 @@ async function deliverEvent(session, event) {
 
 // src/server.ts
 init_taggedAssets();
+
+// src/diagnostics/groqConnectivity.ts
+var import_promises2 = __toESM(require("node:dns/promises"));
+function redactKey(key) {
+  if (!key) return { present: false, length: 0 };
+  return { present: true, length: key.length, prefix: key.slice(0, 4) };
+}
+function extractCauseCode(err) {
+  if (!err || typeof err !== "object") return void 0;
+  const e = err;
+  if (typeof e.code === "string") return e.code;
+  const cause = e.cause;
+  if (cause && typeof cause === "object") {
+    const c = cause;
+    if (typeof c.code === "string") return c.code;
+    if (c.cause && typeof c.cause === "object") {
+      const nested = c.cause;
+      if (typeof nested.code === "string") return nested.code;
+    }
+  }
+  return void 0;
+}
+function errorDetail(err) {
+  if (!(err instanceof Error)) return { message: String(err) };
+  const cause = err.cause;
+  return {
+    message: err.message,
+    name: err.name,
+    code: extractCauseCode(err),
+    cause: cause instanceof Error ? {
+      message: cause.message,
+      name: cause.name,
+      code: cause.code
+    } : cause !== void 0 ? { value: String(cause), code: extractCauseCode(cause) } : void 0
+  };
+}
+async function timedFetch(url2, init) {
+  const { timeoutMs, ...rest } = init;
+  const start = Date.now();
+  try {
+    const res = await fetch(url2, {
+      ...rest,
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    const ms = Date.now() - start;
+    return { ok: true, status: res.status, ms, detail: { status: res.status } };
+  } catch (err) {
+    return { ok: false, ms: Date.now() - start, detail: errorDetail(err) };
+  }
+}
+var PROXY_VARS = [
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy"
+];
+async function runGroqDiagnostics() {
+  const checks = [];
+  const key = process.env.GROQ_API_KEY;
+  const keyMeta = redactKey(key);
+  checks.push({
+    id: "groq_key",
+    ok: keyMeta.present && keyMeta.length > 0,
+    detail: keyMeta
+  });
+  {
+    const start = Date.now();
+    try {
+      const result = await import_promises2.default.lookup("api.groq.com", { all: true });
+      checks.push({
+        id: "dns_groq",
+        ok: result.length > 0,
+        ms: Date.now() - start,
+        detail: {
+          addresses: result.map((r) => ({ address: r.address, family: r.family }))
+        }
+      });
+    } catch (err) {
+      checks.push({
+        id: "dns_groq",
+        ok: false,
+        ms: Date.now() - start,
+        detail: errorDetail(err)
+      });
+    }
+  }
+  {
+    const headers = {};
+    if (key) headers.Authorization = `Bearer ${key}`;
+    const r = await timedFetch("https://api.groq.com/openai/v1/models", {
+      headers,
+      timeoutMs: 15e3
+    });
+    checks.push({
+      id: "https_groq",
+      ok: r.ok,
+      ms: r.ms,
+      detail: r.detail
+    });
+  }
+  {
+    const r = await timedFetch("https://firebasestorage.googleapis.com", {
+      timeoutMs: 1e4
+    });
+    checks.push({
+      id: "https_firebase",
+      ok: r.ok,
+      ms: r.ms,
+      detail: r.detail
+    });
+  }
+  {
+    const present = {};
+    for (const name26 of PROXY_VARS) {
+      const v = process.env[name26];
+      present[name26] = { set: v !== void 0 && v !== "", length: v?.length ?? 0 };
+    }
+    const anySet = Object.values(present).some((p) => p.set);
+    checks.push({
+      id: "proxy_env",
+      ok: true,
+      // informational
+      detail: { anySet, vars: present }
+    });
+  }
+  const failed = checks.filter((c) => !c.ok).map((c) => c.id);
+  const summary = failed.length === 0 ? "all checks passed (or informational)" : `failed: ${failed.join(", ")}`;
+  return { checks, summary };
+}
+
+// src/server.ts
 if (process.env.DOCKER_AGENT !== "1") {
   console.error(
     "Agent runs in Docker only: docker compose up agent --build\n(Local npm run dev/start is disabled to avoid port 3001 conflicts.)"
@@ -40848,6 +43350,19 @@ app2.get("/ping", (_req, res) => {
 app2.post("/invocations", async (req, res) => {
   try {
     const input = req.body?.input ?? req.body ?? {};
+    if (input.action === "diagnostics.groq") {
+      const result2 = await runGroqDiagnostics();
+      res.json({
+        output: {
+          message: JSON.stringify(result2),
+          diagnostics: result2,
+          sessionId: typeof input.sessionId === "string" && input.sessionId || "groq-diagnostics",
+          userId: typeof input.userId === "string" && input.userId || "groq-diag",
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+      return;
+    }
     const prompt = typeof input.prompt === "string" && input.prompt || typeof input.userMessage === "string" && input.userMessage || typeof input.message === "string" && input.message || "";
     if (!prompt.trim()) {
       res.status(400).json({

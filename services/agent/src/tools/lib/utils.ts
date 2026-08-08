@@ -3,6 +3,8 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { promisify } from 'util';
 import type { ResolvedTaggedAsset, TaggedAsset } from '../../taggedAssets';
 
@@ -376,6 +378,13 @@ export async function execCommand(
     };
 
     if (error.killed || error.signal === 'SIGKILL') {
+      // Keep stderr visible — prior path dropped it on timeout, leaving CloudWatch uninformative.
+      console.error('[execCommand] timed out', {
+        timeoutSeconds,
+        command: command.slice(0, 500),
+        stdout: (error.stdout ?? '').slice(0, 4000),
+        stderr: (error.stderr ?? '').slice(0, 4000),
+      });
       throw new Error(`Command timed out after ${timeoutSeconds} seconds`);
     }
 
@@ -439,10 +448,16 @@ export async function downloadFile(url: string, destPath: string): Promise<void>
   if (!response.ok) {
     throw new Error(`Download failed: ${response.status} ${url}`);
   }
+  if (!response.body) {
+    throw new Error(`Download failed: empty body ${url}`);
+  }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
-  fs.writeFileSync(destPath, buffer);
+  // Stream to disk — AgentCore is 8 GB RAM; whole-file arrayBuffer OOMs long lectures.
+  await pipeline(
+    Readable.fromWeb(response.body as import('stream/web').ReadableStream),
+    fs.createWriteStream(destPath)
+  );
 }
 
 /** Cap for HeyGen upload after normalize; longer lectures must fail clearly. */
@@ -690,25 +705,72 @@ export function buildSegmentWiring(
     .join('\n\n    ');
 }
 
-export function buildManimClipsHtml(manimClips: ManimClipInput[]): string {
+export function buildManimClipsHtml(
+  manimClips: ManimClipInput[],
+  segments: SegmentInput[] = []
+): string {
   return manimClips
     .map((clip, index) => {
-      const duration = clip.end_seconds - clip.start_seconds;
-      return `<video id="manim-${index}" class="clip" data-start="${clip.start_seconds}" data-duration="${duration}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
+      const seg = segments.find((s) => s.mode === 'A' && s.manim_index === index);
+      const start = seg ? seg.start : clip.start_seconds;
+      const end = seg ? seg.end : clip.end_seconds;
+      const duration = end - start;
+      return `<video id="manim-${index}" class="clip" data-start="${start}" data-duration="${duration}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
     })
     .join('\n      ');
 }
 
-export function buildManimGsap(segments: SegmentInput[]): string {
-  const lines: string[] = [];
+/** Group consecutive Mode A segments whose boundaries touch into runs. */
+export function coalesceModeARuns(
+  segments: SegmentInput[]
+): Array<{ start: number; end: number; segs: SegmentInput[] }> {
+  const runs: Array<{ start: number; end: number; segs: SegmentInput[] }> = [];
   for (const seg of segments) {
-    if (seg.mode === 'A' && seg.manim_index != null) {
-      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 1 }, ${seg.start});`);
-      lines.push(`tl.set('#manim-${seg.manim_index}', { autoAlpha: 0 }, ${seg.end});`);
+    if (seg.mode !== 'A') continue;
+    const last = runs[runs.length - 1];
+    if (last && Math.abs(last.end - seg.start) < 0.001) {
+      last.end = seg.end;
+      last.segs.push(seg);
+    } else {
+      runs.push({ start: seg.start, end: seg.end, segs: [seg] });
     }
   }
-  if (lines.length > 0) {
-    lines.unshift(`tl.set('#manim-stage video', { autoAlpha: 0 }, 0);`);
+  return runs;
+}
+
+export function buildManimGsap(segments: SegmentInput[]): string {
+  const xfade = 0.5;
+  const runs = coalesceModeARuns(segments);
+  if (runs.length === 0) return '';
+
+  const lines: string[] = [`tl.set('#manim-stage video', { autoAlpha: 0 }, 0);`];
+
+  for (const run of runs) {
+    for (let i = 0; i < run.segs.length; i++) {
+      const seg = run.segs[i];
+      if (seg.manim_index == null) continue;
+      const idx = seg.manim_index;
+      if (i === 0) {
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 1, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+        );
+      } else {
+        const prev = run.segs[i - 1];
+        if (prev.manim_index != null) {
+          lines.push(
+            `tl.to('#manim-${prev.manim_index}', { autoAlpha: 0, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+          );
+        }
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 1, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.start});`
+        );
+      }
+      if (i === run.segs.length - 1) {
+        lines.push(
+          `tl.to('#manim-${idx}', { autoAlpha: 0, duration: ${xfade}, ease: 'power3.inOut' }, ${seg.end - xfade});`
+        );
+      }
+    }
   }
   return lines.join('\n    ');
 }
@@ -781,28 +843,28 @@ export function buildSpeakerGsap(
   segments: SegmentInput[],
   orientation: VideoOrientation = 'horizontal'
 ): string {
-  const xfade = 0.35;
+  const xfade = 0.5;
   const lines = ["tl.set('#speaker-wrap', FS, 0);"];
+  const runs = coalesceModeARuns(segments);
 
-  for (const seg of segments) {
-    if (seg.mode !== 'A') continue;
+  for (const run of runs) {
     if (orientation === 'vertical') {
       // Vertical Mode A: speaker BOTTOM; Mode C: FS. Caption pos lives in captions-overlay timeline.
       lines.push(
-        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...BOTTOM, duration: ${xfade}, ease: 'power3.inOut' }, ${run.start});`
       );
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power3.inOut' }, ${run.end - xfade});`
       );
     } else {
       lines.push(
-        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.start});`
+        `tl.to('#speaker-wrap', { ...PIP_MANIM, duration: ${xfade}, ease: 'power3.inOut' }, ${run.start});`
       );
-      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${seg.start});`);
+      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass glass-panel' }, ${run.start});`);
       lines.push(
-        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power2.inOut' }, ${seg.end - xfade});`
+        `tl.to('#speaker-wrap', { ...FS, duration: ${xfade}, ease: 'power3.inOut' }, ${run.end - xfade});`
       );
-      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${seg.end});`);
+      lines.push(`tl.set('#speaker-wrap', { className: 'liquid-glass' }, ${run.end});`);
     }
   }
 
@@ -815,27 +877,27 @@ export function buildCaptionPosGsap(
   orientation: VideoOrientation = 'horizontal'
 ): string {
   if (orientation !== 'vertical') return '';
-  const xfade = 0.35;
+  const xfade = 0.5;
   const half = xfade / 2;
   const t = (n: number) => Math.round(n * 1000) / 1000;
   const lines = [
     `tl.set('#captions-overlay', { attr: { 'data-pos': 'bottom' } }, 0);`,
     `tl.set('#hl-container', { opacity: 1 }, 0);`,
   ];
-  for (const seg of segments) {
-    if (seg.mode !== 'A') continue;
-    // Enter Mode A: fade → mid → fade (same window as speaker BOTTOM tween)
+  const runs = coalesceModeARuns(segments);
+  for (const run of runs) {
+    // Enter Mode A run: fade → mid → fade (same window as speaker BOTTOM tween)
     lines.push(
-      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(seg.start)});`
+      `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(run.start)});`
     );
     lines.push(
-      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(seg.start + half)});`
+      `tl.set('#captions-overlay', { attr: { 'data-pos': 'mid' } }, ${t(run.start + half)});`
     );
     lines.push(
-      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(seg.start + half)});`
+      `tl.to('#hl-container', { opacity: 1, duration: ${half}, ease: 'power2.out' }, ${t(run.start + half)});`
     );
-    // Leave Mode A: fade → bottom → fade (same window as speaker FS tween)
-    const leave = seg.end - xfade;
+    // Leave Mode A run: fade → bottom → fade (same window as speaker FS tween)
+    const leave = run.end - xfade;
     lines.push(
       `tl.to('#hl-container', { opacity: 0, duration: ${half}, ease: 'power2.in' }, ${t(leave)});`
     );
@@ -849,6 +911,31 @@ export function buildCaptionPosGsap(
   return lines.join('\n        ');
 }
 
+/** Flatten space-containing entries into proportional timed display words. */
+function flattenDisplayWords(words: TranscriptWord[]): TranscriptWord[] {
+  const out: TranscriptWord[] = [];
+  for (const w of words) {
+    const parts = String(w.word ?? '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length <= 1) {
+      if (parts.length === 1) out.push({ ...w, word: parts[0] });
+      continue;
+    }
+    const dur = Math.max(0, w.end - w.start);
+    const slot = dur / parts.length;
+    for (let i = 0; i < parts.length; i++) {
+      out.push({
+        word: parts[i],
+        start: w.start + i * slot,
+        end: w.start + (i + 1) * slot,
+      });
+    }
+  }
+  return out;
+}
+
 export function groupCaptionWords(
   words: TranscriptWord[]
 ): { start: number; end: number; words: { text: string; start: number; end: number }[] }[] {
@@ -859,7 +946,9 @@ export function groupCaptionWords(
   }[] = [];
   const maxWords = 4;
   const pauseGap = 0.15;
+  const maxGroupSeconds = 4;
   let chunk: TranscriptWord[] = [];
+  const flat = flattenDisplayWords(words);
 
   const flush = () => {
     if (chunk.length === 0) return;
@@ -875,10 +964,16 @@ export function groupCaptionWords(
     chunk = [];
   };
 
-  for (const word of words) {
+  for (const word of flat) {
     if (chunk.length > 0) {
       const gap = word.start - chunk[chunk.length - 1].end;
-      if (gap >= pauseGap || chunk.length >= maxWords) flush();
+      // chunk.length is display-word count after flatten
+      if (
+        gap >= pauseGap ||
+        chunk.length >= maxWords ||
+        word.end - chunk[0].start > maxGroupSeconds
+      )
+        flush();
     }
     chunk.push(word);
   }
