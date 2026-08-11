@@ -18,9 +18,17 @@ export type AgentCoreInvokeInput = {
   pipelineMode?: 'ask' | 'auto';
   checkpointAnswer?: {
     checkpointId: string;
-    type: 'approve' | 'choice' | 'revision' | 'freeform';
+    type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
     text: string;
     choiceId?: string;
+    answers?: Record<
+      string,
+      {
+        type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
+        choiceId?: string;
+        text: string;
+      }
+    >;
   };
 };
 

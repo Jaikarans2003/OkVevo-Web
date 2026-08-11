@@ -74,6 +74,24 @@ export function resolveBrandColors(input?: BrandColors): BrandColors {
   return input ?? DEFAULT_BRAND_COLORS;
 }
 
+/** Parse 1–2 hex colors from freeform brand text. Accent defaults to primary. */
+export function parseBrandColorsFromText(text: string): BrandColors | null {
+  const hexes = text.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g);
+  if (!hexes?.length) return null;
+  const expand = (h: string): string => {
+    if (h.length === 4) {
+      const r = h[1]!;
+      const g = h[2]!;
+      const b = h[3]!;
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return h.toLowerCase();
+  };
+  const primary = expand(hexes[0]!);
+  const accent = hexes[1] ? expand(hexes[1]) : primary;
+  return { primary, accent, bg_dark: DEFAULT_BRAND_COLORS.bg_dark };
+}
+
 export function buildManimPalettePrompt(colors: BrandColors): string {
   return `Color constants (MUST use exactly — ignore other palettes in reference docs):
 BG = "${colors.bg_dark}"

@@ -32,7 +32,7 @@ vars, or the default AWS chain).
 
 The deploy script is **preserve-only**: it re-supplies whatever is already on
 the live runtime. To introduce a **new** key (or rotate an existing one), use
-`--add-env KEY` (repeatable). Values are read from the repo-root `.env` and
+`--add-env KEY` (repeatable). Values are read from `services/agent/.env` and
 merged into the preserved map before `update-agent-runtime`:
 
 ```bash
@@ -42,7 +42,7 @@ bash scripts/deploy-agentcore.sh --use-existing-tag <sha> --add-env HEYGEN_CALLB
 bash scripts/deploy-agentcore.sh --add-env SOME_NEW_KEY --add-env ANOTHER_KEY
 ```
 
-Aborts if the key is missing/empty in root `.env`, or if live
+Aborts if the key is missing/empty in `services/agent/.env`, or if live
 `environmentVariables` is empty (wipe-guard — never create env from scratch).
 
 ### Two HeyGen secrets (do not conflate)

@@ -3,11 +3,13 @@ import {
   smoothStream,
   stepCountIs,
   pipeUIMessageStreamToResponse,
+  createUIMessageStream,
   type ModelMessage,
   type ToolSet,
   type UIMessage,
 } from 'ai';
 import type { ServerResponse } from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
@@ -18,9 +20,10 @@ import {
   clearPendingCheckpoint,
   getSessionPipelineFields,
   isHaltTurnOutput,
+  isPrePipelineResolved,
   loadCheckpoint,
   persistOrientation,
-  persistCaptionMode,
+  persistPrePipelineAnswers,
   persistRequestedLanguage,
   persistPipelineMode,
   persistSkillId,
@@ -30,6 +33,7 @@ import {
   type CheckpointDisplayData,
   type LoadedCheckpoint,
 } from './checkpoint';
+import { maybeFrontLoadPrePipeline } from './skills/eduVideo/prePipelineCheckpoint';
 import { pruneToolResults } from './messagePruning';
 import { errorMessage } from './errorMessage';
 import { getCachedSystemPrompt } from './systemPromptCache';
@@ -140,19 +144,21 @@ function isOrientationChoiceResume(checkpoint: LoadedCheckpoint): boolean {
   return type === 'approve' || type === 'choice';
 }
 
-function isCaptionStyleChoiceResume(checkpoint: LoadedCheckpoint): boolean {
-  if (checkpoint.completedPhaseLabel !== 'Caption style') return false;
-  const id = checkpoint.answer?.choiceId;
-  return id === 'native' || id === 'english_worded';
-}
-
 function isTranscriptionLanguageResume(checkpoint: LoadedCheckpoint): boolean {
   if (checkpoint.completedPhaseLabel !== 'Transcription language') return false;
   const id = checkpoint.answer?.choiceId;
-  return typeof id === 'string' && id.length > 0;
+  return id === 'en' || id === 'auto';
+}
+
+function isPrePipelineResume(checkpoint: LoadedCheckpoint): boolean {
+  return (
+    checkpoint.completedPhaseLabel === 'Video preferences' ||
+    checkpoint.completedPhase === 'pre_pipeline'
+  );
 }
 
 const VIDEO_ORIENTATION_CHECKPOINT = {
+  kind: 'single_select' as const,
   phase_label: 'Video orientation',
   question: 'Choose video orientation to continue.',
   choices: [
@@ -178,6 +184,7 @@ export async function runAgent(params: RunAgentParams) {
   let resumeSystemAppend = '';
   let orientationResumeForce = false;
   let conceptsApproveChain = false;
+  let prePipelineHalt = false;
   let capturedCheckpointDisplay: CheckpointDisplayData | null = null;
 
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
@@ -191,6 +198,9 @@ export async function runAgent(params: RunAgentParams) {
         type: params.checkpointAnswer.type,
         text: params.checkpointAnswer.text,
         choiceId: params.checkpointAnswer.choiceId,
+        ...(params.checkpointAnswer.answers
+          ? { answers: params.checkpointAnswer.answers }
+          : {}),
       }
     );
     if (txResult === 'stale') {
@@ -208,6 +218,9 @@ export async function runAgent(params: RunAgentParams) {
           type: params.checkpointAnswer.type,
           text: params.checkpointAnswer.text,
           choiceId: params.checkpointAnswer.choiceId,
+          ...(params.checkpointAnswer.answers
+            ? { answers: params.checkpointAnswer.answers }
+            : {}),
         };
         await ensureSessionArtifacts(
           params.userId,
@@ -216,19 +229,45 @@ export async function runAgent(params: RunAgentParams) {
         );
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
 
-        if (isConceptsApproveResume(resumeCheckpoint)) {
-          // Deterministic next gate — no model discretion / no Manim yet.
-          const written = await writeAskCheckpoint(
-            {
-              sessionId: params.sessionId,
-              userId: params.userId,
-              skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? 'edu-video',
-              pipelineMode: effectiveMode,
-            },
-            { ...VIDEO_ORIENTATION_CHECKPOINT }
+        if (isPrePipelineResume(resumeCheckpoint)) {
+          const answers =
+            resumeCheckpoint.answer?.answers ??
+            (resumeCheckpoint.answer?.choiceId
+              ? {
+                  [resumeCheckpoint.resume.questions?.[0]?.id ?? '0']: {
+                    type: resumeCheckpoint.answer.type,
+                    choiceId: resumeCheckpoint.answer.choiceId,
+                    text: resumeCheckpoint.answer.text,
+                  },
+                }
+              : {});
+          await persistPrePipelineAnswers(
+            params.sessionId,
+            answers,
+            resumeCheckpoint.resume.questions ?? []
           );
-          capturedCheckpointDisplay = written.checkpointDisplay;
-          conceptsApproveChain = true;
+          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/orientation/brand/style again.`;
+        } else if (isConceptsApproveResume(resumeCheckpoint)) {
+          // Orientation already front-loaded → skip second gate, force Manim.
+          if (await isPrePipelineResolved(params.sessionId)) {
+            orientationResumeForce = true;
+            const hint = firstConceptResumeHint(params.sessionId);
+            if (hint) {
+              resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
+            }
+          } else {
+            const written = await writeAskCheckpoint(
+              {
+                sessionId: params.sessionId,
+                userId: params.userId,
+                skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? 'edu-video',
+                pipelineMode: effectiveMode,
+              },
+              { ...VIDEO_ORIENTATION_CHECKPOINT }
+            );
+            capturedCheckpointDisplay = written.checkpointDisplay;
+            conceptsApproveChain = true;
+          }
         } else if (isOrientationChoiceResume(resumeCheckpoint)) {
           orientationResumeForce = true;
           const choiceId = resumeCheckpoint.answer?.choiceId;
@@ -240,18 +279,11 @@ export async function runAgent(params: RunAgentParams) {
             resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
           }
         } else if (isTranscriptionLanguageResume(resumeCheckpoint)) {
-          const choiceId = resumeCheckpoint.answer?.choiceId ?? 'auto';
+          const choiceId = resumeCheckpoint.answer?.choiceId;
           await persistRequestedLanguage(
             params.sessionId,
-            choiceId === 'auto' ? 'auto' : choiceId
+            choiceId === 'en' ? 'en' : 'auto'
           );
-        } else if (isCaptionStyleChoiceResume(resumeCheckpoint)) {
-          const choiceId = resumeCheckpoint.answer?.choiceId;
-          const captionMode =
-            choiceId === 'english_worded' || choiceId === 'native'
-              ? choiceId
-              : 'native';
-          await persistCaptionMode(params.sessionId, captionMode, false);
         }
       }
     }
@@ -420,6 +452,29 @@ export async function runAgent(params: RunAgentParams) {
 
   const tools = buildTools(toolCtx, capabilitySkills);
 
+  // Front-load non-tool prefs before first transcribe (Ask batch / Auto defaults).
+  if (
+    !params.checkpointAnswer &&
+    !resumeCheckpoint &&
+    !sessionFields.pendingCheckpointId &&
+    (resolvedSkill === 'edu-video' || sessionFields.skillsUsed.includes('edu-video'))
+  ) {
+    const front = await maybeFrontLoadPrePipeline({
+      ctx: {
+        sessionId: params.sessionId,
+        userId: params.userId,
+        skillName: 'edu-video',
+        pipelineMode: effectiveMode,
+      },
+      userMessage: params.userMessage,
+      videoUrl: processing.urls[0] ?? params.videoUrl,
+    });
+    if (front.halted) {
+      capturedCheckpointDisplay = front.checkpointDisplay;
+      prePipelineHalt = true;
+    }
+  }
+
   if (orientationResumeForce) {
     if (!('generate_manim_script' in tools)) {
       console.error('[agent] orientation resume force failed: generate_manim_script missing', {
@@ -446,14 +501,14 @@ export async function runAgent(params: RunAgentParams) {
       delayInMs: 18,
     }),
     stopWhen: ({ steps }) => {
+      if (prePipelineHalt && steps.length >= 1) return true;
       if (conceptsApproveChain && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      // Concepts approve already wrote Video orientation — text-only short stream
-      if (conceptsApproveChain) {
+      if (prePipelineHalt || conceptsApproveChain) {
         return { ...base, activeTools: [] as string[] };
       }
       // Video orientation choice only — force first Manim tool on step 0
@@ -517,7 +572,7 @@ function getTextFromParts(parts: UIMessage['parts']): string {
     .join('');
 }
 
-function injectCheckpointPart(
+export function injectCheckpointPart(
   parts: StoredMessagePart[],
   display: CheckpointDisplayData | null
 ): StoredMessagePart[] {
@@ -528,6 +583,22 @@ function injectCheckpointPart(
   };
   if (parts.some((p) => p.type === 'data-checkpoint')) return parts;
   return [...parts, checkpointPart];
+}
+
+/** One-shot assistant text for entry-gate short-circuit (message already persisted). */
+export function pipeStaticAssistantText(
+  response: ServerResponse,
+  text: string
+): void {
+  const stream = createUIMessageStream({
+    execute({ writer }) {
+      const id = crypto.randomUUID();
+      writer.write({ type: 'text-start', id });
+      writer.write({ type: 'text-delta', id, delta: text });
+      writer.write({ type: 'text-end', id });
+    },
+  });
+  pipeUIMessageStreamToResponse({ response, stream });
 }
 
 export function pipeAgentStream(

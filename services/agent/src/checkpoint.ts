@@ -1,8 +1,21 @@
+/**
+ * How to add a checkpoint:
+ * - kind: 'single_select' (numbered choices) | 'phase_gate' (Continue only)
+ * - allowFreeform: required boolean — orthogonal; textbox when true on either kind
+ * - Content (prompt, labels, freeform meaning) is always caller-supplied
+ * - Never infer kind from choices.length — declare kind + allowFreeform explicitly
+ * - single_select requires non-empty choices; phase_gate forbids choices
+ */
 import crypto from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase';
 import { isKnownSkill, resolveSessionSkillState } from './sessionSkills';
-import type { SessionArtifactNeed, VideoOrientation } from './tools/lib/utils';
+import type {
+  BrandColors,
+  SessionArtifactNeed,
+  VideoOrientation,
+} from './tools/lib/utils';
+import { DEFAULT_BRAND_COLORS, parseBrandColorsFromText } from './tools/lib/utils';
 
 export type { VideoOrientation };
 
@@ -12,20 +25,39 @@ export type CheckpointPhase =
   | 'manim_complete'
   | 'segment_planning'
   | 'scaffold'
-  | 'pre_render';
+  | 'pre_render'
+  | 'pre_pipeline';
 
-export type CheckpointKind = 'phase_gate' | 'question';
+export type CheckpointKind = 'single_select' | 'phase_gate';
 
-export type CheckpointAnswerType = 'approve' | 'choice' | 'revision' | 'freeform';
+export type CheckpointAnswerType = 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
+
+export type CheckpointChoice = {
+  id: string;
+  label: string;
+};
+
+export type CheckpointQuestion = {
+  id: string;
+  prompt: string;
+  kind: CheckpointKind;
+  allowFreeform: boolean;
+  choices?: CheckpointChoice[];
+  skipDefault?: { choiceId?: string; value?: unknown };
+  freeformPlaceholder?: string;
+};
 
 export type CheckpointAnswer = {
   checkpointId: string;
   type: CheckpointAnswerType;
   choiceId?: string;
   text: string;
+  /** Batch resolve: one answer per question id. */
+  answers?: Record<
+    string,
+    { type: CheckpointAnswerType; choiceId?: string; text: string }
+  >;
 };
-
-export type CheckpointPresentation = 'buttons' | 'select';
 
 export type CheckpointDisplayData = {
   checkpointId: string;
@@ -36,14 +68,59 @@ export type CheckpointDisplayData = {
   nextLabel: string;
   nextDescription: string;
   question?: string;
-  choices?: { id: string; label: string }[];
+  choices?: CheckpointChoice[];
   allowFreeform: boolean;
-  /** Default: buttons. Language ask uses native <select>. */
-  presentation?: CheckpointPresentation;
-  /** Pre-selected choice id when presentation is select (e.g. 'en'). */
-  defaultChoiceId?: string;
+  freeformPlaceholder?: string;
+  questions?: CheckpointQuestion[];
   answer?: { type: string; text: string; choiceId?: string };
 };
+
+/** Pipeline decisions owned by tools / front-load — not ask_clarification. */
+export type PipelineDecisionKey =
+  | 'transcription_language'
+  | 'orientation'
+  | 'brand_colors'
+  | 'animation_style';
+
+const TOOL_OWNED_CHOICE_IDS: Record<PipelineDecisionKey, Set<string>> = {
+  transcription_language: new Set(['en', 'auto']),
+  orientation: new Set(['horizontal', 'vertical']),
+  brand_colors: new Set(['default', 'from_video']),
+  animation_style: new Set(['minimal', 'moderate', 'detailed']),
+};
+
+export function matchToolOwnedDecision(
+  choices: { id: string }[] | undefined
+): PipelineDecisionKey | null {
+  if (!choices?.length) return null;
+  const ids = new Set(choices.map((c) => c.id));
+  for (const [key, owned] of Object.entries(TOOL_OWNED_CHOICE_IDS) as [
+    PipelineDecisionKey,
+    Set<string>,
+  ][]) {
+    if ([...owned].every((id) => ids.has(id)) && ids.size <= owned.size + 1) {
+      return key;
+    }
+  }
+  // Orientation pair alone
+  if (ids.has('horizontal') && ids.has('vertical') && ids.size <= 2) {
+    return 'orientation';
+  }
+  if (ids.has('en') && ids.has('auto') && ids.size <= 2) {
+    return 'transcription_language';
+  }
+  if (
+    ids.has('minimal') &&
+    ids.has('moderate') &&
+    ids.has('detailed') &&
+    ids.size <= 3
+  ) {
+    return 'animation_style';
+  }
+  return null;
+}
+
+export type AnimationStyle = 'minimal' | 'moderate' | 'detailed';
 
 const PHASE_NUMBERS: Record<string, number> = {
   transcription: 2,
@@ -52,6 +129,7 @@ const PHASE_NUMBERS: Record<string, number> = {
   segment_planning: 5,
   scaffold: 5,
   pre_render: 6,
+  pre_pipeline: 1,
 };
 
 const RESUME_ARTIFACT_NEEDS: SessionArtifactNeed[] = [
@@ -69,7 +147,7 @@ export type CheckpointCtx = {
 };
 
 type WriteCheckpointInput = {
-  kind?: CheckpointKind;
+  kind: CheckpointKind;
   completedPhase: string;
   completedPhaseLabel: string;
   summary: { title: string; bullets: string[]; metrics?: Record<string, string | number> };
@@ -79,13 +157,49 @@ type WriteCheckpointInput = {
     assetKeys: string[];
     question?: {
       prompt: string;
-      choices?: { id: string; label: string }[];
+      choices?: CheckpointChoice[];
       allowFreeform: boolean;
-      presentation?: CheckpointPresentation;
-      defaultChoiceId?: string;
+      freeformPlaceholder?: string;
     };
+    questions?: CheckpointQuestion[];
   };
 };
+
+function assertKindShape(
+  kind: CheckpointKind,
+  choices: CheckpointChoice[] | undefined
+): void {
+  if (kind === 'single_select') {
+    if (!choices?.length) {
+      throw new Error('single_select requires non-empty choices');
+    }
+    return;
+  }
+  if (choices?.length) {
+    throw new Error('phase_gate forbids choices');
+  }
+}
+
+/** Map legacy stored 'question' → single_select for in-flight docs. */
+export function normalizeCheckpointKind(raw: unknown): CheckpointKind {
+  if (raw === 'phase_gate') return 'phase_gate';
+  return 'single_select';
+}
+
+type WriteAskBase = {
+  question: string;
+  context?: string;
+  bullets?: string[];
+  allowFreeform: boolean;
+  phase_label?: string;
+  /** Override default phase (single_select→concepts, phase_gate→clarification). */
+  completedPhase?: CheckpointPhase | string;
+  freeformPlaceholder?: string;
+};
+
+export type WriteAskCheckpointInput =
+  | (WriteAskBase & { kind: 'single_select'; choices: CheckpointChoice[] })
+  | (WriteAskBase & { kind: 'phase_gate'; choices?: undefined });
 
 export function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -98,22 +212,23 @@ function toDisplayData(
   input: WriteCheckpointInput,
   status: 'pending' | 'answered' = 'pending'
 ): CheckpointDisplayData {
+  const first = input.resume.questions?.[0] ?? input.resume.question;
   return {
     checkpointId,
-    kind: input.kind ?? 'phase_gate',
+    kind: input.kind,
     status,
     title: input.summary.title,
     bullets: input.summary.bullets.filter(Boolean),
     nextLabel: input.next.label,
     nextDescription: input.next.description,
-    question: input.resume.question?.prompt,
-    choices: input.resume.question?.choices,
-    allowFreeform: input.resume.question?.allowFreeform ?? true,
-    ...(input.resume.question?.presentation
-      ? { presentation: input.resume.question.presentation }
+    question: first?.prompt,
+    choices: first?.choices,
+    allowFreeform: first?.allowFreeform ?? false,
+    ...(first && 'freeformPlaceholder' in first && first.freeformPlaceholder
+      ? { freeformPlaceholder: first.freeformPlaceholder }
       : {}),
-    ...(input.resume.question?.defaultChoiceId
-      ? { defaultChoiceId: input.resume.question.defaultChoiceId }
+    ...(input.resume.questions?.length
+      ? { questions: input.resume.questions }
       : {}),
   };
 }
@@ -149,7 +264,7 @@ async function writeCheckpointDoc(
     sessionId: ctx.sessionId,
     createdAt: FieldValue.serverTimestamp(),
     status: 'pending',
-    kind: input.kind ?? 'phase_gate',
+    kind: input.kind,
     completedPhase: input.completedPhase,
     completedPhaseLabel: input.completedPhaseLabel,
     summary: input.summary,
@@ -176,28 +291,15 @@ async function writeCheckpointDoc(
 
 export async function writeAskCheckpoint(
   ctx: CheckpointCtx,
-  input: {
-    question: string;
-    context?: string;
-    bullets?: string[];
-    choices?: { id: string; label: string }[];
-    allowFreeform?: boolean;
-    presentation?: CheckpointPresentation;
-    defaultChoiceId?: string;
-    phase_label?: string;
-    /** Override default phase (choices→concepts, phase_gate→clarification). */
-    completedPhase?: CheckpointPhase | string;
-  }
+  input: WriteAskCheckpointInput
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
-  // Choices need kind=question so CheckpointCard renders buttons (phase_gate = Continue only).
-  const hasChoices = Boolean(input.choices?.length);
-  const isPhaseGate = Boolean(input.phase_label) && !hasChoices;
-  const allowFreeform = input.allowFreeform ?? true;
+  assertKindShape(input.kind, input.choices);
 
   const written = await writeCheckpointDoc(ctx, {
-    kind: isPhaseGate ? 'phase_gate' : 'question',
+    kind: input.kind,
     completedPhase:
-      input.completedPhase ?? (isPhaseGate ? 'clarification' : 'concepts'),
+      input.completedPhase ??
+      (input.kind === 'phase_gate' ? 'clarification' : 'concepts'),
     completedPhaseLabel: input.phase_label ?? 'Clarification',
     summary: {
       title: input.phase_label ?? 'Need your input',
@@ -212,11 +314,63 @@ export async function writeAskCheckpoint(
       assetKeys: ['transcript', 'concepts', 'manim_scripts', 'composition', 'hf_project'],
       question: {
         prompt: input.question,
-        choices: input.choices,
-        allowFreeform,
-        ...(input.presentation ? { presentation: input.presentation } : {}),
-        ...(input.defaultChoiceId ? { defaultChoiceId: input.defaultChoiceId } : {}),
+        ...(input.choices ? { choices: input.choices } : {}),
+        allowFreeform: input.allowFreeform,
+        ...(input.freeformPlaceholder
+          ? { freeformPlaceholder: input.freeformPlaceholder }
+          : {}),
       },
+    },
+  });
+
+  return {
+    haltTurn: true,
+    checkpointId: written.id,
+    checkpointDisplay: written.display,
+  };
+}
+
+/** One checkpoint doc with multiple paginated questions. */
+export async function writeAskCheckpointBatch(
+  ctx: CheckpointCtx,
+  input: {
+    phase_label: string;
+    questions: CheckpointQuestion[];
+    bullets?: string[];
+    completedPhase?: CheckpointPhase | string;
+  }
+): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
+  if (input.questions.length === 0) {
+    throw new Error('writeAskCheckpointBatch requires at least one question');
+  }
+  for (const q of input.questions) {
+    assertKindShape(q.kind, q.choices);
+  }
+  const first = input.questions[0]!;
+  const written = await writeCheckpointDoc(ctx, {
+    kind: first.kind,
+    completedPhase: input.completedPhase ?? 'pre_pipeline',
+    completedPhaseLabel: input.phase_label,
+    summary: {
+      title: input.phase_label,
+      bullets: input.bullets ?? [],
+    },
+    next: {
+      label: 'Continue',
+      description: 'Answer each question to continue.',
+    },
+    resume: {
+      artifactNeeds: [],
+      assetKeys: [],
+      question: {
+        prompt: first.prompt,
+        choices: first.choices,
+        allowFreeform: first.allowFreeform,
+        ...(first.freeformPlaceholder
+          ? { freeformPlaceholder: first.freeformPlaceholder }
+          : {}),
+      },
+      questions: input.questions,
     },
   });
 
@@ -245,7 +399,10 @@ export async function answerCheckpointTransaction(
       {
         status: 'answered',
         answer: {
-          ...answer,
+          type: answer.type,
+          text: answer.text,
+          ...(answer.choiceId ? { choiceId: answer.choiceId } : {}),
+          ...(answer.answers ? { answers: answer.answers } : {}),
           answeredAt: FieldValue.serverTimestamp(),
         },
       },
@@ -273,11 +430,16 @@ export type LoadedCheckpoint = {
   resume: {
     artifactNeeds: SessionArtifactNeed[];
     assetKeys: string[];
+    questions?: CheckpointQuestion[];
   };
   answer?: {
     type: CheckpointAnswerType;
     text: string;
     choiceId?: string;
+    answers?: Record<
+      string,
+      { type: CheckpointAnswerType; choiceId?: string; text: string }
+    >;
   };
 };
 
@@ -324,30 +486,26 @@ export async function loadPendingCheckpointDisplay(
   const resume = data.resume as {
     question?: {
       prompt: string;
-      choices?: { id: string; label: string }[];
+      choices?: CheckpointChoice[];
       allowFreeform: boolean;
-      presentation?: CheckpointPresentation;
-      defaultChoiceId?: string;
     };
+    questions?: CheckpointQuestion[];
   };
+
+  const first = resume.questions?.[0] ?? resume.question;
 
   return {
     checkpointId: pendingId,
-    kind: (data.kind as CheckpointKind) ?? 'question',
+    kind: normalizeCheckpointKind(data.kind),
     status: 'pending',
     title: summary.title,
     bullets: summary.bullets.filter(Boolean),
     nextLabel: next.label,
     nextDescription: next.description,
-    question: resume.question?.prompt,
-    choices: resume.question?.choices,
-    allowFreeform: resume.question?.allowFreeform ?? true,
-    ...(resume.question?.presentation
-      ? { presentation: resume.question.presentation }
-      : {}),
-    ...(resume.question?.defaultChoiceId
-      ? { defaultChoiceId: resume.question.defaultChoiceId }
-      : {}),
+    question: first?.prompt,
+    choices: first?.choices,
+    allowFreeform: first?.allowFreeform ?? false,
+    ...(resume.questions?.length ? { questions: resume.questions } : {}),
   };
 }
 
@@ -408,36 +566,60 @@ export async function getSessionOrientation(sessionId: string): Promise<VideoOri
   return snap.data()?.orientation === 'vertical' ? 'vertical' : 'horizontal';
 }
 
-export type CaptionMode = 'native' | 'english_worded';
-
-export async function persistCaptionMode(
+export async function persistBrandColors(
   sessionId: string,
-  captionMode: CaptionMode,
-  captionModeApplied: boolean
+  brandColors: BrandColors
 ): Promise<void> {
+  await db.collection('sessions').doc(sessionId).set({ brandColors }, { merge: true });
+}
+
+export async function getSessionBrandColors(
+  sessionId: string
+): Promise<BrandColors | undefined> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const raw = snap.data()?.brandColors;
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = raw as BrandColors;
+  if (
+    typeof c.primary === 'string' &&
+    typeof c.accent === 'string' &&
+    typeof c.bg_dark === 'string'
+  ) {
+    return c;
+  }
+  return undefined;
+}
+
+export async function persistAnimationStyle(
+  sessionId: string,
+  animationStyle: AnimationStyle
+): Promise<void> {
+  await db.collection('sessions').doc(sessionId).set({ animationStyle }, { merge: true });
+}
+
+export async function getSessionAnimationStyle(
+  sessionId: string
+): Promise<AnimationStyle> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const raw = snap.data()?.animationStyle;
+  if (raw === 'minimal' || raw === 'moderate' || raw === 'detailed') return raw;
+  return 'moderate';
+}
+
+export async function markPrePipelineResolved(sessionId: string): Promise<void> {
   await db
     .collection('sessions')
     .doc(sessionId)
-    .set({ captionMode, captionModeApplied }, { merge: true });
+    .set({ prePipelineResolved: true }, { merge: true });
 }
 
-export async function getSessionCaptionMode(sessionId: string): Promise<{
-  captionMode?: CaptionMode;
-  captionModeApplied: boolean;
-}> {
+export async function isPrePipelineResolved(sessionId: string): Promise<boolean> {
   const snap = await db.collection('sessions').doc(sessionId).get();
-  const data = snap.data() ?? {};
-  const raw = data.captionMode;
-  const captionMode =
-    raw === 'native' || raw === 'english_worded' ? (raw as CaptionMode) : undefined;
-  return {
-    ...(captionMode ? { captionMode } : {}),
-    captionModeApplied: data.captionModeApplied === true,
-  };
+  return snap.data()?.prePipelineResolved === true;
 }
 
-/** Ask-mode transcription language: Whisper code or 'auto'. */
-export type RequestedLanguage = string | 'auto';
+/** Ask/auto transcription routing: English (Groq) or Auto-detect (Fal Scribe). */
+export type RequestedLanguage = 'en' | 'auto';
 
 export async function persistRequestedLanguage(
   sessionId: string,
@@ -454,8 +636,50 @@ export async function getSessionRequestedLanguage(
 ): Promise<RequestedLanguage | undefined> {
   const snap = await db.collection('sessions').doc(sessionId).get();
   const raw = snap.data()?.requestedLanguage;
-  if (typeof raw !== 'string' || !raw.trim()) return undefined;
-  return raw.trim().toLowerCase();
+  if (raw === 'en' || raw === 'auto') return raw;
+  return undefined;
+}
+
+/** Apply batch pre-pipeline answers onto session fields. */
+export async function persistPrePipelineAnswers(
+  sessionId: string,
+  answers: Record<
+    string,
+    { type: CheckpointAnswerType; choiceId?: string; text: string }
+  >,
+  questions: CheckpointQuestion[]
+): Promise<void> {
+  for (const q of questions) {
+    const ans = answers[q.id];
+    let choiceId = ans?.choiceId;
+    if (ans?.type === 'skip' || (!choiceId && ans?.type !== 'freeform')) {
+      choiceId = q.skipDefault?.choiceId;
+    }
+    if (q.id === 'transcription_language') {
+      await persistRequestedLanguage(sessionId, choiceId === 'en' ? 'en' : 'auto');
+    } else if (q.id === 'orientation') {
+      await persistOrientation(
+        sessionId,
+        choiceId === 'vertical' ? 'vertical' : 'horizontal'
+      );
+    } else if (q.id === 'brand_colors') {
+      if (ans?.type === 'freeform') {
+        const parsed = parseBrandColorsFromText(ans.text);
+        await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
+      } else if (choiceId === 'from_video') {
+        const colors =
+          (q.skipDefault?.value as BrandColors | undefined) ?? DEFAULT_BRAND_COLORS;
+        await persistBrandColors(sessionId, colors);
+      } else {
+        await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
+      }
+    } else if (q.id === 'animation_style') {
+      const style =
+        choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
+      await persistAnimationStyle(sessionId, style);
+    }
+  }
+  await markPrePipelineResolved(sessionId);
 }
 
 export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
@@ -478,16 +702,18 @@ export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   );
 }
 
-/** Directive preamble after Concepts extracted revision/freeform — model must open orientation gate. */
+/** Directive after Concepts revision — orientation only if not front-loaded. */
 export const CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL
 1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
-2. Immediately after those edits succeed, call ask_clarification exactly once with:
+2. If session already has orientation from Video preferences (prePipelineResolved), proceed to generate_manim_script — do NOT ask orientation again.
+3. Otherwise, immediately after those edits succeed, call ask_clarification exactly once with:
+   - kind: "single_select"
    - phase_label: "Video orientation"
    - question: "Choose video orientation to continue."
    - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
    - allowFreeform: false
-3. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn.
-4. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
+4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.
+5. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
 
 export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const answer = checkpoint.answer;
@@ -501,14 +727,21 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const answerType = answer?.type;
 
   let phaseGuidance = '';
-  if (checkpoint.completedPhaseLabel === 'Concepts extracted') {
+  if (
+    checkpoint.completedPhaseLabel === 'Video preferences' ||
+    checkpoint.completedPhase === 'pre_pipeline'
+  ) {
+    phaseGuidance = `
+- Preferences saved on the session. Call transcribe_video with the same video URL next.
+- Do NOT ask language, orientation, brand colors, or animation style again.`;
+  } else if (checkpoint.completedPhaseLabel === 'Concepts extracted') {
     if (answerType === 'revision' || answerType === 'freeform') {
       phaseGuidance = `\n\n${CONCEPTS_REVISION_RESUME_MANDATORY}`;
     } else {
       phaseGuidance = `
 - concepts.json is restored and user-approved. Do NOT call extract_concepts again.
 - Do not ask for a video URL — transcription already completed.
-- Do NOT call generate_manim_script yet — video orientation is next.`;
+- If orientation was already chosen in Video preferences, proceed to generate_manim_script. Otherwise Video orientation is next.`;
     }
   } else if (checkpoint.completedPhaseLabel === 'Video orientation') {
     phaseGuidance = `
@@ -520,21 +753,24 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
     }`;
   } else if (checkpoint.completedPhaseLabel === 'Transcription language') {
     phaseGuidance = `
-- Call transcribe_video again with the same video_url to continue with the chosen language.
-- Do NOT call extract_concepts, transliterate_captions, or scaffold yet.`;
-  } else if (checkpoint.completedPhaseLabel === 'Caption style') {
+- Call transcribe_video again with the same video_url to continue with the chosen language (English→Groq, Auto-detect→Fal Scribe v2).
+- Do NOT call extract_concepts or scaffold yet.`;
+  } else if (checkpoint.completedPhaseLabel === 'Lecture heard') {
     phaseGuidance = `
-- Call transliterate_captions once to apply the caption-style choice (Native / English Worded).
-- Do NOT call extract_concepts until transliterate_captions returns with caption_mode_applied.
-- Native: near-instant, no script change. English Worded: one Sarvam Batch translit job mapped onto Groq word timestamps (may re-extract audio on first use).`;
+- Transcript is durable. Call extract_concepts next (pass duration_seconds only).
+- Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.
+- Do NOT re-ask language / orientation / brand / animation style.`;
   }
 
   const continueLine =
     checkpoint.completedPhaseLabel === 'Transcription language'
-      ? '- Continue after transcribe_video succeeds — then transliterate_captions in Ask mode.'
-      : checkpoint.completedPhaseLabel === 'Caption style'
-        ? '- Continue after transliterate_captions succeeds — then extract_concepts.'
-        : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
+      ? '- Continue after transcribe_video succeeds — then extract_concepts.'
+      : checkpoint.completedPhaseLabel === 'Lecture heard'
+        ? '- Continue with extract_concepts.'
+        : checkpoint.completedPhaseLabel === 'Video preferences' ||
+            checkpoint.completedPhase === 'pre_pipeline'
+          ? '- Continue with transcribe_video, then extract_concepts.'
+          : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
 
   return `
 CHECKPOINT RESUME

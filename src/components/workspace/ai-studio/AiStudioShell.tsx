@@ -23,7 +23,11 @@ import { HeroTypewriterHeading } from '@/components/workspace/ai-studio/HeroType
 import { PipelineStatusBar } from '@/components/workspace/ai-studio/PipelineStatusBar';
 import { SessionLimitModal } from '@/components/workspace/ai-studio/SessionLimitModal';
 import { replaceSessionUrl } from '@/components/workspace/ai-studio/shallowSessionUrl';
-import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
+import {
+  CheckpointFloatingCard,
+  type CheckpointAnswerPayload,
+  type CheckpointCardData,
+} from '@/components/workspace/ai-studio/CheckpointCard';
 import { auth, storage } from '@/config/firebase';
 import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
@@ -371,6 +375,38 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   pipelineSkillIdRef.current = pipelineState?.skillId;
   messagesRef.current = messages;
 
+  // Webhook Fal STT wake writes data-checkpoint to Firestore; useChat won't see it
+  // until reload. Refetch when pipeline reports a pending id missing from local parts.
+  useEffect(() => {
+    const sessionId = activeSessionId;
+    const pendingId = pipelineState?.pendingCheckpointId;
+    if (!sessionId || !pendingId || status !== 'ready') return;
+
+    const hasPart = messagesRef.current.some((msg) =>
+      (msg.parts ?? []).some((part) => {
+        if (part.type !== 'data-checkpoint') return false;
+        const data = (part as { data?: { checkpointId?: string } }).data;
+        return data?.checkpointId === pendingId;
+      })
+    );
+    if (hasPart) return;
+
+    let cancelled = false;
+    void fetchSessionMessages(sessionId)
+      .then((loaded) => {
+        if (!cancelled) setMessages(loaded);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeSessionId,
+    pipelineState?.pendingCheckpointId,
+    status,
+    setMessages,
+  ]);
+
   useEffect(() => {
     if (pipelineState?.pipelineMode) {
       setPipelineMode(pipelineState.pipelineMode);
@@ -430,12 +466,41 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     }
   }, [activeSessionId, pipelineState?.skillId]);
 
+  const patchCheckpointAnswer = (
+    checkpointId: string,
+    answer: CheckpointAnswerPayload
+  ) => {
+    setMessages((prev) =>
+      prev.map((msg) => ({
+        ...msg,
+        parts: (msg.parts ?? []).map((part) => {
+          if (part.type !== 'data-checkpoint') return part;
+          const data = (part as { data?: CheckpointCardData }).data;
+          if (!data || data.checkpointId !== checkpointId) return part;
+          return {
+            ...part,
+            data: {
+              ...data,
+              status: 'answered' as const,
+              answer: {
+                type: answer.type,
+                text: answer.text,
+                ...(answer.choiceId ? { choiceId: answer.choiceId } : {}),
+              },
+            },
+          };
+        }),
+      }))
+    );
+  };
+
   const sendCheckpointAnswer = (
     checkpointId: string,
     answer: CheckpointAnswerPayload
   ) => {
     if (status !== 'ready') return;
 
+    patchCheckpointAnswer(checkpointId, answer);
     checkpointAnswerRef.current = { checkpointId, ...answer };
     sendMessage(
       { text: answer.text },
@@ -797,16 +862,39 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       setIsPreparingSend(false);
     };
 
+    const clientMessageId = crypto.randomUUID();
+    const messageMetadata = {
+      ...(sentMediaUrls.length > 0
+        ? {
+            ...(sentVideoUrl
+              ? { videoUrl: sentVideoUrl, videoName: sentVideoName }
+              : {}),
+            mediaUrls: sentMediaUrls,
+            mediaNames: sentMediaNames,
+          }
+        : {}),
+      ...(taggedAssets.length > 0 ? { taggedAssets } : {}),
+    };
+
+    // Optimistic user bubble via SDK messageId replace (no content-match dedup).
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: clientMessageId,
+        role: 'user' as const,
+        parts: [{ type: 'text' as const, text: messageText }],
+        ...(Object.keys(messageMetadata).length > 0
+          ? { metadata: messageMetadata }
+          : {}),
+      },
+    ]);
+
+    if (checkpointAnswer) {
+      patchCheckpointAnswer(checkpointAnswer.checkpointId, checkpointAnswer);
+    }
+
     if (messages.length === 0 && activeSessionId === null) {
-      try {
-        await ensureSessionDoc(chatId);
-      } catch (error) {
-        console.error('Failed to ensure session before send:', error);
-        setUploadError('Could not start session. Please try again.');
-        setInput(originalInput);
-        unlockPrepare();
-        return;
-      }
+      // Leave hero immediately; ensure doc after bubble is visible.
       wasFirstMessageRef.current = true;
       loadedSessionRef.current = chatId;
       setSessionReady(true);
@@ -815,24 +903,23 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       replaceSessionUrl(
         `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`
       );
+      try {
+        await ensureSessionDoc(chatId);
+      } catch (error) {
+        console.error('Failed to ensure session before send:', error);
+        setUploadError('Could not start session. Please try again.');
+        setInput(originalInput);
+        setMessages((prev) => prev.filter((m) => m.id !== clientMessageId));
+        unlockPrepare();
+        return;
+      }
     }
-
-    const messageMetadata = {
-      ...(sentVideoUrl
-        ? {
-            videoUrl: sentVideoUrl,
-            videoName: sentVideoName,
-            mediaUrls: sentMediaUrls,
-            mediaNames: sentMediaNames,
-          }
-        : {}),
-      ...(taggedAssets.length > 0 ? { taggedAssets } : {}),
-    };
 
     try {
       sendMessage(
         {
           text: messageText,
+          messageId: clientMessageId,
           ...(Object.keys(messageMetadata).length > 0
             ? { metadata: messageMetadata }
             : {}),
@@ -857,6 +944,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       console.error('Failed to send message:', error);
       setUploadError('Could not send message. Please try again.');
       setInput(originalInput);
+      setMessages((prev) => prev.filter((m) => m.id !== clientMessageId));
       unlockPrepare();
       return;
     }
@@ -1043,6 +1131,21 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     };
   });
 
+  const pendingFloatingCheckpoint = useMemo(() => {
+    const id = pipelineState?.pendingCheckpointId;
+    if (!id) return null;
+    for (const msg of messages) {
+      for (const part of msg.parts ?? []) {
+        if (part.type !== 'data-checkpoint') continue;
+        const data = (part as { data?: CheckpointCardData }).data;
+        if (data?.checkpointId === id && data.status !== 'answered' && !data.answer) {
+          return data;
+        }
+      }
+    }
+    return null;
+  }, [messages, pipelineState?.pendingCheckpointId]);
+
   const chatBar = (
     <>
       <input
@@ -1193,11 +1296,10 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
             isPendingTurn={isPendingTurn}
             chatStatus={status}
             bottomRef={bottomRef}
-            onCheckpointAnswer={sendCheckpointAnswer}
             pendingCheckpointId={pipelineState?.pendingCheckpointId}
           />
-          <div className="shrink-0 pb-6 pt-2">
-            <div className={AI_STUDIO_CHAT_COLUMN}>
+          <div className="shrink-0 pb-1 pt-0">
+            <div className="mx-auto w-full max-w-3xl px-2">
               {sessionTokenWarning != null ? (
                 <div className="mb-2 flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
                   <p>
@@ -1220,6 +1322,13 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
               ) : null}
               {uploadError ? (
                 <p className="mb-2 text-sm text-red-400">{uploadError}</p>
+              ) : null}
+              {pendingFloatingCheckpoint ? (
+                <CheckpointFloatingCard
+                  data={pendingFloatingCheckpoint}
+                  disabled={status !== 'ready'}
+                  onSubmit={sendCheckpointAnswer}
+                />
               ) : null}
               {chatBar}
             </div>

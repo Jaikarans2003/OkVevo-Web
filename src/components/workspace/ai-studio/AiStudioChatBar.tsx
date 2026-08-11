@@ -29,10 +29,9 @@ export type PendingAttachment = {
 };
 
 const HERO_ROTATING_PROMPTS = [
-  'Generate a short drama',
-  'Make a cinematic trailer for my brand',
+  'Generate a Educational Video for my students',
+  'Generate LMS Ready Lecture',
   'Add karaoke captions to my video',
-  'Cut my interview into vertical clips',
 ] as const;
 
 type ModelOption = { id: string; label: string; value: string };
@@ -95,7 +94,7 @@ const selectorBtnClass =
   'inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#1c1c20]/80 px-2.5 py-1 text-sm transition hover:border-orange-500/25 hover:text-white/80';
 
 const chatBoxClass =
-  'relative overflow-visible rounded-[1.75rem] border border-white/[0.06] bg-[#141414]/95 shadow-[0_4px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm';
+  'relative overflow-visible rounded-[1.75rem] border border-[#222222] bg-[#141414] shadow-[0_8px_24px_rgba(0,0,0,0.55)]';
 
 const iconBtnClass =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#222226] text-white/55 transition hover:bg-[#2a2a2e] hover:text-white/85 disabled:opacity-40';
@@ -392,7 +391,7 @@ export function AiStudioChatBar({
   return (
     <div className={`mx-auto w-full ${isHero ? 'max-w-4xl' : 'max-w-full'}`}>
       <div className={chatBoxClass}>
-        <div className={`relative z-10 px-4 sm:px-5 ${isHero ? 'pb-2 pt-2.5' : 'pb-3 pt-4'}`}>
+        <div className={`relative z-10 ${isHero ? 'px-4 pb-2 pt-2.5 sm:px-5' : 'px-4 pb-3.5 pt-4'}`}>
           {pendingAttachments.length > 0 || selectedAssets.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {pendingAttachments.map((attachment) => (
@@ -493,7 +492,7 @@ export function AiStudioChatBar({
                 ref={overlayRef}
                 aria-hidden
                 className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-sm leading-normal text-white/90 ${
-                  isHero ? 'min-h-[2.35rem]' : 'min-h-[3rem]'
+                  isHero ? 'min-h-[2.35rem]' : 'min-h-[3.5rem]'
                 }`}
               >
                 <MentionOverlayContent
@@ -536,7 +535,7 @@ export function AiStudioChatBar({
                   ? 'text-transparent caret-transparent'
                   : 'text-white/90 caret-white'
               } ${
-                isHero ? 'min-h-[2.35rem] max-h-[6rem]' : 'min-h-[3rem] max-h-[7rem]'
+                isHero ? 'min-h-[2.35rem] max-h-[6rem]' : 'min-h-[3.5rem] max-h-[7rem]'
               }`}
             />
           </div>
@@ -692,6 +691,11 @@ export function AiStudioChatBar({
           </div>
         </div>
       </div>
+      {!isHero ? (
+        <p className="mt-1 text-center text-xs text-white/35">
+          Nia can make mistakes. Please double-check responses.
+        </p>
+      ) : null}
     </div>
   );
 }

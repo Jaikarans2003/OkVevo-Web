@@ -1,6 +1,6 @@
 export const TIMELINE_EPSILON = 0.5;
 
-/** Mid Mode-A gaps must be >= this to emit Mode C; below absorbs into prior A. */
+/** Gaps must be >= this to emit Mode C (mid + leading/trailing); below absorbs into adjacent A. */
 export const MIN_MODE_C_GAP_SECONDS = 3;
 
 function itemsOverlap(
@@ -35,7 +35,7 @@ export function partitionTimeline<T extends { start: number; end: number; type: 
   items: T[],
   totalDuration: number,
   gapFillType: string,
-  epsilon = TIMELINE_EPSILON
+  _epsilon = TIMELINE_EPSILON
 ): Array<T | { start: number; end: number; type: string }> {
   const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
   const segments: Array<T | { start: number; end: number; type: string }> = [];
@@ -43,24 +43,23 @@ export function partitionTimeline<T extends { start: number; end: number; type: 
 
   for (const anchor of sorted) {
     const gap = anchor.start - cursor;
-    if (segments.length === 0) {
-      // leading: TIMELINE_EPSILON — real speaker intro, not a flicker
-      if (gap > epsilon) {
-        segments.push({ start: cursor, end: anchor.start, type: gapFillType });
-      } else if (gap > 0) {
-        anchor.start = cursor;
-      }
-    } else if (gap >= MIN_MODE_C_GAP_SECONDS) {
+    if (gap >= MIN_MODE_C_GAP_SECONDS) {
       segments.push({ start: cursor, end: anchor.start, type: gapFillType });
     } else if (gap > 0) {
-      segments[segments.length - 1].end = anchor.start;
+      if (segments.length === 0) {
+        // leading under floor: pull first A to 0
+        anchor.start = cursor;
+      } else {
+        // mid under floor: absorb into prior A
+        segments[segments.length - 1].end = anchor.start;
+      }
     }
     segments.push({ ...anchor });
     cursor = anchor.end;
   }
 
   const tail = totalDuration - cursor;
-  if (tail > epsilon) {
+  if (tail >= MIN_MODE_C_GAP_SECONDS) {
     segments.push({ start: cursor, end: totalDuration, type: gapFillType });
   } else if (tail > 0 && segments.length > 0) {
     segments[segments.length - 1].end = totalDuration;

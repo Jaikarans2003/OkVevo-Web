@@ -40,6 +40,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // node_modules/dotenv/package.json
 var require_package = __commonJS({
@@ -112,10 +113,10 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs19 = require("fs");
-    var path20 = require("path");
+    var fs21 = require("fs");
+    var path21 = require("path");
     var os4 = require("os");
-    var crypto7 = require("crypto");
+    var crypto8 = require("crypto");
     var packageJson = require_package();
     var version2 = packageJson.version;
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
@@ -221,7 +222,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs19.existsSync(filepath)) {
+            if (fs21.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -229,15 +230,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path20.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path21.resolve(process.cwd(), ".env.vault");
       }
-      if (fs19.existsSync(possibleVaultPath)) {
+      if (fs21.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path20.join(os4.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path21.join(os4.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -254,7 +255,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path20.resolve(process.cwd(), ".env");
+      const dotenvPath = path21.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -278,13 +279,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path21 of optionPaths) {
+      for (const path22 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs19.readFileSync(path21, { encoding }));
+          const parsed = DotenvModule.parse(fs21.readFileSync(path22, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path21} ${e.message}`);
+            _debug(`Failed to load ${path22} ${e.message}`);
           }
           lastError = e;
         }
@@ -299,7 +300,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path20.relative(process.cwd(), filePath);
+            const relative = path21.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -334,7 +335,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto7.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto8.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error40) {
@@ -969,10 +970,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path20) {
-  if (!path20)
+function getElementAtPath(obj, path21) {
+  if (!path21)
     return obj;
-  return path20.reduce((acc, key) => acc?.[key], obj);
+  return path21.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1221,11 +1222,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path20, issues) {
+function prefixIssues(path21, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path20);
+    iss.path.unshift(path21);
     return iss;
   });
 }
@@ -1414,7 +1415,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path20 = []) => {
+  const processError = (error41, path21 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1424,7 +1425,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path20, ...issue2.path];
+        const fullpath = [...path21, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1454,9 +1455,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path20) {
+function toDotPath(path21) {
   const segs = [];
-  for (const seg of path20) {
+  for (const seg of path21) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12789,8 +12790,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path20, errorMaps, issueData } = params;
-      const fullPath = [...path20, ...issueData.path || []];
+      const { data, path: path21, errorMaps, issueData } = params;
+      const fullPath = [...path21, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13098,11 +13099,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path20, key) {
+      constructor(parent, value, path21, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path20;
+        this._path = path21;
         this._key = key;
       }
       get path() {
@@ -18955,13 +18956,13 @@ var require_get_context = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var get_context_exports = {};
     __export3(get_context_exports, {
       SYMBOL_FOR_REQ_CONTEXT: () => SYMBOL_FOR_REQ_CONTEXT,
       getContext: () => getContext3
     });
-    module2.exports = __toCommonJS(get_context_exports);
+    module2.exports = __toCommonJS2(get_context_exports);
     var SYMBOL_FOR_REQ_CONTEXT = /* @__PURE__ */ Symbol.for("@vercel/request-context");
     function getContext3() {
       const fromSymbol = globalThis;
@@ -18990,12 +18991,12 @@ var require_token_error = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var token_error_exports = {};
     __export3(token_error_exports, {
       VercelOidcTokenError: () => VercelOidcTokenError
     });
-    module2.exports = __toCommonJS(token_error_exports);
+    module2.exports = __toCommonJS2(token_error_exports);
     var VercelOidcTokenError = class extends Error {
       constructor(message, cause) {
         super(message);
@@ -19042,15 +19043,15 @@ var require_token_io = __commonJS({
       isNodeMode || !mod || !mod.__esModule ? __defProp4(target, "default", { value: mod, enumerable: true }) : target,
       mod
     ));
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var token_io_exports = {};
     __export3(token_io_exports, {
       findRootDir: () => findRootDir,
       getUserDataDir: () => getUserDataDir
     });
-    module2.exports = __toCommonJS(token_io_exports);
+    module2.exports = __toCommonJS2(token_io_exports);
     var import_path19 = __toESM2(require("path"));
-    var import_fs18 = __toESM2(require("fs"));
+    var import_fs19 = __toESM2(require("fs"));
     var import_os4 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
@@ -19058,7 +19059,7 @@ var require_token_io = __commonJS({
         let dir = process.cwd();
         while (dir !== import_path19.default.dirname(dir)) {
           const pkgPath = import_path19.default.join(dir, ".vercel");
-          if (import_fs18.default.existsSync(pkgPath)) {
+          if (import_fs19.default.existsSync(pkgPath)) {
             return dir;
           }
           dir = import_path19.default.dirname(dir);
@@ -19121,16 +19122,16 @@ var require_auth_config = __commonJS({
       isNodeMode || !mod || !mod.__esModule ? __defProp4(target, "default", { value: mod, enumerable: true }) : target,
       mod
     ));
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var auth_config_exports = {};
     __export3(auth_config_exports, {
       isValidAccessToken: () => isValidAccessToken,
       readAuthConfig: () => readAuthConfig,
       writeAuthConfig: () => writeAuthConfig
     });
-    module2.exports = __toCommonJS(auth_config_exports);
-    var fs19 = __toESM2(require("fs"));
-    var path20 = __toESM2(require("path"));
+    module2.exports = __toCommonJS2(auth_config_exports);
+    var fs21 = __toESM2(require("fs"));
+    var path21 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19139,15 +19140,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path20.join(dataDir, "auth.json");
+      return path21.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs19.existsSync(authPath)) {
+        if (!fs21.existsSync(authPath)) {
           return null;
         }
-        const content = fs19.readFileSync(authPath, "utf8");
+        const content = fs21.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19158,11 +19159,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path20.dirname(authPath);
-      if (!fs19.existsSync(authDir)) {
-        fs19.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path21.dirname(authPath);
+      if (!fs21.existsSync(authDir)) {
+        fs21.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs19.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs21.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19196,13 +19197,13 @@ var require_oauth = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var oauth_exports = {};
     __export3(oauth_exports, {
       processTokenResponse: () => processTokenResponse,
       refreshTokenRequest: () => refreshTokenRequest
     });
-    module2.exports = __toCommonJS(oauth_exports);
+    module2.exports = __toCommonJS2(oauth_exports);
     var import_os4 = require("os");
     var VERCEL_ISSUER = "https://vercel.com";
     var VERCEL_CLI_CLIENT_ID = "cl_HYyOPBNtFMfHhaUn9L4QPfTZz6TP47bp";
@@ -19285,13 +19286,13 @@ var require_auth_errors = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var auth_errors_exports = {};
     __export3(auth_errors_exports, {
       AccessTokenMissingError: () => AccessTokenMissingError2,
       RefreshAccessTokenFailedError: () => RefreshAccessTokenFailedError2
     });
-    module2.exports = __toCommonJS(auth_errors_exports);
+    module2.exports = __toCommonJS2(auth_errors_exports);
     var AccessTokenMissingError2 = class extends Error {
       constructor() {
         super(
@@ -19339,7 +19340,7 @@ var require_token_util = __commonJS({
       isNodeMode || !mod || !mod.__esModule ? __defProp4(target, "default", { value: mod, enumerable: true }) : target,
       mod
     ));
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var token_util_exports = {};
     __export3(token_util_exports, {
       assertVercelOidcTokenResponse: () => assertVercelOidcTokenResponse,
@@ -19352,9 +19353,9 @@ var require_token_util = __commonJS({
       loadToken: () => loadToken,
       saveToken: () => saveToken
     });
-    module2.exports = __toCommonJS(token_util_exports);
-    var path20 = __toESM2(require("path"));
-    var fs19 = __toESM2(require("fs"));
+    module2.exports = __toCommonJS2(token_util_exports);
+    var path21 = __toESM2(require("path"));
+    var fs21 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19366,7 +19367,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path20.join(dataDir, vercelFolder);
+      return path21.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19442,13 +19443,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path20.join(dir, ".vercel", "project.json");
-      if (!fs19.existsSync(prjPath)) {
+      const prjPath = path21.join(dir, ".vercel", "project.json");
+      if (!fs21.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs19.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs21.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19463,11 +19464,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs19.mkdirSync(path20.dirname(tokenPath), { mode: 504, recursive: true });
-      fs19.writeFileSync(tokenPath, tokenJson);
-      fs19.chmodSync(tokenPath, 432);
+      fs21.mkdirSync(path21.dirname(tokenPath), { mode: 504, recursive: true });
+      fs21.writeFileSync(tokenPath, tokenJson);
+      fs21.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19477,11 +19478,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs19.existsSync(tokenPath)) {
+      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs21.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs19.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs21.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -19525,12 +19526,12 @@ var require_token = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var token_exports = {};
     __export3(token_exports, {
       refreshToken: () => refreshToken
     });
-    module2.exports = __toCommonJS(token_exports);
+    module2.exports = __toCommonJS2(token_exports);
     var import_token_error = require_token_error();
     var import_token_util = require_token_util();
     async function refreshToken(options) {
@@ -19587,13 +19588,13 @@ var require_get_vercel_oidc_token = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var get_vercel_oidc_token_exports = {};
     __export3(get_vercel_oidc_token_exports, {
       getVercelOidcToken: () => getVercelOidcToken3,
       getVercelOidcTokenSync: () => getVercelOidcTokenSync2
     });
-    module2.exports = __toCommonJS(get_vercel_oidc_token_exports);
+    module2.exports = __toCommonJS2(get_vercel_oidc_token_exports);
     var import_get_context = require_get_context();
     var import_token_error = require_token_error();
     async function getVercelOidcToken3(options) {
@@ -19658,7 +19659,7 @@ var require_dist = __commonJS({
       }
       return to;
     };
-    var __toCommonJS = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp4({}, "__esModule", { value: true }), mod);
     var src_exports = {};
     __export3(src_exports, {
       AccessTokenMissingError: () => import_auth_errors.AccessTokenMissingError,
@@ -19668,7 +19669,7 @@ var require_dist = __commonJS({
       getVercelOidcTokenSync: () => import_get_vercel_oidc_token.getVercelOidcTokenSync,
       getVercelToken: () => import_token_util.getVercelToken
     });
-    module2.exports = __toCommonJS(src_exports);
+    module2.exports = __toCommonJS2(src_exports);
     var import_get_vercel_oidc_token = require_get_vercel_oidc_token();
     var import_get_context = require_get_context();
     var import_auth_errors = require_auth_errors();
@@ -20045,13 +20046,13 @@ function createGatewayProvider(options = {}) {
   return provider;
 }
 async function getGatewayAuthToken(options) {
-  const apiKey2 = loadOptionalSetting({
+  const apiKey = loadOptionalSetting({
     settingValue: options.apiKey,
     environmentVariableName: "AI_GATEWAY_API_KEY"
   });
-  if (apiKey2) {
+  if (apiKey) {
     return {
-      token: apiKey2,
+      token: apiKey,
       authMethod: "api-key"
     };
   }
@@ -26151,6 +26152,92 @@ function createOutputTransformStream(output) {
     }
   });
 }
+function createUIMessageStream({
+  execute,
+  onError = () => "An error occurred.",
+  // prevent leaking server error details to the client by default
+  originalMessages,
+  onStepFinish,
+  onFinish,
+  generateId: generateId22 = generateId
+}) {
+  let controller;
+  const ongoingStreamPromises = [];
+  const stream = new ReadableStream({
+    start(controllerArg) {
+      controller = controllerArg;
+    }
+  });
+  function safeEnqueue(data) {
+    try {
+      controller.enqueue(data);
+    } catch (error40) {
+    }
+  }
+  try {
+    const result = execute({
+      writer: {
+        write(part) {
+          safeEnqueue(part);
+        },
+        merge(streamArg) {
+          ongoingStreamPromises.push(
+            (async () => {
+              const reader = streamArg.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done)
+                  break;
+                safeEnqueue(value);
+              }
+            })().catch((error40) => {
+              safeEnqueue({
+                type: "error",
+                errorText: onError(error40)
+              });
+            })
+          );
+        },
+        onError
+      }
+    });
+    if (result) {
+      ongoingStreamPromises.push(
+        result.catch((error40) => {
+          safeEnqueue({
+            type: "error",
+            errorText: onError(error40)
+          });
+        })
+      );
+    }
+  } catch (error40) {
+    safeEnqueue({
+      type: "error",
+      errorText: onError(error40)
+    });
+  }
+  const waitForStreams = new Promise(async (resolve3) => {
+    while (ongoingStreamPromises.length > 0) {
+      await ongoingStreamPromises.shift();
+    }
+    resolve3();
+  });
+  waitForStreams.finally(() => {
+    try {
+      controller.close();
+    } catch (error40) {
+    }
+  });
+  return handleUIMessageStreamFinish({
+    stream,
+    messageId: generateId22(),
+    originalMessages,
+    onStepFinish,
+    onFinish,
+    onError
+  });
+}
 async function convertToModelMessages(messages, options) {
   const modelMessages = [];
   if (options == null ? void 0 : options.ignoreIncompleteToolCalls) {
@@ -26531,6 +26618,7 @@ var init_dist5 = __esm({
     init_dist3();
     init_dist3();
     init_v4();
+    init_dist3();
     init_dist3();
     init_dist3();
     init_dist3();
@@ -29868,920 +29956,7 @@ var init_dist5 = __esm({
   }
 });
 
-// src/env.ts
-function getStorageBucketName(processEnv = process.env) {
-  const v = processEnv.FIREBASE_STORAGE_BUCKET?.trim() || processEnv.FB_STORAGE_BUCKET?.trim() || processEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
-  if (v) return v;
-  throw new Error(
-    "Missing required env FIREBASE_STORAGE_BUCKET (or FB_STORAGE_BUCKET / NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET)"
-  );
-}
-var init_env = __esm({
-  "src/env.ts"() {
-    "use strict";
-  }
-});
-
-// src/firebase.ts
-var firebase_exports = {};
-__export(firebase_exports, {
-  auth: () => auth,
-  db: () => db,
-  getStorageBucketName: () => getStorageBucketName
-});
-function loadServiceAccount() {
-  const json3 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (json3) {
-    return JSON.parse(json3);
-  }
-  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-  if (b64) {
-    return JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
-  }
-  throw new Error(
-    "Missing Firebase service account key (FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_KEY)"
-  );
-}
-function getAdminApp() {
-  if ((0, import_app.getApps)().length > 0) {
-    return (0, import_app.getApps)()[0];
-  }
-  return (0, import_app.initializeApp)({
-    credential: (0, import_app.cert)(loadServiceAccount()),
-    storageBucket: getStorageBucketName()
-  });
-}
-var import_app, import_auth, import_firestore, app, db, auth;
-var init_firebase = __esm({
-  "src/firebase.ts"() {
-    "use strict";
-    import_app = require("firebase-admin/app");
-    import_auth = require("firebase-admin/auth");
-    import_firestore = require("firebase-admin/firestore");
-    init_env();
-    app = getAdminApp();
-    db = (0, import_firestore.getFirestore)(app);
-    auth = (0, import_auth.getAuth)(app);
-    db.settings({ ignoreUndefinedProperties: true });
-  }
-});
-
-// src/taggedAssets.ts
-function parseTaggedAssets(value) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const { id, label, url: url2, type } = item;
-    if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
-      return [];
-    }
-    if (id !== void 0 && (typeof id !== "string" || !id.trim() || id.length > 120 || /[\r\n]/.test(id))) {
-      return [];
-    }
-    try {
-      if (new URL(url2).protocol !== "https:") return [];
-    } catch {
-      return [];
-    }
-    return [
-      {
-        ...typeof id === "string" && id.trim() ? { id: id.trim() } : {},
-        label: label.trim(),
-        url: url2,
-        type: type.trim()
-      }
-    ];
-  });
-}
-function formatReferencedAssets(assets) {
-  if (assets.length === 0) return "";
-  return [
-    "Referenced assets:",
-    ...assets.map(({ id, label, type, url: url2, localPath }) => {
-      const idPart = id ? ` id ${id} |` : "";
-      return `- ${label} (${type}):${idPart} URL ${url2} | internal path ${localPath}`;
-    }),
-    "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path.",
-    "Only use Referenced assets above. Do not use other session media or history URLs unless listed here."
-  ].join("\n");
-}
-function selectProcessingMedia(tagged, uploadUrls, uploadNames) {
-  if (tagged.length > 0) {
-    const media = tagged.filter(
-      (a) => a.type === "video" || a.type === "image"
-    );
-    return {
-      urls: media.map((a) => a.url),
-      names: media.map((a) => a.label)
-    };
-  }
-  return { urls: uploadUrls, names: uploadNames };
-}
-function assertTaggedUrlAllowed(url2, taggedArtifacts) {
-  const allowed = taggedArtifacts.map((a) => a.url).filter((u) => {
-    try {
-      return new URL(u).protocol === "https:";
-    } catch {
-      return false;
-    }
-  });
-  if (allowed.length === 0) return;
-  let isHttps = false;
-  try {
-    isHttps = new URL(url2).protocol === "https:";
-  } catch {
-    return;
-  }
-  if (!isHttps) return;
-  if (allowed.includes(url2)) return;
-  throw new Error(
-    `URL not in tagged allowlist. Retry with one of: ${allowed.join(", ")}`
-  );
-}
-var MAX_TAGGED_ASSETS;
-var init_taggedAssets = __esm({
-  "src/taggedAssets.ts"() {
-    "use strict";
-    MAX_TAGGED_ASSETS = 8;
-  }
-});
-
-// src/session.ts
-function textParts(content) {
-  return content ? [{ type: "text", text: content }] : [];
-}
-function withVideoUrlInContent(content, videoUrl) {
-  if (!videoUrl || content.includes(videoUrl)) return content;
-  return `${content}
-
-Video URL for processing: ${videoUrl}`;
-}
-async function ensureSession(sessionId, userId, title, extras) {
-  const ref2 = db.collection("sessions").doc(sessionId);
-  const existing = await ref2.get();
-  const payload = {
-    userId,
-    status: "active"
-  };
-  if (!existing.exists) {
-    payload.createdAt = import_firestore3.FieldValue.serverTimestamp();
-    payload.lastMessageAt = import_firestore3.FieldValue.serverTimestamp();
-  }
-  if (!existing.exists || !existing.data()?.title) {
-    payload.title = title.slice(0, 80) || "Untitled Chat";
-  }
-  if (extras?.videoUrl) payload.videoUrl = extras.videoUrl;
-  if (extras?.videoName) payload.videoName = extras.videoName;
-  await ref2.set(payload, { merge: true });
-}
-async function loadMessages(sessionId, _userId) {
-  try {
-    const snapshot = await db.collection("sessions").doc(sessionId).collection("messages").orderBy("createdAt", "asc").get();
-    if (snapshot.empty) {
-      return [];
-    }
-    const uiMessages = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      const role = data.role;
-      const videoUrl = typeof data.videoUrl === "string" ? data.videoUrl : void 0;
-      const content = withVideoUrlInContent(
-        typeof data.content === "string" ? data.content : "",
-        videoUrl
-      );
-      const storedParts = Array.isArray(data.parts) ? data.parts : null;
-      const parts = storedParts && storedParts.length > 0 ? storedParts : textParts(content);
-      return { role, parts };
-    });
-    try {
-      return await convertToModelMessages(uiMessages, {
-        ignoreIncompleteToolCalls: true
-      });
-    } catch (err) {
-      console.error(
-        "[session] convertToModelMessages failed, falling back to text:",
-        err
-      );
-      return snapshot.docs.map((doc) => {
-        const data = doc.data();
-        const videoUrl = typeof data.videoUrl === "string" ? data.videoUrl : void 0;
-        return {
-          role: data.role,
-          content: withVideoUrlInContent(
-            typeof data.content === "string" ? data.content : "",
-            videoUrl
-          )
-        };
-      });
-    }
-  } catch {
-    return [];
-  }
-}
-async function saveMessage(sessionId, _userId, role, content, parts, extras) {
-  const taggedAssets = extras?.taggedAssets?.length ? parseTaggedAssets(extras.taggedAssets) : [];
-  await db.collection("sessions").doc(sessionId).collection("messages").add({
-    role,
-    content,
-    ...parts && parts.length > 0 ? { parts } : {},
-    ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
-    ...extras?.videoName ? { videoName: extras.videoName } : {},
-    ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {},
-    ...taggedAssets.length > 0 ? { taggedAssets } : {},
-    createdAt: import_firestore3.FieldValue.serverTimestamp()
-  });
-  await db.collection("sessions").doc(sessionId).set(
-    {
-      lastMessageAt: import_firestore3.FieldValue.serverTimestamp(),
-      messageCount: import_firestore3.FieldValue.increment(1),
-      ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
-      ...extras?.videoName ? { videoName: extras.videoName } : {},
-      ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}
-    },
-    { merge: true }
-  );
-}
-var import_firestore3;
-var init_session = __esm({
-  "src/session.ts"() {
-    "use strict";
-    import_firestore3 = require("firebase-admin/firestore");
-    init_dist5();
-    init_firebase();
-    init_taggedAssets();
-  }
-});
-
-// src/finalVideoBasename.ts
-function nextFinalVideoBasename(existingNames) {
-  const taken = new Set(
-    [...existingNames].map((name26) => name26.toLowerCase())
-  );
-  if (!taken.has("final.mp4")) return "final.mp4";
-  let n = 2;
-  while (taken.has(`final_${n}.mp4`)) n += 1;
-  return `final_${n}.mp4`;
-}
-var FINAL_VIDEO_NAME_RE;
-var init_finalVideoBasename = __esm({
-  "src/finalVideoBasename.ts"() {
-    "use strict";
-    FINAL_VIDEO_NAME_RE = /^(final(?:_\d+)?|draft_video)\.mp4$/i;
-  }
-});
-
-// src/manimClipBasename.ts
-function nextManimClipBasename(safeName, existingBasenames) {
-  const taken = new Set([...existingBasenames].map((name26) => name26.toLowerCase()));
-  const first = `${safeName}.mp4`;
-  if (!taken.has(first.toLowerCase())) return first;
-  let n = 2;
-  while (taken.has(`${safeName}_${n}.mp4`.toLowerCase())) n += 1;
-  return `${safeName}_${n}.mp4`;
-}
-var init_manimClipBasename = __esm({
-  "src/manimClipBasename.ts"() {
-    "use strict";
-  }
-});
-
-// src/tools/lib/renderSnapshot.ts
-function draftMetadataFromRenderSnapshot(snap) {
-  if (!snap || typeof snap !== "object") return void 0;
-  if (snap.orientation !== "horizontal" && snap.orientation !== "vertical" || typeof snap.speaker_video_url !== "string" || !Array.isArray(snap.manim_clips) || !Array.isArray(snap.transcript_words) || typeof snap.total_duration !== "number" || !snap.segments_plan || !Array.isArray(snap.segments_plan.segments)) {
-    return void 0;
-  }
-  const meta = {
-    orientation: snap.orientation,
-    speaker_video_url: snap.speaker_video_url,
-    manim_clips: snap.manim_clips,
-    transcript_words: snap.transcript_words,
-    total_duration: snap.total_duration,
-    segments_plan: snap.segments_plan
-  };
-  if (snap.speaker_audio_url != null && snap.speaker_audio_url !== "") {
-    meta.speaker_audio_url = snap.speaker_audio_url;
-  }
-  if (typeof snap.composition_manifest_url === "string" && snap.composition_manifest_url) {
-    meta.composition_manifest_url = snap.composition_manifest_url;
-  }
-  if (snap.brand_colors) {
-    meta.brand_colors = snap.brand_colors;
-  }
-  return meta;
-}
-function parseRestoreRecipe(metadata) {
-  if (!metadata || typeof metadata !== "object") {
-    throw new Error(
-      "This draft_video has no restore snapshot (pre-snapshot final or incomplete metadata). Tag a final rendered after snapshot support, or rebuild from the live session."
-    );
-  }
-  const m = metadata;
-  if (m.orientation !== "horizontal" && m.orientation !== "vertical") {
-    throw incomplete("orientation");
-  }
-  if (typeof m.speaker_video_url !== "string" || !m.speaker_video_url) {
-    throw incomplete("speaker_video_url");
-  }
-  if (!Array.isArray(m.manim_clips)) throw incomplete("manim_clips");
-  if (!Array.isArray(m.transcript_words)) throw incomplete("transcript_words");
-  if (typeof m.total_duration !== "number") throw incomplete("total_duration");
-  const plan = m.segments_plan;
-  if (!plan || !Array.isArray(plan.segments) || typeof plan.total_duration !== "number") {
-    throw incomplete("segments_plan");
-  }
-  return {
-    orientation: m.orientation,
-    speaker_video_url: m.speaker_video_url,
-    ...typeof m.speaker_audio_url === "string" && m.speaker_audio_url ? { speaker_audio_url: m.speaker_audio_url } : {},
-    manim_clips: m.manim_clips,
-    transcript_words: m.transcript_words,
-    total_duration: m.total_duration,
-    segments_plan: { segments: plan.segments, total_duration: plan.total_duration },
-    ...m.brand_colors && typeof m.brand_colors === "object" ? { brand_colors: m.brand_colors } : {}
-  };
-}
-function incomplete(field) {
-  return new Error(
-    `This draft_video restore snapshot is incomplete (missing ${field}). Pre-snapshot finals cannot be restored \u2014 rebuild from the live session or re-render a new final.`
-  );
-}
-var init_renderSnapshot = __esm({
-  "src/tools/lib/renderSnapshot.ts"() {
-    "use strict";
-  }
-});
-
-// src/storage.ts
-var storage_exports = {};
-__export(storage_exports, {
-  allocateFinalVideoBasename: () => allocateFinalVideoBasename,
-  allocateManimClipBasename: () => allocateManimClipBasename,
-  backgroundAssetIdentity: () => backgroundAssetIdentity,
-  claimHeygenEvent: () => claimHeygenEvent,
-  downloadStoragePrefixToDir: () => downloadStoragePrefixToDir,
-  finalizeBackgroundFromUrl: () => finalizeBackgroundFromUrl,
-  finalizeRenderFromLocalFile: () => finalizeRenderFromLocalFile,
-  finalizeRenderFromS3: () => finalizeRenderFromS3,
-  finalizeRenderFromUrl: () => finalizeRenderFromUrl,
-  getAssetUrl: () => getAssetUrl,
-  getHfSegmentsPlan: () => getHfSegmentsPlan,
-  getRenderJob: () => getRenderJob,
-  getTempPath: () => getTempPath,
-  listSessionAssetUrls: () => listSessionAssetUrls,
-  nextFinalVideoBasename: () => nextFinalVideoBasename,
-  nextManimClipBasename: () => nextManimClipBasename,
-  parseStoragePathFromPublicUrl: () => parseStoragePathFromPublicUrl,
-  persistRenderJob: () => persistRenderJob,
-  recordRenderFailure: () => recordRenderFailure,
-  selfcheckBackgroundIdentity: () => selfcheckBackgroundIdentity,
-  uploadDirectoryToStorage: () => uploadDirectoryToStorage,
-  uploadFileToStorageKeepLocal: () => uploadFileToStorageKeepLocal,
-  uploadToStorage: () => uploadToStorage,
-  walkDir: () => walkDir,
-  writeAssetUrl: () => writeAssetUrl,
-  writeHfSegmentsPlan: () => writeHfSegmentsPlan
-});
-function getPublicUrl(bucketName, storagePath) {
-  return `https://storage.googleapis.com/${bucketName}/${storagePath}`;
-}
-function getTempPath(filename) {
-  return import_path3.default.join(import_os.default.tmpdir(), filename);
-}
-function walkDir(dir) {
-  const results = [];
-  for (const entry of import_fs3.default.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = import_path3.default.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...walkDir(fullPath));
-    } else {
-      results.push(fullPath);
-    }
-  }
-  return results;
-}
-function contentTypeForPath(filePath) {
-  const ext = import_path3.default.extname(filePath).toLowerCase();
-  switch (ext) {
-    case ".json":
-      return "application/json";
-    case ".html":
-      return "text/html";
-    case ".mp4":
-      return "video/mp4";
-    case ".webm":
-      return "video/webm";
-    case ".mov":
-      return "video/quicktime";
-    case ".mp3":
-      return "audio/mpeg";
-    case ".flac":
-      return "audio/flac";
-    case ".png":
-      return "image/png";
-    case ".jpg":
-    case ".jpeg":
-      return "image/jpeg";
-    case ".css":
-      return "text/css";
-    case ".js":
-      return "application/javascript";
-    case ".py":
-      return "text/x-python";
-    default:
-      return "application/octet-stream";
-  }
-}
-async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
-  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
-  const fileRef = bucket.file(storagePath);
-  await fileRef.save(import_fs3.default.readFileSync(localFilePath), {
-    resumable: false,
-    metadata: {
-      contentType: contentTypeForPath(localFilePath)
-    }
-  });
-  await fileRef.makePublic();
-  const url2 = getPublicUrl(fileRef.bucket.name, storagePath);
-  if (options.deleteLocal !== false) {
-    try {
-      import_fs3.default.unlinkSync(localFilePath);
-    } catch {
-    }
-  }
-  return url2;
-}
-async function uploadToStorage(localFilePath, storagePath) {
-  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: true });
-}
-async function uploadFileToStorageKeepLocal(localFilePath, storagePath) {
-  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: false });
-}
-async function uploadDirectoryToStorage(localDir, storagePrefix) {
-  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
-  const prefixUrl = getPublicUrl(bucket.name, storagePrefix);
-  let indexUrl = "";
-  for (const filePath of walkDir(localDir)) {
-    const relative = import_path3.default.relative(localDir, filePath).replace(/\\/g, "/");
-    const storagePath = `${storagePrefix}/${relative}`;
-    const url2 = await uploadFileToStorage(filePath, storagePath, { deleteLocal: false });
-    if (relative === "index.html") {
-      indexUrl = url2;
-    }
-  }
-  if (!indexUrl) {
-    indexUrl = getPublicUrl(bucket.name, `${storagePrefix}/index.html`);
-  }
-  return { indexUrl, prefixUrl };
-}
-async function getAssetUrl(userId, sessionId, assetKey) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").where("kind", "==", assetKey).orderBy("createdAt", "desc").limit(1).get();
-  const url2 = snap.docs[0]?.data()?.url;
-  return typeof url2 === "string" && url2.length > 0 ? url2 : null;
-}
-function parseStoragePathFromPublicUrl(url2) {
-  const parsed = new URL(url2);
-  const segments = parsed.pathname.replace(/^\//, "").split("/");
-  return segments.slice(1).join("/");
-}
-async function downloadStoragePrefixToDir(storagePrefix, localDir) {
-  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
-  const prefix = storagePrefix.endsWith("/") ? storagePrefix : `${storagePrefix}/`;
-  const [files] = await bucket.getFiles({ prefix });
-  for (const file2 of files) {
-    if (file2.name.endsWith("/")) continue;
-    const relative = file2.name.slice(prefix.length);
-    if (!relative) continue;
-    const dest = import_path3.default.join(localDir, ...relative.split("/"));
-    import_fs3.default.mkdirSync(import_path3.default.dirname(dest), { recursive: true });
-    await file2.download({ destination: dest });
-  }
-}
-async function writeAssetUrl(userId, sessionId, kind, url2, fields) {
-  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").add({
-    kind,
-    url: url2,
-    status: "ready",
-    createdAt: import_firestore4.FieldValue.serverTimestamp(),
-    ...fields?.label !== void 0 ? { label: fields.label } : {},
-    ...fields?.mimeType !== void 0 ? { mimeType: fields.mimeType } : {},
-    ...fields?.sourceTool !== void 0 ? { sourceTool: fields.sourceTool } : {},
-    ...fields?.metadata !== void 0 ? { metadata: fields.metadata } : {}
-  });
-}
-async function writeHfSegmentsPlan(userId, sessionId, plan) {
-  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore4.FieldValue.serverTimestamp() });
-}
-async function getHfSegmentsPlan(userId, sessionId) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").get();
-  return snap.exists ? snap.data() : null;
-}
-async function allocateFinalVideoBasename(userId, sessionId) {
-  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
-  const prefix = `users/${userId}/sessions/${sessionId}/`;
-  const [files] = await bucket.getFiles({ prefix });
-  const names = [];
-  for (const file2 of files) {
-    const name26 = file2.name.slice(prefix.length);
-    if (!name26 || name26.includes("/")) continue;
-    if (FINAL_VIDEO_NAME_RE.test(name26)) names.push(name26);
-  }
-  const session = (await db.collection("sessions").doc(sessionId).get()).data();
-  if (session?.userId === userId && session.renderStatus === "RUNNING" && typeof session.renderOutputKey === "string") {
-    const reserved = import_path3.default.basename(session.renderOutputKey);
-    if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
-  }
-  return nextFinalVideoBasename(names);
-}
-async function allocateManimClipBasename(userId, sessionId, safeName) {
-  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
-  const prefix = `users/${userId}/sessions/${sessionId}/manim/`;
-  const [files] = await bucket.getFiles({ prefix });
-  const names = [];
-  for (const file2 of files) {
-    const name26 = file2.name.slice(prefix.length);
-    if (!name26 || name26.includes("/")) continue;
-    names.push(name26);
-  }
-  return nextManimClipBasename(safeName, names);
-}
-async function listSessionAssetUrls(userId, sessionId) {
-  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
-  const urls = [];
-  for (const doc of snap.docs) {
-    const url2 = doc.data()?.url;
-    if (typeof url2 === "string" && url2) urls.push(url2);
-  }
-  return urls;
-}
-async function persistRenderJob(userId, sessionId, job) {
-  const payload = {
-    renderExecutionArn: job.executionArn,
-    renderOutputKey: job.outputKey,
-    renderStatus: "RUNNING",
-    renderCompositionUrl: job.compositionUrl,
-    pipelinePhase: 6,
-    pipelineStatus: "rendering",
-    pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
-  };
-  await db.collection("sessions").doc(sessionId).set({ userId, ...payload }, { merge: true });
-  return { ...job, renderStatus: "RUNNING" };
-}
-async function getRenderJob(userId, sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  const data = snap.data();
-  if (!snap.exists || data?.userId !== userId) return null;
-  if (typeof data.renderExecutionArn !== "string" || typeof data.renderOutputKey !== "string") {
-    return null;
-  }
-  return {
-    executionArn: data.renderExecutionArn,
-    outputKey: data.renderOutputKey,
-    renderStatus: typeof data.renderStatus === "string" ? data.renderStatus : "RUNNING",
-    compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
-  };
-}
-async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferredBasename) {
-  const sessionRef = db.collection("sessions").doc(sessionId);
-  const current = (await sessionRef.get()).data();
-  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
-    return current.draftVideoUrl;
-  }
-  const basename = preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename) ? preferredBasename : await allocateFinalVideoBasename(userId, sessionId);
-  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
-  const videoUrl = await uploadToStorage(tempPath, firebasePath);
-  const metadata = draftMetadataFromRenderSnapshot(
-    current?.renderSnapshot
-  );
-  await writeAssetUrl(userId, sessionId, "draft_video", videoUrl, {
-    label: basename,
-    mimeType: "video/mp4",
-    ...metadata ? { metadata } : {}
-  });
-  await sessionRef.set(
-    {
-      renderStatus: "SUCCEEDED",
-      renderError: import_firestore4.FieldValue.delete(),
-      draftVideoUrl: videoUrl,
-      pipelinePhase: 7,
-      pipelineStatus: "complete",
-      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp(),
-      // First success only: clear stash so a later scaffold does not attach to this draft.
-      renderSnapshot: import_firestore4.FieldValue.delete()
-    },
-    { merge: true }
-  );
-  try {
-    const text2 = "Your educational video is ready.";
-    await saveMessage(sessionId, userId, "assistant", text2, [
-      { type: "text", text: text2 }
-    ], { videoUrl });
-  } catch (err) {
-    console.error("[finalize] failed to post draft video chat message:", err);
-  }
-  return videoUrl;
-}
-async function finalizeRenderFromUrl(userId, sessionId, videoUrl) {
-  const sessionRef = db.collection("sessions").doc(sessionId);
-  const current = (await sessionRef.get()).data();
-  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
-    return current.draftVideoUrl;
-  }
-  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
-  const response = await fetch(videoUrl);
-  if (!response.ok) {
-    throw new Error(`Download failed: ${response.status} ${videoUrl}`);
-  }
-  import_fs3.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
-  try {
-    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
-  } finally {
-    import_fs3.default.rmSync(tempPath, { force: true });
-  }
-}
-async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
-  const sessionRef = db.collection("sessions").doc(sessionId);
-  const current = (await sessionRef.get()).data();
-  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
-    return current.draftVideoUrl;
-  }
-  const response = await new import_client_s3.S3Client({ region }).send(
-    new import_client_s3.GetObjectCommand({ Bucket: bucketName, Key: outputKey })
-  );
-  if (!response.Body) throw new Error("Render output is missing from S3");
-  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
-  import_fs3.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
-  try {
-    return await finalizeRenderFromLocalFile(
-      userId,
-      sessionId,
-      tempPath,
-      import_path3.default.basename(outputKey)
-    );
-  } finally {
-    import_fs3.default.rmSync(tempPath, { force: true });
-  }
-}
-function backgroundAssetIdentity(kind, entryId) {
-  const isImage = kind === "fal_image";
-  return {
-    assetKind: isImage ? "background_image" : "background_video",
-    filename: isImage ? `background-${entryId}.png` : `background-${entryId}.mp4`,
-    label: isImage ? `Background Image ${entryId}` : `Background Video ${entryId}`
-  };
-}
-async function finalizeBackgroundFromUrl(userId, sessionId, kind, mediaUrl) {
-  const isImage = kind === "fal_image";
-  const ext = isImage ? "png" : "mp4";
-  const entryId = crypto.randomUUID().slice(0, 8);
-  const { assetKind, filename, label } = backgroundAssetIdentity(kind, entryId);
-  const tempPath = getTempPath(`fal-${sessionId}-${entryId}.${ext}`);
-  const response = await fetch(mediaUrl);
-  if (!response.ok) {
-    throw new Error(`Download failed: ${response.status} ${mediaUrl}`);
-  }
-  import_fs3.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
-  try {
-    const storagePath = `users/${userId}/sessions/${sessionId}/${filename}`;
-    const publicUrl = await uploadToStorage(tempPath, storagePath);
-    await writeAssetUrl(userId, sessionId, assetKind, publicUrl, {
-      label,
-      mimeType: isImage ? "image/png" : "video/mp4",
-      sourceTool: "fal"
-    });
-    const text2 = isImage ? "Your background image is ready." : "Your background video is ready.";
-    try {
-      await saveMessage(
-        sessionId,
-        userId,
-        "assistant",
-        text2,
-        [{ type: "text", text: text2 }],
-        isImage ? { imageUrl: publicUrl } : { videoUrl: publicUrl }
-      );
-    } catch (err) {
-      console.error("[finalize] failed to post fal background chat message:", err);
-    }
-    return publicUrl;
-  } finally {
-    import_fs3.default.rmSync(tempPath, { force: true });
-  }
-}
-function selfcheckBackgroundIdentity() {
-  const a = backgroundAssetIdentity("fal_image", "abc12def");
-  const b = backgroundAssetIdentity("fal_image", "xyz99zzz");
-  if (a.filename === b.filename) {
-    throw new Error("background identity must be unique per entryId");
-  }
-  if (a.filename !== "background-abc12def.png" || a.assetKind !== "background_image") {
-    throw new Error(`unexpected image identity ${a.filename}/${a.assetKind}`);
-  }
-  const v = backgroundAssetIdentity("fal_video", "abc12def");
-  if (v.assetKind !== "background_video" || v.filename !== "background-abc12def.mp4") {
-    throw new Error("fal_video identity mismatch");
-  }
-}
-async function recordRenderFailure(userId, sessionId, status, error40) {
-  await db.collection("sessions").doc(sessionId).set(
-    {
-      userId,
-      renderStatus: status,
-      renderError: error40,
-      pipelineStatus: "failed",
-      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-async function claimHeygenEvent(eventId) {
-  try {
-    await db.collection("heygen_webhook_events").doc(eventId).create({
-      receivedAt: import_firestore4.FieldValue.serverTimestamp()
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-var import_fs3, import_os, import_path3, import_client_s3, import_firestore4, import_storage;
-var init_storage = __esm({
-  "src/storage.ts"() {
-    "use strict";
-    import_fs3 = __toESM(require("fs"));
-    import_os = __toESM(require("os"));
-    import_path3 = __toESM(require("path"));
-    import_client_s3 = require("@aws-sdk/client-s3");
-    import_firestore4 = require("firebase-admin/firestore");
-    import_storage = require("firebase-admin/storage");
-    init_firebase();
-    init_session();
-    init_finalVideoBasename();
-    init_manimClipBasename();
-    init_renderSnapshot();
-    init_finalVideoBasename();
-    init_manimClipBasename();
-  }
-});
-
-// node_modules/dotenv/config.js
-(function() {
-  require_main().config(
-    Object.assign(
-      {},
-      require_env_options(),
-      require_cli_options()(process.argv)
-    )
-  );
-})();
-
-// src/server.ts
-var import_node_crypto4 = __toESM(require("node:crypto"));
-var import_express = __toESM(require("express"));
-var import_cors = __toESM(require("cors"));
-
-// src/agent.ts
-init_dist5();
-var import_node_fs = __toESM(require("node:fs"));
-var import_node_path = __toESM(require("node:path"));
-
 // node_modules/@openrouter/ai-sdk-provider/dist/index.mjs
-init_v4();
-init_v3();
-init_v3();
-init_v3();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-init_v4();
-var __defProp3 = Object.defineProperty;
-var __defProps = Object.defineProperties;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
-var __hasOwnProp2 = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
-var __typeError = (msg) => {
-  throw TypeError(msg);
-};
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp3(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __spreadValues = (a, b) => {
-  for (var prop in b || (b = {}))
-    if (__hasOwnProp2.call(b, prop))
-      __defNormalProp(a, prop, b[prop]);
-  if (__getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(b)) {
-      if (__propIsEnum.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    }
-  return a;
-};
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
-var __objRest = (source, exclude) => {
-  var target = {};
-  for (var prop in source)
-    if (__hasOwnProp2.call(source, prop) && exclude.indexOf(prop) < 0)
-      target[prop] = source[prop];
-  if (source != null && __getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(source)) {
-      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
-        target[prop] = source[prop];
-    }
-  return target;
-};
-var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
-var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
-var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
-var marker24 = "vercel.ai.error";
-var symbol24 = Symbol.for(marker24);
-var _a24;
-var _b17;
-var AISDKError2 = class _AISDKError2 extends (_b17 = Error, _a24 = symbol24, _b17) {
-  /**
-   * Creates an AI SDK Error.
-   *
-   * @param {Object} params - The parameters for creating the error.
-   * @param {string} params.name - The name of the error.
-   * @param {string} params.message - The error message.
-   * @param {unknown} [params.cause] - The underlying cause of the error.
-   */
-  constructor({
-    name: name1422,
-    message,
-    cause
-  }) {
-    super(message);
-    this[_a24] = true;
-    this.name = name1422;
-    this.cause = cause;
-  }
-  /**
-   * Checks if the given error is an AI SDK Error.
-   * @param {unknown} error - The error to check.
-   * @returns {boolean} True if the error is an AI SDK Error, false otherwise.
-   */
-  static isInstance(error40) {
-    return _AISDKError2.hasMarker(error40, marker24);
-  }
-  static hasMarker(error40, marker1522) {
-    const markerSymbol = Symbol.for(marker1522);
-    return error40 != null && typeof error40 === "object" && markerSymbol in error40 && typeof error40[markerSymbol] === "boolean" && error40[markerSymbol] === true;
-  }
-};
-var name24 = "AI_APICallError";
-var marker25 = `vercel.ai.error.${name24}`;
-var symbol25 = Symbol.for(marker25);
-var _a25;
-var _b23;
-var APICallError2 = class extends (_b23 = AISDKError2, _a25 = symbol25, _b23) {
-  constructor({
-    message,
-    url: url2,
-    requestBodyValues,
-    statusCode,
-    responseHeaders,
-    responseBody,
-    cause,
-    isRetryable = statusCode != null && (statusCode === 408 || // request timeout
-    statusCode === 409 || // conflict
-    statusCode === 429 || // too many requests
-    statusCode >= 500),
-    // server error
-    data
-  }) {
-    super({ name: name24, message, cause });
-    this[_a25] = true;
-    this.url = url2;
-    this.requestBodyValues = requestBodyValues;
-    this.statusCode = statusCode;
-    this.responseHeaders = responseHeaders;
-    this.responseBody = responseBody;
-    this.isRetryable = isRetryable;
-    this.data = data;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker25);
-  }
-};
-var name25 = "AI_EmptyResponseBodyError";
-var marker34 = `vercel.ai.error.${name25}`;
-var symbol34 = Symbol.for(marker34);
-var _a34;
-var _b33;
-var EmptyResponseBodyError2 = class extends (_b33 = AISDKError2, _a34 = symbol34, _b33) {
-  // used in isInstance
-  constructor({ message = "Empty response body" } = {}) {
-    super({ name: name25, message });
-    this[_a34] = true;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker34);
-  }
-};
 function getErrorMessage3(error40) {
   if (error40 == null) {
     return "unknown error";
@@ -30794,257 +29969,6 @@ function getErrorMessage3(error40) {
   }
   return JSON.stringify(error40);
 }
-var name34 = "AI_InvalidArgumentError";
-var marker44 = `vercel.ai.error.${name34}`;
-var symbol44 = Symbol.for(marker44);
-var _a44;
-var _b43;
-var InvalidArgumentError3 = class extends (_b43 = AISDKError2, _a44 = symbol44, _b43) {
-  constructor({
-    message,
-    cause,
-    argument
-  }) {
-    super({ name: name34, message, cause });
-    this[_a44] = true;
-    this.argument = argument;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker44);
-  }
-};
-var name44 = "AI_InvalidPromptError";
-var marker54 = `vercel.ai.error.${name44}`;
-var symbol54 = Symbol.for(marker54);
-var _a54;
-var _b53;
-var InvalidPromptError2 = class extends (_b53 = AISDKError2, _a54 = symbol54, _b53) {
-  constructor({
-    prompt,
-    message,
-    cause
-  }) {
-    super({ name: name44, message: `Invalid prompt: ${message}`, cause });
-    this[_a54] = true;
-    this.prompt = prompt;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker54);
-  }
-};
-var name54 = "AI_InvalidResponseDataError";
-var marker64 = `vercel.ai.error.${name54}`;
-var symbol64 = Symbol.for(marker64);
-var _a64;
-var _b63;
-var InvalidResponseDataError2 = class extends (_b63 = AISDKError2, _a64 = symbol64, _b63) {
-  constructor({
-    data,
-    message = `Invalid response data: ${JSON.stringify(data)}.`
-  }) {
-    super({ name: name54, message });
-    this[_a64] = true;
-    this.data = data;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker64);
-  }
-};
-var name64 = "AI_JSONParseError";
-var marker74 = `vercel.ai.error.${name64}`;
-var symbol74 = Symbol.for(marker74);
-var _a74;
-var _b73;
-var JSONParseError2 = class extends (_b73 = AISDKError2, _a74 = symbol74, _b73) {
-  constructor({ text: text2, cause }) {
-    super({
-      name: name64,
-      message: `JSON parsing failed: Text: ${text2}.
-Error message: ${getErrorMessage3(cause)}`,
-      cause
-    });
-    this[_a74] = true;
-    this.text = text2;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker74);
-  }
-};
-var name74 = "AI_LoadAPIKeyError";
-var marker84 = `vercel.ai.error.${name74}`;
-var symbol84 = Symbol.for(marker84);
-var _a84;
-var _b83;
-var LoadAPIKeyError2 = class extends (_b83 = AISDKError2, _a84 = symbol84, _b83) {
-  // used in isInstance
-  constructor({ message }) {
-    super({ name: name74, message });
-    this[_a84] = true;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker84);
-  }
-};
-var name84 = "AI_LoadSettingError";
-var marker94 = `vercel.ai.error.${name84}`;
-var symbol94 = Symbol.for(marker94);
-var _a94;
-var _b93;
-var LoadSettingError2 = class extends (_b93 = AISDKError2, _a94 = symbol94, _b93) {
-  // used in isInstance
-  constructor({ message }) {
-    super({ name: name84, message });
-    this[_a94] = true;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker94);
-  }
-};
-var name94 = "AI_NoContentGeneratedError";
-var marker104 = `vercel.ai.error.${name94}`;
-var symbol104 = Symbol.for(marker104);
-var _a104;
-var _b103;
-var NoContentGeneratedError2 = class extends (_b103 = AISDKError2, _a104 = symbol104, _b103) {
-  // used in isInstance
-  constructor({
-    message = "No content generated."
-  } = {}) {
-    super({ name: name94, message });
-    this[_a104] = true;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker104);
-  }
-};
-var name103 = "AI_NoSuchModelError";
-var marker113 = `vercel.ai.error.${name103}`;
-var symbol113 = Symbol.for(marker113);
-var _a113;
-var _b112;
-var NoSuchModelError2 = class extends (_b112 = AISDKError2, _a113 = symbol113, _b112) {
-  constructor({
-    errorName = name103,
-    modelId,
-    modelType,
-    message = `No such ${modelType}: ${modelId}`
-  }) {
-    super({ name: errorName, message });
-    this[_a113] = true;
-    this.modelId = modelId;
-    this.modelType = modelType;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker113);
-  }
-};
-var name113 = "AI_TooManyEmbeddingValuesForCallError";
-var marker123 = `vercel.ai.error.${name113}`;
-var symbol123 = Symbol.for(marker123);
-var _a123;
-var _b122;
-var TooManyEmbeddingValuesForCallError2 = class extends (_b122 = AISDKError2, _a123 = symbol123, _b122) {
-  constructor(options) {
-    super({
-      name: name113,
-      message: `Too many values for a single embedding call. The ${options.provider} model "${options.modelId}" can only embed up to ${options.maxEmbeddingsPerCall} values per call, but ${options.values.length} values were provided.`
-    });
-    this[_a123] = true;
-    this.provider = options.provider;
-    this.modelId = options.modelId;
-    this.maxEmbeddingsPerCall = options.maxEmbeddingsPerCall;
-    this.values = options.values;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker123);
-  }
-};
-var name123 = "AI_TypeValidationError";
-var marker133 = `vercel.ai.error.${name123}`;
-var symbol133 = Symbol.for(marker133);
-var _a133;
-var _b132;
-var TypeValidationError2 = class _TypeValidationError2 extends (_b132 = AISDKError2, _a133 = symbol133, _b132) {
-  constructor({
-    value,
-    cause,
-    context: context2
-  }) {
-    let contextPrefix = "Type validation failed";
-    if (context2 == null ? void 0 : context2.field) {
-      contextPrefix += ` for ${context2.field}`;
-    }
-    if ((context2 == null ? void 0 : context2.entityName) || (context2 == null ? void 0 : context2.entityId)) {
-      contextPrefix += " (";
-      const parts = [];
-      if (context2.entityName) {
-        parts.push(context2.entityName);
-      }
-      if (context2.entityId) {
-        parts.push(`id: "${context2.entityId}"`);
-      }
-      contextPrefix += parts.join(", ");
-      contextPrefix += ")";
-    }
-    super({
-      name: name123,
-      message: `${contextPrefix}: Value: ${JSON.stringify(value)}.
-Error message: ${getErrorMessage3(cause)}`,
-      cause
-    });
-    this[_a133] = true;
-    this.value = value;
-    this.context = context2;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker133);
-  }
-  /**
-   * Wraps an error into a TypeValidationError.
-   * If the cause is already a TypeValidationError with the same value and context, it returns the cause.
-   * Otherwise, it creates a new TypeValidationError.
-   *
-   * @param {Object} params - The parameters for wrapping the error.
-   * @param {unknown} params.value - The value that failed validation.
-   * @param {unknown} params.cause - The original error or cause of the validation failure.
-   * @param {TypeValidationContext} params.context - Optional context about what is being validated.
-   * @returns {TypeValidationError} A TypeValidationError instance.
-   */
-  static wrap({
-    value,
-    cause,
-    context: context2
-  }) {
-    var _a1522, _b1522, _c;
-    if (_TypeValidationError2.isInstance(cause) && cause.value === value && ((_a1522 = cause.context) == null ? void 0 : _a1522.field) === (context2 == null ? void 0 : context2.field) && ((_b1522 = cause.context) == null ? void 0 : _b1522.entityName) === (context2 == null ? void 0 : context2.entityName) && ((_c = cause.context) == null ? void 0 : _c.entityId) === (context2 == null ? void 0 : context2.entityId)) {
-      return cause;
-    }
-    return new _TypeValidationError2({ value, cause, context: context2 });
-  }
-};
-var name133 = "AI_UnsupportedFunctionalityError";
-var marker143 = `vercel.ai.error.${name133}`;
-var symbol143 = Symbol.for(marker143);
-var _a143;
-var _b142;
-var UnsupportedFunctionalityError2 = class extends (_b142 = AISDKError2, _a143 = symbol143, _b142) {
-  constructor({
-    functionality,
-    message = `'${functionality}' functionality not supported.`
-  }) {
-    super({ name: name133, message });
-    this[_a143] = true;
-    this.functionality = functionality;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker143);
-  }
-};
-var ParseError2 = class extends Error {
-  constructor(message, options) {
-    super(message), this.name = "ParseError", this.type = options.type, this.field = options.field, this.value = options.value, this.line = options.line;
-  }
-};
 function noop2(_arg) {
 }
 function createParser2(callbacks) {
@@ -31141,28 +30065,6 @@ function splitLines(chunk) {
   }
   return [lines, incompleteLine];
 }
-var EventSourceParserStream2 = class extends TransformStream {
-  constructor({ onError, onRetry, onComment } = {}) {
-    let parser;
-    super({
-      start(controller) {
-        parser = createParser2({
-          onEvent: (event) => {
-            controller.enqueue(event);
-          },
-          onError(error40) {
-            onError === "terminate" ? controller.error(error40) : typeof onError == "function" && onError(error40);
-          },
-          onRetry,
-          onComment
-        });
-      },
-      transform(chunk) {
-        parser.feed(chunk);
-      }
-    });
-  }
-};
 function combineHeaders2(...headers) {
   return headers.reduce(
     (combinedHeaders, currentHeaders) => __spreadValues(__spreadValues({}, combinedHeaders), currentHeaders != null ? currentHeaders : {}),
@@ -31200,7 +30102,6 @@ function createAbortError2() {
 function extractResponseHeaders2(response) {
   return Object.fromEntries([...response.headers]);
 }
-var { btoa: btoa2, atob: atob3 } = globalThis;
 function convertUint8ArrayToBase642(array3) {
   let latin1string = "";
   for (let i = 0; i < array3.length; i++) {
@@ -31208,70 +30109,10 @@ function convertUint8ArrayToBase642(array3) {
   }
   return btoa2(latin1string);
 }
-var name143 = "AI_DownloadError";
-var marker153 = `vercel.ai.error.${name143}`;
-var symbol153 = Symbol.for(marker153);
-var _a153;
-var _b152;
-var DownloadError2 = class extends (_b152 = AISDKError2, _a153 = symbol153, _b152) {
-  constructor({
-    url: url2,
-    statusCode,
-    statusText,
-    cause,
-    message = cause == null ? `Failed to download ${url2}: ${statusCode} ${statusText}` : `Failed to download ${url2}: ${cause}`
-  }) {
-    super({ name: name143, message, cause });
-    this[_a153] = true;
-    this.url = url2;
-    this.statusCode = statusCode;
-    this.statusText = statusText;
-  }
-  static isInstance(error40) {
-    return AISDKError2.hasMarker(error40, marker153);
-  }
-};
-var DEFAULT_MAX_DOWNLOAD_SIZE2 = 2 * 1024 * 1024 * 1024;
-var createIdGenerator2 = ({
-  prefix,
-  size = 16,
-  alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-  separator = "-"
-} = {}) => {
-  const generator = () => {
-    const alphabetLength = alphabet.length;
-    const chars = new Array(size);
-    for (let i = 0; i < size; i++) {
-      chars[i] = alphabet[Math.random() * alphabetLength | 0];
-    }
-    return chars.join("");
-  };
-  if (prefix == null) {
-    return generator;
-  }
-  if (alphabet.includes(separator)) {
-    throw new InvalidArgumentError3({
-      argument: "separator",
-      message: `The separator "${separator}" must not be part of the alphabet "${alphabet}".`
-    });
-  }
-  return () => `${prefix}${separator}${generator()}`;
-};
-var generateId2 = createIdGenerator2();
 function isAbortError2(error40) {
   return (error40 instanceof Error || error40 instanceof DOMException) && (error40.name === "AbortError" || error40.name === "ResponseAborted" || // Next.js
   error40.name === "TimeoutError");
 }
-var FETCH_FAILED_ERROR_MESSAGES2 = ["fetch failed", "failed to fetch"];
-var BUN_ERROR_CODES2 = [
-  "ConnectionRefused",
-  "ConnectionClosed",
-  "FailedToOpenSocket",
-  "ECONNRESET",
-  "ECONNREFUSED",
-  "ETIMEDOUT",
-  "EPIPE"
-];
 function isBunNetworkError2(error40) {
   if (!(error40 instanceof Error)) {
     return false;
@@ -31360,85 +30201,16 @@ function withUserAgentSuffix2(headers, ...userAgentSuffixParts) {
   );
   return Object.fromEntries(normalizedHeaders.entries());
 }
-var VERSION5 = true ? "4.0.23" : "0.0.0-test";
-var getOriginalFetch3 = () => globalThis.fetch;
-var getFromApi2 = async ({
-  url: url2,
-  headers = {},
-  successfulResponseHandler,
-  failedResponseHandler,
-  abortSignal,
-  fetch: fetch2 = getOriginalFetch3()
-}) => {
-  try {
-    const response = await fetch2(url2, {
-      method: "GET",
-      headers: withUserAgentSuffix2(
-        headers,
-        `ai-sdk/provider-utils/${VERSION5}`,
-        getRuntimeEnvironmentUserAgent2()
-      ),
-      signal: abortSignal
-    });
-    const responseHeaders = extractResponseHeaders2(response);
-    if (!response.ok) {
-      let errorInformation;
-      try {
-        errorInformation = await failedResponseHandler({
-          response,
-          url: url2,
-          requestBodyValues: {}
-        });
-      } catch (error40) {
-        if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
-          throw error40;
-        }
-        throw new APICallError2({
-          message: "Failed to process error response",
-          cause: error40,
-          statusCode: response.status,
-          url: url2,
-          responseHeaders,
-          requestBodyValues: {}
-        });
-      }
-      throw errorInformation.value;
-    }
-    try {
-      return await successfulResponseHandler({
-        response,
-        url: url2,
-        requestBodyValues: {}
-      });
-    } catch (error40) {
-      if (error40 instanceof Error) {
-        if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
-          throw error40;
-        }
-      }
-      throw new APICallError2({
-        message: "Failed to process successful response",
-        cause: error40,
-        statusCode: response.status,
-        url: url2,
-        responseHeaders,
-        requestBodyValues: {}
-      });
-    }
-  } catch (error40) {
-    throw handleFetchError2({ error: error40, url: url2, requestBodyValues: {} });
-  }
-};
 function loadApiKey({
-  apiKey: apiKey2,
+  apiKey,
   environmentVariableName,
   apiKeyParameterName = "apiKey",
   description
 }) {
-  if (typeof apiKey2 === "string") {
-    return apiKey2;
+  if (typeof apiKey === "string") {
+    return apiKey;
   }
-  if (apiKey2 != null) {
+  if (apiKey != null) {
     throw new LoadAPIKeyError2({
       message: `${description} API key must be a string.`
     });
@@ -31448,21 +30220,19 @@ function loadApiKey({
       message: `${description} API key is missing. Pass it using the '${apiKeyParameterName}' parameter. Environment variables are not supported in this environment.`
     });
   }
-  apiKey2 = process.env[environmentVariableName];
-  if (apiKey2 == null) {
+  apiKey = process.env[environmentVariableName];
+  if (apiKey == null) {
     throw new LoadAPIKeyError2({
       message: `${description} API key is missing. Pass it using the '${apiKeyParameterName}' parameter or the ${environmentVariableName} environment variable.`
     });
   }
-  if (typeof apiKey2 !== "string") {
+  if (typeof apiKey !== "string") {
     throw new LoadAPIKeyError2({
       message: `${description} API key must be a string. The value of the ${environmentVariableName} environment variable is not a string.`
     });
   }
-  return apiKey2;
+  return apiKey;
 }
-var suspectProtoRx2 = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
-var suspectConstructorRx2 = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
 function _parse3(text2) {
   const obj = JSON.parse(text2);
   if (obj === null || typeof obj !== "object") {
@@ -31542,33 +30312,6 @@ function visit2(def) {
   if (typeof def === "boolean") return def;
   return addAdditionalPropertiesToJsonSchema2(def);
 }
-var ignoreOverride2 = /* @__PURE__ */ Symbol(
-  "Let zodToJsonSchema decide on which parser to use"
-);
-var defaultOptions2 = {
-  name: void 0,
-  $refStrategy: "root",
-  basePath: ["#"],
-  effectStrategy: "input",
-  pipeStrategy: "all",
-  dateStrategy: "format:date-time",
-  mapStrategy: "entries",
-  removeAdditionalStrategy: "passthrough",
-  allowedAdditionalProperties: true,
-  rejectedAdditionalProperties: false,
-  definitionPath: "definitions",
-  strictUnions: false,
-  definitions: {},
-  errorMessages: false,
-  patternStrategy: "escape",
-  applyRegexFlags: false,
-  emailStrategy: "format:email",
-  base64Strategy: "contentEncoding:base64",
-  nameStrategy: "ref"
-};
-var getDefaultOptions2 = (options) => typeof options === "string" ? __spreadProps(__spreadValues({}, defaultOptions2), {
-  name: options
-}) : __spreadValues(__spreadValues({}, defaultOptions2), options);
 function parseAnyDef2() {
   return {};
 }
@@ -31629,9 +30372,6 @@ function parseBooleanDef2() {
 function parseBrandedDef2(_def, refs) {
   return parseDef2(_def.type._def, refs);
 }
-var parseCatchDef2 = (def, refs) => {
-  return parseDef2(def.innerType._def, refs);
-};
 function parseDateDef2(def, refs, overrideDateStrategy) {
   const strategy = overrideDateStrategy != null ? overrideDateStrategy : refs.dateStrategy;
   if (Array.isArray(strategy)) {
@@ -31655,23 +30395,6 @@ function parseDateDef2(def, refs, overrideDateStrategy) {
       return integerDateParser2(def);
   }
 }
-var integerDateParser2 = (def) => {
-  const res = {
-    type: "integer",
-    format: "unix-time"
-  };
-  for (const check2 of def.checks) {
-    switch (check2.kind) {
-      case "min":
-        res.minimum = check2.value;
-        break;
-      case "max":
-        res.maximum = check2.value;
-        break;
-    }
-  }
-  return res;
-};
 function parseDefaultDef2(_def, refs) {
   return __spreadProps(__spreadValues({}, parseDef2(_def.innerType._def, refs)), {
     default: _def.defaultValue()
@@ -31686,10 +30409,6 @@ function parseEnumDef2(def) {
     enum: Array.from(def.values)
   };
 }
-var isJsonSchema7AllOfType2 = (type) => {
-  if ("type" in type && type.type === "string") return false;
-  return "allOf" in type;
-};
 function parseIntersectionDef2(def, refs) {
   const allOf = [
     parseDef2(def.left._def, __spreadProps(__spreadValues({}, refs), {
@@ -31726,57 +30445,6 @@ function parseLiteralDef2(def) {
     const: def.value
   };
 }
-var emojiRegex3 = void 0;
-var zodPatterns2 = {
-  /**
-   * `c` was changed to `[cC]` to replicate /i flag
-   */
-  cuid: /^[cC][^\s-]{8,}$/,
-  cuid2: /^[0-9a-z]+$/,
-  ulid: /^[0-9A-HJKMNP-TV-Z]{26}$/,
-  /**
-   * `a-z` was added to replicate /i flag
-   */
-  email: /^(?!\.)(?!.*\.\.)([a-zA-Z0-9_'+\-\.]*)[a-zA-Z0-9_+-]@([a-zA-Z0-9][a-zA-Z0-9\-]*\.)+[a-zA-Z]{2,}$/,
-  /**
-   * Constructed a valid Unicode RegExp
-   *
-   * Lazily instantiate since this type of regex isn't supported
-   * in all envs (e.g. React Native).
-   *
-   * See:
-   * https://github.com/colinhacks/zod/issues/2433
-   * Fix in Zod:
-   * https://github.com/colinhacks/zod/commit/9340fd51e48576a75adc919bff65dbc4a5d4c99b
-   */
-  emoji: () => {
-    if (emojiRegex3 === void 0) {
-      emojiRegex3 = RegExp(
-        "^(\\p{Extended_Pictographic}|\\p{Emoji_Component})+$",
-        "u"
-      );
-    }
-    return emojiRegex3;
-  },
-  /**
-   * Unused
-   */
-  uuid: /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/,
-  /**
-   * Unused
-   */
-  ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/,
-  ipv4Cidr: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(3[0-2]|[12]?[0-9])$/,
-  /**
-   * Unused
-   */
-  ipv6: /^(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))$/,
-  ipv6Cidr: /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/,
-  base64: /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/,
-  base64url: /^([0-9a-zA-Z-_]{4})*(([0-9a-zA-Z-_]{2}(==)?)|([0-9a-zA-Z-_]{3}(=)?))?$/,
-  nanoid: /^[a-zA-Z0-9_-]{21}$/,
-  jwt: /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/
-};
 function parseStringDef2(def, refs) {
   const res = {
     type: "string"
@@ -31925,9 +30593,6 @@ function parseStringDef2(def, refs) {
 function escapeLiteralCheckValue2(literal2, refs) {
   return refs.patternStrategy === "escape" ? escapeNonAlphaNumeric2(literal2) : literal2;
 }
-var ALPHA_NUMERIC2 = new Set(
-  "ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789"
-);
 function escapeNonAlphaNumeric2(source) {
   let result = "";
   for (let i = 0; i < source.length; i++) {
@@ -32131,13 +30796,6 @@ function parseNullDef2() {
     type: "null"
   };
 }
-var primitiveMappings2 = {
-  ZodString: "string",
-  ZodNumber: "number",
-  ZodBigInt: "integer",
-  ZodBoolean: "boolean",
-  ZodNull: "null"
-};
 function parseUnionDef2(def, refs) {
   const options = def.options instanceof Map ? Array.from(def.options.values()) : def.options;
   if (options.every(
@@ -32198,16 +30856,6 @@ function parseUnionDef2(def, refs) {
   }
   return asAnyOf2(def, refs);
 }
-var asAnyOf2 = (def, refs) => {
-  const anyOf = (def.options instanceof Map ? Array.from(def.options.values()) : def.options).map(
-    (x, i) => parseDef2(x._def, __spreadProps(__spreadValues({}, refs), {
-      currentPath: [...refs.currentPath, "anyOf", `${i}`]
-    }))
-  ).filter(
-    (x) => !!x && (!refs.strictUnions || typeof x === "object" && Object.keys(x).length > 0)
-  );
-  return anyOf.length ? { anyOf } : void 0;
-};
 function parseNullableDef2(def, refs) {
   if (["ZodString", "ZodNumber", "ZodBigInt", "ZodBoolean", "ZodNull"].includes(
     def.innerType._def.typeName
@@ -32311,32 +30959,6 @@ function safeIsOptional2(schema) {
     return true;
   }
 }
-var parseOptionalDef2 = (def, refs) => {
-  var _a222;
-  if (refs.currentPath.toString() === ((_a222 = refs.propertyPath) == null ? void 0 : _a222.toString())) {
-    return parseDef2(def.innerType._def, refs);
-  }
-  const innerSchema = parseDef2(def.innerType._def, __spreadProps(__spreadValues({}, refs), {
-    currentPath: [...refs.currentPath, "anyOf", "1"]
-  }));
-  return innerSchema ? { anyOf: [{ not: parseAnyDef2() }, innerSchema] } : parseAnyDef2();
-};
-var parsePipelineDef2 = (def, refs) => {
-  if (refs.pipeStrategy === "input") {
-    return parseDef2(def.in._def, refs);
-  } else if (refs.pipeStrategy === "output") {
-    return parseDef2(def.out._def, refs);
-  }
-  const a = parseDef2(def.in._def, __spreadProps(__spreadValues({}, refs), {
-    currentPath: [...refs.currentPath, "allOf", "0"]
-  }));
-  const b = parseDef2(def.out._def, __spreadProps(__spreadValues({}, refs), {
-    currentPath: [...refs.currentPath, "allOf", a ? "1" : "0"]
-  }));
-  return {
-    allOf: [a, b].filter((x) => x !== void 0)
-  };
-};
 function parsePromiseDef2(def, refs) {
   return parseDef2(def.type._def, refs);
 }
@@ -32398,90 +31020,6 @@ function parseUndefinedDef2() {
 function parseUnknownDef2() {
   return parseAnyDef2();
 }
-var parseReadonlyDef2 = (def, refs) => {
-  return parseDef2(def.innerType._def, refs);
-};
-var selectParser2 = (def, typeName, refs) => {
-  switch (typeName) {
-    case ZodFirstPartyTypeKind.ZodString:
-      return parseStringDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodNumber:
-      return parseNumberDef2(def);
-    case ZodFirstPartyTypeKind.ZodObject:
-      return parseObjectDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodBigInt:
-      return parseBigintDef2(def);
-    case ZodFirstPartyTypeKind.ZodBoolean:
-      return parseBooleanDef2();
-    case ZodFirstPartyTypeKind.ZodDate:
-      return parseDateDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodUndefined:
-      return parseUndefinedDef2();
-    case ZodFirstPartyTypeKind.ZodNull:
-      return parseNullDef2();
-    case ZodFirstPartyTypeKind.ZodArray:
-      return parseArrayDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodUnion:
-    case ZodFirstPartyTypeKind.ZodDiscriminatedUnion:
-      return parseUnionDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodIntersection:
-      return parseIntersectionDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodTuple:
-      return parseTupleDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodRecord:
-      return parseRecordDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodLiteral:
-      return parseLiteralDef2(def);
-    case ZodFirstPartyTypeKind.ZodEnum:
-      return parseEnumDef2(def);
-    case ZodFirstPartyTypeKind.ZodNativeEnum:
-      return parseNativeEnumDef2(def);
-    case ZodFirstPartyTypeKind.ZodNullable:
-      return parseNullableDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodOptional:
-      return parseOptionalDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodMap:
-      return parseMapDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodSet:
-      return parseSetDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodLazy:
-      return () => def.getter()._def;
-    case ZodFirstPartyTypeKind.ZodPromise:
-      return parsePromiseDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodNaN:
-    case ZodFirstPartyTypeKind.ZodNever:
-      return parseNeverDef2();
-    case ZodFirstPartyTypeKind.ZodEffects:
-      return parseEffectsDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodAny:
-      return parseAnyDef2();
-    case ZodFirstPartyTypeKind.ZodUnknown:
-      return parseUnknownDef2();
-    case ZodFirstPartyTypeKind.ZodDefault:
-      return parseDefaultDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodBranded:
-      return parseBrandedDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodReadonly:
-      return parseReadonlyDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodCatch:
-      return parseCatchDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodPipeline:
-      return parsePipelineDef2(def, refs);
-    case ZodFirstPartyTypeKind.ZodFunction:
-    case ZodFirstPartyTypeKind.ZodVoid:
-    case ZodFirstPartyTypeKind.ZodSymbol:
-      return void 0;
-    default:
-      return /* @__PURE__ */ ((_) => void 0)(typeName);
-  }
-};
-var getRelativePath2 = (pathA, pathB) => {
-  let i = 0;
-  for (; i < pathA.length && i < pathB.length; i++) {
-    if (pathA[i] !== pathB[i]) break;
-  }
-  return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
-};
 function parseDef2(def, refs, forceResolution = false) {
   var _a222;
   const seenItem = refs.seen.get(def);
@@ -32518,97 +31056,6 @@ function parseDef2(def, refs, forceResolution = false) {
   newItem.jsonSchema = jsonSchema22;
   return jsonSchema22;
 }
-var get$ref2 = (item, refs) => {
-  switch (refs.$refStrategy) {
-    case "root":
-      return { $ref: item.path.join("/") };
-    case "relative":
-      return { $ref: getRelativePath2(refs.currentPath, item.path) };
-    case "none":
-    case "seen": {
-      if (item.path.length < refs.currentPath.length && item.path.every((value, index) => refs.currentPath[index] === value)) {
-        console.warn(
-          `Recursive reference detected at ${refs.currentPath.join(
-            "/"
-          )}! Defaulting to any`
-        );
-        return parseAnyDef2();
-      }
-      return refs.$refStrategy === "seen" ? parseAnyDef2() : void 0;
-    }
-  }
-};
-var addMeta2 = (def, refs, jsonSchema22) => {
-  if (def.description) {
-    jsonSchema22.description = def.description;
-  }
-  return jsonSchema22;
-};
-var getRefs2 = (options) => {
-  const _options = getDefaultOptions2(options);
-  const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
-  return __spreadProps(__spreadValues({}, _options), {
-    currentPath,
-    propertyPath: void 0,
-    seen: new Map(
-      Object.entries(_options.definitions).map(([name222, def]) => [
-        def._def,
-        {
-          def: def._def,
-          path: [..._options.basePath, _options.definitionPath, name222],
-          // Resolution of references will be forced even though seen, so it's ok that the schema is undefined here for now.
-          jsonSchema: void 0
-        }
-      ])
-    )
-  });
-};
-var zod3ToJsonSchema2 = (schema, options) => {
-  var _a222;
-  const refs = getRefs2(options);
-  let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce(
-    (acc, [name322, schema2]) => {
-      var _a322;
-      return __spreadProps(__spreadValues({}, acc), {
-        [name322]: (_a322 = parseDef2(
-          schema2._def,
-          __spreadProps(__spreadValues({}, refs), {
-            currentPath: [...refs.basePath, refs.definitionPath, name322]
-          }),
-          true
-        )) != null ? _a322 : parseAnyDef2()
-      });
-    },
-    {}
-  ) : void 0;
-  const name222 = typeof options === "string" ? options : (options == null ? void 0 : options.nameStrategy) === "title" ? void 0 : options == null ? void 0 : options.name;
-  const main = (_a222 = parseDef2(
-    schema._def,
-    name222 === void 0 ? refs : __spreadProps(__spreadValues({}, refs), {
-      currentPath: [...refs.basePath, refs.definitionPath, name222]
-    }),
-    false
-  )) != null ? _a222 : parseAnyDef2();
-  const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
-  if (title !== void 0) {
-    main.title = title;
-  }
-  const combined = name222 === void 0 ? definitions ? __spreadProps(__spreadValues({}, main), {
-    [refs.definitionPath]: definitions
-  }) : main : {
-    $ref: [
-      ...refs.$refStrategy === "relative" ? [] : refs.basePath,
-      refs.definitionPath,
-      name222
-    ].join("/"),
-    [refs.definitionPath]: __spreadProps(__spreadValues({}, definitions), {
-      [name222]: main
-    })
-  };
-  combined.$schema = "http://json-schema.org/draft-07/schema#";
-  return combined;
-};
-var schemaSymbol2 = /* @__PURE__ */ Symbol.for("vercel.ai.schema");
 function jsonSchema2(jsonSchema22, {
   validate
 } = {}) {
@@ -32794,98 +31241,6 @@ function parseJsonEventStream2({
     })
   );
 }
-var getOriginalFetch22 = () => globalThis.fetch;
-var postJsonToApi2 = async ({
-  url: url2,
-  headers,
-  body,
-  failedResponseHandler,
-  successfulResponseHandler,
-  abortSignal,
-  fetch: fetch2
-}) => postToApi2({
-  url: url2,
-  headers: __spreadValues({
-    "Content-Type": "application/json"
-  }, headers),
-  body: {
-    content: JSON.stringify(body),
-    values: body
-  },
-  failedResponseHandler,
-  successfulResponseHandler,
-  abortSignal,
-  fetch: fetch2
-});
-var postToApi2 = async ({
-  url: url2,
-  headers = {},
-  body,
-  successfulResponseHandler,
-  failedResponseHandler,
-  abortSignal,
-  fetch: fetch2 = getOriginalFetch22()
-}) => {
-  try {
-    const response = await fetch2(url2, {
-      method: "POST",
-      headers: withUserAgentSuffix2(
-        headers,
-        `ai-sdk/provider-utils/${VERSION5}`,
-        getRuntimeEnvironmentUserAgent2()
-      ),
-      body: body.content,
-      signal: abortSignal
-    });
-    const responseHeaders = extractResponseHeaders2(response);
-    if (!response.ok) {
-      let errorInformation;
-      try {
-        errorInformation = await failedResponseHandler({
-          response,
-          url: url2,
-          requestBodyValues: body.values
-        });
-      } catch (error40) {
-        if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
-          throw error40;
-        }
-        throw new APICallError2({
-          message: "Failed to process error response",
-          cause: error40,
-          statusCode: response.status,
-          url: url2,
-          responseHeaders,
-          requestBodyValues: body.values
-        });
-      }
-      throw errorInformation.value;
-    }
-    try {
-      return await successfulResponseHandler({
-        response,
-        url: url2,
-        requestBodyValues: body.values
-      });
-    } catch (error40) {
-      if (error40 instanceof Error) {
-        if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
-          throw error40;
-        }
-      }
-      throw new APICallError2({
-        message: "Failed to process successful response",
-        cause: error40,
-        statusCode: response.status,
-        url: url2,
-        responseHeaders,
-        requestBodyValues: body.values
-      });
-    }
-  } catch (error40) {
-    throw handleFetchError2({ error: error40, url: url2, requestBodyValues: body.values });
-  }
-};
 function tool2(tool22) {
   return tool22;
 }
@@ -32926,178 +31281,12 @@ function createProviderToolFactory({
     });
   };
 }
-var createJsonErrorResponseHandler2 = ({
-  errorSchema,
-  errorToMessage,
-  isRetryable
-}) => async ({ response, url: url2, requestBodyValues }) => {
-  const responseBody = await response.text();
-  const responseHeaders = extractResponseHeaders2(response);
-  if (responseBody.trim() === "") {
-    return {
-      responseHeaders,
-      value: new APICallError2({
-        message: response.statusText,
-        url: url2,
-        requestBodyValues,
-        statusCode: response.status,
-        responseHeaders,
-        responseBody,
-        isRetryable: isRetryable == null ? void 0 : isRetryable(response)
-      })
-    };
-  }
-  try {
-    const parsedError = await parseJSON2({
-      text: responseBody,
-      schema: errorSchema
-    });
-    return {
-      responseHeaders,
-      value: new APICallError2({
-        message: errorToMessage(parsedError),
-        url: url2,
-        requestBodyValues,
-        statusCode: response.status,
-        responseHeaders,
-        responseBody,
-        data: parsedError,
-        isRetryable: isRetryable == null ? void 0 : isRetryable(response, parsedError)
-      })
-    };
-  } catch (parseError) {
-    return {
-      responseHeaders,
-      value: new APICallError2({
-        message: response.statusText,
-        url: url2,
-        requestBodyValues,
-        statusCode: response.status,
-        responseHeaders,
-        responseBody,
-        isRetryable: isRetryable == null ? void 0 : isRetryable(response)
-      })
-    };
-  }
-};
-var createEventSourceResponseHandler2 = (chunkSchema) => async ({ response }) => {
-  const responseHeaders = extractResponseHeaders2(response);
-  if (response.body == null) {
-    throw new EmptyResponseBodyError2({});
-  }
-  return {
-    responseHeaders,
-    value: parseJsonEventStream2({
-      stream: response.body,
-      schema: chunkSchema
-    })
-  };
-};
-var createJsonResponseHandler2 = (responseSchema) => async ({ response, url: url2, requestBodyValues }) => {
-  const responseBody = await response.text();
-  const parsedResult = await safeParseJSON2({
-    text: responseBody,
-    schema: responseSchema
-  });
-  const responseHeaders = extractResponseHeaders2(response);
-  if (!parsedResult.success) {
-    throw new APICallError2({
-      message: "Invalid JSON response",
-      cause: parsedResult.error,
-      statusCode: response.status,
-      responseHeaders,
-      responseBody,
-      url: url2,
-      requestBodyValues
-    });
-  }
-  return {
-    responseHeaders,
-    value: parsedResult.value,
-    rawValue: parsedResult.rawValue
-  };
-};
 function withoutTrailingSlash2(url2) {
   return url2 == null ? void 0 : url2.replace(/\/$/, "");
 }
 function isDefinedOrNotNull(value) {
   return value !== null && value !== void 0;
 }
-var ReasoningFormat = /* @__PURE__ */ ((ReasoningFormat2) => {
-  ReasoningFormat2["Unknown"] = "unknown";
-  ReasoningFormat2["OpenAIResponsesV1"] = "openai-responses-v1";
-  ReasoningFormat2["AzureOpenAIResponsesV1"] = "azure-openai-responses-v1";
-  ReasoningFormat2["XAIResponsesV1"] = "xai-responses-v1";
-  ReasoningFormat2["AnthropicClaudeV1"] = "anthropic-claude-v1";
-  ReasoningFormat2["GoogleGeminiV1"] = "google-gemini-v1";
-  return ReasoningFormat2;
-})(ReasoningFormat || {});
-var DEFAULT_REASONING_FORMAT = "anthropic-claude-v1";
-var CommonReasoningDetailSchema = external_exports.object({
-  id: external_exports.string().nullish(),
-  format: external_exports.enum(ReasoningFormat).nullish(),
-  index: external_exports.number().optional()
-}).loose();
-var ReasoningDetailSummarySchema = external_exports.object({
-  type: external_exports.literal(
-    "reasoning.summary"
-    /* Summary */
-  ),
-  summary: external_exports.string()
-}).extend(CommonReasoningDetailSchema.shape);
-var ReasoningDetailEncryptedSchema = external_exports.object({
-  type: external_exports.literal(
-    "reasoning.encrypted"
-    /* Encrypted */
-  ),
-  data: external_exports.string()
-}).extend(CommonReasoningDetailSchema.shape);
-var ReasoningDetailTextSchema = external_exports.object({
-  type: external_exports.literal(
-    "reasoning.text"
-    /* Text */
-  ),
-  text: external_exports.string().nullish(),
-  signature: external_exports.string().nullish()
-}).extend(CommonReasoningDetailSchema.shape);
-var ReasoningDetailUnionSchema = external_exports.union([
-  ReasoningDetailSummarySchema,
-  ReasoningDetailEncryptedSchema,
-  ReasoningDetailTextSchema
-]);
-var ReasoningDetailsWithUnknownSchema = external_exports.union([
-  ReasoningDetailUnionSchema,
-  external_exports.unknown().transform(() => null)
-]);
-var ReasoningDetailArraySchema = external_exports.array(ReasoningDetailsWithUnknownSchema).transform((d) => d.filter((d2) => !!d2));
-var OutputUnionToReasoningDetailsSchema = external_exports.union([
-  external_exports.object({
-    delta: external_exports.object({
-      reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
-    })
-  }).transform(
-    (data) => data.delta.reasoning_details.filter(isDefinedOrNotNull)
-  ),
-  external_exports.object({
-    message: external_exports.object({
-      reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
-    })
-  }).transform(
-    (data) => data.message.reasoning_details.filter(isDefinedOrNotNull)
-  ),
-  external_exports.object({
-    text: external_exports.string(),
-    reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
-  }).transform((data) => data.reasoning_details.filter(isDefinedOrNotNull))
-]);
-var OpenRouterErrorResponseSchema = external_exports.object({
-  error: external_exports.object({
-    code: external_exports.union([external_exports.string(), external_exports.number()]).nullable().optional().default(null),
-    message: external_exports.string(),
-    type: external_exports.string().nullable().optional().default(null),
-    param: external_exports.any().nullable().optional().default(null)
-  }).passthrough()
-}).passthrough();
 function extractErrorMessage(data) {
   const error40 = data.error;
   const metadata = error40.metadata;
@@ -33147,53 +31336,6 @@ function extractRawMessage(raw) {
   }
   return void 0;
 }
-var openrouterFailedResponseHandler = createJsonErrorResponseHandler2({
-  errorSchema: OpenRouterErrorResponseSchema,
-  errorToMessage: extractErrorMessage
-});
-var FileAnnotationSchema = external_exports.object({
-  type: external_exports.literal("file"),
-  file: external_exports.object({
-    hash: external_exports.string(),
-    name: external_exports.string(),
-    content: external_exports.array(
-      external_exports.object({
-        type: external_exports.string(),
-        text: external_exports.string().optional()
-      }).catchall(external_exports.any())
-    ).optional()
-  }).catchall(external_exports.any())
-}).catchall(external_exports.any());
-var OpenRouterProviderMetadataSchema = external_exports.object({
-  provider: external_exports.string(),
-  reasoning_details: external_exports.array(ReasoningDetailUnionSchema).optional(),
-  annotations: external_exports.array(FileAnnotationSchema).optional(),
-  usage: external_exports.object({
-    promptTokens: external_exports.number(),
-    promptTokensDetails: external_exports.object({
-      cachedTokens: external_exports.number()
-    }).catchall(external_exports.any()).optional(),
-    completionTokens: external_exports.number(),
-    completionTokensDetails: external_exports.object({
-      reasoningTokens: external_exports.number()
-    }).catchall(external_exports.any()).optional(),
-    totalTokens: external_exports.number(),
-    cost: external_exports.number().optional(),
-    costDetails: external_exports.object({
-      upstreamInferenceCost: external_exports.number()
-    }).catchall(external_exports.any()).optional()
-  }).catchall(external_exports.any())
-}).catchall(external_exports.any());
-var OpenRouterProviderOptionsSchema = external_exports.object({
-  openrouter: external_exports.object({
-    // Use ReasoningDetailArraySchema (with unknown fallback) instead of
-    // z.array(ReasoningDetailUnionSchema) so that a single malformed entry
-    // (e.g., a future format not yet in the enum) is individually dropped
-    // rather than causing the entire array to fail parsing.
-    reasoning_details: ReasoningDetailArraySchema.optional(),
-    annotations: external_exports.array(FileAnnotationSchema).optional()
-  }).optional()
-}).optional();
 function computeTokenUsage(usage) {
   var _a163, _b162, _c, _d, _e, _f, _g, _h;
   const promptTokens = (_a163 = usage.prompt_tokens) != null ? _a163 : 0;
@@ -33300,63 +31442,6 @@ function sortKeys(value) {
   }
   return value;
 }
-var _seenKeys;
-var ReasoningDetailsDuplicateTracker = class {
-  constructor() {
-    __privateAdd(this, _seenKeys, /* @__PURE__ */ new Set());
-  }
-  /**
-   * Attempts to track a detail.
-   * Returns true if this is a NEW detail (not seen before and has valid key),
-   * false if it was skipped (no valid key) or already seen (duplicate).
-   */
-  upsert(detail) {
-    const key = this.getCanonicalKey(detail);
-    if (key === null) {
-      return false;
-    }
-    if (__privateGet(this, _seenKeys).has(key)) {
-      return false;
-    }
-    __privateGet(this, _seenKeys).add(key);
-    return true;
-  }
-  getCanonicalKey(detail) {
-    switch (detail.type) {
-      case "reasoning.summary":
-        return detail.summary;
-      case "reasoning.encrypted":
-        if (detail.id) {
-          return detail.id;
-        }
-        return detail.data;
-      case "reasoning.text": {
-        if (detail.text) {
-          return detail.text;
-        }
-        if (detail.signature) {
-          return detail.signature;
-        }
-        return null;
-      }
-      default: {
-        return null;
-      }
-    }
-  }
-};
-_seenKeys = /* @__PURE__ */ new WeakMap();
-var OPENROUTER_AUDIO_FORMATS = [
-  "wav",
-  "mp3",
-  "aiff",
-  "aac",
-  "ogg",
-  "flac",
-  "m4a",
-  "pcm16",
-  "pcm24"
-];
 function isUrl({
   url: url2,
   protocols
@@ -33406,34 +31491,6 @@ function getBase64FromDataUrl(dataUrl) {
   const match = dataUrl.match(/^data:[^;]*;base64,(.+)$/);
   return match ? match[1] : dataUrl;
 }
-var MIME_TO_FORMAT = {
-  // MP3 variants
-  mpeg: "mp3",
-  mp3: "mp3",
-  // WAV variants
-  "x-wav": "wav",
-  wave: "wav",
-  wav: "wav",
-  // OGG variants
-  ogg: "ogg",
-  vorbis: "ogg",
-  // AAC variants
-  aac: "aac",
-  "x-aac": "aac",
-  // M4A variants
-  m4a: "m4a",
-  "x-m4a": "m4a",
-  mp4: "m4a",
-  // AIFF variants
-  aiff: "aiff",
-  "x-aiff": "aiff",
-  // FLAC
-  flac: "flac",
-  "x-flac": "flac",
-  // PCM variants
-  pcm16: "pcm16",
-  pcm24: "pcm24"
-};
 function getInputAudioData(part) {
   const fileData = getFileUrl({
     part,
@@ -33808,19 +31865,6 @@ function mapToolResultContentParts(parts) {
     }
   });
 }
-var IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "svg",
-  "bmp",
-  "ico",
-  "tif",
-  "tiff",
-  "avif"
-]);
 function looksLikeImageUrl(url2) {
   var _a163;
   try {
@@ -33864,17 +31908,6 @@ function findFirstReasoningDetails(content) {
   }
   return void 0;
 }
-var ChatCompletionToolChoiceSchema = external_exports.union([
-  external_exports.literal("auto"),
-  external_exports.literal("none"),
-  external_exports.literal("required"),
-  external_exports.object({
-    type: external_exports.literal("function"),
-    function: external_exports.object({
-      name: external_exports.string()
-    })
-  })
-]);
 function getChatCompletionToolChoice(toolChoice) {
   switch (toolChoice.type) {
     case "auto":
@@ -33896,990 +31929,6 @@ function getChatCompletionToolChoice(toolChoice) {
     }
   }
 }
-var ImageResponseSchema = external_exports.object({
-  type: external_exports.literal("image_url"),
-  image_url: external_exports.object({
-    url: external_exports.string()
-  }).passthrough()
-}).passthrough();
-var ImageResponseWithUnknownSchema = external_exports.union([
-  ImageResponseSchema,
-  external_exports.unknown().transform(() => null)
-]);
-var ImageResponseArraySchema = external_exports.array(ImageResponseWithUnknownSchema).transform((d) => d.filter((d2) => !!d2));
-var OpenRouterChatCompletionBaseResponseSchema = external_exports.object({
-  id: external_exports.string().optional(),
-  model: external_exports.string().optional(),
-  provider: external_exports.string().optional(),
-  usage: external_exports.object({
-    prompt_tokens: external_exports.number(),
-    prompt_tokens_details: external_exports.object({
-      cached_tokens: external_exports.number(),
-      cache_write_tokens: external_exports.number().nullish()
-    }).passthrough().nullish(),
-    completion_tokens: external_exports.number(),
-    completion_tokens_details: external_exports.object({
-      reasoning_tokens: external_exports.number()
-    }).passthrough().nullish(),
-    total_tokens: external_exports.number(),
-    cost: external_exports.number().optional(),
-    cost_details: external_exports.object({
-      upstream_inference_cost: external_exports.number().nullish()
-    }).passthrough().nullish()
-  }).passthrough().nullish()
-}).passthrough();
-var OpenRouterNonStreamChatCompletionResponseSchema = external_exports.union([
-  // Success response with choices
-  OpenRouterChatCompletionBaseResponseSchema.extend({
-    choices: external_exports.array(
-      external_exports.object({
-        message: external_exports.object({
-          role: external_exports.literal("assistant"),
-          content: external_exports.string().nullable().optional(),
-          reasoning: external_exports.string().nullable().optional(),
-          reasoning_details: ReasoningDetailArraySchema.nullish(),
-          images: ImageResponseArraySchema.nullish(),
-          tool_calls: external_exports.array(
-            external_exports.object({
-              id: external_exports.string().optional().nullable(),
-              type: external_exports.literal("function"),
-              function: external_exports.object({
-                name: external_exports.string(),
-                arguments: external_exports.string().optional()
-              }).passthrough()
-            }).passthrough()
-          ).optional(),
-          annotations: external_exports.array(
-            external_exports.union([
-              // URL citation from web search
-              // title, start_index, end_index are optional as some upstream providers may omit them
-              external_exports.object({
-                type: external_exports.literal("url_citation"),
-                url_citation: external_exports.object({
-                  url: external_exports.string(),
-                  title: external_exports.string().optional(),
-                  start_index: external_exports.number().optional(),
-                  end_index: external_exports.number().optional(),
-                  content: external_exports.string().optional()
-                }).passthrough()
-              }).passthrough(),
-              // File annotation from FileParserPlugin (old format)
-              external_exports.object({
-                type: external_exports.literal("file_annotation"),
-                file_annotation: external_exports.object({
-                  file_id: external_exports.string(),
-                  quote: external_exports.string().optional()
-                }).passthrough()
-              }).passthrough(),
-              // File annotation from FileParserPlugin (new format)
-              external_exports.object({
-                type: external_exports.literal("file"),
-                file: external_exports.object({
-                  hash: external_exports.string(),
-                  name: external_exports.string(),
-                  content: external_exports.array(
-                    external_exports.object({
-                      type: external_exports.string(),
-                      text: external_exports.string().optional()
-                    }).passthrough()
-                  ).optional()
-                }).passthrough()
-              }).passthrough()
-            ])
-          ).nullish()
-        }).passthrough(),
-        index: external_exports.number().nullish(),
-        logprobs: external_exports.object({
-          content: external_exports.array(
-            external_exports.object({
-              token: external_exports.string(),
-              logprob: external_exports.number(),
-              top_logprobs: external_exports.array(
-                external_exports.object({
-                  token: external_exports.string(),
-                  logprob: external_exports.number()
-                }).passthrough()
-              )
-            }).passthrough()
-          ).nullable()
-        }).passthrough().nullable().optional(),
-        finish_reason: external_exports.string().optional().nullable()
-      }).passthrough()
-    )
-  }),
-  // Error response (HTTP 200 with error payload)
-  OpenRouterErrorResponseSchema.extend({
-    user_id: external_exports.string().optional()
-  })
-]);
-var OpenRouterStreamChatCompletionChunkSchema = external_exports.union([
-  OpenRouterChatCompletionBaseResponseSchema.extend({
-    choices: external_exports.array(
-      external_exports.object({
-        delta: external_exports.object({
-          role: external_exports.enum(["assistant"]).optional(),
-          content: external_exports.string().nullish(),
-          reasoning: external_exports.string().nullish().optional(),
-          reasoning_details: ReasoningDetailArraySchema.nullish(),
-          images: ImageResponseArraySchema.nullish(),
-          tool_calls: external_exports.array(
-            external_exports.object({
-              index: external_exports.number().nullish(),
-              id: external_exports.string().nullish(),
-              type: external_exports.literal("function").optional(),
-              function: external_exports.object({
-                name: external_exports.string().nullish(),
-                arguments: external_exports.string().nullish()
-              }).passthrough()
-            }).passthrough()
-          ).nullish(),
-          annotations: external_exports.array(
-            external_exports.union([
-              // URL citation from web search
-              // title, start_index, end_index are optional as some upstream providers may omit them
-              external_exports.object({
-                type: external_exports.literal("url_citation"),
-                url_citation: external_exports.object({
-                  url: external_exports.string(),
-                  title: external_exports.string().optional(),
-                  start_index: external_exports.number().optional(),
-                  end_index: external_exports.number().optional(),
-                  content: external_exports.string().optional()
-                }).passthrough()
-              }).passthrough(),
-              // File annotation from FileParserPlugin (old format)
-              external_exports.object({
-                type: external_exports.literal("file_annotation"),
-                file_annotation: external_exports.object({
-                  file_id: external_exports.string(),
-                  quote: external_exports.string().optional()
-                }).passthrough()
-              }).passthrough(),
-              // File annotation from FileParserPlugin (new format)
-              external_exports.object({
-                type: external_exports.literal("file"),
-                file: external_exports.object({
-                  hash: external_exports.string(),
-                  name: external_exports.string(),
-                  content: external_exports.array(
-                    external_exports.object({
-                      type: external_exports.string(),
-                      text: external_exports.string().optional()
-                    }).passthrough()
-                  ).optional()
-                }).passthrough()
-              }).passthrough()
-            ])
-          ).nullish()
-        }).passthrough().nullish(),
-        logprobs: external_exports.object({
-          content: external_exports.array(
-            external_exports.object({
-              token: external_exports.string(),
-              logprob: external_exports.number(),
-              top_logprobs: external_exports.array(
-                external_exports.object({
-                  token: external_exports.string(),
-                  logprob: external_exports.number()
-                }).passthrough()
-              )
-            }).passthrough()
-          ).nullable()
-        }).passthrough().nullish(),
-        finish_reason: external_exports.string().nullable().optional(),
-        index: external_exports.number().nullish()
-      }).passthrough()
-    )
-  }),
-  OpenRouterErrorResponseSchema
-]);
-var OpenRouterChatLanguageModel = class {
-  constructor(modelId, settings, config2) {
-    this.specificationVersion = "v3";
-    this.provider = "openrouter";
-    this.defaultObjectGenerationMode = "tool";
-    this.supportsImageUrls = true;
-    this.supportedUrls = {
-      "image/*": [
-        /^data:image\/[a-zA-Z]+;base64,/,
-        /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(?:[?#].*)?$/i
-      ],
-      // 'text/*': [/^data:text\//, /^https?:\/\/.+$/],
-      "application/*": [/^data:application\//, /^https?:\/\/.+$/]
-    };
-    this.modelId = modelId;
-    this.settings = settings;
-    this.config = config2;
-  }
-  getArgs({
-    prompt,
-    maxOutputTokens,
-    temperature,
-    topP,
-    frequencyPenalty,
-    presencePenalty,
-    seed,
-    stopSequences,
-    responseFormat,
-    topK,
-    tools,
-    toolChoice
-  }) {
-    var _a163, _b162, _c, _d;
-    const baseArgs = __spreadValues(__spreadValues({
-      // model id:
-      model: this.modelId,
-      models: this.settings.models,
-      // model specific settings:
-      logit_bias: this.settings.logitBias,
-      logprobs: this.settings.logprobs === true || typeof this.settings.logprobs === "number" ? true : void 0,
-      top_logprobs: typeof this.settings.logprobs === "number" ? this.settings.logprobs : typeof this.settings.logprobs === "boolean" ? this.settings.logprobs ? 0 : void 0 : void 0,
-      user: this.settings.user,
-      parallel_tool_calls: this.settings.parallelToolCalls,
-      // standardized settings (call-level options override model-level settings):
-      max_tokens: maxOutputTokens != null ? maxOutputTokens : this.settings.maxTokens,
-      temperature: temperature != null ? temperature : this.settings.temperature,
-      top_p: topP != null ? topP : this.settings.topP,
-      frequency_penalty: frequencyPenalty != null ? frequencyPenalty : this.settings.frequencyPenalty,
-      presence_penalty: presencePenalty != null ? presencePenalty : this.settings.presencePenalty,
-      seed,
-      stop: stopSequences,
-      response_format: (responseFormat == null ? void 0 : responseFormat.type) === "json" ? responseFormat.schema != null ? {
-        type: "json_schema",
-        json_schema: __spreadValues({
-          schema: responseFormat.schema,
-          strict: (_b162 = (_a163 = this.settings.structuredOutputs) == null ? void 0 : _a163.strict) != null ? _b162 : true,
-          name: (_c = responseFormat.name) != null ? _c : "response"
-        }, responseFormat.description && {
-          description: responseFormat.description
-        })
-      } : { type: "json_object" } : void 0,
-      top_k: topK != null ? topK : this.settings.topK,
-      // messages:
-      messages: convertToOpenRouterChatMessages(prompt),
-      // OpenRouter specific settings:
-      include_reasoning: this.settings.includeReasoning,
-      reasoning: this.settings.reasoning,
-      usage: this.settings.usage,
-      // Web search settings:
-      plugins: this.settings.plugins,
-      web_search_options: this.settings.web_search_options,
-      // Provider routing settings:
-      provider: this.settings.provider,
-      // Debug settings:
-      debug: this.settings.debug,
-      // Anthropic automatic caching:
-      cache_control: this.settings.cache_control
-    }, this.config.extraBody), this.settings.extraBody);
-    if (tools && tools.length > 0) {
-      const mappedTools = [];
-      for (const tool22 of tools) {
-        if (tool22.type === "function") {
-          const openrouterOptions = (_d = tool22.providerOptions) == null ? void 0 : _d.openrouter;
-          const eagerInputStreaming = openrouterOptions == null ? void 0 : openrouterOptions.eager_input_streaming;
-          mappedTools.push(__spreadValues({
-            type: "function",
-            function: {
-              name: tool22.name,
-              description: tool22.description,
-              parameters: tool22.inputSchema
-            }
-          }, eagerInputStreaming != null && {
-            eager_input_streaming: eagerInputStreaming
-          }));
-        } else if (tool22.type === "provider") {
-          mappedTools.push(mapProviderTool(tool22));
-        }
-      }
-      return __spreadProps(__spreadValues({}, baseArgs), {
-        tools: mappedTools,
-        tool_choice: toolChoice ? getChatCompletionToolChoice(toolChoice) : void 0
-      });
-    }
-    return baseArgs;
-  }
-  async doGenerate(options) {
-    var _b162, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
-    const providerOptions = options.providerOptions || {};
-    const openrouterOptions = providerOptions.openrouter || {};
-    const _a163 = openrouterOptions, { cacheControl } = _a163, restOpenrouterOptions = __objRest(_a163, ["cacheControl"]);
-    const args = __spreadValues(__spreadValues(__spreadValues({}, this.getArgs(options)), restOpenrouterOptions), cacheControl != null && !("cache_control" in restOpenrouterOptions) ? { cache_control: cacheControl } : {});
-    const { value: responseValue, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/chat/completions",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), options.headers),
-      body: args,
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler2(
-        OpenRouterNonStreamChatCompletionResponseSchema
-      ),
-      abortSignal: options.abortSignal,
-      fetch: this.config.fetch
-    });
-    if ("error" in responseValue) {
-      const errorData = responseValue.error;
-      throw new APICallError2({
-        message: errorData.message,
-        url: this.config.url({
-          path: "/chat/completions",
-          modelId: this.modelId
-        }),
-        requestBodyValues: args,
-        statusCode: 200,
-        responseHeaders,
-        data: errorData
-      });
-    }
-    const response = responseValue;
-    const choice2 = response.choices[0];
-    if (!choice2) {
-      throw new NoContentGeneratedError2({
-        message: "No choice in response"
-      });
-    }
-    const usageInfo = response.usage ? computeTokenUsage(response.usage) : emptyUsage();
-    const reasoningDetails = (_b162 = choice2.message.reasoning_details) != null ? _b162 : [];
-    const reasoning = reasoningDetails.length > 0 ? reasoningDetails.map((detail) => {
-      switch (detail.type) {
-        case "reasoning.text": {
-          if (detail.text) {
-            return {
-              type: "reasoning",
-              text: detail.text,
-              providerMetadata: {
-                openrouter: {
-                  reasoning_details: [detail]
-                }
-              }
-            };
-          }
-          break;
-        }
-        case "reasoning.summary": {
-          if (detail.summary) {
-            return {
-              type: "reasoning",
-              text: detail.summary,
-              providerMetadata: {
-                openrouter: {
-                  reasoning_details: [detail]
-                }
-              }
-            };
-          }
-          break;
-        }
-        case "reasoning.encrypted": {
-          break;
-        }
-        default: {
-          detail;
-        }
-      }
-      return null;
-    }).filter((p) => p !== null) : choice2.message.reasoning ? [
-      {
-        type: "reasoning",
-        text: choice2.message.reasoning
-      }
-    ] : [];
-    const content = [];
-    content.push(...reasoning);
-    if (choice2.message.content) {
-      content.push({
-        type: "text",
-        text: choice2.message.content
-      });
-    }
-    if (choice2.message.tool_calls) {
-      let reasoningDetailsAttachedToToolCall = false;
-      const seenToolCallIds = /* @__PURE__ */ new Set();
-      for (const toolCall of choice2.message.tool_calls) {
-        let toolCallId = toolCall.id;
-        if (!toolCallId || seenToolCallIds.has(toolCallId)) {
-          toolCallId = generateId2();
-        }
-        seenToolCallIds.add(toolCallId);
-        content.push({
-          type: "tool-call",
-          toolCallId,
-          toolName: toolCall.function.name,
-          input: (_c = toolCall.function.arguments) != null ? _c : "{}",
-          providerMetadata: !reasoningDetailsAttachedToToolCall ? {
-            openrouter: {
-              reasoning_details: reasoningDetails
-            }
-          } : void 0
-        });
-        reasoningDetailsAttachedToToolCall = true;
-      }
-    }
-    if (choice2.message.images) {
-      for (const image of choice2.message.images) {
-        content.push({
-          type: "file",
-          mediaType: getMediaType(image.image_url.url, "image/jpeg"),
-          data: getBase64FromDataUrl(image.image_url.url)
-        });
-      }
-    }
-    if (choice2.message.annotations) {
-      for (const annotation of choice2.message.annotations) {
-        if (annotation.type === "url_citation") {
-          content.push({
-            type: "source",
-            sourceType: "url",
-            id: annotation.url_citation.url,
-            url: annotation.url_citation.url,
-            title: (_d = annotation.url_citation.title) != null ? _d : "",
-            providerMetadata: {
-              openrouter: {
-                content: (_e = annotation.url_citation.content) != null ? _e : "",
-                startIndex: (_f = annotation.url_citation.start_index) != null ? _f : 0,
-                endIndex: (_g = annotation.url_citation.end_index) != null ? _g : 0
-              }
-            }
-          });
-        }
-      }
-    }
-    const fileAnnotations = (_h = choice2.message.annotations) == null ? void 0 : _h.filter(
-      (a) => a.type === "file"
-    );
-    const hasToolCalls = choice2.message.tool_calls && choice2.message.tool_calls.length > 0;
-    const hasEncryptedReasoning = reasoningDetails.some(
-      (d) => d.type === "reasoning.encrypted" && d.data
-    );
-    const shouldOverrideFinishReason = hasToolCalls && hasEncryptedReasoning && choice2.finish_reason === "stop";
-    const mappedFinishReason = shouldOverrideFinishReason ? createFinishReason("tool-calls", (_i = choice2.finish_reason) != null ? _i : void 0) : mapOpenRouterFinishReason(choice2.finish_reason);
-    const effectiveFinishReason = hasToolCalls && mappedFinishReason.unified === "other" ? createFinishReason("tool-calls", mappedFinishReason.raw) : mappedFinishReason;
-    return {
-      content,
-      finishReason: effectiveFinishReason,
-      usage: usageInfo,
-      warnings: [],
-      providerMetadata: {
-        openrouter: OpenRouterProviderMetadataSchema.parse({
-          provider: (_j = response.provider) != null ? _j : "",
-          reasoning_details: (_k = choice2.message.reasoning_details) != null ? _k : [],
-          annotations: fileAnnotations && fileAnnotations.length > 0 ? fileAnnotations : void 0,
-          usage: __spreadValues(__spreadValues(__spreadValues(__spreadValues({
-            promptTokens: (_l = usageInfo.inputTokens.total) != null ? _l : 0,
-            completionTokens: (_m = usageInfo.outputTokens.total) != null ? _m : 0,
-            totalTokens: ((_n = usageInfo.inputTokens.total) != null ? _n : 0) + ((_o = usageInfo.outputTokens.total) != null ? _o : 0)
-          }, ((_p = response.usage) == null ? void 0 : _p.cost) != null ? { cost: response.usage.cost } : {}), ((_r = (_q = response.usage) == null ? void 0 : _q.prompt_tokens_details) == null ? void 0 : _r.cached_tokens) != null ? {
-            promptTokensDetails: {
-              cachedTokens: response.usage.prompt_tokens_details.cached_tokens
-            }
-          } : {}), ((_t = (_s = response.usage) == null ? void 0 : _s.completion_tokens_details) == null ? void 0 : _t.reasoning_tokens) != null ? {
-            completionTokensDetails: {
-              reasoningTokens: response.usage.completion_tokens_details.reasoning_tokens
-            }
-          } : {}), ((_v = (_u = response.usage) == null ? void 0 : _u.cost_details) == null ? void 0 : _v.upstream_inference_cost) != null ? {
-            costDetails: {
-              upstreamInferenceCost: response.usage.cost_details.upstream_inference_cost
-            }
-          } : {})
-        })
-      },
-      request: { body: args },
-      response: {
-        id: response.id,
-        modelId: response.model,
-        headers: responseHeaders,
-        body: response
-      }
-    };
-  }
-  async doStream(options) {
-    var _b162;
-    const providerOptions = options.providerOptions || {};
-    const openrouterOptions = providerOptions.openrouter || {};
-    const _a163 = openrouterOptions, { cacheControl } = _a163, restOpenrouterOptions = __objRest(_a163, ["cacheControl"]);
-    const args = __spreadValues(__spreadValues(__spreadValues({}, this.getArgs(options)), restOpenrouterOptions), cacheControl != null && !("cache_control" in restOpenrouterOptions) ? { cache_control: cacheControl } : {});
-    const { value: response, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/chat/completions",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), options.headers),
-      body: __spreadProps(__spreadValues({}, args), {
-        stream: true,
-        // only include stream_options when in strict compatibility mode:
-        stream_options: this.config.compatibility === "strict" ? __spreadValues({
-          include_usage: true
-        }, ((_b162 = this.settings.usage) == null ? void 0 : _b162.include) ? { include_usage: true } : {}) : void 0
-      }),
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createEventSourceResponseHandler2(
-        OpenRouterStreamChatCompletionChunkSchema
-      ),
-      abortSignal: options.abortSignal,
-      fetch: this.config.fetch
-    });
-    let streamError;
-    const safeResponse = withStreamErrorHandling(response, (err) => {
-      streamError = err;
-    });
-    const toolCalls = [];
-    const seenToolCallIds = /* @__PURE__ */ new Set();
-    let finishReason = createFinishReason("other");
-    const usage = {
-      inputTokens: {
-        total: void 0,
-        noCache: void 0,
-        cacheRead: void 0,
-        cacheWrite: void 0
-      },
-      outputTokens: {
-        total: void 0,
-        text: void 0,
-        reasoning: void 0
-      },
-      raw: void 0
-    };
-    const openrouterUsage = {};
-    let rawUsage;
-    const accumulatedReasoningDetails = [];
-    let reasoningDetailsAttachedToToolCall = false;
-    const accumulatedFileAnnotations = [];
-    let textStarted = false;
-    let reasoningStarted = false;
-    let textId;
-    let reasoningId;
-    let openrouterResponseId;
-    let provider;
-    return {
-      stream: safeResponse.pipeThrough(
-        new TransformStream({
-          transform(chunk, controller) {
-            var _a173, _b172, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
-            if (options.includeRawChunks) {
-              controller.enqueue({ type: "raw", rawValue: chunk.rawValue });
-            }
-            if (!chunk.success) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: chunk.error });
-              return;
-            }
-            const value = chunk.value;
-            if ("error" in value) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: value.error });
-              return;
-            }
-            if (value.provider) {
-              provider = value.provider;
-            }
-            if (value.id) {
-              openrouterResponseId = value.id;
-              controller.enqueue({
-                type: "response-metadata",
-                id: value.id
-              });
-            }
-            if (value.model) {
-              controller.enqueue({
-                type: "response-metadata",
-                modelId: value.model
-              });
-            }
-            if (value.usage != null) {
-              const computed = computeTokenUsage(value.usage);
-              Object.assign(usage.inputTokens, computed.inputTokens);
-              Object.assign(usage.outputTokens, computed.outputTokens);
-              rawUsage = value.usage;
-              const promptTokens = (_a173 = value.usage.prompt_tokens) != null ? _a173 : 0;
-              const completionTokens = (_b172 = value.usage.completion_tokens) != null ? _b172 : 0;
-              openrouterUsage.promptTokens = promptTokens;
-              if (value.usage.prompt_tokens_details) {
-                openrouterUsage.promptTokensDetails = {
-                  cachedTokens: (_c = value.usage.prompt_tokens_details.cached_tokens) != null ? _c : 0
-                };
-              }
-              openrouterUsage.completionTokens = completionTokens;
-              if (value.usage.completion_tokens_details) {
-                openrouterUsage.completionTokensDetails = {
-                  reasoningTokens: (_d = value.usage.completion_tokens_details.reasoning_tokens) != null ? _d : 0
-                };
-              }
-              if (value.usage.cost != null) {
-                openrouterUsage.cost = value.usage.cost;
-              }
-              openrouterUsage.totalTokens = value.usage.total_tokens;
-              const upstreamInferenceCost = (_e = value.usage.cost_details) == null ? void 0 : _e.upstream_inference_cost;
-              if (upstreamInferenceCost != null) {
-                openrouterUsage.costDetails = {
-                  upstreamInferenceCost
-                };
-              }
-            }
-            const choice2 = value.choices[0];
-            if ((choice2 == null ? void 0 : choice2.finish_reason) != null) {
-              finishReason = mapOpenRouterFinishReason(choice2.finish_reason);
-            }
-            if ((choice2 == null ? void 0 : choice2.delta) == null) {
-              return;
-            }
-            const delta = choice2.delta;
-            const emitReasoningChunk = (chunkText) => {
-              if (!reasoningStarted) {
-                reasoningId = generateId2();
-                controller.enqueue({
-                  type: "reasoning-start",
-                  id: reasoningId
-                });
-                reasoningStarted = true;
-              }
-              controller.enqueue({
-                type: "reasoning-delta",
-                delta: chunkText,
-                id: reasoningId || generateId2()
-              });
-            };
-            if (delta.reasoning_details && delta.reasoning_details.length > 0) {
-              for (const detail of delta.reasoning_details) {
-                if (detail.type === "reasoning.text") {
-                  const lastDetail = accumulatedReasoningDetails[accumulatedReasoningDetails.length - 1];
-                  if ((lastDetail == null ? void 0 : lastDetail.type) === "reasoning.text") {
-                    lastDetail.text = (lastDetail.text || "") + (detail.text || "");
-                    lastDetail.signature = lastDetail.signature || detail.signature;
-                    lastDetail.format = lastDetail.format || detail.format;
-                  } else {
-                    accumulatedReasoningDetails.push(__spreadValues({}, detail));
-                  }
-                } else {
-                  accumulatedReasoningDetails.push(detail);
-                }
-              }
-              if (!textStarted) {
-                for (const detail of delta.reasoning_details) {
-                  switch (detail.type) {
-                    case "reasoning.text": {
-                      emitReasoningChunk(detail.text || "");
-                      break;
-                    }
-                    case "reasoning.encrypted": {
-                      break;
-                    }
-                    case "reasoning.summary": {
-                      if (detail.summary) {
-                        emitReasoningChunk(detail.summary);
-                      }
-                      break;
-                    }
-                    default: {
-                      detail;
-                      break;
-                    }
-                  }
-                }
-              }
-            } else if (delta.reasoning && !textStarted) {
-              emitReasoningChunk(delta.reasoning);
-            }
-            if (delta.content) {
-              if (reasoningStarted && !textStarted) {
-                controller.enqueue({
-                  type: "reasoning-end",
-                  id: reasoningId || generateId2(),
-                  // Always include accumulated reasoning_details so the AI SDK can
-                  // update the reasoning part's providerMetadata with the correct
-                  // signature.  The signature typically arrives in the last delta,
-                  // but reasoning-start only carries the first delta's metadata.
-                  // An empty array is intentional — it signals the provider produced
-                  // no reasoning tokens this turn (e.g. DeepSeek V4).
-                  providerMetadata: {
-                    openrouter: {
-                      reasoning_details: accumulatedReasoningDetails
-                    }
-                  }
-                });
-                reasoningStarted = false;
-              }
-              if (!textStarted) {
-                textId = openrouterResponseId || generateId2();
-                controller.enqueue({
-                  type: "text-start",
-                  id: textId
-                });
-                textStarted = true;
-              }
-              controller.enqueue({
-                type: "text-delta",
-                delta: delta.content,
-                id: textId || generateId2()
-              });
-            }
-            if (delta.annotations) {
-              for (const annotation of delta.annotations) {
-                if (annotation.type === "url_citation") {
-                  controller.enqueue({
-                    type: "source",
-                    sourceType: "url",
-                    id: annotation.url_citation.url,
-                    url: annotation.url_citation.url,
-                    title: (_f = annotation.url_citation.title) != null ? _f : "",
-                    providerMetadata: {
-                      openrouter: {
-                        content: (_g = annotation.url_citation.content) != null ? _g : "",
-                        startIndex: (_h = annotation.url_citation.start_index) != null ? _h : 0,
-                        endIndex: (_i = annotation.url_citation.end_index) != null ? _i : 0
-                      }
-                    }
-                  });
-                } else if (annotation.type === "file") {
-                  const file2 = annotation.file;
-                  if (file2 && typeof file2 === "object" && "hash" in file2 && "name" in file2) {
-                    accumulatedFileAnnotations.push(
-                      annotation
-                    );
-                  }
-                }
-              }
-            }
-            if (delta.tool_calls != null) {
-              for (const toolCallDelta of delta.tool_calls) {
-                const index = (_j = toolCallDelta.index) != null ? _j : toolCalls.length - 1;
-                if (toolCalls[index] == null) {
-                  if (toolCallDelta.type !== "function") {
-                    throw new InvalidResponseDataError2({
-                      data: toolCallDelta,
-                      message: `Expected 'function' type.`
-                    });
-                  }
-                  if (((_k = toolCallDelta.function) == null ? void 0 : _k.name) == null) {
-                    throw new InvalidResponseDataError2({
-                      data: toolCallDelta,
-                      message: `Expected 'function.name' to be a string.`
-                    });
-                  }
-                  let toolCallId = (_l = toolCallDelta.id) != null ? _l : "";
-                  if (!toolCallId || seenToolCallIds.has(toolCallId)) {
-                    toolCallId = generateId2();
-                  }
-                  seenToolCallIds.add(toolCallId);
-                  toolCalls[index] = {
-                    id: toolCallId,
-                    type: "function",
-                    function: {
-                      name: toolCallDelta.function.name,
-                      arguments: (_m = toolCallDelta.function.arguments) != null ? _m : ""
-                    },
-                    inputStarted: false,
-                    sent: false
-                  };
-                  const toolCall2 = toolCalls[index];
-                  if (toolCall2 == null) {
-                    throw new InvalidResponseDataError2({
-                      data: { index, toolCallsLength: toolCalls.length },
-                      message: `Tool call at index ${index} is missing after creation.`
-                    });
-                  }
-                  if (((_n = toolCall2.function) == null ? void 0 : _n.name) != null && ((_o = toolCall2.function) == null ? void 0 : _o.arguments) != null && isParsableJson(toolCall2.function.arguments)) {
-                    toolCall2.inputStarted = true;
-                    controller.enqueue({
-                      type: "tool-input-start",
-                      id: toolCall2.id,
-                      toolName: toolCall2.function.name
-                    });
-                    controller.enqueue({
-                      type: "tool-input-delta",
-                      id: toolCall2.id,
-                      delta: toolCall2.function.arguments
-                    });
-                    controller.enqueue({
-                      type: "tool-input-end",
-                      id: toolCall2.id
-                    });
-                    controller.enqueue({
-                      type: "tool-call",
-                      toolCallId: toolCall2.id,
-                      toolName: toolCall2.function.name,
-                      input: toolCall2.function.arguments,
-                      providerMetadata: !reasoningDetailsAttachedToToolCall ? {
-                        openrouter: {
-                          reasoning_details: accumulatedReasoningDetails
-                        }
-                      } : void 0
-                    });
-                    reasoningDetailsAttachedToToolCall = true;
-                    toolCall2.sent = true;
-                  }
-                  continue;
-                }
-                const toolCall = toolCalls[index];
-                if (toolCall == null) {
-                  throw new InvalidResponseDataError2({
-                    data: {
-                      index,
-                      toolCallsLength: toolCalls.length,
-                      toolCallDelta
-                    },
-                    message: `Tool call at index ${index} is missing during merge.`
-                  });
-                }
-                if (!toolCall.inputStarted) {
-                  toolCall.inputStarted = true;
-                  controller.enqueue({
-                    type: "tool-input-start",
-                    id: toolCall.id,
-                    toolName: toolCall.function.name
-                  });
-                  if (toolCall.function.arguments) {
-                    controller.enqueue({
-                      type: "tool-input-delta",
-                      id: toolCall.id,
-                      delta: toolCall.function.arguments
-                    });
-                  }
-                }
-                if (((_p = toolCallDelta.function) == null ? void 0 : _p.arguments) != null) {
-                  toolCall.function.arguments += (_r = (_q = toolCallDelta.function) == null ? void 0 : _q.arguments) != null ? _r : "";
-                }
-                controller.enqueue({
-                  type: "tool-input-delta",
-                  id: toolCall.id,
-                  delta: (_s = toolCallDelta.function.arguments) != null ? _s : ""
-                });
-                if (!toolCall.sent && ((_t = toolCall.function) == null ? void 0 : _t.name) != null && ((_u = toolCall.function) == null ? void 0 : _u.arguments) != null && isParsableJson(toolCall.function.arguments)) {
-                  controller.enqueue({
-                    type: "tool-input-end",
-                    id: toolCall.id
-                  });
-                  controller.enqueue({
-                    type: "tool-call",
-                    toolCallId: toolCall.id,
-                    toolName: toolCall.function.name,
-                    input: toolCall.function.arguments,
-                    providerMetadata: !reasoningDetailsAttachedToToolCall ? {
-                      openrouter: {
-                        reasoning_details: accumulatedReasoningDetails
-                      }
-                    } : void 0
-                  });
-                  reasoningDetailsAttachedToToolCall = true;
-                  toolCall.sent = true;
-                }
-              }
-            }
-            if (delta.images != null) {
-              for (const image of delta.images) {
-                controller.enqueue({
-                  type: "file",
-                  mediaType: getMediaType(image.image_url.url, "image/jpeg"),
-                  data: getBase64FromDataUrl(image.image_url.url)
-                });
-              }
-            }
-          },
-          flush(controller) {
-            const hasToolCalls = toolCalls.length > 0;
-            if (streamError != null) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: streamError });
-            }
-            const hasEncryptedReasoning = accumulatedReasoningDetails.some(
-              (d) => d.type === "reasoning.encrypted" && d.data
-            );
-            if (hasToolCalls && hasEncryptedReasoning && finishReason.unified === "stop") {
-              finishReason = createFinishReason("tool-calls", finishReason.raw);
-            }
-            if (hasToolCalls && finishReason.unified === "other") {
-              finishReason = createFinishReason("tool-calls", finishReason.raw);
-            }
-            if (finishReason.unified === "tool-calls") {
-              for (const toolCall of toolCalls) {
-                if (toolCall && !toolCall.sent) {
-                  const input = isParsableJson(toolCall.function.arguments) ? toolCall.function.arguments : "{}";
-                  if (!toolCall.inputStarted) {
-                    controller.enqueue({
-                      type: "tool-input-start",
-                      id: toolCall.id,
-                      toolName: toolCall.function.name
-                    });
-                    controller.enqueue({
-                      type: "tool-input-delta",
-                      id: toolCall.id,
-                      delta: input
-                    });
-                  }
-                  controller.enqueue({
-                    type: "tool-input-end",
-                    id: toolCall.id
-                  });
-                  controller.enqueue({
-                    type: "tool-call",
-                    toolCallId: toolCall.id,
-                    toolName: toolCall.function.name,
-                    input,
-                    providerMetadata: !reasoningDetailsAttachedToToolCall ? {
-                      openrouter: {
-                        reasoning_details: accumulatedReasoningDetails
-                      }
-                    } : void 0
-                  });
-                  reasoningDetailsAttachedToToolCall = true;
-                  toolCall.sent = true;
-                }
-              }
-            }
-            if (reasoningStarted) {
-              controller.enqueue({
-                type: "reasoning-end",
-                id: reasoningId || generateId2(),
-                // Always include accumulated reasoning_details so the AI SDK can
-                // update the reasoning part's providerMetadata.  An empty array is
-                // intentional — it signals the provider produced no reasoning tokens.
-                providerMetadata: {
-                  openrouter: {
-                    reasoning_details: accumulatedReasoningDetails
-                  }
-                }
-              });
-            }
-            if (textStarted) {
-              controller.enqueue({
-                type: "text-end",
-                id: textId || generateId2()
-              });
-            }
-            const openrouterMetadata = {
-              usage: openrouterUsage
-            };
-            if (provider !== void 0) {
-              openrouterMetadata.provider = provider;
-            }
-            openrouterMetadata.reasoning_details = accumulatedReasoningDetails;
-            if (accumulatedFileAnnotations.length > 0) {
-              openrouterMetadata.annotations = accumulatedFileAnnotations;
-            }
-            if (usage.inputTokens.total === void 0 && openrouterUsage.promptTokens !== void 0) {
-              usage.inputTokens.total = openrouterUsage.promptTokens;
-            }
-            if (usage.outputTokens.total === void 0 && openrouterUsage.completionTokens !== void 0) {
-              usage.outputTokens.total = openrouterUsage.completionTokens;
-            }
-            usage.raw = rawUsage;
-            controller.enqueue({
-              type: "finish",
-              finishReason,
-              usage,
-              providerMetadata: {
-                openrouter: openrouterMetadata
-              }
-            });
-          }
-        })
-      ),
-      warnings: [],
-      request: { body: args },
-      response: { headers: responseHeaders }
-    };
-  }
-};
 function mapProviderTool(tool22) {
   const [provider, toolName] = tool22.id.split(".");
   const apiToolType = `${provider}:${toolName}`;
@@ -34997,539 +32046,6 @@ ${assistantMessage}
     prompt: text2
   };
 }
-var OpenRouterCompletionChunkSchema = external_exports.union([
-  external_exports.object({
-    id: external_exports.string().optional(),
-    model: external_exports.string().optional(),
-    provider: external_exports.string().optional(),
-    choices: external_exports.array(
-      external_exports.object({
-        text: external_exports.string(),
-        reasoning: external_exports.string().nullish().optional(),
-        reasoning_details: ReasoningDetailArraySchema.nullish(),
-        finish_reason: external_exports.string().nullish(),
-        index: external_exports.number().nullish(),
-        logprobs: external_exports.object({
-          tokens: external_exports.array(external_exports.string()),
-          token_logprobs: external_exports.array(external_exports.number()),
-          top_logprobs: external_exports.array(external_exports.record(external_exports.string(), external_exports.number())).nullable()
-        }).passthrough().nullable().optional()
-      }).passthrough()
-    ),
-    usage: external_exports.object({
-      prompt_tokens: external_exports.number(),
-      prompt_tokens_details: external_exports.object({
-        cached_tokens: external_exports.number(),
-        cache_write_tokens: external_exports.number().nullish()
-      }).passthrough().nullish(),
-      completion_tokens: external_exports.number(),
-      completion_tokens_details: external_exports.object({
-        reasoning_tokens: external_exports.number()
-      }).passthrough().nullish(),
-      total_tokens: external_exports.number(),
-      cost: external_exports.number().optional(),
-      cost_details: external_exports.object({
-        upstream_inference_cost: external_exports.number().nullish()
-      }).passthrough().nullish()
-    }).passthrough().nullish()
-  }).passthrough(),
-  OpenRouterErrorResponseSchema
-]);
-var OpenRouterCompletionLanguageModel = class {
-  constructor(modelId, settings, config2) {
-    this.specificationVersion = "v3";
-    this.provider = "openrouter";
-    this.supportsImageUrls = true;
-    this.supportedUrls = {
-      "image/*": [
-        /^data:image\/[a-zA-Z]+;base64,/,
-        /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(?:[?#].*)?$/i
-      ],
-      "text/*": [/^data:text\//, /^https?:\/\/.+$/],
-      "application/*": [/^data:application\//, /^https?:\/\/.+$/]
-    };
-    this.defaultObjectGenerationMode = void 0;
-    this.modelId = modelId;
-    this.settings = settings;
-    this.config = config2;
-  }
-  getArgs({
-    prompt,
-    maxOutputTokens,
-    temperature,
-    topP,
-    frequencyPenalty,
-    presencePenalty,
-    seed,
-    responseFormat,
-    topK,
-    stopSequences,
-    tools,
-    toolChoice
-  }) {
-    const { prompt: completionPrompt } = convertToOpenRouterCompletionPrompt({
-      prompt,
-      inputFormat: "prompt"
-    });
-    if (tools == null ? void 0 : tools.length) {
-      throw new UnsupportedFunctionalityError2({
-        functionality: "tools"
-      });
-    }
-    if (toolChoice) {
-      throw new UnsupportedFunctionalityError2({
-        functionality: "toolChoice"
-      });
-    }
-    return __spreadValues(__spreadValues({
-      // model id:
-      model: this.modelId,
-      models: this.settings.models,
-      // model specific settings:
-      logit_bias: this.settings.logitBias,
-      logprobs: typeof this.settings.logprobs === "number" ? this.settings.logprobs : typeof this.settings.logprobs === "boolean" ? this.settings.logprobs ? 0 : void 0 : void 0,
-      suffix: this.settings.suffix,
-      user: this.settings.user,
-      // standardized settings (call-level options override model-level settings):
-      max_tokens: maxOutputTokens != null ? maxOutputTokens : this.settings.maxTokens,
-      temperature: temperature != null ? temperature : this.settings.temperature,
-      top_p: topP != null ? topP : this.settings.topP,
-      frequency_penalty: frequencyPenalty != null ? frequencyPenalty : this.settings.frequencyPenalty,
-      presence_penalty: presencePenalty != null ? presencePenalty : this.settings.presencePenalty,
-      seed,
-      stop: stopSequences,
-      response_format: responseFormat,
-      top_k: topK != null ? topK : this.settings.topK,
-      // prompt:
-      prompt: completionPrompt,
-      // OpenRouter specific settings:
-      include_reasoning: this.settings.includeReasoning,
-      reasoning: this.settings.reasoning
-    }, this.config.extraBody), this.settings.extraBody);
-  }
-  async doGenerate(options) {
-    var _a163, _b162, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
-    const providerOptions = options.providerOptions || {};
-    const openrouterOptions = providerOptions.openrouter || {};
-    const args = __spreadValues(__spreadValues({}, this.getArgs(options)), openrouterOptions);
-    const { value: response, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/completions",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), options.headers),
-      body: args,
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler2(
-        OpenRouterCompletionChunkSchema
-      ),
-      abortSignal: options.abortSignal,
-      fetch: this.config.fetch
-    });
-    if ("error" in response) {
-      const errorData = response.error;
-      throw new APICallError2({
-        message: errorData.message,
-        url: this.config.url({
-          path: "/completions",
-          modelId: this.modelId
-        }),
-        requestBodyValues: args,
-        statusCode: 200,
-        responseHeaders,
-        data: errorData
-      });
-    }
-    const choice2 = response.choices[0];
-    if (!choice2) {
-      throw new NoContentGeneratedError2({
-        message: "No choice in OpenRouter completion response"
-      });
-    }
-    return {
-      content: [
-        {
-          type: "text",
-          text: (_a163 = choice2.text) != null ? _a163 : ""
-        }
-      ],
-      finishReason: mapOpenRouterFinishReason(choice2.finish_reason),
-      usage: response.usage ? computeTokenUsage(response.usage) : emptyUsage(),
-      warnings: [],
-      providerMetadata: {
-        openrouter: OpenRouterProviderMetadataSchema.parse({
-          provider: (_b162 = response.provider) != null ? _b162 : "",
-          usage: __spreadValues(__spreadValues(__spreadValues(__spreadValues({
-            promptTokens: (_d = (_c = response.usage) == null ? void 0 : _c.prompt_tokens) != null ? _d : 0,
-            completionTokens: (_f = (_e = response.usage) == null ? void 0 : _e.completion_tokens) != null ? _f : 0,
-            totalTokens: ((_h = (_g = response.usage) == null ? void 0 : _g.prompt_tokens) != null ? _h : 0) + ((_j = (_i = response.usage) == null ? void 0 : _i.completion_tokens) != null ? _j : 0)
-          }, ((_k = response.usage) == null ? void 0 : _k.cost) != null ? { cost: response.usage.cost } : {}), ((_m = (_l = response.usage) == null ? void 0 : _l.prompt_tokens_details) == null ? void 0 : _m.cached_tokens) != null ? {
-            promptTokensDetails: {
-              cachedTokens: response.usage.prompt_tokens_details.cached_tokens
-            }
-          } : {}), ((_o = (_n = response.usage) == null ? void 0 : _n.completion_tokens_details) == null ? void 0 : _o.reasoning_tokens) != null ? {
-            completionTokensDetails: {
-              reasoningTokens: response.usage.completion_tokens_details.reasoning_tokens
-            }
-          } : {}), ((_q = (_p = response.usage) == null ? void 0 : _p.cost_details) == null ? void 0 : _q.upstream_inference_cost) != null ? {
-            costDetails: {
-              upstreamInferenceCost: response.usage.cost_details.upstream_inference_cost
-            }
-          } : {})
-        })
-      },
-      response: {
-        headers: responseHeaders
-      }
-    };
-  }
-  async doStream(options) {
-    const providerOptions = options.providerOptions || {};
-    const openrouterOptions = providerOptions.openrouter || {};
-    const args = __spreadValues(__spreadValues({}, this.getArgs(options)), openrouterOptions);
-    const { value: response, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/completions",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), options.headers),
-      body: __spreadProps(__spreadValues({}, args), {
-        stream: true,
-        // only include stream_options when in strict compatibility mode:
-        stream_options: this.config.compatibility === "strict" ? { include_usage: true } : void 0
-      }),
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createEventSourceResponseHandler2(
-        OpenRouterCompletionChunkSchema
-      ),
-      abortSignal: options.abortSignal,
-      fetch: this.config.fetch
-    });
-    let streamError;
-    const safeResponse = withStreamErrorHandling(response, (err) => {
-      streamError = err;
-    });
-    let finishReason = createFinishReason("other");
-    const usage = {
-      inputTokens: {
-        total: void 0,
-        noCache: void 0,
-        cacheRead: void 0,
-        cacheWrite: void 0
-      },
-      outputTokens: {
-        total: void 0,
-        text: void 0,
-        reasoning: void 0
-      },
-      raw: void 0
-    };
-    const openrouterUsage = {};
-    let provider;
-    let rawUsage;
-    return {
-      stream: safeResponse.pipeThrough(
-        new TransformStream({
-          transform(chunk, controller) {
-            var _a163, _b162, _c, _d, _e;
-            if (options.includeRawChunks) {
-              controller.enqueue({ type: "raw", rawValue: chunk.rawValue });
-            }
-            if (!chunk.success) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: chunk.error });
-              return;
-            }
-            const value = chunk.value;
-            if ("error" in value) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: value.error });
-              return;
-            }
-            if (value.provider) {
-              provider = value.provider;
-            }
-            if (value.usage != null) {
-              const computed = computeTokenUsage(value.usage);
-              Object.assign(usage.inputTokens, computed.inputTokens);
-              Object.assign(usage.outputTokens, computed.outputTokens);
-              rawUsage = value.usage;
-              const promptTokens = (_a163 = value.usage.prompt_tokens) != null ? _a163 : 0;
-              const completionTokens = (_b162 = value.usage.completion_tokens) != null ? _b162 : 0;
-              openrouterUsage.promptTokens = promptTokens;
-              if (value.usage.prompt_tokens_details) {
-                openrouterUsage.promptTokensDetails = {
-                  cachedTokens: (_c = value.usage.prompt_tokens_details.cached_tokens) != null ? _c : 0
-                };
-              }
-              openrouterUsage.completionTokens = completionTokens;
-              if (value.usage.completion_tokens_details) {
-                openrouterUsage.completionTokensDetails = {
-                  reasoningTokens: (_d = value.usage.completion_tokens_details.reasoning_tokens) != null ? _d : 0
-                };
-              }
-              if (value.usage.cost != null) {
-                openrouterUsage.cost = value.usage.cost;
-              }
-              openrouterUsage.totalTokens = value.usage.total_tokens;
-              const upstreamInferenceCost = (_e = value.usage.cost_details) == null ? void 0 : _e.upstream_inference_cost;
-              if (upstreamInferenceCost != null) {
-                openrouterUsage.costDetails = {
-                  upstreamInferenceCost
-                };
-              }
-            }
-            const choice2 = value.choices[0];
-            if ((choice2 == null ? void 0 : choice2.finish_reason) != null) {
-              finishReason = mapOpenRouterFinishReason(choice2.finish_reason);
-            }
-            if ((choice2 == null ? void 0 : choice2.text) != null) {
-              controller.enqueue({
-                type: "text-delta",
-                delta: choice2.text,
-                id: generateId2()
-              });
-            }
-          },
-          flush(controller) {
-            if (streamError != null) {
-              finishReason = createFinishReason("error");
-              controller.enqueue({ type: "error", error: streamError });
-            }
-            usage.raw = rawUsage;
-            const openrouterMetadata = {
-              usage: openrouterUsage
-            };
-            if (provider !== void 0) {
-              openrouterMetadata.provider = provider;
-            }
-            controller.enqueue({
-              type: "finish",
-              finishReason,
-              usage,
-              providerMetadata: {
-                openrouter: openrouterMetadata
-              }
-            });
-          }
-        })
-      ),
-      response: {
-        headers: responseHeaders
-      }
-    };
-  }
-};
-var openrouterEmbeddingUsageSchema = external_exports.object({
-  prompt_tokens: external_exports.number(),
-  total_tokens: external_exports.number(),
-  cost: external_exports.number().optional()
-});
-var openrouterEmbeddingDataSchema = external_exports.object({
-  object: external_exports.literal("embedding"),
-  embedding: external_exports.array(external_exports.number()),
-  index: external_exports.number().optional()
-});
-var OpenRouterEmbeddingResponseSchema = external_exports.object({
-  id: external_exports.string().optional(),
-  object: external_exports.literal("list"),
-  data: external_exports.array(openrouterEmbeddingDataSchema),
-  model: external_exports.string(),
-  provider: external_exports.string().optional(),
-  usage: openrouterEmbeddingUsageSchema.optional()
-});
-var OpenRouterEmbeddingModel = class {
-  constructor(modelId, settings, config2) {
-    this.specificationVersion = "v3";
-    this.provider = "openrouter";
-    this.maxEmbeddingsPerCall = void 0;
-    this.supportsParallelCalls = true;
-    this.modelId = modelId;
-    this.settings = settings;
-    this.config = config2;
-  }
-  async doEmbed(options) {
-    var _a163, _b162, _c, _d, _e, _f;
-    const { values, abortSignal, headers } = options;
-    const args = __spreadValues(__spreadValues({
-      model: this.modelId,
-      input: values,
-      user: this.settings.user,
-      provider: this.settings.provider
-    }, this.config.extraBody), this.settings.extraBody);
-    const { value: responseValue, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/embeddings",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), headers),
-      body: args,
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler2(
-        OpenRouterEmbeddingResponseSchema
-      ),
-      abortSignal,
-      fetch: this.config.fetch
-    });
-    return {
-      embeddings: responseValue.data.map((item) => item.embedding),
-      usage: responseValue.usage ? { tokens: responseValue.usage.prompt_tokens } : void 0,
-      providerMetadata: {
-        openrouter: OpenRouterProviderMetadataSchema.parse({
-          provider: (_a163 = responseValue.provider) != null ? _a163 : "",
-          usage: __spreadValues({
-            promptTokens: (_c = (_b162 = responseValue.usage) == null ? void 0 : _b162.prompt_tokens) != null ? _c : 0,
-            completionTokens: 0,
-            totalTokens: (_e = (_d = responseValue.usage) == null ? void 0 : _d.total_tokens) != null ? _e : 0
-          }, ((_f = responseValue.usage) == null ? void 0 : _f.cost) != null ? { cost: responseValue.usage.cost } : {})
-        })
-      },
-      response: {
-        headers: responseHeaders,
-        body: responseValue
-      },
-      warnings: []
-    };
-  }
-};
-var OpenRouterImageResponseSchema = external_exports.object({
-  id: external_exports.string().optional(),
-  object: external_exports.string().optional(),
-  created: external_exports.number().optional(),
-  model: external_exports.string(),
-  choices: external_exports.array(
-    external_exports.object({
-      index: external_exports.number(),
-      message: external_exports.object({
-        role: external_exports.string(),
-        content: external_exports.string().nullable().optional(),
-        images: external_exports.array(
-          external_exports.object({
-            type: external_exports.literal("image_url"),
-            image_url: external_exports.object({
-              url: external_exports.string()
-            })
-          }).passthrough()
-        ).optional()
-      }).passthrough(),
-      finish_reason: external_exports.string().nullable().optional()
-    }).passthrough()
-  ),
-  usage: external_exports.object({
-    prompt_tokens: external_exports.number(),
-    completion_tokens: external_exports.number(),
-    total_tokens: external_exports.number()
-  }).passthrough().optional()
-}).passthrough();
-var OpenRouterImageModel = class {
-  constructor(modelId, settings, config2) {
-    this.specificationVersion = "v3";
-    this.provider = "openrouter";
-    this.maxImagesPerCall = 1;
-    this.modelId = modelId;
-    this.settings = settings;
-    this.config = config2;
-  }
-  async doGenerate(options) {
-    var _a163;
-    const {
-      prompt,
-      n,
-      size,
-      aspectRatio,
-      seed,
-      files,
-      mask,
-      abortSignal,
-      headers,
-      providerOptions
-    } = options;
-    const openrouterOptions = (providerOptions == null ? void 0 : providerOptions.openrouter) || {};
-    const warnings = [];
-    if (mask !== void 0) {
-      throw new UnsupportedFunctionalityError2({
-        functionality: "image inpainting (mask parameter)"
-      });
-    }
-    if (n > 1) {
-      warnings.push({
-        type: "unsupported",
-        feature: "n > 1",
-        details: `OpenRouter image generation returns 1 image per call. Requested ${n} images.`
-      });
-    }
-    if (size !== void 0) {
-      warnings.push({
-        type: "unsupported",
-        feature: "size",
-        details: "Use aspectRatio instead. Size parameter is not supported by OpenRouter image generation."
-      });
-    }
-    const imageConfig = aspectRatio !== void 0 ? { aspect_ratio: aspectRatio } : void 0;
-    const hasFiles = files !== void 0 && files.length > 0;
-    const userContent = hasFiles ? [
-      ...files.map(
-        (file2) => convertImageFileToContentPart(file2)
-      ),
-      { type: "text", text: prompt != null ? prompt : "" }
-    ] : prompt != null ? prompt : "";
-    const body = __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({
-      model: this.modelId,
-      messages: [
-        {
-          role: "user",
-          content: userContent
-        }
-      ],
-      modalities: ["image", "text"]
-    }, imageConfig !== void 0 && { image_config: imageConfig }), seed !== void 0 && { seed }), this.settings.user !== void 0 && { user: this.settings.user }), this.settings.provider !== void 0 && {
-      provider: this.settings.provider
-    }), this.config.extraBody), this.settings.extraBody), openrouterOptions);
-    const { value: responseValue, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/chat/completions",
-        modelId: this.modelId
-      }),
-      headers: combineHeaders2(this.config.headers(), headers),
-      body,
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler2(
-        OpenRouterImageResponseSchema
-      ),
-      abortSignal,
-      fetch: this.config.fetch
-    });
-    const choice2 = responseValue.choices[0];
-    if (!choice2) {
-      throw new NoContentGeneratedError2({
-        message: "No choice in response"
-      });
-    }
-    const images = [];
-    if ((_a163 = choice2.message) == null ? void 0 : _a163.images) {
-      for (const image of choice2.message.images) {
-        const dataUrl = image.image_url.url;
-        images.push(getBase64FromDataUrl(dataUrl));
-      }
-    }
-    const usage = responseValue.usage ? {
-      inputTokens: responseValue.usage.prompt_tokens,
-      outputTokens: responseValue.usage.completion_tokens,
-      totalTokens: responseValue.usage.total_tokens
-    } : void 0;
-    return {
-      images,
-      warnings,
-      response: {
-        timestamp: /* @__PURE__ */ new Date(),
-        modelId: responseValue.model,
-        headers: responseHeaders
-      },
-      usage
-    };
-  }
-};
-var DEFAULT_IMAGE_MEDIA_TYPE = "image/png";
 function convertImageFileToContentPart(file2) {
   if (file2.type === "url") {
     return {
@@ -35547,14 +32063,6 @@ function convertImageFileToContentPart(file2) {
     image_url: { url: url2 }
   };
 }
-var webSearchInputSchema = external_exports.object({
-  /** Search results returned by the server tool */
-  results: external_exports.array(external_exports.unknown()).optional()
-});
-var webSearch = createProviderToolFactory({
-  id: "openrouter.web_search",
-  inputSchema: webSearchInputSchema
-});
 function removeUndefinedEntries(record2) {
   return Object.fromEntries(
     Object.entries(record2).filter(([, value]) => value != null)
@@ -35591,175 +32099,6 @@ function withUserAgentSuffix22(headers, ...userAgentSuffixParts) {
     "user-agent": userAgent
   });
 }
-var VERSION22 = false ? "0.0.0-test" : "2.9.1";
-var VideoGenerationSubmitResponseSchema = external_exports.object({
-  id: external_exports.string(),
-  generation_id: external_exports.string().optional(),
-  polling_url: external_exports.string(),
-  status: external_exports.string()
-}).passthrough();
-var VideoGenerationPollResponseSchema = external_exports.object({
-  id: external_exports.string(),
-  generation_id: external_exports.string().optional(),
-  polling_url: external_exports.string(),
-  status: external_exports.string(),
-  unsigned_urls: external_exports.array(external_exports.string()).optional(),
-  usage: external_exports.object({
-    cost: external_exports.number().optional(),
-    is_byok: external_exports.boolean().optional()
-  }).passthrough().optional(),
-  error: external_exports.string().optional()
-}).passthrough();
-var DEFAULT_POLL_INTERVAL_MS = 2e3;
-var DEFAULT_MAX_POLL_TIME_MS = 6e5;
-var OpenRouterVideoModel = class {
-  constructor(modelId, settings, config2) {
-    this.specificationVersion = "v3";
-    this.provider = "openrouter";
-    this.maxVideosPerCall = 1;
-    this.modelId = modelId;
-    this.settings = settings;
-    this.config = config2;
-  }
-  async doGenerate(options) {
-    var _a163, _b162, _c, _d, _e;
-    const {
-      prompt,
-      n,
-      aspectRatio,
-      resolution,
-      duration: duration3,
-      seed,
-      image,
-      abortSignal,
-      headers,
-      providerOptions
-    } = options;
-    const warnings = [];
-    if (n > 1) {
-      warnings.push({
-        type: "unsupported",
-        feature: "n > 1",
-        details: `OpenRouter video generation returns 1 video per call. Requested ${n} videos.`
-      });
-    }
-    const body = __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({
-      model: this.modelId,
-      prompt: prompt != null ? prompt : ""
-    }, aspectRatio !== void 0 && { aspect_ratio: aspectRatio }), resolution !== void 0 && { size: resolution }), duration3 !== void 0 && { duration: duration3 }), seed !== void 0 && { seed }), this.settings.generateAudio !== void 0 && {
-      generate_audio: this.settings.generateAudio
-    }), image !== void 0 && {
-      frame_images: [convertImageToFrameImage(image)]
-    }), this.config.extraBody), this.settings.extraBody), providerOptions.openrouter);
-    const mergedHeaders = combineHeaders2(this.config.headers(), headers);
-    const { value: submitResponse, responseHeaders } = await postJsonToApi2({
-      url: this.config.url({
-        path: "/videos",
-        modelId: this.modelId
-      }),
-      headers: mergedHeaders,
-      body,
-      failedResponseHandler: openrouterFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler2(
-        VideoGenerationSubmitResponseSchema
-      ),
-      abortSignal,
-      fetch: this.config.fetch
-    });
-    const pollIntervalMs = (_a163 = this.settings.pollIntervalMs) != null ? _a163 : DEFAULT_POLL_INTERVAL_MS;
-    const maxPollTimeMs = (_b162 = this.settings.maxPollTimeMs) != null ? _b162 : DEFAULT_MAX_POLL_TIME_MS;
-    const pollResult = await this.pollUntilComplete({
-      jobId: submitResponse.id,
-      headers: mergedHeaders,
-      abortSignal,
-      pollIntervalMs,
-      maxPollTimeMs
-    });
-    const videos = [];
-    if (pollResult.unsigned_urls) {
-      for (const url2 of pollResult.unsigned_urls) {
-        videos.push({
-          type: "url",
-          url: url2,
-          mediaType: "video/mp4"
-        });
-      }
-    }
-    const providerMetadata = {
-      openrouter: {
-        generationId: (_c = pollResult.generation_id) != null ? _c : null,
-        cost: (_e = (_d = pollResult.usage) == null ? void 0 : _d.cost) != null ? _e : null
-      }
-    };
-    return {
-      videos,
-      warnings,
-      providerMetadata,
-      response: {
-        timestamp: /* @__PURE__ */ new Date(),
-        modelId: this.modelId,
-        headers: responseHeaders
-      }
-    };
-  }
-  async pollUntilComplete({
-    jobId,
-    headers,
-    abortSignal,
-    pollIntervalMs,
-    maxPollTimeMs
-  }) {
-    var _a163;
-    const startTime = Date.now();
-    while (Date.now() - startTime < maxPollTimeMs) {
-      abortSignal == null ? void 0 : abortSignal.throwIfAborted();
-      await delay2(pollIntervalMs);
-      abortSignal == null ? void 0 : abortSignal.throwIfAborted();
-      const { value: pollResponse } = await getFromApi2({
-        url: this.config.url({
-          path: `/videos/${jobId}`,
-          modelId: this.modelId
-        }),
-        headers,
-        failedResponseHandler: openrouterFailedResponseHandler,
-        successfulResponseHandler: createJsonResponseHandler2(
-          VideoGenerationPollResponseSchema
-        ),
-        abortSignal,
-        fetch: this.config.fetch
-      });
-      if (pollResponse.status === "completed") {
-        return {
-          generation_id: pollResponse.generation_id,
-          unsigned_urls: pollResponse.unsigned_urls,
-          usage: pollResponse.usage
-        };
-      }
-      if (pollResponse.status === "failed" || pollResponse.status === "dead" || pollResponse.status === "cancelled" || pollResponse.status === "expired") {
-        throw new APICallError2({
-          message: (_a163 = pollResponse.error) != null ? _a163 : `Video generation failed with status: ${pollResponse.status}`,
-          url: this.config.url({
-            path: `/videos/${jobId}`,
-            modelId: this.modelId
-          }),
-          requestBodyValues: {},
-          statusCode: 500,
-          isRetryable: false
-        });
-      }
-    }
-    throw new APICallError2({
-      message: `Video generation timed out after ${maxPollTimeMs}ms`,
-      url: this.config.url({
-        path: `/videos/${jobId}`,
-        modelId: this.modelId
-      }),
-      requestBodyValues: {},
-      statusCode: 408,
-      isRetryable: true
-    });
-  }
-};
 function convertImageToFrameImage(file2) {
   if (file2.type === "url") {
     return {
@@ -35797,7 +32136,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35805,7 +32144,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -35813,21 +32152,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35859,52 +32198,3058 @@ function createOpenRouter(options = {}) {
   };
   return provider;
 }
-var openrouter = createOpenRouter({
-  compatibility: "strict"
-  // strict for OpenRouter API
+var __defProp3, __defProps, __getOwnPropDescs, __getOwnPropSymbols, __hasOwnProp2, __propIsEnum, __typeError, __defNormalProp, __spreadValues, __spreadProps, __objRest, __accessCheck, __privateGet, __privateAdd, marker24, symbol24, _a24, _b17, AISDKError2, name24, marker25, symbol25, _a25, _b23, APICallError2, name25, marker34, symbol34, _a34, _b33, EmptyResponseBodyError2, name34, marker44, symbol44, _a44, _b43, InvalidArgumentError3, name44, marker54, symbol54, _a54, _b53, InvalidPromptError2, name54, marker64, symbol64, _a64, _b63, InvalidResponseDataError2, name64, marker74, symbol74, _a74, _b73, JSONParseError2, name74, marker84, symbol84, _a84, _b83, LoadAPIKeyError2, name84, marker94, symbol94, _a94, _b93, LoadSettingError2, name94, marker104, symbol104, _a104, _b103, NoContentGeneratedError2, name103, marker113, symbol113, _a113, _b112, NoSuchModelError2, name113, marker123, symbol123, _a123, _b122, TooManyEmbeddingValuesForCallError2, name123, marker133, symbol133, _a133, _b132, TypeValidationError2, name133, marker143, symbol143, _a143, _b142, UnsupportedFunctionalityError2, ParseError2, EventSourceParserStream2, btoa2, atob3, name143, marker153, symbol153, _a153, _b152, DownloadError2, DEFAULT_MAX_DOWNLOAD_SIZE2, createIdGenerator2, generateId2, FETCH_FAILED_ERROR_MESSAGES2, BUN_ERROR_CODES2, VERSION5, getOriginalFetch3, getFromApi2, suspectProtoRx2, suspectConstructorRx2, ignoreOverride2, defaultOptions2, getDefaultOptions2, parseCatchDef2, integerDateParser2, isJsonSchema7AllOfType2, emojiRegex3, zodPatterns2, ALPHA_NUMERIC2, primitiveMappings2, asAnyOf2, parseOptionalDef2, parsePipelineDef2, parseReadonlyDef2, selectParser2, getRelativePath2, get$ref2, addMeta2, getRefs2, zod3ToJsonSchema2, schemaSymbol2, getOriginalFetch22, postJsonToApi2, postToApi2, createJsonErrorResponseHandler2, createEventSourceResponseHandler2, createJsonResponseHandler2, ReasoningFormat, DEFAULT_REASONING_FORMAT, CommonReasoningDetailSchema, ReasoningDetailSummarySchema, ReasoningDetailEncryptedSchema, ReasoningDetailTextSchema, ReasoningDetailUnionSchema, ReasoningDetailsWithUnknownSchema, ReasoningDetailArraySchema, OutputUnionToReasoningDetailsSchema, OpenRouterErrorResponseSchema, openrouterFailedResponseHandler, FileAnnotationSchema, OpenRouterProviderMetadataSchema, OpenRouterProviderOptionsSchema, _seenKeys, ReasoningDetailsDuplicateTracker, OPENROUTER_AUDIO_FORMATS, MIME_TO_FORMAT, IMAGE_EXTENSIONS, ChatCompletionToolChoiceSchema, ImageResponseSchema, ImageResponseWithUnknownSchema, ImageResponseArraySchema, OpenRouterChatCompletionBaseResponseSchema, OpenRouterNonStreamChatCompletionResponseSchema, OpenRouterStreamChatCompletionChunkSchema, OpenRouterChatLanguageModel, OpenRouterCompletionChunkSchema, OpenRouterCompletionLanguageModel, openrouterEmbeddingUsageSchema, openrouterEmbeddingDataSchema, OpenRouterEmbeddingResponseSchema, OpenRouterEmbeddingModel, OpenRouterImageResponseSchema, OpenRouterImageModel, DEFAULT_IMAGE_MEDIA_TYPE, webSearchInputSchema, webSearch, VERSION22, VideoGenerationSubmitResponseSchema, VideoGenerationPollResponseSchema, DEFAULT_POLL_INTERVAL_MS, DEFAULT_MAX_POLL_TIME_MS, OpenRouterVideoModel, openrouter;
+var init_dist6 = __esm({
+  "node_modules/@openrouter/ai-sdk-provider/dist/index.mjs"() {
+    init_v4();
+    init_v3();
+    init_v3();
+    init_v3();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    init_v4();
+    __defProp3 = Object.defineProperty;
+    __defProps = Object.defineProperties;
+    __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+    __getOwnPropSymbols = Object.getOwnPropertySymbols;
+    __hasOwnProp2 = Object.prototype.hasOwnProperty;
+    __propIsEnum = Object.prototype.propertyIsEnumerable;
+    __typeError = (msg) => {
+      throw TypeError(msg);
+    };
+    __defNormalProp = (obj, key, value) => key in obj ? __defProp3(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+    __spreadValues = (a, b) => {
+      for (var prop in b || (b = {}))
+        if (__hasOwnProp2.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      if (__getOwnPropSymbols)
+        for (var prop of __getOwnPropSymbols(b)) {
+          if (__propIsEnum.call(b, prop))
+            __defNormalProp(a, prop, b[prop]);
+        }
+      return a;
+    };
+    __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+    __objRest = (source, exclude) => {
+      var target = {};
+      for (var prop in source)
+        if (__hasOwnProp2.call(source, prop) && exclude.indexOf(prop) < 0)
+          target[prop] = source[prop];
+      if (source != null && __getOwnPropSymbols)
+        for (var prop of __getOwnPropSymbols(source)) {
+          if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+            target[prop] = source[prop];
+        }
+      return target;
+    };
+    __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+    __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
+    __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+    marker24 = "vercel.ai.error";
+    symbol24 = Symbol.for(marker24);
+    AISDKError2 = class _AISDKError2 extends (_b17 = Error, _a24 = symbol24, _b17) {
+      /**
+       * Creates an AI SDK Error.
+       *
+       * @param {Object} params - The parameters for creating the error.
+       * @param {string} params.name - The name of the error.
+       * @param {string} params.message - The error message.
+       * @param {unknown} [params.cause] - The underlying cause of the error.
+       */
+      constructor({
+        name: name1422,
+        message,
+        cause
+      }) {
+        super(message);
+        this[_a24] = true;
+        this.name = name1422;
+        this.cause = cause;
+      }
+      /**
+       * Checks if the given error is an AI SDK Error.
+       * @param {unknown} error - The error to check.
+       * @returns {boolean} True if the error is an AI SDK Error, false otherwise.
+       */
+      static isInstance(error40) {
+        return _AISDKError2.hasMarker(error40, marker24);
+      }
+      static hasMarker(error40, marker1522) {
+        const markerSymbol = Symbol.for(marker1522);
+        return error40 != null && typeof error40 === "object" && markerSymbol in error40 && typeof error40[markerSymbol] === "boolean" && error40[markerSymbol] === true;
+      }
+    };
+    name24 = "AI_APICallError";
+    marker25 = `vercel.ai.error.${name24}`;
+    symbol25 = Symbol.for(marker25);
+    APICallError2 = class extends (_b23 = AISDKError2, _a25 = symbol25, _b23) {
+      constructor({
+        message,
+        url: url2,
+        requestBodyValues,
+        statusCode,
+        responseHeaders,
+        responseBody,
+        cause,
+        isRetryable = statusCode != null && (statusCode === 408 || // request timeout
+        statusCode === 409 || // conflict
+        statusCode === 429 || // too many requests
+        statusCode >= 500),
+        // server error
+        data
+      }) {
+        super({ name: name24, message, cause });
+        this[_a25] = true;
+        this.url = url2;
+        this.requestBodyValues = requestBodyValues;
+        this.statusCode = statusCode;
+        this.responseHeaders = responseHeaders;
+        this.responseBody = responseBody;
+        this.isRetryable = isRetryable;
+        this.data = data;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker25);
+      }
+    };
+    name25 = "AI_EmptyResponseBodyError";
+    marker34 = `vercel.ai.error.${name25}`;
+    symbol34 = Symbol.for(marker34);
+    EmptyResponseBodyError2 = class extends (_b33 = AISDKError2, _a34 = symbol34, _b33) {
+      // used in isInstance
+      constructor({ message = "Empty response body" } = {}) {
+        super({ name: name25, message });
+        this[_a34] = true;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker34);
+      }
+    };
+    name34 = "AI_InvalidArgumentError";
+    marker44 = `vercel.ai.error.${name34}`;
+    symbol44 = Symbol.for(marker44);
+    InvalidArgumentError3 = class extends (_b43 = AISDKError2, _a44 = symbol44, _b43) {
+      constructor({
+        message,
+        cause,
+        argument
+      }) {
+        super({ name: name34, message, cause });
+        this[_a44] = true;
+        this.argument = argument;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker44);
+      }
+    };
+    name44 = "AI_InvalidPromptError";
+    marker54 = `vercel.ai.error.${name44}`;
+    symbol54 = Symbol.for(marker54);
+    InvalidPromptError2 = class extends (_b53 = AISDKError2, _a54 = symbol54, _b53) {
+      constructor({
+        prompt,
+        message,
+        cause
+      }) {
+        super({ name: name44, message: `Invalid prompt: ${message}`, cause });
+        this[_a54] = true;
+        this.prompt = prompt;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker54);
+      }
+    };
+    name54 = "AI_InvalidResponseDataError";
+    marker64 = `vercel.ai.error.${name54}`;
+    symbol64 = Symbol.for(marker64);
+    InvalidResponseDataError2 = class extends (_b63 = AISDKError2, _a64 = symbol64, _b63) {
+      constructor({
+        data,
+        message = `Invalid response data: ${JSON.stringify(data)}.`
+      }) {
+        super({ name: name54, message });
+        this[_a64] = true;
+        this.data = data;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker64);
+      }
+    };
+    name64 = "AI_JSONParseError";
+    marker74 = `vercel.ai.error.${name64}`;
+    symbol74 = Symbol.for(marker74);
+    JSONParseError2 = class extends (_b73 = AISDKError2, _a74 = symbol74, _b73) {
+      constructor({ text: text2, cause }) {
+        super({
+          name: name64,
+          message: `JSON parsing failed: Text: ${text2}.
+Error message: ${getErrorMessage3(cause)}`,
+          cause
+        });
+        this[_a74] = true;
+        this.text = text2;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker74);
+      }
+    };
+    name74 = "AI_LoadAPIKeyError";
+    marker84 = `vercel.ai.error.${name74}`;
+    symbol84 = Symbol.for(marker84);
+    LoadAPIKeyError2 = class extends (_b83 = AISDKError2, _a84 = symbol84, _b83) {
+      // used in isInstance
+      constructor({ message }) {
+        super({ name: name74, message });
+        this[_a84] = true;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker84);
+      }
+    };
+    name84 = "AI_LoadSettingError";
+    marker94 = `vercel.ai.error.${name84}`;
+    symbol94 = Symbol.for(marker94);
+    LoadSettingError2 = class extends (_b93 = AISDKError2, _a94 = symbol94, _b93) {
+      // used in isInstance
+      constructor({ message }) {
+        super({ name: name84, message });
+        this[_a94] = true;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker94);
+      }
+    };
+    name94 = "AI_NoContentGeneratedError";
+    marker104 = `vercel.ai.error.${name94}`;
+    symbol104 = Symbol.for(marker104);
+    NoContentGeneratedError2 = class extends (_b103 = AISDKError2, _a104 = symbol104, _b103) {
+      // used in isInstance
+      constructor({
+        message = "No content generated."
+      } = {}) {
+        super({ name: name94, message });
+        this[_a104] = true;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker104);
+      }
+    };
+    name103 = "AI_NoSuchModelError";
+    marker113 = `vercel.ai.error.${name103}`;
+    symbol113 = Symbol.for(marker113);
+    NoSuchModelError2 = class extends (_b112 = AISDKError2, _a113 = symbol113, _b112) {
+      constructor({
+        errorName = name103,
+        modelId,
+        modelType,
+        message = `No such ${modelType}: ${modelId}`
+      }) {
+        super({ name: errorName, message });
+        this[_a113] = true;
+        this.modelId = modelId;
+        this.modelType = modelType;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker113);
+      }
+    };
+    name113 = "AI_TooManyEmbeddingValuesForCallError";
+    marker123 = `vercel.ai.error.${name113}`;
+    symbol123 = Symbol.for(marker123);
+    TooManyEmbeddingValuesForCallError2 = class extends (_b122 = AISDKError2, _a123 = symbol123, _b122) {
+      constructor(options) {
+        super({
+          name: name113,
+          message: `Too many values for a single embedding call. The ${options.provider} model "${options.modelId}" can only embed up to ${options.maxEmbeddingsPerCall} values per call, but ${options.values.length} values were provided.`
+        });
+        this[_a123] = true;
+        this.provider = options.provider;
+        this.modelId = options.modelId;
+        this.maxEmbeddingsPerCall = options.maxEmbeddingsPerCall;
+        this.values = options.values;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker123);
+      }
+    };
+    name123 = "AI_TypeValidationError";
+    marker133 = `vercel.ai.error.${name123}`;
+    symbol133 = Symbol.for(marker133);
+    TypeValidationError2 = class _TypeValidationError2 extends (_b132 = AISDKError2, _a133 = symbol133, _b132) {
+      constructor({
+        value,
+        cause,
+        context: context2
+      }) {
+        let contextPrefix = "Type validation failed";
+        if (context2 == null ? void 0 : context2.field) {
+          contextPrefix += ` for ${context2.field}`;
+        }
+        if ((context2 == null ? void 0 : context2.entityName) || (context2 == null ? void 0 : context2.entityId)) {
+          contextPrefix += " (";
+          const parts = [];
+          if (context2.entityName) {
+            parts.push(context2.entityName);
+          }
+          if (context2.entityId) {
+            parts.push(`id: "${context2.entityId}"`);
+          }
+          contextPrefix += parts.join(", ");
+          contextPrefix += ")";
+        }
+        super({
+          name: name123,
+          message: `${contextPrefix}: Value: ${JSON.stringify(value)}.
+Error message: ${getErrorMessage3(cause)}`,
+          cause
+        });
+        this[_a133] = true;
+        this.value = value;
+        this.context = context2;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker133);
+      }
+      /**
+       * Wraps an error into a TypeValidationError.
+       * If the cause is already a TypeValidationError with the same value and context, it returns the cause.
+       * Otherwise, it creates a new TypeValidationError.
+       *
+       * @param {Object} params - The parameters for wrapping the error.
+       * @param {unknown} params.value - The value that failed validation.
+       * @param {unknown} params.cause - The original error or cause of the validation failure.
+       * @param {TypeValidationContext} params.context - Optional context about what is being validated.
+       * @returns {TypeValidationError} A TypeValidationError instance.
+       */
+      static wrap({
+        value,
+        cause,
+        context: context2
+      }) {
+        var _a1522, _b1522, _c;
+        if (_TypeValidationError2.isInstance(cause) && cause.value === value && ((_a1522 = cause.context) == null ? void 0 : _a1522.field) === (context2 == null ? void 0 : context2.field) && ((_b1522 = cause.context) == null ? void 0 : _b1522.entityName) === (context2 == null ? void 0 : context2.entityName) && ((_c = cause.context) == null ? void 0 : _c.entityId) === (context2 == null ? void 0 : context2.entityId)) {
+          return cause;
+        }
+        return new _TypeValidationError2({ value, cause, context: context2 });
+      }
+    };
+    name133 = "AI_UnsupportedFunctionalityError";
+    marker143 = `vercel.ai.error.${name133}`;
+    symbol143 = Symbol.for(marker143);
+    UnsupportedFunctionalityError2 = class extends (_b142 = AISDKError2, _a143 = symbol143, _b142) {
+      constructor({
+        functionality,
+        message = `'${functionality}' functionality not supported.`
+      }) {
+        super({ name: name133, message });
+        this[_a143] = true;
+        this.functionality = functionality;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker143);
+      }
+    };
+    ParseError2 = class extends Error {
+      constructor(message, options) {
+        super(message), this.name = "ParseError", this.type = options.type, this.field = options.field, this.value = options.value, this.line = options.line;
+      }
+    };
+    EventSourceParserStream2 = class extends TransformStream {
+      constructor({ onError, onRetry, onComment } = {}) {
+        let parser;
+        super({
+          start(controller) {
+            parser = createParser2({
+              onEvent: (event) => {
+                controller.enqueue(event);
+              },
+              onError(error40) {
+                onError === "terminate" ? controller.error(error40) : typeof onError == "function" && onError(error40);
+              },
+              onRetry,
+              onComment
+            });
+          },
+          transform(chunk) {
+            parser.feed(chunk);
+          }
+        });
+      }
+    };
+    ({ btoa: btoa2, atob: atob3 } = globalThis);
+    name143 = "AI_DownloadError";
+    marker153 = `vercel.ai.error.${name143}`;
+    symbol153 = Symbol.for(marker153);
+    DownloadError2 = class extends (_b152 = AISDKError2, _a153 = symbol153, _b152) {
+      constructor({
+        url: url2,
+        statusCode,
+        statusText,
+        cause,
+        message = cause == null ? `Failed to download ${url2}: ${statusCode} ${statusText}` : `Failed to download ${url2}: ${cause}`
+      }) {
+        super({ name: name143, message, cause });
+        this[_a153] = true;
+        this.url = url2;
+        this.statusCode = statusCode;
+        this.statusText = statusText;
+      }
+      static isInstance(error40) {
+        return AISDKError2.hasMarker(error40, marker153);
+      }
+    };
+    DEFAULT_MAX_DOWNLOAD_SIZE2 = 2 * 1024 * 1024 * 1024;
+    createIdGenerator2 = ({
+      prefix,
+      size = 16,
+      alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+      separator = "-"
+    } = {}) => {
+      const generator = () => {
+        const alphabetLength = alphabet.length;
+        const chars = new Array(size);
+        for (let i = 0; i < size; i++) {
+          chars[i] = alphabet[Math.random() * alphabetLength | 0];
+        }
+        return chars.join("");
+      };
+      if (prefix == null) {
+        return generator;
+      }
+      if (alphabet.includes(separator)) {
+        throw new InvalidArgumentError3({
+          argument: "separator",
+          message: `The separator "${separator}" must not be part of the alphabet "${alphabet}".`
+        });
+      }
+      return () => `${prefix}${separator}${generator()}`;
+    };
+    generateId2 = createIdGenerator2();
+    FETCH_FAILED_ERROR_MESSAGES2 = ["fetch failed", "failed to fetch"];
+    BUN_ERROR_CODES2 = [
+      "ConnectionRefused",
+      "ConnectionClosed",
+      "FailedToOpenSocket",
+      "ECONNRESET",
+      "ECONNREFUSED",
+      "ETIMEDOUT",
+      "EPIPE"
+    ];
+    VERSION5 = true ? "4.0.23" : "0.0.0-test";
+    getOriginalFetch3 = () => globalThis.fetch;
+    getFromApi2 = async ({
+      url: url2,
+      headers = {},
+      successfulResponseHandler,
+      failedResponseHandler,
+      abortSignal,
+      fetch: fetch2 = getOriginalFetch3()
+    }) => {
+      try {
+        const response = await fetch2(url2, {
+          method: "GET",
+          headers: withUserAgentSuffix2(
+            headers,
+            `ai-sdk/provider-utils/${VERSION5}`,
+            getRuntimeEnvironmentUserAgent2()
+          ),
+          signal: abortSignal
+        });
+        const responseHeaders = extractResponseHeaders2(response);
+        if (!response.ok) {
+          let errorInformation;
+          try {
+            errorInformation = await failedResponseHandler({
+              response,
+              url: url2,
+              requestBodyValues: {}
+            });
+          } catch (error40) {
+            if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
+              throw error40;
+            }
+            throw new APICallError2({
+              message: "Failed to process error response",
+              cause: error40,
+              statusCode: response.status,
+              url: url2,
+              responseHeaders,
+              requestBodyValues: {}
+            });
+          }
+          throw errorInformation.value;
+        }
+        try {
+          return await successfulResponseHandler({
+            response,
+            url: url2,
+            requestBodyValues: {}
+          });
+        } catch (error40) {
+          if (error40 instanceof Error) {
+            if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
+              throw error40;
+            }
+          }
+          throw new APICallError2({
+            message: "Failed to process successful response",
+            cause: error40,
+            statusCode: response.status,
+            url: url2,
+            responseHeaders,
+            requestBodyValues: {}
+          });
+        }
+      } catch (error40) {
+        throw handleFetchError2({ error: error40, url: url2, requestBodyValues: {} });
+      }
+    };
+    suspectProtoRx2 = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
+    suspectConstructorRx2 = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
+    ignoreOverride2 = /* @__PURE__ */ Symbol(
+      "Let zodToJsonSchema decide on which parser to use"
+    );
+    defaultOptions2 = {
+      name: void 0,
+      $refStrategy: "root",
+      basePath: ["#"],
+      effectStrategy: "input",
+      pipeStrategy: "all",
+      dateStrategy: "format:date-time",
+      mapStrategy: "entries",
+      removeAdditionalStrategy: "passthrough",
+      allowedAdditionalProperties: true,
+      rejectedAdditionalProperties: false,
+      definitionPath: "definitions",
+      strictUnions: false,
+      definitions: {},
+      errorMessages: false,
+      patternStrategy: "escape",
+      applyRegexFlags: false,
+      emailStrategy: "format:email",
+      base64Strategy: "contentEncoding:base64",
+      nameStrategy: "ref"
+    };
+    getDefaultOptions2 = (options) => typeof options === "string" ? __spreadProps(__spreadValues({}, defaultOptions2), {
+      name: options
+    }) : __spreadValues(__spreadValues({}, defaultOptions2), options);
+    parseCatchDef2 = (def, refs) => {
+      return parseDef2(def.innerType._def, refs);
+    };
+    integerDateParser2 = (def) => {
+      const res = {
+        type: "integer",
+        format: "unix-time"
+      };
+      for (const check2 of def.checks) {
+        switch (check2.kind) {
+          case "min":
+            res.minimum = check2.value;
+            break;
+          case "max":
+            res.maximum = check2.value;
+            break;
+        }
+      }
+      return res;
+    };
+    isJsonSchema7AllOfType2 = (type) => {
+      if ("type" in type && type.type === "string") return false;
+      return "allOf" in type;
+    };
+    emojiRegex3 = void 0;
+    zodPatterns2 = {
+      /**
+       * `c` was changed to `[cC]` to replicate /i flag
+       */
+      cuid: /^[cC][^\s-]{8,}$/,
+      cuid2: /^[0-9a-z]+$/,
+      ulid: /^[0-9A-HJKMNP-TV-Z]{26}$/,
+      /**
+       * `a-z` was added to replicate /i flag
+       */
+      email: /^(?!\.)(?!.*\.\.)([a-zA-Z0-9_'+\-\.]*)[a-zA-Z0-9_+-]@([a-zA-Z0-9][a-zA-Z0-9\-]*\.)+[a-zA-Z]{2,}$/,
+      /**
+       * Constructed a valid Unicode RegExp
+       *
+       * Lazily instantiate since this type of regex isn't supported
+       * in all envs (e.g. React Native).
+       *
+       * See:
+       * https://github.com/colinhacks/zod/issues/2433
+       * Fix in Zod:
+       * https://github.com/colinhacks/zod/commit/9340fd51e48576a75adc919bff65dbc4a5d4c99b
+       */
+      emoji: () => {
+        if (emojiRegex3 === void 0) {
+          emojiRegex3 = RegExp(
+            "^(\\p{Extended_Pictographic}|\\p{Emoji_Component})+$",
+            "u"
+          );
+        }
+        return emojiRegex3;
+      },
+      /**
+       * Unused
+       */
+      uuid: /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/,
+      /**
+       * Unused
+       */
+      ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/,
+      ipv4Cidr: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(3[0-2]|[12]?[0-9])$/,
+      /**
+       * Unused
+       */
+      ipv6: /^(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))$/,
+      ipv6Cidr: /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/,
+      base64: /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/,
+      base64url: /^([0-9a-zA-Z-_]{4})*(([0-9a-zA-Z-_]{2}(==)?)|([0-9a-zA-Z-_]{3}(=)?))?$/,
+      nanoid: /^[a-zA-Z0-9_-]{21}$/,
+      jwt: /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/
+    };
+    ALPHA_NUMERIC2 = new Set(
+      "ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789"
+    );
+    primitiveMappings2 = {
+      ZodString: "string",
+      ZodNumber: "number",
+      ZodBigInt: "integer",
+      ZodBoolean: "boolean",
+      ZodNull: "null"
+    };
+    asAnyOf2 = (def, refs) => {
+      const anyOf = (def.options instanceof Map ? Array.from(def.options.values()) : def.options).map(
+        (x, i) => parseDef2(x._def, __spreadProps(__spreadValues({}, refs), {
+          currentPath: [...refs.currentPath, "anyOf", `${i}`]
+        }))
+      ).filter(
+        (x) => !!x && (!refs.strictUnions || typeof x === "object" && Object.keys(x).length > 0)
+      );
+      return anyOf.length ? { anyOf } : void 0;
+    };
+    parseOptionalDef2 = (def, refs) => {
+      var _a222;
+      if (refs.currentPath.toString() === ((_a222 = refs.propertyPath) == null ? void 0 : _a222.toString())) {
+        return parseDef2(def.innerType._def, refs);
+      }
+      const innerSchema = parseDef2(def.innerType._def, __spreadProps(__spreadValues({}, refs), {
+        currentPath: [...refs.currentPath, "anyOf", "1"]
+      }));
+      return innerSchema ? { anyOf: [{ not: parseAnyDef2() }, innerSchema] } : parseAnyDef2();
+    };
+    parsePipelineDef2 = (def, refs) => {
+      if (refs.pipeStrategy === "input") {
+        return parseDef2(def.in._def, refs);
+      } else if (refs.pipeStrategy === "output") {
+        return parseDef2(def.out._def, refs);
+      }
+      const a = parseDef2(def.in._def, __spreadProps(__spreadValues({}, refs), {
+        currentPath: [...refs.currentPath, "allOf", "0"]
+      }));
+      const b = parseDef2(def.out._def, __spreadProps(__spreadValues({}, refs), {
+        currentPath: [...refs.currentPath, "allOf", a ? "1" : "0"]
+      }));
+      return {
+        allOf: [a, b].filter((x) => x !== void 0)
+      };
+    };
+    parseReadonlyDef2 = (def, refs) => {
+      return parseDef2(def.innerType._def, refs);
+    };
+    selectParser2 = (def, typeName, refs) => {
+      switch (typeName) {
+        case ZodFirstPartyTypeKind.ZodString:
+          return parseStringDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodNumber:
+          return parseNumberDef2(def);
+        case ZodFirstPartyTypeKind.ZodObject:
+          return parseObjectDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodBigInt:
+          return parseBigintDef2(def);
+        case ZodFirstPartyTypeKind.ZodBoolean:
+          return parseBooleanDef2();
+        case ZodFirstPartyTypeKind.ZodDate:
+          return parseDateDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodUndefined:
+          return parseUndefinedDef2();
+        case ZodFirstPartyTypeKind.ZodNull:
+          return parseNullDef2();
+        case ZodFirstPartyTypeKind.ZodArray:
+          return parseArrayDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodUnion:
+        case ZodFirstPartyTypeKind.ZodDiscriminatedUnion:
+          return parseUnionDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodIntersection:
+          return parseIntersectionDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodTuple:
+          return parseTupleDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodRecord:
+          return parseRecordDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodLiteral:
+          return parseLiteralDef2(def);
+        case ZodFirstPartyTypeKind.ZodEnum:
+          return parseEnumDef2(def);
+        case ZodFirstPartyTypeKind.ZodNativeEnum:
+          return parseNativeEnumDef2(def);
+        case ZodFirstPartyTypeKind.ZodNullable:
+          return parseNullableDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodOptional:
+          return parseOptionalDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodMap:
+          return parseMapDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodSet:
+          return parseSetDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodLazy:
+          return () => def.getter()._def;
+        case ZodFirstPartyTypeKind.ZodPromise:
+          return parsePromiseDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodNaN:
+        case ZodFirstPartyTypeKind.ZodNever:
+          return parseNeverDef2();
+        case ZodFirstPartyTypeKind.ZodEffects:
+          return parseEffectsDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodAny:
+          return parseAnyDef2();
+        case ZodFirstPartyTypeKind.ZodUnknown:
+          return parseUnknownDef2();
+        case ZodFirstPartyTypeKind.ZodDefault:
+          return parseDefaultDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodBranded:
+          return parseBrandedDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodReadonly:
+          return parseReadonlyDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodCatch:
+          return parseCatchDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodPipeline:
+          return parsePipelineDef2(def, refs);
+        case ZodFirstPartyTypeKind.ZodFunction:
+        case ZodFirstPartyTypeKind.ZodVoid:
+        case ZodFirstPartyTypeKind.ZodSymbol:
+          return void 0;
+        default:
+          return /* @__PURE__ */ ((_) => void 0)(typeName);
+      }
+    };
+    getRelativePath2 = (pathA, pathB) => {
+      let i = 0;
+      for (; i < pathA.length && i < pathB.length; i++) {
+        if (pathA[i] !== pathB[i]) break;
+      }
+      return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
+    };
+    get$ref2 = (item, refs) => {
+      switch (refs.$refStrategy) {
+        case "root":
+          return { $ref: item.path.join("/") };
+        case "relative":
+          return { $ref: getRelativePath2(refs.currentPath, item.path) };
+        case "none":
+        case "seen": {
+          if (item.path.length < refs.currentPath.length && item.path.every((value, index) => refs.currentPath[index] === value)) {
+            console.warn(
+              `Recursive reference detected at ${refs.currentPath.join(
+                "/"
+              )}! Defaulting to any`
+            );
+            return parseAnyDef2();
+          }
+          return refs.$refStrategy === "seen" ? parseAnyDef2() : void 0;
+        }
+      }
+    };
+    addMeta2 = (def, refs, jsonSchema22) => {
+      if (def.description) {
+        jsonSchema22.description = def.description;
+      }
+      return jsonSchema22;
+    };
+    getRefs2 = (options) => {
+      const _options = getDefaultOptions2(options);
+      const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
+      return __spreadProps(__spreadValues({}, _options), {
+        currentPath,
+        propertyPath: void 0,
+        seen: new Map(
+          Object.entries(_options.definitions).map(([name222, def]) => [
+            def._def,
+            {
+              def: def._def,
+              path: [..._options.basePath, _options.definitionPath, name222],
+              // Resolution of references will be forced even though seen, so it's ok that the schema is undefined here for now.
+              jsonSchema: void 0
+            }
+          ])
+        )
+      });
+    };
+    zod3ToJsonSchema2 = (schema, options) => {
+      var _a222;
+      const refs = getRefs2(options);
+      let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce(
+        (acc, [name322, schema2]) => {
+          var _a322;
+          return __spreadProps(__spreadValues({}, acc), {
+            [name322]: (_a322 = parseDef2(
+              schema2._def,
+              __spreadProps(__spreadValues({}, refs), {
+                currentPath: [...refs.basePath, refs.definitionPath, name322]
+              }),
+              true
+            )) != null ? _a322 : parseAnyDef2()
+          });
+        },
+        {}
+      ) : void 0;
+      const name222 = typeof options === "string" ? options : (options == null ? void 0 : options.nameStrategy) === "title" ? void 0 : options == null ? void 0 : options.name;
+      const main = (_a222 = parseDef2(
+        schema._def,
+        name222 === void 0 ? refs : __spreadProps(__spreadValues({}, refs), {
+          currentPath: [...refs.basePath, refs.definitionPath, name222]
+        }),
+        false
+      )) != null ? _a222 : parseAnyDef2();
+      const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
+      if (title !== void 0) {
+        main.title = title;
+      }
+      const combined = name222 === void 0 ? definitions ? __spreadProps(__spreadValues({}, main), {
+        [refs.definitionPath]: definitions
+      }) : main : {
+        $ref: [
+          ...refs.$refStrategy === "relative" ? [] : refs.basePath,
+          refs.definitionPath,
+          name222
+        ].join("/"),
+        [refs.definitionPath]: __spreadProps(__spreadValues({}, definitions), {
+          [name222]: main
+        })
+      };
+      combined.$schema = "http://json-schema.org/draft-07/schema#";
+      return combined;
+    };
+    schemaSymbol2 = /* @__PURE__ */ Symbol.for("vercel.ai.schema");
+    getOriginalFetch22 = () => globalThis.fetch;
+    postJsonToApi2 = async ({
+      url: url2,
+      headers,
+      body,
+      failedResponseHandler,
+      successfulResponseHandler,
+      abortSignal,
+      fetch: fetch2
+    }) => postToApi2({
+      url: url2,
+      headers: __spreadValues({
+        "Content-Type": "application/json"
+      }, headers),
+      body: {
+        content: JSON.stringify(body),
+        values: body
+      },
+      failedResponseHandler,
+      successfulResponseHandler,
+      abortSignal,
+      fetch: fetch2
+    });
+    postToApi2 = async ({
+      url: url2,
+      headers = {},
+      body,
+      successfulResponseHandler,
+      failedResponseHandler,
+      abortSignal,
+      fetch: fetch2 = getOriginalFetch22()
+    }) => {
+      try {
+        const response = await fetch2(url2, {
+          method: "POST",
+          headers: withUserAgentSuffix2(
+            headers,
+            `ai-sdk/provider-utils/${VERSION5}`,
+            getRuntimeEnvironmentUserAgent2()
+          ),
+          body: body.content,
+          signal: abortSignal
+        });
+        const responseHeaders = extractResponseHeaders2(response);
+        if (!response.ok) {
+          let errorInformation;
+          try {
+            errorInformation = await failedResponseHandler({
+              response,
+              url: url2,
+              requestBodyValues: body.values
+            });
+          } catch (error40) {
+            if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
+              throw error40;
+            }
+            throw new APICallError2({
+              message: "Failed to process error response",
+              cause: error40,
+              statusCode: response.status,
+              url: url2,
+              responseHeaders,
+              requestBodyValues: body.values
+            });
+          }
+          throw errorInformation.value;
+        }
+        try {
+          return await successfulResponseHandler({
+            response,
+            url: url2,
+            requestBodyValues: body.values
+          });
+        } catch (error40) {
+          if (error40 instanceof Error) {
+            if (isAbortError2(error40) || APICallError2.isInstance(error40)) {
+              throw error40;
+            }
+          }
+          throw new APICallError2({
+            message: "Failed to process successful response",
+            cause: error40,
+            statusCode: response.status,
+            url: url2,
+            responseHeaders,
+            requestBodyValues: body.values
+          });
+        }
+      } catch (error40) {
+        throw handleFetchError2({ error: error40, url: url2, requestBodyValues: body.values });
+      }
+    };
+    createJsonErrorResponseHandler2 = ({
+      errorSchema,
+      errorToMessage,
+      isRetryable
+    }) => async ({ response, url: url2, requestBodyValues }) => {
+      const responseBody = await response.text();
+      const responseHeaders = extractResponseHeaders2(response);
+      if (responseBody.trim() === "") {
+        return {
+          responseHeaders,
+          value: new APICallError2({
+            message: response.statusText,
+            url: url2,
+            requestBodyValues,
+            statusCode: response.status,
+            responseHeaders,
+            responseBody,
+            isRetryable: isRetryable == null ? void 0 : isRetryable(response)
+          })
+        };
+      }
+      try {
+        const parsedError = await parseJSON2({
+          text: responseBody,
+          schema: errorSchema
+        });
+        return {
+          responseHeaders,
+          value: new APICallError2({
+            message: errorToMessage(parsedError),
+            url: url2,
+            requestBodyValues,
+            statusCode: response.status,
+            responseHeaders,
+            responseBody,
+            data: parsedError,
+            isRetryable: isRetryable == null ? void 0 : isRetryable(response, parsedError)
+          })
+        };
+      } catch (parseError) {
+        return {
+          responseHeaders,
+          value: new APICallError2({
+            message: response.statusText,
+            url: url2,
+            requestBodyValues,
+            statusCode: response.status,
+            responseHeaders,
+            responseBody,
+            isRetryable: isRetryable == null ? void 0 : isRetryable(response)
+          })
+        };
+      }
+    };
+    createEventSourceResponseHandler2 = (chunkSchema) => async ({ response }) => {
+      const responseHeaders = extractResponseHeaders2(response);
+      if (response.body == null) {
+        throw new EmptyResponseBodyError2({});
+      }
+      return {
+        responseHeaders,
+        value: parseJsonEventStream2({
+          stream: response.body,
+          schema: chunkSchema
+        })
+      };
+    };
+    createJsonResponseHandler2 = (responseSchema) => async ({ response, url: url2, requestBodyValues }) => {
+      const responseBody = await response.text();
+      const parsedResult = await safeParseJSON2({
+        text: responseBody,
+        schema: responseSchema
+      });
+      const responseHeaders = extractResponseHeaders2(response);
+      if (!parsedResult.success) {
+        throw new APICallError2({
+          message: "Invalid JSON response",
+          cause: parsedResult.error,
+          statusCode: response.status,
+          responseHeaders,
+          responseBody,
+          url: url2,
+          requestBodyValues
+        });
+      }
+      return {
+        responseHeaders,
+        value: parsedResult.value,
+        rawValue: parsedResult.rawValue
+      };
+    };
+    ReasoningFormat = /* @__PURE__ */ ((ReasoningFormat2) => {
+      ReasoningFormat2["Unknown"] = "unknown";
+      ReasoningFormat2["OpenAIResponsesV1"] = "openai-responses-v1";
+      ReasoningFormat2["AzureOpenAIResponsesV1"] = "azure-openai-responses-v1";
+      ReasoningFormat2["XAIResponsesV1"] = "xai-responses-v1";
+      ReasoningFormat2["AnthropicClaudeV1"] = "anthropic-claude-v1";
+      ReasoningFormat2["GoogleGeminiV1"] = "google-gemini-v1";
+      return ReasoningFormat2;
+    })(ReasoningFormat || {});
+    DEFAULT_REASONING_FORMAT = "anthropic-claude-v1";
+    CommonReasoningDetailSchema = external_exports.object({
+      id: external_exports.string().nullish(),
+      format: external_exports.enum(ReasoningFormat).nullish(),
+      index: external_exports.number().optional()
+    }).loose();
+    ReasoningDetailSummarySchema = external_exports.object({
+      type: external_exports.literal(
+        "reasoning.summary"
+        /* Summary */
+      ),
+      summary: external_exports.string()
+    }).extend(CommonReasoningDetailSchema.shape);
+    ReasoningDetailEncryptedSchema = external_exports.object({
+      type: external_exports.literal(
+        "reasoning.encrypted"
+        /* Encrypted */
+      ),
+      data: external_exports.string()
+    }).extend(CommonReasoningDetailSchema.shape);
+    ReasoningDetailTextSchema = external_exports.object({
+      type: external_exports.literal(
+        "reasoning.text"
+        /* Text */
+      ),
+      text: external_exports.string().nullish(),
+      signature: external_exports.string().nullish()
+    }).extend(CommonReasoningDetailSchema.shape);
+    ReasoningDetailUnionSchema = external_exports.union([
+      ReasoningDetailSummarySchema,
+      ReasoningDetailEncryptedSchema,
+      ReasoningDetailTextSchema
+    ]);
+    ReasoningDetailsWithUnknownSchema = external_exports.union([
+      ReasoningDetailUnionSchema,
+      external_exports.unknown().transform(() => null)
+    ]);
+    ReasoningDetailArraySchema = external_exports.array(ReasoningDetailsWithUnknownSchema).transform((d) => d.filter((d2) => !!d2));
+    OutputUnionToReasoningDetailsSchema = external_exports.union([
+      external_exports.object({
+        delta: external_exports.object({
+          reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
+        })
+      }).transform(
+        (data) => data.delta.reasoning_details.filter(isDefinedOrNotNull)
+      ),
+      external_exports.object({
+        message: external_exports.object({
+          reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
+        })
+      }).transform(
+        (data) => data.message.reasoning_details.filter(isDefinedOrNotNull)
+      ),
+      external_exports.object({
+        text: external_exports.string(),
+        reasoning_details: external_exports.array(ReasoningDetailsWithUnknownSchema)
+      }).transform((data) => data.reasoning_details.filter(isDefinedOrNotNull))
+    ]);
+    OpenRouterErrorResponseSchema = external_exports.object({
+      error: external_exports.object({
+        code: external_exports.union([external_exports.string(), external_exports.number()]).nullable().optional().default(null),
+        message: external_exports.string(),
+        type: external_exports.string().nullable().optional().default(null),
+        param: external_exports.any().nullable().optional().default(null)
+      }).passthrough()
+    }).passthrough();
+    openrouterFailedResponseHandler = createJsonErrorResponseHandler2({
+      errorSchema: OpenRouterErrorResponseSchema,
+      errorToMessage: extractErrorMessage
+    });
+    FileAnnotationSchema = external_exports.object({
+      type: external_exports.literal("file"),
+      file: external_exports.object({
+        hash: external_exports.string(),
+        name: external_exports.string(),
+        content: external_exports.array(
+          external_exports.object({
+            type: external_exports.string(),
+            text: external_exports.string().optional()
+          }).catchall(external_exports.any())
+        ).optional()
+      }).catchall(external_exports.any())
+    }).catchall(external_exports.any());
+    OpenRouterProviderMetadataSchema = external_exports.object({
+      provider: external_exports.string(),
+      reasoning_details: external_exports.array(ReasoningDetailUnionSchema).optional(),
+      annotations: external_exports.array(FileAnnotationSchema).optional(),
+      usage: external_exports.object({
+        promptTokens: external_exports.number(),
+        promptTokensDetails: external_exports.object({
+          cachedTokens: external_exports.number()
+        }).catchall(external_exports.any()).optional(),
+        completionTokens: external_exports.number(),
+        completionTokensDetails: external_exports.object({
+          reasoningTokens: external_exports.number()
+        }).catchall(external_exports.any()).optional(),
+        totalTokens: external_exports.number(),
+        cost: external_exports.number().optional(),
+        costDetails: external_exports.object({
+          upstreamInferenceCost: external_exports.number()
+        }).catchall(external_exports.any()).optional()
+      }).catchall(external_exports.any())
+    }).catchall(external_exports.any());
+    OpenRouterProviderOptionsSchema = external_exports.object({
+      openrouter: external_exports.object({
+        // Use ReasoningDetailArraySchema (with unknown fallback) instead of
+        // z.array(ReasoningDetailUnionSchema) so that a single malformed entry
+        // (e.g., a future format not yet in the enum) is individually dropped
+        // rather than causing the entire array to fail parsing.
+        reasoning_details: ReasoningDetailArraySchema.optional(),
+        annotations: external_exports.array(FileAnnotationSchema).optional()
+      }).optional()
+    }).optional();
+    ReasoningDetailsDuplicateTracker = class {
+      constructor() {
+        __privateAdd(this, _seenKeys, /* @__PURE__ */ new Set());
+      }
+      /**
+       * Attempts to track a detail.
+       * Returns true if this is a NEW detail (not seen before and has valid key),
+       * false if it was skipped (no valid key) or already seen (duplicate).
+       */
+      upsert(detail) {
+        const key = this.getCanonicalKey(detail);
+        if (key === null) {
+          return false;
+        }
+        if (__privateGet(this, _seenKeys).has(key)) {
+          return false;
+        }
+        __privateGet(this, _seenKeys).add(key);
+        return true;
+      }
+      getCanonicalKey(detail) {
+        switch (detail.type) {
+          case "reasoning.summary":
+            return detail.summary;
+          case "reasoning.encrypted":
+            if (detail.id) {
+              return detail.id;
+            }
+            return detail.data;
+          case "reasoning.text": {
+            if (detail.text) {
+              return detail.text;
+            }
+            if (detail.signature) {
+              return detail.signature;
+            }
+            return null;
+          }
+          default: {
+            return null;
+          }
+        }
+      }
+    };
+    _seenKeys = /* @__PURE__ */ new WeakMap();
+    OPENROUTER_AUDIO_FORMATS = [
+      "wav",
+      "mp3",
+      "aiff",
+      "aac",
+      "ogg",
+      "flac",
+      "m4a",
+      "pcm16",
+      "pcm24"
+    ];
+    MIME_TO_FORMAT = {
+      // MP3 variants
+      mpeg: "mp3",
+      mp3: "mp3",
+      // WAV variants
+      "x-wav": "wav",
+      wave: "wav",
+      wav: "wav",
+      // OGG variants
+      ogg: "ogg",
+      vorbis: "ogg",
+      // AAC variants
+      aac: "aac",
+      "x-aac": "aac",
+      // M4A variants
+      m4a: "m4a",
+      "x-m4a": "m4a",
+      mp4: "m4a",
+      // AIFF variants
+      aiff: "aiff",
+      "x-aiff": "aiff",
+      // FLAC
+      flac: "flac",
+      "x-flac": "flac",
+      // PCM variants
+      pcm16: "pcm16",
+      pcm24: "pcm24"
+    };
+    IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "webp",
+      "svg",
+      "bmp",
+      "ico",
+      "tif",
+      "tiff",
+      "avif"
+    ]);
+    ChatCompletionToolChoiceSchema = external_exports.union([
+      external_exports.literal("auto"),
+      external_exports.literal("none"),
+      external_exports.literal("required"),
+      external_exports.object({
+        type: external_exports.literal("function"),
+        function: external_exports.object({
+          name: external_exports.string()
+        })
+      })
+    ]);
+    ImageResponseSchema = external_exports.object({
+      type: external_exports.literal("image_url"),
+      image_url: external_exports.object({
+        url: external_exports.string()
+      }).passthrough()
+    }).passthrough();
+    ImageResponseWithUnknownSchema = external_exports.union([
+      ImageResponseSchema,
+      external_exports.unknown().transform(() => null)
+    ]);
+    ImageResponseArraySchema = external_exports.array(ImageResponseWithUnknownSchema).transform((d) => d.filter((d2) => !!d2));
+    OpenRouterChatCompletionBaseResponseSchema = external_exports.object({
+      id: external_exports.string().optional(),
+      model: external_exports.string().optional(),
+      provider: external_exports.string().optional(),
+      usage: external_exports.object({
+        prompt_tokens: external_exports.number(),
+        prompt_tokens_details: external_exports.object({
+          cached_tokens: external_exports.number(),
+          cache_write_tokens: external_exports.number().nullish()
+        }).passthrough().nullish(),
+        completion_tokens: external_exports.number(),
+        completion_tokens_details: external_exports.object({
+          reasoning_tokens: external_exports.number()
+        }).passthrough().nullish(),
+        total_tokens: external_exports.number(),
+        cost: external_exports.number().optional(),
+        cost_details: external_exports.object({
+          upstream_inference_cost: external_exports.number().nullish()
+        }).passthrough().nullish()
+      }).passthrough().nullish()
+    }).passthrough();
+    OpenRouterNonStreamChatCompletionResponseSchema = external_exports.union([
+      // Success response with choices
+      OpenRouterChatCompletionBaseResponseSchema.extend({
+        choices: external_exports.array(
+          external_exports.object({
+            message: external_exports.object({
+              role: external_exports.literal("assistant"),
+              content: external_exports.string().nullable().optional(),
+              reasoning: external_exports.string().nullable().optional(),
+              reasoning_details: ReasoningDetailArraySchema.nullish(),
+              images: ImageResponseArraySchema.nullish(),
+              tool_calls: external_exports.array(
+                external_exports.object({
+                  id: external_exports.string().optional().nullable(),
+                  type: external_exports.literal("function"),
+                  function: external_exports.object({
+                    name: external_exports.string(),
+                    arguments: external_exports.string().optional()
+                  }).passthrough()
+                }).passthrough()
+              ).optional(),
+              annotations: external_exports.array(
+                external_exports.union([
+                  // URL citation from web search
+                  // title, start_index, end_index are optional as some upstream providers may omit them
+                  external_exports.object({
+                    type: external_exports.literal("url_citation"),
+                    url_citation: external_exports.object({
+                      url: external_exports.string(),
+                      title: external_exports.string().optional(),
+                      start_index: external_exports.number().optional(),
+                      end_index: external_exports.number().optional(),
+                      content: external_exports.string().optional()
+                    }).passthrough()
+                  }).passthrough(),
+                  // File annotation from FileParserPlugin (old format)
+                  external_exports.object({
+                    type: external_exports.literal("file_annotation"),
+                    file_annotation: external_exports.object({
+                      file_id: external_exports.string(),
+                      quote: external_exports.string().optional()
+                    }).passthrough()
+                  }).passthrough(),
+                  // File annotation from FileParserPlugin (new format)
+                  external_exports.object({
+                    type: external_exports.literal("file"),
+                    file: external_exports.object({
+                      hash: external_exports.string(),
+                      name: external_exports.string(),
+                      content: external_exports.array(
+                        external_exports.object({
+                          type: external_exports.string(),
+                          text: external_exports.string().optional()
+                        }).passthrough()
+                      ).optional()
+                    }).passthrough()
+                  }).passthrough()
+                ])
+              ).nullish()
+            }).passthrough(),
+            index: external_exports.number().nullish(),
+            logprobs: external_exports.object({
+              content: external_exports.array(
+                external_exports.object({
+                  token: external_exports.string(),
+                  logprob: external_exports.number(),
+                  top_logprobs: external_exports.array(
+                    external_exports.object({
+                      token: external_exports.string(),
+                      logprob: external_exports.number()
+                    }).passthrough()
+                  )
+                }).passthrough()
+              ).nullable()
+            }).passthrough().nullable().optional(),
+            finish_reason: external_exports.string().optional().nullable()
+          }).passthrough()
+        )
+      }),
+      // Error response (HTTP 200 with error payload)
+      OpenRouterErrorResponseSchema.extend({
+        user_id: external_exports.string().optional()
+      })
+    ]);
+    OpenRouterStreamChatCompletionChunkSchema = external_exports.union([
+      OpenRouterChatCompletionBaseResponseSchema.extend({
+        choices: external_exports.array(
+          external_exports.object({
+            delta: external_exports.object({
+              role: external_exports.enum(["assistant"]).optional(),
+              content: external_exports.string().nullish(),
+              reasoning: external_exports.string().nullish().optional(),
+              reasoning_details: ReasoningDetailArraySchema.nullish(),
+              images: ImageResponseArraySchema.nullish(),
+              tool_calls: external_exports.array(
+                external_exports.object({
+                  index: external_exports.number().nullish(),
+                  id: external_exports.string().nullish(),
+                  type: external_exports.literal("function").optional(),
+                  function: external_exports.object({
+                    name: external_exports.string().nullish(),
+                    arguments: external_exports.string().nullish()
+                  }).passthrough()
+                }).passthrough()
+              ).nullish(),
+              annotations: external_exports.array(
+                external_exports.union([
+                  // URL citation from web search
+                  // title, start_index, end_index are optional as some upstream providers may omit them
+                  external_exports.object({
+                    type: external_exports.literal("url_citation"),
+                    url_citation: external_exports.object({
+                      url: external_exports.string(),
+                      title: external_exports.string().optional(),
+                      start_index: external_exports.number().optional(),
+                      end_index: external_exports.number().optional(),
+                      content: external_exports.string().optional()
+                    }).passthrough()
+                  }).passthrough(),
+                  // File annotation from FileParserPlugin (old format)
+                  external_exports.object({
+                    type: external_exports.literal("file_annotation"),
+                    file_annotation: external_exports.object({
+                      file_id: external_exports.string(),
+                      quote: external_exports.string().optional()
+                    }).passthrough()
+                  }).passthrough(),
+                  // File annotation from FileParserPlugin (new format)
+                  external_exports.object({
+                    type: external_exports.literal("file"),
+                    file: external_exports.object({
+                      hash: external_exports.string(),
+                      name: external_exports.string(),
+                      content: external_exports.array(
+                        external_exports.object({
+                          type: external_exports.string(),
+                          text: external_exports.string().optional()
+                        }).passthrough()
+                      ).optional()
+                    }).passthrough()
+                  }).passthrough()
+                ])
+              ).nullish()
+            }).passthrough().nullish(),
+            logprobs: external_exports.object({
+              content: external_exports.array(
+                external_exports.object({
+                  token: external_exports.string(),
+                  logprob: external_exports.number(),
+                  top_logprobs: external_exports.array(
+                    external_exports.object({
+                      token: external_exports.string(),
+                      logprob: external_exports.number()
+                    }).passthrough()
+                  )
+                }).passthrough()
+              ).nullable()
+            }).passthrough().nullish(),
+            finish_reason: external_exports.string().nullable().optional(),
+            index: external_exports.number().nullish()
+          }).passthrough()
+        )
+      }),
+      OpenRouterErrorResponseSchema
+    ]);
+    OpenRouterChatLanguageModel = class {
+      constructor(modelId, settings, config2) {
+        this.specificationVersion = "v3";
+        this.provider = "openrouter";
+        this.defaultObjectGenerationMode = "tool";
+        this.supportsImageUrls = true;
+        this.supportedUrls = {
+          "image/*": [
+            /^data:image\/[a-zA-Z]+;base64,/,
+            /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(?:[?#].*)?$/i
+          ],
+          // 'text/*': [/^data:text\//, /^https?:\/\/.+$/],
+          "application/*": [/^data:application\//, /^https?:\/\/.+$/]
+        };
+        this.modelId = modelId;
+        this.settings = settings;
+        this.config = config2;
+      }
+      getArgs({
+        prompt,
+        maxOutputTokens,
+        temperature,
+        topP,
+        frequencyPenalty,
+        presencePenalty,
+        seed,
+        stopSequences,
+        responseFormat,
+        topK,
+        tools,
+        toolChoice
+      }) {
+        var _a163, _b162, _c, _d;
+        const baseArgs = __spreadValues(__spreadValues({
+          // model id:
+          model: this.modelId,
+          models: this.settings.models,
+          // model specific settings:
+          logit_bias: this.settings.logitBias,
+          logprobs: this.settings.logprobs === true || typeof this.settings.logprobs === "number" ? true : void 0,
+          top_logprobs: typeof this.settings.logprobs === "number" ? this.settings.logprobs : typeof this.settings.logprobs === "boolean" ? this.settings.logprobs ? 0 : void 0 : void 0,
+          user: this.settings.user,
+          parallel_tool_calls: this.settings.parallelToolCalls,
+          // standardized settings (call-level options override model-level settings):
+          max_tokens: maxOutputTokens != null ? maxOutputTokens : this.settings.maxTokens,
+          temperature: temperature != null ? temperature : this.settings.temperature,
+          top_p: topP != null ? topP : this.settings.topP,
+          frequency_penalty: frequencyPenalty != null ? frequencyPenalty : this.settings.frequencyPenalty,
+          presence_penalty: presencePenalty != null ? presencePenalty : this.settings.presencePenalty,
+          seed,
+          stop: stopSequences,
+          response_format: (responseFormat == null ? void 0 : responseFormat.type) === "json" ? responseFormat.schema != null ? {
+            type: "json_schema",
+            json_schema: __spreadValues({
+              schema: responseFormat.schema,
+              strict: (_b162 = (_a163 = this.settings.structuredOutputs) == null ? void 0 : _a163.strict) != null ? _b162 : true,
+              name: (_c = responseFormat.name) != null ? _c : "response"
+            }, responseFormat.description && {
+              description: responseFormat.description
+            })
+          } : { type: "json_object" } : void 0,
+          top_k: topK != null ? topK : this.settings.topK,
+          // messages:
+          messages: convertToOpenRouterChatMessages(prompt),
+          // OpenRouter specific settings:
+          include_reasoning: this.settings.includeReasoning,
+          reasoning: this.settings.reasoning,
+          usage: this.settings.usage,
+          // Web search settings:
+          plugins: this.settings.plugins,
+          web_search_options: this.settings.web_search_options,
+          // Provider routing settings:
+          provider: this.settings.provider,
+          // Debug settings:
+          debug: this.settings.debug,
+          // Anthropic automatic caching:
+          cache_control: this.settings.cache_control
+        }, this.config.extraBody), this.settings.extraBody);
+        if (tools && tools.length > 0) {
+          const mappedTools = [];
+          for (const tool22 of tools) {
+            if (tool22.type === "function") {
+              const openrouterOptions = (_d = tool22.providerOptions) == null ? void 0 : _d.openrouter;
+              const eagerInputStreaming = openrouterOptions == null ? void 0 : openrouterOptions.eager_input_streaming;
+              mappedTools.push(__spreadValues({
+                type: "function",
+                function: {
+                  name: tool22.name,
+                  description: tool22.description,
+                  parameters: tool22.inputSchema
+                }
+              }, eagerInputStreaming != null && {
+                eager_input_streaming: eagerInputStreaming
+              }));
+            } else if (tool22.type === "provider") {
+              mappedTools.push(mapProviderTool(tool22));
+            }
+          }
+          return __spreadProps(__spreadValues({}, baseArgs), {
+            tools: mappedTools,
+            tool_choice: toolChoice ? getChatCompletionToolChoice(toolChoice) : void 0
+          });
+        }
+        return baseArgs;
+      }
+      async doGenerate(options) {
+        var _b162, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+        const providerOptions = options.providerOptions || {};
+        const openrouterOptions = providerOptions.openrouter || {};
+        const _a163 = openrouterOptions, { cacheControl } = _a163, restOpenrouterOptions = __objRest(_a163, ["cacheControl"]);
+        const args = __spreadValues(__spreadValues(__spreadValues({}, this.getArgs(options)), restOpenrouterOptions), cacheControl != null && !("cache_control" in restOpenrouterOptions) ? { cache_control: cacheControl } : {});
+        const { value: responseValue, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/chat/completions",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), options.headers),
+          body: args,
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createJsonResponseHandler2(
+            OpenRouterNonStreamChatCompletionResponseSchema
+          ),
+          abortSignal: options.abortSignal,
+          fetch: this.config.fetch
+        });
+        if ("error" in responseValue) {
+          const errorData = responseValue.error;
+          throw new APICallError2({
+            message: errorData.message,
+            url: this.config.url({
+              path: "/chat/completions",
+              modelId: this.modelId
+            }),
+            requestBodyValues: args,
+            statusCode: 200,
+            responseHeaders,
+            data: errorData
+          });
+        }
+        const response = responseValue;
+        const choice2 = response.choices[0];
+        if (!choice2) {
+          throw new NoContentGeneratedError2({
+            message: "No choice in response"
+          });
+        }
+        const usageInfo = response.usage ? computeTokenUsage(response.usage) : emptyUsage();
+        const reasoningDetails = (_b162 = choice2.message.reasoning_details) != null ? _b162 : [];
+        const reasoning = reasoningDetails.length > 0 ? reasoningDetails.map((detail) => {
+          switch (detail.type) {
+            case "reasoning.text": {
+              if (detail.text) {
+                return {
+                  type: "reasoning",
+                  text: detail.text,
+                  providerMetadata: {
+                    openrouter: {
+                      reasoning_details: [detail]
+                    }
+                  }
+                };
+              }
+              break;
+            }
+            case "reasoning.summary": {
+              if (detail.summary) {
+                return {
+                  type: "reasoning",
+                  text: detail.summary,
+                  providerMetadata: {
+                    openrouter: {
+                      reasoning_details: [detail]
+                    }
+                  }
+                };
+              }
+              break;
+            }
+            case "reasoning.encrypted": {
+              break;
+            }
+            default: {
+              detail;
+            }
+          }
+          return null;
+        }).filter((p) => p !== null) : choice2.message.reasoning ? [
+          {
+            type: "reasoning",
+            text: choice2.message.reasoning
+          }
+        ] : [];
+        const content = [];
+        content.push(...reasoning);
+        if (choice2.message.content) {
+          content.push({
+            type: "text",
+            text: choice2.message.content
+          });
+        }
+        if (choice2.message.tool_calls) {
+          let reasoningDetailsAttachedToToolCall = false;
+          const seenToolCallIds = /* @__PURE__ */ new Set();
+          for (const toolCall of choice2.message.tool_calls) {
+            let toolCallId = toolCall.id;
+            if (!toolCallId || seenToolCallIds.has(toolCallId)) {
+              toolCallId = generateId2();
+            }
+            seenToolCallIds.add(toolCallId);
+            content.push({
+              type: "tool-call",
+              toolCallId,
+              toolName: toolCall.function.name,
+              input: (_c = toolCall.function.arguments) != null ? _c : "{}",
+              providerMetadata: !reasoningDetailsAttachedToToolCall ? {
+                openrouter: {
+                  reasoning_details: reasoningDetails
+                }
+              } : void 0
+            });
+            reasoningDetailsAttachedToToolCall = true;
+          }
+        }
+        if (choice2.message.images) {
+          for (const image of choice2.message.images) {
+            content.push({
+              type: "file",
+              mediaType: getMediaType(image.image_url.url, "image/jpeg"),
+              data: getBase64FromDataUrl(image.image_url.url)
+            });
+          }
+        }
+        if (choice2.message.annotations) {
+          for (const annotation of choice2.message.annotations) {
+            if (annotation.type === "url_citation") {
+              content.push({
+                type: "source",
+                sourceType: "url",
+                id: annotation.url_citation.url,
+                url: annotation.url_citation.url,
+                title: (_d = annotation.url_citation.title) != null ? _d : "",
+                providerMetadata: {
+                  openrouter: {
+                    content: (_e = annotation.url_citation.content) != null ? _e : "",
+                    startIndex: (_f = annotation.url_citation.start_index) != null ? _f : 0,
+                    endIndex: (_g = annotation.url_citation.end_index) != null ? _g : 0
+                  }
+                }
+              });
+            }
+          }
+        }
+        const fileAnnotations = (_h = choice2.message.annotations) == null ? void 0 : _h.filter(
+          (a) => a.type === "file"
+        );
+        const hasToolCalls = choice2.message.tool_calls && choice2.message.tool_calls.length > 0;
+        const hasEncryptedReasoning = reasoningDetails.some(
+          (d) => d.type === "reasoning.encrypted" && d.data
+        );
+        const shouldOverrideFinishReason = hasToolCalls && hasEncryptedReasoning && choice2.finish_reason === "stop";
+        const mappedFinishReason = shouldOverrideFinishReason ? createFinishReason("tool-calls", (_i = choice2.finish_reason) != null ? _i : void 0) : mapOpenRouterFinishReason(choice2.finish_reason);
+        const effectiveFinishReason = hasToolCalls && mappedFinishReason.unified === "other" ? createFinishReason("tool-calls", mappedFinishReason.raw) : mappedFinishReason;
+        return {
+          content,
+          finishReason: effectiveFinishReason,
+          usage: usageInfo,
+          warnings: [],
+          providerMetadata: {
+            openrouter: OpenRouterProviderMetadataSchema.parse({
+              provider: (_j = response.provider) != null ? _j : "",
+              reasoning_details: (_k = choice2.message.reasoning_details) != null ? _k : [],
+              annotations: fileAnnotations && fileAnnotations.length > 0 ? fileAnnotations : void 0,
+              usage: __spreadValues(__spreadValues(__spreadValues(__spreadValues({
+                promptTokens: (_l = usageInfo.inputTokens.total) != null ? _l : 0,
+                completionTokens: (_m = usageInfo.outputTokens.total) != null ? _m : 0,
+                totalTokens: ((_n = usageInfo.inputTokens.total) != null ? _n : 0) + ((_o = usageInfo.outputTokens.total) != null ? _o : 0)
+              }, ((_p = response.usage) == null ? void 0 : _p.cost) != null ? { cost: response.usage.cost } : {}), ((_r = (_q = response.usage) == null ? void 0 : _q.prompt_tokens_details) == null ? void 0 : _r.cached_tokens) != null ? {
+                promptTokensDetails: {
+                  cachedTokens: response.usage.prompt_tokens_details.cached_tokens
+                }
+              } : {}), ((_t = (_s = response.usage) == null ? void 0 : _s.completion_tokens_details) == null ? void 0 : _t.reasoning_tokens) != null ? {
+                completionTokensDetails: {
+                  reasoningTokens: response.usage.completion_tokens_details.reasoning_tokens
+                }
+              } : {}), ((_v = (_u = response.usage) == null ? void 0 : _u.cost_details) == null ? void 0 : _v.upstream_inference_cost) != null ? {
+                costDetails: {
+                  upstreamInferenceCost: response.usage.cost_details.upstream_inference_cost
+                }
+              } : {})
+            })
+          },
+          request: { body: args },
+          response: {
+            id: response.id,
+            modelId: response.model,
+            headers: responseHeaders,
+            body: response
+          }
+        };
+      }
+      async doStream(options) {
+        var _b162;
+        const providerOptions = options.providerOptions || {};
+        const openrouterOptions = providerOptions.openrouter || {};
+        const _a163 = openrouterOptions, { cacheControl } = _a163, restOpenrouterOptions = __objRest(_a163, ["cacheControl"]);
+        const args = __spreadValues(__spreadValues(__spreadValues({}, this.getArgs(options)), restOpenrouterOptions), cacheControl != null && !("cache_control" in restOpenrouterOptions) ? { cache_control: cacheControl } : {});
+        const { value: response, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/chat/completions",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), options.headers),
+          body: __spreadProps(__spreadValues({}, args), {
+            stream: true,
+            // only include stream_options when in strict compatibility mode:
+            stream_options: this.config.compatibility === "strict" ? __spreadValues({
+              include_usage: true
+            }, ((_b162 = this.settings.usage) == null ? void 0 : _b162.include) ? { include_usage: true } : {}) : void 0
+          }),
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createEventSourceResponseHandler2(
+            OpenRouterStreamChatCompletionChunkSchema
+          ),
+          abortSignal: options.abortSignal,
+          fetch: this.config.fetch
+        });
+        let streamError;
+        const safeResponse = withStreamErrorHandling(response, (err) => {
+          streamError = err;
+        });
+        const toolCalls = [];
+        const seenToolCallIds = /* @__PURE__ */ new Set();
+        let finishReason = createFinishReason("other");
+        const usage = {
+          inputTokens: {
+            total: void 0,
+            noCache: void 0,
+            cacheRead: void 0,
+            cacheWrite: void 0
+          },
+          outputTokens: {
+            total: void 0,
+            text: void 0,
+            reasoning: void 0
+          },
+          raw: void 0
+        };
+        const openrouterUsage = {};
+        let rawUsage;
+        const accumulatedReasoningDetails = [];
+        let reasoningDetailsAttachedToToolCall = false;
+        const accumulatedFileAnnotations = [];
+        let textStarted = false;
+        let reasoningStarted = false;
+        let textId;
+        let reasoningId;
+        let openrouterResponseId;
+        let provider;
+        return {
+          stream: safeResponse.pipeThrough(
+            new TransformStream({
+              transform(chunk, controller) {
+                var _a173, _b172, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
+                if (options.includeRawChunks) {
+                  controller.enqueue({ type: "raw", rawValue: chunk.rawValue });
+                }
+                if (!chunk.success) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: chunk.error });
+                  return;
+                }
+                const value = chunk.value;
+                if ("error" in value) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: value.error });
+                  return;
+                }
+                if (value.provider) {
+                  provider = value.provider;
+                }
+                if (value.id) {
+                  openrouterResponseId = value.id;
+                  controller.enqueue({
+                    type: "response-metadata",
+                    id: value.id
+                  });
+                }
+                if (value.model) {
+                  controller.enqueue({
+                    type: "response-metadata",
+                    modelId: value.model
+                  });
+                }
+                if (value.usage != null) {
+                  const computed = computeTokenUsage(value.usage);
+                  Object.assign(usage.inputTokens, computed.inputTokens);
+                  Object.assign(usage.outputTokens, computed.outputTokens);
+                  rawUsage = value.usage;
+                  const promptTokens = (_a173 = value.usage.prompt_tokens) != null ? _a173 : 0;
+                  const completionTokens = (_b172 = value.usage.completion_tokens) != null ? _b172 : 0;
+                  openrouterUsage.promptTokens = promptTokens;
+                  if (value.usage.prompt_tokens_details) {
+                    openrouterUsage.promptTokensDetails = {
+                      cachedTokens: (_c = value.usage.prompt_tokens_details.cached_tokens) != null ? _c : 0
+                    };
+                  }
+                  openrouterUsage.completionTokens = completionTokens;
+                  if (value.usage.completion_tokens_details) {
+                    openrouterUsage.completionTokensDetails = {
+                      reasoningTokens: (_d = value.usage.completion_tokens_details.reasoning_tokens) != null ? _d : 0
+                    };
+                  }
+                  if (value.usage.cost != null) {
+                    openrouterUsage.cost = value.usage.cost;
+                  }
+                  openrouterUsage.totalTokens = value.usage.total_tokens;
+                  const upstreamInferenceCost = (_e = value.usage.cost_details) == null ? void 0 : _e.upstream_inference_cost;
+                  if (upstreamInferenceCost != null) {
+                    openrouterUsage.costDetails = {
+                      upstreamInferenceCost
+                    };
+                  }
+                }
+                const choice2 = value.choices[0];
+                if ((choice2 == null ? void 0 : choice2.finish_reason) != null) {
+                  finishReason = mapOpenRouterFinishReason(choice2.finish_reason);
+                }
+                if ((choice2 == null ? void 0 : choice2.delta) == null) {
+                  return;
+                }
+                const delta = choice2.delta;
+                const emitReasoningChunk = (chunkText) => {
+                  if (!reasoningStarted) {
+                    reasoningId = generateId2();
+                    controller.enqueue({
+                      type: "reasoning-start",
+                      id: reasoningId
+                    });
+                    reasoningStarted = true;
+                  }
+                  controller.enqueue({
+                    type: "reasoning-delta",
+                    delta: chunkText,
+                    id: reasoningId || generateId2()
+                  });
+                };
+                if (delta.reasoning_details && delta.reasoning_details.length > 0) {
+                  for (const detail of delta.reasoning_details) {
+                    if (detail.type === "reasoning.text") {
+                      const lastDetail = accumulatedReasoningDetails[accumulatedReasoningDetails.length - 1];
+                      if ((lastDetail == null ? void 0 : lastDetail.type) === "reasoning.text") {
+                        lastDetail.text = (lastDetail.text || "") + (detail.text || "");
+                        lastDetail.signature = lastDetail.signature || detail.signature;
+                        lastDetail.format = lastDetail.format || detail.format;
+                      } else {
+                        accumulatedReasoningDetails.push(__spreadValues({}, detail));
+                      }
+                    } else {
+                      accumulatedReasoningDetails.push(detail);
+                    }
+                  }
+                  if (!textStarted) {
+                    for (const detail of delta.reasoning_details) {
+                      switch (detail.type) {
+                        case "reasoning.text": {
+                          emitReasoningChunk(detail.text || "");
+                          break;
+                        }
+                        case "reasoning.encrypted": {
+                          break;
+                        }
+                        case "reasoning.summary": {
+                          if (detail.summary) {
+                            emitReasoningChunk(detail.summary);
+                          }
+                          break;
+                        }
+                        default: {
+                          detail;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                } else if (delta.reasoning && !textStarted) {
+                  emitReasoningChunk(delta.reasoning);
+                }
+                if (delta.content) {
+                  if (reasoningStarted && !textStarted) {
+                    controller.enqueue({
+                      type: "reasoning-end",
+                      id: reasoningId || generateId2(),
+                      // Always include accumulated reasoning_details so the AI SDK can
+                      // update the reasoning part's providerMetadata with the correct
+                      // signature.  The signature typically arrives in the last delta,
+                      // but reasoning-start only carries the first delta's metadata.
+                      // An empty array is intentional — it signals the provider produced
+                      // no reasoning tokens this turn (e.g. DeepSeek V4).
+                      providerMetadata: {
+                        openrouter: {
+                          reasoning_details: accumulatedReasoningDetails
+                        }
+                      }
+                    });
+                    reasoningStarted = false;
+                  }
+                  if (!textStarted) {
+                    textId = openrouterResponseId || generateId2();
+                    controller.enqueue({
+                      type: "text-start",
+                      id: textId
+                    });
+                    textStarted = true;
+                  }
+                  controller.enqueue({
+                    type: "text-delta",
+                    delta: delta.content,
+                    id: textId || generateId2()
+                  });
+                }
+                if (delta.annotations) {
+                  for (const annotation of delta.annotations) {
+                    if (annotation.type === "url_citation") {
+                      controller.enqueue({
+                        type: "source",
+                        sourceType: "url",
+                        id: annotation.url_citation.url,
+                        url: annotation.url_citation.url,
+                        title: (_f = annotation.url_citation.title) != null ? _f : "",
+                        providerMetadata: {
+                          openrouter: {
+                            content: (_g = annotation.url_citation.content) != null ? _g : "",
+                            startIndex: (_h = annotation.url_citation.start_index) != null ? _h : 0,
+                            endIndex: (_i = annotation.url_citation.end_index) != null ? _i : 0
+                          }
+                        }
+                      });
+                    } else if (annotation.type === "file") {
+                      const file2 = annotation.file;
+                      if (file2 && typeof file2 === "object" && "hash" in file2 && "name" in file2) {
+                        accumulatedFileAnnotations.push(
+                          annotation
+                        );
+                      }
+                    }
+                  }
+                }
+                if (delta.tool_calls != null) {
+                  for (const toolCallDelta of delta.tool_calls) {
+                    const index = (_j = toolCallDelta.index) != null ? _j : toolCalls.length - 1;
+                    if (toolCalls[index] == null) {
+                      if (toolCallDelta.type !== "function") {
+                        throw new InvalidResponseDataError2({
+                          data: toolCallDelta,
+                          message: `Expected 'function' type.`
+                        });
+                      }
+                      if (((_k = toolCallDelta.function) == null ? void 0 : _k.name) == null) {
+                        throw new InvalidResponseDataError2({
+                          data: toolCallDelta,
+                          message: `Expected 'function.name' to be a string.`
+                        });
+                      }
+                      let toolCallId = (_l = toolCallDelta.id) != null ? _l : "";
+                      if (!toolCallId || seenToolCallIds.has(toolCallId)) {
+                        toolCallId = generateId2();
+                      }
+                      seenToolCallIds.add(toolCallId);
+                      toolCalls[index] = {
+                        id: toolCallId,
+                        type: "function",
+                        function: {
+                          name: toolCallDelta.function.name,
+                          arguments: (_m = toolCallDelta.function.arguments) != null ? _m : ""
+                        },
+                        inputStarted: false,
+                        sent: false
+                      };
+                      const toolCall2 = toolCalls[index];
+                      if (toolCall2 == null) {
+                        throw new InvalidResponseDataError2({
+                          data: { index, toolCallsLength: toolCalls.length },
+                          message: `Tool call at index ${index} is missing after creation.`
+                        });
+                      }
+                      if (((_n = toolCall2.function) == null ? void 0 : _n.name) != null && ((_o = toolCall2.function) == null ? void 0 : _o.arguments) != null && isParsableJson(toolCall2.function.arguments)) {
+                        toolCall2.inputStarted = true;
+                        controller.enqueue({
+                          type: "tool-input-start",
+                          id: toolCall2.id,
+                          toolName: toolCall2.function.name
+                        });
+                        controller.enqueue({
+                          type: "tool-input-delta",
+                          id: toolCall2.id,
+                          delta: toolCall2.function.arguments
+                        });
+                        controller.enqueue({
+                          type: "tool-input-end",
+                          id: toolCall2.id
+                        });
+                        controller.enqueue({
+                          type: "tool-call",
+                          toolCallId: toolCall2.id,
+                          toolName: toolCall2.function.name,
+                          input: toolCall2.function.arguments,
+                          providerMetadata: !reasoningDetailsAttachedToToolCall ? {
+                            openrouter: {
+                              reasoning_details: accumulatedReasoningDetails
+                            }
+                          } : void 0
+                        });
+                        reasoningDetailsAttachedToToolCall = true;
+                        toolCall2.sent = true;
+                      }
+                      continue;
+                    }
+                    const toolCall = toolCalls[index];
+                    if (toolCall == null) {
+                      throw new InvalidResponseDataError2({
+                        data: {
+                          index,
+                          toolCallsLength: toolCalls.length,
+                          toolCallDelta
+                        },
+                        message: `Tool call at index ${index} is missing during merge.`
+                      });
+                    }
+                    if (!toolCall.inputStarted) {
+                      toolCall.inputStarted = true;
+                      controller.enqueue({
+                        type: "tool-input-start",
+                        id: toolCall.id,
+                        toolName: toolCall.function.name
+                      });
+                      if (toolCall.function.arguments) {
+                        controller.enqueue({
+                          type: "tool-input-delta",
+                          id: toolCall.id,
+                          delta: toolCall.function.arguments
+                        });
+                      }
+                    }
+                    if (((_p = toolCallDelta.function) == null ? void 0 : _p.arguments) != null) {
+                      toolCall.function.arguments += (_r = (_q = toolCallDelta.function) == null ? void 0 : _q.arguments) != null ? _r : "";
+                    }
+                    controller.enqueue({
+                      type: "tool-input-delta",
+                      id: toolCall.id,
+                      delta: (_s = toolCallDelta.function.arguments) != null ? _s : ""
+                    });
+                    if (!toolCall.sent && ((_t = toolCall.function) == null ? void 0 : _t.name) != null && ((_u = toolCall.function) == null ? void 0 : _u.arguments) != null && isParsableJson(toolCall.function.arguments)) {
+                      controller.enqueue({
+                        type: "tool-input-end",
+                        id: toolCall.id
+                      });
+                      controller.enqueue({
+                        type: "tool-call",
+                        toolCallId: toolCall.id,
+                        toolName: toolCall.function.name,
+                        input: toolCall.function.arguments,
+                        providerMetadata: !reasoningDetailsAttachedToToolCall ? {
+                          openrouter: {
+                            reasoning_details: accumulatedReasoningDetails
+                          }
+                        } : void 0
+                      });
+                      reasoningDetailsAttachedToToolCall = true;
+                      toolCall.sent = true;
+                    }
+                  }
+                }
+                if (delta.images != null) {
+                  for (const image of delta.images) {
+                    controller.enqueue({
+                      type: "file",
+                      mediaType: getMediaType(image.image_url.url, "image/jpeg"),
+                      data: getBase64FromDataUrl(image.image_url.url)
+                    });
+                  }
+                }
+              },
+              flush(controller) {
+                const hasToolCalls = toolCalls.length > 0;
+                if (streamError != null) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: streamError });
+                }
+                const hasEncryptedReasoning = accumulatedReasoningDetails.some(
+                  (d) => d.type === "reasoning.encrypted" && d.data
+                );
+                if (hasToolCalls && hasEncryptedReasoning && finishReason.unified === "stop") {
+                  finishReason = createFinishReason("tool-calls", finishReason.raw);
+                }
+                if (hasToolCalls && finishReason.unified === "other") {
+                  finishReason = createFinishReason("tool-calls", finishReason.raw);
+                }
+                if (finishReason.unified === "tool-calls") {
+                  for (const toolCall of toolCalls) {
+                    if (toolCall && !toolCall.sent) {
+                      const input = isParsableJson(toolCall.function.arguments) ? toolCall.function.arguments : "{}";
+                      if (!toolCall.inputStarted) {
+                        controller.enqueue({
+                          type: "tool-input-start",
+                          id: toolCall.id,
+                          toolName: toolCall.function.name
+                        });
+                        controller.enqueue({
+                          type: "tool-input-delta",
+                          id: toolCall.id,
+                          delta: input
+                        });
+                      }
+                      controller.enqueue({
+                        type: "tool-input-end",
+                        id: toolCall.id
+                      });
+                      controller.enqueue({
+                        type: "tool-call",
+                        toolCallId: toolCall.id,
+                        toolName: toolCall.function.name,
+                        input,
+                        providerMetadata: !reasoningDetailsAttachedToToolCall ? {
+                          openrouter: {
+                            reasoning_details: accumulatedReasoningDetails
+                          }
+                        } : void 0
+                      });
+                      reasoningDetailsAttachedToToolCall = true;
+                      toolCall.sent = true;
+                    }
+                  }
+                }
+                if (reasoningStarted) {
+                  controller.enqueue({
+                    type: "reasoning-end",
+                    id: reasoningId || generateId2(),
+                    // Always include accumulated reasoning_details so the AI SDK can
+                    // update the reasoning part's providerMetadata.  An empty array is
+                    // intentional — it signals the provider produced no reasoning tokens.
+                    providerMetadata: {
+                      openrouter: {
+                        reasoning_details: accumulatedReasoningDetails
+                      }
+                    }
+                  });
+                }
+                if (textStarted) {
+                  controller.enqueue({
+                    type: "text-end",
+                    id: textId || generateId2()
+                  });
+                }
+                const openrouterMetadata = {
+                  usage: openrouterUsage
+                };
+                if (provider !== void 0) {
+                  openrouterMetadata.provider = provider;
+                }
+                openrouterMetadata.reasoning_details = accumulatedReasoningDetails;
+                if (accumulatedFileAnnotations.length > 0) {
+                  openrouterMetadata.annotations = accumulatedFileAnnotations;
+                }
+                if (usage.inputTokens.total === void 0 && openrouterUsage.promptTokens !== void 0) {
+                  usage.inputTokens.total = openrouterUsage.promptTokens;
+                }
+                if (usage.outputTokens.total === void 0 && openrouterUsage.completionTokens !== void 0) {
+                  usage.outputTokens.total = openrouterUsage.completionTokens;
+                }
+                usage.raw = rawUsage;
+                controller.enqueue({
+                  type: "finish",
+                  finishReason,
+                  usage,
+                  providerMetadata: {
+                    openrouter: openrouterMetadata
+                  }
+                });
+              }
+            })
+          ),
+          warnings: [],
+          request: { body: args },
+          response: { headers: responseHeaders }
+        };
+      }
+    };
+    OpenRouterCompletionChunkSchema = external_exports.union([
+      external_exports.object({
+        id: external_exports.string().optional(),
+        model: external_exports.string().optional(),
+        provider: external_exports.string().optional(),
+        choices: external_exports.array(
+          external_exports.object({
+            text: external_exports.string(),
+            reasoning: external_exports.string().nullish().optional(),
+            reasoning_details: ReasoningDetailArraySchema.nullish(),
+            finish_reason: external_exports.string().nullish(),
+            index: external_exports.number().nullish(),
+            logprobs: external_exports.object({
+              tokens: external_exports.array(external_exports.string()),
+              token_logprobs: external_exports.array(external_exports.number()),
+              top_logprobs: external_exports.array(external_exports.record(external_exports.string(), external_exports.number())).nullable()
+            }).passthrough().nullable().optional()
+          }).passthrough()
+        ),
+        usage: external_exports.object({
+          prompt_tokens: external_exports.number(),
+          prompt_tokens_details: external_exports.object({
+            cached_tokens: external_exports.number(),
+            cache_write_tokens: external_exports.number().nullish()
+          }).passthrough().nullish(),
+          completion_tokens: external_exports.number(),
+          completion_tokens_details: external_exports.object({
+            reasoning_tokens: external_exports.number()
+          }).passthrough().nullish(),
+          total_tokens: external_exports.number(),
+          cost: external_exports.number().optional(),
+          cost_details: external_exports.object({
+            upstream_inference_cost: external_exports.number().nullish()
+          }).passthrough().nullish()
+        }).passthrough().nullish()
+      }).passthrough(),
+      OpenRouterErrorResponseSchema
+    ]);
+    OpenRouterCompletionLanguageModel = class {
+      constructor(modelId, settings, config2) {
+        this.specificationVersion = "v3";
+        this.provider = "openrouter";
+        this.supportsImageUrls = true;
+        this.supportedUrls = {
+          "image/*": [
+            /^data:image\/[a-zA-Z]+;base64,/,
+            /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(?:[?#].*)?$/i
+          ],
+          "text/*": [/^data:text\//, /^https?:\/\/.+$/],
+          "application/*": [/^data:application\//, /^https?:\/\/.+$/]
+        };
+        this.defaultObjectGenerationMode = void 0;
+        this.modelId = modelId;
+        this.settings = settings;
+        this.config = config2;
+      }
+      getArgs({
+        prompt,
+        maxOutputTokens,
+        temperature,
+        topP,
+        frequencyPenalty,
+        presencePenalty,
+        seed,
+        responseFormat,
+        topK,
+        stopSequences,
+        tools,
+        toolChoice
+      }) {
+        const { prompt: completionPrompt } = convertToOpenRouterCompletionPrompt({
+          prompt,
+          inputFormat: "prompt"
+        });
+        if (tools == null ? void 0 : tools.length) {
+          throw new UnsupportedFunctionalityError2({
+            functionality: "tools"
+          });
+        }
+        if (toolChoice) {
+          throw new UnsupportedFunctionalityError2({
+            functionality: "toolChoice"
+          });
+        }
+        return __spreadValues(__spreadValues({
+          // model id:
+          model: this.modelId,
+          models: this.settings.models,
+          // model specific settings:
+          logit_bias: this.settings.logitBias,
+          logprobs: typeof this.settings.logprobs === "number" ? this.settings.logprobs : typeof this.settings.logprobs === "boolean" ? this.settings.logprobs ? 0 : void 0 : void 0,
+          suffix: this.settings.suffix,
+          user: this.settings.user,
+          // standardized settings (call-level options override model-level settings):
+          max_tokens: maxOutputTokens != null ? maxOutputTokens : this.settings.maxTokens,
+          temperature: temperature != null ? temperature : this.settings.temperature,
+          top_p: topP != null ? topP : this.settings.topP,
+          frequency_penalty: frequencyPenalty != null ? frequencyPenalty : this.settings.frequencyPenalty,
+          presence_penalty: presencePenalty != null ? presencePenalty : this.settings.presencePenalty,
+          seed,
+          stop: stopSequences,
+          response_format: responseFormat,
+          top_k: topK != null ? topK : this.settings.topK,
+          // prompt:
+          prompt: completionPrompt,
+          // OpenRouter specific settings:
+          include_reasoning: this.settings.includeReasoning,
+          reasoning: this.settings.reasoning
+        }, this.config.extraBody), this.settings.extraBody);
+      }
+      async doGenerate(options) {
+        var _a163, _b162, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
+        const providerOptions = options.providerOptions || {};
+        const openrouterOptions = providerOptions.openrouter || {};
+        const args = __spreadValues(__spreadValues({}, this.getArgs(options)), openrouterOptions);
+        const { value: response, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/completions",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), options.headers),
+          body: args,
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createJsonResponseHandler2(
+            OpenRouterCompletionChunkSchema
+          ),
+          abortSignal: options.abortSignal,
+          fetch: this.config.fetch
+        });
+        if ("error" in response) {
+          const errorData = response.error;
+          throw new APICallError2({
+            message: errorData.message,
+            url: this.config.url({
+              path: "/completions",
+              modelId: this.modelId
+            }),
+            requestBodyValues: args,
+            statusCode: 200,
+            responseHeaders,
+            data: errorData
+          });
+        }
+        const choice2 = response.choices[0];
+        if (!choice2) {
+          throw new NoContentGeneratedError2({
+            message: "No choice in OpenRouter completion response"
+          });
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: (_a163 = choice2.text) != null ? _a163 : ""
+            }
+          ],
+          finishReason: mapOpenRouterFinishReason(choice2.finish_reason),
+          usage: response.usage ? computeTokenUsage(response.usage) : emptyUsage(),
+          warnings: [],
+          providerMetadata: {
+            openrouter: OpenRouterProviderMetadataSchema.parse({
+              provider: (_b162 = response.provider) != null ? _b162 : "",
+              usage: __spreadValues(__spreadValues(__spreadValues(__spreadValues({
+                promptTokens: (_d = (_c = response.usage) == null ? void 0 : _c.prompt_tokens) != null ? _d : 0,
+                completionTokens: (_f = (_e = response.usage) == null ? void 0 : _e.completion_tokens) != null ? _f : 0,
+                totalTokens: ((_h = (_g = response.usage) == null ? void 0 : _g.prompt_tokens) != null ? _h : 0) + ((_j = (_i = response.usage) == null ? void 0 : _i.completion_tokens) != null ? _j : 0)
+              }, ((_k = response.usage) == null ? void 0 : _k.cost) != null ? { cost: response.usage.cost } : {}), ((_m = (_l = response.usage) == null ? void 0 : _l.prompt_tokens_details) == null ? void 0 : _m.cached_tokens) != null ? {
+                promptTokensDetails: {
+                  cachedTokens: response.usage.prompt_tokens_details.cached_tokens
+                }
+              } : {}), ((_o = (_n = response.usage) == null ? void 0 : _n.completion_tokens_details) == null ? void 0 : _o.reasoning_tokens) != null ? {
+                completionTokensDetails: {
+                  reasoningTokens: response.usage.completion_tokens_details.reasoning_tokens
+                }
+              } : {}), ((_q = (_p = response.usage) == null ? void 0 : _p.cost_details) == null ? void 0 : _q.upstream_inference_cost) != null ? {
+                costDetails: {
+                  upstreamInferenceCost: response.usage.cost_details.upstream_inference_cost
+                }
+              } : {})
+            })
+          },
+          response: {
+            headers: responseHeaders
+          }
+        };
+      }
+      async doStream(options) {
+        const providerOptions = options.providerOptions || {};
+        const openrouterOptions = providerOptions.openrouter || {};
+        const args = __spreadValues(__spreadValues({}, this.getArgs(options)), openrouterOptions);
+        const { value: response, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/completions",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), options.headers),
+          body: __spreadProps(__spreadValues({}, args), {
+            stream: true,
+            // only include stream_options when in strict compatibility mode:
+            stream_options: this.config.compatibility === "strict" ? { include_usage: true } : void 0
+          }),
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createEventSourceResponseHandler2(
+            OpenRouterCompletionChunkSchema
+          ),
+          abortSignal: options.abortSignal,
+          fetch: this.config.fetch
+        });
+        let streamError;
+        const safeResponse = withStreamErrorHandling(response, (err) => {
+          streamError = err;
+        });
+        let finishReason = createFinishReason("other");
+        const usage = {
+          inputTokens: {
+            total: void 0,
+            noCache: void 0,
+            cacheRead: void 0,
+            cacheWrite: void 0
+          },
+          outputTokens: {
+            total: void 0,
+            text: void 0,
+            reasoning: void 0
+          },
+          raw: void 0
+        };
+        const openrouterUsage = {};
+        let provider;
+        let rawUsage;
+        return {
+          stream: safeResponse.pipeThrough(
+            new TransformStream({
+              transform(chunk, controller) {
+                var _a163, _b162, _c, _d, _e;
+                if (options.includeRawChunks) {
+                  controller.enqueue({ type: "raw", rawValue: chunk.rawValue });
+                }
+                if (!chunk.success) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: chunk.error });
+                  return;
+                }
+                const value = chunk.value;
+                if ("error" in value) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: value.error });
+                  return;
+                }
+                if (value.provider) {
+                  provider = value.provider;
+                }
+                if (value.usage != null) {
+                  const computed = computeTokenUsage(value.usage);
+                  Object.assign(usage.inputTokens, computed.inputTokens);
+                  Object.assign(usage.outputTokens, computed.outputTokens);
+                  rawUsage = value.usage;
+                  const promptTokens = (_a163 = value.usage.prompt_tokens) != null ? _a163 : 0;
+                  const completionTokens = (_b162 = value.usage.completion_tokens) != null ? _b162 : 0;
+                  openrouterUsage.promptTokens = promptTokens;
+                  if (value.usage.prompt_tokens_details) {
+                    openrouterUsage.promptTokensDetails = {
+                      cachedTokens: (_c = value.usage.prompt_tokens_details.cached_tokens) != null ? _c : 0
+                    };
+                  }
+                  openrouterUsage.completionTokens = completionTokens;
+                  if (value.usage.completion_tokens_details) {
+                    openrouterUsage.completionTokensDetails = {
+                      reasoningTokens: (_d = value.usage.completion_tokens_details.reasoning_tokens) != null ? _d : 0
+                    };
+                  }
+                  if (value.usage.cost != null) {
+                    openrouterUsage.cost = value.usage.cost;
+                  }
+                  openrouterUsage.totalTokens = value.usage.total_tokens;
+                  const upstreamInferenceCost = (_e = value.usage.cost_details) == null ? void 0 : _e.upstream_inference_cost;
+                  if (upstreamInferenceCost != null) {
+                    openrouterUsage.costDetails = {
+                      upstreamInferenceCost
+                    };
+                  }
+                }
+                const choice2 = value.choices[0];
+                if ((choice2 == null ? void 0 : choice2.finish_reason) != null) {
+                  finishReason = mapOpenRouterFinishReason(choice2.finish_reason);
+                }
+                if ((choice2 == null ? void 0 : choice2.text) != null) {
+                  controller.enqueue({
+                    type: "text-delta",
+                    delta: choice2.text,
+                    id: generateId2()
+                  });
+                }
+              },
+              flush(controller) {
+                if (streamError != null) {
+                  finishReason = createFinishReason("error");
+                  controller.enqueue({ type: "error", error: streamError });
+                }
+                usage.raw = rawUsage;
+                const openrouterMetadata = {
+                  usage: openrouterUsage
+                };
+                if (provider !== void 0) {
+                  openrouterMetadata.provider = provider;
+                }
+                controller.enqueue({
+                  type: "finish",
+                  finishReason,
+                  usage,
+                  providerMetadata: {
+                    openrouter: openrouterMetadata
+                  }
+                });
+              }
+            })
+          ),
+          response: {
+            headers: responseHeaders
+          }
+        };
+      }
+    };
+    openrouterEmbeddingUsageSchema = external_exports.object({
+      prompt_tokens: external_exports.number(),
+      total_tokens: external_exports.number(),
+      cost: external_exports.number().optional()
+    });
+    openrouterEmbeddingDataSchema = external_exports.object({
+      object: external_exports.literal("embedding"),
+      embedding: external_exports.array(external_exports.number()),
+      index: external_exports.number().optional()
+    });
+    OpenRouterEmbeddingResponseSchema = external_exports.object({
+      id: external_exports.string().optional(),
+      object: external_exports.literal("list"),
+      data: external_exports.array(openrouterEmbeddingDataSchema),
+      model: external_exports.string(),
+      provider: external_exports.string().optional(),
+      usage: openrouterEmbeddingUsageSchema.optional()
+    });
+    OpenRouterEmbeddingModel = class {
+      constructor(modelId, settings, config2) {
+        this.specificationVersion = "v3";
+        this.provider = "openrouter";
+        this.maxEmbeddingsPerCall = void 0;
+        this.supportsParallelCalls = true;
+        this.modelId = modelId;
+        this.settings = settings;
+        this.config = config2;
+      }
+      async doEmbed(options) {
+        var _a163, _b162, _c, _d, _e, _f;
+        const { values, abortSignal, headers } = options;
+        const args = __spreadValues(__spreadValues({
+          model: this.modelId,
+          input: values,
+          user: this.settings.user,
+          provider: this.settings.provider
+        }, this.config.extraBody), this.settings.extraBody);
+        const { value: responseValue, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/embeddings",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), headers),
+          body: args,
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createJsonResponseHandler2(
+            OpenRouterEmbeddingResponseSchema
+          ),
+          abortSignal,
+          fetch: this.config.fetch
+        });
+        return {
+          embeddings: responseValue.data.map((item) => item.embedding),
+          usage: responseValue.usage ? { tokens: responseValue.usage.prompt_tokens } : void 0,
+          providerMetadata: {
+            openrouter: OpenRouterProviderMetadataSchema.parse({
+              provider: (_a163 = responseValue.provider) != null ? _a163 : "",
+              usage: __spreadValues({
+                promptTokens: (_c = (_b162 = responseValue.usage) == null ? void 0 : _b162.prompt_tokens) != null ? _c : 0,
+                completionTokens: 0,
+                totalTokens: (_e = (_d = responseValue.usage) == null ? void 0 : _d.total_tokens) != null ? _e : 0
+              }, ((_f = responseValue.usage) == null ? void 0 : _f.cost) != null ? { cost: responseValue.usage.cost } : {})
+            })
+          },
+          response: {
+            headers: responseHeaders,
+            body: responseValue
+          },
+          warnings: []
+        };
+      }
+    };
+    OpenRouterImageResponseSchema = external_exports.object({
+      id: external_exports.string().optional(),
+      object: external_exports.string().optional(),
+      created: external_exports.number().optional(),
+      model: external_exports.string(),
+      choices: external_exports.array(
+        external_exports.object({
+          index: external_exports.number(),
+          message: external_exports.object({
+            role: external_exports.string(),
+            content: external_exports.string().nullable().optional(),
+            images: external_exports.array(
+              external_exports.object({
+                type: external_exports.literal("image_url"),
+                image_url: external_exports.object({
+                  url: external_exports.string()
+                })
+              }).passthrough()
+            ).optional()
+          }).passthrough(),
+          finish_reason: external_exports.string().nullable().optional()
+        }).passthrough()
+      ),
+      usage: external_exports.object({
+        prompt_tokens: external_exports.number(),
+        completion_tokens: external_exports.number(),
+        total_tokens: external_exports.number()
+      }).passthrough().optional()
+    }).passthrough();
+    OpenRouterImageModel = class {
+      constructor(modelId, settings, config2) {
+        this.specificationVersion = "v3";
+        this.provider = "openrouter";
+        this.maxImagesPerCall = 1;
+        this.modelId = modelId;
+        this.settings = settings;
+        this.config = config2;
+      }
+      async doGenerate(options) {
+        var _a163;
+        const {
+          prompt,
+          n,
+          size,
+          aspectRatio,
+          seed,
+          files,
+          mask,
+          abortSignal,
+          headers,
+          providerOptions
+        } = options;
+        const openrouterOptions = (providerOptions == null ? void 0 : providerOptions.openrouter) || {};
+        const warnings = [];
+        if (mask !== void 0) {
+          throw new UnsupportedFunctionalityError2({
+            functionality: "image inpainting (mask parameter)"
+          });
+        }
+        if (n > 1) {
+          warnings.push({
+            type: "unsupported",
+            feature: "n > 1",
+            details: `OpenRouter image generation returns 1 image per call. Requested ${n} images.`
+          });
+        }
+        if (size !== void 0) {
+          warnings.push({
+            type: "unsupported",
+            feature: "size",
+            details: "Use aspectRatio instead. Size parameter is not supported by OpenRouter image generation."
+          });
+        }
+        const imageConfig = aspectRatio !== void 0 ? { aspect_ratio: aspectRatio } : void 0;
+        const hasFiles = files !== void 0 && files.length > 0;
+        const userContent = hasFiles ? [
+          ...files.map(
+            (file2) => convertImageFileToContentPart(file2)
+          ),
+          { type: "text", text: prompt != null ? prompt : "" }
+        ] : prompt != null ? prompt : "";
+        const body = __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({
+          model: this.modelId,
+          messages: [
+            {
+              role: "user",
+              content: userContent
+            }
+          ],
+          modalities: ["image", "text"]
+        }, imageConfig !== void 0 && { image_config: imageConfig }), seed !== void 0 && { seed }), this.settings.user !== void 0 && { user: this.settings.user }), this.settings.provider !== void 0 && {
+          provider: this.settings.provider
+        }), this.config.extraBody), this.settings.extraBody), openrouterOptions);
+        const { value: responseValue, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/chat/completions",
+            modelId: this.modelId
+          }),
+          headers: combineHeaders2(this.config.headers(), headers),
+          body,
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createJsonResponseHandler2(
+            OpenRouterImageResponseSchema
+          ),
+          abortSignal,
+          fetch: this.config.fetch
+        });
+        const choice2 = responseValue.choices[0];
+        if (!choice2) {
+          throw new NoContentGeneratedError2({
+            message: "No choice in response"
+          });
+        }
+        const images = [];
+        if ((_a163 = choice2.message) == null ? void 0 : _a163.images) {
+          for (const image of choice2.message.images) {
+            const dataUrl = image.image_url.url;
+            images.push(getBase64FromDataUrl(dataUrl));
+          }
+        }
+        const usage = responseValue.usage ? {
+          inputTokens: responseValue.usage.prompt_tokens,
+          outputTokens: responseValue.usage.completion_tokens,
+          totalTokens: responseValue.usage.total_tokens
+        } : void 0;
+        return {
+          images,
+          warnings,
+          response: {
+            timestamp: /* @__PURE__ */ new Date(),
+            modelId: responseValue.model,
+            headers: responseHeaders
+          },
+          usage
+        };
+      }
+    };
+    DEFAULT_IMAGE_MEDIA_TYPE = "image/png";
+    webSearchInputSchema = external_exports.object({
+      /** Search results returned by the server tool */
+      results: external_exports.array(external_exports.unknown()).optional()
+    });
+    webSearch = createProviderToolFactory({
+      id: "openrouter.web_search",
+      inputSchema: webSearchInputSchema
+    });
+    VERSION22 = false ? "0.0.0-test" : "2.9.1";
+    VideoGenerationSubmitResponseSchema = external_exports.object({
+      id: external_exports.string(),
+      generation_id: external_exports.string().optional(),
+      polling_url: external_exports.string(),
+      status: external_exports.string()
+    }).passthrough();
+    VideoGenerationPollResponseSchema = external_exports.object({
+      id: external_exports.string(),
+      generation_id: external_exports.string().optional(),
+      polling_url: external_exports.string(),
+      status: external_exports.string(),
+      unsigned_urls: external_exports.array(external_exports.string()).optional(),
+      usage: external_exports.object({
+        cost: external_exports.number().optional(),
+        is_byok: external_exports.boolean().optional()
+      }).passthrough().optional(),
+      error: external_exports.string().optional()
+    }).passthrough();
+    DEFAULT_POLL_INTERVAL_MS = 2e3;
+    DEFAULT_MAX_POLL_TIME_MS = 6e5;
+    OpenRouterVideoModel = class {
+      constructor(modelId, settings, config2) {
+        this.specificationVersion = "v3";
+        this.provider = "openrouter";
+        this.maxVideosPerCall = 1;
+        this.modelId = modelId;
+        this.settings = settings;
+        this.config = config2;
+      }
+      async doGenerate(options) {
+        var _a163, _b162, _c, _d, _e;
+        const {
+          prompt,
+          n,
+          aspectRatio,
+          resolution,
+          duration: duration3,
+          seed,
+          image,
+          abortSignal,
+          headers,
+          providerOptions
+        } = options;
+        const warnings = [];
+        if (n > 1) {
+          warnings.push({
+            type: "unsupported",
+            feature: "n > 1",
+            details: `OpenRouter video generation returns 1 video per call. Requested ${n} videos.`
+          });
+        }
+        const body = __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({
+          model: this.modelId,
+          prompt: prompt != null ? prompt : ""
+        }, aspectRatio !== void 0 && { aspect_ratio: aspectRatio }), resolution !== void 0 && { size: resolution }), duration3 !== void 0 && { duration: duration3 }), seed !== void 0 && { seed }), this.settings.generateAudio !== void 0 && {
+          generate_audio: this.settings.generateAudio
+        }), image !== void 0 && {
+          frame_images: [convertImageToFrameImage(image)]
+        }), this.config.extraBody), this.settings.extraBody), providerOptions.openrouter);
+        const mergedHeaders = combineHeaders2(this.config.headers(), headers);
+        const { value: submitResponse, responseHeaders } = await postJsonToApi2({
+          url: this.config.url({
+            path: "/videos",
+            modelId: this.modelId
+          }),
+          headers: mergedHeaders,
+          body,
+          failedResponseHandler: openrouterFailedResponseHandler,
+          successfulResponseHandler: createJsonResponseHandler2(
+            VideoGenerationSubmitResponseSchema
+          ),
+          abortSignal,
+          fetch: this.config.fetch
+        });
+        const pollIntervalMs = (_a163 = this.settings.pollIntervalMs) != null ? _a163 : DEFAULT_POLL_INTERVAL_MS;
+        const maxPollTimeMs = (_b162 = this.settings.maxPollTimeMs) != null ? _b162 : DEFAULT_MAX_POLL_TIME_MS;
+        const pollResult = await this.pollUntilComplete({
+          jobId: submitResponse.id,
+          headers: mergedHeaders,
+          abortSignal,
+          pollIntervalMs,
+          maxPollTimeMs
+        });
+        const videos = [];
+        if (pollResult.unsigned_urls) {
+          for (const url2 of pollResult.unsigned_urls) {
+            videos.push({
+              type: "url",
+              url: url2,
+              mediaType: "video/mp4"
+            });
+          }
+        }
+        const providerMetadata = {
+          openrouter: {
+            generationId: (_c = pollResult.generation_id) != null ? _c : null,
+            cost: (_e = (_d = pollResult.usage) == null ? void 0 : _d.cost) != null ? _e : null
+          }
+        };
+        return {
+          videos,
+          warnings,
+          providerMetadata,
+          response: {
+            timestamp: /* @__PURE__ */ new Date(),
+            modelId: this.modelId,
+            headers: responseHeaders
+          }
+        };
+      }
+      async pollUntilComplete({
+        jobId,
+        headers,
+        abortSignal,
+        pollIntervalMs,
+        maxPollTimeMs
+      }) {
+        var _a163;
+        const startTime = Date.now();
+        while (Date.now() - startTime < maxPollTimeMs) {
+          abortSignal == null ? void 0 : abortSignal.throwIfAborted();
+          await delay2(pollIntervalMs);
+          abortSignal == null ? void 0 : abortSignal.throwIfAborted();
+          const { value: pollResponse } = await getFromApi2({
+            url: this.config.url({
+              path: `/videos/${jobId}`,
+              modelId: this.modelId
+            }),
+            headers,
+            failedResponseHandler: openrouterFailedResponseHandler,
+            successfulResponseHandler: createJsonResponseHandler2(
+              VideoGenerationPollResponseSchema
+            ),
+            abortSignal,
+            fetch: this.config.fetch
+          });
+          if (pollResponse.status === "completed") {
+            return {
+              generation_id: pollResponse.generation_id,
+              unsigned_urls: pollResponse.unsigned_urls,
+              usage: pollResponse.usage
+            };
+          }
+          if (pollResponse.status === "failed" || pollResponse.status === "dead" || pollResponse.status === "cancelled" || pollResponse.status === "expired") {
+            throw new APICallError2({
+              message: (_a163 = pollResponse.error) != null ? _a163 : `Video generation failed with status: ${pollResponse.status}`,
+              url: this.config.url({
+                path: `/videos/${jobId}`,
+                modelId: this.modelId
+              }),
+              requestBodyValues: {},
+              statusCode: 500,
+              isRetryable: false
+            });
+          }
+        }
+        throw new APICallError2({
+          message: `Video generation timed out after ${maxPollTimeMs}ms`,
+          url: this.config.url({
+            path: `/videos/${jobId}`,
+            modelId: this.modelId
+          }),
+          requestBodyValues: {},
+          statusCode: 408,
+          isRetryable: true
+        });
+      }
+    };
+    openrouter = createOpenRouter({
+      compatibility: "strict"
+      // strict for OpenRouter API
+    });
+  }
 });
 
-// src/checkpoint.ts
-var import_node_crypto = __toESM(require("node:crypto"));
-var import_firestore2 = require("firebase-admin/firestore");
-init_firebase();
+// src/env.ts
+function getStorageBucketName(processEnv = process.env) {
+  const v = processEnv.FIREBASE_STORAGE_BUCKET?.trim() || processEnv.FB_STORAGE_BUCKET?.trim() || processEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (v) return v;
+  throw new Error(
+    "Missing required env FIREBASE_STORAGE_BUCKET (or FB_STORAGE_BUCKET / NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET)"
+  );
+}
+var init_env = __esm({
+  "src/env.ts"() {
+    "use strict";
+  }
+});
+
+// src/firebase.ts
+var firebase_exports = {};
+__export(firebase_exports, {
+  auth: () => auth,
+  db: () => db,
+  getStorageBucketName: () => getStorageBucketName
+});
+function loadServiceAccount() {
+  const json3 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (json3) {
+    return JSON.parse(json3);
+  }
+  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
+  if (b64) {
+    return JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
+  }
+  throw new Error(
+    "Missing Firebase service account key (FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_KEY)"
+  );
+}
+function getAdminApp() {
+  if ((0, import_app.getApps)().length > 0) {
+    return (0, import_app.getApps)()[0];
+  }
+  return (0, import_app.initializeApp)({
+    credential: (0, import_app.cert)(loadServiceAccount()),
+    storageBucket: getStorageBucketName()
+  });
+}
+var import_app, import_auth, import_firestore, app, db, auth;
+var init_firebase = __esm({
+  "src/firebase.ts"() {
+    "use strict";
+    import_app = require("firebase-admin/app");
+    import_auth = require("firebase-admin/auth");
+    import_firestore = require("firebase-admin/firestore");
+    init_env();
+    app = getAdminApp();
+    db = (0, import_firestore.getFirestore)(app);
+    auth = (0, import_auth.getAuth)(app);
+    db.settings({ ignoreUndefinedProperties: true });
+  }
+});
 
 // src/tools/catalog.ts
-var BASE_TOOLS = [
-  "run_command",
-  "write_file",
-  "read_file",
-  "search_files",
-  "web_search",
-  "web_extract",
-  "vision_analyze",
-  "str_replace",
-  "ask_clarification",
-  "image_generate",
-  "video_generate"
-];
-var SKILL_TOOLS = {
-  "edu-video": [
-    "transcribe_video",
-    "transliterate_captions",
-    "extract_concepts",
-    "generate_manim_script",
-    "render_manim_clip",
-    "plan_segments",
-    "scaffold_hf_project",
-    "restore_generation",
-    "render_hyperframes"
-  ],
-  "manim-video": ["generate_manim_script", "render_manim_clip"],
-  "hyperframes": ["render_hyperframes"]
-};
-var SKILL_BASE_OVERRIDES = {
-  "background-generation": [
-    "ask_clarification",
-    "image_generate",
-    "video_generate"
-  ]
-};
+var BASE_TOOLS, SKILL_TOOLS, SKILL_BASE_OVERRIDES;
+var init_catalog = __esm({
+  "src/tools/catalog.ts"() {
+    "use strict";
+    BASE_TOOLS = [
+      "run_command",
+      "write_file",
+      "read_file",
+      "search_files",
+      "web_search",
+      "web_extract",
+      "vision_analyze",
+      "str_replace",
+      "ask_clarification",
+      "image_generate",
+      "video_generate"
+    ];
+    SKILL_TOOLS = {
+      "edu-video": [
+        "transcribe_video",
+        "extract_concepts",
+        "generate_manim_script",
+        "render_manim_clip",
+        "plan_segments",
+        "scaffold_hf_project",
+        "restore_generation",
+        "render_hyperframes"
+      ],
+      "manim-video": ["generate_manim_script", "render_manim_clip"],
+      "hyperframes": ["render_hyperframes"]
+    };
+    SKILL_BASE_OVERRIDES = {
+      "background-generation": [
+        "ask_clarification",
+        "image_generate",
+        "video_generate"
+      ]
+    };
+  }
+});
 
 // src/sessionSkills.ts
 function isKnownSkill(value) {
@@ -35938,583 +35283,710 @@ function skillsEngagedByToolCalls(currentSkill, toolNames) {
   }
   return [...engaged];
 }
-
-// src/checkpoint.ts
-var PHASE_NUMBERS = {
-  transcription: 2,
-  concepts: 3,
-  manim_complete: 4,
-  segment_planning: 5,
-  scaffold: 5,
-  pre_render: 6
-};
-var RESUME_ARTIFACT_NEEDS = [
-  "transcript",
-  "concepts",
-  "manim_scripts",
-  "hf_project"
-];
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-function toDisplayData(checkpointId, input, status = "pending") {
-  return {
-    checkpointId,
-    kind: input.kind ?? "phase_gate",
-    status,
-    title: input.summary.title,
-    bullets: input.summary.bullets.filter(Boolean),
-    nextLabel: input.next.label,
-    nextDescription: input.next.description,
-    question: input.resume.question?.prompt,
-    choices: input.resume.question?.choices,
-    allowFreeform: input.resume.question?.allowFreeform ?? true,
-    ...input.resume.question?.presentation ? { presentation: input.resume.question.presentation } : {},
-    ...input.resume.question?.defaultChoiceId ? { defaultChoiceId: input.resume.question.defaultChoiceId } : {}
-  };
-}
-async function supersedePendingCheckpoints(sessionId) {
-  const pending = await db.collection("sessions").doc(sessionId).collection("checkpoints").where("status", "==", "pending").get();
-  const batch = db.batch();
-  for (const doc of pending.docs) {
-    batch.set(doc.ref, { status: "superseded" }, { merge: true });
+var init_sessionSkills = __esm({
+  "src/sessionSkills.ts"() {
+    "use strict";
+    init_catalog();
   }
-  if (!pending.empty) await batch.commit();
-}
-async function writeCheckpointDoc(ctx, input) {
-  const checkpointId = import_node_crypto.default.randomUUID();
-  const sessionRef = db.collection("sessions").doc(ctx.sessionId);
-  const cpRef = sessionRef.collection("checkpoints").doc(checkpointId);
-  const pipelinePhase = PHASE_NUMBERS[input.completedPhase] ?? 0;
-  await supersedePendingCheckpoints(ctx.sessionId);
-  const doc = {
-    id: checkpointId,
-    sessionId: ctx.sessionId,
-    createdAt: import_firestore2.FieldValue.serverTimestamp(),
-    status: "pending",
-    kind: input.kind ?? "phase_gate",
-    completedPhase: input.completedPhase,
-    completedPhaseLabel: input.completedPhaseLabel,
-    summary: input.summary,
-    next: input.next,
-    resume: input.resume
-  };
-  await cpRef.set(doc);
-  await sessionRef.set(
-    {
-      pendingCheckpointId: checkpointId,
-      pipelineStatus: "awaiting_checkpoint",
-      pipelinePhase,
-      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
-  return {
-    id: checkpointId,
-    display: toDisplayData(checkpointId, input)
-  };
-}
-async function writeAskCheckpoint(ctx, input) {
-  const hasChoices = Boolean(input.choices?.length);
-  const isPhaseGate = Boolean(input.phase_label) && !hasChoices;
-  const allowFreeform = input.allowFreeform ?? true;
-  const written = await writeCheckpointDoc(ctx, {
-    kind: isPhaseGate ? "phase_gate" : "question",
-    completedPhase: input.completedPhase ?? (isPhaseGate ? "clarification" : "concepts"),
-    completedPhaseLabel: input.phase_label ?? "Clarification",
-    summary: {
-      title: input.phase_label ?? "Need your input",
-      bullets: input.bullets ?? (input.context ? [input.context] : [])
-    },
-    next: {
-      label: "Continue",
-      description: "Answer or approve to continue the pipeline."
-    },
-    resume: {
-      artifactNeeds: RESUME_ARTIFACT_NEEDS,
-      assetKeys: ["transcript", "concepts", "manim_scripts", "composition", "hf_project"],
-      question: {
-        prompt: input.question,
-        choices: input.choices,
-        allowFreeform,
-        ...input.presentation ? { presentation: input.presentation } : {},
-        ...input.defaultChoiceId ? { defaultChoiceId: input.defaultChoiceId } : {}
-      }
+});
+
+// src/taggedAssets.ts
+function parseTaggedAssets(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_TAGGED_ASSETS).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { id, label, url: url2, type } = item;
+    if (typeof label !== "string" || !label.trim() || label.length > 120 || /[\r\n]/.test(label) || typeof type !== "string" || !type.trim() || type.length > 40 || /[\r\n]/.test(type) || typeof url2 !== "string" || url2.length > 2048) {
+      return [];
     }
-  });
-  return {
-    haltTurn: true,
-    checkpointId: written.id,
-    checkpointDisplay: written.display
-  };
-}
-async function answerCheckpointTransaction(sessionId, checkpointId, answer) {
-  return db.runTransaction(async (tx) => {
-    const sessionRef = db.collection("sessions").doc(sessionId);
-    const sessionSnap = await tx.get(sessionRef);
-    const session = sessionSnap.data();
-    if (!session?.pendingCheckpointId) return "none";
-    if (session.pendingCheckpointId !== checkpointId) return "stale";
-    const cpRef = sessionRef.collection("checkpoints").doc(checkpointId);
-    tx.set(
-      cpRef,
+    if (id !== void 0 && (typeof id !== "string" || !id.trim() || id.length > 120 || /[\r\n]/.test(id))) {
+      return [];
+    }
+    try {
+      if (new URL(url2).protocol !== "https:") return [];
+    } catch {
+      return [];
+    }
+    return [
       {
-        status: "answered",
-        answer: {
-          ...answer,
-          answeredAt: import_firestore2.FieldValue.serverTimestamp()
-        }
-      },
-      { merge: true }
-    );
-    tx.set(
-      sessionRef,
-      {
-        pendingCheckpointId: null,
-        pipelineStatus: "running",
-        pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
-    return "ok";
+        ...typeof id === "string" && id.trim() ? { id: id.trim() } : {},
+        label: label.trim(),
+        url: url2,
+        type: type.trim()
+      }
+    ];
   });
 }
-async function loadCheckpoint(sessionId, checkpointId) {
-  const snap = await db.collection("sessions").doc(sessionId).collection("checkpoints").doc(checkpointId).get();
-  if (!snap.exists) return null;
-  const data = snap.data();
-  return {
-    id: snap.id,
-    completedPhase: String(data.completedPhase ?? ""),
-    completedPhaseLabel: String(data.completedPhaseLabel ?? ""),
-    summary: data.summary,
-    next: data.next,
-    resume: data.resume,
-    answer: data.answer
-  };
+function formatReferencedAssets(assets) {
+  if (assets.length === 0) return "";
+  return [
+    "Referenced assets:",
+    ...assets.map(({ id, label, type, url: url2, localPath }) => {
+      const idPart = id ? ` id ${id} |` : "";
+      return `- ${label} (${type}):${idPart} URL ${url2} | internal path ${localPath}`;
+    }),
+    "For external HTTPS tools, pass each URL unchanged. For internal container tools, use its internal path.",
+    "Only use Referenced assets above. Do not use other session media or history URLs unless listed here."
+  ].join("\n");
 }
-async function getSessionPipelineFields(sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  const data = snap.data();
-  const mode = data?.pipelineMode;
-  const skillState = resolveSessionSkillState(data ?? {});
-  if (skillState.inferredSkills.length > 0) {
-    await recordSkillsUsed(sessionId, skillState.inferredSkills);
+function selectProcessingMedia(tagged, uploadUrls, uploadNames) {
+  if (tagged.length > 0) {
+    const media = tagged.filter(
+      (a) => a.type === "video" || a.type === "image"
+    );
+    return {
+      urls: media.map((a) => a.url),
+      names: media.map((a) => a.label)
+    };
   }
-  return {
-    pendingCheckpointId: typeof data?.pendingCheckpointId === "string" ? data.pendingCheckpointId : null,
-    pipelineMode: mode === "auto" ? "auto" : "ask",
-    skillId: skillState.legacySkillId,
-    skillsUsed: skillState.skillsUsed
-  };
+  return { urls: uploadUrls, names: uploadNames };
 }
-async function persistSkillId(sessionId, skillId) {
-  await db.collection("sessions").doc(sessionId).set({ skillId }, { merge: true });
-}
-async function recordSkillsUsed(sessionId, skills) {
-  const valid = [...new Set(skills)].filter(isKnownSkill);
-  if (valid.length === 0) return;
-  await db.collection("sessions").doc(sessionId).set({ skillsUsed: import_firestore2.FieldValue.arrayUnion(...valid) }, { merge: true });
-}
-async function persistPipelineMode(sessionId, pipelineMode) {
-  await db.collection("sessions").doc(sessionId).set({ pipelineMode }, { merge: true });
-}
-async function persistOrientation(sessionId, orientation) {
-  await db.collection("sessions").doc(sessionId).set({ orientation }, { merge: true });
-}
-async function getSessionOrientation(sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  return snap.data()?.orientation === "vertical" ? "vertical" : "horizontal";
-}
-async function persistCaptionMode(sessionId, captionMode, captionModeApplied) {
-  await db.collection("sessions").doc(sessionId).set({ captionMode, captionModeApplied }, { merge: true });
-}
-async function getSessionCaptionMode(sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  const data = snap.data() ?? {};
-  const raw = data.captionMode;
-  const captionMode = raw === "native" || raw === "english_worded" ? raw : void 0;
-  return {
-    ...captionMode ? { captionMode } : {},
-    captionModeApplied: data.captionModeApplied === true
-  };
-}
-async function persistRequestedLanguage(sessionId, requestedLanguage) {
-  await db.collection("sessions").doc(sessionId).set({ requestedLanguage }, { merge: true });
-}
-async function getSessionRequestedLanguage(sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  const raw = snap.data()?.requestedLanguage;
-  if (typeof raw !== "string" || !raw.trim()) return void 0;
-  return raw.trim().toLowerCase();
-}
-async function clearPendingCheckpoint(sessionId) {
-  const sessionRef = db.collection("sessions").doc(sessionId);
-  const snap = await sessionRef.get();
-  const pendingId = snap.data()?.pendingCheckpointId;
-  if (typeof pendingId === "string") {
-    await sessionRef.collection("checkpoints").doc(pendingId).set({ status: "superseded" }, { merge: true });
-  }
-  await sessionRef.set(
-    {
-      pendingCheckpointId: null,
-      pipelineStatus: "running",
-      pipelineUpdatedAt: import_firestore2.FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-var CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME \u2014 MANDATORY NEXT TOOL
-1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
-2. Immediately after those edits succeed, call ask_clarification exactly once with:
-   - phase_label: "Video orientation"
-   - question: "Choose video orientation to continue."
-   - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
-   - allowFreeform: false
-3. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn.
-4. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
-function buildResumeSystemContext(checkpoint) {
-  const answer = checkpoint.answer;
-  const answerLine = answer ? `- User response: ${answer.type}: "${answer.text}"` : "- User response: (none recorded)";
-  const choiceId = answer?.choiceId;
-  const orientationChosen = choiceId === "horizontal" || choiceId === "vertical" ? choiceId : null;
-  const answerType = answer?.type;
-  let phaseGuidance = "";
-  if (checkpoint.completedPhaseLabel === "Concepts extracted") {
-    if (answerType === "revision" || answerType === "freeform") {
-      phaseGuidance = `
-
-${CONCEPTS_REVISION_RESUME_MANDATORY}`;
-    } else {
-      phaseGuidance = `
-- concepts.json is restored and user-approved. Do NOT call extract_concepts again.
-- Do not ask for a video URL \u2014 transcription already completed.
-- Do NOT call generate_manim_script yet \u2014 video orientation is next.`;
-    }
-  } else if (checkpoint.completedPhaseLabel === "Video orientation") {
-    phaseGuidance = `
-- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
-- Do not ask for a video URL \u2014 transcription already completed; next step is Manim via concepts.json.${orientationChosen ? `
-- Orientation chosen: ${orientationChosen}. Session already stores it \u2014 generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.` : ""}`;
-  } else if (checkpoint.completedPhaseLabel === "Transcription language") {
-    phaseGuidance = `
-- Call transcribe_video again with the same video_url to continue with the chosen language.
-- Do NOT call extract_concepts, transliterate_captions, or scaffold yet.`;
-  } else if (checkpoint.completedPhaseLabel === "Caption style") {
-    phaseGuidance = `
-- Call transliterate_captions once to apply the caption-style choice (Native / English Worded).
-- Do NOT call extract_concepts until transliterate_captions returns with caption_mode_applied.
-- Native: near-instant, no script change. English Worded: one Sarvam Batch translit job mapped onto Groq word timestamps (may re-extract audio on first use).`;
-  }
-  const continueLine = checkpoint.completedPhaseLabel === "Transcription language" ? "- Continue after transcribe_video succeeds \u2014 then transliterate_captions in Ask mode." : checkpoint.completedPhaseLabel === "Caption style" ? "- Continue after transliterate_captions succeeds \u2014 then extract_concepts." : "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
-  return `
-CHECKPOINT RESUME
-- Completed: ${checkpoint.completedPhaseLabel} \u2014 ${checkpoint.summary.title}
-${answerLine}${phaseGuidance}
-${continueLine}
-- Do not invent counts, concept names, or status for work not confirmed by this turn's tool results. Prior phases already shown on the checkpoint card \u2014 do not re-narrate them.`.trim();
-}
-function isHaltTurnOutput(output) {
-  return typeof output === "object" && output !== null && output.haltTurn === true;
-}
-var CheckpointConflictError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "CheckpointConflictError";
-  }
-};
-
-// src/messagePruning.ts
-var KEEP_EXCHANGES = 4;
-function segmentExchanges(messages) {
-  const exchanges = [];
-  let i = 0;
-  while (i < messages.length) {
-    if (messages[i].role === "assistant") {
-      const assistantIndex = i;
-      i++;
-      const toolIndices = [];
-      while (i < messages.length && messages[i].role === "tool") {
-        toolIndices.push(i);
-        i++;
-      }
-      if (toolIndices.length > 0) {
-        exchanges.push({ assistantIndex, toolIndices });
-      }
-      continue;
-    }
-    i++;
-  }
-  return exchanges;
-}
-function parseOutputValue(output) {
-  if (output == null) {
-    return {};
-  }
-  if (typeof output === "string") {
+function assertTaggedUrlAllowed(url2, taggedArtifacts) {
+  const allowed = taggedArtifacts.map((a) => a.url).filter((u) => {
     try {
-      const parsed = JSON.parse(output);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed;
-      }
+      return new URL(u).protocol === "https:";
     } catch {
-      return {};
+      return false;
     }
-    return {};
-  }
-  if (typeof output !== "object" || Array.isArray(output)) {
-    return {};
-  }
-  const typed = output;
-  if (typed.type === "json" && typed.value && typeof typed.value === "object") {
-    return typed.value;
-  }
-  if (typed.type === "text" && typeof typed.value === "string") {
-    try {
-      const parsed = JSON.parse(typed.value);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch {
-      return {};
-    }
-  }
-  return output;
-}
-function summarizeToolName(toolName, output) {
-  const data = parseOutputValue(output);
-  switch (toolName) {
-    case "transcribe_video":
-      return `[transcript: ${String(data.word_count ?? "?")} words, ${String(data.duration_seconds ?? "?")}s \u2192 ${String(data.transcript_url ?? "?")}]`;
-    case "generate_manim_script":
-      return `[manim script generated for ${String(data.concept_name ?? "unknown")} \u2014 truncated]`;
-    case "render_manim_clip":
-      return `[clip rendered: ${String(data.concept_name ?? "unknown")} \u2192 ${String(data.clip_url ?? "?")}]`;
-    case "run_command":
-      return `[command ran \u2014 exit ${String(data.exit_code ?? "?")}]`;
-    case "read_file":
-      return `[read file: ${String(data.path ?? "?")} \u2014 ${String(data.bytes ?? "?")} bytes]`;
-    case "search_files": {
-      const matchCount = Array.isArray(data.matches) ? data.matches.length : 0;
-      return `[searched ${String(data.directory ?? "?")} \u2014 ${matchCount} matches]`;
-    }
-    case "scaffold_hf_project":
-      return `[HyperFrames project scaffolded \u2192 ${String(data.composition_url ?? "?")}]`;
-    default:
-      return null;
-  }
-}
-function summarizeToolMessage(message) {
-  if (message.role !== "tool" || !Array.isArray(message.content)) {
-    return message;
-  }
-  return {
-    ...message,
-    content: message.content.map((part) => {
-      if (part.type !== "tool-result") {
-        return part;
-      }
-      const summary = summarizeToolName(part.toolName, part.output);
-      if (summary === null) {
-        return part;
-      }
-      return {
-        ...part,
-        output: { type: "text", value: summary }
-      };
-    })
-  };
-}
-function pruneToolResults(messages) {
-  const exchanges = segmentExchanges(messages);
-  if (exchanges.length <= KEEP_EXCHANGES) {
-    return messages;
-  }
-  const pruneBeforeIndex = exchanges.length - KEEP_EXCHANGES;
-  const indicesToPrune = /* @__PURE__ */ new Set();
-  for (let exchangeIndex = 0; exchangeIndex < pruneBeforeIndex; exchangeIndex++) {
-    for (const toolIndex of exchanges[exchangeIndex].toolIndices) {
-      indicesToPrune.add(toolIndex);
-    }
-  }
-  return messages.map(
-    (message, index) => indicesToPrune.has(index) ? summarizeToolMessage(message) : message
-  );
-}
-
-// src/errorMessage.ts
-function errorMessage(error40) {
-  if (error40 instanceof Error) return error40.message;
-  if (typeof error40 === "string") return error40;
-  if (error40 && typeof error40 === "object" && "message" in error40 && typeof error40.message === "string" && error40.message.trim()) {
-    return error40.message;
-  }
+  });
+  if (allowed.length === 0) return;
+  let isHttps = false;
   try {
-    const serialized = JSON.stringify(error40);
-    if (serialized && serialized !== "{}" && serialized !== "null") {
-      return serialized;
+    isHttps = new URL(url2).protocol === "https:";
+  } catch {
+    return;
+  }
+  if (!isHttps) return;
+  if (allowed.includes(url2)) return;
+  throw new Error(
+    `URL not in tagged allowlist. Retry with one of: ${allowed.join(", ")}`
+  );
+}
+var MAX_TAGGED_ASSETS;
+var init_taggedAssets = __esm({
+  "src/taggedAssets.ts"() {
+    "use strict";
+    MAX_TAGGED_ASSETS = 8;
+  }
+});
+
+// src/session.ts
+function textParts(content) {
+  return content ? [{ type: "text", text: content }] : [];
+}
+function withVideoUrlInContent(content, videoUrl) {
+  if (!videoUrl || content.includes(videoUrl)) return content;
+  return `${content}
+
+Video URL for processing: ${videoUrl}`;
+}
+async function ensureSession(sessionId, userId, title, extras) {
+  const ref2 = db.collection("sessions").doc(sessionId);
+  const existing = await ref2.get();
+  const payload = {
+    userId,
+    status: "active"
+  };
+  if (!existing.exists) {
+    payload.createdAt = import_firestore2.FieldValue.serverTimestamp();
+    payload.lastMessageAt = import_firestore2.FieldValue.serverTimestamp();
+  }
+  if (!existing.exists || !existing.data()?.title) {
+    payload.title = title.slice(0, 80) || "Untitled Chat";
+  }
+  if (extras?.videoUrl) payload.videoUrl = extras.videoUrl;
+  if (extras?.videoName) payload.videoName = extras.videoName;
+  await ref2.set(payload, { merge: true });
+}
+async function loadMessages(sessionId, _userId) {
+  try {
+    const snapshot = await db.collection("sessions").doc(sessionId).collection("messages").orderBy("createdAt", "asc").get();
+    if (snapshot.empty) {
+      return [];
+    }
+    const uiMessages = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      const role = data.role;
+      const videoUrl = typeof data.videoUrl === "string" ? data.videoUrl : void 0;
+      const content = withVideoUrlInContent(
+        typeof data.content === "string" ? data.content : "",
+        videoUrl
+      );
+      const storedParts = Array.isArray(data.parts) ? data.parts : null;
+      const parts = storedParts && storedParts.length > 0 ? storedParts : textParts(content);
+      return { role, parts };
+    });
+    try {
+      return await convertToModelMessages(uiMessages, {
+        ignoreIncompleteToolCalls: true
+      });
+    } catch (err) {
+      console.error(
+        "[session] convertToModelMessages failed, falling back to text:",
+        err
+      );
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        const videoUrl = typeof data.videoUrl === "string" ? data.videoUrl : void 0;
+        return {
+          role: data.role,
+          content: withVideoUrlInContent(
+            typeof data.content === "string" ? data.content : "",
+            videoUrl
+          )
+        };
+      });
     }
   } catch {
+    return [];
   }
-  return "An error occurred.";
 }
-
-// src/systemPromptCache.ts
-var import_fs2 = __toESM(require("fs"));
-var import_path2 = __toESM(require("path"));
-
-// src/skills.ts
-var import_fs = __toESM(require("fs"));
-var import_path = __toESM(require("path"));
-var SKILLS_DIR = import_path.default.resolve(__dirname, "../../../Skills");
-var DEFAULT_AGENT_PROMPT = `You are OkVevo AI, a helpful assistant for creating educational videos from lecture recordings.
-
-When a user wants to create an educational video, use your tools to complete the full pipeline: transcribe \u2192 extract concepts \u2192 render animations \u2192 build composition \u2192 render video.
-
-Call tools autonomously in the right order. Narrate what you are doing in a friendly, conversational way. When the video is ready, tell the user it is ready (the UI shows the player \u2014 never paste a URL) and ask if they want any changes.
-
-For all other messages, respond conversationally.`;
-function resolveSkill(skillId, message) {
-  if (skillId) {
-    const normalized = skillId.replace(/^\//, "").trim();
-    if (normalized) {
-      const skillPath = import_path.default.join(SKILLS_DIR, normalized, "SKILL.md");
-      if (import_fs.default.existsSync(skillPath)) {
-        return normalized;
-      }
-      console.warn(`Skill not found for skillId: ${skillId}`);
-    }
-  }
-  return detectSkill(message);
-}
-function detectSkill(message) {
-  const text2 = message.toLowerCase();
-  const skillTriggers = [
-    {
-      skill: "edu-video",
-      triggers: [
-        "/edu-video",
-        "educational video",
-        "edu video",
-        "lecture video",
-        "teacher video",
-        "teaching video"
-      ]
-    },
-    {
-      skill: "background-generation",
-      triggers: [
-        "/background-generation",
-        "background",
-        "backdrop",
-        "background image",
-        "background video",
-        "studio background"
-      ]
-    }
-  ];
-  for (const { skill, triggers } of skillTriggers) {
-    if (triggers.some((trigger) => text2.includes(trigger))) {
-      return skill;
-    }
-  }
-  return null;
-}
-function loadSkillMd(skillName) {
-  const skillPath = import_path.default.join(SKILLS_DIR, skillName, "SKILL.md");
-  if (!import_fs.default.existsSync(skillPath)) {
-    throw new Error(`SKILL.md not found: Skills/${skillName}/SKILL.md`);
-  }
-  return import_fs.default.readFileSync(skillPath, "utf-8");
-}
-function loadAgentMd() {
-  const agentPath = import_path.default.join(SKILLS_DIR, "AGENT.md");
-  if (import_fs.default.existsSync(agentPath)) {
-    return import_fs.default.readFileSync(agentPath, "utf-8");
-  }
-  return DEFAULT_AGENT_PROMPT;
-}
-
-// src/systemPromptCache.ts
-var SKILLS_DIR2 = import_path2.default.resolve(__dirname, "../../../Skills");
-var systemPromptCache = /* @__PURE__ */ new Map();
-function getAgentMdMtime() {
-  const agentPath = import_path2.default.join(SKILLS_DIR2, "AGENT.md");
-  if (!import_fs2.default.existsSync(agentPath)) {
-    return 0;
-  }
-  return import_fs2.default.statSync(agentPath).mtimeMs;
-}
-function getSkillMdMtime(skillName) {
-  const skillPath = import_path2.default.join(SKILLS_DIR2, skillName, "SKILL.md");
-  if (!import_fs2.default.existsSync(skillPath)) {
-    return 0;
-  }
-  return import_fs2.default.statSync(skillPath).mtimeMs;
-}
-function buildSystemPrompt(skillName) {
-  let prompt = loadAgentMd();
-  if (!skillName) {
-    return prompt;
-  }
-  try {
-    const skillMd = loadSkillMd(skillName);
-    prompt = `${prompt}
-
----
-
-${skillMd}`;
-  } catch (error40) {
-    console.warn(`Skill not found: ${skillName}`, error40);
-  }
-  return prompt;
-}
-function getCachedSystemPrompt(sessionId, skillName) {
-  const agentMdMtime = getAgentMdMtime();
-  const skillMdMtime = skillName ? getSkillMdMtime(skillName) : null;
-  const cached2 = systemPromptCache.get(sessionId);
-  if (cached2 && cached2.skillName === skillName && cached2.agentMdMtime === agentMdMtime && cached2.skillMdMtime === skillMdMtime) {
-    return cached2.prompt;
-  }
-  const prompt = buildSystemPrompt(skillName);
-  systemPromptCache.set(sessionId, {
-    prompt,
-    skillName,
-    agentMdMtime,
-    skillMdMtime
+async function saveMessage(sessionId, _userId, role, content, parts, extras) {
+  const taggedAssets = extras?.taggedAssets?.length ? parseTaggedAssets(extras.taggedAssets) : [];
+  await db.collection("sessions").doc(sessionId).collection("messages").add({
+    role,
+    content,
+    ...parts && parts.length > 0 ? { parts } : {},
+    ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
+    ...extras?.videoName ? { videoName: extras.videoName } : {},
+    ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {},
+    ...taggedAssets.length > 0 ? { taggedAssets } : {},
+    createdAt: import_firestore2.FieldValue.serverTimestamp()
   });
-  return prompt;
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      lastMessageAt: import_firestore2.FieldValue.serverTimestamp(),
+      messageCount: import_firestore2.FieldValue.increment(1),
+      ...extras?.videoUrl ? { videoUrl: extras.videoUrl } : {},
+      ...extras?.videoName ? { videoName: extras.videoName } : {},
+      ...extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}
+    },
+    { merge: true }
+  );
 }
+var import_firestore2;
+var init_session = __esm({
+  "src/session.ts"() {
+    "use strict";
+    import_firestore2 = require("firebase-admin/firestore");
+    init_dist5();
+    init_firebase();
+    init_taggedAssets();
+  }
+});
 
-// src/tools/general/filesystem.ts
-var import_fs6 = __toESM(require("fs"));
-var import_path6 = __toESM(require("path"));
-init_dist5();
-init_zod();
+// src/finalVideoBasename.ts
+function nextFinalVideoBasename(existingNames) {
+  const taken = new Set(
+    [...existingNames].map((name26) => name26.toLowerCase())
+  );
+  if (!taken.has("final.mp4")) return "final.mp4";
+  let n = 2;
+  while (taken.has(`final_${n}.mp4`)) n += 1;
+  return `final_${n}.mp4`;
+}
+var FINAL_VIDEO_NAME_RE;
+var init_finalVideoBasename = __esm({
+  "src/finalVideoBasename.ts"() {
+    "use strict";
+    FINAL_VIDEO_NAME_RE = /^(final(?:_\d+)?|draft_video)\.mp4$/i;
+  }
+});
+
+// src/manimClipBasename.ts
+function nextManimClipBasename(safeName, existingBasenames) {
+  const taken = new Set([...existingBasenames].map((name26) => name26.toLowerCase()));
+  const first = `${safeName}.mp4`;
+  if (!taken.has(first.toLowerCase())) return first;
+  let n = 2;
+  while (taken.has(`${safeName}_${n}.mp4`.toLowerCase())) n += 1;
+  return `${safeName}_${n}.mp4`;
+}
+var init_manimClipBasename = __esm({
+  "src/manimClipBasename.ts"() {
+    "use strict";
+  }
+});
+
+// src/tools/lib/renderSnapshot.ts
+function draftMetadataFromRenderSnapshot(snap) {
+  if (!snap || typeof snap !== "object") return void 0;
+  if (snap.orientation !== "horizontal" && snap.orientation !== "vertical" || typeof snap.speaker_video_url !== "string" || !Array.isArray(snap.manim_clips) || !Array.isArray(snap.transcript_words) || typeof snap.total_duration !== "number" || !snap.segments_plan || !Array.isArray(snap.segments_plan.segments)) {
+    return void 0;
+  }
+  const meta = {
+    orientation: snap.orientation,
+    speaker_video_url: snap.speaker_video_url,
+    manim_clips: snap.manim_clips,
+    transcript_words: snap.transcript_words,
+    total_duration: snap.total_duration,
+    segments_plan: snap.segments_plan
+  };
+  if (snap.speaker_audio_url != null && snap.speaker_audio_url !== "") {
+    meta.speaker_audio_url = snap.speaker_audio_url;
+  }
+  if (typeof snap.composition_manifest_url === "string" && snap.composition_manifest_url) {
+    meta.composition_manifest_url = snap.composition_manifest_url;
+  }
+  if (snap.brand_colors) {
+    meta.brand_colors = snap.brand_colors;
+  }
+  return meta;
+}
+function parseRestoreRecipe(metadata) {
+  if (!metadata || typeof metadata !== "object") {
+    throw new Error(
+      "This draft_video has no restore snapshot (pre-snapshot final or incomplete metadata). Tag a final rendered after snapshot support, or rebuild from the live session."
+    );
+  }
+  const m = metadata;
+  if (m.orientation !== "horizontal" && m.orientation !== "vertical") {
+    throw incomplete("orientation");
+  }
+  if (typeof m.speaker_video_url !== "string" || !m.speaker_video_url) {
+    throw incomplete("speaker_video_url");
+  }
+  if (!Array.isArray(m.manim_clips)) throw incomplete("manim_clips");
+  if (!Array.isArray(m.transcript_words)) throw incomplete("transcript_words");
+  if (typeof m.total_duration !== "number") throw incomplete("total_duration");
+  const plan = m.segments_plan;
+  if (!plan || !Array.isArray(plan.segments) || typeof plan.total_duration !== "number") {
+    throw incomplete("segments_plan");
+  }
+  return {
+    orientation: m.orientation,
+    speaker_video_url: m.speaker_video_url,
+    ...typeof m.speaker_audio_url === "string" && m.speaker_audio_url ? { speaker_audio_url: m.speaker_audio_url } : {},
+    manim_clips: m.manim_clips,
+    transcript_words: m.transcript_words,
+    total_duration: m.total_duration,
+    segments_plan: { segments: plan.segments, total_duration: plan.total_duration },
+    ...m.brand_colors && typeof m.brand_colors === "object" ? { brand_colors: m.brand_colors } : {}
+  };
+}
+function incomplete(field) {
+  return new Error(
+    `This draft_video restore snapshot is incomplete (missing ${field}). Pre-snapshot finals cannot be restored \u2014 rebuild from the live session or re-render a new final.`
+  );
+}
+var init_renderSnapshot = __esm({
+  "src/tools/lib/renderSnapshot.ts"() {
+    "use strict";
+  }
+});
+
+// src/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  allocateFinalVideoBasename: () => allocateFinalVideoBasename,
+  allocateManimClipBasename: () => allocateManimClipBasename,
+  backgroundAssetIdentity: () => backgroundAssetIdentity,
+  claimHeygenEvent: () => claimHeygenEvent,
+  downloadStoragePrefixToDir: () => downloadStoragePrefixToDir,
+  finalizeBackgroundFromUrl: () => finalizeBackgroundFromUrl,
+  finalizeRenderFromLocalFile: () => finalizeRenderFromLocalFile,
+  finalizeRenderFromS3: () => finalizeRenderFromS3,
+  finalizeRenderFromUrl: () => finalizeRenderFromUrl,
+  getAssetUrl: () => getAssetUrl,
+  getHfSegmentsPlan: () => getHfSegmentsPlan,
+  getRenderJob: () => getRenderJob,
+  getTempPath: () => getTempPath,
+  listSessionAssetUrls: () => listSessionAssetUrls,
+  nextFinalVideoBasename: () => nextFinalVideoBasename,
+  nextManimClipBasename: () => nextManimClipBasename,
+  parseStoragePathFromPublicUrl: () => parseStoragePathFromPublicUrl,
+  persistRenderJob: () => persistRenderJob,
+  recordRenderFailure: () => recordRenderFailure,
+  selfcheckBackgroundIdentity: () => selfcheckBackgroundIdentity,
+  uploadDirectoryToStorage: () => uploadDirectoryToStorage,
+  uploadFileToStorageKeepLocal: () => uploadFileToStorageKeepLocal,
+  uploadToStorage: () => uploadToStorage,
+  walkDir: () => walkDir,
+  writeAssetUrl: () => writeAssetUrl,
+  writeHfSegmentsPlan: () => writeHfSegmentsPlan
+});
+function getPublicUrl(bucketName, storagePath) {
+  return `https://storage.googleapis.com/${bucketName}/${storagePath}`;
+}
+function getTempPath(filename) {
+  return import_path.default.join(import_os.default.tmpdir(), filename);
+}
+function walkDir(dir) {
+  const results = [];
+  for (const entry of import_fs.default.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = import_path.default.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...walkDir(fullPath));
+    } else {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+function contentTypeForPath(filePath) {
+  const ext = import_path.default.extname(filePath).toLowerCase();
+  switch (ext) {
+    case ".json":
+      return "application/json";
+    case ".html":
+      return "text/html";
+    case ".mp4":
+      return "video/mp4";
+    case ".webm":
+      return "video/webm";
+    case ".mov":
+      return "video/quicktime";
+    case ".mp3":
+      return "audio/mpeg";
+    case ".flac":
+      return "audio/flac";
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".css":
+      return "text/css";
+    case ".js":
+      return "application/javascript";
+    case ".py":
+      return "text/x-python";
+    default:
+      return "application/octet-stream";
+  }
+}
+async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const fileRef = bucket.file(storagePath);
+  await fileRef.save(import_fs.default.readFileSync(localFilePath), {
+    resumable: false,
+    metadata: {
+      contentType: contentTypeForPath(localFilePath)
+    }
+  });
+  await fileRef.makePublic();
+  const url2 = getPublicUrl(fileRef.bucket.name, storagePath);
+  if (options.deleteLocal !== false) {
+    try {
+      import_fs.default.unlinkSync(localFilePath);
+    } catch {
+    }
+  }
+  return url2;
+}
+async function uploadToStorage(localFilePath, storagePath) {
+  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: true });
+}
+async function uploadFileToStorageKeepLocal(localFilePath, storagePath) {
+  return uploadFileToStorage(localFilePath, storagePath, { deleteLocal: false });
+}
+async function uploadDirectoryToStorage(localDir, storagePrefix) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefixUrl = getPublicUrl(bucket.name, storagePrefix);
+  let indexUrl = "";
+  for (const filePath of walkDir(localDir)) {
+    const relative = import_path.default.relative(localDir, filePath).replace(/\\/g, "/");
+    const storagePath = `${storagePrefix}/${relative}`;
+    const url2 = await uploadFileToStorage(filePath, storagePath, { deleteLocal: false });
+    if (relative === "index.html") {
+      indexUrl = url2;
+    }
+  }
+  if (!indexUrl) {
+    indexUrl = getPublicUrl(bucket.name, `${storagePrefix}/index.html`);
+  }
+  return { indexUrl, prefixUrl };
+}
+async function getAssetUrl(userId, sessionId, assetKey) {
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").where("kind", "==", assetKey).orderBy("createdAt", "desc").limit(1).get();
+  const url2 = snap.docs[0]?.data()?.url;
+  return typeof url2 === "string" && url2.length > 0 ? url2 : null;
+}
+function parseStoragePathFromPublicUrl(url2) {
+  const parsed = new URL(url2);
+  const segments = parsed.pathname.replace(/^\//, "").split("/");
+  return segments.slice(1).join("/");
+}
+async function downloadStoragePrefixToDir(storagePrefix, localDir) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefix = storagePrefix.endsWith("/") ? storagePrefix : `${storagePrefix}/`;
+  const [files] = await bucket.getFiles({ prefix });
+  for (const file2 of files) {
+    if (file2.name.endsWith("/")) continue;
+    const relative = file2.name.slice(prefix.length);
+    if (!relative) continue;
+    const dest = import_path.default.join(localDir, ...relative.split("/"));
+    import_fs.default.mkdirSync(import_path.default.dirname(dest), { recursive: true });
+    await file2.download({ destination: dest });
+  }
+}
+async function writeAssetUrl(userId, sessionId, kind, url2, fields) {
+  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").add({
+    kind,
+    url: url2,
+    status: "ready",
+    createdAt: import_firestore3.FieldValue.serverTimestamp(),
+    ...fields?.label !== void 0 ? { label: fields.label } : {},
+    ...fields?.mimeType !== void 0 ? { mimeType: fields.mimeType } : {},
+    ...fields?.sourceTool !== void 0 ? { sourceTool: fields.sourceTool } : {},
+    ...fields?.metadata !== void 0 ? { metadata: fields.metadata } : {}
+  });
+}
+async function writeHfSegmentsPlan(userId, sessionId, plan) {
+  await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").set({ ...plan, updatedAt: import_firestore3.FieldValue.serverTimestamp() });
+}
+async function getHfSegmentsPlan(userId, sessionId) {
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("hf_segments").doc("plan").get();
+  return snap.exists ? snap.data() : null;
+}
+async function allocateFinalVideoBasename(userId, sessionId) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names = [];
+  for (const file2 of files) {
+    const name26 = file2.name.slice(prefix.length);
+    if (!name26 || name26.includes("/")) continue;
+    if (FINAL_VIDEO_NAME_RE.test(name26)) names.push(name26);
+  }
+  const session = (await db.collection("sessions").doc(sessionId).get()).data();
+  if (session?.userId === userId && session.renderStatus === "RUNNING" && typeof session.renderOutputKey === "string") {
+    const reserved = import_path.default.basename(session.renderOutputKey);
+    if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
+  }
+  return nextFinalVideoBasename(names);
+}
+async function allocateManimClipBasename(userId, sessionId, safeName) {
+  const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/manim/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names = [];
+  for (const file2 of files) {
+    const name26 = file2.name.slice(prefix.length);
+    if (!name26 || name26.includes("/")) continue;
+    names.push(name26);
+  }
+  return nextManimClipBasename(safeName, names);
+}
+async function listSessionAssetUrls(userId, sessionId) {
+  const snap = await db.collection("users").doc(userId).collection("sessions").doc(sessionId).collection("assets").get();
+  const urls = [];
+  for (const doc of snap.docs) {
+    const url2 = doc.data()?.url;
+    if (typeof url2 === "string" && url2) urls.push(url2);
+  }
+  return urls;
+}
+async function persistRenderJob(userId, sessionId, job) {
+  const payload = {
+    renderExecutionArn: job.executionArn,
+    renderOutputKey: job.outputKey,
+    renderStatus: "RUNNING",
+    renderCompositionUrl: job.compositionUrl,
+    pipelinePhase: 6,
+    pipelineStatus: "rendering",
+    pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp()
+  };
+  await db.collection("sessions").doc(sessionId).set({ userId, ...payload }, { merge: true });
+  return { ...job, renderStatus: "RUNNING" };
+}
+async function getRenderJob(userId, sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const data = snap.data();
+  if (!snap.exists || data?.userId !== userId) return null;
+  if (typeof data.renderExecutionArn !== "string" || typeof data.renderOutputKey !== "string") {
+    return null;
+  }
+  return {
+    executionArn: data.renderExecutionArn,
+    outputKey: data.renderOutputKey,
+    renderStatus: typeof data.renderStatus === "string" ? data.renderStatus : "RUNNING",
+    compositionUrl: typeof data.renderCompositionUrl === "string" ? data.renderCompositionUrl : void 0
+  };
+}
+async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferredBasename) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const basename = preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename) ? preferredBasename : await allocateFinalVideoBasename(userId, sessionId);
+  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
+  const videoUrl = await uploadToStorage(tempPath, firebasePath);
+  const metadata = draftMetadataFromRenderSnapshot(
+    current?.renderSnapshot
+  );
+  await writeAssetUrl(userId, sessionId, "draft_video", videoUrl, {
+    label: basename,
+    mimeType: "video/mp4",
+    ...metadata ? { metadata } : {}
+  });
+  await sessionRef.set(
+    {
+      renderStatus: "SUCCEEDED",
+      renderError: import_firestore3.FieldValue.delete(),
+      draftVideoUrl: videoUrl,
+      pipelinePhase: 7,
+      pipelineStatus: "complete",
+      pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp(),
+      // First success only: clear stash so a later scaffold does not attach to this draft.
+      renderSnapshot: import_firestore3.FieldValue.delete()
+    },
+    { merge: true }
+  );
+  try {
+    const text2 = "Your educational video is ready.";
+    await saveMessage(sessionId, userId, "assistant", text2, [
+      { type: "text", text: text2 }
+    ], { videoUrl });
+  } catch (err) {
+    console.error("[finalize] failed to post draft video chat message:", err);
+  }
+  return videoUrl;
+}
+async function finalizeRenderFromUrl(userId, sessionId, videoUrl) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${videoUrl}`);
+  }
+  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
+  } finally {
+    import_fs.default.rmSync(tempPath, { force: true });
+  }
+}
+async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const current = (await sessionRef.get()).data();
+  if (current?.userId === userId && current.renderStatus === "SUCCEEDED" && typeof current.draftVideoUrl === "string") {
+    return current.draftVideoUrl;
+  }
+  const response = await new import_client_s3.S3Client({ region }).send(
+    new import_client_s3.GetObjectCommand({ Bucket: bucketName, Key: outputKey })
+  );
+  if (!response.Body) throw new Error("Render output is missing from S3");
+  const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
+  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
+  try {
+    return await finalizeRenderFromLocalFile(
+      userId,
+      sessionId,
+      tempPath,
+      import_path.default.basename(outputKey)
+    );
+  } finally {
+    import_fs.default.rmSync(tempPath, { force: true });
+  }
+}
+function backgroundAssetIdentity(kind, entryId) {
+  const isImage = kind === "fal_image";
+  return {
+    assetKind: isImage ? "background_image" : "background_video",
+    filename: isImage ? `background-${entryId}.png` : `background-${entryId}.mp4`,
+    label: isImage ? `Background Image ${entryId}` : `Background Video ${entryId}`
+  };
+}
+async function finalizeBackgroundFromUrl(userId, sessionId, kind, mediaUrl) {
+  const isImage = kind === "fal_image";
+  const ext = isImage ? "png" : "mp4";
+  const entryId = crypto.randomUUID().slice(0, 8);
+  const { assetKind, filename, label } = backgroundAssetIdentity(kind, entryId);
+  const tempPath = getTempPath(`fal-${sessionId}-${entryId}.${ext}`);
+  const response = await fetch(mediaUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${mediaUrl}`);
+  }
+  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  try {
+    const storagePath = `users/${userId}/sessions/${sessionId}/${filename}`;
+    const publicUrl = await uploadToStorage(tempPath, storagePath);
+    await writeAssetUrl(userId, sessionId, assetKind, publicUrl, {
+      label,
+      mimeType: isImage ? "image/png" : "video/mp4",
+      sourceTool: "fal"
+    });
+    const text2 = isImage ? "Your background image is ready." : "Your background video is ready.";
+    try {
+      await saveMessage(
+        sessionId,
+        userId,
+        "assistant",
+        text2,
+        [{ type: "text", text: text2 }],
+        isImage ? { imageUrl: publicUrl } : { videoUrl: publicUrl }
+      );
+    } catch (err) {
+      console.error("[finalize] failed to post fal background chat message:", err);
+    }
+    return publicUrl;
+  } finally {
+    import_fs.default.rmSync(tempPath, { force: true });
+  }
+}
+function selfcheckBackgroundIdentity() {
+  const a = backgroundAssetIdentity("fal_image", "abc12def");
+  const b = backgroundAssetIdentity("fal_image", "xyz99zzz");
+  if (a.filename === b.filename) {
+    throw new Error("background identity must be unique per entryId");
+  }
+  if (a.filename !== "background-abc12def.png" || a.assetKind !== "background_image") {
+    throw new Error(`unexpected image identity ${a.filename}/${a.assetKind}`);
+  }
+  const v = backgroundAssetIdentity("fal_video", "abc12def");
+  if (v.assetKind !== "background_video" || v.filename !== "background-abc12def.mp4") {
+    throw new Error("fal_video identity mismatch");
+  }
+}
+async function recordRenderFailure(userId, sessionId, status, error40) {
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      userId,
+      renderStatus: status,
+      renderError: error40,
+      pipelineStatus: "failed",
+      pipelineUpdatedAt: import_firestore3.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+async function claimHeygenEvent(eventId) {
+  try {
+    await db.collection("heygen_webhook_events").doc(eventId).create({
+      receivedAt: import_firestore3.FieldValue.serverTimestamp()
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+var import_fs, import_os, import_path, import_client_s3, import_firestore3, import_storage;
+var init_storage = __esm({
+  "src/storage.ts"() {
+    "use strict";
+    import_fs = __toESM(require("fs"));
+    import_os = __toESM(require("os"));
+    import_path = __toESM(require("path"));
+    import_client_s3 = require("@aws-sdk/client-s3");
+    import_firestore3 = require("firebase-admin/firestore");
+    import_storage = require("firebase-admin/storage");
+    init_firebase();
+    init_session();
+    init_finalVideoBasename();
+    init_manimClipBasename();
+    init_renderSnapshot();
+    init_finalVideoBasename();
+    init_manimClipBasename();
+  }
+});
 
 // src/tools/lib/utils.ts
-var import_child_process = require("child_process");
-var import_fs4 = __toESM(require("fs"));
-var import_os2 = __toESM(require("os"));
-var import_path4 = __toESM(require("path"));
-var import_stream2 = require("stream");
-var import_promises = require("stream/promises");
-var import_util6 = require("util");
-var execAsync = (0, import_util6.promisify)(import_child_process.exec);
-var SHELL_ENV_KEYS = [
-  "PATH",
-  "HOME",
-  "LANG",
-  "LC_ALL",
-  "TERM",
-  "TMPDIR",
-  "PWD",
-  "SHELL",
-  "USER",
-  "LOGNAME"
-];
 function sanitizedShellEnv() {
   return Object.fromEntries(
     SHELL_ENV_KEYS.flatMap(
@@ -36522,14 +35994,10 @@ function sanitizedShellEnv() {
     )
   );
 }
-var SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../../../Skills");
-var EDU_VIDEO_TEMPLATES_ROOT = import_path4.default.join(SKILLS_DIR3, "edu-video/templates");
 function templateDirFor(orientation = "horizontal") {
   if (process.env.EDU_VIDEO_TEMPLATE_DIR) return process.env.EDU_VIDEO_TEMPLATE_DIR;
-  return import_path4.default.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
+  return import_path2.default.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
 }
-var EDU_VIDEO_TEMPLATE_DIR = templateDirFor("horizontal");
-var TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
 function canvasForOrientation(orientation) {
   return orientation === "vertical" ? { width: 1080, height: 1920, aspectRatio: "9:16" } : { width: 1920, height: 1080, aspectRatio: "16:9" };
 }
@@ -36537,13 +36005,24 @@ function cloudRenderFlags(orientation) {
   const { aspectRatio } = canvasForOrientation(orientation);
   return `--resolution 1080p --aspect-ratio ${aspectRatio}`;
 }
-var DEFAULT_BRAND_COLORS = {
-  primary: "#f97316",
-  accent: "#fb923c",
-  bg_dark: "#0a0a0a"
-};
 function resolveBrandColors(input) {
   return input ?? DEFAULT_BRAND_COLORS;
+}
+function parseBrandColorsFromText(text2) {
+  const hexes = text2.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g);
+  if (!hexes?.length) return null;
+  const expand = (h) => {
+    if (h.length === 4) {
+      const r = h[1];
+      const g = h[2];
+      const b = h[3];
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return h.toLowerCase();
+  };
+  const primary = expand(hexes[0]);
+  const accent = hexes[1] ? expand(hexes[1]) : primary;
+  return { primary, accent, bg_dark: DEFAULT_BRAND_COLORS.bg_dark };
 }
 function buildManimPalettePrompt(colors) {
   return `Color constants (MUST use exactly \u2014 ignore other palettes in reference docs):
@@ -36553,48 +36032,35 @@ SECONDARY = "${colors.primary}"
 ACCENT = "${colors.accent}"
 PROBLEM_DIM = "#444444"`;
 }
-var DEFAULT_HYPERFRAMES_JSON = JSON.stringify(
-  {
-    $schema: "https://hyperframes.heygen.com/schema/hyperframes.json",
-    registry: "https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry",
-    paths: {
-      blocks: "compositions",
-      components: "compositions/components",
-      assets: "assets"
-    }
-  },
-  null,
-  2
-);
 function getSessionWorkdir(sessionId) {
-  const dir = import_path4.default.join(import_os2.default.tmpdir(), "okvevo", sessionId);
-  import_fs4.default.mkdirSync(dir, { recursive: true });
+  const dir = import_path2.default.join(import_os2.default.tmpdir(), "okvevo", sessionId);
+  import_fs2.default.mkdirSync(dir, { recursive: true });
   return dir;
 }
 function sessionArtifactLocalPath(workdir, need) {
   if (typeof need !== "string") return need.localPath;
   switch (need) {
     case "transcript":
-      return import_path4.default.join(workdir, "transcript.json");
+      return import_path2.default.join(workdir, "transcript.json");
     case "concepts":
-      return import_path4.default.join(workdir, "concepts.json");
+      return import_path2.default.join(workdir, "concepts.json");
     case "manim_scripts":
-      return import_path4.default.join(workdir, "manim_scripts");
+      return import_path2.default.join(workdir, "manim_scripts");
     case "hf_project":
-      return import_path4.default.join(workdir, "hf-project");
+      return import_path2.default.join(workdir, "hf-project");
   }
 }
 function sessionArtifactPresent(workdir, need) {
   const marker26 = sessionArtifactLocalPath(workdir, need);
-  if (typeof need !== "string") return import_fs4.default.existsSync(marker26);
+  if (typeof need !== "string") return import_fs2.default.existsSync(marker26);
   if (need === "transcript" || need === "concepts") {
-    return import_fs4.default.existsSync(marker26);
+    return import_fs2.default.existsSync(marker26);
   }
   if (need === "hf_project") {
-    return import_fs4.default.existsSync(import_path4.default.join(marker26, "index.html"));
+    return import_fs2.default.existsSync(import_path2.default.join(marker26, "index.html"));
   }
-  if (!import_fs4.default.existsSync(marker26) || !import_fs4.default.statSync(marker26).isDirectory()) return false;
-  return import_fs4.default.readdirSync(marker26).some((f) => f.endsWith(".py"));
+  if (!import_fs2.default.existsSync(marker26) || !import_fs2.default.statSync(marker26).isDirectory()) return false;
+  return import_fs2.default.readdirSync(marker26).some((f) => f.endsWith(".py"));
 }
 function isSessionWorkdirCold(sessionId) {
   const workdir = getSessionWorkdir(sessionId);
@@ -36602,15 +36068,15 @@ function isSessionWorkdirCold(sessionId) {
 }
 function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts = []) {
   const workdir = getSessionWorkdir(sessionId);
-  const rel = import_path4.default.relative(workdir, resolvedPath);
-  if (!rel || rel.startsWith("..") || import_path4.default.isAbsolute(rel)) {
+  const rel = import_path2.default.relative(workdir, resolvedPath);
+  if (!rel || rel.startsWith("..") || import_path2.default.isAbsolute(rel)) {
     return [];
   }
   const tagged = taggedArtifacts.find(
-    (artifact) => import_path4.default.resolve(artifact.localPath) === import_path4.default.resolve(resolvedPath)
+    (artifact) => import_path2.default.resolve(artifact.localPath) === import_path2.default.resolve(resolvedPath)
   );
   if (tagged) return [tagged];
-  const top = rel.split(import_path4.default.sep)[0];
+  const top = rel.split(import_path2.default.sep)[0];
   if (top === "transcript.json" || rel === "transcript.json") return ["transcript"];
   if (top === "concepts.json" || rel === "concepts.json") return ["concepts"];
   if (top === "manim_scripts") return ["manim_scripts"];
@@ -36637,9 +36103,9 @@ async function resolveTaggedArtifacts(userId, sessionId, assets, parseStoragePat
     if (!storagePath.startsWith(prefix)) return [];
     const suffix = storagePath.slice(prefix.length);
     if (!suffix || suffix.endsWith("/")) return [];
-    const relativePath = isUpload ? import_path4.default.join("uploads", suffix) : suffix;
-    const localPath = import_path4.default.resolve(workdir, relativePath);
-    if (!localPath.startsWith(`${import_path4.default.resolve(workdir)}${import_path4.default.sep}`)) return [];
+    const relativePath = isUpload ? import_path2.default.join("uploads", suffix) : suffix;
+    const localPath = import_path2.default.resolve(workdir, relativePath);
+    if (!localPath.startsWith(`${import_path2.default.resolve(workdir)}${import_path2.default.sep}`)) return [];
     return [{ ...asset, localPath, key: `tagged_${index}` }];
   });
 }
@@ -36667,7 +36133,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
       continue;
     }
     if (typeof need !== "string") {
-      import_fs4.default.mkdirSync(import_path4.default.dirname(need.localPath), { recursive: true });
+      import_fs2.default.mkdirSync(import_path2.default.dirname(need.localPath), { recursive: true });
       await resolved.downloadFile(need.url, need.localPath);
       result[resultKey] = sessionArtifactPresent(workdir, need) ? "restored" : "unavailable";
       continue;
@@ -36685,7 +36151,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
     }
     if (need === "manim_scripts") {
       const dest2 = sessionArtifactLocalPath(workdir, "manim_scripts");
-      import_fs4.default.mkdirSync(dest2, { recursive: true });
+      import_fs2.default.mkdirSync(dest2, { recursive: true });
       const prefix = `users/${userId}/sessions/${sessionId}/manim_scripts`;
       await resolved.downloadStoragePrefixToDir(prefix, dest2);
       result[resultKey] = sessionArtifactPresent(workdir, "manim_scripts") ? "restored" : "unavailable";
@@ -36697,7 +36163,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
       continue;
     }
     const dest = sessionArtifactLocalPath(workdir, "hf_project");
-    import_fs4.default.mkdirSync(dest, { recursive: true });
+    import_fs2.default.mkdirSync(dest, { recursive: true });
     const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
     await resolved.downloadStoragePrefixToDir(storagePath, dest);
     result[resultKey] = sessionArtifactPresent(workdir, "hf_project") ? "restored" : "unavailable";
@@ -36705,11 +36171,11 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   return result;
 }
 function resolveToolPath(sessionId, inputPath) {
-  if (import_path4.default.isAbsolute(inputPath)) return inputPath;
+  if (import_path2.default.isAbsolute(inputPath)) return inputPath;
   if (inputPath.startsWith("Skills/")) {
-    return import_path4.default.join(SKILLS_DIR3, inputPath.slice("Skills/".length));
+    return import_path2.default.join(SKILLS_DIR, inputPath.slice("Skills/".length));
   }
-  return import_path4.default.join(getSessionWorkdir(sessionId), inputPath);
+  return import_path2.default.join(getSessionWorkdir(sessionId), inputPath);
 }
 function globToRegex(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -36756,8 +36222,8 @@ async function execCommand(command, options = {}) {
 }
 function loadSkillFile(relativePath) {
   try {
-    const full = import_path4.default.join(SKILLS_DIR3, relativePath);
-    return import_fs4.default.readFileSync(full, "utf-8");
+    const full = import_path2.default.join(SKILLS_DIR, relativePath);
+    return import_fs2.default.readFileSync(full, "utf-8");
   } catch {
     return "";
   }
@@ -36796,16 +36262,12 @@ async function downloadFile(url2, destPath) {
   if (!response.body) {
     throw new Error(`Download failed: empty body ${url2}`);
   }
-  import_fs4.default.mkdirSync(import_path4.default.dirname(destPath), { recursive: true });
+  import_fs2.default.mkdirSync(import_path2.default.dirname(destPath), { recursive: true });
   await (0, import_promises.pipeline)(
     import_stream2.Readable.fromWeb(response.body),
-    import_fs4.default.createWriteStream(destPath)
+    import_fs2.default.createWriteStream(destPath)
   );
 }
-var SPEAKER_MAX_BYTES = 180 * 1024 * 1024;
-var SPEAKER_NORMALIZE_CRF = 20;
-var SPEAKER_NORMALIZE_PRESET = "medium";
-var SPEAKER_NORMALIZE_VF = "fps=30,scale='min(1920,iw)':-2";
 async function normalizeSpeakerVideo(inputPath, outputPath) {
   const probe = await execCommand(
     `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${inputPath}"`,
@@ -36814,7 +36276,7 @@ async function normalizeSpeakerVideo(inputPath, outputPath) {
   if (!probe.success) {
     throw new Error(probe.stderr || "ffprobe failed on speaker video");
   }
-  import_fs4.default.mkdirSync(import_path4.default.dirname(outputPath), { recursive: true });
+  import_fs2.default.mkdirSync(import_path2.default.dirname(outputPath), { recursive: true });
   const ffmpeg = await execCommand(
     `ffmpeg -y -i "${inputPath}" -vf "${SPEAKER_NORMALIZE_VF}" -an -c:v libx264 -crf ${SPEAKER_NORMALIZE_CRF} -preset ${SPEAKER_NORMALIZE_PRESET} -pix_fmt yuv420p -movflags +faststart "${outputPath}"`,
     { timeoutSeconds: 600 }
@@ -36827,10 +36289,10 @@ function stripCodeFences(text2) {
   return text2.replace(/```(?:python|json|html)?\n?/g, "").replace(/```\n?/g, "").trim();
 }
 function loadSessionTranscript(sessionId) {
-  const transcriptPath = import_path4.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (!import_fs4.default.existsSync(transcriptPath)) return null;
+  const transcriptPath = import_path2.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (!import_fs2.default.existsSync(transcriptPath)) return null;
   try {
-    const saved = JSON.parse(import_fs4.default.readFileSync(transcriptPath, "utf-8"));
+    const saved = JSON.parse(import_fs2.default.readFileSync(transcriptPath, "utf-8"));
     const text2 = typeof saved.text === "string" ? saved.text : "";
     const words = Array.isArray(saved.words) ? saved.words : [];
     if (!text2 && words.length === 0) return null;
@@ -36889,13 +36351,6 @@ function snapToWords(excerpt, words, duration_seconds) {
     matched: true
   };
 }
-var SPEAKER_PRESETS = {
-  FS: { top: 68, left: 120, width: 1680, height: 945, borderRadius: 22 },
-  PIP_MANIM: { top: 779, left: 1659, width: 237, height: 237, borderRadius: 118 },
-  TOP_RIGHT: { top: 80, left: 1474, width: 422, height: 237, borderRadius: 18 },
-  CENTER: { top: 202, left: 360, width: 1200, height: 676, borderRadius: 22 },
-  CIRCLE: { top: 340, left: 760, width: 400, height: 400, borderRadius: 200 }
-};
 function buildBrandCssVars(colors) {
   return `:root { --brand-primary: ${colors.primary}; --brand-accent: ${colors.accent}; --brand-bg-dark: ${colors.bg_dark}; }`;
 }
@@ -36911,8 +36366,8 @@ function buildSegmentId(index, mode) {
 }
 function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
   const mode = seg.mode.toLowerCase();
-  const templatePath = import_path4.default.join(templateDir, "compositions", `mode-${mode}.html`);
-  let html = import_fs4.default.readFileSync(templatePath, "utf-8");
+  const templatePath = import_path2.default.join(templateDir, "compositions", `mode-${mode}.html`);
+  let html = import_fs2.default.readFileSync(templatePath, "utf-8");
   const segmentId = buildSegmentId(index, seg.mode);
   const duration3 = seg.end - seg.start;
   const nn = padSegmentNum(index);
@@ -37170,10 +36625,1031 @@ function substitutePlaceholders(template, replacements) {
   }
   return result;
 }
+var import_child_process, import_fs2, import_os2, import_path2, import_stream2, import_promises, import_util6, execAsync, SHELL_ENV_KEYS, SKILLS_DIR, EDU_VIDEO_TEMPLATES_ROOT, EDU_VIDEO_TEMPLATE_DIR, TOOL_MODEL, DEFAULT_BRAND_COLORS, DEFAULT_HYPERFRAMES_JSON, SPEAKER_MAX_BYTES, SPEAKER_NORMALIZE_CRF, SPEAKER_NORMALIZE_PRESET, SPEAKER_NORMALIZE_VF, SPEAKER_PRESETS;
+var init_utils = __esm({
+  "src/tools/lib/utils.ts"() {
+    "use strict";
+    import_child_process = require("child_process");
+    import_fs2 = __toESM(require("fs"));
+    import_os2 = __toESM(require("os"));
+    import_path2 = __toESM(require("path"));
+    import_stream2 = require("stream");
+    import_promises = require("stream/promises");
+    import_util6 = require("util");
+    execAsync = (0, import_util6.promisify)(import_child_process.exec);
+    SHELL_ENV_KEYS = [
+      "PATH",
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "TERM",
+      "TMPDIR",
+      "PWD",
+      "SHELL",
+      "USER",
+      "LOGNAME"
+    ];
+    SKILLS_DIR = import_path2.default.resolve(__dirname, "../../../../../Skills");
+    EDU_VIDEO_TEMPLATES_ROOT = import_path2.default.join(SKILLS_DIR, "edu-video/templates");
+    EDU_VIDEO_TEMPLATE_DIR = templateDirFor("horizontal");
+    TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
+    DEFAULT_BRAND_COLORS = {
+      primary: "#f97316",
+      accent: "#fb923c",
+      bg_dark: "#0a0a0a"
+    };
+    DEFAULT_HYPERFRAMES_JSON = JSON.stringify(
+      {
+        $schema: "https://hyperframes.heygen.com/schema/hyperframes.json",
+        registry: "https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry",
+        paths: {
+          blocks: "compositions",
+          components: "compositions/components",
+          assets: "assets"
+        }
+      },
+      null,
+      2
+    );
+    SPEAKER_MAX_BYTES = 180 * 1024 * 1024;
+    SPEAKER_NORMALIZE_CRF = 20;
+    SPEAKER_NORMALIZE_PRESET = "medium";
+    SPEAKER_NORMALIZE_VF = "fps=30,scale='min(1920,iw)':-2";
+    SPEAKER_PRESETS = {
+      FS: { top: 68, left: 120, width: 1680, height: 945, borderRadius: 22 },
+      PIP_MANIM: { top: 779, left: 1659, width: 237, height: 237, borderRadius: 118 },
+      TOP_RIGHT: { top: 80, left: 1474, width: 422, height: 237, borderRadius: 18 },
+      CENTER: { top: 202, left: 360, width: 1200, height: 676, borderRadius: 22 },
+      CIRCLE: { top: 340, left: 760, width: 400, height: 400, borderRadius: 200 }
+    };
+  }
+});
+
+// src/checkpoint.ts
+var checkpoint_exports = {};
+__export(checkpoint_exports, {
+  CONCEPTS_REVISION_RESUME_MANDATORY: () => CONCEPTS_REVISION_RESUME_MANDATORY,
+  CheckpointConflictError: () => CheckpointConflictError,
+  answerCheckpointTransaction: () => answerCheckpointTransaction,
+  buildResumeSystemContext: () => buildResumeSystemContext,
+  clearPendingCheckpoint: () => clearPendingCheckpoint,
+  formatDuration: () => formatDuration,
+  getSessionAnimationStyle: () => getSessionAnimationStyle,
+  getSessionBrandColors: () => getSessionBrandColors,
+  getSessionOrientation: () => getSessionOrientation,
+  getSessionPipelineFields: () => getSessionPipelineFields,
+  getSessionRequestedLanguage: () => getSessionRequestedLanguage,
+  isHaltTurnOutput: () => isHaltTurnOutput,
+  isPrePipelineResolved: () => isPrePipelineResolved,
+  loadCheckpoint: () => loadCheckpoint,
+  loadPendingCheckpointDisplay: () => loadPendingCheckpointDisplay,
+  markPrePipelineResolved: () => markPrePipelineResolved,
+  matchToolOwnedDecision: () => matchToolOwnedDecision,
+  normalizeCheckpointKind: () => normalizeCheckpointKind,
+  persistAnimationStyle: () => persistAnimationStyle,
+  persistBrandColors: () => persistBrandColors,
+  persistOrientation: () => persistOrientation,
+  persistPipelineMode: () => persistPipelineMode,
+  persistPrePipelineAnswers: () => persistPrePipelineAnswers,
+  persistRequestedLanguage: () => persistRequestedLanguage,
+  persistSkillId: () => persistSkillId,
+  recordSkillsUsed: () => recordSkillsUsed,
+  writeAskCheckpoint: () => writeAskCheckpoint,
+  writeAskCheckpointBatch: () => writeAskCheckpointBatch
+});
+function matchToolOwnedDecision(choices) {
+  if (!choices?.length) return null;
+  const ids = new Set(choices.map((c) => c.id));
+  for (const [key, owned] of Object.entries(TOOL_OWNED_CHOICE_IDS)) {
+    if ([...owned].every((id) => ids.has(id)) && ids.size <= owned.size + 1) {
+      return key;
+    }
+  }
+  if (ids.has("horizontal") && ids.has("vertical") && ids.size <= 2) {
+    return "orientation";
+  }
+  if (ids.has("en") && ids.has("auto") && ids.size <= 2) {
+    return "transcription_language";
+  }
+  if (ids.has("minimal") && ids.has("moderate") && ids.has("detailed") && ids.size <= 3) {
+    return "animation_style";
+  }
+  return null;
+}
+function assertKindShape(kind, choices) {
+  if (kind === "single_select") {
+    if (!choices?.length) {
+      throw new Error("single_select requires non-empty choices");
+    }
+    return;
+  }
+  if (choices?.length) {
+    throw new Error("phase_gate forbids choices");
+  }
+}
+function normalizeCheckpointKind(raw) {
+  if (raw === "phase_gate") return "phase_gate";
+  return "single_select";
+}
+function formatDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+function toDisplayData(checkpointId, input, status = "pending") {
+  const first = input.resume.questions?.[0] ?? input.resume.question;
+  return {
+    checkpointId,
+    kind: input.kind,
+    status,
+    title: input.summary.title,
+    bullets: input.summary.bullets.filter(Boolean),
+    nextLabel: input.next.label,
+    nextDescription: input.next.description,
+    question: first?.prompt,
+    choices: first?.choices,
+    allowFreeform: first?.allowFreeform ?? false,
+    ...first && "freeformPlaceholder" in first && first.freeformPlaceholder ? { freeformPlaceholder: first.freeformPlaceholder } : {},
+    ...input.resume.questions?.length ? { questions: input.resume.questions } : {}
+  };
+}
+async function supersedePendingCheckpoints(sessionId) {
+  const pending = await db.collection("sessions").doc(sessionId).collection("checkpoints").where("status", "==", "pending").get();
+  const batch = db.batch();
+  for (const doc of pending.docs) {
+    batch.set(doc.ref, { status: "superseded" }, { merge: true });
+  }
+  if (!pending.empty) await batch.commit();
+}
+async function writeCheckpointDoc(ctx, input) {
+  const checkpointId = import_node_crypto.default.randomUUID();
+  const sessionRef = db.collection("sessions").doc(ctx.sessionId);
+  const cpRef = sessionRef.collection("checkpoints").doc(checkpointId);
+  const pipelinePhase = PHASE_NUMBERS[input.completedPhase] ?? 0;
+  await supersedePendingCheckpoints(ctx.sessionId);
+  const doc = {
+    id: checkpointId,
+    sessionId: ctx.sessionId,
+    createdAt: import_firestore4.FieldValue.serverTimestamp(),
+    status: "pending",
+    kind: input.kind,
+    completedPhase: input.completedPhase,
+    completedPhaseLabel: input.completedPhaseLabel,
+    summary: input.summary,
+    next: input.next,
+    resume: input.resume
+  };
+  await cpRef.set(doc);
+  await sessionRef.set(
+    {
+      pendingCheckpointId: checkpointId,
+      pipelineStatus: "awaiting_checkpoint",
+      pipelinePhase,
+      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  return {
+    id: checkpointId,
+    display: toDisplayData(checkpointId, input)
+  };
+}
+async function writeAskCheckpoint(ctx, input) {
+  assertKindShape(input.kind, input.choices);
+  const written = await writeCheckpointDoc(ctx, {
+    kind: input.kind,
+    completedPhase: input.completedPhase ?? (input.kind === "phase_gate" ? "clarification" : "concepts"),
+    completedPhaseLabel: input.phase_label ?? "Clarification",
+    summary: {
+      title: input.phase_label ?? "Need your input",
+      bullets: input.bullets ?? (input.context ? [input.context] : [])
+    },
+    next: {
+      label: "Continue",
+      description: "Answer or approve to continue the pipeline."
+    },
+    resume: {
+      artifactNeeds: RESUME_ARTIFACT_NEEDS,
+      assetKeys: ["transcript", "concepts", "manim_scripts", "composition", "hf_project"],
+      question: {
+        prompt: input.question,
+        ...input.choices ? { choices: input.choices } : {},
+        allowFreeform: input.allowFreeform,
+        ...input.freeformPlaceholder ? { freeformPlaceholder: input.freeformPlaceholder } : {}
+      }
+    }
+  });
+  return {
+    haltTurn: true,
+    checkpointId: written.id,
+    checkpointDisplay: written.display
+  };
+}
+async function writeAskCheckpointBatch(ctx, input) {
+  if (input.questions.length === 0) {
+    throw new Error("writeAskCheckpointBatch requires at least one question");
+  }
+  for (const q of input.questions) {
+    assertKindShape(q.kind, q.choices);
+  }
+  const first = input.questions[0];
+  const written = await writeCheckpointDoc(ctx, {
+    kind: first.kind,
+    completedPhase: input.completedPhase ?? "pre_pipeline",
+    completedPhaseLabel: input.phase_label,
+    summary: {
+      title: input.phase_label,
+      bullets: input.bullets ?? []
+    },
+    next: {
+      label: "Continue",
+      description: "Answer each question to continue."
+    },
+    resume: {
+      artifactNeeds: [],
+      assetKeys: [],
+      question: {
+        prompt: first.prompt,
+        choices: first.choices,
+        allowFreeform: first.allowFreeform,
+        ...first.freeformPlaceholder ? { freeformPlaceholder: first.freeformPlaceholder } : {}
+      },
+      questions: input.questions
+    }
+  });
+  return {
+    haltTurn: true,
+    checkpointId: written.id,
+    checkpointDisplay: written.display
+  };
+}
+async function answerCheckpointTransaction(sessionId, checkpointId, answer) {
+  return db.runTransaction(async (tx) => {
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const sessionSnap = await tx.get(sessionRef);
+    const session = sessionSnap.data();
+    if (!session?.pendingCheckpointId) return "none";
+    if (session.pendingCheckpointId !== checkpointId) return "stale";
+    const cpRef = sessionRef.collection("checkpoints").doc(checkpointId);
+    tx.set(
+      cpRef,
+      {
+        status: "answered",
+        answer: {
+          type: answer.type,
+          text: answer.text,
+          ...answer.choiceId ? { choiceId: answer.choiceId } : {},
+          ...answer.answers ? { answers: answer.answers } : {},
+          answeredAt: import_firestore4.FieldValue.serverTimestamp()
+        }
+      },
+      { merge: true }
+    );
+    tx.set(
+      sessionRef,
+      {
+        pendingCheckpointId: null,
+        pipelineStatus: "running",
+        pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+    return "ok";
+  });
+}
+async function loadCheckpoint(sessionId, checkpointId) {
+  const snap = await db.collection("sessions").doc(sessionId).collection("checkpoints").doc(checkpointId).get();
+  if (!snap.exists) return null;
+  const data = snap.data();
+  return {
+    id: snap.id,
+    completedPhase: String(data.completedPhase ?? ""),
+    completedPhaseLabel: String(data.completedPhaseLabel ?? ""),
+    summary: data.summary,
+    next: data.next,
+    resume: data.resume,
+    answer: data.answer
+  };
+}
+async function loadPendingCheckpointDisplay(sessionId) {
+  const sessionSnap = await db.collection("sessions").doc(sessionId).get();
+  const pendingId = sessionSnap.data()?.pendingCheckpointId;
+  if (typeof pendingId !== "string") return null;
+  const snap = await db.collection("sessions").doc(sessionId).collection("checkpoints").doc(pendingId).get();
+  if (!snap.exists) return null;
+  const data = snap.data();
+  const summary = data.summary;
+  const next = data.next;
+  const resume = data.resume;
+  const first = resume.questions?.[0] ?? resume.question;
+  return {
+    checkpointId: pendingId,
+    kind: normalizeCheckpointKind(data.kind),
+    status: "pending",
+    title: summary.title,
+    bullets: summary.bullets.filter(Boolean),
+    nextLabel: next.label,
+    nextDescription: next.description,
+    question: first?.prompt,
+    choices: first?.choices,
+    allowFreeform: first?.allowFreeform ?? false,
+    ...resume.questions?.length ? { questions: resume.questions } : {}
+  };
+}
+async function getSessionPipelineFields(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const data = snap.data();
+  const mode = data?.pipelineMode;
+  const skillState = resolveSessionSkillState(data ?? {});
+  if (skillState.inferredSkills.length > 0) {
+    await recordSkillsUsed(sessionId, skillState.inferredSkills);
+  }
+  return {
+    pendingCheckpointId: typeof data?.pendingCheckpointId === "string" ? data.pendingCheckpointId : null,
+    pipelineMode: mode === "auto" ? "auto" : "ask",
+    skillId: skillState.legacySkillId,
+    skillsUsed: skillState.skillsUsed
+  };
+}
+async function persistSkillId(sessionId, skillId) {
+  await db.collection("sessions").doc(sessionId).set({ skillId }, { merge: true });
+}
+async function recordSkillsUsed(sessionId, skills) {
+  const valid = [...new Set(skills)].filter(isKnownSkill);
+  if (valid.length === 0) return;
+  await db.collection("sessions").doc(sessionId).set({ skillsUsed: import_firestore4.FieldValue.arrayUnion(...valid) }, { merge: true });
+}
+async function persistPipelineMode(sessionId, pipelineMode) {
+  await db.collection("sessions").doc(sessionId).set({ pipelineMode }, { merge: true });
+}
+async function persistOrientation(sessionId, orientation) {
+  await db.collection("sessions").doc(sessionId).set({ orientation }, { merge: true });
+}
+async function getSessionOrientation(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  return snap.data()?.orientation === "vertical" ? "vertical" : "horizontal";
+}
+async function persistBrandColors(sessionId, brandColors) {
+  await db.collection("sessions").doc(sessionId).set({ brandColors }, { merge: true });
+}
+async function getSessionBrandColors(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.brandColors;
+  if (!raw || typeof raw !== "object") return void 0;
+  const c = raw;
+  if (typeof c.primary === "string" && typeof c.accent === "string" && typeof c.bg_dark === "string") {
+    return c;
+  }
+  return void 0;
+}
+async function persistAnimationStyle(sessionId, animationStyle) {
+  await db.collection("sessions").doc(sessionId).set({ animationStyle }, { merge: true });
+}
+async function getSessionAnimationStyle(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.animationStyle;
+  if (raw === "minimal" || raw === "moderate" || raw === "detailed") return raw;
+  return "moderate";
+}
+async function markPrePipelineResolved(sessionId) {
+  await db.collection("sessions").doc(sessionId).set({ prePipelineResolved: true }, { merge: true });
+}
+async function isPrePipelineResolved(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  return snap.data()?.prePipelineResolved === true;
+}
+async function persistRequestedLanguage(sessionId, requestedLanguage) {
+  await db.collection("sessions").doc(sessionId).set({ requestedLanguage }, { merge: true });
+}
+async function getSessionRequestedLanguage(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.requestedLanguage;
+  if (raw === "en" || raw === "auto") return raw;
+  return void 0;
+}
+async function persistPrePipelineAnswers(sessionId, answers, questions) {
+  for (const q of questions) {
+    const ans = answers[q.id];
+    let choiceId = ans?.choiceId;
+    if (ans?.type === "skip" || !choiceId && ans?.type !== "freeform") {
+      choiceId = q.skipDefault?.choiceId;
+    }
+    if (q.id === "transcription_language") {
+      await persistRequestedLanguage(sessionId, choiceId === "en" ? "en" : "auto");
+    } else if (q.id === "orientation") {
+      await persistOrientation(
+        sessionId,
+        choiceId === "vertical" ? "vertical" : "horizontal"
+      );
+    } else if (q.id === "brand_colors") {
+      if (ans?.type === "freeform") {
+        const parsed = parseBrandColorsFromText(ans.text);
+        await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
+      } else if (choiceId === "from_video") {
+        const colors = q.skipDefault?.value ?? DEFAULT_BRAND_COLORS;
+        await persistBrandColors(sessionId, colors);
+      } else {
+        await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
+      }
+    } else if (q.id === "animation_style") {
+      const style = choiceId === "minimal" || choiceId === "detailed" ? choiceId : "moderate";
+      await persistAnimationStyle(sessionId, style);
+    }
+  }
+  await markPrePipelineResolved(sessionId);
+}
+async function clearPendingCheckpoint(sessionId) {
+  const sessionRef = db.collection("sessions").doc(sessionId);
+  const snap = await sessionRef.get();
+  const pendingId = snap.data()?.pendingCheckpointId;
+  if (typeof pendingId === "string") {
+    await sessionRef.collection("checkpoints").doc(pendingId).set({ status: "superseded" }, { merge: true });
+  }
+  await sessionRef.set(
+    {
+      pendingCheckpointId: null,
+      pipelineStatus: "running",
+      pipelineUpdatedAt: import_firestore4.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+function buildResumeSystemContext(checkpoint) {
+  const answer = checkpoint.answer;
+  const answerLine = answer ? `- User response: ${answer.type}: "${answer.text}"` : "- User response: (none recorded)";
+  const choiceId = answer?.choiceId;
+  const orientationChosen = choiceId === "horizontal" || choiceId === "vertical" ? choiceId : null;
+  const answerType = answer?.type;
+  let phaseGuidance = "";
+  if (checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline") {
+    phaseGuidance = `
+- Preferences saved on the session. Call transcribe_video with the same video URL next.
+- Do NOT ask language, orientation, brand colors, or animation style again.`;
+  } else if (checkpoint.completedPhaseLabel === "Concepts extracted") {
+    if (answerType === "revision" || answerType === "freeform") {
+      phaseGuidance = `
+
+${CONCEPTS_REVISION_RESUME_MANDATORY}`;
+    } else {
+      phaseGuidance = `
+- concepts.json is restored and user-approved. Do NOT call extract_concepts again.
+- Do not ask for a video URL \u2014 transcription already completed.
+- If orientation was already chosen in Video preferences, proceed to generate_manim_script. Otherwise Video orientation is next.`;
+    }
+  } else if (checkpoint.completedPhaseLabel === "Video orientation") {
+    phaseGuidance = `
+- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
+- Do not ask for a video URL \u2014 transcription already completed; next step is Manim via concepts.json.${orientationChosen ? `
+- Orientation chosen: ${orientationChosen}. Session already stores it \u2014 generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.` : ""}`;
+  } else if (checkpoint.completedPhaseLabel === "Transcription language") {
+    phaseGuidance = `
+- Call transcribe_video again with the same video_url to continue with the chosen language (English\u2192Groq, Auto-detect\u2192Fal Scribe v2).
+- Do NOT call extract_concepts or scaffold yet.`;
+  } else if (checkpoint.completedPhaseLabel === "Lecture heard") {
+    phaseGuidance = `
+- Transcript is durable. Call extract_concepts next (pass duration_seconds only).
+- Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.
+- Do NOT re-ask language / orientation / brand / animation style.`;
+  }
+  const continueLine = checkpoint.completedPhaseLabel === "Transcription language" ? "- Continue after transcribe_video succeeds \u2014 then extract_concepts." : checkpoint.completedPhaseLabel === "Lecture heard" ? "- Continue with extract_concepts." : checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline" ? "- Continue with transcribe_video, then extract_concepts." : "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
+  return `
+CHECKPOINT RESUME
+- Completed: ${checkpoint.completedPhaseLabel} \u2014 ${checkpoint.summary.title}
+${answerLine}${phaseGuidance}
+${continueLine}
+- Do not invent counts, concept names, or status for work not confirmed by this turn's tool results. Prior phases already shown on the checkpoint card \u2014 do not re-narrate them.`.trim();
+}
+function isHaltTurnOutput(output) {
+  return typeof output === "object" && output !== null && output.haltTurn === true;
+}
+var import_node_crypto, import_firestore4, TOOL_OWNED_CHOICE_IDS, PHASE_NUMBERS, RESUME_ARTIFACT_NEEDS, CONCEPTS_REVISION_RESUME_MANDATORY, CheckpointConflictError;
+var init_checkpoint = __esm({
+  "src/checkpoint.ts"() {
+    "use strict";
+    import_node_crypto = __toESM(require("node:crypto"));
+    import_firestore4 = require("firebase-admin/firestore");
+    init_firebase();
+    init_sessionSkills();
+    init_utils();
+    TOOL_OWNED_CHOICE_IDS = {
+      transcription_language: /* @__PURE__ */ new Set(["en", "auto"]),
+      orientation: /* @__PURE__ */ new Set(["horizontal", "vertical"]),
+      brand_colors: /* @__PURE__ */ new Set(["default", "from_video"]),
+      animation_style: /* @__PURE__ */ new Set(["minimal", "moderate", "detailed"])
+    };
+    PHASE_NUMBERS = {
+      transcription: 2,
+      concepts: 3,
+      manim_complete: 4,
+      segment_planning: 5,
+      scaffold: 5,
+      pre_render: 6,
+      pre_pipeline: 1
+    };
+    RESUME_ARTIFACT_NEEDS = [
+      "transcript",
+      "concepts",
+      "manim_scripts",
+      "hf_project"
+    ];
+    CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME \u2014 MANDATORY NEXT TOOL
+1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
+2. If session already has orientation from Video preferences (prePipelineResolved), proceed to generate_manim_script \u2014 do NOT ask orientation again.
+3. Otherwise, immediately after those edits succeed, call ask_clarification exactly once with:
+   - kind: "single_select"
+   - phase_label: "Video orientation"
+   - question: "Choose video orientation to continue."
+   - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
+   - allowFreeform: false
+4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.
+5. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
+    CheckpointConflictError = class extends Error {
+      constructor(message) {
+        super(message);
+        this.name = "CheckpointConflictError";
+      }
+    };
+  }
+});
+
+// src/skills/eduVideo/prePipelineCheckpoint.ts
+function parseStatedPrefs(prompt) {
+  const lower = prompt.toLowerCase();
+  const out = {};
+  if (/\b(english|en\b|captions?\s+in\s+english)/i.test(prompt)) {
+    out.language = "en";
+  } else if (/\b(auto[- ]?detect|detect\s+language|native\s+language|kannada|hindi|tamil|telugu|malayalam|bengali|marathi)\b/i.test(
+    prompt
+  )) {
+    out.language = "auto";
+  }
+  if (/\b(vertical|9\s*[:x]\s*16|portrait|shorts?|reels?)\b/i.test(lower)) {
+    out.orientation = "vertical";
+  } else if (/\b(horizontal|16\s*[:x]\s*9|landscape|widescreen)\b/i.test(lower)) {
+    out.orientation = "horizontal";
+  }
+  if (/\b(minimal(?:istic)?|no\s+arrows?|simple\s+animations?|without\s+arrows?)\b/i.test(
+    lower
+  )) {
+    out.animationStyle = "minimal";
+  } else if (/\b(detailed|rich\s+animations?|with\s+arrows?)\b/i.test(lower)) {
+    out.animationStyle = "detailed";
+  } else if (/\b(moderate\s+animations?)\b/i.test(lower)) {
+    out.animationStyle = "moderate";
+  }
+  const hexes = prompt.match(/#(?:[0-9a-fA-F]{6})\b/g);
+  if (hexes && hexes.length >= 1) {
+    out.brandColors = {
+      primary: hexes[0],
+      accent: hexes[1] ?? hexes[0],
+      bg_dark: hexes[2] ?? "#0a0a0a"
+    };
+  }
+  return out;
+}
+async function probeOrientationHint(videoUrl) {
+  const dest = getTempPath(`prepipe_probe_${Date.now()}.mp4`);
+  try {
+    await downloadFile(videoUrl, dest);
+    const probe = await execCommand(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${dest}"`,
+      { timeoutSeconds: 60 }
+    );
+    if (!probe.success) return void 0;
+    const [wStr, hStr] = probe.stdout.trim().split("x");
+    const w = Number(wStr);
+    const h = Number(hStr);
+    if (!w || !h) return void 0;
+    return h > w ? "vertical" : "horizontal";
+  } catch {
+    return void 0;
+  } finally {
+    try {
+      import_fs3.default.unlinkSync(dest);
+    } catch {
+    }
+  }
+}
+async function extractBrandFromVideo(videoUrl) {
+  const dest = getTempPath(`prepipe_frame_${Date.now()}.mp4`);
+  const raw = getTempPath(`prepipe_px_${Date.now()}.rgb`);
+  try {
+    await downloadFile(videoUrl, dest);
+    const ffmpeg = await execCommand(
+      `ffmpeg -y -ss 1 -i "${dest}" -vf "scale=1:1" -frames:v 1 -f rawvideo -pix_fmt rgb24 "${raw}"`,
+      { timeoutSeconds: 60 }
+    );
+    if (!ffmpeg.success || !import_fs3.default.existsSync(raw)) return DEFAULT_BRAND_COLORS;
+    const buf = import_fs3.default.readFileSync(raw);
+    if (buf.length < 3) return DEFAULT_BRAND_COLORS;
+    const r = buf[0];
+    const g = buf[1];
+    const b = buf[2];
+    const primary = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+    const accent = `#${[Math.min(255, r + 40), Math.min(255, g + 40), Math.min(255, b + 20)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+    return { primary, accent, bg_dark: "#0a0a0a" };
+  } catch {
+    return DEFAULT_BRAND_COLORS;
+  } finally {
+    for (const p of [dest, raw]) {
+      try {
+        import_fs3.default.unlinkSync(p);
+      } catch {
+      }
+    }
+  }
+}
+async function applySilentDefaults(sessionId, stated) {
+  await persistRequestedLanguage(sessionId, stated.language ?? "auto");
+  await persistOrientation(sessionId, stated.orientation ?? "horizontal");
+  await persistBrandColors(sessionId, stated.brandColors ?? DEFAULT_BRAND_COLORS);
+  await persistAnimationStyle(sessionId, stated.animationStyle ?? "moderate");
+  await markPrePipelineResolved(sessionId);
+}
+async function maybeFrontLoadPrePipeline(opts) {
+  const { ctx, userMessage, videoUrl } = opts;
+  if (await isPrePipelineResolved(ctx.sessionId)) {
+    return { halted: false };
+  }
+  if (!videoUrl) return { halted: false };
+  if (ctx.skillName !== "edu-video") return { halted: false };
+  const stated = parseStatedPrefs(userMessage);
+  if (ctx.pipelineMode !== "ask") {
+    await applySilentDefaults(ctx.sessionId, stated);
+    return { halted: false };
+  }
+  if (stated.language) await persistRequestedLanguage(ctx.sessionId, stated.language);
+  if (stated.orientation) await persistOrientation(ctx.sessionId, stated.orientation);
+  if (stated.brandColors) await persistBrandColors(ctx.sessionId, stated.brandColors);
+  if (stated.animationStyle) {
+    await persistAnimationStyle(ctx.sessionId, stated.animationStyle);
+  }
+  const orientationHint = stated.orientation ? void 0 : videoUrl ? await probeOrientationHint(videoUrl) : void 0;
+  const extractedBrand = stated.brandColors || !videoUrl ? void 0 : await extractBrandFromVideo(videoUrl);
+  const questions = [];
+  if (!stated.language) {
+    questions.push({
+      id: "transcription_language",
+      prompt: "Choose language you require captions in.",
+      kind: "single_select",
+      choices: [
+        { id: "en", label: "English" },
+        { id: "auto", label: "Auto-detect" }
+      ],
+      allowFreeform: false,
+      skipDefault: { choiceId: "auto" }
+    });
+  }
+  if (!stated.orientation) {
+    const skipOrientation = orientationHint ?? "horizontal";
+    questions.push({
+      id: "orientation",
+      prompt: "Choose video orientation.",
+      kind: "single_select",
+      choices: [
+        { id: "horizontal", label: "Horizontal (16:9)" },
+        { id: "vertical", label: "Vertical (9:16)" }
+      ],
+      allowFreeform: false,
+      skipDefault: { choiceId: skipOrientation }
+    });
+  }
+  if (!stated.brandColors) {
+    const fromVideo = extractedBrand ?? DEFAULT_BRAND_COLORS;
+    questions.push({
+      id: "brand_colors",
+      prompt: "Choose brand colors for animations.",
+      kind: "single_select",
+      choices: [
+        { id: "default", label: "Default" },
+        { id: "from_video", label: `From video (${fromVideo.primary})` }
+      ],
+      allowFreeform: true,
+      freeformPlaceholder: "Enter brand colors as hex\u2026 e.g. #f97316 #fb923c",
+      skipDefault: { choiceId: "from_video", value: fromVideo }
+    });
+  }
+  if (!stated.animationStyle) {
+    questions.push({
+      id: "animation_style",
+      prompt: "How detailed should Manim animations be?",
+      kind: "single_select",
+      choices: [
+        { id: "minimal", label: "Minimal \u2014 simple, no arrows" },
+        { id: "moderate", label: "Moderate \u2014 clear diagrams, light motion" },
+        { id: "detailed", label: "Detailed \u2014 richer visuals including arrows" }
+      ],
+      allowFreeform: false,
+      skipDefault: { choiceId: "moderate" }
+    });
+  }
+  if (questions.length === 0) {
+    await markPrePipelineResolved(ctx.sessionId);
+    return { halted: false };
+  }
+  const written = await writeAskCheckpointBatch(ctx, {
+    phase_label: "Video preferences",
+    completedPhase: "pre_pipeline",
+    questions
+  });
+  return { halted: true, checkpointDisplay: written.checkpointDisplay };
+}
+var import_fs3;
+var init_prePipelineCheckpoint = __esm({
+  "src/skills/eduVideo/prePipelineCheckpoint.ts"() {
+    "use strict";
+    import_fs3 = __toESM(require("fs"));
+    init_checkpoint();
+    init_storage();
+    init_utils();
+  }
+});
+
+// src/messagePruning.ts
+function segmentExchanges(messages) {
+  const exchanges = [];
+  let i = 0;
+  while (i < messages.length) {
+    if (messages[i].role === "assistant") {
+      const assistantIndex = i;
+      i++;
+      const toolIndices = [];
+      while (i < messages.length && messages[i].role === "tool") {
+        toolIndices.push(i);
+        i++;
+      }
+      if (toolIndices.length > 0) {
+        exchanges.push({ assistantIndex, toolIndices });
+      }
+      continue;
+    }
+    i++;
+  }
+  return exchanges;
+}
+function parseOutputValue(output) {
+  if (output == null) {
+    return {};
+  }
+  if (typeof output === "string") {
+    try {
+      const parsed = JSON.parse(output);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  }
+  if (typeof output !== "object" || Array.isArray(output)) {
+    return {};
+  }
+  const typed = output;
+  if (typed.type === "json" && typed.value && typeof typed.value === "object") {
+    return typed.value;
+  }
+  if (typed.type === "text" && typeof typed.value === "string") {
+    try {
+      const parsed = JSON.parse(typed.value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return {};
+    }
+  }
+  return output;
+}
+function summarizeToolName(toolName, output) {
+  const data = parseOutputValue(output);
+  switch (toolName) {
+    case "transcribe_video":
+      return `[transcript: ${String(data.word_count ?? "?")} words, ${String(data.duration_seconds ?? "?")}s \u2192 ${String(data.transcript_url ?? "?")}]`;
+    case "generate_manim_script":
+      return `[manim script generated for ${String(data.concept_name ?? "unknown")} \u2014 truncated]`;
+    case "render_manim_clip":
+      return `[clip rendered: ${String(data.concept_name ?? "unknown")} \u2192 ${String(data.clip_url ?? "?")}]`;
+    case "run_command":
+      return `[command ran \u2014 exit ${String(data.exit_code ?? "?")}]`;
+    case "read_file":
+      return `[read file: ${String(data.path ?? "?")} \u2014 ${String(data.bytes ?? "?")} bytes]`;
+    case "search_files": {
+      const matchCount = Array.isArray(data.matches) ? data.matches.length : 0;
+      return `[searched ${String(data.directory ?? "?")} \u2014 ${matchCount} matches]`;
+    }
+    case "scaffold_hf_project":
+      return `[HyperFrames project scaffolded \u2192 ${String(data.composition_url ?? "?")}]`;
+    default:
+      return null;
+  }
+}
+function summarizeToolMessage(message) {
+  if (message.role !== "tool" || !Array.isArray(message.content)) {
+    return message;
+  }
+  return {
+    ...message,
+    content: message.content.map((part) => {
+      if (part.type !== "tool-result") {
+        return part;
+      }
+      const summary = summarizeToolName(part.toolName, part.output);
+      if (summary === null) {
+        return part;
+      }
+      return {
+        ...part,
+        output: { type: "text", value: summary }
+      };
+    })
+  };
+}
+function pruneToolResults(messages) {
+  const exchanges = segmentExchanges(messages);
+  if (exchanges.length <= KEEP_EXCHANGES) {
+    return messages;
+  }
+  const pruneBeforeIndex = exchanges.length - KEEP_EXCHANGES;
+  const indicesToPrune = /* @__PURE__ */ new Set();
+  for (let exchangeIndex = 0; exchangeIndex < pruneBeforeIndex; exchangeIndex++) {
+    for (const toolIndex of exchanges[exchangeIndex].toolIndices) {
+      indicesToPrune.add(toolIndex);
+    }
+  }
+  return messages.map(
+    (message, index) => indicesToPrune.has(index) ? summarizeToolMessage(message) : message
+  );
+}
+var KEEP_EXCHANGES;
+var init_messagePruning = __esm({
+  "src/messagePruning.ts"() {
+    "use strict";
+    KEEP_EXCHANGES = 4;
+  }
+});
+
+// src/errorMessage.ts
+function errorMessage(error40) {
+  if (error40 instanceof Error) return error40.message;
+  if (typeof error40 === "string") return error40;
+  if (error40 && typeof error40 === "object" && "message" in error40 && typeof error40.message === "string" && error40.message.trim()) {
+    return error40.message;
+  }
+  try {
+    const serialized = JSON.stringify(error40);
+    if (serialized && serialized !== "{}" && serialized !== "null") {
+      return serialized;
+    }
+  } catch {
+  }
+  return "An error occurred.";
+}
+var init_errorMessage = __esm({
+  "src/errorMessage.ts"() {
+    "use strict";
+  }
+});
+
+// src/skills.ts
+function resolveSkill(skillId, message) {
+  if (skillId) {
+    const normalized = skillId.replace(/^\//, "").trim();
+    if (normalized) {
+      const skillPath = import_path3.default.join(SKILLS_DIR2, normalized, "SKILL.md");
+      if (import_fs4.default.existsSync(skillPath)) {
+        return normalized;
+      }
+      console.warn(`Skill not found for skillId: ${skillId}`);
+    }
+  }
+  return detectSkill(message);
+}
+function detectSkill(message) {
+  const text2 = message.toLowerCase();
+  const skillTriggers = [
+    {
+      skill: "edu-video",
+      triggers: [
+        "/edu-video",
+        "educational video",
+        "edu video",
+        "lecture video",
+        "teacher video",
+        "teaching video"
+      ]
+    },
+    {
+      skill: "background-generation",
+      triggers: [
+        "/background-generation",
+        "background",
+        "backdrop",
+        "background image",
+        "background video",
+        "studio background"
+      ]
+    }
+  ];
+  for (const { skill, triggers } of skillTriggers) {
+    if (triggers.some((trigger) => text2.includes(trigger))) {
+      return skill;
+    }
+  }
+  return null;
+}
+function loadSkillMd(skillName) {
+  const skillPath = import_path3.default.join(SKILLS_DIR2, skillName, "SKILL.md");
+  if (!import_fs4.default.existsSync(skillPath)) {
+    throw new Error(`SKILL.md not found: Skills/${skillName}/SKILL.md`);
+  }
+  return import_fs4.default.readFileSync(skillPath, "utf-8");
+}
+function loadAgentMd() {
+  const agentPath = import_path3.default.join(SKILLS_DIR2, "AGENT.md");
+  if (import_fs4.default.existsSync(agentPath)) {
+    return import_fs4.default.readFileSync(agentPath, "utf-8");
+  }
+  return DEFAULT_AGENT_PROMPT;
+}
+var import_fs4, import_path3, SKILLS_DIR2, DEFAULT_AGENT_PROMPT;
+var init_skills = __esm({
+  "src/skills.ts"() {
+    "use strict";
+    import_fs4 = __toESM(require("fs"));
+    import_path3 = __toESM(require("path"));
+    SKILLS_DIR2 = import_path3.default.resolve(__dirname, "../../../Skills");
+    DEFAULT_AGENT_PROMPT = `You are OkVevo AI, a helpful assistant for creating educational videos from lecture recordings.
+
+When a user wants to create an educational video, use your tools to complete the full pipeline: transcribe \u2192 extract concepts \u2192 render animations \u2192 build composition \u2192 render video.
+
+Call tools autonomously in the right order. Narrate what you are doing in a friendly, conversational way. When the video is ready, tell the user it is ready (the UI shows the player \u2014 never paste a URL) and ask if they want any changes.
+
+For all other messages, respond conversationally.`;
+  }
+});
+
+// src/systemPromptCache.ts
+function getAgentMdMtime() {
+  const agentPath = import_path4.default.join(SKILLS_DIR3, "AGENT.md");
+  if (!import_fs5.default.existsSync(agentPath)) {
+    return 0;
+  }
+  return import_fs5.default.statSync(agentPath).mtimeMs;
+}
+function getSkillMdMtime(skillName) {
+  const skillPath = import_path4.default.join(SKILLS_DIR3, skillName, "SKILL.md");
+  if (!import_fs5.default.existsSync(skillPath)) {
+    return 0;
+  }
+  return import_fs5.default.statSync(skillPath).mtimeMs;
+}
+function buildSystemPrompt(skillName) {
+  let prompt = loadAgentMd();
+  if (!skillName) {
+    return prompt;
+  }
+  try {
+    const skillMd = loadSkillMd(skillName);
+    prompt = `${prompt}
+
+---
+
+${skillMd}`;
+  } catch (error40) {
+    console.warn(`Skill not found: ${skillName}`, error40);
+  }
+  return prompt;
+}
+function getCachedSystemPrompt(sessionId, skillName) {
+  const agentMdMtime = getAgentMdMtime();
+  const skillMdMtime = skillName ? getSkillMdMtime(skillName) : null;
+  const cached2 = systemPromptCache.get(sessionId);
+  if (cached2 && cached2.skillName === skillName && cached2.agentMdMtime === agentMdMtime && cached2.skillMdMtime === skillMdMtime) {
+    return cached2.prompt;
+  }
+  const prompt = buildSystemPrompt(skillName);
+  systemPromptCache.set(sessionId, {
+    prompt,
+    skillName,
+    agentMdMtime,
+    skillMdMtime
+  });
+  return prompt;
+}
+var import_fs5, import_path4, SKILLS_DIR3, systemPromptCache;
+var init_systemPromptCache = __esm({
+  "src/systemPromptCache.ts"() {
+    "use strict";
+    import_fs5 = __toESM(require("fs"));
+    import_path4 = __toESM(require("path"));
+    init_skills();
+    SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../Skills");
+    systemPromptCache = /* @__PURE__ */ new Map();
+  }
+});
 
 // src/tools/lib/manimGuard.ts
-var SCENE_CLASS_RE = /class\s+Scene\w*\s*\(\s*Scene\s*\)\s*:/;
-var TRACKER_REMOVED = "Anti-overlap tracking (VisibleTracker) was removed from this script \u2014 it must remain wired in; fix the layout, don't delete the safety check.";
 function assertManimMaxVisible(content) {
   if (/\bMAX_VISIBLE\s*=/.test(content) && !/\bMAX_VISIBLE\s*=\s*6\b/.test(content)) {
     return "MAX_VISIBLE must remain 6 (immutable). Do not raise it \u2014 Group related mobjects, FadeOut spent labels/rects, or clear_scene between beats, then retry.";
@@ -37188,6 +37664,14 @@ function assertManimMaxVisible(content) {
 function isManimScriptPath(resolvedPath) {
   return /[/\\]manim_scripts[/\\].+\.py$/i.test(resolvedPath);
 }
+var SCENE_CLASS_RE, TRACKER_REMOVED;
+var init_manimGuard = __esm({
+  "src/tools/lib/manimGuard.ts"() {
+    "use strict";
+    SCENE_CLASS_RE = /class\s+Scene\w*\s*\(\s*Scene\s*\)\s*:/;
+    TRACKER_REMOVED = "Anti-overlap tracking (VisibleTracker) was removed from this script \u2014 it must remain wired in; fix the layout, don't delete the safety check.";
+  }
+});
 
 // src/tools/lib/strReplaceDecode.ts
 function decodeModelStringEscapes(s) {
@@ -37209,10 +37693,13 @@ function pickStrReplacePair(content, old_string, new_string) {
     matches: content.split(decodedOld).length - 1
   };
 }
+var init_strReplaceDecode = __esm({
+  "src/tools/lib/strReplaceDecode.ts"() {
+    "use strict";
+  }
+});
 
 // src/tools/lib/hfProjectSync.ts
-var import_fs5 = __toESM(require("fs"));
-var import_path5 = __toESM(require("path"));
 function isHfProjectPath(resolvedPath) {
   return /[/\\]hf-project[/\\]/.test(resolvedPath);
 }
@@ -37227,7 +37714,7 @@ function hfProjectObjectPath(userId, sessionId, resolvedPath, workdir = getSessi
   return `users/${userId}/sessions/${sessionId}/hf-project/${rel}`;
 }
 async function syncHfProjectFileAfterEdit(userId, sessionId, resolvedPath, upload, workdir = getSessionWorkdir(sessionId)) {
-  if (!isHfProjectPath(resolvedPath) || !import_fs5.default.existsSync(resolvedPath)) {
+  if (!isHfProjectPath(resolvedPath) || !import_fs6.default.existsSync(resolvedPath)) {
     return null;
   }
   const storagePath = hfProjectObjectPath(userId, sessionId, resolvedPath, workdir);
@@ -37244,19 +37731,33 @@ async function syncHfProjectFileAfterEdit(userId, sessionId, resolvedPath, uploa
     };
   }
 }
+var import_fs6, import_path5;
+var init_hfProjectSync = __esm({
+  "src/tools/lib/hfProjectSync.ts"() {
+    "use strict";
+    import_fs6 = __toESM(require("fs"));
+    import_path5 = __toESM(require("path"));
+    init_utils();
+  }
+});
 
 // src/tools/lib/ownedEditFiles.ts
-var OWNED_PATH = /(?:^|[\s"'`=/])(?:(?:\.?\.?\/)*(?:[^\s'"`]*\/)?)?(?:hf-project\/(?:index\.html|compositions\/[^\s'"`]*\.html|COMPOSITION_MANIFEST\.json)|manim_scripts\/[^\s'"`]*\.py)\b/i;
 function commandTargetsOwnedEditFile(command) {
   const scrubbed = command.replace(/hf-project\/capture\/assets\/[^\s'"`]*/gi, "").replace(/hf-project\/assets\/[^\s'"`]*/gi, "");
   return OWNED_PATH.test(scrubbed);
 }
-var OWNED_EDIT_SHELL_STDERR = "Shell edits of composition/script files are not allowed. Use write_file or str_replace on hf-project index/compositions/COMPOSITION_MANIFEST or manim_scripts/*.py. Asset pulls under hf-project/capture/assets or hf-project/assets remain allowed via shell.";
+var OWNED_PATH, OWNED_EDIT_SHELL_STDERR;
+var init_ownedEditFiles = __esm({
+  "src/tools/lib/ownedEditFiles.ts"() {
+    "use strict";
+    OWNED_PATH = /(?:^|[\s"'`=/])(?:(?:\.?\.?\/)*(?:[^\s'"`]*\/)?)?(?:hf-project\/(?:index\.html|compositions\/[^\s'"`]*\.html|COMPOSITION_MANIFEST\.json)|manim_scripts\/[^\s'"`]*\.py)\b/i;
+    OWNED_EDIT_SHELL_STDERR = "Shell edits of composition/script files are not allowed. Use write_file or str_replace on hf-project index/compositions/COMPOSITION_MANIFEST or manim_scripts/*.py. Asset pulls under hf-project/capture/assets or hf-project/assets remain allowed via shell.";
+  }
+});
 
 // src/tools/general/filesystem.ts
-init_storage();
 async function ensurePathArtifacts(ctx, resolvedPath) {
-  if (import_fs6.default.existsSync(resolvedPath)) return;
+  if (import_fs7.default.existsSync(resolvedPath)) return;
   const needs = artifactNeedsForResolvedPath(
     ctx.sessionId,
     resolvedPath,
@@ -37331,7 +37832,7 @@ Paths are relative to the session work directory unless absolute.`,
       execute: async ({ path: filePath, content }) => {
         const baseDir = getSessionWorkdir(ctx.sessionId);
         const resolved = import_path6.default.isAbsolute(filePath) ? filePath : import_path6.default.join(baseDir, filePath);
-        if (!import_fs6.default.existsSync(resolved)) {
+        if (!import_fs7.default.existsSync(resolved)) {
           await ensurePathArtifacts(ctx, resolved);
         }
         if (isManimScriptPath(resolved)) {
@@ -37340,8 +37841,8 @@ Paths are relative to the session work directory unless absolute.`,
             return { error: maxVisibleError, path: resolved };
           }
         }
-        import_fs6.default.mkdirSync(import_path6.default.dirname(resolved), { recursive: true });
-        import_fs6.default.writeFileSync(resolved, content, "utf-8");
+        import_fs7.default.mkdirSync(import_path6.default.dirname(resolved), { recursive: true });
+        import_fs7.default.writeFileSync(resolved, content, "utf-8");
         const result = {
           path: resolved,
           bytes_written: Buffer.byteLength(content, "utf-8")
@@ -37370,14 +37871,14 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs6.default.existsSync(resolved)) {
+          if (!import_fs7.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs6.default.statSync(resolved);
+          const stat = import_fs7.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs6.default.readFileSync(resolved);
+          const buf = import_fs7.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return {
               path: resolved,
@@ -37422,7 +37923,7 @@ Paths are relative to the session work directory unless absolute.`,
       execute: async ({ directory, pattern, content_search, max_results }) => {
         const resolved = resolveToolPath(ctx.sessionId, directory);
         await ensurePathArtifacts(ctx, resolved);
-        if (!import_fs6.default.existsSync(resolved)) {
+        if (!import_fs7.default.existsSync(resolved)) {
           return { error: "Directory not found", matches: [] };
         }
         let allFiles;
@@ -37445,7 +37946,7 @@ Paths are relative to the session work directory unless absolute.`,
           };
           if (content_search) {
             try {
-              const buf = import_fs6.default.readFileSync(file2);
+              const buf = import_fs7.default.readFileSync(file2);
               if (isBinaryBuffer(buf)) {
                 continue;
               }
@@ -37484,14 +37985,14 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs6.default.existsSync(resolved)) {
+          if (!import_fs7.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs6.default.statSync(resolved);
+          const stat = import_fs7.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs6.default.readFileSync(resolved);
+          const buf = import_fs7.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return { error: "File is binary and cannot be edited as text", path: resolved };
           }
@@ -37514,7 +38015,7 @@ Paths are relative to the session work directory unless absolute.`,
               return { error: maxVisibleError, path: resolved };
             }
           }
-          import_fs6.default.writeFileSync(resolved, updated, "utf-8");
+          import_fs7.default.writeFileSync(resolved, updated, "utf-8");
           const result = {
             path: resolved,
             bytes_written: Buffer.byteLength(updated, "utf-8")
@@ -37537,10 +38038,24 @@ Paths are relative to the session work directory unless absolute.`,
     })
   };
 }
+var import_fs7, import_path6;
+var init_filesystem = __esm({
+  "src/tools/general/filesystem.ts"() {
+    "use strict";
+    import_fs7 = __toESM(require("fs"));
+    import_path6 = __toESM(require("path"));
+    init_dist5();
+    init_zod();
+    init_utils();
+    init_manimGuard();
+    init_strReplaceDecode();
+    init_hfProjectSync();
+    init_ownedEditFiles();
+    init_storage();
+  }
+});
 
 // src/tools/general/web.ts
-init_dist5();
-init_zod();
 async function tavilySearch(query, maxResults) {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -37623,13 +38138,15 @@ a URL they want analysed.`,
     })
   };
 }
+var init_web = __esm({
+  "src/tools/general/web.ts"() {
+    "use strict";
+    init_dist5();
+    init_zod();
+  }
+});
 
 // src/tools/general/vision.ts
-var import_fs7 = __toESM(require("fs"));
-var import_path7 = __toESM(require("path"));
-init_dist5();
-init_zod();
-var VISION_MODEL = process.env.VISION_MODEL ?? "google/gemini-2.5-flash";
 async function callOpenRouterVision(imageBase64, mimeType, question) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -37698,7 +38215,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
         );
         try {
           await downloadFile(image_url, tempPath);
-          const buf = import_fs7.default.readFileSync(tempPath);
+          const buf = import_fs8.default.readFileSync(tempPath);
           const base643 = buf.toString("base64");
           const mimeType = detectMimeType(tempPath);
           const analysis = await callOpenRouterVision(base643, mimeType, question);
@@ -37708,7 +38225,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
           throw new Error(`Vision analysis failed: ${message}`);
         } finally {
           try {
-            if (import_fs7.default.existsSync(tempPath)) import_fs7.default.unlinkSync(tempPath);
+            if (import_fs8.default.existsSync(tempPath)) import_fs8.default.unlinkSync(tempPath);
           } catch {
           }
         }
@@ -37716,31 +38233,69 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
     })
   };
 }
+var import_fs8, import_path7, VISION_MODEL;
+var init_vision = __esm({
+  "src/tools/general/vision.ts"() {
+    "use strict";
+    import_fs8 = __toESM(require("fs"));
+    import_path7 = __toESM(require("path"));
+    init_dist5();
+    init_zod();
+    init_utils();
+    VISION_MODEL = process.env.VISION_MODEL ?? "google/gemini-2.5-flash";
+  }
+});
 
 // src/tools/general/clarify.ts
-init_dist5();
-init_zod();
 function createClarifyTools(ctx) {
   return {
     ask_clarification: tool({
-      description: "Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay.",
+      description: "Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, or animation style \u2014 those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.",
       inputSchema: external_exports2.object({
+        kind: external_exports2.enum(["single_select", "phase_gate"]).describe(
+          "single_select = numbered choices; phase_gate = Continue only (no choices)"
+        ),
         question: external_exports2.string().describe("The question to ask the user"),
         context: external_exports2.string().optional().describe("Optional background explaining why clarification is needed"),
-        choices: external_exports2.array(external_exports2.object({ id: external_exports2.string(), label: external_exports2.string() })).optional().describe("Optional multiple-choice answers"),
-        allowFreeform: external_exports2.boolean().optional().describe("Whether the user may type a freeform answer (default true)"),
+        choices: external_exports2.array(external_exports2.object({ id: external_exports2.string(), label: external_exports2.string() })).optional().describe("Required non-empty for single_select; omit for phase_gate"),
+        allowFreeform: external_exports2.boolean().describe("Whether the user may type a freeform answer (required)"),
         phase_label: external_exports2.string().optional().describe('Optional phase title for check-in cards (e.g. "Transcription complete")')
       }),
-      execute: async ({ question, context: context2, choices, allowFreeform, phase_label }) => {
+      execute: async ({ kind, question, context: context2, choices, allowFreeform, phase_label }) => {
+        const owned = matchToolOwnedDecision(choices);
+        const allowedPhase = phase_label === "Video orientation" || phase_label === "Transcription language";
+        if (owned && !allowedPhase) {
+          return {
+            error: `Decision "${owned}" is tool-owned / front-loaded. Do not ask_clarification for it \u2014 use the pipeline tool or wait for the Video preferences batch.`,
+            decision: owned
+          };
+        }
         if (ctx.pipelineMode !== "ask") {
           return context2 ? `${context2}
 
 ${question}` : question;
         }
-        const written = await writeAskCheckpoint(ctx, {
+        if (kind === "single_select" && !choices?.length) {
+          return {
+            error: "single_select requires a non-empty choices array"
+          };
+        }
+        if (kind === "phase_gate" && choices?.length) {
+          return {
+            error: "phase_gate forbids choices \u2014 use single_select instead"
+          };
+        }
+        const written = kind === "single_select" ? await writeAskCheckpoint(ctx, {
+          kind: "single_select",
           question,
           context: context2,
           choices,
+          allowFreeform,
+          phase_label
+        }) : await writeAskCheckpoint(ctx, {
+          kind: "phase_gate",
+          question,
+          context: context2,
           allowFreeform,
           phase_label
         });
@@ -37755,13 +38310,16 @@ ${question}` : question;
     })
   };
 }
-
-// src/tools/general/image_generate.ts
-init_dist5();
-init_zod();
+var init_clarify = __esm({
+  "src/tools/general/clarify.ts"() {
+    "use strict";
+    init_dist5();
+    init_zod();
+    init_checkpoint();
+  }
+});
 
 // src/callbackToken.ts
-var import_node_crypto2 = __toESM(require("node:crypto"));
 function getSecret() {
   const secret = process.env.HEYGEN_CALLBACK_SECRET;
   if (!secret) {
@@ -37774,6 +38332,13 @@ function signCallbackToken(payload) {
   const sig = import_node_crypto2.default.createHmac("sha256", getSecret()).update(body).digest("hex");
   return `${body}.${sig}`;
 }
+var import_node_crypto2;
+var init_callbackToken = __esm({
+  "src/callbackToken.ts"() {
+    "use strict";
+    import_node_crypto2 = __toESM(require("node:crypto"));
+  }
+});
 
 // src/falQueue.ts
 function buildFalWebhookUrl(sessionId, taskId) {
@@ -37806,192 +38371,67 @@ async function falQueueSubmit(opts) {
   }
   return { request_id: body.request_id };
 }
+async function falQueueStatus(model, requestId, falKey2) {
+  const url2 = `https://queue.fal.run/${model}/requests/${encodeURIComponent(requestId)}/status`;
+  const res = await fetch(url2, {
+    headers: { Authorization: `Key ${falKey2}` }
+  });
+  if (!res.ok) {
+    const text2 = await res.text();
+    throw new Error(`Fal queue status ${res.status}: ${text2.slice(0, 500)}`);
+  }
+  const raw = await res.json();
+  const s = String(raw.status ?? "").toUpperCase();
+  const status = s === "IN_QUEUE" || s === "IN_PROGRESS" || s === "COMPLETED" ? s : s === "FAILED" || s === "ERROR" ? "FAILED" : "UNKNOWN";
+  return { status, raw };
+}
+async function falQueueResult(model, requestId, falKey2) {
+  const url2 = `https://queue.fal.run/${model}/requests/${encodeURIComponent(requestId)}`;
+  const res = await fetch(url2, {
+    headers: { Authorization: `Key ${falKey2}` }
+  });
+  if (!res.ok) {
+    const text2 = await res.text();
+    throw new Error(`Fal queue result ${res.status}: ${text2.slice(0, 500)}`);
+  }
+  return res.json();
+}
+var init_falQueue = __esm({
+  "src/falQueue.ts"() {
+    "use strict";
+    init_callbackToken();
+  }
+});
+
+// src/pendingFalJob.ts
+async function persistPendingFalJob(sessionId, job) {
+  await db.collection("sessions").doc(sessionId).set({ pendingFalJob: job }, { merge: true });
+}
+async function readPendingFalJob(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.pendingFalJob;
+  if (!raw || typeof raw !== "object") return null;
+  const j = raw;
+  if (typeof j.requestId !== "string" || typeof j.taskId !== "string") return null;
+  return {
+    taskId: j.taskId,
+    requestId: j.requestId,
+    resumeOnCompletion: j.resumeOnCompletion === true
+  };
+}
+async function clearPendingFalJob(sessionId) {
+  await db.collection("sessions").doc(sessionId).set({ pendingFalJob: import_firestore5.FieldValue.delete() }, { merge: true });
+}
+var import_firestore5;
+var init_pendingFalJob = __esm({
+  "src/pendingFalJob.ts"() {
+    "use strict";
+    import_firestore5 = require("firebase-admin/firestore");
+    init_firebase();
+  }
+});
 
 // src/tools/general/mediaModelRegistry.ts
-var import_strict = __toESM(require("node:assert/strict"));
-var IMAGE_MODEL_KEYS = [
-  "studio_background",
-  "nano_banana_2",
-  "nano_banana_2_lite",
-  "nano_banana_pro",
-  "gpt_image_2"
-];
-var VIDEO_MODEL_KEYS = ["seedance_2", "seedance_2_fast"];
-var VIDEO_DURATIONS = [
-  "auto",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "11",
-  "12",
-  "13",
-  "14",
-  "15"
-];
-var ASPECT_TO_IMAGE_SIZE = {
-  "16:9": "landscape_16_9",
-  "9:16": "portrait_16_9",
-  "4:3": "landscape_4_3",
-  "3:4": "portrait_4_3",
-  "1:1": "square_hd",
-  auto: "auto"
-};
-var NANO_ASPECT_RATIOS = [
-  "auto",
-  "21:9",
-  "16:9",
-  "3:2",
-  "4:3",
-  "5:4",
-  "1:1",
-  "4:5",
-  "3:4",
-  "2:3",
-  "9:16",
-  "4:1",
-  "1:4",
-  "8:1",
-  "1:8"
-];
-var NANO_PRO_ASPECT_RATIOS = [
-  "auto",
-  "21:9",
-  "16:9",
-  "3:2",
-  "4:3",
-  "5:4",
-  "1:1",
-  "4:5",
-  "3:4",
-  "2:3",
-  "9:16"
-];
-var KLEIN_IMAGE_SIZES = [
-  "square_hd",
-  "square",
-  "portrait_4_3",
-  "portrait_16_9",
-  "landscape_4_3",
-  "landscape_16_9"
-];
-var GPT_IMAGE_SIZES = [...KLEIN_IMAGE_SIZES, "auto"];
-var SEEDANCE_ASPECT_RATIOS = [
-  "auto",
-  "21:9",
-  "16:9",
-  "4:3",
-  "1:1",
-  "3:4",
-  "9:16"
-];
-var SEEDANCE_RESOLUTIONS = ["480p", "720p"];
-var IMAGE_MODELS = {
-  studio_background: {
-    kind: "image",
-    falModel: "fal-ai/flux-2/klein/9b",
-    sizeMode: "image_size",
-    defaultParams: {
-      image_size: "landscape_16_9",
-      num_inference_steps: 4,
-      num_images: 1,
-      output_format: "png",
-      enable_safety_checker: true
-    },
-    constraints: { sizes: KLEIN_IMAGE_SIZES }
-  },
-  nano_banana_2: {
-    kind: "image",
-    falModel: "fal-ai/nano-banana-2",
-    sizeMode: "aspect_ratio",
-    defaultParams: {
-      aspect_ratio: "16:9",
-      resolution: "1K",
-      num_images: 1
-    },
-    constraints: {
-      sizes: NANO_ASPECT_RATIOS,
-      resolutions: ["0.5K", "1K", "2K", "4K"]
-    }
-  },
-  nano_banana_2_lite: {
-    kind: "image",
-    falModel: "google/nano-banana-2-lite",
-    sizeMode: "aspect_ratio",
-    defaultParams: {
-      aspect_ratio: "16:9",
-      num_images: 1
-    },
-    constraints: { sizes: NANO_ASPECT_RATIOS }
-  },
-  nano_banana_pro: {
-    kind: "image",
-    falModel: "fal-ai/nano-banana-pro",
-    sizeMode: "aspect_ratio",
-    defaultParams: {
-      aspect_ratio: "16:9",
-      resolution: "1K",
-      num_images: 1
-    },
-    constraints: {
-      sizes: NANO_PRO_ASPECT_RATIOS,
-      resolutions: ["1K", "2K", "4K"]
-    }
-  },
-  gpt_image_2: {
-    kind: "image",
-    falModel: "openai/gpt-image-2",
-    sizeMode: "image_size",
-    defaultParams: {
-      image_size: "landscape_16_9",
-      quality: "high",
-      num_images: 1
-    },
-    constraints: {
-      sizes: GPT_IMAGE_SIZES,
-      qualities: ["auto", "low", "medium", "high"]
-    }
-  }
-};
-var VIDEO_MODELS = {
-  seedance_2: {
-    kind: "video",
-    falModel: "bytedance/seedance-2.0/text-to-video",
-    falModelImageToVideo: "bytedance/seedance-2.0/image-to-video",
-    sizeMode: "aspect_ratio",
-    defaultParams: {
-      aspect_ratio: "16:9",
-      resolution: "720p",
-      duration: "5",
-      generate_audio: false
-    },
-    constraints: {
-      aspectRatios: SEEDANCE_ASPECT_RATIOS,
-      resolutions: SEEDANCE_RESOLUTIONS,
-      durations: VIDEO_DURATIONS
-    }
-  },
-  seedance_2_fast: {
-    kind: "video",
-    falModel: "bytedance/seedance-2.0/fast/text-to-video",
-    falModelImageToVideo: "bytedance/seedance-2.0/fast/image-to-video",
-    sizeMode: "aspect_ratio",
-    defaultParams: {
-      aspect_ratio: "16:9",
-      resolution: "720p",
-      duration: "5",
-      generate_audio: false
-    },
-    constraints: {
-      aspectRatios: SEEDANCE_ASPECT_RATIOS,
-      resolutions: SEEDANCE_RESOLUTIONS,
-      durations: VIDEO_DURATIONS
-    }
-  }
-};
 function getImageModel(key) {
   const entry = IMAGE_MODELS[key];
   if (!entry) throw new Error(`Unknown image model: ${key}`);
@@ -38142,11 +38582,201 @@ function selfcheckMediaModelRegistry() {
   });
   import_strict.default.equal(studio.input.image_size, "landscape_16_9");
 }
-var isMain = typeof process !== "undefined" && process.argv[1] != null && /mediaModelRegistry\.(ts|js)$/.test(process.argv[1]);
-if (isMain) {
-  selfcheckMediaModelRegistry();
-  console.log("mediaModelRegistry selfcheck ok");
-}
+var import_strict, IMAGE_MODEL_KEYS, VIDEO_MODEL_KEYS, VIDEO_DURATIONS, ASPECT_TO_IMAGE_SIZE, NANO_ASPECT_RATIOS, NANO_PRO_ASPECT_RATIOS, KLEIN_IMAGE_SIZES, GPT_IMAGE_SIZES, SEEDANCE_ASPECT_RATIOS, SEEDANCE_RESOLUTIONS, IMAGE_MODELS, VIDEO_MODELS, isMain;
+var init_mediaModelRegistry = __esm({
+  "src/tools/general/mediaModelRegistry.ts"() {
+    "use strict";
+    import_strict = __toESM(require("node:assert/strict"));
+    IMAGE_MODEL_KEYS = [
+      "studio_background",
+      "nano_banana_2",
+      "nano_banana_2_lite",
+      "nano_banana_pro",
+      "gpt_image_2"
+    ];
+    VIDEO_MODEL_KEYS = ["seedance_2", "seedance_2_fast"];
+    VIDEO_DURATIONS = [
+      "auto",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15"
+    ];
+    ASPECT_TO_IMAGE_SIZE = {
+      "16:9": "landscape_16_9",
+      "9:16": "portrait_16_9",
+      "4:3": "landscape_4_3",
+      "3:4": "portrait_4_3",
+      "1:1": "square_hd",
+      auto: "auto"
+    };
+    NANO_ASPECT_RATIOS = [
+      "auto",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "4:1",
+      "1:4",
+      "8:1",
+      "1:8"
+    ];
+    NANO_PRO_ASPECT_RATIOS = [
+      "auto",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16"
+    ];
+    KLEIN_IMAGE_SIZES = [
+      "square_hd",
+      "square",
+      "portrait_4_3",
+      "portrait_16_9",
+      "landscape_4_3",
+      "landscape_16_9"
+    ];
+    GPT_IMAGE_SIZES = [...KLEIN_IMAGE_SIZES, "auto"];
+    SEEDANCE_ASPECT_RATIOS = [
+      "auto",
+      "21:9",
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+    ];
+    SEEDANCE_RESOLUTIONS = ["480p", "720p"];
+    IMAGE_MODELS = {
+      studio_background: {
+        kind: "image",
+        falModel: "fal-ai/flux-2/klein/9b",
+        sizeMode: "image_size",
+        defaultParams: {
+          image_size: "landscape_16_9",
+          num_inference_steps: 4,
+          num_images: 1,
+          output_format: "png",
+          enable_safety_checker: true
+        },
+        constraints: { sizes: KLEIN_IMAGE_SIZES }
+      },
+      nano_banana_2: {
+        kind: "image",
+        falModel: "fal-ai/nano-banana-2",
+        sizeMode: "aspect_ratio",
+        defaultParams: {
+          aspect_ratio: "16:9",
+          resolution: "1K",
+          num_images: 1
+        },
+        constraints: {
+          sizes: NANO_ASPECT_RATIOS,
+          resolutions: ["0.5K", "1K", "2K", "4K"]
+        }
+      },
+      nano_banana_2_lite: {
+        kind: "image",
+        falModel: "google/nano-banana-2-lite",
+        sizeMode: "aspect_ratio",
+        defaultParams: {
+          aspect_ratio: "16:9",
+          num_images: 1
+        },
+        constraints: { sizes: NANO_ASPECT_RATIOS }
+      },
+      nano_banana_pro: {
+        kind: "image",
+        falModel: "fal-ai/nano-banana-pro",
+        sizeMode: "aspect_ratio",
+        defaultParams: {
+          aspect_ratio: "16:9",
+          resolution: "1K",
+          num_images: 1
+        },
+        constraints: {
+          sizes: NANO_PRO_ASPECT_RATIOS,
+          resolutions: ["1K", "2K", "4K"]
+        }
+      },
+      gpt_image_2: {
+        kind: "image",
+        falModel: "openai/gpt-image-2",
+        sizeMode: "image_size",
+        defaultParams: {
+          image_size: "landscape_16_9",
+          quality: "high",
+          num_images: 1
+        },
+        constraints: {
+          sizes: GPT_IMAGE_SIZES,
+          qualities: ["auto", "low", "medium", "high"]
+        }
+      }
+    };
+    VIDEO_MODELS = {
+      seedance_2: {
+        kind: "video",
+        falModel: "bytedance/seedance-2.0/text-to-video",
+        falModelImageToVideo: "bytedance/seedance-2.0/image-to-video",
+        sizeMode: "aspect_ratio",
+        defaultParams: {
+          aspect_ratio: "16:9",
+          resolution: "720p",
+          duration: "5",
+          generate_audio: false
+        },
+        constraints: {
+          aspectRatios: SEEDANCE_ASPECT_RATIOS,
+          resolutions: SEEDANCE_RESOLUTIONS,
+          durations: VIDEO_DURATIONS
+        }
+      },
+      seedance_2_fast: {
+        kind: "video",
+        falModel: "bytedance/seedance-2.0/fast/text-to-video",
+        falModelImageToVideo: "bytedance/seedance-2.0/fast/image-to-video",
+        sizeMode: "aspect_ratio",
+        defaultParams: {
+          aspect_ratio: "16:9",
+          resolution: "720p",
+          duration: "5",
+          generate_audio: false
+        },
+        constraints: {
+          aspectRatios: SEEDANCE_ASPECT_RATIOS,
+          resolutions: SEEDANCE_RESOLUTIONS,
+          durations: VIDEO_DURATIONS
+        }
+      }
+    };
+    isMain = typeof process !== "undefined" && process.argv[1] != null && /mediaModelRegistry\.(ts|js)$/.test(process.argv[1]);
+    if (isMain) {
+      selfcheckMediaModelRegistry();
+      console.log("mediaModelRegistry selfcheck ok");
+    }
+  }
+});
 
 // src/tools/general/image_generate.ts
 function resolveFalImageKey() {
@@ -38174,7 +38804,7 @@ function createImageGenerateTools(ctx) {
       }),
       execute: async ({ prompt, model, aspect_ratio, resolution }) => {
         try {
-          const falKey = resolveFalImageKey();
+          const falKey2 = resolveFalImageKey();
           const { falModel, input } = buildImageInput(model, {
             prompt,
             aspect_ratio,
@@ -38183,9 +38813,14 @@ function createImageGenerateTools(ctx) {
           const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_image");
           const { request_id } = await falQueueSubmit({
             model: falModel,
-            falKey,
+            falKey: falKey2,
             webhookUrl,
             input
+          });
+          await persistPendingFalJob(ctx.sessionId, {
+            taskId: "fal_image",
+            requestId: request_id,
+            resumeOnCompletion: false
           });
           return {
             request_id,
@@ -38205,10 +38840,18 @@ function createImageGenerateTools(ctx) {
     })
   };
 }
+var init_image_generate = __esm({
+  "src/tools/general/image_generate.ts"() {
+    "use strict";
+    init_dist5();
+    init_zod();
+    init_falQueue();
+    init_pendingFalJob();
+    init_mediaModelRegistry();
+  }
+});
 
 // src/tools/general/video_generate.ts
-init_dist5();
-init_zod();
 function resolveFalVideoKey() {
   const key = process.env.FAL_API_VIDEO?.trim() || process.env.FAL_API_KEY?.trim() || process.env.FAL_API_IMAGE?.trim();
   if (!key) {
@@ -38239,7 +38882,7 @@ function createVideoGenerateTools(ctx) {
         reference_image_url
       }) => {
         try {
-          const falKey = resolveFalVideoKey();
+          const falKey2 = resolveFalVideoKey();
           const { falModel, input } = buildVideoInput(model, {
             prompt,
             aspect_ratio,
@@ -38250,9 +38893,14 @@ function createVideoGenerateTools(ctx) {
           const webhookUrl = buildFalWebhookUrl(ctx.sessionId, "fal_video");
           const { request_id } = await falQueueSubmit({
             model: falModel,
-            falKey,
+            falKey: falKey2,
             webhookUrl,
             input
+          });
+          await persistPendingFalJob(ctx.sessionId, {
+            taskId: "fal_video",
+            requestId: request_id,
+            resumeOnCompletion: false
           });
           return {
             request_id,
@@ -38274,16 +38922,18 @@ function createVideoGenerateTools(ctx) {
     })
   };
 }
-
-// src/tools/pipeline/concepts.ts
-var import_fs8 = __toESM(require("fs"));
-var import_path8 = __toESM(require("path"));
-init_dist5();
-init_zod();
+var init_video_generate = __esm({
+  "src/tools/general/video_generate.ts"() {
+    "use strict";
+    init_dist5();
+    init_zod();
+    init_falQueue();
+    init_pendingFalJob();
+    init_mediaModelRegistry();
+  }
+});
 
 // src/lib/timelinePlanning.ts
-var TIMELINE_EPSILON = 0.5;
-var MIN_MODE_C_GAP_SECONDS = 3;
 function partitionTimeline(items, totalDuration, gapFillType, _epsilon = TIMELINE_EPSILON) {
   const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
   const segments = [];
@@ -38312,9 +38962,16 @@ function partitionTimeline(items, totalDuration, gapFillType, _epsilon = TIMELIN
   }
   return segments;
 }
+var TIMELINE_EPSILON, MIN_MODE_C_GAP_SECONDS;
+var init_timelinePlanning = __esm({
+  "src/lib/timelinePlanning.ts"() {
+    "use strict";
+    TIMELINE_EPSILON = 0.5;
+    MIN_MODE_C_GAP_SECONDS = 3;
+  }
+});
 
 // src/skills/eduVideo/planning.ts
-var MIN_CONCEPT_SECONDS = 4;
 function resolveNonOverlappingConcepts(concepts) {
   const valid = concepts.filter((c) => c.end_seconds > c.start_seconds);
   const sorted = [...valid].sort(
@@ -38422,15 +39079,321 @@ function validatePlannedSegments(segments, totalDuration, hasManimClips) {
     }
   }
 }
+var MIN_CONCEPT_SECONDS;
+var init_planning = __esm({
+  "src/skills/eduVideo/planning.ts"() {
+    "use strict";
+    init_timelinePlanning();
+    MIN_CONCEPT_SECONDS = 4;
+  }
+});
+
+// src/tools/lib/audioChunks.ts
+function transcriptionDir(sessionId) {
+  const dir = import_path8.default.join(getSessionWorkdir(sessionId), "transcription");
+  import_fs9.default.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+function logTmpDisk(sessionId, tag) {
+  try {
+    const s = import_fs9.default.statfsSync(import_os3.default.tmpdir());
+    const freeMb = Math.round(Number(s.bavail) * Number(s.bsize) / (1024 * 1024));
+    console.error("[transcribe_video] disk", sessionId, tag, { freeMb });
+  } catch {
+    console.error("[transcribe_video] disk", sessionId, tag, "unavailable");
+  }
+}
+function unlinkQuiet(filePath) {
+  if (!filePath) return;
+  try {
+    import_fs9.default.unlinkSync(filePath);
+  } catch {
+  }
+}
+function cleanupTranscriptionLocals(sessionId, extra = []) {
+  for (const p of extra) unlinkQuiet(p);
+  const dir = import_path8.default.join(getSessionWorkdir(sessionId), "transcription");
+  if (!import_fs9.default.existsSync(dir)) return;
+  for (const name26 of import_fs9.default.readdirSync(dir)) {
+    unlinkQuiet(import_path8.default.join(dir, name26));
+  }
+}
+async function probeDurationSeconds(mediaPath) {
+  const probe = await execCommand(
+    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${mediaPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  if (!probe.success) {
+    throw new Error(probe.stderr || "ffprobe duration failed");
+  }
+  const duration3 = Number.parseFloat(probe.stdout.trim());
+  if (!Number.isFinite(duration3) || duration3 <= 0) {
+    throw new Error(`ffprobe returned invalid duration: ${probe.stdout.trim()}`);
+  }
+  return duration3;
+}
+async function extractFlac(inputPath, flacPath) {
+  import_fs9.default.mkdirSync(import_path8.default.dirname(flacPath), { recursive: true });
+  const cmd = `ffmpeg -y -i "${inputPath}" -map 0:a:0 -vn -ar 16000 -ac 1 -c:a flac "${flacPath}"`;
+  let result;
+  try {
+    result = await execCommand(cmd, { timeoutSeconds: EXTRACT_TIMEOUT_SECONDS });
+  } catch (err) {
+    const code = err?.code;
+    if (code === "ENOSPC") {
+      throw new Error("ENOSPC: insufficient disk space during FLAC extract");
+    }
+    throw err;
+  }
+  if (!result.success) {
+    const errText = result.stderr || result.stdout || "ffmpeg FLAC extract failed";
+    if (/no space left|ENOSPC/i.test(errText)) {
+      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
+    }
+    throw new Error(errText);
+  }
+}
+function planWindows(totalDurationSeconds) {
+  const windows = [];
+  let start = 0;
+  let index = 0;
+  while (start < totalDurationSeconds - 1e-6) {
+    const remaining = totalDurationSeconds - start;
+    const isLast = remaining <= CHUNK_STEP_SECONDS + 1e-6;
+    const duration3 = isLast ? remaining : Math.min(CHUNK_STEP_SECONDS + CHUNK_OVERLAP_SECONDS, remaining);
+    windows.push({
+      index,
+      startOffsetSeconds: start,
+      durationSeconds: duration3
+    });
+    if (isLast) break;
+    start += CHUNK_STEP_SECONDS;
+    index += 1;
+  }
+  return windows;
+}
+async function extractWindow(flacPath, startOffsetSeconds, durationSeconds, outPath) {
+  import_fs9.default.mkdirSync(import_path8.default.dirname(outPath), { recursive: true });
+  const cmd = `ffmpeg -y -ss ${startOffsetSeconds} -t ${durationSeconds} -i "${flacPath}" -c copy "${outPath}"`;
+  const result = await execCommand(cmd, { timeoutSeconds: CHUNK_FFMPEG_TIMEOUT_SECONDS });
+  if (!result.success) {
+    const errText = result.stderr || result.stdout || "ffmpeg chunk extract failed";
+    if (/no space left|ENOSPC/i.test(errText)) {
+      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
+    }
+    throw new Error(errText);
+  }
+}
+async function materializeWindows(flacPath, sessionId, planned) {
+  const dir = transcriptionDir(sessionId);
+  const out = [];
+  async function materializeOne(win, depth, suffix) {
+    const outPath = import_path8.default.join(dir, `chunk-${win.index}${suffix}.flac`);
+    await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
+    const bytes = import_fs9.default.statSync(outPath).size;
+    if (bytes <= MAX_CHUNK_BYTES || win.durationSeconds <= 30 || depth >= MAX_RESPLIT_DEPTH) {
+      out.push({ ...win, path: outPath });
+      return;
+    }
+    unlinkQuiet(outPath);
+    const half = win.durationSeconds / 2;
+    const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
+    await materializeOne(
+      {
+        index: win.index,
+        startOffsetSeconds: win.startOffsetSeconds,
+        durationSeconds: half + overlap
+      },
+      depth + 1,
+      `${suffix}a`
+    );
+    await materializeOne(
+      {
+        index: win.index,
+        startOffsetSeconds: win.startOffsetSeconds + half,
+        durationSeconds: win.durationSeconds - half
+      },
+      depth + 1,
+      `${suffix}b`
+    );
+  }
+  for (const win of planned) {
+    await materializeOne(win, 0, "");
+  }
+  return out;
+}
+async function extractSingleWindow(flacPath, sessionId, win, suffix = "") {
+  const outPath = import_path8.default.join(
+    transcriptionDir(sessionId),
+    `chunk-${win.index}${suffix}.flac`
+  );
+  await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
+  return { ...win, path: outPath };
+}
+async function splitWindowInHalf(flacPath, sessionId, win, depth) {
+  const half = win.durationSeconds / 2;
+  const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
+  const a = await extractSingleWindow(
+    flacPath,
+    sessionId,
+    {
+      index: win.index,
+      startOffsetSeconds: win.startOffsetSeconds,
+      durationSeconds: half + overlap
+    },
+    `-d${depth}a`
+  );
+  const b = await extractSingleWindow(
+    flacPath,
+    sessionId,
+    {
+      index: win.index,
+      startOffsetSeconds: win.startOffsetSeconds + half,
+      durationSeconds: win.durationSeconds - half
+    },
+    `-d${depth}b`
+  );
+  return [a, b];
+}
+function validateLocalChunkMeta(local, expected) {
+  return Math.abs(local.startOffsetSeconds - expected.startOffsetSeconds) < 1e-3 && Math.abs(local.durationSeconds - expected.durationSeconds) < 1e-3;
+}
+var import_fs9, import_os3, import_path8, CHUNK_STEP_SECONDS, CHUNK_OVERLAP_SECONDS, MAX_CHUNK_BYTES, EXTRACT_TIMEOUT_SECONDS, CHUNK_FFMPEG_TIMEOUT_SECONDS, MAX_RESPLIT_DEPTH;
+var init_audioChunks = __esm({
+  "src/tools/lib/audioChunks.ts"() {
+    "use strict";
+    import_fs9 = __toESM(require("fs"));
+    import_os3 = __toESM(require("os"));
+    import_path8 = __toESM(require("path"));
+    init_utils();
+    CHUNK_STEP_SECONDS = 480;
+    CHUNK_OVERLAP_SECONDS = 2.5;
+    MAX_CHUNK_BYTES = 15 * 1024 * 1024;
+    EXTRACT_TIMEOUT_SECONDS = 900;
+    CHUNK_FFMPEG_TIMEOUT_SECONDS = 300;
+    MAX_RESPLIT_DEPTH = 2;
+  }
+});
+
+// src/tools/lib/transcriptionProgress.ts
+async function readTranscriptionProgress(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const raw = snap.data()?.transcriptionProgress;
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw;
+  if (typeof p.videoUrl !== "string" || !Array.isArray(p.completedChunkIndices)) {
+    return null;
+  }
+  return p;
+}
+async function writeTranscriptionProgress(sessionId, progress) {
+  await db.collection("sessions").doc(sessionId).set(
+    {
+      transcriptionProgress: {
+        ...progress,
+        updatedAt: import_firestore6.FieldValue.serverTimestamp()
+      }
+    },
+    { merge: true }
+  );
+}
+async function clearTranscriptionProgress(sessionId) {
+  await db.collection("sessions").doc(sessionId).set({ transcriptionProgress: import_firestore6.FieldValue.delete() }, { merge: true });
+}
+function chunkStoragePath(userId, sessionId, index) {
+  return `users/${userId}/sessions/${sessionId}/transcription_chunks/chunk-${index}.json`;
+}
+async function persistChunkResult(userId, sessionId, chunk) {
+  const payload = {
+    words: chunk.words,
+    segments: chunk.segments,
+    text: chunk.text,
+    startOffsetSeconds: chunk.startOffsetSeconds,
+    durationSeconds: chunk.durationSeconds,
+    ...chunk.language !== void 0 ? { language: chunk.language } : {},
+    ...chunk.provider !== void 0 ? { provider: chunk.provider } : {},
+    ...chunk.skipped ? { skipped: true } : {}
+  };
+  const localPath = import_path9.default.join(transcriptionDir(sessionId), `chunk-${chunk.index}.json`);
+  import_fs10.default.mkdirSync(import_path9.default.dirname(localPath), { recursive: true });
+  import_fs10.default.writeFileSync(localPath, JSON.stringify(payload, null, 2));
+  const storagePath = chunkStoragePath(userId, sessionId, chunk.index);
+  const url2 = await uploadFileToStorageKeepLocal(localPath, storagePath);
+  await writeAssetUrl(userId, sessionId, "transcription_chunk", url2, {
+    sourceTool: "transcribe_video",
+    metadata: {
+      index: chunk.index,
+      startOffsetSeconds: chunk.startOffsetSeconds,
+      durationSeconds: chunk.durationSeconds
+    }
+  });
+  return url2;
+}
+async function loadChunkResult(userId, sessionId, index, expected) {
+  const localPath = import_path9.default.join(transcriptionDir(sessionId), `chunk-${index}.json`);
+  if (import_fs10.default.existsSync(localPath)) {
+    try {
+      const parsed = JSON.parse(import_fs10.default.readFileSync(localPath, "utf-8"));
+      if (validateLocalChunkMeta(
+        {
+          startOffsetSeconds: parsed.startOffsetSeconds,
+          durationSeconds: parsed.durationSeconds
+        },
+        expected
+      )) {
+        return parsed;
+      }
+    } catch {
+    }
+  }
+  try {
+    const bucket = (0, import_storage4.getStorage)().bucket(getStorageBucketName());
+    const file2 = bucket.file(chunkStoragePath(userId, sessionId, index));
+    const [exists] = await file2.exists();
+    if (!exists) return null;
+    const [buf] = await file2.download();
+    const parsed = JSON.parse(buf.toString("utf-8"));
+    if (!validateLocalChunkMeta(
+      {
+        startOffsetSeconds: parsed.startOffsetSeconds,
+        durationSeconds: parsed.durationSeconds
+      },
+      expected
+    )) {
+      return null;
+    }
+    import_fs10.default.mkdirSync(import_path9.default.dirname(localPath), { recursive: true });
+    import_fs10.default.writeFileSync(localPath, JSON.stringify(parsed, null, 2));
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+async function deleteTranscriptionChunkObjects(userId, sessionId) {
+  try {
+    const bucket = (0, import_storage4.getStorage)().bucket(getStorageBucketName());
+    await bucket.deleteFiles({
+      prefix: `users/${userId}/sessions/${sessionId}/transcription_chunks/`
+    });
+  } catch (err) {
+    console.error("[transcribe_video] chunk cleanup", sessionId, err);
+  }
+}
+var import_fs10, import_path9, import_firestore6, import_storage4;
+var init_transcriptionProgress = __esm({
+  "src/tools/lib/transcriptionProgress.ts"() {
+    "use strict";
+    import_fs10 = __toESM(require("fs"));
+    import_path9 = __toESM(require("path"));
+    import_firestore6 = require("firebase-admin/firestore");
+    import_storage4 = require("firebase-admin/storage");
+    init_firebase();
+    init_storage();
+    init_audioChunks();
+  }
+});
 
 // src/tools/pipeline/concepts.ts
-init_storage();
-var conceptSchema = external_exports2.object({
-  concept_name: external_exports2.string(),
-  explanation: external_exports2.string(),
-  excerpt: external_exports2.string()
-});
-var conceptsArraySchema = external_exports2.array(conceptSchema);
 function manimCoverageRatio(concepts, duration_seconds) {
   if (duration_seconds == null || duration_seconds <= 0) return 0;
   const span = concepts.reduce((s, c) => s + (c.end_seconds - c.start_seconds), 0);
@@ -38528,26 +39491,23 @@ ${transcript_text}${timed}`;
 function createConceptsTools(ctx) {
   return {
     extract_concepts: tool({
-      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video \u2014 pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video (and after transliterate_captions when a caption-style choice is pending).`,
+      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video \u2014 pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
       inputSchema: external_exports2.object({
         duration_seconds: external_exports2.number().optional()
       }),
       execute: async ({ duration_seconds }) => {
         try {
-          const caption = await getSessionCaptionMode(ctx.sessionId);
-          if (caption.captionMode && !caption.captionModeApplied) {
-            return {
-              ok: false,
-              error: "Caption style choice is pending. Call transliterate_captions first to apply Native / English Worded before extract_concepts.",
-              caption_mode: caption.captionMode,
-              caption_mode_applied: false
-            };
-          }
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
           const transcript = loadSessionTranscript(ctx.sessionId);
           if (!transcript || !transcript.text.trim() && transcript.words.length === 0) {
+            const progress = await readTranscriptionProgress(ctx.sessionId);
+            if (progress?.status === "in_progress" || progress?.falSttFinalizePending) {
+              throw new Error(
+                "Transcription still finalizing \u2014 wait for the lecture-heard checkpoint (or Auto continue). Do not poll the filesystem for transcript.json; call transcribe_video again only to trigger reconciliation."
+              );
+            }
             throw new Error(
-              "No session transcript on disk or in Storage. Call transcribe_video first, or re-upload if this session has no stored transcript."
+              "No session transcript on disk or in Storage. Call transcribe_video first (do not ls/find transcript.json). Re-upload if this session has no stored transcript."
             );
           }
           const resolvedDuration = duration_seconds ?? (transcript.duration_seconds > 0 ? transcript.duration_seconds : void 0);
@@ -38586,10 +39546,10 @@ ${retryHint}` : userMessage
           }
           const concept_count = concepts.length;
           const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
-          import_fs8.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
-          import_fs8.default.copyFileSync(
+          import_fs11.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
+          import_fs11.default.copyFileSync(
             conceptsPath,
-            import_path8.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
+            import_path10.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/concepts.json`;
           const conceptsUrl = await uploadToStorage(conceptsPath, storagePath);
@@ -38603,10 +39563,12 @@ ${retryHint}` : userMessage
                 pipelineMode: ctx.pipelineMode
               },
               {
+                kind: "phase_gate",
                 phase_label: "Concepts extracted",
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
                 question: `${concept_count} concept(s) ready. Approve these concepts, or describe edits below.`,
-                allowFreeform: true
+                allowFreeform: true,
+                freeformPlaceholder: "Describe your revision\u2026"
               }
             );
             return {
@@ -38631,18 +39593,30 @@ ${retryHint}` : userMessage
     })
   };
 }
-
-// src/tools/pipeline/hyperframes.ts
-var import_crypto = __toESM(require("crypto"));
-var import_fs10 = __toESM(require("fs"));
-var import_path10 = __toESM(require("path"));
-init_dist5();
-init_zod();
+var import_fs11, import_path10, conceptSchema, conceptsArraySchema;
+var init_concepts = __esm({
+  "src/tools/pipeline/concepts.ts"() {
+    "use strict";
+    import_fs11 = __toESM(require("fs"));
+    import_path10 = __toESM(require("path"));
+    init_dist5();
+    init_zod();
+    init_utils();
+    init_planning();
+    init_timelinePlanning();
+    init_checkpoint();
+    init_storage();
+    init_transcriptionProgress();
+    conceptSchema = external_exports2.object({
+      concept_name: external_exports2.string(),
+      explanation: external_exports2.string(),
+      excerpt: external_exports2.string()
+    });
+    conceptsArraySchema = external_exports2.array(conceptSchema);
+  }
+});
 
 // src/heygenWebhook.ts
-var import_node_crypto3 = __toESM(require("node:crypto"));
-var MAX_SKEW_SECONDS = 300;
-var HEYGEN_API_BASE = process.env.HEYGEN_API_URL ?? "https://api.heygen.com";
 function verifyHeygenSignature(rawBody, signature, timestamp, secret) {
   if (!signature) {
     return { ok: false, status: 400, error: "missing signature" };
@@ -38671,10 +39645,10 @@ function videoUrlFromEventData(eventData) {
   return null;
 }
 async function fetchHeygenRender(renderId) {
-  const apiKey2 = process.env.HEYGEN_API_KEY;
-  if (!apiKey2) throw new Error("Missing HEYGEN_API_KEY");
+  const apiKey = process.env.HEYGEN_API_KEY;
+  if (!apiKey) throw new Error("Missing HEYGEN_API_KEY");
   const response = await fetch(`${HEYGEN_API_BASE}/v3/hyperframes/renders/${renderId}`, {
-    headers: { "X-Api-Key": apiKey2 }
+    headers: { "X-Api-Key": apiKey }
   });
   if (!response.ok) {
     throw new Error(`HeyGen render GET failed: ${response.status}`);
@@ -38705,11 +39679,15 @@ function parseCloudRenderId(stdout) {
 function isSfnExecutionArn(arn) {
   return arn.startsWith("arn:aws:states:");
 }
-
-// src/tools/pipeline/hyperframes.ts
-init_taggedAssets();
-init_firebase();
-init_storage();
+var import_node_crypto3, MAX_SKEW_SECONDS, HEYGEN_API_BASE;
+var init_heygenWebhook = __esm({
+  "src/heygenWebhook.ts"() {
+    "use strict";
+    import_node_crypto3 = __toESM(require("node:crypto"));
+    MAX_SKEW_SECONDS = 300;
+    HEYGEN_API_BASE = process.env.HEYGEN_API_URL ?? "https://api.heygen.com";
+  }
+});
 
 // src/tools/lib/sessionManimClips.ts
 function isRenderedManimClipKind(kind) {
@@ -38753,11 +39731,13 @@ async function listSessionManimClips(userId, sessionId) {
 async function countRenderedManimClips(userId, sessionId) {
   return (await listSessionManimClips(userId, sessionId)).length;
 }
+var init_sessionManimClips = __esm({
+  "src/tools/lib/sessionManimClips.ts"() {
+    "use strict";
+  }
+});
 
 // src/tools/lib/transcriptSanitize.ts
-var MIN_WORD_SECONDS = 0.05;
-var MAX_WORD_SECONDS = 2.5;
-var MAX_SPREAD_PER_WORD = 1;
 function sanitizeTranscriptWords(words, durationSeconds) {
   if (words.length === 0) return [];
   const out = words.map((word) => ({ ...word })).sort((a, b) => a.start - b.start);
@@ -38803,6 +39783,15 @@ function sanitizeTranscriptWords(words, durationSeconds) {
   }
   return out;
 }
+var MIN_WORD_SECONDS, MAX_WORD_SECONDS, MAX_SPREAD_PER_WORD;
+var init_transcriptSanitize = __esm({
+  "src/tools/lib/transcriptSanitize.ts"() {
+    "use strict";
+    MIN_WORD_SECONDS = 0.05;
+    MAX_WORD_SECONDS = 2.5;
+    MAX_SPREAD_PER_WORD = 1;
+  }
+});
 
 // src/tools/lib/orientationGuard.ts
 function parseStageCanvasSize(html) {
@@ -38852,9 +39841,11 @@ function manimFitNoteForClip(orientation, width, height) {
   }
   return null;
 }
-
-// src/tools/pipeline/hyperframes.ts
-init_renderSnapshot();
+var init_orientationGuard = __esm({
+  "src/tools/lib/orientationGuard.ts"() {
+    "use strict";
+  }
+});
 
 // src/tools/lib/scaffoldInputDiff.ts
 function brandColorsEqual(a, b) {
@@ -38888,20 +39879,21 @@ function diffScaffoldInputs(prior, next) {
 function preferSessionManimClipUrl(agentClipUrl, sessionLatestUrl) {
   return sessionLatestUrl || agentClipUrl;
 }
+var init_scaffoldInputDiff = __esm({
+  "src/tools/lib/scaffoldInputDiff.ts"() {
+    "use strict";
+  }
+});
 
 // src/editTargets.ts
-var import_fs9 = __toESM(require("fs"));
-var import_path9 = __toESM(require("path"));
-init_finalVideoBasename();
-var MAX_INJECT_BYTES = 5e4;
 function manimSafeName(conceptName) {
   let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   if (/^[0-9]/.test(safe)) safe = `_${safe}`;
   return safe;
 }
 function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
-  if (!import_fs9.default.existsSync(filePath) || !import_fs9.default.statSync(filePath).isFile()) return null;
-  const buf = import_fs9.default.readFileSync(filePath);
+  if (!import_fs12.default.existsSync(filePath) || !import_fs12.default.statSync(filePath).isFile()) return null;
+  const buf = import_fs12.default.readFileSync(filePath);
   const truncated = buf.length > maxBytes;
   let content = (truncated ? buf.subarray(0, maxBytes) : buf).toString("utf-8");
   if (truncated) content += `
@@ -38909,9 +39901,9 @@ function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
   return { content, truncated };
 }
 function listSectionHtml(projectDir) {
-  const dir = import_path9.default.join(projectDir, "compositions", "sections");
-  if (!import_fs9.default.existsSync(dir)) return [];
-  return import_fs9.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path9.default.join(dir, f)).sort();
+  const dir = import_path11.default.join(projectDir, "compositions", "sections");
+  if (!import_fs12.default.existsSync(dir)) return [];
+  return import_fs12.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path11.default.join(dir, f)).sort();
 }
 function uniqFiles(files) {
   const seen = /* @__PURE__ */ new Set();
@@ -38922,22 +39914,20 @@ function uniqFiles(files) {
   });
 }
 function ref(projectDir, relative) {
-  return { path: import_path9.default.join(projectDir, relative), relative };
+  return { path: import_path11.default.join(projectDir, relative), relative };
 }
 function classifyTaggedForEdit(asset, workdir) {
   const local = asset.localPath.replace(/\\/g, "/");
-  const base = import_path9.default.basename(local);
+  const base = import_path11.default.basename(local);
   if (FINAL_VIDEO_NAME_RE.test(base)) return { kind: "draft_final" };
   const manimMatch = local.match(/\/manim\/([^/]+)\.mp4$/i);
   if (manimMatch) return { kind: "manim", safeName: manimMatch[1] };
-  const rel = import_path9.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
+  const rel = import_path11.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
   if (rel.startsWith("uploads/") || /\/uploads\//.test(local)) {
     return { kind: "new_media" };
   }
   return null;
 }
-var EDIT_SIGNAL = /\b(edit|change|update|fix|replace|remove|move|resize|bigger|smaller|style|color|background|caption|captions|karaoke|speaker|overlay|badge|crimson|make\s+it|should\s+be|become|vertical|horizontal|portrait|landscape|aspect\s*ratio|9\s*:\s*16|16\s*:\s*9)\b/i;
-var COLD_PIPELINE = /\b(create|generate|scaffold|start)\b[\s\S]{0,40}\b(edu[- ]?video|new video|from scratch)\b/i;
 function looksLikeEditIntent(message, hasHfProject) {
   if (COLD_PIPELINE.test(message) && !hasHfProject) return false;
   if (EDIT_SIGNAL.test(message)) return true;
@@ -38994,11 +39984,11 @@ function findOverlayMarkers(indexHtml) {
 }
 function conceptFilesFromMessage(message, projectDir, workdir) {
   const out = [];
-  const manifestPath = import_path9.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  const manifestPath = import_path11.default.join(projectDir, "COMPOSITION_MANIFEST.json");
   let segments = [];
-  if (import_fs9.default.existsSync(manifestPath)) {
+  if (import_fs12.default.existsSync(manifestPath)) {
     try {
-      const data = JSON.parse(import_fs9.default.readFileSync(manifestPath, "utf-8"));
+      const data = JSON.parse(import_fs12.default.readFileSync(manifestPath, "utf-8"));
       segments = data.segments ?? [];
     } catch {
       segments = [];
@@ -39011,24 +40001,24 @@ function conceptFilesFromMessage(message, projectDir, workdir) {
     if (!lower.includes(name26.toLowerCase())) continue;
     if (seg.file) out.push(ref(projectDir, seg.file));
     if (/\b(animation|manim|script|content)\b/i.test(message)) {
-      const script = import_path9.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+      const script = import_path11.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
       out.push({
         path: script,
-        relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+        relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
       });
     }
   }
-  const conceptsPath = import_path9.default.join(workdir, "concepts.json");
-  if (import_fs9.default.existsSync(conceptsPath) && out.length === 0) {
+  const conceptsPath = import_path11.default.join(workdir, "concepts.json");
+  if (import_fs12.default.existsSync(conceptsPath) && out.length === 0) {
     try {
-      const concepts = JSON.parse(import_fs9.default.readFileSync(conceptsPath, "utf-8"));
+      const concepts = JSON.parse(import_fs12.default.readFileSync(conceptsPath, "utf-8"));
       for (const c of concepts) {
         const name26 = (c.name ?? "").trim();
         if (!name26 || !lower.includes(name26.toLowerCase())) continue;
-        const script = import_path9.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+        const script = import_path11.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
         out.push({
           path: script,
-          relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+          relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
         });
       }
     } catch {
@@ -39038,8 +40028,8 @@ function conceptFilesFromMessage(message, projectDir, workdir) {
 }
 function filesForIntentCategories(categories, projectDir, workdir, message) {
   const files = [];
-  const indexPath = import_path9.default.join(projectDir, "index.html");
-  const indexHtml = import_fs9.default.existsSync(indexPath) ? import_fs9.default.readFileSync(indexPath, "utf-8") : "";
+  const indexPath = import_path11.default.join(projectDir, "index.html");
+  const indexHtml = import_fs12.default.existsSync(indexPath) ? import_fs12.default.readFileSync(indexPath, "utf-8") : "";
   for (const cat of categories) {
     if (cat === "orientation") {
       continue;
@@ -39051,7 +40041,7 @@ function filesForIntentCategories(categories, projectDir, workdir, message) {
       for (const s of listSectionHtml(projectDir)) {
         files.push({
           path: s,
-          relative: import_path9.default.relative(projectDir, s).replace(/\\/g, "/")
+          relative: import_path11.default.relative(projectDir, s).replace(/\\/g, "/")
         });
       }
     } else if (cat === "speaker") {
@@ -39085,7 +40075,7 @@ function findRestoreGenerationTarget(taggedArtifacts, workdir) {
 }
 function resolveEditTargets(opts) {
   const workdir = opts.workdir ?? getSessionWorkdir(opts.sessionId);
-  const projectDir = import_path9.default.join(workdir, "hf-project");
+  const projectDir = import_path11.default.join(workdir, "hf-project");
   const files = [];
   let newMedia = false;
   const restoreGeneration = findRestoreGenerationTarget(
@@ -39107,10 +40097,10 @@ function resolveEditTargets(opts) {
         files.push(ref(projectDir, "compositions/captions-overlay.html"));
       }
     } else if (kind.kind === "manim" && kind.safeName) {
-      const script = import_path9.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
+      const script = import_path11.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
       files.push({
         path: script,
-        relative: import_path9.default.relative(workdir, script).replace(/\\/g, "/")
+        relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
       });
     }
   }
@@ -39206,7 +40196,6 @@ function formatOrientationPlaybook(target, sessionManimClips, opts) {
     "5. Only if a clip looks cramped after contain-fit: regenerate that single concept with orientation arg, then re-scaffold that clip \u2014 never batch-regen by default"
   ].join("\n");
 }
-var RESTORE_GENERATION_MESSAGE = "Restored scaffold recipe from draft_video snapshot. For orientation rebuild, call scaffold_hf_project({ orientation, manim_clips: restored list verbatim, speaker_video_url from this return }) \u2014 do not call generate_manim_script or render_manim_clip again unless the user separately says a clip looks wrong. Then render_hyperframes.";
 function formatRestorePreamble(target) {
   const idPart = target.assetId ? `asset_id: "${target.assetId}"` : `url: "${target.url}"`;
   return [
@@ -39279,23 +40268,24 @@ function formatEditTargetsBlock(result, readFile = readTruncated, opts) {
 function shouldInjectEditTargets(result) {
   return result.needsClarification || result.files.length > 0 || !!result.orientationRebuild || !!result.restoreGeneration;
 }
+var import_fs12, import_path11, MAX_INJECT_BYTES, EDIT_SIGNAL, COLD_PIPELINE, RESTORE_GENERATION_MESSAGE;
+var init_editTargets = __esm({
+  "src/editTargets.ts"() {
+    "use strict";
+    import_fs12 = __toESM(require("fs"));
+    import_path11 = __toESM(require("path"));
+    init_finalVideoBasename();
+    init_utils();
+    MAX_INJECT_BYTES = 5e4;
+    EDIT_SIGNAL = /\b(edit|change|update|fix|replace|remove|move|resize|bigger|smaller|style|color|background|caption|captions|karaoke|speaker|overlay|badge|crimson|make\s+it|should\s+be|become|vertical|horizontal|portrait|landscape|aspect\s*ratio|9\s*:\s*16|16\s*:\s*9)\b/i;
+    COLD_PIPELINE = /\b(create|generate|scaffold|start)\b[\s\S]{0,40}\b(edu[- ]?video|new video|from scratch)\b/i;
+    RESTORE_GENERATION_MESSAGE = "Restored scaffold recipe from draft_video snapshot. For orientation rebuild, call scaffold_hf_project({ orientation, manim_clips: restored list verbatim, speaker_video_url from this return }) \u2014 do not call generate_manim_script or render_manim_clip again unless the user separately says a clip looks wrong. Then render_hyperframes.";
+  }
+});
 
 // src/tools/pipeline/hyperframes.ts
-var RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
-var HEYGEN_API_BASE2 = "https://api.heygen.com";
-var RENDER_ZIP_URL_CAP_BYTES = 32 * 1024 * 1024;
-var RENDER_ZIP_DIRECT_CAP_BYTES = 200 * 1024 * 1024;
-var ZIP_SKIP_DIRS = /* @__PURE__ */ new Set([
-  ".git",
-  "node_modules",
-  "renders",
-  "snapshots",
-  "dist",
-  ".next",
-  "coverage"
-]);
 function renderIdempotencyKeyFromZip(sessionId, zipPath) {
-  const hash = import_crypto.default.createHash("sha256").update(import_fs10.default.readFileSync(zipPath)).digest("hex");
+  const hash = import_crypto.default.createHash("sha256").update(import_fs13.default.readFileSync(zipPath)).digest("hex");
   return `${sessionId}.${hash.slice(0, 16)}`;
 }
 function renderIngestMode(zipBytes) {
@@ -39376,10 +40366,10 @@ function priorInputsFromSnapshot(snap) {
   };
 }
 function priorInputsFromManifest(projectDir) {
-  const manifestPath = import_path10.default.join(projectDir, "COMPOSITION_MANIFEST.json");
-  if (!import_fs10.default.existsSync(manifestPath)) return null;
+  const manifestPath = import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  if (!import_fs13.default.existsSync(manifestPath)) return null;
   try {
-    const m = JSON.parse(import_fs10.default.readFileSync(manifestPath, "utf-8"));
+    const m = JSON.parse(import_fs13.default.readFileSync(manifestPath, "utf-8"));
     const urls = [];
     for (const seg of m.segments ?? []) {
       if (typeof seg.manim_index === "number" && typeof seg.manim_clip_url === "string" && seg.manim_clip_url) {
@@ -39397,9 +40387,9 @@ function priorInputsFromManifest(projectDir) {
   }
 }
 function copyIfExists(src, dest) {
-  if (!import_fs10.default.existsSync(src)) return false;
-  import_fs10.default.mkdirSync(import_path10.default.dirname(dest), { recursive: true });
-  import_fs10.default.copyFileSync(src, dest);
+  if (!import_fs13.default.existsSync(src)) return false;
+  import_fs13.default.mkdirSync(import_path12.default.dirname(dest), { recursive: true });
+  import_fs13.default.copyFileSync(src, dest);
   return true;
 }
 async function runScaffoldHfProject(ctx, args) {
@@ -39433,9 +40423,10 @@ async function runScaffoldHfProject(ctx, args) {
     needsManim
   );
   validatePlannedSegments(segments, args.total_duration, manim_clips.length > 0);
-  const colors = resolveBrandColors(args.brand_colors);
+  const sessionBrand = await getSessionBrandColors(ctx.sessionId);
+  const colors = resolveBrandColors(args.brand_colors ?? sessionBrand);
   const brandCss = buildBrandCssVars(colors);
-  const projectDir = import_path10.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
+  const projectDir = import_path12.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
   const sessionDoc = await db.collection("sessions").doc(ctx.sessionId).get();
   const prior = priorInputsFromSnapshot(sessionDoc.data()?.renderSnapshot) ?? priorInputsFromManifest(projectDir);
@@ -39446,11 +40437,11 @@ async function runScaffoldHfProject(ctx, args) {
     brand: colors
   });
   if (!diff.fullMediaInvalidation) {
-    const assetsMarker = import_path10.default.join(projectDir, "assets");
-    if (!import_fs10.default.existsSync(import_path10.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+    const assetsMarker = import_path12.default.join(projectDir, "assets");
+    if (!import_fs13.default.existsSync(import_path12.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
       await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
     }
-    if (!import_fs10.default.existsSync(import_path10.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+    if (!import_fs13.default.existsSync(import_path12.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
       diff = diffScaffoldInputs(null, {
         orientation,
         speaker_video_url: args.speaker_video_url,
@@ -39459,53 +40450,53 @@ async function runScaffoldHfProject(ctx, args) {
       });
     }
   }
-  const assetsDir = import_path10.default.join(projectDir, "assets");
+  const assetsDir = import_path12.default.join(projectDir, "assets");
   let stashDir = null;
-  if (!diff.fullMediaInvalidation && import_fs10.default.existsSync(assetsDir)) {
-    stashDir = import_path10.default.join(
+  if (!diff.fullMediaInvalidation && import_fs13.default.existsSync(assetsDir)) {
+    stashDir = import_path12.default.join(
       getSessionWorkdir(ctx.sessionId),
       `_hf_assets_stash_${Date.now()}`
     );
-    import_fs10.default.cpSync(assetsDir, stashDir, { recursive: true });
+    import_fs13.default.cpSync(assetsDir, stashDir, { recursive: true });
   }
-  import_fs10.default.rmSync(projectDir, { recursive: true, force: true });
-  import_fs10.default.cpSync(templateDir, projectDir, { recursive: true });
-  import_fs10.default.mkdirSync(assetsDir, { recursive: true });
+  import_fs13.default.rmSync(projectDir, { recursive: true, force: true });
+  import_fs13.default.cpSync(templateDir, projectDir, { recursive: true });
+  import_fs13.default.mkdirSync(assetsDir, { recursive: true });
   let speakerChanged = diff.speakerChanged;
   let brandChanged = diff.brandChanged;
   const manimNeedDownload = new Set(diff.manimChangedIndices);
   if (stashDir) {
     if (!speakerChanged) {
       const ok = copyIfExists(
-        import_path10.default.join(stashDir, "speaker_noaudio.mp4"),
-        import_path10.default.join(assetsDir, "speaker_noaudio.mp4")
-      ) && copyIfExists(import_path10.default.join(stashDir, "audio.mp3"), import_path10.default.join(assetsDir, "audio.mp3"));
+        import_path12.default.join(stashDir, "speaker_noaudio.mp4"),
+        import_path12.default.join(assetsDir, "speaker_noaudio.mp4")
+      ) && copyIfExists(import_path12.default.join(stashDir, "audio.mp3"), import_path12.default.join(assetsDir, "audio.mp3"));
       if (!ok) speakerChanged = true;
     }
     for (let index = 0; index < manim_clips.length; index++) {
       if (manimNeedDownload.has(index)) continue;
       if (!copyIfExists(
-        import_path10.default.join(stashDir, `manim-${index}.mp4`),
-        import_path10.default.join(assetsDir, `manim-${index}.mp4`)
+        import_path12.default.join(stashDir, `manim-${index}.mp4`),
+        import_path12.default.join(assetsDir, `manim-${index}.mp4`)
       )) {
         manimNeedDownload.add(index);
       }
     }
     if (!brandChanged) {
       if (!copyIfExists(
-        import_path10.default.join(stashDir, "brand-tokens.css"),
-        import_path10.default.join(assetsDir, "brand-tokens.css")
+        import_path12.default.join(stashDir, "brand-tokens.css"),
+        import_path12.default.join(assetsDir, "brand-tokens.css")
       )) {
         brandChanged = true;
       }
     }
-    import_fs10.default.rmSync(stashDir, { recursive: true, force: true });
+    import_fs13.default.rmSync(stashDir, { recursive: true, force: true });
   }
   let words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
-  const speakerVideoPath = import_path10.default.join(assetsDir, "speaker_noaudio.mp4");
-  const audioPath = import_path10.default.join(assetsDir, "audio.mp3");
+  const speakerVideoPath = import_path12.default.join(assetsDir, "speaker_noaudio.mp4");
+  const audioPath = import_path12.default.join(assetsDir, "audio.mp3");
   if (speakerChanged) {
-    const speakerRawPath = import_path10.default.join(assetsDir, "speaker_raw.mp4");
+    const speakerRawPath = import_path12.default.join(assetsDir, "speaker_raw.mp4");
     await downloadFile(args.speaker_video_url, speakerRawPath);
     const audioExtract = await execCommand(
       `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
@@ -39515,8 +40506,8 @@ async function runScaffoldHfProject(ctx, args) {
       throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
     }
     await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-    import_fs10.default.unlinkSync(speakerRawPath);
-    const speakerBytes = import_fs10.default.statSync(speakerVideoPath).size;
+    import_fs13.default.unlinkSync(speakerRawPath);
+    const speakerBytes = import_fs13.default.statSync(speakerVideoPath).size;
     if (speakerBytes > SPEAKER_MAX_BYTES) {
       throw new Error("Speaker video is too long to upload after 1080p normalization");
     }
@@ -39532,12 +40523,12 @@ async function runScaffoldHfProject(ctx, args) {
   for (const index of manimNeedDownload) {
     await downloadFile(
       manim_clips[index].clip_url,
-      import_path10.default.join(assetsDir, `manim-${index}.mp4`)
+      import_path12.default.join(assetsDir, `manim-${index}.mp4`)
     );
   }
   const sectionMeta = [];
-  const sectionsDir = import_path10.default.join(projectDir, "compositions", "sections");
-  import_fs10.default.mkdirSync(sectionsDir, { recursive: true });
+  const sectionsDir = import_path12.default.join(projectDir, "compositions", "sections");
+  import_fs13.default.mkdirSync(sectionsDir, { recursive: true });
   for (let index = 0; index < segments.length; index++) {
     const seg = segments[index];
     if (seg.mode === "A" && seg.manim_index == null) {
@@ -39545,7 +40536,7 @@ async function runScaffoldHfProject(ctx, args) {
     }
     const built = buildSegmentSection(seg, index, manim_clips, brandCss, projectDir);
     sectionMeta.push(built.meta);
-    import_fs10.default.writeFileSync(import_path10.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
+    import_fs13.default.writeFileSync(import_path12.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
   }
   const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
   const manimClipsHtml = buildManimClipsHtml(manim_clips, segments);
@@ -39553,8 +40544,8 @@ async function runScaffoldHfProject(ctx, args) {
   const captionPosGsap = buildCaptionPosGsap(segments, orientation);
   const manimGsap = buildManimGsap(segments);
   const captionsJson = JSON.stringify(groupCaptionWords(words));
-  const indexRootPath = import_path10.default.join(projectDir, "index-root.html");
-  const indexHtml = substitutePlaceholders(import_fs10.default.readFileSync(indexRootPath, "utf-8"), {
+  const indexRootPath = import_path12.default.join(projectDir, "index-root.html");
+  const indexHtml = substitutePlaceholders(import_fs13.default.readFileSync(indexRootPath, "utf-8"), {
     TOTAL_DURATION: String(effectiveDuration),
     SEGMENT_WIRING: segmentWiring,
     MANIM_CLIPS: manimClipsHtml,
@@ -39563,20 +40554,20 @@ async function runScaffoldHfProject(ctx, args) {
     LIQUID_GLASS_INIT: "",
     TRANSITION_WIRING: ""
   });
-  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-  const captionsPath = import_path10.default.join(projectDir, "compositions", "captions-overlay.html");
-  const captionsHtml = substitutePlaceholders(import_fs10.default.readFileSync(captionsPath, "utf-8"), {
+  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  const captionsPath = import_path12.default.join(projectDir, "compositions", "captions-overlay.html");
+  const captionsHtml = substitutePlaceholders(import_fs13.default.readFileSync(captionsPath, "utf-8"), {
     CAPTIONS_JSON: captionsJson,
     TOTAL_DURATION: String(effectiveDuration),
     BRAND_CSS_VARS: brandCss,
     CAPTION_POS_GSAP: captionPosGsap
   });
-  import_fs10.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
+  import_fs13.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
   if (brandChanged) {
-    import_fs10.default.writeFileSync(import_path10.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+    import_fs13.default.writeFileSync(import_path12.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
   }
-  import_fs10.default.writeFileSync(
-    import_path10.default.join(assetsDir, "transcript.json"),
+  import_fs13.default.writeFileSync(
+    import_path12.default.join(assetsDir, "transcript.json"),
     JSON.stringify({ words }, null, 2),
     "utf-8"
   );
@@ -39588,18 +40579,18 @@ async function runScaffoldHfProject(ctx, args) {
     fps: 30,
     orientation
   };
-  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
-  import_fs10.default.rmSync(import_path10.default.join(projectDir, "index-root.html"), { force: true });
+  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
+  import_fs13.default.rmSync(import_path12.default.join(projectDir, "index-root.html"), { force: true });
   for (const m of ["a", "c"]) {
-    import_fs10.default.rmSync(import_path10.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
+    import_fs13.default.rmSync(import_path12.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
   }
   const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
   const indexUrl = await uploadToStorage(
-    import_path10.default.join(projectDir, "index.html"),
+    import_path12.default.join(projectDir, "index.html"),
     compositionStoragePath
   );
   await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
-  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), indexHtml, "utf-8");
   const manifest = buildCompositionManifest({
     projectDir,
     total_duration: effectiveDuration,
@@ -39609,8 +40600,8 @@ async function runScaffoldHfProject(ctx, args) {
     manim_clips,
     orientation
   });
-  import_fs10.default.writeFileSync(
-    import_path10.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
+  import_fs13.default.writeFileSync(
+    import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
     JSON.stringify(manifest, null, 2),
     "utf-8"
   );
@@ -39621,7 +40612,7 @@ async function runScaffoldHfProject(ctx, args) {
   } else {
     const uploadRels = /* @__PURE__ */ new Set();
     for (const abs of walkDir(projectDir)) {
-      const rel = import_path10.default.relative(projectDir, abs).split(import_path10.default.sep).join("/");
+      const rel = import_path12.default.relative(projectDir, abs).split(import_path12.default.sep).join("/");
       if (rel === "index.html" || rel === "meta.json" || rel === "COMPOSITION_MANIFEST.json" || rel === "hyperframes.json" || rel.startsWith("compositions/") || rel === "assets/transcript.json") {
         uploadRels.add(rel);
       }
@@ -39635,8 +40626,8 @@ async function runScaffoldHfProject(ctx, args) {
     }
     if (brandChanged) uploadRels.add("assets/brand-tokens.css");
     for (const rel of uploadRels) {
-      const abs = import_path10.default.join(projectDir, rel);
-      if (import_fs10.default.existsSync(abs)) {
+      const abs = import_path12.default.join(projectDir, rel);
+      if (import_fs13.default.existsSync(abs)) {
         await uploadFileToStorageKeepLocal(abs, `${hfProjectPrefix}/${rel}`);
       }
     }
@@ -39671,13 +40662,13 @@ async function runScaffoldHfProject(ctx, args) {
   };
 }
 async function probeManimFitNotes(projectDir, orientation) {
-  const assetsDir = import_path10.default.join(projectDir, "assets");
-  if (!import_fs10.default.existsSync(assetsDir)) return void 0;
+  const assetsDir = import_path12.default.join(projectDir, "assets");
+  if (!import_fs13.default.existsSync(assetsDir)) return void 0;
   const notes = [];
-  const files = import_fs10.default.readdirSync(assetsDir).filter((f) => /^manim-\d+\.mp4$/i.test(f)).sort();
+  const files = import_fs13.default.readdirSync(assetsDir).filter((f) => /^manim-\d+\.mp4$/i.test(f)).sort();
   for (const file2 of files) {
     const probe = await execCommand(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${import_path10.default.join(assetsDir, file2)}"`,
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${import_path12.default.join(assetsDir, file2)}"`,
       { timeoutSeconds: 30 }
     );
     if (!probe.success) continue;
@@ -39687,31 +40678,13 @@ async function probeManimFitNotes(projectDir, orientation) {
   }
   return notes.length > 0 ? notes.join(" ") : void 0;
 }
-var ZIP_PY_SCRIPT = [
-  "import os, sys, zipfile",
-  "src, dst = sys.argv[1], sys.argv[2]",
-  `skip = {${[...ZIP_SKIP_DIRS].map((d) => JSON.stringify(d)).join(", ")}}`,
-  'with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:',
-  "    for root, dirs, files in os.walk(src):",
-  '        dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]',
-  "        for name in files:",
-  '            if name.startswith("."):',
-  "                continue",
-  "            abs_path = os.path.join(root, name)",
-  '            rel = os.path.relpath(abs_path, src).replace(os.sep, "/")',
-  "            zf.write(abs_path, rel)",
-  "names = zipfile.ZipFile(dst).namelist()",
-  'if "index.html" not in names:',
-  '    raise SystemExit("zip missing root index.html")',
-  ""
-].join("\n");
 async function zipHyperframesProject(projectDir, zipPath) {
-  if (!import_fs10.default.existsSync(import_path10.default.join(projectDir, "index.html"))) {
+  if (!import_fs13.default.existsSync(import_path12.default.join(projectDir, "index.html"))) {
     throw new Error("NON_RETRYABLE: HyperFrames project missing root index.html");
   }
-  import_fs10.default.rmSync(zipPath, { force: true });
+  import_fs13.default.rmSync(zipPath, { force: true });
   const pyPath = `${zipPath}.py`;
-  import_fs10.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
+  import_fs13.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
   try {
     const result = await execCommand(
       `python3 ${JSON.stringify(pyPath)} ${JSON.stringify(projectDir)} ${JSON.stringify(zipPath)}`,
@@ -39721,10 +40694,10 @@ async function zipHyperframesProject(projectDir, zipPath) {
       throw new Error(result.stderr || result.stdout || "Failed to zip HyperFrames project");
     }
   } finally {
-    import_fs10.default.rmSync(pyPath, { force: true });
+    import_fs13.default.rmSync(pyPath, { force: true });
   }
 }
-async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, attempt) {
+async function uploadZipAssetIdOnce(zipPath, apiKey, idempotencyKey, zipBytes, attempt) {
   const fingerprint = idempotencyKey.split(".")[1] ?? idempotencyKey;
   console.log(
     `[uploadZipAssetId] fingerprint=${fingerprint} zip_bytes=${zipBytes} attempt=${attempt}`
@@ -39732,12 +40705,12 @@ async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, 
   const initResp = await fetch(`${HEYGEN_API_BASE2}/v3/assets/direct-uploads`, {
     method: "POST",
     headers: {
-      "X-Api-Key": apiKey2,
+      "X-Api-Key": apiKey,
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey
     },
     body: JSON.stringify({
-      filename: import_path10.default.basename(zipPath),
+      filename: import_path12.default.basename(zipPath),
       content_type: "application/zip",
       size_bytes: zipBytes
     })
@@ -39752,7 +40725,7 @@ async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, 
   const putResp = await fetch(upload_url, {
     method: "PUT",
     headers: upload_headers ?? {},
-    body: import_fs10.default.readFileSync(zipPath)
+    body: import_fs13.default.readFileSync(zipPath)
   });
   if (!putResp.ok) {
     const putText = await putResp.text().catch(() => "");
@@ -39765,7 +40738,7 @@ async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, 
     {
       method: "POST",
       headers: {
-        "X-Api-Key": apiKey2,
+        "X-Api-Key": apiKey,
         "Content-Type": "application/json",
         "Idempotency-Key": idempotencyKey
       },
@@ -39780,12 +40753,12 @@ async function uploadZipAssetIdOnce(zipPath, apiKey2, idempotencyKey, zipBytes, 
   }
   return asset_id;
 }
-async function uploadZipAssetId(zipPath, apiKey2, idempotencyKey) {
-  const zipBytes = import_fs10.default.statSync(zipPath).size;
+async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
+  const zipBytes = import_fs13.default.statSync(zipPath).size;
   try {
     const assetId = await uploadZipAssetIdOnce(
       zipPath,
-      apiKey2,
+      apiKey,
       idempotencyKey,
       zipBytes,
       1
@@ -39799,7 +40772,7 @@ async function uploadZipAssetId(zipPath, apiKey2, idempotencyKey) {
       `[uploadZipAssetId] Upload signature mismatch \u2014 retrying with a fresh upload URL fingerprint=${idempotencyKey.split(".")[1]} zip_bytes=${zipBytes} retry_key=${retryKey}`
     );
     try {
-      const assetId = await uploadZipAssetIdOnce(zipPath, apiKey2, retryKey, zipBytes, 2);
+      const assetId = await uploadZipAssetIdOnce(zipPath, apiKey, retryKey, zipBytes, 2);
       console.log(
         `[uploadZipAssetId] signature retry recovered fingerprint=${retryKey.split(".")[1]} zip_bytes=${zipBytes} attempt=2`
       );
@@ -39812,22 +40785,10 @@ async function uploadZipAssetId(zipPath, apiKey2, idempotencyKey) {
     }
   }
 }
-var brandColorsSchema = external_exports2.object({
-  primary: external_exports2.string(),
-  accent: external_exports2.string(),
-  bg_dark: external_exports2.string()
-});
-var plannedSegmentSchema = external_exports2.object({
-  start: external_exports2.number(),
-  end: external_exports2.number(),
-  mode: external_exports2.enum(["A", "C"]),
-  manim_index: external_exports2.number().optional(),
-  concept_name: external_exports2.string().optional()
-});
 async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, orientation = "horizontal") {
-  import_fs10.default.mkdirSync(import_path10.default.join(projectDir, "compositions", "components"), { recursive: true });
-  import_fs10.default.mkdirSync(import_path10.default.join(projectDir, "assets"), { recursive: true });
-  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "index.html"), htmlContent);
+  import_fs13.default.mkdirSync(import_path12.default.join(projectDir, "compositions", "components"), { recursive: true });
+  import_fs13.default.mkdirSync(import_path12.default.join(projectDir, "assets"), { recursive: true });
+  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), htmlContent);
   const { width, height } = canvasForOrientation(orientation);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
@@ -39836,10 +40797,10 @@ async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, or
     height,
     fps: 30
   };
-  import_fs10.default.writeFileSync(import_path10.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
-  const hfPath = import_path10.default.join(projectDir, "hyperframes.json");
-  if (!import_fs10.default.existsSync(hfPath)) {
-    import_fs10.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
+  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
+  const hfPath = import_path12.default.join(projectDir, "hyperframes.json");
+  if (!import_fs13.default.existsSync(hfPath)) {
+    import_fs13.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
   }
 }
 function createHyperframesTools(ctx) {
@@ -39995,22 +40956,22 @@ function createHyperframesTools(ctx) {
       execute: async ({ composition_url }) => {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
-          const projectDir = import_path10.default.join(workdir, "hf-project");
+          const projectDir = import_path12.default.join(workdir, "hf-project");
           const orientation = await getSessionOrientation(ctx.sessionId);
           const { width, height, aspectRatio } = canvasForOrientation(orientation);
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
-          const hasLocalProject = import_fs10.default.existsSync(import_path10.default.join(projectDir, "index.html"));
+          const hasLocalProject = import_fs13.default.existsSync(import_path12.default.join(projectDir, "index.html"));
           if (!hasLocalProject) {
-            import_fs10.default.mkdirSync(projectDir, { recursive: true });
-            const htmlPath = import_path10.default.join(projectDir, "index.html");
+            import_fs13.default.mkdirSync(projectDir, { recursive: true });
+            const htmlPath = import_path12.default.join(projectDir, "index.html");
             await downloadFile(composition_url, htmlPath);
-            const htmlContent = import_fs10.default.readFileSync(htmlPath, "utf-8");
+            const htmlContent = import_fs13.default.readFileSync(htmlPath, "utf-8");
             await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId, orientation);
           }
-          const indexHtmlPath = import_path10.default.join(projectDir, "index.html");
-          if (import_fs10.default.existsSync(indexHtmlPath)) {
+          const indexHtmlPath = import_path12.default.join(projectDir, "index.html");
+          if (import_fs13.default.existsSync(indexHtmlPath)) {
             assertHtmlMatchesOrientation(
-              import_fs10.default.readFileSync(indexHtmlPath, "utf-8"),
+              import_fs13.default.readFileSync(indexHtmlPath, "utf-8"),
               orientation,
               { width, height }
             );
@@ -40035,12 +40996,12 @@ function createHyperframesTools(ctx) {
             };
           }
           if (RENDER_BACKEND === "heygen_cloud") {
-            const apiKey2 = process.env.HEYGEN_API_KEY;
+            const apiKey = process.env.HEYGEN_API_KEY;
             const baseCallbackUrl = process.env.HEYGEN_CALLBACK_URL;
-            if (!apiKey2 || !baseCallbackUrl) {
+            if (!apiKey || !baseCallbackUrl) {
               throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
             }
-            const zipPath = import_path10.default.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
+            const zipPath = import_path12.default.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
             let idempotencyKey = "";
             let fingerprint = "";
             let cloudCmdSource = "";
@@ -40078,7 +41039,7 @@ function createHyperframesTools(ctx) {
                 exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
               });
               const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-              const zipBytes = import_fs10.default.statSync(zipPath).size;
+              const zipBytes = import_fs13.default.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
                 `[render_hyperframes] fingerprint=${fingerprint} zip_bytes=${zipBytes} ingest=${ingest}`
@@ -40090,7 +41051,7 @@ function createHyperframesTools(ctx) {
                 );
                 cloudCmdSource = `--url ${JSON.stringify(zipUrl)}`;
               } else {
-                const uploaded = await uploadZipAssetId(zipPath, apiKey2, idempotencyKey);
+                const uploaded = await uploadZipAssetId(zipPath, apiKey, idempotencyKey);
                 idempotencyKey = uploaded.idempotencyKey;
                 cloudCmdSource = `--asset-id ${JSON.stringify(uploaded.assetId)}`;
               }
@@ -40127,7 +41088,7 @@ function createHyperframesTools(ctx) {
                 ...manim_fit_note ? { manim_fit_note } : {}
               };
             } finally {
-              import_fs10.default.rmSync(zipPath, { force: true });
+              import_fs13.default.rmSync(zipPath, { force: true });
             }
           }
           const region = process.env.AWS_REGION;
@@ -40185,14 +41146,74 @@ function createHyperframesTools(ctx) {
     })
   };
 }
-
-// src/tools/pipeline/manim.ts
-var import_fs11 = __toESM(require("fs"));
-var import_path12 = __toESM(require("path"));
-var import_child_process2 = require("child_process");
-init_dist5();
-init_zod();
-init_storage();
+var import_crypto, import_fs13, import_path12, RENDER_BACKEND, HEYGEN_API_BASE2, RENDER_ZIP_URL_CAP_BYTES, RENDER_ZIP_DIRECT_CAP_BYTES, ZIP_SKIP_DIRS, ZIP_PY_SCRIPT, brandColorsSchema, plannedSegmentSchema;
+var init_hyperframes = __esm({
+  "src/tools/pipeline/hyperframes.ts"() {
+    "use strict";
+    import_crypto = __toESM(require("crypto"));
+    import_fs13 = __toESM(require("fs"));
+    import_path12 = __toESM(require("path"));
+    init_dist5();
+    init_zod();
+    init_planning();
+    init_utils();
+    init_heygenWebhook();
+    init_callbackToken();
+    init_checkpoint();
+    init_taggedAssets();
+    init_firebase();
+    init_storage();
+    init_sessionManimClips();
+    init_transcriptSanitize();
+    init_orientationGuard();
+    init_renderSnapshot();
+    init_scaffoldInputDiff();
+    init_editTargets();
+    RENDER_BACKEND = process.env.RENDER_BACKEND ?? "heygen_cloud";
+    HEYGEN_API_BASE2 = "https://api.heygen.com";
+    RENDER_ZIP_URL_CAP_BYTES = 32 * 1024 * 1024;
+    RENDER_ZIP_DIRECT_CAP_BYTES = 200 * 1024 * 1024;
+    ZIP_SKIP_DIRS = /* @__PURE__ */ new Set([
+      ".git",
+      "node_modules",
+      "renders",
+      "snapshots",
+      "dist",
+      ".next",
+      "coverage"
+    ]);
+    ZIP_PY_SCRIPT = [
+      "import os, sys, zipfile",
+      "src, dst = sys.argv[1], sys.argv[2]",
+      `skip = {${[...ZIP_SKIP_DIRS].map((d) => JSON.stringify(d)).join(", ")}}`,
+      'with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:',
+      "    for root, dirs, files in os.walk(src):",
+      '        dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]',
+      "        for name in files:",
+      '            if name.startswith("."):',
+      "                continue",
+      "            abs_path = os.path.join(root, name)",
+      '            rel = os.path.relpath(abs_path, src).replace(os.sep, "/")',
+      "            zf.write(abs_path, rel)",
+      "names = zipfile.ZipFile(dst).namelist()",
+      'if "index.html" not in names:',
+      '    raise SystemExit("zip missing root index.html")',
+      ""
+    ].join("\n");
+    brandColorsSchema = external_exports2.object({
+      primary: external_exports2.string(),
+      accent: external_exports2.string(),
+      bg_dark: external_exports2.string()
+    });
+    plannedSegmentSchema = external_exports2.object({
+      start: external_exports2.number(),
+      end: external_exports2.number(),
+      mode: external_exports2.enum(["A", "C"]),
+      manim_index: external_exports2.number().optional(),
+      concept_name: external_exports2.string().optional()
+    });
+  }
+});
 
 // src/tools/lib/manimOrientation.ts
 function resolveToolOrientation(arg, session) {
@@ -40227,21 +41248,27 @@ function assertSquareManimFrame(script) {
   }
   return null;
 }
+var init_manimOrientation = __esm({
+  "src/tools/lib/manimOrientation.ts"() {
+    "use strict";
+  }
+});
 
 // src/tools/lib/manimScriptPath.ts
-var import_path11 = __toESM(require("path"));
 function defaultSessionManimScriptPath(sessionId, className) {
   const safeName = className.replace("Scene", "");
-  return import_path11.default.join(getSessionWorkdir(sessionId), "manim_scripts", `${safeName}.py`);
+  return import_path13.default.join(getSessionWorkdir(sessionId), "manim_scripts", `${safeName}.py`);
 }
+var import_path13;
+var init_manimScriptPath = __esm({
+  "src/tools/lib/manimScriptPath.ts"() {
+    "use strict";
+    import_path13 = __toESM(require("path"));
+    init_utils();
+  }
+});
 
 // src/tools/pipeline/manim.ts
-var brandColorsSchema2 = external_exports2.object({
-  primary: external_exports2.string(),
-  accent: external_exports2.string(),
-  bg_dark: external_exports2.string()
-});
-var orientationSchema = external_exports2.enum(["horizontal", "vertical"]);
 function manimSafeName3(conceptName) {
   let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   if (/^[0-9]/.test(safe)) {
@@ -40272,10 +41299,10 @@ function validatePythonSyntax(scriptPath) {
   }
 }
 function loadSessionConcepts(sessionId) {
-  const conceptsPath = import_path12.default.join(getSessionWorkdir(sessionId), "concepts.json");
-  if (!import_fs11.default.existsSync(conceptsPath)) return [];
+  const conceptsPath = import_path14.default.join(getSessionWorkdir(sessionId), "concepts.json");
+  if (!import_fs14.default.existsSync(conceptsPath)) return [];
   try {
-    const parsed = JSON.parse(import_fs11.default.readFileSync(conceptsPath, "utf-8"));
+    const parsed = JSON.parse(import_fs14.default.readFileSync(conceptsPath, "utf-8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -40297,8 +41324,10 @@ function createManimTools(ctx) {
       execute: async ({ concept_name, explanation, window_seconds, brand_colors, orientation: orientationArg }) => {
         const safeName = manimSafeName3(concept_name);
         const className = `Scene${safeName}`;
-        const colors = resolveBrandColors(brand_colors);
+        const sessionBrand = await getSessionBrandColors(ctx.sessionId);
+        const colors = resolveBrandColors(brand_colors ?? sessionBrand);
         const palettePrompt = buildManimPalettePrompt(colors);
+        const animationStyle = await getSessionAnimationStyle(ctx.sessionId);
         const sessionOrientation = await getSessionOrientation(ctx.sessionId);
         const { orientation, persist } = resolveToolOrientation(
           orientationArg,
@@ -40310,6 +41339,10 @@ function createManimTools(ctx) {
         const animations = loadSkillFile("manim-video/references/animations.md");
         const productionQuality = loadSkillFile("manim-video/references/production-quality.md");
         const conceptRef = loadSkillFile(selectManimReference(explanation));
+        const styleRules = animationStyle === "minimal" ? `
+- ANIMATION STYLE (mandatory): minimalistic only \u2014 simple shapes/text, NO arrows, NO decorative flourishes, sparse motion` : animationStyle === "detailed" ? `
+- ANIMATION STYLE: richer visual vocabulary including arrows where helpful` : `
+- ANIMATION STYLE: clear diagrams with light motion (moderate); use arrows sparingly`;
         const squareFrameRules = orientation === "vertical" ? `
 - VERTICAL orientation (mandatory): near the top of the file after imports, set a square Manim coordinate space:
   config.frame_width = 8
@@ -40323,7 +41356,7 @@ The script MUST:
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
-${palettePrompt}${squareFrameRules}
+${palettePrompt}${squareFrameRules}${styleRules}
 - Use self.wait() after every animation
 - End by holding the finished visual state with a generous self.wait() \u2014 reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
@@ -40357,7 +41390,7 @@ This clip's window is ~${window_seconds}s.`;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
         let cleanScript = stripCodeFences(scriptText);
         const validatePath = getTempPath(`${ctx.sessionId}_${safeName}_validate.py`);
-        import_fs11.default.writeFileSync(validatePath, cleanScript);
+        import_fs14.default.writeFileSync(validatePath, cleanScript);
         let validation = validatePythonSyntax(validatePath);
         if (!validation.ok) {
           console.error(`Manim syntax check failed for ${concept_name}:`, validation.error);
@@ -40367,7 +41400,7 @@ The previous script failed syntax check: ${validation.error}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs11.default.writeFileSync(validatePath, cleanScript);
+          import_fs14.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -40387,7 +41420,7 @@ The previous script failed validation: ${maxVisibleError}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs11.default.writeFileSync(validatePath, cleanScript);
+          import_fs14.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -40415,7 +41448,7 @@ config.frame_height = 8
 Return corrected Python only.`;
             scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
             cleanScript = stripCodeFences(scriptText);
-            import_fs11.default.writeFileSync(validatePath, cleanScript);
+            import_fs14.default.writeFileSync(validatePath, cleanScript);
             validation = validatePythonSyntax(validatePath);
             if (!validation.ok) {
               throw new Error(
@@ -40431,16 +41464,16 @@ ${cleanScript}`
             }
           }
         }
-        const scriptDir = import_path12.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
-        import_fs11.default.mkdirSync(scriptDir, { recursive: true });
-        const scriptPath = import_path12.default.join(scriptDir, `${safeName}.py`);
-        import_fs11.default.writeFileSync(scriptPath, cleanScript);
+        const scriptDir = import_path14.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
+        import_fs14.default.mkdirSync(scriptDir, { recursive: true });
+        const scriptPath = import_path14.default.join(scriptDir, `${safeName}.py`);
+        import_fs14.default.writeFileSync(scriptPath, cleanScript);
         const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim_scripts/${safeName}.py`;
         const scriptUrl = await uploadToStorage(scriptPath, storagePath);
         await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_script_${safeName}`, scriptUrl);
-        import_fs11.default.writeFileSync(scriptPath, cleanScript);
+        import_fs14.default.writeFileSync(scriptPath, cleanScript);
         try {
-          import_fs11.default.unlinkSync(validatePath);
+          import_fs14.default.unlinkSync(validatePath);
         } catch {
         }
         return {
@@ -40496,28 +41529,28 @@ ${cleanScript}`
         if (persist) await persistOrientation(ctx.sessionId, orientation);
         try {
           if (script_path) {
-            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts \u2014 regenerate or re-upload.`
               );
             }
           } else if (script) {
-            import_fs11.default.writeFileSync(resolvedScriptPath, script);
+            import_fs14.default.writeFileSync(resolvedScriptPath, script);
           } else {
-            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs11.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `No script or script_path for "${concept_name}". Expected session script at ${resolvedScriptPath} \u2014 call generate_manim_script first.`
               );
             }
           }
           if (orientation === "vertical") {
-            const scriptText = import_fs11.default.readFileSync(resolvedScriptPath, "utf-8");
+            const scriptText = import_fs14.default.readFileSync(resolvedScriptPath, "utf-8");
             const frameErr = assertSquareManimFrame(scriptText);
             if (frameErr) {
               throw new Error(
@@ -40537,17 +41570,17 @@ ${cleanScript}`
               `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}. Read Skills/manim-video/references/troubleshooting.md, read_file the script at ${resolvedScriptPath}, patch only the broken lines with write_file, then re-render with script_path \u2014 do not call generate_manim_script again unless the script needs a full rewrite.`
             );
           }
-          const scriptBaseName = import_path12.default.basename(resolvedScriptPath, ".py");
-          const expectedPath = import_path12.default.join(
+          const scriptBaseName = import_path14.default.basename(resolvedScriptPath, ".py");
+          const expectedPath = import_path14.default.join(
             outputDir,
             "videos",
             scriptBaseName,
             "480p15",
             "output.mp4"
           );
-          let outputMp4Path = import_fs11.default.existsSync(expectedPath) ? expectedPath : null;
+          let outputMp4Path = import_fs14.default.existsSync(expectedPath) ? expectedPath : null;
           if (!outputMp4Path) {
-            const found = walkDir(outputDir).filter((p) => import_path12.default.basename(p) === "output.mp4");
+            const found = walkDir(outputDir).filter((p) => import_path14.default.basename(p) === "output.mp4");
             outputMp4Path = found[0] ?? null;
           }
           if (!outputMp4Path) {
@@ -40561,13 +41594,13 @@ ${cleanScript}`
             safeName
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${basename}`;
-          const canonicalPath = import_path12.default.join(
+          const canonicalPath = import_path14.default.join(
             getSessionWorkdir(ctx.sessionId),
             "manim",
             `${safeName}.mp4`
           );
-          import_fs11.default.mkdirSync(import_path12.default.dirname(canonicalPath), { recursive: true });
-          import_fs11.default.copyFileSync(outputMp4Path, canonicalPath);
+          import_fs14.default.mkdirSync(import_path14.default.dirname(canonicalPath), { recursive: true });
+          import_fs14.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl, {
             label: basename
@@ -40585,13 +41618,13 @@ ${cleanScript}`
           };
         } finally {
           try {
-            if (wroteTempScript && import_fs11.default.existsSync(resolvedScriptPath)) {
-              import_fs11.default.unlinkSync(resolvedScriptPath);
+            if (wroteTempScript && import_fs14.default.existsSync(resolvedScriptPath)) {
+              import_fs14.default.unlinkSync(resolvedScriptPath);
             }
           } catch {
           }
           try {
-            if (import_fs11.default.existsSync(outputDir)) import_fs11.default.rmSync(outputDir, { recursive: true, force: true });
+            if (import_fs14.default.existsSync(outputDir)) import_fs14.default.rmSync(outputDir, { recursive: true, force: true });
           } catch {
           }
         }
@@ -40599,195 +41632,162 @@ ${cleanScript}`
     })
   };
 }
-
-// src/tools/pipeline/transcribe.ts
-var import_fs15 = __toESM(require("fs"));
-var import_path16 = __toESM(require("path"));
-var import_groq_sdk = __toESM(require("groq-sdk"));
-init_dist5();
-init_zod();
-init_storage();
-init_taggedAssets();
-
-// src/tools/lib/audioChunks.ts
-var import_fs12 = __toESM(require("fs"));
-var import_os3 = __toESM(require("os"));
-var import_path13 = __toESM(require("path"));
-var CHUNK_STEP_SECONDS = 480;
-var CHUNK_OVERLAP_SECONDS = 2.5;
-var MAX_CHUNK_BYTES = 15 * 1024 * 1024;
-var EXTRACT_TIMEOUT_SECONDS = 900;
-var CHUNK_FFMPEG_TIMEOUT_SECONDS = 300;
-var MAX_RESPLIT_DEPTH = 2;
-function transcriptionDir(sessionId) {
-  const dir = import_path13.default.join(getSessionWorkdir(sessionId), "transcription");
-  import_fs12.default.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-function logTmpDisk(sessionId, tag) {
-  try {
-    const s = import_fs12.default.statfsSync(import_os3.default.tmpdir());
-    const freeMb = Math.round(Number(s.bavail) * Number(s.bsize) / (1024 * 1024));
-    console.error("[transcribe_video] disk", sessionId, tag, { freeMb });
-  } catch {
-    console.error("[transcribe_video] disk", sessionId, tag, "unavailable");
-  }
-}
-function unlinkQuiet(filePath) {
-  if (!filePath) return;
-  try {
-    import_fs12.default.unlinkSync(filePath);
-  } catch {
-  }
-}
-function cleanupTranscriptionLocals(sessionId, extra = []) {
-  for (const p of extra) unlinkQuiet(p);
-  const dir = import_path13.default.join(getSessionWorkdir(sessionId), "transcription");
-  if (!import_fs12.default.existsSync(dir)) return;
-  for (const name26 of import_fs12.default.readdirSync(dir)) {
-    unlinkQuiet(import_path13.default.join(dir, name26));
-  }
-}
-async function probeDurationSeconds(mediaPath) {
-  const probe = await execCommand(
-    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${mediaPath}"`,
-    { timeoutSeconds: 60 }
-  );
-  if (!probe.success) {
-    throw new Error(probe.stderr || "ffprobe duration failed");
-  }
-  const duration3 = Number.parseFloat(probe.stdout.trim());
-  if (!Number.isFinite(duration3) || duration3 <= 0) {
-    throw new Error(`ffprobe returned invalid duration: ${probe.stdout.trim()}`);
-  }
-  return duration3;
-}
-async function extractFlac(inputPath, flacPath) {
-  import_fs12.default.mkdirSync(import_path13.default.dirname(flacPath), { recursive: true });
-  const cmd = `ffmpeg -y -i "${inputPath}" -map 0:a:0 -vn -ar 16000 -ac 1 -c:a flac "${flacPath}"`;
-  let result;
-  try {
-    result = await execCommand(cmd, { timeoutSeconds: EXTRACT_TIMEOUT_SECONDS });
-  } catch (err) {
-    const code = err?.code;
-    if (code === "ENOSPC") {
-      throw new Error("ENOSPC: insufficient disk space during FLAC extract");
-    }
-    throw err;
-  }
-  if (!result.success) {
-    const errText = result.stderr || result.stdout || "ffmpeg FLAC extract failed";
-    if (/no space left|ENOSPC/i.test(errText)) {
-      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
-    }
-    throw new Error(errText);
-  }
-}
-function planWindows(totalDurationSeconds) {
-  const windows = [];
-  let start = 0;
-  let index = 0;
-  while (start < totalDurationSeconds - 1e-6) {
-    const remaining = totalDurationSeconds - start;
-    const isLast = remaining <= CHUNK_STEP_SECONDS + 1e-6;
-    const duration3 = isLast ? remaining : Math.min(CHUNK_STEP_SECONDS + CHUNK_OVERLAP_SECONDS, remaining);
-    windows.push({
-      index,
-      startOffsetSeconds: start,
-      durationSeconds: duration3
+var import_fs14, import_path14, import_child_process2, brandColorsSchema2, orientationSchema;
+var init_manim = __esm({
+  "src/tools/pipeline/manim.ts"() {
+    "use strict";
+    import_fs14 = __toESM(require("fs"));
+    import_path14 = __toESM(require("path"));
+    import_child_process2 = require("child_process");
+    init_dist5();
+    init_zod();
+    init_utils();
+    init_manimGuard();
+    init_storage();
+    init_checkpoint();
+    init_manimOrientation();
+    init_sessionManimClips();
+    init_manimScriptPath();
+    brandColorsSchema2 = external_exports2.object({
+      primary: external_exports2.string(),
+      accent: external_exports2.string(),
+      bg_dark: external_exports2.string()
     });
-    if (isLast) break;
-    start += CHUNK_STEP_SECONDS;
-    index += 1;
+    orientationSchema = external_exports2.enum(["horizontal", "vertical"]);
   }
-  return windows;
+});
+
+// src/tools/lib/flacSourceUrl.ts
+function flacSourceUrlLocalPath(flacPath) {
+  return `${flacPath}.source_url`;
 }
-async function extractWindow(flacPath, startOffsetSeconds, durationSeconds, outPath) {
-  import_fs12.default.mkdirSync(import_path13.default.dirname(outPath), { recursive: true });
-  const cmd = `ffmpeg -y -ss ${startOffsetSeconds} -t ${durationSeconds} -i "${flacPath}" -c copy "${outPath}"`;
-  const result = await execCommand(cmd, { timeoutSeconds: CHUNK_FFMPEG_TIMEOUT_SECONDS });
-  if (!result.success) {
-    const errText = result.stderr || result.stdout || "ffmpeg chunk extract failed";
-    if (/no space left|ENOSPC/i.test(errText)) {
-      throw new Error(`ENOSPC: ${errText.slice(0, 500)}`);
-    }
-    throw new Error(errText);
+function unlinkQuiet2(filePath) {
+  try {
+    import_fs15.default.unlinkSync(filePath);
+  } catch {
   }
 }
-async function materializeWindows(flacPath, sessionId, planned) {
-  const dir = transcriptionDir(sessionId);
-  const out = [];
-  async function materializeOne(win, depth, suffix) {
-    const outPath = import_path13.default.join(dir, `chunk-${win.index}${suffix}.flac`);
-    await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
-    const bytes = import_fs12.default.statSync(outPath).size;
-    if (bytes <= MAX_CHUNK_BYTES || win.durationSeconds <= 30 || depth >= MAX_RESPLIT_DEPTH) {
-      out.push({ ...win, path: outPath });
-      return;
-    }
-    unlinkQuiet(outPath);
-    const half = win.durationSeconds / 2;
-    const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
-    await materializeOne(
-      {
-        index: win.index,
-        startOffsetSeconds: win.startOffsetSeconds,
-        durationSeconds: half + overlap
-      },
-      depth + 1,
-      `${suffix}a`
+function flacMatchesVideo(flacPath, videoUrl) {
+  if (!import_fs15.default.existsSync(flacPath) || import_fs15.default.statSync(flacPath).size <= 0) return false;
+  const sidecar = flacSourceUrlLocalPath(flacPath);
+  if (!import_fs15.default.existsSync(sidecar)) return false;
+  try {
+    return import_fs15.default.readFileSync(sidecar, "utf-8").trim() === videoUrl.trim();
+  } catch {
+    return false;
+  }
+}
+function writeFlacSourceUrl(flacPath, videoUrl) {
+  import_fs15.default.mkdirSync(import_path15.default.dirname(flacPath), { recursive: true });
+  import_fs15.default.writeFileSync(flacSourceUrlLocalPath(flacPath), videoUrl, "utf-8");
+}
+function clearLocalFlac(flacPath) {
+  unlinkQuiet2(flacPath);
+  unlinkQuiet2(flacSourceUrlLocalPath(flacPath));
+}
+var import_fs15, import_path15;
+var init_flacSourceUrl = __esm({
+  "src/tools/lib/flacSourceUrl.ts"() {
+    "use strict";
+    import_fs15 = __toESM(require("fs"));
+    import_path15 = __toESM(require("path"));
+  }
+});
+
+// src/tools/lib/ensureFullAudio.ts
+function fullAudioStoragePath(userId, sessionId) {
+  return `users/${userId}/sessions/${sessionId}/transcription/audio.flac`;
+}
+function fullAudioLocalPath(sessionId) {
+  return import_path16.default.join(transcriptionDir(sessionId), "audio.flac");
+}
+function fullAudioSourceUrlStoragePath(userId, sessionId) {
+  return `${fullAudioStoragePath(userId, sessionId)}.source_url`;
+}
+async function deleteStorageFileQuiet(storagePath) {
+  try {
+    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
+    await bucket.file(storagePath).delete({ ignoreNotFound: true });
+  } catch (err) {
+    console.error(
+      "[ensureFullAudio] storage delete failed",
+      storagePath,
+      err instanceof Error ? err.message.slice(0, 200) : String(err)
     );
-    await materializeOne(
-      {
-        index: win.index,
-        startOffsetSeconds: win.startOffsetSeconds + half,
-        durationSeconds: win.durationSeconds - half
-      },
-      depth + 1,
-      `${suffix}b`
+  }
+}
+async function invalidateFullAudio(userId, sessionId) {
+  const local = fullAudioLocalPath(sessionId);
+  clearLocalFlac(local);
+  await deleteStorageFileQuiet(fullAudioStoragePath(userId, sessionId));
+  await deleteStorageFileQuiet(fullAudioSourceUrlStoragePath(userId, sessionId));
+}
+async function downloadStorageFile(storagePath, dest) {
+  try {
+    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
+    const file2 = bucket.file(storagePath);
+    const [exists] = await file2.exists();
+    if (!exists) return false;
+    import_fs16.default.mkdirSync(import_path16.default.dirname(dest), { recursive: true });
+    await file2.download({ destination: dest });
+    return import_fs16.default.existsSync(dest) && import_fs16.default.statSync(dest).size > 0;
+  } catch (err) {
+    console.error(
+      "[ensureFullAudio] storage download failed",
+      storagePath,
+      err instanceof Error ? err.message.slice(0, 200) : String(err)
     );
+    return false;
   }
-  for (const win of planned) {
-    await materializeOne(win, 0, "");
+}
+async function ensureFullAudio(opts) {
+  const local = fullAudioLocalPath(opts.sessionId);
+  if (flacMatchesVideo(local, opts.videoUrl)) {
+    return local;
   }
-  return out;
+  clearLocalFlac(local);
+  const storagePath = fullAudioStoragePath(opts.userId, opts.sessionId);
+  const sidecarStorage = fullAudioSourceUrlStoragePath(opts.userId, opts.sessionId);
+  if (await downloadStorageFile(storagePath, local)) {
+    const sidecarLocal = flacSourceUrlLocalPath(local);
+    await downloadStorageFile(sidecarStorage, sidecarLocal);
+    if (flacMatchesVideo(local, opts.videoUrl)) {
+      return local;
+    }
+    clearLocalFlac(local);
+  }
+  const workdir = getSessionWorkdir(opts.sessionId);
+  const videoPath = import_path16.default.join(workdir, "transcription", "_source_video_tmp");
+  import_fs16.default.mkdirSync(import_path16.default.dirname(videoPath), { recursive: true });
+  try {
+    await downloadFile(opts.videoUrl, videoPath);
+    await extractFlac(videoPath, local);
+    if (!import_fs16.default.existsSync(local) || import_fs16.default.statSync(local).size <= 0) {
+      throw new Error("FLAC extract produced empty file");
+    }
+    writeFlacSourceUrl(local, opts.videoUrl);
+    await uploadFileToStorageKeepLocal(local, storagePath);
+    await uploadFileToStorageKeepLocal(flacSourceUrlLocalPath(local), sidecarStorage);
+    return local;
+  } finally {
+    unlinkQuiet(videoPath);
+  }
 }
-async function extractSingleWindow(flacPath, sessionId, win, suffix = "") {
-  const outPath = import_path13.default.join(
-    transcriptionDir(sessionId),
-    `chunk-${win.index}${suffix}.flac`
-  );
-  await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
-  return { ...win, path: outPath };
-}
-async function splitWindowInHalf(flacPath, sessionId, win, depth) {
-  const half = win.durationSeconds / 2;
-  const overlap = Math.min(CHUNK_OVERLAP_SECONDS, half / 4);
-  const a = await extractSingleWindow(
-    flacPath,
-    sessionId,
-    {
-      index: win.index,
-      startOffsetSeconds: win.startOffsetSeconds,
-      durationSeconds: half + overlap
-    },
-    `-d${depth}a`
-  );
-  const b = await extractSingleWindow(
-    flacPath,
-    sessionId,
-    {
-      index: win.index,
-      startOffsetSeconds: win.startOffsetSeconds + half,
-      durationSeconds: win.durationSeconds - half
-    },
-    `-d${depth}b`
-  );
-  return [a, b];
-}
-function validateLocalChunkMeta(local, expected) {
-  return Math.abs(local.startOffsetSeconds - expected.startOffsetSeconds) < 1e-3 && Math.abs(local.durationSeconds - expected.durationSeconds) < 1e-3;
-}
+var import_fs16, import_path16, import_storage9;
+var init_ensureFullAudio = __esm({
+  "src/tools/lib/ensureFullAudio.ts"() {
+    "use strict";
+    import_fs16 = __toESM(require("fs"));
+    import_path16 = __toESM(require("path"));
+    import_storage9 = require("firebase-admin/storage");
+    init_firebase();
+    init_storage();
+    init_utils();
+    init_audioChunks();
+    init_flacSourceUrl();
+    init_flacSourceUrl();
+  }
+});
 
 // src/tools/lib/transcriptStitch.ts
 function offsetItems(items, offset) {
@@ -40860,748 +41860,830 @@ function stitchChunkTranscripts(chunks, totalDurationSeconds) {
     gaps
   };
 }
+var init_transcriptStitch = __esm({
+  "src/tools/lib/transcriptStitch.ts"() {
+    "use strict";
+  }
+});
 
-// src/tools/lib/transcriptionProgress.ts
-var import_fs13 = __toESM(require("fs"));
-var import_path14 = __toESM(require("path"));
-var import_firestore5 = require("firebase-admin/firestore");
-var import_storage6 = require("firebase-admin/storage");
-init_firebase();
-init_storage();
-async function readTranscriptionProgress(sessionId) {
-  const snap = await db.collection("sessions").doc(sessionId).get();
-  const raw = snap.data()?.transcriptionProgress;
-  if (!raw || typeof raw !== "object") return null;
-  const p = raw;
-  if (typeof p.videoUrl !== "string" || !Array.isArray(p.completedChunkIndices)) {
-    return null;
-  }
-  return p;
-}
-async function writeTranscriptionProgress(sessionId, progress) {
-  await db.collection("sessions").doc(sessionId).set(
-    {
-      transcriptionProgress: {
-        ...progress,
-        updatedAt: import_firestore5.FieldValue.serverTimestamp()
-      }
-    },
-    { merge: true }
-  );
-}
-async function clearTranscriptionProgress(sessionId) {
-  await db.collection("sessions").doc(sessionId).set({ transcriptionProgress: import_firestore5.FieldValue.delete() }, { merge: true });
-}
-function chunkStoragePath(userId, sessionId, index) {
-  return `users/${userId}/sessions/${sessionId}/transcription_chunks/chunk-${index}.json`;
-}
-async function persistChunkResult(userId, sessionId, chunk) {
-  const payload = {
-    words: chunk.words,
-    segments: chunk.segments,
-    text: chunk.text,
-    startOffsetSeconds: chunk.startOffsetSeconds,
-    durationSeconds: chunk.durationSeconds,
-    ...chunk.language !== void 0 ? { language: chunk.language } : {},
-    ...chunk.provider !== void 0 ? { provider: chunk.provider } : {},
-    ...chunk.skipped ? { skipped: true } : {}
-  };
-  const localPath = import_path14.default.join(transcriptionDir(sessionId), `chunk-${chunk.index}.json`);
-  import_fs13.default.mkdirSync(import_path14.default.dirname(localPath), { recursive: true });
-  import_fs13.default.writeFileSync(localPath, JSON.stringify(payload, null, 2));
-  const storagePath = chunkStoragePath(userId, sessionId, chunk.index);
-  const url2 = await uploadFileToStorageKeepLocal(localPath, storagePath);
-  await writeAssetUrl(userId, sessionId, "transcription_chunk", url2, {
-    sourceTool: "transcribe_video",
-    metadata: {
-      index: chunk.index,
-      startOffsetSeconds: chunk.startOffsetSeconds,
-      durationSeconds: chunk.durationSeconds
-    }
-  });
-  return url2;
-}
-async function loadChunkResult(userId, sessionId, index, expected) {
-  const localPath = import_path14.default.join(transcriptionDir(sessionId), `chunk-${index}.json`);
-  if (import_fs13.default.existsSync(localPath)) {
-    try {
-      const parsed = JSON.parse(import_fs13.default.readFileSync(localPath, "utf-8"));
-      if (validateLocalChunkMeta(
-        {
-          startOffsetSeconds: parsed.startOffsetSeconds,
-          durationSeconds: parsed.durationSeconds
-        },
-        expected
-      )) {
-        return parsed;
-      }
-    } catch {
-    }
-  }
-  try {
-    const bucket = (0, import_storage6.getStorage)().bucket(getStorageBucketName());
-    const file2 = bucket.file(chunkStoragePath(userId, sessionId, index));
-    const [exists] = await file2.exists();
-    if (!exists) return null;
-    const [buf] = await file2.download();
-    const parsed = JSON.parse(buf.toString("utf-8"));
-    if (!validateLocalChunkMeta(
-      {
-        startOffsetSeconds: parsed.startOffsetSeconds,
-        durationSeconds: parsed.durationSeconds
-      },
-      expected
-    )) {
-      return null;
-    }
-    import_fs13.default.mkdirSync(import_path14.default.dirname(localPath), { recursive: true });
-    import_fs13.default.writeFileSync(localPath, JSON.stringify(parsed, null, 2));
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-async function deleteTranscriptionChunkObjects(userId, sessionId) {
-  try {
-    const bucket = (0, import_storage6.getStorage)().bucket(getStorageBucketName());
-    await bucket.deleteFiles({
-      prefix: `users/${userId}/sessions/${sessionId}/transcription_chunks/`
-    });
-  } catch (err) {
-    console.error("[transcribe_video] chunk cleanup", sessionId, err);
-  }
-}
-
-// src/tools/lib/sarvamBatch.ts
-var import_fs14 = __toESM(require("fs"));
-var import_path15 = __toESM(require("path"));
-var BASE = "https://api.sarvam.ai";
-var POLL_MS = 5e3;
-var MAX_POLLS = 120;
-var SarvamBatchError = class extends Error {
-  kind;
-  status;
-  constructor(message, kind, status) {
-    super(message);
-    this.name = "SarvamBatchError";
-    this.kind = kind;
-    this.status = status;
-  }
-};
-function apiKey() {
-  const key = process.env.SARVAM_API_KEY?.trim();
-  if (!key) {
-    throw new SarvamBatchError("SARVAM_API_KEY is not set", "permanent");
-  }
-  return key;
-}
-function classifyStatus(status) {
-  if (status === 429 || status === 500 || status === 502 || status === 503) return "transient";
-  return "permanent";
-}
-async function sarvamJson(method, urlPath, body) {
-  const headers = {
-    "api-subscription-key": apiKey()
-  };
-  let payload;
-  if (body !== void 0) {
-    headers["Content-Type"] = "application/json";
-    payload = JSON.stringify(body);
-  }
-  let res;
-  try {
-    res = await fetch(`${BASE}${urlPath}`, { method, headers, body: payload });
-  } catch (err) {
-    throw new SarvamBatchError(
-      `Sarvam network error: ${err instanceof Error ? err.message : String(err)}`,
-      "transient"
-    );
-  }
-  const text2 = await res.text();
-  let parsed = null;
-  try {
-    parsed = text2 ? JSON.parse(text2) : null;
-  } catch {
-    parsed = null;
-  }
-  if (!res.ok) {
-    throw new SarvamBatchError(
-      `Sarvam ${method} ${urlPath} \u2192 ${res.status}: ${text2.slice(0, 400)}`,
-      classifyStatus(res.status),
-      res.status
-    );
-  }
-  return parsed;
-}
-function firstFileUrl(container) {
-  if (!container) return void 0;
-  if (Array.isArray(container)) {
-    for (const item of container) {
-      if (typeof item === "string" && item) return item;
-      if (item && typeof item === "object") {
-        const u = item.file_url ?? item.url;
-        if (u) return u;
-      }
-    }
-    return void 0;
-  }
-  for (const v of Object.values(container)) {
-    if (typeof v === "string" && v) return v;
-    if (v && typeof v === "object" && typeof v.file_url === "string") return v.file_url;
-  }
-  return void 0;
-}
-function contentTypeForAudio(filePath) {
-  const ext = import_path15.default.extname(filePath).toLowerCase();
-  switch (ext) {
-    case ".flac":
-      return "audio/flac";
-    case ".wav":
-      return "audio/wav";
-    case ".mp3":
-      return "audio/mpeg";
-    case ".m4a":
-      return "audio/mp4";
-    default:
-      return "application/octet-stream";
-  }
-}
-function parseSarvamTimestamps(raw) {
-  if (!raw || typeof raw !== "object") {
-    throw new SarvamBatchError("Sarvam response missing timestamps object", "missing_timestamps");
-  }
-  const ts = raw;
-  const textsRaw = Array.isArray(ts.chunks) ? ts.chunks : Array.isArray(ts.words) ? ts.words : null;
-  const starts = ts.start_time_seconds;
-  const ends = ts.end_time_seconds;
-  if (!textsRaw || !Array.isArray(starts) || !Array.isArray(ends)) {
-    throw new SarvamBatchError(
-      "Sarvam timestamps missing chunks/words + start/end arrays",
-      "missing_timestamps"
-    );
-  }
-  if (textsRaw.length === 0) {
-    throw new SarvamBatchError("Sarvam timestamps empty", "missing_timestamps");
-  }
-  if (textsRaw.length !== starts.length || textsRaw.length !== ends.length) {
-    throw new SarvamBatchError(
-      `Sarvam timestamp length mismatch texts=${textsRaw.length} starts=${starts.length} ends=${ends.length}`,
-      "missing_timestamps"
-    );
-  }
-  const out = [];
-  for (let i = 0; i < textsRaw.length; i++) {
-    const text2 = textsRaw[i];
-    const start = starts[i];
-    const end = ends[i];
-    if (typeof text2 !== "string" || typeof start !== "number" || typeof end !== "number") {
-      throw new SarvamBatchError(`Sarvam timestamp entry ${i} malformed`, "missing_timestamps");
-    }
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
-      throw new SarvamBatchError(`Sarvam timestamp entry ${i} bad range`, "missing_timestamps");
-    }
-    out.push({ text: text2, start, end });
-  }
-  return out;
-}
-async function putAudio(uploadUrl, filePath) {
-  const bytes = import_fs14.default.readFileSync(filePath);
-  let res;
-  try {
-    res = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": contentTypeForAudio(filePath),
-        "x-ms-blob-type": "BlockBlob"
-      },
-      body: bytes
-    });
-  } catch (err) {
-    throw new SarvamBatchError(
-      `Sarvam upload PUT network error: ${err instanceof Error ? err.message : String(err)}`,
-      "transient"
-    );
-  }
-  if (!res.ok) {
-    const text2 = await res.text().catch(() => "");
-    throw new SarvamBatchError(
-      `Sarvam upload PUT \u2192 ${res.status}: ${text2.slice(0, 300)}`,
-      classifyStatus(res.status),
-      res.status
-    );
-  }
-}
-async function runSarvamTranslitBatch(audioPath) {
-  if (!import_fs14.default.existsSync(audioPath)) {
-    throw new SarvamBatchError(`Audio not found: ${audioPath}`, "permanent");
-  }
-  const fileName = import_path15.default.basename(audioPath);
-  const created = await sarvamJson("POST", "/speech-to-text/job/v1", {
-    job_parameters: {
-      model: "saaras:v4",
-      mode: "translit",
-      with_timestamps: true,
-      language_code: "unknown"
-    }
-  });
-  const jobId = created.job_id;
-  if (!jobId) {
-    throw new SarvamBatchError("Sarvam create job missing job_id", "permanent");
-  }
-  const uploadMeta = await sarvamJson(
-    "POST",
-    "/speech-to-text/job/v1/upload-files",
-    { job_id: jobId, files: [fileName] }
-  );
-  const putUrl = firstFileUrl(uploadMeta.upload_urls);
-  if (!putUrl) {
-    throw new SarvamBatchError("Sarvam upload-files missing upload URL", "permanent");
-  }
-  await putAudio(putUrl, audioPath);
-  await sarvamJson("POST", `/speech-to-text/job/v1/${jobId}/start`, {});
-  let status = null;
-  for (let i = 0; i < MAX_POLLS; i++) {
-    const polled = await sarvamJson("GET", `/speech-to-text/job/v1/${jobId}/status`);
-    status = polled;
-    const state = polled.job_state;
-    if (state === "Completed" || state === "PartiallyCompleted") break;
-    if (state === "Failed") {
-      throw new SarvamBatchError(
-        `Sarvam job Failed: ${polled.error_message ?? "(no message)"}`,
-        "permanent"
-      );
-    }
-    await new Promise((r) => setTimeout(r, POLL_MS));
-  }
-  if (!status || status.job_state !== "Completed" && status.job_state !== "PartiallyCompleted") {
-    throw new SarvamBatchError(
-      `Sarvam job timed out (last state=${status?.job_state ?? "unknown"})`,
-      "transient"
-    );
-  }
-  const completed = status;
-  const files = [];
-  for (const d of completed.job_details ?? []) {
-    for (const o of d.outputs ?? []) {
-      if (o.file_name) files.push(o.file_name);
-    }
-  }
-  if (files.length === 0) files.push("0.json");
-  const dl = await sarvamJson(
-    "POST",
-    "/speech-to-text/job/v1/download-files",
-    { job_id: jobId, files }
-  );
-  const getUrl = firstFileUrl(dl.download_urls);
-  if (!getUrl) {
-    throw new SarvamBatchError("Sarvam download-files missing URL", "permanent");
-  }
-  let bodyText;
-  try {
-    const res = await fetch(getUrl);
-    if (!res.ok) {
-      throw new SarvamBatchError(
-        `Sarvam result GET \u2192 ${res.status}`,
-        classifyStatus(res.status),
-        res.status
-      );
-    }
-    bodyText = await res.text();
-  } catch (err) {
-    if (err instanceof SarvamBatchError) throw err;
-    throw new SarvamBatchError(
-      `Sarvam result download failed: ${err instanceof Error ? err.message : String(err)}`,
-      "transient"
-    );
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    throw new SarvamBatchError("Sarvam result JSON parse failed", "permanent");
-  }
-  const rec = parsed;
-  return {
-    phrases: parseSarvamTimestamps(rec.timestamps),
-    raw: parsed
-  };
-}
-
-// src/tools/lib/transliteration/abbreviationDictionary.ts
-var BUNDLED_ABBREVIATIONS = {
-  kn: {
-    \u0CAC\u0CBF\u0CAA\u0CBF: "BP",
-    \u0CAA\u0CBF\u0CB8\u0CBF\u0C92\u0CA1\u0CBF: "PCOD",
-    \u0CAA\u0CBF\u0CB8\u0CBF\u0C92\u0C8E\u0CB8\u0CCD: "PCOS"
-  }
-};
-function normalizeLang(code) {
-  if (!code) return void 0;
-  const raw = code.trim().toLowerCase();
-  if (!raw) return void 0;
-  if (raw === "kannada") return "kn";
-  return raw.split(/[-_]/)[0] || void 0;
-}
-function abbreviationDictionaryPath(code) {
-  return `config/transliteration_abbreviations/langs/${code}`;
-}
-async function loadAbbreviationDictionary(languageCode) {
-  const code = normalizeLang(languageCode);
-  const defaults = code && BUNDLED_ABBREVIATIONS[code] || {};
-  if (!code) return { ...defaults };
-  try {
-    const { db: db2 } = await Promise.resolve().then(() => (init_firebase(), firebase_exports));
-    const snap = await db2.doc(abbreviationDictionaryPath(code)).get();
-    if (!snap.exists) {
-      console.error("[abbreviationDictionary] miss", abbreviationDictionaryPath(code));
-      return { ...defaults };
-    }
-    const raw = snap.data()?.entries;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      console.error("[abbreviationDictionary] bad entries shape", code);
-      return { ...defaults };
-    }
-    const overlay = {};
-    for (const [k, v] of Object.entries(raw)) {
-      if (typeof v === "string") overlay[k] = v;
-    }
-    return { ...defaults, ...overlay };
-  } catch (err) {
-    console.error(
-      "[abbreviationDictionary] load failed",
-      code,
-      err instanceof Error ? err.message.slice(0, 200) : String(err)
-    );
-    return { ...defaults };
-  }
-}
-
-// src/tools/lib/transliteration/mapSarvamToGroqTiming.ts
-var SKEW_RATIO_THRESHOLD = 2;
-function wordsForPhraseWindow(words, start, end, isLast) {
-  const out = [];
-  for (let g = 0; g < words.length; g++) {
-    const w = words[g];
-    const mid = (w.start + w.end) / 2;
-    const inWin = isLast ? mid >= start && mid <= end : mid >= start && mid < end;
-    if (inWin) out.push({ globalIndex: g, word: w });
-  }
-  return out;
-}
-function tokenize(text2) {
-  return text2.trim().split(/\s+/).filter(Boolean);
-}
-function assignTokensDurationWeight(tokens, durations) {
-  const n = durations.length;
-  if (n === 0) return [];
-  if (tokens.length === 0) return Array.from({ length: n }, () => "");
-  if (n === 1) return [tokens.join(" ")];
-  const total = durations.reduce((a, b) => a + Math.max(0, b), 0);
-  if (!(total > 0)) return assignTokensEven(tokens, n);
-  const slots = Array.from({ length: n }, () => []);
-  let tokenIdx = 0;
-  let cumFrac = 0;
-  for (let i = 0; i < n; i++) {
-    if (i === n - 1) {
-      while (tokenIdx < tokens.length) slots[i].push(tokens[tokenIdx++]);
-      break;
-    }
-    cumFrac += Math.max(0, durations[i]) / total;
-    const targetCount = Math.max(tokenIdx, Math.round(cumFrac * tokens.length));
-    while (tokenIdx < targetCount && tokenIdx < tokens.length) {
-      slots[i].push(tokens[tokenIdx++]);
-    }
-  }
-  while (tokenIdx < tokens.length) slots[n - 1].push(tokens[tokenIdx++]);
-  return slots.map((s) => s.join(" "));
-}
-function assignTokensEven(tokens, n) {
-  if (n <= 0) return [];
-  if (tokens.length === 0) return Array.from({ length: n }, () => "");
-  if (n === 1) return [tokens.join(" ")];
-  const slots = Array.from({ length: n }, () => []);
-  for (let t = 0; t < tokens.length; t++) {
-    const slot = Math.min(n - 1, Math.floor(t * n / tokens.length));
-    slots[slot].push(tokens[t]);
-  }
-  return slots.map((s) => s.join(" "));
-}
-function evenlySpacedWords(tokens, start, end) {
-  const n = tokens.length;
-  if (n === 0) return [];
-  const dur = Math.max(0, end - start);
-  const slot = n > 0 ? dur / n : 0;
-  return tokens.map((word, i) => ({
-    word,
-    start: start + i * slot,
-    end: start + (i + 1) * slot
-  }));
-}
-function expandMultiWordTokens(words) {
-  const out = [];
-  for (const w of words) {
-    const parts = w.word.trim().split(/\s+/).filter(Boolean);
-    if (parts.length <= 1) {
-      if (parts.length === 1) out.push({ ...w, word: parts[0] });
-      continue;
-    }
-    const dur = Math.max(0, w.end - w.start);
-    const slot = dur / parts.length;
-    for (let i = 0; i < parts.length; i++) {
-      out.push({
-        word: parts[i],
-        start: w.start + i * slot,
-        end: w.start + (i + 1) * slot
-      });
-    }
-  }
-  return out;
-}
-function mapSarvamToGroqTiming(groqWords, phrases, mode = "duration_weight") {
-  const phraseBlocks = [];
-  const fallbackBlocks = [];
-  const fallbackPhraseIndices = [];
-  for (let pi = 0; pi < phrases.length; pi++) {
-    const P = phrases[pi];
-    const members = wordsForPhraseWindow(
-      groqWords,
-      P.start,
-      P.end,
-      pi === phrases.length - 1
-    );
-    const tokens = tokenize(P.text);
-    if (members.length === 0) {
-      fallbackPhraseIndices.push(pi);
-      if (tokens.length > 0) {
-        fallbackBlocks.push(...evenlySpacedWords(tokens, P.start, P.end));
-      }
-      continue;
-    }
-    const skew = members.length > 0 ? tokens.length / members.length : Infinity;
-    if (tokens.length === 0) {
-      continue;
-    }
-    if (skew > SKEW_RATIO_THRESHOLD) {
-      phraseBlocks.push({
-        insertAfterClaimedMax: Math.max(...members.map((m) => m.globalIndex)),
-        words: evenlySpacedWords(tokens, P.start, P.end)
-      });
-      continue;
-    }
-    const durations = members.map(
-      (m) => Math.max(0, m.word.end - m.word.start)
-    );
-    const pieces = mode === "even" ? assignTokensEven(tokens, members.length) : assignTokensDurationWeight(tokens, durations);
-    const packed = [];
-    for (let i = 0; i < members.length; i++) {
-      const text2 = (pieces[i] ?? "").trim();
-      if (!text2) continue;
-      const slot = members[i].word;
-      packed.push({ word: text2, start: slot.start, end: slot.end });
-    }
-    phraseBlocks.push({
-      insertAfterClaimedMax: Math.max(...members.map((m) => m.globalIndex)),
-      words: packed
-    });
-  }
-  phraseBlocks.sort(
-    (a, b) => a.insertAfterClaimedMax - b.insertAfterClaimedMax
-  );
-  const assembled = [];
-  for (const block of phraseBlocks) assembled.push(...block.words);
-  assembled.push(...fallbackBlocks);
-  return {
-    words: expandMultiWordTokens(assembled),
-    fallbackPhraseIndices
-  };
-}
-
-// src/tools/lib/transliteration/sarvamLanguages.ts
-var SARVAM_SUPPORTED_LANGUAGES = [
-  "as",
-  "bn",
-  "brx",
-  "doi",
-  "en",
-  "gu",
-  "hi",
-  "kn",
-  "kok",
-  "ks",
-  "mai",
-  "ml",
-  "mni",
-  "mr",
-  "ne",
-  "od",
-  "pa",
-  "sa",
-  "sat",
-  "sd",
-  "ta",
-  "te",
-  "ur"
-];
-var CAPTION_LANGUAGE_CHECKPOINT_CODES = [
-  "as",
-  "bn",
-  "en",
-  "gu",
-  "hi",
-  "kn",
-  "ml",
-  "mr",
-  "ne",
-  "pa",
-  "sa",
-  "sd",
-  "ta",
-  "te",
-  "ur"
-];
-var CHECKPOINT_LABELS = {
-  as: "Assamese",
-  bn: "Bengali",
-  en: "English",
-  gu: "Gujarati",
-  hi: "Hindi",
-  kn: "Kannada",
-  ml: "Malayalam",
-  mr: "Marathi",
-  ne: "Nepali",
-  pa: "Punjabi",
-  sa: "Sanskrit",
-  sd: "Sindhi",
-  ta: "Tamil",
-  te: "Telugu",
-  ur: "Urdu"
-};
-var CAPTION_LANGUAGE_CHECKPOINT_CHOICES = [
-  { id: "auto", label: "Auto-detect" },
-  ...CAPTION_LANGUAGE_CHECKPOINT_CODES.map((id) => ({
-    id,
-    label: CHECKPOINT_LABELS[id]
-  }))
-];
-var SARVAM_SET = new Set(SARVAM_SUPPORTED_LANGUAGES);
-function isSarvamSupportedLanguage(normalizedCode) {
-  return Boolean(normalizedCode && SARVAM_SET.has(normalizedCode));
-}
-
-// src/tools/lib/transliteration/transliterateWords.ts
+// src/tools/lib/transcriptionLanguage.ts
 function normalizeLanguageCode(code) {
   if (!code) return void 0;
   const raw = code.trim().toLowerCase();
   if (!raw) return void 0;
-  if (raw === "kannada") return "kn";
+  if (raw === "kannada" || raw === "kan") return "kn";
   return raw.split(/[-_]/)[0] || void 0;
 }
-function applyAbbrevOverride(nativeWord, mappedText, seed) {
-  const hit = seed[nativeWord];
-  return hit !== void 0 ? hit : mappedText;
+function pinnedLanguageFromRequest(requested) {
+  if (requested === "en") return "en";
+  return void 0;
 }
-function nativeAtMappedTime(groqWords, mapped) {
-  const mid = (mapped.start + mapped.end) / 2;
-  for (const g of groqWords) {
-    if (mid >= g.start && mid < g.end) return g.word;
-    if (mid === g.end) return g.word;
+function resolveRequestedLanguage(requested, pipelineMode) {
+  if (requested === "en" || requested === "auto") return requested;
+  if (pipelineMode === "auto") return "auto";
+  return "auto";
+}
+var TRANSCRIPTION_LANGUAGE_CHOICES;
+var init_transcriptionLanguage = __esm({
+  "src/tools/lib/transcriptionLanguage.ts"() {
+    "use strict";
+    TRANSCRIPTION_LANGUAGE_CHOICES = [
+      { id: "en", label: "English" },
+      { id: "auto", label: "Auto-detect" }
+    ];
   }
-  return "";
-}
-function rebuildSegments(words, segments) {
-  return segments.map((seg, si) => {
-    const isLast = si === segments.length - 1;
-    const parts = [];
-    for (const w of words) {
-      const mid = (w.start + w.end) / 2;
-      const inSeg = isLast ? mid >= seg.start && mid <= seg.end : mid >= seg.start && mid < seg.end;
-      if (inSeg) parts.push(w.word);
+});
+
+// src/falSttIdempotency.ts
+function falSttDeliveryAction(progress, requestId, pipelineMode) {
+  if (progress?.status === "complete" && requestId && progress.requestId === requestId) {
+    if (progress.falSttResumePending && pipelineMode === "auto") {
+      return "resume_only";
     }
-    return { ...seg, text: parts.join(" ") };
+    if (!progress.falSttWakeClaimed) {
+      return "wake_only";
+    }
+    return "noop";
+  }
+  return "full";
+}
+function resolveWakeClaim(progress) {
+  if (!progress || progress.status !== "complete") return "incomplete";
+  if (progress.falSttWakeClaimed === true) return "already";
+  return "claimed";
+}
+function transcriptExistsNeedsWake(progress, hasTranscript) {
+  if (!progress || !hasTranscript) return false;
+  if (progress.falSttWakeClaimed) return false;
+  if (!progress.requestId && !progress.falSttFinalizePending) return false;
+  const needsFinalize = progress.falSttFinalizePending === true || progress.status === "in_progress" && Boolean(progress.requestId);
+  if (needsFinalize) return true;
+  return progress.status === "complete";
+}
+function shouldEscalateFalSttShortCircuit(opts) {
+  if (opts.count >= SHORT_CIRCUIT_ESCALATE_COUNT) return true;
+  if (opts.updatedAtMs == null) return false;
+  return opts.nowMs - opts.updatedAtMs >= SHORT_CIRCUIT_ESCALATE_MS;
+}
+function shouldShortCircuitFalSttEntry(progress, hasTranscript) {
+  if (hasTranscript || !progress) return false;
+  if (progress.falSttFinalizePending === true) return true;
+  return progress.status === "in_progress" && Boolean(progress.requestId);
+}
+function progressUpdatedAtMs(updatedAt) {
+  if (updatedAt == null) return null;
+  if (typeof updatedAt === "number" && Number.isFinite(updatedAt)) return updatedAt;
+  if (typeof updatedAt === "object" && updatedAt !== null && typeof updatedAt.toMillis === "function") {
+    return updatedAt.toMillis();
+  }
+  if (typeof updatedAt === "object" && updatedAt !== null && typeof updatedAt._seconds === "number") {
+    return updatedAt._seconds * 1e3;
+  }
+  if (updatedAt instanceof Date) return updatedAt.getTime();
+  return null;
+}
+function selfcheck() {
+  const complete = (p) => p;
+  if (falSttDeliveryAction(complete({ status: "complete", requestId: "r1" }), "r1", "ask") !== "wake_only") {
+    throw new Error("ask complete unwoken should wake_only");
+  }
+  if (falSttDeliveryAction(
+    complete({ status: "complete", requestId: "r1", falSttWakeClaimed: true }),
+    "r1",
+    "ask"
+  ) !== "noop") {
+    throw new Error("ask complete woken should noop");
+  }
+  if (falSttDeliveryAction(
+    complete({
+      status: "complete",
+      requestId: "r1",
+      falSttResumePending: true,
+      falSttWakeClaimed: true
+    }),
+    "r1",
+    "auto"
+  ) !== "resume_only") {
+    throw new Error("auto pending resume should resume_only");
+  }
+  if (falSttDeliveryAction(
+    complete({
+      status: "complete",
+      requestId: "r1",
+      falSttResumePending: false,
+      falSttWakeClaimed: true
+    }),
+    "r1",
+    "auto"
+  ) !== "noop") {
+    throw new Error("auto complete woken should noop");
+  }
+  if (falSttDeliveryAction(null, "r1", "auto") !== "full") {
+    throw new Error("missing progress should full");
+  }
+  if (resolveWakeClaim(complete({ status: "complete" })) !== "claimed") {
+    throw new Error("complete unwoken should claim");
+  }
+  if (resolveWakeClaim(complete({ status: "complete", falSttWakeClaimed: true })) !== "already") {
+    throw new Error("woken should already");
+  }
+  if (resolveWakeClaim(complete({ status: "in_progress" })) !== "incomplete") {
+    throw new Error("in_progress should incomplete");
+  }
+  let snap = complete({ status: "complete", falSttWakeClaimed: false });
+  if (resolveWakeClaim(snap) !== "claimed") throw new Error("first claim");
+  snap = complete({ ...snap, falSttWakeClaimed: true });
+  if (resolveWakeClaim(snap) !== "already") throw new Error("second claim");
+  if (!transcriptExistsNeedsWake(
+    complete({ status: "complete", requestId: "r1", falSttFinalizePending: true }),
+    true
+  )) {
+    throw new Error("transcript-exists + finalize pending needs wake");
+  }
+  if (transcriptExistsNeedsWake(
+    complete({ status: "complete", requestId: "r1", falSttWakeClaimed: true }),
+    true
+  )) {
+    throw new Error("already woken should not need wake");
+  }
+  if (!transcriptExistsNeedsWake(
+    complete({ status: "complete", requestId: "r1" }),
+    true
+  )) {
+    throw new Error("complete unwoken with transcript needs wake");
+  }
+  if (transcriptExistsNeedsWake(complete({ status: "complete", totalChunks: 3 }), true)) {
+    throw new Error("English complete without Fal requestId must not wake");
+  }
+  const now2 = 1e6;
+  if (shouldEscalateFalSttShortCircuit({
+    updatedAtMs: now2 - 6e4,
+    count: 1,
+    nowMs: now2
+  })) {
+    throw new Error("should not escalate before thresholds");
+  }
+  if (!shouldEscalateFalSttShortCircuit({
+    updatedAtMs: now2 - SHORT_CIRCUIT_ESCALATE_MS - 1,
+    count: 0,
+    nowMs: now2
+  })) {
+    throw new Error("should escalate on age");
+  }
+  if (!shouldEscalateFalSttShortCircuit({
+    updatedAtMs: now2,
+    count: SHORT_CIRCUIT_ESCALATE_COUNT,
+    nowMs: now2
+  })) {
+    throw new Error("should escalate on count");
+  }
+  if (!shouldShortCircuitFalSttEntry(
+    complete({ status: "in_progress", requestId: "r1" }),
+    false
+  )) {
+    throw new Error("in_progress without transcript should short-circuit");
+  }
+  if (shouldShortCircuitFalSttEntry(
+    complete({ status: "in_progress", requestId: "r1" }),
+    true
+  )) {
+    throw new Error("with transcript should not short-circuit");
+  }
+  const deliverSrc = import_node_fs.default.readFileSync(import_node_path.default.join(__dirname, "falSttDeliver.ts"), "utf8");
+  if (!/injectCheckpointPart\(/.test(deliverSrc)) {
+    throw new Error("handOffAfterFalStt must call injectCheckpointPart");
+  }
+  if (/\{ type: ['"]data-checkpoint['"]/.test(deliverSrc)) {
+    throw new Error("Ask handoff must not hand-build data-checkpoint literal");
+  }
+  if (!/phase_label:\s*['"]Lecture heard['"]/.test(deliverSrc)) {
+    throw new Error("Ask handoff phase_label must be Lecture heard");
+  }
+  try {
+    require_main().config();
+  } catch {
+  }
+  const { buildResumeSystemContext: buildResumeSystemContext2 } = (init_checkpoint(), __toCommonJS(checkpoint_exports));
+  const resume = buildResumeSystemContext2({
+    id: "cp_lecture_heard",
+    completedPhase: "transcription",
+    completedPhaseLabel: "Lecture heard",
+    summary: { title: "Lecture heard", bullets: [] },
+    next: { label: "Extract concepts", description: "Continue" },
+    resume: { artifactNeeds: [], assetKeys: [] },
+    answer: { type: "approve", text: "Continue" }
   });
+  if (!resume.includes("extract_concepts")) {
+    throw new Error("Lecture heard resume must mention extract_concepts");
+  }
+  if (resume.includes("Call transcribe_video again")) {
+    throw new Error("Lecture heard resume must not use language-gate re-transcribe guidance");
+  }
+  if (!resume.includes("Continue with extract_concepts")) {
+    throw new Error("Lecture heard continueLine must be Continue with extract_concepts");
+  }
+  if (!/kind:\s*['"]phase_gate['"]/.test(deliverSrc)) {
+    throw new Error("Lecture heard must declare kind phase_gate");
+  }
+  if (/choices:\s*\[\s*\{\s*id:\s*['"]continue['"]/.test(deliverSrc)) {
+    throw new Error("Lecture heard must not use a Continue choice");
+  }
+  const entryGateOrder = [
+    "tryRecoverFalSttFinalize",
+    "tryResumeFalSttPending",
+    "tryShortCircuitFalSttPending",
+    "runAgent"
+  ];
+  if (entryGateOrder.indexOf("tryShortCircuitFalSttPending") !== 2) {
+    throw new Error("short-circuit must run after recover/resume");
+  }
+  if (entryGateOrder.indexOf("runAgent") !== 3) {
+    throw new Error("runAgent must run after short-circuit");
+  }
+  console.log("falSttIdempotency selfcheck ok");
 }
-function unwrapSarvam(out) {
-  if (Array.isArray(out)) return { phrases: out };
-  return { phrases: out.phrases, raw: out.raw };
+var import_node_fs, import_node_path, SHORT_CIRCUIT_ESCALATE_MS, SHORT_CIRCUIT_ESCALATE_COUNT;
+var init_falSttIdempotency = __esm({
+  "src/falSttIdempotency.ts"() {
+    "use strict";
+    import_node_fs = __toESM(require("node:fs"));
+    import_node_path = __toESM(require("node:path"));
+    SHORT_CIRCUIT_ESCALATE_MS = 3 * 60 * 1e3;
+    SHORT_CIRCUIT_ESCALATE_COUNT = 3;
+    if (require.main === module && /falSttIdempotency\.[cm]?[jt]s$/.test(process.argv[1] ?? "")) {
+      selfcheck();
+    }
+  }
+});
+
+// src/tools/lib/elevenLabsStt.ts
+function falKey() {
+  const key = process.env.FAL_API_KEY?.trim();
+  if (!key) {
+    throw new ElevenLabsSttError("FAL_API_KEY is not set", { kind: "permanent" });
+  }
+  return key;
 }
-async function transliterateWords(input, deps = {}) {
-  const norm = normalizeLanguageCode(input.language);
-  if (!isSarvamSupportedLanguage(norm)) {
-    console.error(
-      "[transliterateWords] language not in Sarvam allowlist",
-      input.language
-    );
-    return {
-      words: input.words,
-      segments: input.segments,
-      text: input.text ?? input.words.map((w) => w.word).join(" ")
+function classifyHttp(status) {
+  if (status === 429 || status >= 500) return "transient";
+  return "permanent";
+}
+async function submitElevenLabsScribeV2(opts) {
+  const key = falKey();
+  const webhookUrl = buildFalWebhookUrl(opts.sessionId, "fal_stt");
+  try {
+    return await falQueueSubmit({
+      model: ELEVENLABS_SCRIBE_V2_MODEL,
+      falKey: key,
+      webhookUrl,
+      input: {
+        audio_url: opts.audioUrl,
+        tag_audio_events: false,
+        diarize: false
+      }
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const statusMatch = msg.match(/\b(\d{3})\b/);
+    const status = statusMatch ? Number(statusMatch[1]) : void 0;
+    throw new ElevenLabsSttError(msg, {
+      kind: classifyHttp(status ?? 500),
+      status
+    });
+  }
+}
+var ELEVENLABS_SCRIBE_V2_MODEL, ElevenLabsSttError;
+var init_elevenLabsStt = __esm({
+  "src/tools/lib/elevenLabsStt.ts"() {
+    "use strict";
+    init_falQueue();
+    ELEVENLABS_SCRIBE_V2_MODEL = "fal-ai/elevenlabs/speech-to-text/scribe-v2";
+    ElevenLabsSttError = class extends Error {
+      kind;
+      status;
+      constructor(message, opts) {
+        super(message);
+        this.kind = opts.kind;
+        this.status = opts.status;
+      }
     };
   }
-  const runSarvam = deps.runSarvam ?? runSarvamTranslitBatch;
-  const loadDictionary = deps.loadDictionary ?? loadAbbreviationDictionary;
-  let phrases;
-  let sarvamRaw;
-  try {
-    const unwrapped = unwrapSarvam(await runSarvam(input.audioPath));
-    phrases = unwrapped.phrases;
-    sarvamRaw = unwrapped.raw;
-  } catch (err) {
-    if (err instanceof SarvamBatchError) throw err;
-    throw new SarvamBatchError(
-      `Sarvam batch failed: ${err instanceof Error ? err.message : String(err)}`,
-      "transient"
-    );
+});
+
+// src/tools/lib/normalizeElevenLabsTranscript.ts
+function isWordToken(w) {
+  const t = (w.type ?? "word").toLowerCase();
+  return t === "word";
+}
+function wordsToSegments(words, durationSeconds) {
+  if (words.length === 0) {
+    const end = durationSeconds > 0 ? durationSeconds : 0;
+    return [{ start: 0, end, text: "" }];
   }
-  const mapped = mapSarvamToGroqTiming(input.words, phrases, "duration_weight");
-  const abbrev = await loadDictionary(input.language);
-  const words = mapped.words.map((w) => {
-    const native = nativeAtMappedTime(input.words, w);
-    return { ...w, word: applyAbbrevOverride(native, w.word, abbrev) };
+  const segments = [];
+  let buf = [words[0]];
+  for (let i = 1; i < words.length; i++) {
+    const prev = words[i - 1];
+    const cur = words[i];
+    if (cur.start - prev.end >= PAUSE_GAP_SECONDS) {
+      segments.push({
+        start: buf[0].start,
+        end: buf[buf.length - 1].end,
+        text: buf.map((w) => w.word).join(" ")
+      });
+      buf = [cur];
+    } else {
+      buf.push(cur);
+    }
+  }
+  segments.push({
+    start: buf[0].start,
+    end: buf[buf.length - 1].end,
+    text: buf.map((w) => w.word).join(" ")
   });
-  const segments = rebuildSegments(words, input.segments);
-  const text2 = words.map((w) => w.word).join(" ");
+  return segments;
+}
+function normalizeElevenLabsTranscript(raw, fallbackDurationSeconds) {
+  const words = (raw.words ?? []).filter(isWordToken).map((w) => ({
+    word: String(w.text ?? "").trim(),
+    start: typeof w.start === "number" ? w.start : 0,
+    end: typeof w.end === "number" ? w.end : typeof w.start === "number" ? w.start : 0
+  })).filter((w) => w.word.length > 0);
+  const duration_seconds = typeof raw.audio_duration_secs === "number" && raw.audio_duration_secs > 0 ? raw.audio_duration_secs : fallbackDurationSeconds > 0 ? fallbackDurationSeconds : words.length > 0 ? words[words.length - 1].end : 0;
+  const text2 = typeof raw.text === "string" && raw.text.trim() ? raw.text.trim() : words.map((w) => w.word).join(" ");
+  const language = normalizeLanguageCode(raw.language_code);
+  const segments = wordsToSegments(words, duration_seconds);
   return {
+    text: text2,
     words,
     segments,
-    text: text2,
-    ...mapped.fallbackPhraseIndices.length > 0 ? { transliterationFallbacks: mapped.fallbackPhraseIndices } : {},
-    ...sarvamRaw !== void 0 ? { sarvamRaw } : {}
+    duration_seconds,
+    ...language ? { language } : {}
   };
 }
+var PAUSE_GAP_SECONDS;
+var init_normalizeElevenLabsTranscript = __esm({
+  "src/tools/lib/normalizeElevenLabsTranscript.ts"() {
+    "use strict";
+    init_transcriptionLanguage();
+    PAUSE_GAP_SECONDS = 0.6;
+  }
+});
 
-// src/tools/lib/forceLanguageRepass.ts
-function languageForDetectRepass(opts) {
-  if (opts.firstCallHadLanguage || opts.forceFail) return void 0;
-  const pin = normalizeLanguageCode(opts.detectedLanguage) ?? opts.detectedLanguage;
-  if (!pin || pin === "en") return void 0;
-  return pin;
+// src/falSttDeliver.ts
+var falSttDeliver_exports = {};
+__export(falSttDeliver_exports, {
+  FAL_STT_CONTINUE_PROMPT: () => FAL_STT_CONTINUE_PROMPT,
+  claimFalSttWake: () => claimFalSttWake,
+  deliverFalStt: () => deliverFalStt,
+  falSttDeliveryAction: () => falSttDeliveryAction,
+  finalizeFalSttFromPayload: () => finalizeFalSttFromPayload,
+  handOffAfterFalStt: () => handOffAfterFalStt,
+  tryRecoverFalSttFinalize: () => tryRecoverFalSttFinalize,
+  tryResumeFalSttPending: () => tryResumeFalSttPending,
+  tryShortCircuitFalSttPending: () => tryShortCircuitFalSttPending
+});
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
-
-// src/tools/lib/transcriptionLanguage.ts
-function pinnedLanguageFromRequest(requested, existingPin) {
-  if (existingPin) return existingPin;
-  if (!requested || requested === "auto") return void 0;
-  return normalizeLanguageCode(requested) ?? requested;
+async function downloadJson(url2) {
+  const res = await fetch(url2);
+  if (!res.ok) {
+    throw new Error(`Download Fal STT payload failed: ${res.status}`);
+  }
+  return res.json();
 }
+async function persistTranscript(userId, sessionId, transcriptData) {
+  const transcriptPath = getTempPath(`${sessionId}_transcript.json`);
+  import_fs17.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+  import_fs17.default.mkdirSync(getSessionWorkdir(sessionId), { recursive: true });
+  import_fs17.default.writeFileSync(
+    import_path17.default.join(getSessionWorkdir(sessionId), "transcript.json"),
+    JSON.stringify(transcriptData, null, 2)
+  );
+  const storagePath = `users/${userId}/sessions/${sessionId}/transcript.json`;
+  const transcriptUrl = await uploadToStorage(transcriptPath, storagePath);
+  await writeAssetUrl(userId, sessionId, "transcript", transcriptUrl);
+  return transcriptUrl;
+}
+async function runAutoContinue(sessionId, userId) {
+  let lastErr;
+  for (let attempt = 0; attempt < RESUME_RETRIES; attempt++) {
+    try {
+      const result = await runAgent({
+        userMessage: FAL_STT_CONTINUE_PROMPT,
+        sessionId,
+        userId,
+        pipelineMode: "auto",
+        skillId: "edu-video"
+      });
+      await result.result.text;
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < RESUME_RETRIES - 1) {
+        await sleep(RESUME_BACKOFF_MS * (attempt + 1));
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+async function patchProgress(sessionId, patch) {
+  const current = await readTranscriptionProgress(sessionId);
+  if (!current) {
+    throw new Error("transcriptionProgress missing during Fal STT delivery");
+  }
+  await writeTranscriptionProgress(sessionId, { ...current, ...patch });
+}
+async function sessionHasTranscript(userId, sessionId) {
+  const localTranscript = import_path17.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (import_fs17.default.existsSync(localTranscript)) return true;
+  return Boolean(await getAssetUrl(userId, sessionId, "transcript"));
+}
+async function claimFalSttWake(sessionId) {
+  return db.runTransaction(async (tx) => {
+    const ref2 = db.collection("sessions").doc(sessionId);
+    const snap = await tx.get(ref2);
+    const progress = snap.data()?.transcriptionProgress;
+    const decision = resolveWakeClaim(progress ?? null);
+    if (decision !== "claimed") return decision;
+    tx.set(
+      ref2,
+      {
+        transcriptionProgress: {
+          ...progress,
+          falSttWakeClaimed: true,
+          updatedAt: import_firestore7.FieldValue.serverTimestamp()
+        }
+      },
+      { merge: true }
+    );
+    return "claimed";
+  });
+}
+async function handOffAfterFalStt(opts) {
+  const { sessionId, userId, pipelineMode, skillName } = opts;
+  if (pipelineMode === "ask") {
+    await clearPendingFalJob(sessionId);
+    try {
+      const written = await writeAskCheckpoint(
+        { sessionId, userId, skillName, pipelineMode },
+        {
+          kind: "phase_gate",
+          phase_label: "Lecture heard",
+          completedPhase: "transcription",
+          question: "I've heard your lecture. Ready to continue?",
+          allowFreeform: false
+        }
+      );
+      const assistantText2 = "I've heard your lecture. Ready to continue?";
+      await saveMessage(
+        sessionId,
+        userId,
+        "assistant",
+        assistantText2,
+        injectCheckpointPart([{ type: "text", text: assistantText2 }], written.checkpointDisplay)
+      );
+    } catch (err) {
+      console.error(
+        "[falStt] checkpoint write failed after transcript durable",
+        sessionId,
+        err
+      );
+    }
+    return {
+      status: "ask_checkpoint",
+      message: `fal_stt ask checkpoint for session ${sessionId}`
+    };
+  }
+  const assistantText = "I understood your lecture.";
+  await saveMessage(sessionId, userId, "assistant", assistantText, [
+    { type: "text", text: assistantText }
+  ]);
+  await patchProgress(sessionId, { falSttResumePending: true });
+  try {
+    await runAutoContinue(sessionId, userId);
+    await patchProgress(sessionId, { falSttResumePending: false });
+    await clearPendingFalJob(sessionId);
+    return {
+      status: "auto_continued",
+      message: `fal_stt auto continue for session ${sessionId}`
+    };
+  } catch (err) {
+    console.error("[falStt] auto continue failed", sessionId, err);
+    await clearPendingFalJob(sessionId);
+    return {
+      status: "auto_pending",
+      message: `fal_stt auto continue for session ${sessionId}`
+    };
+  }
+}
+async function claimAndHandOff(opts) {
+  const claim = await claimFalSttWake(opts.sessionId);
+  if (claim === "incomplete") {
+    return {
+      status: "already",
+      message: `fal_stt wake incomplete for session ${opts.sessionId}`
+    };
+  }
+  if (claim === "already") {
+    return {
+      status: "already",
+      message: `fal_stt wake already claimed for session ${opts.sessionId}`
+    };
+  }
+  return handOffAfterFalStt(opts);
+}
+async function finalizeFalSttFromPayload(opts) {
+  const { sessionId, userId, payload, progress, requestId, pipelineMode, skillName } = opts;
+  const durationSeconds = progress.durationSeconds ?? 0;
+  const normalized = normalizeElevenLabsTranscript(payload, durationSeconds);
+  const transcriptData = {
+    text: normalized.text,
+    words: sanitizeTranscriptWords(normalized.words, normalized.duration_seconds),
+    segments: normalized.segments,
+    duration_seconds: normalized.duration_seconds,
+    ...normalized.language ? { language: normalized.language } : {}
+  };
+  await persistTranscript(userId, sessionId, transcriptData);
+  await writeTranscriptionProgress(sessionId, {
+    videoUrl: progress.videoUrl,
+    totalChunks: 1,
+    completedChunkIndices: [0],
+    status: "complete",
+    falSttFinalizePending: false,
+    falSttWebhookPayloadUrl: void 0,
+    falSttWakeClaimed: progress.falSttWakeClaimed,
+    falSttResumePending: progress.falSttResumePending,
+    falSttShortCircuitCount: progress.falSttShortCircuitCount,
+    ...requestId ? { requestId } : {},
+    ...durationSeconds ? { durationSeconds } : {},
+    ...normalized.language ? { pinnedLanguage: normalized.language } : {}
+  });
+  return claimAndHandOff({ sessionId, userId, pipelineMode, skillName });
+}
+async function tryResumeFalSttPending(sessionId, userId, pipelineMode) {
+  if (pipelineMode !== "auto") return;
+  const progress = await readTranscriptionProgress(sessionId);
+  if (!progress?.falSttResumePending) return;
+  try {
+    await runAutoContinue(sessionId, userId);
+    await patchProgress(sessionId, { falSttResumePending: false });
+  } catch (err) {
+    console.error("[falStt] entry gate resume failed", sessionId, err);
+  }
+}
+async function tryRecoverFalSttFinalize(sessionId, userId) {
+  const progress = await readTranscriptionProgress(sessionId);
+  if (!progress) return false;
+  const hasTranscript = await sessionHasTranscript(userId, sessionId);
+  if (transcriptExistsNeedsWake(progress, hasTranscript)) {
+    if (progress.falSttFinalizePending || progress.status === "in_progress") {
+      await patchProgress(sessionId, {
+        status: "complete",
+        falSttFinalizePending: false,
+        falSttWebhookPayloadUrl: void 0
+      });
+    }
+    const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+    await claimAndHandOff({
+      sessionId,
+      userId,
+      pipelineMode,
+      skillName: skillsUsed[0] ?? "edu-video"
+    });
+    return true;
+  }
+  const payloadUrl = progress.falSttWebhookPayloadUrl;
+  const needsFinalize = progress.falSttFinalizePending === true || progress.status === "in_progress" && Boolean(progress.requestId);
+  if (!needsFinalize) return false;
+  if (!payloadUrl && !progress.requestId) return false;
+  if (hasTranscript) {
+    if (progress.falSttFinalizePending) {
+      await patchProgress(sessionId, {
+        falSttFinalizePending: false,
+        falSttWebhookPayloadUrl: void 0
+      });
+    }
+    return false;
+  }
+  if (payloadUrl) {
+    try {
+      await deliverFalStt(sessionId, userId, {
+        taskId: "fal_stt",
+        status: "completed",
+        payloadUrl
+      });
+      return true;
+    } catch (err) {
+      console.error("[falStt] finalize recovery failed", sessionId, err);
+      return false;
+    }
+  }
+  const falKey2 = process.env.FAL_API_KEY?.trim();
+  const requestId = progress.requestId;
+  if (!falKey2 || !requestId) return false;
+  try {
+    const { status: falStatus } = await falQueueStatus(
+      ELEVENLABS_SCRIBE_V2_MODEL,
+      requestId,
+      falKey2
+    );
+    if (falStatus === "IN_QUEUE" || falStatus === "IN_PROGRESS") {
+      return false;
+    }
+    if (falStatus === "FAILED") {
+      const text2 = "Transcription failed.";
+      await saveMessage(sessionId, userId, "assistant", text2, [{ type: "text", text: text2 }]);
+      await clearTranscriptionProgress(sessionId);
+      await clearPendingFalJob(sessionId);
+      return true;
+    }
+    if (falStatus !== "COMPLETED") return false;
+    if (!progress.videoUrl) {
+      console.error("[falStt] fal reconcile missing videoUrl", sessionId);
+      return false;
+    }
+    const result = await falQueueResult(ELEVENLABS_SCRIBE_V2_MODEL, requestId, falKey2);
+    const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+    await finalizeFalSttFromPayload({
+      sessionId,
+      userId,
+      payload: result,
+      progress,
+      requestId,
+      pipelineMode,
+      skillName: skillsUsed[0] ?? "edu-video"
+    });
+    return true;
+  } catch (err) {
+    console.error("[falStt] fal result recovery failed", sessionId, err);
+    return false;
+  }
+}
+async function tryShortCircuitFalSttPending(sessionId, userId) {
+  const progress = await readTranscriptionProgress(sessionId);
+  const hasTranscript = await sessionHasTranscript(userId, sessionId);
+  if (!shouldShortCircuitFalSttEntry(progress, hasTranscript)) return null;
+  if (!progress) return null;
+  const count = (progress.falSttShortCircuitCount ?? 0) + 1;
+  const nowMs = Date.now();
+  const escalate = shouldEscalateFalSttShortCircuit({
+    updatedAtMs: progressUpdatedAtMs(progress.updatedAt),
+    count,
+    nowMs
+  });
+  async function stillProcessing() {
+    await patchProgress(sessionId, { falSttShortCircuitCount: count });
+    await saveMessage(sessionId, userId, "assistant", STILL_PROCESSING_TEXT, [
+      { type: "text", text: STILL_PROCESSING_TEXT }
+    ]);
+    return STILL_PROCESSING_TEXT;
+  }
+  if (!escalate) return stillProcessing();
+  const falKey2 = process.env.FAL_API_KEY?.trim();
+  const requestId = progress.requestId;
+  if (!falKey2 || !requestId) return stillProcessing();
+  try {
+    const { status: falStatus } = await falQueueStatus(
+      ELEVENLABS_SCRIBE_V2_MODEL,
+      requestId,
+      falKey2
+    );
+    if (falStatus === "IN_QUEUE" || falStatus === "IN_PROGRESS") {
+      await patchProgress(sessionId, { falSttShortCircuitCount: 0 });
+      await saveMessage(sessionId, userId, "assistant", STILL_PROCESSING_TEXT, [
+        { type: "text", text: STILL_PROCESSING_TEXT }
+      ]);
+      return STILL_PROCESSING_TEXT;
+    }
+    if (falStatus === "FAILED") {
+      const text3 = "Transcription failed.";
+      await saveMessage(sessionId, userId, "assistant", text3, [{ type: "text", text: text3 }]);
+      await clearTranscriptionProgress(sessionId);
+      await clearPendingFalJob(sessionId);
+      return text3;
+    }
+    if (falStatus === "COMPLETED" && progress.videoUrl) {
+      const result = await falQueueResult(ELEVENLABS_SCRIBE_V2_MODEL, requestId, falKey2);
+      const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+      const handoff = await finalizeFalSttFromPayload({
+        sessionId,
+        userId,
+        payload: result,
+        progress,
+        requestId,
+        pipelineMode,
+        skillName: skillsUsed[0] ?? "edu-video"
+      });
+      return handoff.status === "ask_checkpoint" ? "I've heard your lecture. Ready to continue?" : "I understood your lecture.";
+    }
+    const text2 = "Transcription failed or timed out. Please try again.";
+    await saveMessage(sessionId, userId, "assistant", text2, [{ type: "text", text: text2 }]);
+    await clearTranscriptionProgress(sessionId);
+    await clearPendingFalJob(sessionId);
+    return text2;
+  } catch (err) {
+    console.error("[falStt] short-circuit escalate failed", sessionId, err);
+    return stillProcessing();
+  }
+}
+async function deliverFalStt(sessionId, userId, event) {
+  const pending = await readPendingFalJob(sessionId);
+  const progress = await readTranscriptionProgress(sessionId);
+  const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+  const requestId = pending?.requestId ?? progress?.requestId;
+  const skillName = skillsUsed[0] ?? "edu-video";
+  if (event.status === "failed") {
+    const text2 = `Transcription failed${event.error ? `: ${event.error}` : "."}`;
+    await saveMessage(sessionId, userId, "assistant", text2, [{ type: "text", text: text2 }]);
+    await clearTranscriptionProgress(sessionId);
+    await clearPendingFalJob(sessionId);
+    return `fal_stt failed for session ${sessionId}`;
+  }
+  const action = falSttDeliveryAction(progress, requestId, pipelineMode);
+  if (action === "noop") {
+    await clearPendingFalJob(sessionId);
+    if (progress?.falSttFinalizePending) {
+      await patchProgress(sessionId, {
+        falSttFinalizePending: false,
+        falSttWebhookPayloadUrl: void 0
+      });
+    }
+    return `fal_stt noop for session ${sessionId}`;
+  }
+  if (action === "resume_only") {
+    try {
+      await runAutoContinue(sessionId, userId);
+      await patchProgress(sessionId, { falSttResumePending: false });
+    } catch (err) {
+      console.error("[falStt] resume-only failed", sessionId, err);
+    }
+    await clearPendingFalJob(sessionId);
+    return `fal_stt resume-only for session ${sessionId}`;
+  }
+  if (action === "wake_only") {
+    const result2 = await claimAndHandOff({
+      sessionId,
+      userId,
+      pipelineMode,
+      skillName
+    });
+    await clearPendingFalJob(sessionId);
+    return result2.message;
+  }
+  if (!event.payloadUrl) {
+    throw new Error("completed Fal STT event missing payloadUrl");
+  }
+  if (!progress?.videoUrl) {
+    throw new Error("transcriptionProgress missing videoUrl for Fal STT finalize");
+  }
+  const rawPayload = await downloadJson(event.payloadUrl);
+  const result = await finalizeFalSttFromPayload({
+    sessionId,
+    userId,
+    payload: rawPayload,
+    progress,
+    requestId,
+    pipelineMode,
+    skillName
+  });
+  return result.message;
+}
+var import_fs17, import_path17, import_firestore7, FAL_STT_CONTINUE_PROMPT, STILL_PROCESSING_TEXT, RESUME_RETRIES, RESUME_BACKOFF_MS;
+var init_falSttDeliver = __esm({
+  "src/falSttDeliver.ts"() {
+    "use strict";
+    import_fs17 = __toESM(require("fs"));
+    import_path17 = __toESM(require("path"));
+    import_firestore7 = require("firebase-admin/firestore");
+    init_agent();
+    init_checkpoint();
+    init_falQueue();
+    init_pendingFalJob();
+    init_falSttIdempotency();
+    init_firebase();
+    init_session();
+    init_storage();
+    init_elevenLabsStt();
+    init_normalizeElevenLabsTranscript();
+    init_transcriptSanitize();
+    init_transcriptionProgress();
+    init_utils();
+    init_falSttIdempotency();
+    FAL_STT_CONTINUE_PROMPT = "The lecture transcript is ready. Continue the edu-video pipeline: extract concepts and proceed with the next steps.";
+    STILL_PROCESSING_TEXT = "Transcription still processing \u2014 results arrive automatically; I will update this thread when ready.";
+    RESUME_RETRIES = 3;
+    RESUME_BACKOFF_MS = 500;
+  }
+});
 
 // src/tools/pipeline/transcribe.ts
-var FAIL_CHOICES = /* @__PURE__ */ new Set(["retry", "continue", "abort"]);
 function keepPinnedLanguage(p) {
   return {
     ...p?.pinnedLanguage ? { pinnedLanguage: p.pinnedLanguage } : {}
   };
 }
-var ProviderError = class extends Error {
-  status;
-  kind;
-  provider;
-  constructor(message, opts) {
-    super(message);
-    this.status = opts.status;
-    this.kind = opts.kind;
-    this.provider = opts.provider;
-  }
-};
 function statusOf(err) {
   if (!err || typeof err !== "object") return void 0;
   const e = err;
@@ -41653,7 +42735,7 @@ async function callGroq(chunkPath, language) {
   const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
   try {
     const transcription = await groq.audio.transcriptions.create({
-      file: import_fs15.default.createReadStream(chunkPath),
+      file: import_fs18.default.createReadStream(chunkPath),
       model: "whisper-large-v3-turbo",
       response_format: "verbose_json",
       timestamp_granularities: ["word", "segment"],
@@ -41672,11 +42754,11 @@ async function callGroq(chunkPath, language) {
   }
 }
 async function callOpenRouterAudio(chunkPath, language) {
-  const buf = import_fs15.default.readFileSync(chunkPath);
+  const buf = import_fs18.default.readFileSync(chunkPath);
   const form = new FormData();
   form.append(
     "file",
-    new File([buf], import_path16.default.basename(chunkPath), { type: "audio/flac" })
+    new File([buf], import_path18.default.basename(chunkPath), { type: "audio/flac" })
   );
   form.append("model", "openai/whisper-large-v3-turbo");
   form.append("response_format", "verbose_json");
@@ -41825,13 +42907,16 @@ async function transcribeWindowWithResplit(flacPath, sessionId, win, depth, lang
   }
 }
 async function ensureFlac(sessionId, videoUrl, videoPath) {
-  const flacPath = import_path16.default.join(transcriptionDir(sessionId), "audio.flac");
-  if (!import_fs15.default.existsSync(flacPath)) {
+  const flacPath = import_path18.default.join(transcriptionDir(sessionId), "audio.flac");
+  if (!flacMatchesVideo(flacPath, videoUrl)) {
+    unlinkQuiet(flacPath);
+    unlinkQuiet(flacSourceUrlLocalPath(flacPath));
     logTmpDisk(sessionId, "pre-extract");
-    if (!import_fs15.default.existsSync(videoPath)) {
+    if (!import_fs18.default.existsSync(videoPath)) {
       await downloadFile(videoUrl, videoPath);
     }
     await extractFlac(videoPath, flacPath);
+    writeFlacSourceUrl(flacPath, videoUrl);
     unlinkQuiet(videoPath);
     logTmpDisk(sessionId, "post-extract");
   }
@@ -41841,7 +42926,7 @@ async function ensureFlac(sessionId, videoUrl, videoPath) {
 function createTranscribeTools(ctx) {
   return {
     transcribe_video: tool({
-      description: `Transcribe a teacher video (Groq Whisper with OpenRouter fallback, chunked for long videos). Downloads the video, extracts FLAC, transcribes overlapping chunks, uploads transcript JSON to Firebase Storage, and returns the transcript text and storage URL.`,
+      description: `Transcribe a teacher video. English uses Groq Whisper (OpenRouter fallback, chunked). Auto-detect uses Fal ElevenLabs Scribe v2 on full audio. Uploads transcript JSON to Firebase Storage.`,
       inputSchema: external_exports2.object({
         video_url: external_exports2.string().describe("Firebase Storage URL of the teacher video")
       }),
@@ -41858,19 +42943,21 @@ function createTranscribeTools(ctx) {
             });
             await clearTranscriptionProgress(ctx.sessionId);
             await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
+            await invalidateFullAudio(ctx.userId, ctx.sessionId);
+            cleanupTranscriptionLocals(ctx.sessionId);
             progress = null;
           }
           if (progress?.status === "complete") {
             const existingUrl = await getAssetUrl(ctx.userId, ctx.sessionId, "transcript");
-            const local = import_path16.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
-            if (existingUrl && !import_fs15.default.existsSync(local)) {
+            const local = import_path18.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
+            if (existingUrl && !import_fs18.default.existsSync(local)) {
               try {
                 await downloadFile(existingUrl, local);
               } catch {
               }
             }
-            if (existingUrl && import_fs15.default.existsSync(local)) {
-              const saved = JSON.parse(import_fs15.default.readFileSync(local, "utf-8"));
+            if (existingUrl && import_fs18.default.existsSync(local)) {
+              const saved = JSON.parse(import_fs18.default.readFileSync(local, "utf-8"));
               return {
                 transcript_url: existingUrl,
                 transcript_text: saved.text ?? "",
@@ -41882,8 +42969,8 @@ function createTranscribeTools(ctx) {
               };
             }
           }
-          const requestedLanguage = ctx.pipelineMode === "ask" ? await getSessionRequestedLanguage(ctx.sessionId) : void 0;
-          if (ctx.pipelineMode === "ask" && !requestedLanguage) {
+          const storedLanguage = await getSessionRequestedLanguage(ctx.sessionId);
+          if (ctx.pipelineMode === "ask" && !storedLanguage) {
             const written = await writeAskCheckpoint(
               {
                 sessionId: ctx.sessionId,
@@ -41892,13 +42979,12 @@ function createTranscribeTools(ctx) {
                 pipelineMode: ctx.pipelineMode
               },
               {
+                kind: "single_select",
                 phase_label: "Transcription language",
                 completedPhase: "transcription",
                 question: "Choose language you require captions in.",
-                choices: CAPTION_LANGUAGE_CHECKPOINT_CHOICES,
-                allowFreeform: false,
-                presentation: "select",
-                defaultChoiceId: "en"
+                choices: TRANSCRIPTION_LANGUAGE_CHOICES,
+                allowFreeform: false
               }
             );
             return {
@@ -41906,6 +42992,106 @@ function createTranscribeTools(ctx) {
               checkpointId: written.checkpointId,
               checkpointDisplay: written.checkpointDisplay,
               transcription_language_paused: true
+            };
+          }
+          const requestedLanguage = resolveRequestedLanguage(
+            storedLanguage,
+            ctx.pipelineMode
+          );
+          if (requestedLanguage === "auto") {
+            if (progress?.status === "in_progress" && progress.requestId) {
+              const falKey2 = process.env.FAL_API_KEY?.trim();
+              if (falKey2) {
+                try {
+                  const { status: falStatus } = await falQueueStatus(
+                    ELEVENLABS_SCRIBE_V2_MODEL,
+                    progress.requestId,
+                    falKey2
+                  );
+                  if (falStatus === "COMPLETED") {
+                    const result = await falQueueResult(
+                      ELEVENLABS_SCRIBE_V2_MODEL,
+                      progress.requestId,
+                      falKey2
+                    );
+                    const { pipelineMode, skillsUsed } = await getSessionPipelineFields(ctx.sessionId);
+                    const finalized = await finalizeFalSttFromPayload({
+                      sessionId: ctx.sessionId,
+                      userId: ctx.userId,
+                      payload: result,
+                      progress: { ...progress, videoUrl: progress.videoUrl || video_url },
+                      requestId: progress.requestId,
+                      pipelineMode,
+                      skillName: skillsUsed[0] ?? ctx.skillName
+                    });
+                    if (finalized.status === "ask_checkpoint") {
+                      return {
+                        status: "complete",
+                        reused: true,
+                        haltTurn: true
+                      };
+                    }
+                    return { status: "complete", reused: true };
+                  }
+                  if (falStatus === "IN_QUEUE" || falStatus === "IN_PROGRESS") {
+                    return {
+                      status: "in_progress",
+                      request_id: progress.requestId,
+                      haltTurn: true
+                    };
+                  }
+                  console.error(
+                    "[transcribe_video] stale fal job, requeue",
+                    ctx.sessionId,
+                    progress.requestId,
+                    falStatus
+                  );
+                  await clearTranscriptionProgress(ctx.sessionId);
+                } catch (err) {
+                  console.error(
+                    "[transcribe_video] fal reconcile failed, requeue",
+                    ctx.sessionId,
+                    err
+                  );
+                  await clearTranscriptionProgress(ctx.sessionId);
+                }
+              }
+            }
+            const flacPath2 = await ensureFullAudio({
+              userId: ctx.userId,
+              sessionId: ctx.sessionId,
+              videoUrl: video_url
+            });
+            localsExtra.push(flacPath2);
+            const durationSeconds2 = await probeDurationSeconds(flacPath2);
+            const audioUrl = await uploadFileToStorageKeepLocal(
+              flacPath2,
+              fullAudioStoragePath(ctx.userId, ctx.sessionId)
+            );
+            console.error("[transcribe_video] elevenlabs_scribe_v2_queue", ctx.sessionId, {
+              durationSeconds: durationSeconds2
+            });
+            const { request_id } = await submitElevenLabsScribeV2({
+              sessionId: ctx.sessionId,
+              audioUrl
+            });
+            await writeTranscriptionProgress(ctx.sessionId, {
+              videoUrl: video_url,
+              totalChunks: 1,
+              completedChunkIndices: [],
+              status: "in_progress",
+              requestId: request_id,
+              durationSeconds: durationSeconds2
+            });
+            await persistPendingFalJob(ctx.sessionId, {
+              taskId: "fal_stt",
+              requestId: request_id,
+              resumeOnCompletion: true
+            });
+            return {
+              status: "queued",
+              request_id,
+              haltTurn: true
             };
           }
           let resumeChoice;
@@ -41941,7 +43127,7 @@ function createTranscribeTools(ctx) {
           localsExtra.push(flacPath);
           const planned = planWindows(durationSeconds);
           const completedSet = new Set(progress?.completedChunkIndices ?? []);
-          let pinnedLanguage = progress?.pinnedLanguage;
+          let pinnedLanguage = progress?.pinnedLanguage ?? pinnedLanguageFromRequest(requestedLanguage);
           if (resumeChoice === "continue" && progress?.failedChunk) {
             const fc = progress.failedChunk;
             await persistChunkResult(ctx.userId, ctx.sessionId, {
@@ -41983,10 +43169,7 @@ function createTranscribeTools(ctx) {
             };
             await writeTranscriptionProgress(ctx.sessionId, progress);
           } else {
-            pinnedLanguage = pinnedLanguageFromRequest(
-              requestedLanguage,
-              pinnedLanguage
-            );
+            pinnedLanguage = pinnedLanguage ?? pinnedLanguageFromRequest(requestedLanguage);
             progress = {
               ...progress,
               totalChunks: planned.length,
@@ -42065,25 +43248,8 @@ function createTranscribeTools(ctx) {
             };
             let chunkResult = null;
             let failReason = "";
-            const firstCallHadLanguage = Boolean(pinnedLanguage);
-            const applyDetectRepass = async (first) => {
-              if (!pinnedLanguage && first.language) {
-                pinnedLanguage = normalizeLanguageCode(first.language) ?? first.language;
-              }
-              const forceLang = languageForDetectRepass({
-                firstCallHadLanguage,
-                detectedLanguage: pinnedLanguage,
-                forceFail: process.env.TRANSCRIBE_FORCE_GROQ_FAIL === "1"
-              });
-              if (!forceLang) return first;
-              console.error("[transcribe_video] twopass_force_language", ctx.sessionId, {
-                index: plan.index,
-                language: forceLang
-              });
-              return runChunk();
-            };
             try {
-              chunkResult = await applyDetectRepass(await runChunk());
+              chunkResult = await runChunk();
             } catch (err) {
               failReason = err instanceof Error ? err.message : String(err);
               if (ctx.pipelineMode === "ask") {
@@ -42101,6 +43267,7 @@ function createTranscribeTools(ctx) {
                     pipelineMode: ctx.pipelineMode
                   },
                   {
+                    kind: "single_select",
                     phase_label: "Transcription paused",
                     question: `Chunk ${plan.index + 1}/${planned.length} failed (${formatDuration(plan.startOffsetSeconds)}\u2013${formatDuration(plan.startOffsetSeconds + plan.durationSeconds)}). Retry, continue with a gap, or abort?`,
                     context: failReason.slice(0, 300),
@@ -42138,14 +43305,12 @@ function createTranscribeTools(ctx) {
                     autoTry
                   });
                   const fresh = await extractSingleWindow(flacPath, ctx.sessionId, plan);
-                  chunkResult = await applyDetectRepass(
-                    await transcribeWindowWithResplit(
-                      flacPath,
-                      ctx.sessionId,
-                      fresh,
-                      0,
-                      pinnedLanguage
-                    )
+                  chunkResult = await transcribeWindowWithResplit(
+                    flacPath,
+                    ctx.sessionId,
+                    fresh,
+                    0,
+                    pinnedLanguage
                   );
                   failReason = "";
                   break;
@@ -42220,9 +43385,9 @@ function createTranscribeTools(ctx) {
             ...stitched.language !== void 0 ? { language: stitched.language } : pinnedLanguage ? { language: pinnedLanguage } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs15.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs15.default.writeFileSync(
-            import_path16.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs18.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs18.default.writeFileSync(
+            import_path18.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
@@ -42282,259 +43447,44 @@ function createTranscribeTools(ctx) {
     })
   };
 }
-
-// src/tools/pipeline/transliterateCaptions.ts
-var import_fs17 = __toESM(require("fs"));
-var import_path18 = __toESM(require("path"));
-init_dist5();
-init_zod();
-init_storage();
-
-// src/tools/lib/ensureFullAudio.ts
-var import_fs16 = __toESM(require("fs"));
-var import_path17 = __toESM(require("path"));
-var import_storage9 = require("firebase-admin/storage");
-init_firebase();
-init_storage();
-function fullAudioStoragePath(userId, sessionId) {
-  return `users/${userId}/sessions/${sessionId}/transcription/audio.flac`;
-}
-function fullAudioLocalPath(sessionId) {
-  return import_path17.default.join(transcriptionDir(sessionId), "audio.flac");
-}
-async function downloadStorageFile(storagePath, dest) {
-  try {
-    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
-    const file2 = bucket.file(storagePath);
-    const [exists] = await file2.exists();
-    if (!exists) return false;
-    import_fs16.default.mkdirSync(import_path17.default.dirname(dest), { recursive: true });
-    await file2.download({ destination: dest });
-    return import_fs16.default.existsSync(dest) && import_fs16.default.statSync(dest).size > 0;
-  } catch (err) {
-    console.error(
-      "[ensureFullAudio] storage download failed",
-      storagePath,
-      err instanceof Error ? err.message.slice(0, 200) : String(err)
-    );
-    return false;
-  }
-}
-async function ensureFullAudio(opts) {
-  const local = fullAudioLocalPath(opts.sessionId);
-  if (import_fs16.default.existsSync(local) && import_fs16.default.statSync(local).size > 0) {
-    return local;
-  }
-  const storagePath = fullAudioStoragePath(opts.userId, opts.sessionId);
-  if (await downloadStorageFile(storagePath, local)) {
-    return local;
-  }
-  const workdir = getSessionWorkdir(opts.sessionId);
-  const videoPath = import_path17.default.join(workdir, "transcription", "_source_video_tmp");
-  import_fs16.default.mkdirSync(import_path17.default.dirname(videoPath), { recursive: true });
-  try {
-    await downloadFile(opts.videoUrl, videoPath);
-    await extractFlac(videoPath, local);
-    if (!import_fs16.default.existsSync(local) || import_fs16.default.statSync(local).size <= 0) {
-      throw new Error("FLAC extract produced empty file");
-    }
-    await uploadFileToStorageKeepLocal(local, storagePath);
-    return local;
-  } finally {
-    unlinkQuiet(videoPath);
-  }
-}
-
-// src/tools/pipeline/transliterateCaptions.ts
-var NATIVE_BACKUP = "transcript.native.json";
-var SARVAM_RAW = "sarvam_translit.json";
-function loadTranscriptDoc(sessionId) {
-  const p = import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (!import_fs17.default.existsSync(p)) return null;
-  try {
-    const saved = JSON.parse(import_fs17.default.readFileSync(p, "utf-8"));
-    if (!saved || !saved.text && !(saved.words?.length > 0)) return null;
-    return {
-      text: typeof saved.text === "string" ? saved.text : "",
-      words: Array.isArray(saved.words) ? saved.words : [],
-      segments: Array.isArray(saved.segments) ? saved.segments : [],
-      duration_seconds: typeof saved.duration_seconds === "number" ? saved.duration_seconds : 0,
-      ...typeof saved.language === "string" ? { language: saved.language } : {}
-    };
-  } catch {
-    return null;
-  }
-}
-async function persistTranscript(ctx, doc) {
-  const workdir = getSessionWorkdir(ctx.sessionId);
-  const local = import_path18.default.join(workdir, "transcript.json");
-  import_fs17.default.writeFileSync(local, JSON.stringify(doc, null, 2));
-  const tmp = getTempPath(`${ctx.sessionId}_transcript.json`);
-  import_fs17.default.writeFileSync(tmp, JSON.stringify(doc, null, 2));
-  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
-  const url2 = await uploadToStorage(tmp, storagePath);
-  await writeAssetUrl(ctx.userId, ctx.sessionId, "transcript", url2);
-  return url2;
-}
-async function backupNative(ctx, doc) {
-  const workdir = getSessionWorkdir(ctx.sessionId);
-  const local = import_path18.default.join(workdir, NATIVE_BACKUP);
-  import_fs17.default.writeFileSync(local, JSON.stringify(doc, null, 2));
-  const tmp = getTempPath(`${ctx.sessionId}_transcript.native.json`);
-  import_fs17.default.writeFileSync(tmp, JSON.stringify(doc, null, 2));
-  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/${NATIVE_BACKUP}`;
-  await uploadToStorage(tmp, storagePath);
-}
-async function persistSarvamRaw(ctx, raw) {
-  const workdir = getSessionWorkdir(ctx.sessionId);
-  const local = import_path18.default.join(workdir, SARVAM_RAW);
-  import_fs17.default.writeFileSync(local, JSON.stringify(raw, null, 2));
-  const tmp = getTempPath(`${ctx.sessionId}_${SARVAM_RAW}`);
-  import_fs17.default.writeFileSync(tmp, JSON.stringify(raw, null, 2));
-  const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/${SARVAM_RAW}`;
-  await uploadToStorage(tmp, storagePath);
-}
-function createTransliterateCaptionsTools(ctx) {
-  return {
-    transliterate_captions: tool({
-      description: `Ask-only caption style gate. After transcribe_video, choose Native vs English Worded captions. English Worded runs one Sarvam Batch translit job and maps text onto Groq word timestamps. Auto-run no-ops (native). Call before extract_concepts when a caption style choice is pending.`,
-      inputSchema: external_exports2.object({}),
-      execute: async () => {
-        if (ctx.pipelineMode !== "ask") {
-          return {
-            ok: true,
-            noop: true,
-            caption_mode: "native",
-            message: "Caption style selection only available in Ask mode; captions remain native."
-          };
-        }
-        await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
-        const existing = await getSessionCaptionMode(ctx.sessionId);
-        if (existing.captionMode && existing.captionModeApplied) {
-          return {
-            ok: true,
-            noop: true,
-            caption_mode: existing.captionMode,
-            caption_mode_applied: true,
-            message: "Caption style already applied."
-          };
-        }
-        const transcript = loadTranscriptDoc(ctx.sessionId);
-        if (!transcript) {
-          throw new Error(
-            "No session transcript. Call transcribe_video first before transliterate_captions."
-          );
-        }
-        const lang = transcript.language ?? (await readTranscriptionProgress(ctx.sessionId))?.pinnedLanguage;
-        const sarvamOk = isSarvamSupportedLanguage(normalizeLanguageCode(lang));
-        if (!sarvamOk) {
-          await persistCaptionMode(ctx.sessionId, "native", true);
-          return {
-            ok: true,
-            caption_mode: "native",
-            caption_mode_applied: true,
-            message: "English Worded captions unavailable for this language; left native.",
-            ...lang ? { language: lang } : {}
-          };
-        }
-        if (!existing.captionMode) {
-          const written = await writeAskCheckpoint(
-            {
-              sessionId: ctx.sessionId,
-              userId: ctx.userId,
-              skillName: ctx.skillName,
-              pipelineMode: ctx.pipelineMode
-            },
-            {
-              phase_label: "Caption style",
-              completedPhase: "transcription",
-              question: "How should captions be written for this video?",
-              context: "Native Language Captions keep the original script (e.g. Kannada, Hindi). English Worded Captions use romanized Latin letters for the same speech (Sarvam translit + Groq timings).",
-              choices: [
-                { id: "native", label: "Native Language Captions" },
-                { id: "english_worded", label: "English Worded Captions" }
-              ],
-              allowFreeform: false
-            }
-          );
-          return {
-            haltTurn: true,
-            checkpointId: written.checkpointId,
-            checkpointDisplay: written.checkpointDisplay,
-            caption_style_paused: true
-          };
-        }
-        if (existing.captionMode === "native") {
-          await persistCaptionMode(ctx.sessionId, "native", true);
-          const url2 = await persistTranscript(ctx, transcript);
-          return {
-            ok: true,
-            caption_mode: "native",
-            caption_mode_applied: true,
-            transcript_url: url2,
-            word_count: transcript.words.length,
-            duration: formatDuration(transcript.duration_seconds)
-          };
-        }
-        const progress = await readTranscriptionProgress(ctx.sessionId);
-        const videoUrl = progress?.videoUrl;
-        if (!videoUrl) {
-          throw new Error(
-            "Missing transcriptionProgress.videoUrl \u2014 cannot re-extract audio for English Worded captions."
-          );
-        }
-        try {
-          await backupNative(ctx, transcript);
-          const audioPath = await ensureFullAudio({
-            userId: ctx.userId,
-            sessionId: ctx.sessionId,
-            videoUrl
-          });
-          const romanized = await transliterateWords({
-            words: transcript.words,
-            segments: transcript.segments,
-            text: transcript.text,
-            language: lang,
-            audioPath
-          });
-          if (romanized.sarvamRaw !== void 0) {
-            await persistSarvamRaw(ctx, romanized.sarvamRaw);
-          }
-          const out = {
-            ...transcript,
-            text: romanized.text,
-            words: romanized.words,
-            segments: romanized.segments,
-            ...romanized.transliterationFallbacks ? { transliterationFallbacks: romanized.transliterationFallbacks } : {}
-          };
-          const url2 = await persistTranscript(ctx, out);
-          await persistCaptionMode(ctx.sessionId, "english_worded", true);
-          return {
-            ok: true,
-            caption_mode: "english_worded",
-            caption_mode_applied: true,
-            transcript_url: url2,
-            transcript_text: out.text,
-            word_count: out.words.length,
-            duration: formatDuration(out.duration_seconds),
-            ...out.language ? { language: out.language } : {},
-            ...out.transliterationFallbacks ? { transliterationFallbacks: out.transliterationFallbacks } : {}
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          const kind = err instanceof SarvamBatchError ? err.kind : "permanent";
-          console.error("[transliterate_captions] fail", {
-            kind,
-            message: message.slice(0, 400)
-          });
-          throw new Error(
-            kind === "transient" ? `English Worded captions failed (transient): ${message}. Retry transliterate_captions.` : `English Worded captions failed: ${message}`
-          );
-        }
+var import_fs18, import_path18, import_groq_sdk, FAIL_CHOICES, ProviderError;
+var init_transcribe = __esm({
+  "src/tools/pipeline/transcribe.ts"() {
+    "use strict";
+    import_fs18 = __toESM(require("fs"));
+    import_path18 = __toESM(require("path"));
+    import_groq_sdk = __toESM(require("groq-sdk"));
+    init_dist5();
+    init_zod();
+    init_utils();
+    init_storage();
+    init_checkpoint();
+    init_taggedAssets();
+    init_audioChunks();
+    init_flacSourceUrl();
+    init_ensureFullAudio();
+    init_transcriptStitch();
+    init_transcriptSanitize();
+    init_transcriptionProgress();
+    init_transcriptionLanguage();
+    init_pendingFalJob();
+    init_falQueue();
+    init_falSttDeliver();
+    init_elevenLabsStt();
+    FAIL_CHOICES = /* @__PURE__ */ new Set(["retry", "continue", "abort"]);
+    ProviderError = class extends Error {
+      status;
+      kind;
+      provider;
+      constructor(message, opts) {
+        super(message);
+        this.status = opts.status;
+        this.kind = opts.kind;
+        this.provider = opts.provider;
       }
-    })
-  };
-}
+    };
+  }
+});
 
 // src/tools/index.ts
 function buildTools(ctx, skills = []) {
@@ -42544,7 +43494,6 @@ function buildTools(ctx, skills = []) {
     ...createVisionTools(ctx),
     ...createClarifyTools(ctx),
     ...createTranscribeTools(ctx),
-    ...createTransliterateCaptionsTools(ctx),
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
@@ -42564,31 +43513,29 @@ function buildTools(ctx, skills = []) {
     [...names].filter((name26) => name26 in all).map((name26) => [name26, all[name26]])
   );
 }
-
-// src/agent.ts
-init_taggedAssets();
-init_storage();
-init_session();
+var init_tools = __esm({
+  "src/tools/index.ts"() {
+    "use strict";
+    init_filesystem();
+    init_web();
+    init_vision();
+    init_clarify();
+    init_image_generate();
+    init_video_generate();
+    init_concepts();
+    init_hyperframes();
+    init_manim();
+    init_transcribe();
+    init_catalog();
+    init_utils();
+    init_planning();
+  }
+});
 
 // src/sessionTokenGate.ts
-var SESSION_WARN_TOKENS = 8e4;
-var SESSION_HARD_LIMIT_TOKENS = 13e4;
 function estimateMessageTokens(messages) {
   return Math.ceil(JSON.stringify(messages).length / 4);
 }
-var SessionLimitReachedError = class extends Error {
-  code = "session_limit_reached";
-  sessionId;
-  estimatedTokens;
-  constructor(sessionId, estimatedTokens) {
-    super(
-      `Session context limit reached (~${estimatedTokens} tokens). Start a new chat or export this project.`
-    );
-    this.name = "SessionLimitReachedError";
-    this.sessionId = sessionId;
-    this.estimatedTokens = estimatedTokens;
-  }
-};
 function gateSessionTokens(messages, sessionId) {
   const estimatedTokens = estimateMessageTokens(messages);
   if (estimatedTokens >= SESSION_HARD_LIMIT_TOKENS) {
@@ -42599,20 +43546,38 @@ function gateSessionTokens(messages, sessionId) {
   }
   return { estimatedTokens, warning: null };
 }
+var SESSION_WARN_TOKENS, SESSION_HARD_LIMIT_TOKENS, SessionLimitReachedError;
+var init_sessionTokenGate = __esm({
+  "src/sessionTokenGate.ts"() {
+    "use strict";
+    SESSION_WARN_TOKENS = 8e4;
+    SESSION_HARD_LIMIT_TOKENS = 13e4;
+    SessionLimitReachedError = class extends Error {
+      code = "session_limit_reached";
+      sessionId;
+      estimatedTokens;
+      constructor(sessionId, estimatedTokens) {
+        super(
+          `Session context limit reached (~${estimatedTokens} tokens). Start a new chat or export this project.`
+        );
+        this.name = "SessionLimitReachedError";
+        this.sessionId = sessionId;
+        this.estimatedTokens = estimatedTokens;
+      }
+    };
+  }
+});
 
 // src/agent.ts
-var openrouter2 = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY
-});
 function stepsHitHaltTurn(steps) {
   const last = steps.at(-1);
   return last?.toolResults?.some((r) => isHaltTurnOutput(r.output)) ?? false;
 }
 function firstConceptResumeHint(sessionId) {
-  const conceptsPath = import_node_path.default.join(getSessionWorkdir(sessionId), "concepts.json");
-  if (!import_node_fs.default.existsSync(conceptsPath)) return "";
+  const conceptsPath = import_node_path2.default.join(getSessionWorkdir(sessionId), "concepts.json");
+  if (!import_node_fs2.default.existsSync(conceptsPath)) return "";
   try {
-    const parsed = JSON.parse(import_node_fs.default.readFileSync(conceptsPath, "utf-8"));
+    const parsed = JSON.parse(import_node_fs2.default.readFileSync(conceptsPath, "utf-8"));
     if (!Array.isArray(parsed) || parsed.length === 0) return "";
     const first = parsed[0];
     if (!first.concept_name || !first.explanation) return "";
@@ -42637,25 +43602,14 @@ function isOrientationChoiceResume(checkpoint) {
   const type = checkpoint.answer?.type;
   return type === "approve" || type === "choice";
 }
-function isCaptionStyleChoiceResume(checkpoint) {
-  if (checkpoint.completedPhaseLabel !== "Caption style") return false;
-  const id = checkpoint.answer?.choiceId;
-  return id === "native" || id === "english_worded";
-}
 function isTranscriptionLanguageResume(checkpoint) {
   if (checkpoint.completedPhaseLabel !== "Transcription language") return false;
   const id = checkpoint.answer?.choiceId;
-  return typeof id === "string" && id.length > 0;
+  return id === "en" || id === "auto";
 }
-var VIDEO_ORIENTATION_CHECKPOINT = {
-  phase_label: "Video orientation",
-  question: "Choose video orientation to continue.",
-  choices: [
-    { id: "horizontal", label: "Horizontal (16:9)" },
-    { id: "vertical", label: "Vertical (9:16)" }
-  ],
-  allowFreeform: false
-};
+function isPrePipelineResume(checkpoint) {
+  return checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline";
+}
 async function runAgent(params) {
   const pipelineMode = params.pipelineMode ?? "ask";
   const title = params.userMessage.trim().slice(0, 80) || "Untitled Chat";
@@ -42670,6 +43624,7 @@ async function runAgent(params) {
   let resumeSystemAppend = "";
   let orientationResumeForce = false;
   let conceptsApproveChain = false;
+  let prePipelineHalt = false;
   let capturedCheckpointDisplay = null;
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
   if (isCancelMessage && sessionFields.pendingCheckpointId) {
@@ -42681,7 +43636,8 @@ async function runAgent(params) {
       {
         type: params.checkpointAnswer.type,
         text: params.checkpointAnswer.text,
-        choiceId: params.checkpointAnswer.choiceId
+        choiceId: params.checkpointAnswer.choiceId,
+        ...params.checkpointAnswer.answers ? { answers: params.checkpointAnswer.answers } : {}
       }
     );
     if (txResult === "stale") {
@@ -42698,7 +43654,8 @@ async function runAgent(params) {
         resumeCheckpoint.answer = {
           type: params.checkpointAnswer.type,
           text: params.checkpointAnswer.text,
-          choiceId: params.checkpointAnswer.choiceId
+          choiceId: params.checkpointAnswer.choiceId,
+          ...params.checkpointAnswer.answers ? { answers: params.checkpointAnswer.answers } : {}
         };
         await ensureSessionArtifacts(
           params.userId,
@@ -42706,18 +43663,44 @@ async function runAgent(params) {
           resumeCheckpoint.resume.artifactNeeds
         );
         resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
-        if (isConceptsApproveResume(resumeCheckpoint)) {
-          const written = await writeAskCheckpoint(
-            {
-              sessionId: params.sessionId,
-              userId: params.userId,
-              skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? "edu-video",
-              pipelineMode: effectiveMode
-            },
-            { ...VIDEO_ORIENTATION_CHECKPOINT }
+        if (isPrePipelineResume(resumeCheckpoint)) {
+          const answers = resumeCheckpoint.answer?.answers ?? (resumeCheckpoint.answer?.choiceId ? {
+            [resumeCheckpoint.resume.questions?.[0]?.id ?? "0"]: {
+              type: resumeCheckpoint.answer.type,
+              choiceId: resumeCheckpoint.answer.choiceId,
+              text: resumeCheckpoint.answer.text
+            }
+          } : {});
+          await persistPrePipelineAnswers(
+            params.sessionId,
+            answers,
+            resumeCheckpoint.resume.questions ?? []
           );
-          capturedCheckpointDisplay = written.checkpointDisplay;
-          conceptsApproveChain = true;
+          resumeSystemAppend = `${resumeSystemAppend}
+
+- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/orientation/brand/style again.`;
+        } else if (isConceptsApproveResume(resumeCheckpoint)) {
+          if (await isPrePipelineResolved(params.sessionId)) {
+            orientationResumeForce = true;
+            const hint = firstConceptResumeHint(params.sessionId);
+            if (hint) {
+              resumeSystemAppend = `${resumeSystemAppend}
+
+${hint}`;
+            }
+          } else {
+            const written = await writeAskCheckpoint(
+              {
+                sessionId: params.sessionId,
+                userId: params.userId,
+                skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? "edu-video",
+                pipelineMode: effectiveMode
+              },
+              { ...VIDEO_ORIENTATION_CHECKPOINT }
+            );
+            capturedCheckpointDisplay = written.checkpointDisplay;
+            conceptsApproveChain = true;
+          }
         } else if (isOrientationChoiceResume(resumeCheckpoint)) {
           orientationResumeForce = true;
           const choiceId = resumeCheckpoint.answer?.choiceId;
@@ -42730,15 +43713,11 @@ async function runAgent(params) {
 ${hint}`;
           }
         } else if (isTranscriptionLanguageResume(resumeCheckpoint)) {
-          const choiceId = resumeCheckpoint.answer?.choiceId ?? "auto";
+          const choiceId = resumeCheckpoint.answer?.choiceId;
           await persistRequestedLanguage(
             params.sessionId,
-            choiceId === "auto" ? "auto" : choiceId
+            choiceId === "en" ? "en" : "auto"
           );
-        } else if (isCaptionStyleChoiceResume(resumeCheckpoint)) {
-          const choiceId = resumeCheckpoint.answer?.choiceId;
-          const captionMode = choiceId === "english_worded" || choiceId === "native" ? choiceId : "native";
-          await persistCaptionMode(params.sessionId, captionMode, false);
         }
       }
     }
@@ -42806,14 +43785,14 @@ ${referencedAssets}`;
     if (shouldInjectEditTargets(editTargets)) {
       const needs = [];
       if (editTargets.files.some(
-        (f) => f.path.startsWith(editTargets.projectDir + import_node_path.default.sep)
+        (f) => f.path.startsWith(editTargets.projectDir + import_node_path2.default.sep)
       ) || taggedArtifacts.some(
-        (a) => /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(import_node_path.default.basename(a.localPath))
+        (a) => /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(import_node_path2.default.basename(a.localPath))
       ) || editTargets.orientationRebuild || editTargets.restoreGeneration) {
         needs.push("hf_project");
       }
       if (editTargets.files.some(
-        (f) => f.path.includes(`${import_node_path.default.sep}manim_scripts${import_node_path.default.sep}`)
+        (f) => f.path.includes(`${import_node_path2.default.sep}manim_scripts${import_node_path2.default.sep}`)
       )) {
         needs.push("manim_scripts");
       }
@@ -42878,6 +43857,22 @@ ${resumeSystemAppend}`;
     restoreAllowlistUrls: []
   };
   const tools = buildTools(toolCtx, capabilitySkills);
+  if (!params.checkpointAnswer && !resumeCheckpoint && !sessionFields.pendingCheckpointId && (resolvedSkill === "edu-video" || sessionFields.skillsUsed.includes("edu-video"))) {
+    const front = await maybeFrontLoadPrePipeline({
+      ctx: {
+        sessionId: params.sessionId,
+        userId: params.userId,
+        skillName: "edu-video",
+        pipelineMode: effectiveMode
+      },
+      userMessage: params.userMessage,
+      videoUrl: processing.urls[0] ?? params.videoUrl
+    });
+    if (front.halted) {
+      capturedCheckpointDisplay = front.checkpointDisplay;
+      prePipelineHalt = true;
+    }
+  }
   if (orientationResumeForce) {
     if (!("generate_manim_script" in tools)) {
       console.error("[agent] orientation resume force failed: generate_manim_script missing", {
@@ -42903,13 +43898,14 @@ ${resumeSystemAppend}`;
       delayInMs: 18
     }),
     stopWhen: ({ steps }) => {
+      if (prePipelineHalt && steps.length >= 1) return true;
       if (conceptsApproveChain && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      if (conceptsApproveChain) {
+      if (prePipelineHalt || conceptsApproveChain) {
         return { ...base, activeTools: [] };
       }
       if (orientationResumeForce && stepNumber === 0) {
@@ -42969,6 +43965,17 @@ function injectCheckpointPart(parts, display) {
   if (parts.some((p) => p.type === "data-checkpoint")) return parts;
   return [...parts, checkpointPart];
 }
+function pipeStaticAssistantText(response, text2) {
+  const stream = createUIMessageStream({
+    execute({ writer }) {
+      const id = import_node_crypto4.default.randomUUID();
+      writer.write({ type: "text-start", id });
+      writer.write({ type: "text-delta", id, delta: text2 });
+      writer.write({ type: "text-end", id });
+    }
+  });
+  pipeUIMessageStreamToResponse({ response, stream });
+}
 function pipeAgentStream(agentRun, response, params) {
   const { result, getCheckpointDisplay, sessionTokenWarning } = agentRun;
   if (sessionTokenWarning) {
@@ -43026,15 +44033,48 @@ function pipeAgentStream(agentRun, response, params) {
   );
   pipeUIMessageStreamToResponse({ response, stream: withLiveParts });
 }
+var import_node_crypto4, import_node_fs2, import_node_path2, openrouter2, VIDEO_ORIENTATION_CHECKPOINT;
+var init_agent = __esm({
+  "src/agent.ts"() {
+    "use strict";
+    init_dist5();
+    import_node_crypto4 = __toESM(require("node:crypto"));
+    import_node_fs2 = __toESM(require("node:fs"));
+    import_node_path2 = __toESM(require("node:path"));
+    init_dist6();
+    init_checkpoint();
+    init_prePipelineCheckpoint();
+    init_messagePruning();
+    init_errorMessage();
+    init_systemPromptCache();
+    init_tools();
+    init_skills();
+    init_sessionSkills();
+    init_utils();
+    init_taggedAssets();
+    init_editTargets();
+    init_sessionManimClips();
+    init_storage();
+    init_session();
+    init_sessionTokenGate();
+    init_sessionTokenGate();
+    openrouter2 = createOpenRouter({
+      apiKey: process.env.OPENROUTER_API_KEY
+    });
+    VIDEO_ORIENTATION_CHECKPOINT = {
+      kind: "single_select",
+      phase_label: "Video orientation",
+      question: "Choose video orientation to continue.",
+      choices: [
+        { id: "horizontal", label: "Horizontal (16:9)" },
+        { id: "vertical", label: "Vertical (9:16)" }
+      ],
+      allowFreeform: false
+    };
+  }
+});
 
-// src/server.ts
-init_firebase();
-init_storage();
-
-// src/deliverEvent.ts
-init_storage();
-init_session();
-init_storage();
+// src/deliverEventParse.ts
 function parseRenderEvent(prompt) {
   const status = /HeyGen render completed/.test(prompt) ? "completed" : "failed";
   const urlMatch = prompt.match(/video_url:\s*(\S+)/);
@@ -43044,7 +44084,7 @@ function parseRenderEvent(prompt) {
 }
 function parseFalEvent(prompt) {
   const head = prompt.match(
-    /^Fal (fal_image|fal_video) (completed|failed)\b/
+    /^Fal (fal_image|fal_video|fal_stt) (completed|failed)\b/
   );
   if (!head) {
     throw new Error(`not a Fal webhook prompt: ${prompt.slice(0, 80)}`);
@@ -43052,6 +44092,9 @@ function parseFalEvent(prompt) {
   const mediaMatch = prompt.match(/media_url:\s*(\S+)/);
   const rawMedia = mediaMatch?.[1];
   const mediaUrl = rawMedia && rawMedia !== "n/a" ? rawMedia : void 0;
+  const payloadMatch = prompt.match(/payload_url:\s*(\S+)/);
+  const rawPayload = payloadMatch?.[1];
+  const payloadUrl = rawPayload && rawPayload !== "n/a" ? rawPayload : void 0;
   const errorMatch = prompt.match(/\berror:\s*(.*)$/);
   const rawError = errorMatch?.[1]?.trim();
   const error40 = rawError && rawError !== "n/a" ? rawError : void 0;
@@ -43059,6 +44102,7 @@ function parseFalEvent(prompt) {
     taskId: head[1],
     status: head[2],
     mediaUrl,
+    payloadUrl,
     error: error40
   };
 }
@@ -43068,21 +44112,68 @@ function parseWebhookEvent(prompt) {
   }
   return { source: "heygen", ...parseRenderEvent(prompt) };
 }
+var init_deliverEventParse = __esm({
+  "src/deliverEventParse.ts"() {
+    "use strict";
+  }
+});
+
+// node_modules/dotenv/config.js
+(function() {
+  require_main().config(
+    Object.assign(
+      {},
+      require_env_options(),
+      require_cli_options()(process.argv)
+    )
+  );
+})();
+
+// src/server.ts
+var import_node_crypto5 = __toESM(require("node:crypto"));
+var import_express = __toESM(require("express"));
+var import_cors = __toESM(require("cors"));
+init_agent();
+init_checkpoint();
+init_sessionTokenGate();
+init_firebase();
+init_heygenWebhook();
+init_storage();
+
+// src/deliverEvent.ts
+init_storage();
+init_session();
+init_pendingFalJob();
+init_deliverEventParse();
+init_storage();
 async function deliverEvent(session, event) {
   const { sessionId, userId } = session;
   const targets = session.deliveryTargets ?? [{ type: "ui" }];
   const normalized = "source" in event ? event : { source: "heygen", ...event };
   if (normalized.source === "fal") {
+    const pending = await readPendingFalJob(sessionId);
+    if (pending?.resumeOnCompletion || normalized.taskId === "fal_stt") {
+      const { deliverFalStt: deliverFalStt2 } = await Promise.resolve().then(() => (init_falSttDeliver(), falSttDeliver_exports));
+      const message = await deliverFalStt2(sessionId, userId, normalized);
+      for (const t of targets) {
+        if (t.type !== "ui") {
+          console.warn(`[deliverEvent] unknown delivery target: ${t.type}`);
+        }
+      }
+      return message;
+    }
     if (normalized.status === "completed") {
       if (!normalized.mediaUrl) {
         throw new Error("completed Fal event missing mediaUrl");
       }
-      await finalizeBackgroundFromUrl(
-        userId,
-        sessionId,
-        normalized.taskId,
-        normalized.mediaUrl
-      );
+      if (normalized.taskId === "fal_image" || normalized.taskId === "fal_video") {
+        await finalizeBackgroundFromUrl(
+          userId,
+          sessionId,
+          normalized.taskId,
+          normalized.mediaUrl
+        );
+      }
     } else {
       const label = normalized.taskId === "fal_image" ? "image" : "video";
       const text2 = `Background ${label} generation failed.`;
@@ -43090,6 +44181,7 @@ async function deliverEvent(session, event) {
         { type: "text", text: text2 }
       ]);
     }
+    await clearPendingFalJob(sessionId);
   } else if (normalized.status === "completed") {
     if (!normalized.videoUrl) throw new Error("completed event missing videoUrl");
     await finalizeRenderFromUrl(userId, sessionId, normalized.videoUrl);
@@ -43113,6 +44205,8 @@ async function deliverEvent(session, event) {
 }
 
 // src/server.ts
+init_falSttDeliver();
+init_checkpoint();
 init_taggedAssets();
 
 // src/diagnostics/groqConnectivity.ts
@@ -43370,7 +44464,7 @@ app2.post("/invocations", async (req, res) => {
       });
       return;
     }
-    const sessionId = typeof input.sessionId === "string" && input.sessionId || typeof req.body?.sessionId === "string" && req.body.sessionId || import_node_crypto4.default.randomUUID();
+    const sessionId = typeof input.sessionId === "string" && input.sessionId || typeof req.body?.sessionId === "string" && req.body.sessionId || import_node_crypto5.default.randomUUID();
     const userId = typeof input.userId === "string" && input.userId || typeof req.body?.userId === "string" && req.body.userId || "agentcore";
     const videoUrl = typeof input.videoUrl === "string" ? input.videoUrl : void 0;
     const videoName = typeof input.videoName === "string" ? input.videoName : void 0;
@@ -43399,6 +44493,25 @@ app2.post("/invocations", async (req, res) => {
     }
     const accept = String(req.headers.accept ?? "");
     const wantsStream = input.stream === true || accept.includes("text/event-stream") || accept.includes("text/plain") || req.headers["x-vercel-ai-ui-message-stream"] === "v1";
+    const effectivePipelineMode = pipelineMode === "auto" || pipelineMode === "ask" ? pipelineMode : (await getSessionPipelineFields(sessionId)).pipelineMode;
+    await tryRecoverFalSttFinalize(sessionId, userId);
+    await tryResumeFalSttPending(sessionId, userId, effectivePipelineMode);
+    const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+    if (shortCircuitMsg) {
+      if (wantsStream) {
+        pipeStaticAssistantText(res, shortCircuitMsg);
+        return;
+      }
+      res.json({
+        output: {
+          message: shortCircuitMsg,
+          sessionId,
+          userId,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+      return;
+    }
     const result = await runAgent({
       userMessage: prompt,
       sessionId,
@@ -43543,7 +44656,7 @@ app2.post("/chat", async (req, res) => {
   } = req.body;
   const lastMessage = messages?.at(-1);
   const userMessage = typeof lastMessage?.content === "string" ? lastMessage.content : Array.isArray(lastMessage?.parts) ? lastMessage.parts.filter((p) => p.type === "text").map((p) => p.text ?? "").join("") : "";
-  const sessionId = bodySessionId ?? import_node_crypto4.default.randomUUID();
+  const sessionId = bodySessionId ?? import_node_crypto5.default.randomUUID();
   const userId = bodyUserId ?? "anonymous";
   const mediaUrls = Array.isArray(bodyMediaUrls) ? bodyMediaUrls.filter((u) => typeof u === "string") : void 0;
   const mediaNames = Array.isArray(bodyMediaNames) ? bodyMediaNames.filter((u) => typeof u === "string") : void 0;
@@ -43553,6 +44666,13 @@ app2.post("/chat", async (req, res) => {
   }
   const pipelineMode = bodyPipelineMode === "auto" || bodyPipelineMode === "ask" ? bodyPipelineMode : "ask";
   const taggedAssets = parseTaggedAssets(rawTaggedAssets);
+  await tryRecoverFalSttFinalize(sessionId, userId);
+  await tryResumeFalSttPending(sessionId, userId, pipelineMode);
+  const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+  if (shortCircuitMsg) {
+    pipeStaticAssistantText(res, shortCircuitMsg);
+    return;
+  }
   try {
     const agentRun = await runAgent({
       userMessage,

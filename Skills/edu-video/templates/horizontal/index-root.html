@@ -41,10 +41,7 @@
       aspect-ratio: 16 / 9;
       border-radius: 24px;
       overflow: hidden;
-      box-shadow:
-        0 16px 48px rgba(0, 0, 0, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
       pointer-events: none;
     }
     #manim-wrap video {
@@ -80,10 +77,7 @@
       --lg-shadow-spread: 12;
       --lg-shadow-offset-y: 8;
       --lg-saturation: 0.38;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
     }
     #speaker-wrap video {
       width: 100%;
@@ -160,8 +154,8 @@
 
     /* {{SPEAKER_GSAP}} — stamp at Gate 2, e.g.:
        tl.set('#speaker-wrap', FS, 0);
-       tl.to('#speaker-wrap', { ...PIP_MANIM, duration: 0.35, ease: 'power2.inOut' }, <modeA_or_modeB_start>);
-       tl.to('#speaker-wrap', { ...FS, duration: 0.35, ease: 'power2.inOut' }, <segment_end>);
+       tl.to('#speaker-wrap', { ...PIP_MANIM, duration: 0.5, ease: 'power3.inOut' }, <modeA_run_start>);
+       tl.to('#speaker-wrap', { ...FS, duration: 0.5, ease: 'power3.inOut' }, <modeA_run_end>);
        During PiP segments: add class 'glass-panel' to #speaker-wrap via tl.set or className tween */
     {{SPEAKER_GSAP}}
 

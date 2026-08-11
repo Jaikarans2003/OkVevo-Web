@@ -36,7 +36,7 @@ import {
 } from '../lib/utils';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import { signCallbackToken } from '../../callbackToken';
-import { formatDuration, getSessionOrientation, persistOrientation } from '../../checkpoint';
+import { formatDuration, getSessionBrandColors, getSessionOrientation, persistOrientation } from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 import { db, getStorageBucketName } from '../../firebase';
@@ -300,7 +300,8 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   );
   validatePlannedSegments(segments, args.total_duration, manim_clips.length > 0);
 
-  const colors = resolveBrandColors(args.brand_colors);
+  const sessionBrand = await getSessionBrandColors(ctx.sessionId);
+  const colors = resolveBrandColors(args.brand_colors ?? sessionBrand);
   const brandCss = buildBrandCssVars(colors);
   const projectDir = path.join(getSessionWorkdir(ctx.sessionId), 'hf-project');
 

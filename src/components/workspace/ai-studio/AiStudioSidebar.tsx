@@ -152,13 +152,13 @@ export default function AiStudioSidebar({
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-white/10">
                   <Image
                     src={SIDEBAR_AVATAR_SRC}
-                    alt="OkVevo"
+                    alt="AI-Studio"
                     width={32}
                     height={32}
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <span className="flex-1 text-left">OkVevo</span>
+                <span className="flex-1 text-left">AI-Studio</span>
                 <ChevronDown
                   size={16}
                   className={`shrink-0 text-white/30 transition ${menuOpen ? 'rotate-180' : ''}`}
@@ -174,6 +174,21 @@ export default function AiStudioSidebar({
                     transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                     className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
                   >
+                    {/* <Link
+                      href="/workspace/ai-studio"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/[0.05] hover:text-white"
+                    >
+                      <Image
+                        src={SIDEBAR_AVATAR_SRC}
+                        alt=""
+                        width={15}
+                        height={15}
+                        className="h-[15px] w-[15px] rounded-full object-cover"
+                        aria-hidden
+                      />
+                      AI-Studio
+                    </Link> */}
                     <Link
                       href="/workspace"
                       onClick={() => setMenuOpen(false)}

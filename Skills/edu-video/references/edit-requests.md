@@ -17,6 +17,7 @@ Universal loop for every edit (listed playbook or not):
 **Hard rules:**
 
 - Never `run_command` / ffmpeg / curl for composition-affecting ops (format, resolution, re-encode, orientation, draft-video edits). Use pipeline tools (`scaffold_hf_project`, `render_hyperframes`, …) or `ask_clarification` with choices grounded in real tools — never invent a shell workaround. Unlisted request types still follow this methodology on the logically involved files.
+- After Manim re-renders: `render_manim_clip` → `scaffold_hf_project` → `render_hyperframes`. Do not bypass scaffold by hand-patching HF HTML and reusing the old `composition_url`.
 - `ask_clarification` only for unclear intent — not because a playbook is missing.
 - Always verify a frame before claiming the edit is visible.
 
@@ -53,6 +54,7 @@ Universal loop for every edit (listed playbook or not):
 - **Remove concept:** drop it from `manim_clips[]` → re-`plan_segments` → re-`scaffold_hf_project` → `render_hyperframes`
 - **Regen one concept:** `generate_manim_script` + `render_manim_clip` for that concept only → update clip list → re-`plan_segments` → re-`scaffold_hf_project` → `render_hyperframes`
 - **Retime boundaries:** adjust start/end on the clip → re-`plan_segments` → re-`scaffold_hf_project` if wiring changes → `render_hyperframes`
+- After any `render_manim_clip`, always re-`scaffold_hf_project` then `render_hyperframes` with the **new** `composition_url` from that scaffold. Never hand-patch generated project files as a substitute for re-scaffold after Manim changes (speaker-position / caption-style playbooks remain valid for those edits). If scaffold errors, fix and retry scaffold — do not `render_hyperframes` on the previous `composition_url`.
 - Verify a frame before claiming success
 
 

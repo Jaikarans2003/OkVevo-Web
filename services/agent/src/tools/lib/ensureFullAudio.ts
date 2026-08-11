@@ -1,7 +1,6 @@
 /**
- * Lazy full-length FLAC for transliteration (Ask english_worded only).
+ * Lazy full-length FLAC for Auto-detect (Fal Scribe) transcription.
  * Lookup: workdir → Storage → re-extract + upload both.
- * Never called from transcribe_video.
  *
  * FLAC is bound to its source videoUrl via a sidecar (`audio.flac.source_url`)
  * so a new upload in the same session cannot reuse leftover audio.

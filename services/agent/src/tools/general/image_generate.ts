@@ -2,6 +2,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { buildFalWebhookUrl, falQueueSubmit } from '../../falQueue';
+import { persistPendingFalJob } from '../../pendingFalJob';
 import {
   IMAGE_MODEL_KEYS,
   buildImageInput,
@@ -61,6 +62,11 @@ export function createImageGenerateTools(ctx: {
             falKey,
             webhookUrl,
             input,
+          });
+          await persistPendingFalJob(ctx.sessionId, {
+            taskId: 'fal_image',
+            requestId: request_id,
+            resumeOnCompletion: false,
           });
 
           return {

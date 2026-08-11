@@ -23,7 +23,7 @@ import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
 import { cn } from '@/lib/utils';
 import {
   CheckpointCard,
-  type CheckpointAnswerPayload,
+  isCheckpointResolved,
   type CheckpointCardData,
 } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
@@ -210,15 +210,13 @@ export function AgentActivityTrace({
   isStreaming = false,
   showTextCursor = false,
   className,
-  onCheckpointAnswer,
-  checkpointInteractionDisabled = false,
+  pendingCheckpointId,
 }: {
   parts: ActivityPart[];
   isStreaming?: boolean;
   showTextCursor?: boolean;
   className?: string;
-  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
-  checkpointInteractionDisabled?: boolean;
+  pendingCheckpointId?: string | null;
 }) {
   const hasInFlightTools = parts.some(
     (part) => isToolActivityPart(part) && isPartInFlight(part)
@@ -293,13 +291,12 @@ export function AgentActivityTrace({
       ) : null}
 
       {parts.map((part, index) => {
-        if (isCheckpointPart(part) && onCheckpointAnswer) {
+        if (isCheckpointPart(part)) {
+          if (!isCheckpointResolved(part.data, pendingCheckpointId)) return null;
           return (
             <CheckpointCard
               key={`checkpoint-${part.data.checkpointId}`}
               data={part.data}
-              disabled={checkpointInteractionDisabled || isStreaming}
-              onAnswer={onCheckpointAnswer}
             />
           );
         }

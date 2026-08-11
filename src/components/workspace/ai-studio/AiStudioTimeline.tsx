@@ -5,9 +5,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AgentActivityTrace } from '@/components/workspace/ai-studio/AgentActivityTrace';
 import { AgentConsumerStatus } from '@/components/workspace/ai-studio/AgentConsumerStatus';
-import type { CheckpointAnswerPayload } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
   CheckpointCard,
+  isCheckpointResolved,
   type CheckpointCardData,
 } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
@@ -35,12 +35,6 @@ interface TimelineMessagePart {
   output?: unknown;
   errorText?: string;
   toolCallId?: string;
-}
-
-function getCheckpointId(part: TimelineMessagePart): string | undefined {
-  if (part.type !== 'data-checkpoint') return undefined;
-  const data = (part as { data?: { checkpointId?: string } }).data;
-  return data?.checkpointId;
 }
 
 export interface TimelineMessage {
@@ -131,13 +125,11 @@ function isCheckpointPart(
 function ConsumerAssistantBody({
   parts,
   showTextCursor,
-  onCheckpointAnswer,
-  checkpointInteractionDisabled,
+  pendingCheckpointId,
 }: {
   parts: TimelineMessagePart[];
   showTextCursor?: boolean;
-  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
-  checkpointInteractionDisabled?: boolean;
+  pendingCheckpointId?: string | null;
 }) {
   const lastTextIndex = parts.reduce((last, part, index) => {
     if (part.type !== 'text' || !part.text?.trim()) return last;
@@ -148,14 +140,14 @@ function ConsumerAssistantBody({
   return (
     <>
       {parts.map((part, index) => {
-        if (isCheckpointPart(part) && onCheckpointAnswer) {
+        if (isCheckpointPart(part)) {
           const data = (part as { data: CheckpointCardData }).data;
+          // Pending interactive UI lives in the floating card only.
+          if (!isCheckpointResolved(data, pendingCheckpointId)) return null;
           return (
             <CheckpointCard
               key={`checkpoint-${data.checkpointId}`}
               data={data}
-              disabled={checkpointInteractionDisabled}
-              onAnswer={onCheckpointAnswer}
             />
           );
         }
@@ -191,7 +183,6 @@ export function AiStudioTimeline({
   isPendingTurn = false,
   chatStatus = 'ready',
   bottomRef,
-  onCheckpointAnswer,
   pendingCheckpointId,
 }: {
   messages: TimelineMessage[];
@@ -199,7 +190,6 @@ export function AiStudioTimeline({
   isPendingTurn?: boolean;
   chatStatus?: 'submitted' | 'streaming' | 'ready' | 'error';
   bottomRef?: React.RefObject<HTMLDivElement | null>;
-  onCheckpointAnswer?: (checkpointId: string, answer: CheckpointAnswerPayload) => void;
   pendingCheckpointId?: string | null;
 }) {
   const devTrace = isAgentDevTrace();
@@ -298,13 +288,7 @@ export function AiStudioTimeline({
                     parts={message.parts}
                     isStreaming={isStreaming}
                     showTextCursor={isStreaming}
-                    onCheckpointAnswer={onCheckpointAnswer}
-                    checkpointInteractionDisabled={
-                      pendingCheckpointId != null &&
-                      !message.parts.some(
-                        (p) => getCheckpointId(p) === pendingCheckpointId
-                      )
-                    }
+                    pendingCheckpointId={pendingCheckpointId}
                   />
                 ) : (
                   <>
@@ -318,13 +302,7 @@ export function AiStudioTimeline({
                     <ConsumerAssistantBody
                       parts={message.parts}
                       showTextCursor={isStreaming}
-                      onCheckpointAnswer={onCheckpointAnswer}
-                      checkpointInteractionDisabled={
-                        pendingCheckpointId != null &&
-                        !message.parts.some(
-                          (p) => getCheckpointId(p) === pendingCheckpointId
-                        )
-                      }
+                      pendingCheckpointId={pendingCheckpointId}
                     />
                   </>
                 )}

@@ -1,6 +1,11 @@
-import { partitionTimeline, TIMELINE_EPSILON } from '../../lib/timelinePlanning';
+import {
+  MIN_MODE_C_GAP_SECONDS,
+  partitionTimeline,
+  TIMELINE_EPSILON,
+} from '../../lib/timelinePlanning';
 
 export const HF_SEGMENT_EPSILON = TIMELINE_EPSILON;
+export { MIN_MODE_C_GAP_SECONDS };
 
 export type TimedConcept = {
   concept_name: string;
@@ -58,6 +63,19 @@ export function resolveNonOverlappingConcepts(concepts: TimedConcept[]): TimedCo
     result.push({ ...concept, start_seconds, end_seconds });
   }
 
+  return result;
+}
+
+/** Extend each concept end to the next start when the gap is under MIN_MODE_C_GAP_SECONDS. */
+export function bridgeConceptGaps(concepts: TimedConcept[]): TimedConcept[] {
+  if (concepts.length < 2) return concepts.map((c) => ({ ...c }));
+  const result = concepts.map((c) => ({ ...c }));
+  for (let i = 0; i < result.length - 1; i++) {
+    const gap = result[i + 1].start_seconds - result[i].end_seconds;
+    if (gap > 0 && gap < MIN_MODE_C_GAP_SECONDS) {
+      result[i].end_seconds = result[i + 1].start_seconds;
+    }
+  }
   return result;
 }
 
@@ -124,14 +142,14 @@ export function segmentsCoverTimeline(
   return Math.abs(cursor - totalDuration) <= TIMELINE_EPSILON;
 }
 
-/** With Manim clips, timeline must include both A and C; all-C is valid when no clips. */
+/** With Manim clips, timeline must include A (C optional when short gaps are absorbed); all-C when no clips. */
 export function segmentsHaveRequiredModes(
   segments: PlannedSegment[],
   hasManimClips: boolean
 ): boolean {
   const modes = new Set(segments.map((s) => s.mode));
   if (hasManimClips) {
-    return modes.has('A') && modes.has('C');
+    return modes.has('A');
   }
   return modes.has('C');
 }
@@ -161,7 +179,7 @@ export function validatePlannedSegments(
   }
 
   if (hasManimClips && !segmentsHaveRequiredModes(segments, true)) {
-    throw new Error('Timeline with Manim clips must include both Mode A and Mode C');
+    throw new Error('Timeline with Manim clips must include Mode A');
   }
 
   for (const seg of segments) {

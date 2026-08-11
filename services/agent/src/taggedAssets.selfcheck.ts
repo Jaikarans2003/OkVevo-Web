@@ -60,6 +60,29 @@ assert.throws(
   'unrelated HTTPS still rejected with merged allowlist'
 );
 
+// Session Firestore assets expand allowlist (re-scaffold after manim-only tags)
+const sessionSpeaker = 'https://cdn.example.com/uploaded_video.mp4';
+const manimOnlyTag: TaggedAsset = {
+  label: 'Foo_2.mp4',
+  url: 'https://cdn.example.com/manim/Foo_2.mp4',
+  type: 'video',
+};
+const sessionExpanded = [
+  manimOnlyTag,
+  { url: sessionSpeaker },
+  { url: manimOnlyTag.url },
+];
+assert.doesNotThrow(
+  () => assertTaggedUrlAllowed(sessionSpeaker, sessionExpanded),
+  'speaker allowed when URL is on session assets even if turn tags are only manim'
+);
+assert.throws(
+  () =>
+    assertTaggedUrlAllowed('https://cdn.example.com/not-an-asset.mp4', sessionExpanded),
+  /not in tagged allowlist/,
+  'arbitrary non-asset HTTPS still rejected'
+);
+
 const resolved: ResolvedTaggedAsset = {
   ...taggedA,
   key: 'tagged_0',

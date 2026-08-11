@@ -5,13 +5,18 @@ import Groq from 'groq-sdk';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { downloadFile, getSessionWorkdir } from '../lib/utils';
-import { getTempPath, uploadToStorage, writeAssetUrl, getAssetUrl } from '../../storage';
+import {
+  getTempPath,
+  uploadToStorage,
+  uploadFileToStorageKeepLocal,
+  writeAssetUrl,
+  getAssetUrl,
+} from '../../storage';
 import {
   formatDuration,
-  getSessionCaptionMode,
+  getSessionPipelineFields,
   getSessionRequestedLanguage,
   loadCheckpoint,
-  persistCaptionMode,
   writeAskCheckpoint,
 } from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
@@ -35,7 +40,11 @@ import {
   flacSourceUrlLocalPath,
   writeFlacSourceUrl,
 } from '../lib/flacSourceUrl';
-import { invalidateFullAudio } from '../lib/ensureFullAudio';
+import {
+  ensureFullAudio,
+  fullAudioStoragePath,
+  invalidateFullAudio,
+} from '../lib/ensureFullAudio';
 import {
   stitchChunkTranscripts,
   type ChunkTranscript,
@@ -52,10 +61,18 @@ import {
 } from '../lib/transcriptionProgress';
 import {
   normalizeLanguageCode,
-} from '../lib/transliteration/transliterateWords';
-import { CAPTION_LANGUAGE_CHECKPOINT_CHOICES } from '../lib/transliteration/sarvamLanguages';
-import { languageForDetectRepass } from '../lib/forceLanguageRepass';
-import { pinnedLanguageFromRequest } from '../lib/transcriptionLanguage';
+  pinnedLanguageFromRequest,
+  resolveRequestedLanguage,
+  TRANSCRIPTION_LANGUAGE_CHOICES,
+} from '../lib/transcriptionLanguage';
+import { persistPendingFalJob } from '../../pendingFalJob';
+import { falQueueResult, falQueueStatus } from '../../falQueue';
+import { finalizeFalSttFromPayload } from '../../falSttDeliver';
+import {
+  ELEVENLABS_SCRIBE_V2_MODEL,
+  submitElevenLabsScribeV2,
+  type ElevenLabsSttResult,
+} from '../lib/elevenLabsStt';
 
 const FAIL_CHOICES = new Set<string>(['retry', 'continue', 'abort']);
 
@@ -395,7 +412,7 @@ async function ensureFlac(
 export function createTranscribeTools(ctx: ToolCtx) {
   return {
     transcribe_video: tool({
-      description: `Transcribe a teacher video (Groq Whisper with OpenRouter fallback, chunked for long videos). Downloads the video, extracts FLAC, transcribes overlapping chunks, uploads transcript JSON to Firebase Storage, and returns the transcript text and storage URL.`,
+      description: `Transcribe a teacher video. English uses Groq Whisper (OpenRouter fallback, chunked). Auto-detect uses Fal ElevenLabs Scribe v2 on full audio. Uploads transcript JSON to Firebase Storage.`,
       inputSchema: z.object({
         video_url: z.string().describe('Firebase Storage URL of the teacher video'),
       }),
@@ -418,10 +435,6 @@ export function createTranscribeTools(ctx: ToolCtx) {
             await deleteTranscriptionChunkObjects(ctx.userId, ctx.sessionId);
             await invalidateFullAudio(ctx.userId, ctx.sessionId);
             cleanupTranscriptionLocals(ctx.sessionId);
-            const caption = await getSessionCaptionMode(ctx.sessionId);
-            if (caption.captionMode) {
-              await persistCaptionMode(ctx.sessionId, caption.captionMode, false);
-            }
             progress = null;
           }
 
@@ -450,12 +463,9 @@ export function createTranscribeTools(ctx: ToolCtx) {
             }
           }
 
-          // Ask-mode: language select before extract (session field, not awaiting_user).
-          const requestedLanguage =
-            ctx.pipelineMode === 'ask'
-              ? await getSessionRequestedLanguage(ctx.sessionId)
-              : undefined;
-          if (ctx.pipelineMode === 'ask' && !requestedLanguage) {
+          // Ask-mode: language choice before extract (session field, not awaiting_user).
+          const storedLanguage = await getSessionRequestedLanguage(ctx.sessionId);
+          if (ctx.pipelineMode === 'ask' && !storedLanguage) {
             const written = await writeAskCheckpoint(
               {
                 sessionId: ctx.sessionId,
@@ -464,13 +474,12 @@ export function createTranscribeTools(ctx: ToolCtx) {
                 pipelineMode: ctx.pipelineMode,
               },
               {
+                kind: 'single_select',
                 phase_label: 'Transcription language',
                 completedPhase: 'transcription',
                 question: 'Choose language you require captions in.',
-                choices: CAPTION_LANGUAGE_CHECKPOINT_CHOICES,
+                choices: TRANSCRIPTION_LANGUAGE_CHOICES,
                 allowFreeform: false,
-                presentation: 'select',
-                defaultChoiceId: 'en',
               }
             );
             return {
@@ -481,7 +490,117 @@ export function createTranscribeTools(ctx: ToolCtx) {
             };
           }
 
-          // Ask-mode resume from checkpoint choice (style vs chunk-failure).
+          const requestedLanguage = resolveRequestedLanguage(
+            storedLanguage,
+            ctx.pipelineMode
+          );
+
+          // Auto-detect → Fal Scribe v2 (webhook queue, no poll).
+          if (requestedLanguage === 'auto') {
+            // One-time reconcile: do not requeue an in-flight Fal job.
+            if (progress?.status === 'in_progress' && progress.requestId) {
+              const falKey = process.env.FAL_API_KEY?.trim();
+              if (falKey) {
+                try {
+                  const { status: falStatus } = await falQueueStatus(
+                    ELEVENLABS_SCRIBE_V2_MODEL,
+                    progress.requestId,
+                    falKey
+                  );
+                  if (falStatus === 'COMPLETED') {
+                    const result = await falQueueResult(
+                      ELEVENLABS_SCRIBE_V2_MODEL,
+                      progress.requestId,
+                      falKey
+                    );
+                    const { pipelineMode, skillsUsed } =
+                      await getSessionPipelineFields(ctx.sessionId);
+                    const finalized = await finalizeFalSttFromPayload({
+                      sessionId: ctx.sessionId,
+                      userId: ctx.userId,
+                      payload: result as ElevenLabsSttResult,
+                      progress: { ...progress, videoUrl: progress.videoUrl || video_url },
+                      requestId: progress.requestId,
+                      pipelineMode,
+                      skillName: skillsUsed[0] ?? ctx.skillName,
+                    });
+                    if (finalized.status === 'ask_checkpoint') {
+                      return {
+                        status: 'complete',
+                        reused: true,
+                        haltTurn: true as const,
+                      };
+                    }
+                    return { status: 'complete', reused: true };
+                  }
+                  if (falStatus === 'IN_QUEUE' || falStatus === 'IN_PROGRESS') {
+                    return {
+                      status: 'in_progress',
+                      request_id: progress.requestId,
+                      haltTurn: true as const,
+                    };
+                  }
+                  console.error(
+                    '[transcribe_video] stale fal job, requeue',
+                    ctx.sessionId,
+                    progress.requestId,
+                    falStatus
+                  );
+                  await clearTranscriptionProgress(ctx.sessionId);
+                } catch (err) {
+                  console.error(
+                    '[transcribe_video] fal reconcile failed, requeue',
+                    ctx.sessionId,
+                    err
+                  );
+                  await clearTranscriptionProgress(ctx.sessionId);
+                }
+              }
+            }
+
+            const flacPath = await ensureFullAudio({
+              userId: ctx.userId,
+              sessionId: ctx.sessionId,
+              videoUrl: video_url,
+            });
+            localsExtra.push(flacPath);
+            const durationSeconds = await probeDurationSeconds(flacPath);
+            const audioUrl = await uploadFileToStorageKeepLocal(
+              flacPath,
+              fullAudioStoragePath(ctx.userId, ctx.sessionId)
+            );
+
+            console.error('[transcribe_video] elevenlabs_scribe_v2_queue', ctx.sessionId, {
+              durationSeconds,
+            });
+            const { request_id } = await submitElevenLabsScribeV2({
+              sessionId: ctx.sessionId,
+              audioUrl,
+            });
+
+            await writeTranscriptionProgress(ctx.sessionId, {
+              videoUrl: video_url,
+              totalChunks: 1,
+              completedChunkIndices: [],
+              status: 'in_progress',
+              requestId: request_id,
+              durationSeconds,
+            });
+            await persistPendingFalJob(ctx.sessionId, {
+              taskId: 'fal_stt',
+              requestId: request_id,
+              resumeOnCompletion: true,
+            });
+
+            return {
+              status: 'queued',
+              request_id,
+              haltTurn: true as const,
+            };
+          }
+
+          // English → existing Groq chunk pipeline (language pinned to en).
+          // Ask-mode resume from checkpoint choice (chunk-failure).
           let resumeChoice: string | undefined;
           let retryIndex: number | undefined;
           if (progress?.status === 'awaiting_user') {
@@ -517,7 +636,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
 
           const planned = planWindows(durationSeconds);
           const completedSet = new Set(progress?.completedChunkIndices ?? []);
-          let pinnedLanguage = progress?.pinnedLanguage;
+          let pinnedLanguage = progress?.pinnedLanguage ?? pinnedLanguageFromRequest(requestedLanguage);
 
           // Handle continue: mark failed chunk as skipped gap and proceed.
           if (resumeChoice === 'continue' && progress?.failedChunk) {
@@ -562,10 +681,8 @@ export function createTranscribeTools(ctx: ToolCtx) {
             };
             await writeTranscriptionProgress(ctx.sessionId, progress);
           } else {
-            pinnedLanguage = pinnedLanguageFromRequest(
-              requestedLanguage,
-              pinnedLanguage
-            );
+            pinnedLanguage =
+              pinnedLanguage ?? pinnedLanguageFromRequest(requestedLanguage);
             progress = {
               ...progress,
               totalChunks: planned.length,
@@ -661,30 +778,9 @@ export function createTranscribeTools(ctx: ToolCtx) {
 
             let chunkResult: ChunkTranscript | null = null;
             let failReason = '';
-            const firstCallHadLanguage = Boolean(pinnedLanguage);
-
-            const applyDetectRepass = async (
-              first: ChunkTranscript
-            ): Promise<ChunkTranscript> => {
-              if (!pinnedLanguage && first.language) {
-                pinnedLanguage =
-                  normalizeLanguageCode(first.language) ?? first.language;
-              }
-              const forceLang = languageForDetectRepass({
-                firstCallHadLanguage,
-                detectedLanguage: pinnedLanguage,
-                forceFail: process.env.TRANSCRIBE_FORCE_GROQ_FAIL === '1',
-              });
-              if (!forceLang) return first;
-              console.error('[transcribe_video] twopass_force_language', ctx.sessionId, {
-                index: plan.index,
-                language: forceLang,
-              });
-              return runChunk();
-            };
 
             try {
-              chunkResult = await applyDetectRepass(await runChunk());
+              chunkResult = await runChunk();
             } catch (err: unknown) {
               failReason = err instanceof Error ? err.message : String(err);
 
@@ -703,6 +799,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
                     pipelineMode: ctx.pipelineMode,
                   },
                   {
+                    kind: 'single_select',
                     phase_label: 'Transcription paused',
                     question: `Chunk ${plan.index + 1}/${planned.length} failed (${formatDuration(plan.startOffsetSeconds)}–${formatDuration(plan.startOffsetSeconds + plan.durationSeconds)}). Retry, continue with a gap, or abort?`,
                     context: failReason.slice(0, 300),
@@ -744,14 +841,12 @@ export function createTranscribeTools(ctx: ToolCtx) {
                   });
                   // Re-extract in case local piece was wiped.
                   const fresh = await extractSingleWindow(flacPath, ctx.sessionId, plan);
-                  chunkResult = await applyDetectRepass(
-                    await transcribeWindowWithResplit(
-                      flacPath,
-                      ctx.sessionId,
-                      fresh,
-                      0,
-                      pinnedLanguage
-                    )
+                  chunkResult = await transcribeWindowWithResplit(
+                    flacPath,
+                    ctx.sessionId,
+                    fresh,
+                    0,
+                    pinnedLanguage
                   );
                   failReason = '';
                   break;

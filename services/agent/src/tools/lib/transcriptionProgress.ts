@@ -28,6 +28,20 @@ export type TranscriptionProgress = {
   gaps?: { index: number; startOffsetSeconds: number; durationSeconds: number }[];
   /** Language detected on first successful chunk; pinned for later chunks. */
   pinnedLanguage?: string;
+  /** Fal Scribe v2 queue request id (auto-detect path). */
+  requestId?: string;
+  /** Probed audio duration before queue submit. */
+  durationSeconds?: number;
+  /** Auto mode: inline runAgent resume failed; entry gate retries on next invoke. */
+  falSttResumePending?: boolean;
+  /** Finalize never completed (distinct from falSttResumePending). */
+  falSttFinalizePending?: boolean;
+  /** Stored webhook payload URL when invoke failed after upload — entry-gate recovery. */
+  falSttWebhookPayloadUrl?: string;
+  /** Ask checkpoint / Auto continue already claimed — prevents double hand-off. */
+  falSttWakeClaimed?: boolean;
+  /** Entry-gate short-circuit hits while transcript still missing. */
+  falSttShortCircuitCount?: number;
   updatedAt?: unknown;
 };
 

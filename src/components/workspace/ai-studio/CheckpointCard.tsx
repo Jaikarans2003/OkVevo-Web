@@ -3,32 +3,60 @@
 import { useMemo, useState } from 'react';
 import { cleanNarrativeText } from '@/lib/agent/cleanNarrativeText';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronLeft } from 'lucide-react';
 
 export type CheckpointAnswerPayload = {
-  type: 'approve' | 'choice' | 'revision' | 'freeform';
+  type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
   text: string;
   choiceId?: string;
+  answers?: Record<
+    string,
+    { type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip'; choiceId?: string; text: string }
+  >;
+};
+
+export type CheckpointChoice = {
+  id: string;
+  label: string;
+};
+
+export type CheckpointKind = 'single_select' | 'phase_gate';
+
+export type CheckpointQuestionData = {
+  id: string;
+  prompt: string;
+  kind?: CheckpointKind;
+  choices?: CheckpointChoice[];
+  allowFreeform?: boolean;
+  skipDefault?: { choiceId?: string; value?: unknown };
+  freeformPlaceholder?: string;
 };
 
 export type CheckpointCardData = {
   checkpointId: string;
-  kind: 'phase_gate' | 'question';
+  /** Legacy 'question' treated as single_select. */
+  kind: CheckpointKind | 'question';
   status: 'pending' | 'answered';
   title: string;
   bullets: string[];
   nextLabel: string;
   nextDescription: string;
   question?: string;
-  choices?: { id: string; label: string }[];
+  choices?: CheckpointChoice[];
+  /** Required on new payloads; omitted on legacy → treated as false. */
   allowFreeform?: boolean;
-  presentation?: 'buttons' | 'select';
-  defaultChoiceId?: string;
+  freeformPlaceholder?: string;
+  questions?: CheckpointQuestionData[];
   answer?: { type: string; text: string; choiceId?: string };
 };
 
 function scrub(text: string): string {
   return cleanNarrativeText(text, { scrubStackNames: true });
+}
+
+function asKind(raw: unknown): CheckpointKind {
+  if (raw === 'phase_gate') return 'phase_gate';
+  return 'single_select';
 }
 
 /** Resolved when not the live pending id, or when the part already carries an answer. */
@@ -64,82 +92,189 @@ export function CheckpointCard({ data }: { data: CheckpointCardData }) {
 type InternalQuestion = {
   id: string;
   prompt: string;
-  choices?: { id: string; label: string }[];
+  kind: CheckpointKind;
+  choices?: CheckpointChoice[];
   allowFreeform: boolean;
-  presentation: 'buttons' | 'select';
-  defaultChoiceId?: string;
+  skipDefault?: { choiceId?: string; value?: unknown };
+  freeformPlaceholder?: string;
 };
 
 function normalizeQuestions(data: CheckpointCardData): InternalQuestion[] {
-  // Backend ships one question; wrap as list so Prev/Next can grow later.
-  if (data.kind === 'question') {
-    return [
-      {
-        id: '0',
-        prompt: scrub(data.question ?? data.title),
-        choices: data.choices,
-        allowFreeform: data.allowFreeform !== false,
-        presentation: data.presentation === 'select' ? 'select' : 'buttons',
-        defaultChoiceId: data.defaultChoiceId,
-      },
-    ];
+  if (data.questions && data.questions.length > 0) {
+    return data.questions.map((q) => ({
+      id: q.id,
+      prompt: scrub(q.prompt),
+      kind: asKind(q.kind ?? data.kind),
+      choices: q.choices,
+      allowFreeform: q.allowFreeform === true,
+      skipDefault: q.skipDefault,
+      freeformPlaceholder: q.freeformPlaceholder,
+    }));
   }
+  const kind = asKind(data.kind);
   return [
     {
       id: '0',
-      prompt: scrub(data.title),
-      allowFreeform: true,
-      presentation: 'buttons',
+      prompt: scrub(data.question ?? data.title),
+      kind,
+      choices: data.choices,
+      allowFreeform: data.allowFreeform === true,
+      freeformPlaceholder: data.freeformPlaceholder,
     },
   ];
 }
 
-type DraftAnswer = { choiceId?: string; freeform: string };
+type DraftAnswer = { choiceId?: string; freeform: string; skipped?: boolean };
 
 function initialDrafts(
   questions: InternalQuestion[]
 ): Record<string, DraftAnswer> {
   return Object.fromEntries(
-    questions.map((q) => [
-      q.id,
-      {
-        freeform: '',
-        ...(q.defaultChoiceId && q.choices?.some((c) => c.id === q.defaultChoiceId)
-          ? { choiceId: q.defaultChoiceId }
-          : {}),
-      },
-    ])
+    questions.map((q) => [q.id, { freeform: '' }])
   );
 }
 
-function buildPayload(
-  data: CheckpointCardData,
+function draftToAnswer(
+  q: InternalQuestion,
   draft: DraftAnswer
 ): CheckpointAnswerPayload | null {
-  const freeform = draft.freeform.trim();
-  if (data.kind === 'phase_gate') {
-    if (freeform) return { type: 'revision', text: freeform };
-    return { type: 'approve', text: 'Continue' };
+  if (draft.skipped) {
+    const skipId = q.skipDefault?.choiceId;
+    const label =
+      q.choices?.find((c) => c.id === skipId)?.label ?? skipId ?? 'Skipped';
+    return {
+      type: 'skip',
+      choiceId: skipId,
+      text: label,
+    };
   }
   if (draft.choiceId) {
     const label =
-      data.choices?.find((c) => c.id === draft.choiceId)?.label ?? draft.choiceId;
+      q.choices?.find((c) => c.id === draft.choiceId)?.label ?? draft.choiceId;
     return { type: 'choice', choiceId: draft.choiceId, text: label };
   }
+  const freeform = draft.freeform.trim();
   if (freeform) return { type: 'freeform', text: freeform };
   return null;
 }
 
 function isDraftComplete(
-  data: CheckpointCardData,
   questions: InternalQuestion[],
   drafts: Record<string, DraftAnswer>
 ): boolean {
-  if (data.kind === 'phase_gate') return true;
   return questions.every((q) => {
+    if (q.kind === 'phase_gate') return true;
     const d = drafts[q.id] ?? { freeform: '' };
-    return Boolean(d.choiceId) || Boolean(d.freeform.trim());
+    return Boolean(d.choiceId) || Boolean(d.freeform.trim()) || Boolean(d.skipped);
   });
+}
+
+function buildBatchPayload(
+  questions: InternalQuestion[],
+  drafts: Record<string, DraftAnswer>
+): CheckpointAnswerPayload | null {
+  if (questions.length === 1 && questions[0]!.kind === 'phase_gate') {
+    const draft = drafts[questions[0]!.id] ?? { freeform: '' };
+    const freeform = draft.freeform.trim();
+    if (freeform) return { type: 'revision', text: freeform };
+    return { type: 'approve', text: 'Continue' };
+  }
+
+  if (questions.length === 1) {
+    return draftToAnswer(questions[0]!, drafts[questions[0]!.id] ?? { freeform: '' });
+  }
+
+  const answers: NonNullable<CheckpointAnswerPayload['answers']> = {};
+  for (const q of questions) {
+    const a = draftToAnswer(q, drafts[q.id] ?? { freeform: '' });
+    if (!a) return null;
+    answers[q.id] = {
+      type: a.type,
+      text: a.text,
+      ...(a.choiceId ? { choiceId: a.choiceId } : {}),
+    };
+  }
+  const first = answers[questions[0]!.id]!;
+  return {
+    type: first.type,
+    text: Object.values(answers)
+      .map((a) => a.text)
+      .join('; '),
+    choiceId: first.choiceId,
+    answers,
+  };
+}
+
+function ChoiceList({
+  choices,
+  draft,
+  disabled,
+  onChoice,
+}: {
+  choices: CheckpointChoice[];
+  draft: DraftAnswer;
+  disabled?: boolean;
+  onChoice: (id: string) => void;
+}) {
+  return (
+    <ol className="mt-3 space-y-2">
+      {choices.map((choice, i) => {
+        const selected = draft.choiceId === choice.id && !draft.skipped;
+        return (
+          <li key={choice.id}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onChoice(choice.id)}
+              className={cn(
+                'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition',
+                selected
+                  ? 'bg-orange-500/15 text-white'
+                  : 'bg-white/[0.03] text-white/80 hover:bg-white/[0.06]',
+                disabled && 'opacity-50'
+              )}
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/70">
+                {i + 1}
+              </span>
+              <span className="flex-1 pt-0.5">{choice.label}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function FreeformBox({
+  value,
+  disabled,
+  placeholder,
+  onChange,
+  onConfirmEnter,
+}: {
+  value: string;
+  disabled?: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onConfirmEnter?: () => void;
+}) {
+  return (
+    <textarea
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey && onConfirmEnter) {
+          e.preventDefault();
+          onConfirmEnter();
+        }
+      }}
+      rows={2}
+      placeholder={placeholder}
+      className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none focus:border-orange-500/40"
+    />
+  );
 }
 
 /** Floating interactive card above the composer. */
@@ -160,11 +295,10 @@ export function CheckpointFloatingCard({
 
   const current = questions[index] ?? questions[0];
   const draft = drafts[current?.id ?? '0'] ?? { freeform: '' };
-  const canSubmit = !disabled && isDraftComplete(data, questions, drafts);
+  const canSubmit = !disabled && isDraftComplete(questions, drafts);
   const showNav = questions.length > 1;
-  const bullets = data.bullets.map(scrub).filter(Boolean);
-  const isPhaseGate = data.kind === 'phase_gate';
-  const useSelect = current?.presentation === 'select' && (current.choices?.length ?? 0) > 0;
+  const isPhaseGate = current?.kind === 'phase_gate';
+  const isLast = index >= questions.length - 1;
 
   const setDraft = (patch: Partial<DraftAnswer>) => {
     if (!current) return;
@@ -174,98 +308,100 @@ export function CheckpointFloatingCard({
     });
   };
 
-  const handleSubmit = () => {
-    if (!canSubmit || !current) return;
-    // Today: one question → one answer payload.
-    const payload = buildPayload(data, drafts[current.id] ?? { freeform: '' });
+  const submitAll = (nextDrafts?: Record<string, DraftAnswer>) => {
+    const payload = buildBatchPayload(questions, nextDrafts ?? drafts);
     if (!payload) return;
     onSubmit(data.checkpointId, payload);
   };
 
+  const advanceOrSubmit = (nextDrafts: Record<string, DraftAnswer>) => {
+    if (isLast) {
+      submitAll(nextDrafts);
+      return;
+    }
+    setDrafts(nextDrafts);
+    setIndex((i) => Math.min(questions.length - 1, i + 1));
+  };
+
+  const handleChoice = (choiceId: string) => {
+    if (!current || disabled) return;
+    const nextDrafts = {
+      ...drafts,
+      [current.id]: { choiceId, freeform: '', skipped: false },
+    };
+    advanceOrSubmit(nextDrafts);
+  };
+
+  const handleSkip = () => {
+    if (!current || disabled) return;
+    const nextDrafts = {
+      ...drafts,
+      [current.id]: { freeform: '', skipped: true, choiceId: undefined },
+    };
+    advanceOrSubmit(nextDrafts);
+  };
+
+  const handleFreeformConfirm = () => {
+    if (!current || disabled) return;
+    const freeform = draft.freeform.trim();
+    if (!freeform) return;
+    const nextDrafts = {
+      ...drafts,
+      [current.id]: { freeform, choiceId: undefined, skipped: false },
+    };
+    advanceOrSubmit(nextDrafts);
+  };
+
+  const handleSubmit = () => {
+    if (isPhaseGate) {
+      if (disabled) return;
+      submitAll();
+      return;
+    }
+    if (!canSubmit) return;
+    submitAll();
+  };
+
+  const freeformPlaceholder =
+    current?.freeformPlaceholder ??
+    (isPhaseGate
+      ? 'Describe your revision…'
+      : 'Enter brand colors as hex… e.g. #f97316 #fb923c');
+
   return (
     <div className="mb-3 rounded-2xl bg-[#2F2F2F] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
-      <h4 className="text-sm font-semibold text-white/90">{scrub(data.title)}</h4>
-      {bullets.length > 0 ? (
-        <ul className="mt-2 space-y-1 text-sm text-white/65">
-          {bullets.map((bullet, i) => (
-            <li key={i}>• {bullet}</li>
-          ))}
-        </ul>
+      {current ? (
+        <p className="text-sm font-medium text-white/80">{current.prompt}</p>
       ) : null}
 
-      {!isPhaseGate && current ? (
-        <p className="mt-3 text-sm font-medium text-white/80">{current.prompt}</p>
-      ) : null}
-
-      {useSelect && current?.choices ? (
-        <select
-          value={draft.choiceId ?? ''}
+      {!isPhaseGate && current?.choices && current.choices.length > 0 ? (
+        <ChoiceList
+          choices={current.choices}
+          draft={draft}
           disabled={disabled}
-          onChange={(e) =>
-            setDraft({ choiceId: e.target.value || undefined, freeform: '' })
-          }
-          className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white/90 outline-none focus:border-orange-500/40 disabled:opacity-50"
-        >
-          {current.choices.map((choice) => (
-            <option key={choice.id} value={choice.id}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
-      ) : current?.choices && current.choices.length > 0 ? (
-        <ol className="mt-3 space-y-2">
-          {current.choices.map((choice, i) => {
-            const selected = draft.choiceId === choice.id;
-            return (
-              <li key={choice.id}>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() =>
-                    setDraft({ choiceId: choice.id, freeform: draft.freeform })
-                  }
-                  className={cn(
-                    'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition',
-                    selected
-                      ? 'bg-orange-500/15 text-white'
-                      : 'bg-white/[0.03] text-white/80 hover:bg-white/[0.06]',
-                    disabled && 'opacity-50'
-                  )}
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/70">
-                    {i + 1}
-                  </span>
-                  <span className="pt-0.5">{choice.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+          onChoice={handleChoice}
+        />
       ) : null}
 
-      {current?.allowFreeform !== false ? (
-        <>
-          {isPhaseGate ? (
-            <p className="mt-3 text-sm font-medium text-white/80">Click Continue Or Customise</p>
+      {current?.allowFreeform ? (
+        <div className={cn(!isPhaseGate && 'mt-3')}>
+          {!isPhaseGate ? (
+            <p className="text-xs text-white/45">Something else</p>
           ) : null}
-          <textarea
+          <FreeformBox
             value={draft.freeform}
             disabled={disabled}
-            onChange={(e) =>
+            placeholder={freeformPlaceholder}
+            onChange={(value) =>
               setDraft({
-                freeform: e.target.value,
-                choiceId: e.target.value.trim() ? undefined : draft.choiceId,
+                freeform: value,
+                choiceId: value.trim() ? undefined : draft.choiceId,
+                skipped: false,
               })
             }
-            rows={2}
-            placeholder={
-              isPhaseGate
-                ? 'Describe your revision…'
-                : 'Or reply directly…'
-            }
-            className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none focus:border-orange-500/40"
+            onConfirmEnter={isPhaseGate ? undefined : handleFreeformConfirm}
           />
-        </>
+        </div>
       ) : null}
 
       <div className="mt-4 flex items-center gap-2">
@@ -280,35 +416,48 @@ export function CheckpointFloatingCard({
               <ChevronLeft className="h-4 w-4" />
               Prev
             </button>
-            <button
-              type="button"
-              disabled={disabled || index >= questions.length - 1}
-              onClick={() =>
-                setIndex((i) => Math.min(questions.length - 1, i + 1))
-              }
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1.5 text-sm text-white/70 disabled:opacity-40"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
             <span className="text-xs text-white/40">
               {index + 1}/{questions.length}
             </span>
           </>
         ) : null}
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={handleSubmit}
-          className={cn(
-            'ml-auto rounded-full bg-orange-500 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-orange-400',
-            !canSubmit && 'cursor-not-allowed opacity-40 hover:bg-orange-500'
-          )}
-        >
-          {isPhaseGate && !(drafts[current?.id ?? '0']?.freeform.trim())
-            ? 'Continue'
-            : 'Submit'}
-        </button>
+
+        {isPhaseGate ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={handleSubmit}
+            className="ml-auto rounded-full bg-orange-500 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-orange-400 disabled:opacity-40"
+          >
+            Continue
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={handleSubmit}
+              className={cn(
+                'rounded-full bg-orange-500 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-orange-400',
+                !canSubmit && 'cursor-not-allowed opacity-40 hover:bg-orange-500'
+              )}
+            >
+              {isLast ? 'Submit' : 'Next'}
+            </button>
+            {current?.skipDefault ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={handleSkip}
+                className="ml-auto rounded-full border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:bg-white/[0.04]"
+              >
+                Skip
+              </button>
+            ) : (
+              <span className="ml-auto" />
+            )}
+          </>
+        )}
       </div>
     </div>
   );

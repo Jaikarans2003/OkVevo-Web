@@ -19,8 +19,9 @@ import {
   type TimedConcept,
 } from '../../skills/eduVideo/planning';
 import { MIN_MODE_C_GAP_SECONDS } from '../../lib/timelinePlanning';
-import { persistOrientation, writeAskCheckpoint, getSessionCaptionMode } from '../../checkpoint';
+import { persistOrientation, writeAskCheckpoint } from '../../checkpoint';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
+import { readTranscriptionProgress } from '../lib/transcriptionProgress';
 import type { ToolCtx } from '../index';
 
 const conceptSchema = z.object({
@@ -151,28 +152,23 @@ export function buildExtractConceptsUserMessage(
 export function createConceptsTools(ctx: ToolCtx) {
   return {
     extract_concepts: tool({
-      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video — pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video (and after transliterate_captions when a caption-style choice is pending).`,
+      description: `Extract Manim-worthy teaching concepts from the session transcript. Text and word timings are loaded from transcript.json written by transcribe_video — pass only duration_seconds. Every returned concept is implicitly Manim. Returns snapped timestamps. Call after transcribe_video.`,
       inputSchema: z.object({
         duration_seconds: z.number().optional(),
       }),
       execute: async ({ duration_seconds }) => {
         try {
-          const caption = await getSessionCaptionMode(ctx.sessionId);
-          if (caption.captionMode && !caption.captionModeApplied) {
-            return {
-              ok: false,
-              error:
-                'Caption style choice is pending. Call transliterate_captions first to apply Native / English Worded before extract_concepts.',
-              caption_mode: caption.captionMode,
-              caption_mode_applied: false,
-            };
-          }
-
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ['transcript']);
           const transcript = loadSessionTranscript(ctx.sessionId);
           if (!transcript || (!transcript.text.trim() && transcript.words.length === 0)) {
+            const progress = await readTranscriptionProgress(ctx.sessionId);
+            if (progress?.status === 'in_progress' || progress?.falSttFinalizePending) {
+              throw new Error(
+                'Transcription still finalizing — wait for the lecture-heard checkpoint (or Auto continue). Do not poll the filesystem for transcript.json; call transcribe_video again only to trigger reconciliation.'
+              );
+            }
             throw new Error(
-              'No session transcript on disk or in Storage. Call transcribe_video first, or re-upload if this session has no stored transcript.'
+              'No session transcript on disk or in Storage. Call transcribe_video first (do not ls/find transcript.json). Re-upload if this session has no stored transcript.'
             );
           }
 
@@ -235,11 +231,13 @@ export function createConceptsTools(ctx: ToolCtx) {
                 pipelineMode: ctx.pipelineMode,
               },
               {
+                kind: 'phase_gate',
                 phase_label: 'Concepts extracted',
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
                 question:
                   `${concept_count} concept(s) ready. Approve these concepts, or describe edits below.`,
                 allowFreeform: true,
+                freeformPlaceholder: 'Describe your revision…',
               }
             );
             return {

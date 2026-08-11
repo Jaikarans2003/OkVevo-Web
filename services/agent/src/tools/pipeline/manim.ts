@@ -17,8 +17,20 @@ import {
   buildManimPalettePrompt,
 } from '../lib/utils';
 import { assertManimMaxVisible } from '../lib/manimGuard';
-import { getTempPath, uploadToStorage, walkDir, writeAssetUrl } from '../../storage';
-import { formatDuration, getSessionOrientation, persistOrientation } from '../../checkpoint';
+import {
+  allocateManimClipBasename,
+  getTempPath,
+  uploadToStorage,
+  walkDir,
+  writeAssetUrl,
+} from '../../storage';
+import {
+  formatDuration,
+  getSessionAnimationStyle,
+  getSessionBrandColors,
+  getSessionOrientation,
+  persistOrientation,
+} from '../../checkpoint';
 import type { ToolCtx } from '../index';
 import { assertSquareManimFrame, buildManimRenderCmd, resolveToolOrientation } from '../lib/manimOrientation';
 import { countRenderedManimClips } from '../lib/sessionManimClips';
@@ -99,8 +111,10 @@ export function createManimTools(ctx: ToolCtx) {
       execute: async ({ concept_name, explanation, window_seconds, brand_colors, orientation: orientationArg }) => {
         const safeName = manimSafeName(concept_name);
         const className = `Scene${safeName}`;
-        const colors = resolveBrandColors(brand_colors);
+        const sessionBrand = await getSessionBrandColors(ctx.sessionId);
+        const colors = resolveBrandColors(brand_colors ?? sessionBrand);
         const palettePrompt = buildManimPalettePrompt(colors);
+        const animationStyle = await getSessionAnimationStyle(ctx.sessionId);
         const sessionOrientation = await getSessionOrientation(ctx.sessionId);
         const { orientation, persist } = resolveToolOrientation(
           orientationArg,
@@ -113,6 +127,16 @@ export function createManimTools(ctx: ToolCtx) {
         const animations = loadSkillFile('manim-video/references/animations.md');
         const productionQuality = loadSkillFile('manim-video/references/production-quality.md');
         const conceptRef = loadSkillFile(selectManimReference(explanation));
+
+        const styleRules =
+          animationStyle === 'minimal'
+            ? `
+- ANIMATION STYLE (mandatory): minimalistic only — simple shapes/text, NO arrows, NO decorative flourishes, sparse motion`
+            : animationStyle === 'detailed'
+              ? `
+- ANIMATION STYLE: richer visual vocabulary including arrows where helpful`
+              : `
+- ANIMATION STYLE: clear diagrams with light motion (moderate); use arrows sparingly`;
 
         const squareFrameRules =
           orientation === 'vertical'
@@ -131,7 +155,7 @@ The script MUST:
 - Define exactly ONE class named ${className} where SafeClassName is concept_name with spaces replaced by underscores, alphanumeric only
 - Set background color to ${colors.bg_dark}
 - Use these color constants at file top:
-${palettePrompt}${squareFrameRules}
+${palettePrompt}${squareFrameRules}${styleRules}
 - Use self.wait() after every animation
 - End by holding the finished visual state with a generous self.wait() — reserve at least the last 20% of the clip window (minimum 2 seconds) with nothing changing; do NOT FadeOut at the end (edu-video single-clip embeds into a fixed window; clip must end mid-hold, not mid-fade or blank)
 - Use raw strings for ALL LaTeX: r'\\frac{1}{2}'
@@ -383,7 +407,13 @@ Return corrected Python only.`;
             );
           }
 
-          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${safeName}.mp4`;
+          const basename = await allocateManimClipBasename(
+            ctx.userId,
+            ctx.sessionId,
+            safeName
+          );
+          const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${basename}`;
+          // Local workdir keeps unversioned latest only; GCS gets Foo.mp4 / Foo_2.mp4 / …
           const canonicalPath = path.join(
             getSessionWorkdir(ctx.sessionId),
             'manim',
@@ -392,7 +422,9 @@ Return corrected Python only.`;
           fs.mkdirSync(path.dirname(canonicalPath), { recursive: true });
           fs.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
-          await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl);
+          await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl, {
+            label: basename,
+          });
 
           const concepts = loadSessionConcepts(ctx.sessionId);
           const manim_count = await countRenderedManimClips(ctx.userId, ctx.sessionId);

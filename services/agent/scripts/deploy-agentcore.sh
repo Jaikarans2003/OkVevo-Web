@@ -4,6 +4,7 @@
 # Normal deploy:   bash scripts/deploy-agentcore.sh
 # Rollback:        bash scripts/deploy-agentcore.sh --use-existing-tag <git-sha>
 # Add/rotate env:  bash scripts/deploy-agentcore.sh --use-existing-tag <sha> --add-env KEY
+#   (--add-env values come from services/agent/.env, not repo-root .env)
 #
 # Secret preservation: update-agent-runtime creates a NEW version and does NOT
 # carry over omitted optional fields. We re-read the live environmentVariables,
@@ -143,27 +144,28 @@ HAS_META="$(extract metadataConfiguration "$TMP/meta.json")"
 # networkConfiguration comes from the committed config (non-secret).
 node -e "require('fs').writeFileSync('$TMP/net.json', JSON.stringify(require('$CONFIG').networkConfiguration))"
 
-# ── Merge --add-env keys from root .env into env.json ──
-# Requires a non-empty live map (wipe-guard). Values come from root .env only.
+# ── Merge --add-env keys from services/agent/.env into env.json ──
+# Requires a non-empty live map (wipe-guard). Values come from agent .env only
+# (not repo-root .env — agent secrets stay with the agent service).
 if [[ ${#ADD_ENV_KEYS[@]} -gt 0 ]]; then
   if [[ -z "$HAS_ENV" ]]; then
     echo "ERROR: --add-env requires live environmentVariables (refusing to create env.json from scratch)." >&2
     exit 1
   fi
-  if [[ ! -f "$ROOT/.env" ]]; then
-    echo "ERROR: root .env not found at $ROOT/.env (needed for --add-env)." >&2
+  if [[ ! -f "$AGENT_DIR/.env" ]]; then
+    echo "ERROR: agent .env not found at $AGENT_DIR/.env (needed for --add-env)." >&2
     exit 1
   fi
   for KEY in "${ADD_ENV_KEYS[@]}"; do
-    LINE="$(grep -E "^${KEY}=" "$ROOT/.env" | head -n1 || true)"
+    LINE="$(grep -E "^${KEY}=" "$AGENT_DIR/.env" | head -n1 || true)"
     if [[ -z "$LINE" ]]; then
-      echo "ERROR: --add-env $KEY: key absent in root .env" >&2
+      echo "ERROR: --add-env $KEY: key absent in services/agent/.env" >&2
       exit 1
     fi
     # Strip only the leading KEY= so values containing = (e.g. base64 ==) survive.
     VALUE="${LINE#"${KEY}="}"
     if [[ -z "$VALUE" ]]; then
-      echo "ERROR: --add-env $KEY: value is empty in root .env" >&2
+      echo "ERROR: --add-env $KEY: value is empty in services/agent/.env" >&2
       exit 1
     fi
     echo "==> Merging --add-env $KEY into environmentVariables"

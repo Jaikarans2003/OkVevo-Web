@@ -7,9 +7,11 @@ import { getStorage } from 'firebase-admin/storage';
 import { db, getStorageBucketName } from './firebase';
 import { saveMessage } from './session';
 import { FINAL_VIDEO_NAME_RE, nextFinalVideoBasename } from './finalVideoBasename';
+import { nextManimClipBasename } from './manimClipBasename';
 import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
+export { nextManimClipBasename } from './manimClipBasename';
 
 export type HfSegmentsPlan = {
   segments: unknown[];
@@ -55,6 +57,8 @@ function contentTypeForPath(filePath: string): string {
       return 'video/quicktime';
     case '.mp3':
       return 'audio/mpeg';
+    case '.flac':
+      return 'audio/flac';
     case '.png':
       return 'image/png';
     case '.jpg':
@@ -270,6 +274,44 @@ export async function allocateFinalVideoBasename(
     if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
   }
   return nextFinalVideoBasename(names);
+}
+
+/** Allocate next free manim/{safeName}[_N].mp4 — never overwrite a prior version. */
+export async function allocateManimClipBasename(
+  userId: string,
+  sessionId: string,
+  safeName: string
+): Promise<string> {
+  const bucket = getStorage().bucket(getStorageBucketName());
+  const prefix = `users/${userId}/sessions/${sessionId}/manim/`;
+  const [files] = await bucket.getFiles({ prefix });
+  const names: string[] = [];
+  for (const file of files) {
+    const name = file.name.slice(prefix.length);
+    if (!name || name.includes('/')) continue;
+    names.push(name);
+  }
+  return nextManimClipBasename(safeName, names);
+}
+
+/** HTTPS URLs already registered on this session's assets subcollection. */
+export async function listSessionAssetUrls(
+  userId: string,
+  sessionId: string
+): Promise<string[]> {
+  const snap = await db
+    .collection('users')
+    .doc(userId)
+    .collection('sessions')
+    .doc(sessionId)
+    .collection('assets')
+    .get();
+  const urls: string[] = [];
+  for (const doc of snap.docs) {
+    const url = doc.data()?.url;
+    if (typeof url === 'string' && url) urls.push(url);
+  }
+  return urls;
 }
 
 export type RenderJob = {

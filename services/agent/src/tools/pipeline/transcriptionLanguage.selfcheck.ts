@@ -1,49 +1,40 @@
 /**
- * Self-check: language pin seeding + resume discrimination.
+ * Offline guards for transcription language routing.
  * Run: npx tsx src/tools/pipeline/transcriptionLanguage.selfcheck.ts
  */
-import assert from 'node:assert';
-import { languageForDetectRepass } from '../lib/forceLanguageRepass.ts';
+import assert from 'node:assert/strict';
 import {
   classifyTranscriptionResumeChoice,
+  normalizeLanguageCode,
   pinnedLanguageFromRequest,
+  resolveRequestedLanguage,
+  TRANSCRIPTION_LANGUAGE_CHOICES,
 } from '../lib/transcriptionLanguage.ts';
 
 function main() {
-  // Specific intersection pick → seed pin (skip two-pass).
-  assert.equal(pinnedLanguageFromRequest('hi'), 'hi');
-  assert.equal(pinnedLanguageFromRequest('kn-IN'), 'kn');
+  assert.deepEqual(
+    TRANSCRIPTION_LANGUAGE_CHOICES.map((c) => c.id),
+    ['en', 'auto']
+  );
+
+  assert.equal(normalizeLanguageCode('kn-IN'), 'kn');
+  assert.equal(normalizeLanguageCode('eng'), 'eng');
+  assert.equal(normalizeLanguageCode('Kannada'), 'kn');
+  assert.equal(normalizeLanguageCode('kan'), 'kn'); // Fal Scribe ISO 639-3
+
+  assert.equal(pinnedLanguageFromRequest('en'), 'en');
   assert.equal(pinnedLanguageFromRequest('auto'), undefined);
   assert.equal(pinnedLanguageFromRequest(undefined), undefined);
-  // Existing pin wins over a new request.
-  assert.equal(pinnedLanguageFromRequest('hi', 'ta'), 'ta');
 
-  // auto / unset → two-pass helper still used when detect returns non-en.
-  assert.equal(
-    languageForDetectRepass({
-      firstCallHadLanguage: Boolean(pinnedLanguageFromRequest('auto')),
-      detectedLanguage: 'kn',
-    }),
-    'kn'
-  );
-  assert.equal(
-    languageForDetectRepass({
-      firstCallHadLanguage: Boolean(pinnedLanguageFromRequest('hi')),
-      detectedLanguage: 'kn',
-    }),
-    undefined
-  );
+  assert.equal(resolveRequestedLanguage(undefined, 'auto'), 'auto');
+  assert.equal(resolveRequestedLanguage('en', 'ask'), 'en');
+  assert.equal(resolveRequestedLanguage('auto', 'ask'), 'auto');
 
-  // Resume discrimination: language vs chunk-fail vs caption-style.
-  assert.equal(classifyTranscriptionResumeChoice('auto'), 'language');
-  assert.equal(classifyTranscriptionResumeChoice('hi'), 'language');
   assert.equal(classifyTranscriptionResumeChoice('en'), 'language');
+  assert.equal(classifyTranscriptionResumeChoice('auto'), 'language');
   assert.equal(classifyTranscriptionResumeChoice('retry'), 'chunk_fail');
-  assert.equal(classifyTranscriptionResumeChoice('continue'), 'chunk_fail');
-  assert.equal(classifyTranscriptionResumeChoice('abort'), 'chunk_fail');
-  assert.equal(classifyTranscriptionResumeChoice('native'), 'caption_style');
-  assert.equal(classifyTranscriptionResumeChoice('english_worded'), 'caption_style');
-  assert.equal(classifyTranscriptionResumeChoice('nope'), 'unknown');
+  assert.equal(classifyTranscriptionResumeChoice('english_worded'), 'unknown');
+  assert.equal(classifyTranscriptionResumeChoice('hi'), 'unknown');
 
   console.log('transcriptionLanguage.selfcheck: ok');
 }

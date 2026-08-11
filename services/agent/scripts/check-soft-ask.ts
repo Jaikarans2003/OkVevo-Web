@@ -46,6 +46,13 @@ function main() {
   );
   assert.match(conceptsSource, /writeAskCheckpoint/);
   assert.match(conceptsSource, /ctx\.pipelineMode === 'ask'/);
+  // Approve path fixture: concepts gate is phase_gate only — no orientation choices
+  assert.match(conceptsSource, /phase_label:\s*'Concepts extracted'/);
+  assert.match(conceptsSource, /allowFreeform:\s*true/);
+  assert.doesNotMatch(
+    conceptsSource,
+    /phase_label:\s*'Concepts extracted'[\s\S]*?choices:\s*\[[\s\S]*?horizontal/
+  );
 
   const agentSource = fs.readFileSync(
     path.join(__dirname, '../src/agent.ts'),
@@ -60,16 +67,45 @@ function main() {
   assert.doesNotMatch(agentSource, /maybeWriteCheckpoint/);
   assert.doesNotMatch(agentSource, /checkpointDecl/);
 
-  // Concepts Continue (approve/choice) may force toolChoice — nowhere else
+  // Approve path: concepts Continue writes Video orientation via writeAskCheckpoint
+  assert.match(agentSource, /isConceptsApproveResume/);
+  assert.match(agentSource, /writeAskCheckpoint/);
+  assert.match(agentSource, /phase_label:\s*'Video orientation'/);
+  assert.match(agentSource, /conceptsApproveChain/);
+
+  // Manim force keyed off Video orientation only — not Concepts extracted
+  assert.match(agentSource, /isOrientationChoiceResume/);
   assert.match(
     agentSource,
-    /conceptsResumeForce[\s\S]*toolChoice:\s*\{\s*type:\s*'tool'[\s\S]*toolName:\s*'generate_manim_script'/
+    /completedPhaseLabel !== 'Video orientation'/
   );
-  assert.match(agentSource, /Concepts extracted/);
+  assert.match(
+    agentSource,
+    /orientationResumeForce[\s\S]*toolChoice:\s*\{\s*type:\s*'tool'[\s\S]*toolName:\s*'generate_manim_script'/
+  );
   assert.match(agentSource, /firstConceptResumeHint/);
   assert.match(
     agentSource,
-    /checkpoint\.resume conceptsForce tx=ok skill=.*tool=generate_manim_script/
+    /checkpoint\.resume orientationForce tx=ok skill=.*tool=generate_manim_script/
+  );
+  assert.doesNotMatch(
+    agentSource,
+    /completedPhaseLabel !== 'Concepts extracted'[\s\S]{0,200}orientationResumeForce|conceptsResumeForce/
+  );
+
+  // Revision path fixture: directive preamble with exact ask_clarification payload
+  assert.match(checkpointSource, /CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL/);
+  assert.match(checkpointSource, /phase_label: "Video orientation"/);
+  assert.match(checkpointSource, /id: "horizontal"/);
+  assert.match(checkpointSource, /id: "vertical"/);
+  assert.match(checkpointSource, /allowFreeform: false/);
+  assert.match(
+    checkpointSource,
+    /Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes/
+  );
+  assert.match(
+    checkpointSource,
+    /Do NOT invent a different clarification question or skip ask_clarification after edits/
   );
 
   // Ban pre-render / YAML-style hard gates

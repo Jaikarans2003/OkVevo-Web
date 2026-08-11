@@ -2,7 +2,7 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
-import { pipeAgentStream, runAgent } from './agent';
+import { pipeAgentStream, pipeStaticAssistantText, runAgent } from './agent';
 import { CheckpointConflictError } from './checkpoint';
 import { SessionLimitReachedError } from './sessionTokenGate';
 import { auth, db } from './firebase';
@@ -20,6 +20,12 @@ import {
   recordRenderFailure,
 } from './storage';
 import { deliverEvent, parseWebhookEvent } from './deliverEvent';
+import {
+  tryRecoverFalSttFinalize,
+  tryResumeFalSttPending,
+  tryShortCircuitFalSttPending,
+} from './falSttDeliver';
+import { getSessionPipelineFields } from './checkpoint';
 import { parseTaggedAssets } from './taggedAssets';
 import { runGroqDiagnostics } from './diagnostics/groqConnectivity';
 
@@ -227,9 +233,17 @@ app.post('/invocations', async (req, res) => {
       typeof (input.checkpointAnswer as { checkpointId?: string }).checkpointId === 'string'
         ? (input.checkpointAnswer as {
             checkpointId: string;
-            type: 'approve' | 'choice' | 'revision' | 'freeform';
+            type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
             text: string;
             choiceId?: string;
+            answers?: Record<
+              string,
+              {
+                type: 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
+                choiceId?: string;
+                text: string;
+              }
+            >;
           })
         : undefined;
 
@@ -256,6 +270,29 @@ app.post('/invocations', async (req, res) => {
       accept.includes('text/event-stream') ||
       accept.includes('text/plain') ||
       req.headers['x-vercel-ai-ui-message-stream'] === 'v1';
+
+    const effectivePipelineMode =
+      pipelineMode === 'auto' || pipelineMode === 'ask'
+        ? pipelineMode
+        : (await getSessionPipelineFields(sessionId)).pipelineMode;
+    await tryRecoverFalSttFinalize(sessionId, userId);
+    await tryResumeFalSttPending(sessionId, userId, effectivePipelineMode);
+    const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+    if (shortCircuitMsg) {
+      if (wantsStream) {
+        pipeStaticAssistantText(res, shortCircuitMsg);
+        return;
+      }
+      res.json({
+        output: {
+          message: shortCircuitMsg,
+          sessionId,
+          userId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
 
     const result = await runAgent({
       userMessage: prompt,
@@ -444,6 +481,14 @@ app.post('/chat', async (req, res) => {
       ? bodyPipelineMode
       : 'ask';
   const taggedAssets = parseTaggedAssets(rawTaggedAssets);
+
+  await tryRecoverFalSttFinalize(sessionId, userId);
+  await tryResumeFalSttPending(sessionId, userId, pipelineMode);
+  const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+  if (shortCircuitMsg) {
+    pipeStaticAssistantText(res, shortCircuitMsg);
+    return;
+  }
 
   try {
     const agentRun = await runAgent({

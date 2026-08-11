@@ -1,6 +1,13 @@
 import { signCallbackToken } from './callbackToken';
 
-export type FalTaskId = 'fal_image' | 'fal_video';
+export type FalTaskId = 'fal_image' | 'fal_video' | 'fal_stt';
+
+export type FalQueueStatusValue =
+  | 'IN_QUEUE'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'UNKNOWN';
 
 /** Public Next webhook URL with signed session token (mirrors HeyGen callback). */
 export function buildFalWebhookUrl(sessionId: string, taskId: FalTaskId): string {
@@ -41,4 +48,46 @@ export async function falQueueSubmit(opts: {
     throw new Error('Fal queue submit returned no request_id');
   }
   return { request_id: body.request_id };
+}
+
+/** One-shot status check — not a poll loop. */
+export async function falQueueStatus(
+  model: string,
+  requestId: string,
+  falKey: string
+): Promise<{ status: FalQueueStatusValue; raw: Record<string, unknown> }> {
+  const url = `https://queue.fal.run/${model}/requests/${encodeURIComponent(requestId)}/status`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Key ${falKey}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Fal queue status ${res.status}: ${text.slice(0, 500)}`);
+  }
+  const raw = (await res.json()) as Record<string, unknown>;
+  const s = String(raw.status ?? '').toUpperCase();
+  const status: FalQueueStatusValue =
+    s === 'IN_QUEUE' || s === 'IN_PROGRESS' || s === 'COMPLETED'
+      ? s
+      : s === 'FAILED' || s === 'ERROR'
+        ? 'FAILED'
+        : 'UNKNOWN';
+  return { status, raw };
+}
+
+/** Fetch completed queue result payload. */
+export async function falQueueResult(
+  model: string,
+  requestId: string,
+  falKey: string
+): Promise<unknown> {
+  const url = `https://queue.fal.run/${model}/requests/${encodeURIComponent(requestId)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Key ${falKey}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Fal queue result ${res.status}: ${text.slice(0, 500)}`);
+  }
+  return res.json();
 }

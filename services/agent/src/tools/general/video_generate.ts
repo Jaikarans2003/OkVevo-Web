@@ -2,6 +2,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { buildFalWebhookUrl, falQueueSubmit } from '../../falQueue';
+import { persistPendingFalJob } from '../../pendingFalJob';
 import {
   VIDEO_DURATIONS,
   VIDEO_MODEL_KEYS,
@@ -79,6 +80,11 @@ export function createVideoGenerateTools(ctx: {
             falKey,
             webhookUrl,
             input,
+          });
+          await persistPendingFalJob(ctx.sessionId, {
+            taskId: 'fal_video',
+            requestId: request_id,
+            resumeOnCompletion: false,
           });
 
           return {
