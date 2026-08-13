@@ -1,3 +1,5 @@
+import { resolveCompositionDuration } from './resolveCompositionDuration';
+
 export type StitchWord = { word: string; start: number; end: number };
 export type StitchSegment = { start: number; end: number; text: string };
 
@@ -109,12 +111,18 @@ export function stitchChunkTranscripts(
   }
 
   const text = words.map((w) => w.word).join(' ').replace(/\s+/g, ' ').trim();
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
 
   return {
     text,
     words,
     segments,
-    duration_seconds: totalDurationSeconds,
+    duration_seconds: resolveCompositionDuration({
+      lastWordEnd,
+      transcriptDuration: totalDurationSeconds,
+      audioProbe: totalDurationSeconds,
+      videoProbe: totalDurationSeconds,
+    }),
     ...(language !== undefined ? { language } : {}),
     gaps,
   };

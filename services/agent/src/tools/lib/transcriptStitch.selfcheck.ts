@@ -44,7 +44,7 @@ assert.deepStrictEqual(
 assert.ok(out.words.every((w) => w.start < 11.25 || w.word !== 'drop-a'));
 assert.ok(!out.words.some((w) => w.word === 'drop-b'));
 assert.strictEqual(out.words.find((w) => w.word === 'keep-b')?.start, 11.5);
-assert.strictEqual(out.duration_seconds, 22.5);
+assert.strictEqual(out.duration_seconds, 23);
 assert.strictEqual(out.gaps.length, 0);
 
 // Skipped chunk leaves a named gap and no words in that range.
@@ -81,5 +81,19 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(withGap.gaps.length, 1);
 assert.strictEqual(withGap.gaps[0].startOffsetSeconds, 10);
+
+// Container far past last word → dead-air clamp.
+const inflated = stitchChunkTranscripts(
+  [
+    {
+      startOffsetSeconds: 0,
+      durationSeconds: 300,
+      words: [{ word: 'hi', start: 1, end: 47 }],
+      segments: [],
+    },
+  ],
+  300
+);
+assert.strictEqual(inflated.duration_seconds, 47.5);
 
 console.log('transcriptStitch.selfcheck: ok');

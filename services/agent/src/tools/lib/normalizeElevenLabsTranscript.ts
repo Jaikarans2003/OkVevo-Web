@@ -1,5 +1,6 @@
 import type { ElevenLabsSttResult, ElevenLabsWord } from './elevenLabsStt';
 import { normalizeLanguageCode } from './transcriptionLanguage';
+import { resolveCompositionDuration } from './resolveCompositionDuration';
 
 export type NormalizedTranscript = {
   text: string;
@@ -62,7 +63,7 @@ export function normalizeElevenLabsTranscript(
     }))
     .filter((w) => w.word.length > 0);
 
-  const duration_seconds =
+  const rawDuration =
     typeof raw.audio_duration_secs === 'number' && raw.audio_duration_secs > 0
       ? raw.audio_duration_secs
       : fallbackDurationSeconds > 0
@@ -70,6 +71,14 @@ export function normalizeElevenLabsTranscript(
         : words.length > 0
           ? words[words.length - 1].end
           : 0;
+
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
+  const duration_seconds = resolveCompositionDuration({
+    lastWordEnd,
+    transcriptDuration: rawDuration,
+    audioProbe: rawDuration,
+    videoProbe: rawDuration,
+  });
 
   const text =
     typeof raw.text === 'string' && raw.text.trim()

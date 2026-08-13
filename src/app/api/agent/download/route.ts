@@ -6,6 +6,9 @@ import { env } from '@/config/env';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Hard cap: App Hosting is 1GiB / concurrency 20 — keep well under OOM. */
+const DOWNLOAD_MAX_BYTES = 200 * 1024 * 1024;
+
 function isAllowedAssetUrl(raw: string): boolean {
   try {
     const parsed = new URL(raw);
@@ -43,22 +46,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid asset URL' }, { status: 400 });
     }
 
-    const upstream = await fetch(url);
-    if (!upstream.ok || !upstream.body) {
+    const upstream = await fetch(url, { cache: 'no-store' });
+    if (!upstream.ok) {
       return NextResponse.json(
         { error: `Upstream fetch failed: ${upstream.status}` },
         { status: 502 }
       );
     }
 
+    const contentLengthHeader = upstream.headers.get('content-length');
+    const expected = contentLengthHeader != null ? Number(contentLengthHeader) : NaN;
+    if (!Number.isFinite(expected) || expected < 0 || expected > DOWNLOAD_MAX_BYTES) {
+      return NextResponse.json(
+        {
+          error:
+            !Number.isFinite(expected) || expected < 0
+              ? 'Upstream missing Content-Length'
+              : 'File too large',
+        },
+        { status: 413 }
+      );
+    }
+
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    if (buffer.byteLength !== expected) {
+      console.error('[download] size mismatch', {
+        expected,
+        actual: buffer.byteLength,
+        url,
+      });
+      return NextResponse.json({ error: 'Incomplete download' }, { status: 502 });
+    }
+
     const filename = safeFilename(name);
     const contentType =
       upstream.headers.get('content-type') || 'application/octet-stream';
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
+        'Content-Length': String(buffer.byteLength),
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store',
       },

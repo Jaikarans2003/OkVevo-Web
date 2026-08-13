@@ -34,6 +34,8 @@ import {
   templateDirFor,
   type VideoOrientation,
 } from '../lib/utils';
+import { resolveCompositionDuration } from '../lib/resolveCompositionDuration';
+import { sanitizeTranscriptWords } from '../lib/transcriptSanitize';
 import { isSfnExecutionArn, parseCloudRenderId } from '../../heygenWebhook';
 import { signCallbackToken } from '../../callbackToken';
 import { formatDuration, getSessionBrandColors, getSessionOrientation, persistOrientation } from '../../checkpoint';
@@ -54,7 +56,6 @@ import {
   writeHfSegmentsPlan,
 } from '../../storage';
 import { listSessionManimClips } from '../lib/sessionManimClips';
-import { sanitizeTranscriptWords } from '../lib/transcriptSanitize';
 import {
   assertHtmlMatchesOrientation,
   manimFitNoteForClip,
@@ -407,11 +408,6 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
 
     await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
     fs.unlinkSync(speakerRawPath);
-
-    const speakerBytes = fs.statSync(speakerVideoPath).size;
-    if (speakerBytes > SPEAKER_MAX_BYTES) {
-      throw new Error('Speaker video is too long to upload after 1080p normalization');
-    }
   }
 
   const ffprobe = await execCommand(
@@ -423,7 +419,36 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   // they can inflate effectiveDuration or produce stuck caption groups.
   words = sanitizeTranscriptWords(words, Math.max(args.total_duration, probedDuration));
   const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
-  const effectiveDuration = Math.max(args.total_duration, probedDuration, lastWordEnd);
+  const effectiveDuration = resolveCompositionDuration({
+    lastWordEnd,
+    transcriptDuration: args.total_duration,
+    audioProbe: probedDuration,
+    videoProbe: probedDuration,
+  });
+
+  // Trim speaker + audio when container has dead air past speech.
+  if (probedDuration > effectiveDuration + 0.05) {
+    for (const mediaPath of [speakerVideoPath, audioPath]) {
+      if (!fs.existsSync(mediaPath)) continue;
+      const tmp = `${mediaPath}.trim${path.extname(mediaPath)}`;
+      const trim = await execCommand(
+        `ffmpeg -y -i "${mediaPath}" -t ${effectiveDuration} -c copy "${tmp}"`,
+        { timeoutSeconds: 120 }
+      );
+      if (!trim.success) {
+        fs.rmSync(tmp, { force: true });
+        throw new Error(trim.stderr || `ffmpeg trim failed: ${mediaPath}`);
+      }
+      fs.renameSync(tmp, mediaPath);
+    }
+  }
+
+  if (speakerChanged) {
+    const speakerBytes = fs.statSync(speakerVideoPath).size;
+    if (speakerBytes > SPEAKER_MAX_BYTES) {
+      throw new Error('Speaker video is too long to upload after 1080p normalization');
+    }
+  }
 
   for (const index of manimNeedDownload) {
     await downloadFile(

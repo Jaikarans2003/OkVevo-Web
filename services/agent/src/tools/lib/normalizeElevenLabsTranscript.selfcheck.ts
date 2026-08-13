@@ -23,7 +23,7 @@ function main() {
 
   const out = normalizeElevenLabsTranscript(raw, 0);
   assert.equal(out.language, 'eng');
-  assert.equal(out.duration_seconds, 3);
+  assert.equal(out.duration_seconds, 3.5);
   assert.equal(out.words.length, 3);
   assert.equal(out.words[0].word, 'Hello');
   assert.ok(out.segments.length >= 2); // pause gap between world and test
@@ -53,6 +53,18 @@ function main() {
   assert.equal(kan.language, 'kn');
   assert.equal(kan.words.length, 2);
   assert.equal(kan.segments[0]?.text, 'ನಮಸ್ಕಾರ ಗುರುಗಳೇ');
+
+  // Extreme container padding → speech + pad (shared with stitch / scaffold).
+  const padded = normalizeElevenLabsTranscript(
+    {
+      text: 'short',
+      language_code: 'eng',
+      words: [{ text: 'short', start: 0, end: 47, type: 'word' }],
+      audio_duration_secs: 300,
+    },
+    300
+  );
+  assert.equal(padded.duration_seconds, 47.5);
 
   console.log('normalizeElevenLabsTranscript.selfcheck: ok');
 }

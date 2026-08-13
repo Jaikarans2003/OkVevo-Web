@@ -35,6 +35,7 @@ import type { ToolCtx } from '../index';
 import { assertSquareManimFrame, buildManimRenderCmd, resolveToolOrientation } from '../lib/manimOrientation';
 import { countRenderedManimClips } from '../lib/sessionManimClips';
 import { defaultSessionManimScriptPath } from '../lib/manimScriptPath';
+import { remuxMp4Faststart } from '../lib/remuxMp4Faststart';
 
 const brandColorsSchema = z.object({
   primary: z.string(),
@@ -419,6 +420,7 @@ Return corrected Python only.`;
             'manim',
             `${safeName}.mp4`
           );
+          await remuxMp4Faststart(outputMp4Path);
           fs.mkdirSync(path.dirname(canonicalPath), { recursive: true });
           fs.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);

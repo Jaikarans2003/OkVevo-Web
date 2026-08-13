@@ -118,6 +118,8 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
   }
   // SUCCEEDED + draftVideoUrl → return existing URL; do not touch renderSnapshot.
   // keep in sync with services/agent/src/storage.ts finalizeRenderFromLocalFile
+  // Note: no ffmpeg in this Lambda — faststart remux happens on agent finalize
+  // path (finalizeRenderFromLocalFile) and via scripts/remux-session-videos.ts.
   if (
     current.data()?.renderStatus === 'SUCCEEDED' &&
     typeof current.data()?.draftVideoUrl === 'string'

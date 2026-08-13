@@ -9,6 +9,7 @@ import { saveMessage } from './session';
 import { FINAL_VIDEO_NAME_RE, nextFinalVideoBasename } from './finalVideoBasename';
 import { nextManimClipBasename } from './manimClipBasename';
 import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
+import { remuxMp4Faststart } from './tools/lib/remuxMp4Faststart';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
 export { nextManimClipBasename } from './manimClipBasename';
@@ -381,6 +382,8 @@ export async function finalizeRenderFromLocalFile(
       ? preferredBasename
       : await allocateFinalVideoBasename(userId, sessionId);
   const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
+  // ponytail: remux here — completion Lambda has no ffmpeg layer
+  await remuxMp4Faststart(tempPath);
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
   // keep in sync with infrastructure/lambdas/hyperframes-render-completion/index.js draft_video metadata
   const metadata = draftMetadataFromRenderSnapshot(

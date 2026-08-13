@@ -42,7 +42,12 @@ async function downloadAsset(url: string, label: string) {
   if (!response.ok) {
     throw new Error(`Download failed: ${response.status}`);
   }
-  triggerBlobDownload(await response.blob(), label || 'download');
+  const expected = Number(response.headers.get('content-length'));
+  const blob = await response.blob();
+  if (Number.isFinite(expected) && expected > 0 && blob.size !== expected) {
+    throw new Error(`Download incomplete: got ${blob.size} of ${expected} bytes`);
+  }
+  triggerBlobDownload(blob, label || 'download');
 }
 
 function VideoCard({
