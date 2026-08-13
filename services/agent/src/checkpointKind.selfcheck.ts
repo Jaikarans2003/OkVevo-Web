@@ -105,6 +105,7 @@ function assertRendererStructure(): void {
   assert.doesNotMatch(ui, /Recommended/, 'no Recommended tag');
   assert.doesNotMatch(ui, /scrub\(data\.title\)/, 'floating card must not render title heading');
   assert.doesNotMatch(ui, /<h4/, 'no h4 heading on checkpoint cards');
+  assert.match(ui, /data\.bullets/, 'content bullets (e.g. concepts) still render');
   assert.match(ui, /Continue/, 'phase_gate Continue');
   assert.match(ui, /Skip/, 'single_select Skip');
   assert.match(ui, /className="ml-auto[^"]*"[\s\S]{0,80}Skip|Skip[\s\S]{0,40}ml-auto/, 'Skip on right');

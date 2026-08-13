@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type ResolvedTheme = 'light' | 'dark';
@@ -15,7 +16,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<ThemeOption>('system');
-    const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
+    const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');
     const [mounted, setMounted] = useState(false);
 
     // Detect system theme preference
@@ -50,9 +51,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 setResolvedTheme(savedTheme);
             }
         } else {
-            // Default to system
-            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setResolvedTheme(isDark ? 'dark' : 'light');
+            setResolvedTheme('dark');
         }
     }, []);
 
@@ -68,21 +67,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Apply theme to document root
-    useEffect(() => {
-        if (!mounted) return;
-
-        const root = window.document.documentElement;
-        if (resolvedTheme === 'dark') {
-            root.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-        }
-    }, [resolvedTheme, mounted]);
-
     // Prevent flash of unstyled content
     if (!mounted) {
-        return <div className="h-screen bg-bg-main" />;
+        return <LoadingScreen />;
     }
 
     return (

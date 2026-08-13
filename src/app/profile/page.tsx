@@ -11,6 +11,7 @@ import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../ser
 import { ArrowLeft, ArrowRight, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail, Crown, Building2, Users, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -130,11 +131,7 @@ export default function ProfilePage() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-[#FF4D00] animate-spin" />
-            </div>
-        );
+        return <LoadingScreen loadKey="profile" />;
     }
 
     if (!user) return null;

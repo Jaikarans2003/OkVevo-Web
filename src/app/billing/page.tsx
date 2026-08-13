@@ -31,6 +31,7 @@ import {
 import { getCreditHistory, type CreditTransaction } from '@/services/CreditsService';
 import { FEATURE_COSTS } from '@/types/credits';
 import NoiseOverlay from '@/components/NoiseOverlay';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function BillingPage() {
     const router = useRouter();
@@ -77,11 +78,7 @@ export default function BillingPage() {
     }, [userProfile]);
 
     if (authLoading || loading) {
-        return (
-            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-[#FF4D00] animate-spin" />
-            </div>
-        );
+        return <LoadingScreen loadKey="billing" />;
     }
 
     const formatDate = (timestamp: any) => {

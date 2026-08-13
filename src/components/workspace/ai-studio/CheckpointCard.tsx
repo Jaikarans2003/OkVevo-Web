@@ -75,6 +75,7 @@ export function CheckpointCard({ data }: { data: CheckpointCardData }) {
   const answerText = data.answer?.text?.trim()
     ? scrub(data.answer.text)
     : undefined;
+  const bullets = (data.bullets ?? []).map(scrub).filter(Boolean);
 
   return (
     <div className="rounded-xl bg-[#2F2F2F] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
@@ -82,6 +83,16 @@ export function CheckpointCard({ data }: { data: CheckpointCardData }) {
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         <span className="font-medium text-white/90">{title}</span>
       </div>
+      {bullets.length > 0 ? (
+        <ul className="mb-2 space-y-1.5 text-sm text-white/70">
+          {bullets.map((bullet, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="shrink-0 text-white/40">{i + 1}.</span>
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {answerText ? (
         <p className="text-sm text-white/60">{answerText}</p>
       ) : null}
@@ -368,10 +379,23 @@ export function CheckpointFloatingCard({
       ? 'Describe your revision…'
       : 'Enter brand colors as hex… e.g. #f97316 #fb923c');
 
+  const bullets = (data.bullets ?? []).map(scrub).filter(Boolean);
+
   return (
     <div className="mb-3 rounded-2xl bg-[#2F2F2F] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
       {current ? (
         <p className="text-sm font-medium text-white/80">{current.prompt}</p>
+      ) : null}
+
+      {bullets.length > 0 ? (
+        <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto text-sm text-white/70">
+          {bullets.map((bullet, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="shrink-0 text-white/40">{i + 1}.</span>
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {!isPhaseGate && current?.choices && current.choices.length > 0 ? (
@@ -384,7 +408,7 @@ export function CheckpointFloatingCard({
       ) : null}
 
       {current?.allowFreeform ? (
-        <div className={cn(!isPhaseGate && 'mt-3')}>
+        <div className="mt-3">
           {!isPhaseGate ? (
             <p className="text-xs text-white/45">Something else</p>
           ) : null}

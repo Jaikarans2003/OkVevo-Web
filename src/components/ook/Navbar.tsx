@@ -11,9 +11,10 @@ interface NavbarProps {
     user?: any;
     onJoinClick: () => void;
     theme?: 'light' | 'dark';
+    authenticatedCtaLabel?: string;
 }
 
-const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
+const Navbar = ({ user, onJoinClick, theme = 'dark', authenticatedCtaLabel = 'Workspace' }: NavbarProps) => {
     const [isScrolled, setIsScrolled] = useState(() => typeof window !== 'undefined' ? window.scrollY > 50 : false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [currentSectionTheme, setCurrentSectionTheme] = useState<'light' | 'dark'>('light');
@@ -103,7 +104,7 @@ const Navbar = ({ user, onJoinClick, theme = 'dark' }: NavbarProps) => {
                                         : `bg-text-main/10 text-white border border-text-main/20 hover:bg-white hover:text-black`
                                 }`}
                             >
-                                {user ? 'Workspace' : 'Join'}
+                                {user ? authenticatedCtaLabel : 'Join'}
                             </button>
                         </div>
                     </div>

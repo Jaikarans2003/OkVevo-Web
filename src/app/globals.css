@@ -38,11 +38,34 @@
     --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
   }
 
-  html, body {
+  html {
+    background-color: var(--color-bg-main);
+    overscroll-behavior: none;
+    min-height: 100%;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  html,
+  body {
     @apply bg-bg-main text-text-main antialiased font-sans;
     overflow-x: hidden;
     width: 100%;
+    min-height: 100%;
     position: relative;
+    overscroll-behavior: none;
+    background-color: var(--color-bg-main);
+  }
+
+  /* Prevent rubber-band / scroll chaining on every scroll container */
+  * {
+    overscroll-behavior: none;
   }
 
   ::selection {

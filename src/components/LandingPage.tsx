@@ -77,7 +77,7 @@ export default function LandingPage() {
 
     const handleJoinClick = () => {
         if (user) {
-            router.push('/workspace');
+            router.push('/workspace/ai-studio');
         } else {
             router.push('/login');
         }
@@ -88,7 +88,7 @@ export default function LandingPage() {
             <JsonLd data={websiteSchema} />
             <SmoothScroll />
             <NoiseOverlay />
-            <Navbar user={user} onJoinClick={handleJoinClick} />
+            <Navbar user={user} onJoinClick={handleJoinClick} authenticatedCtaLabel="Chat With Nia" />
             <main>
                 <Hero onJoinClick={handleJoinClick} />
                 <div id="demo">

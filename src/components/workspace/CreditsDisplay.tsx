@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Zap, Loader2 } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { getUserCredits } from '@/services/CreditsService';
 import Link from 'next/link';
 
@@ -43,8 +43,8 @@ export default function CreditsDisplay({ userId, variant = 'navbar', showLink = 
     if (loading) {
         return (
             <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <Loader2 className="w-4 h-4 text-[#FF4D00] animate-spin" />
-                <span className="text-sm font-bold text-white/50">Loading...</span>
+                <Zap className="w-4 h-4 text-[#FF4D00]/40" />
+                <span className="text-sm font-bold text-white/30">—</span>
             </div>
         );
     }

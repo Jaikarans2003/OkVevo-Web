@@ -81,6 +81,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AppLoadingGate } from "@/components/AppLoadingGate";
 import StructuredData from "@/components/StructuredData";
 
 export default function RootLayout({
@@ -100,7 +101,7 @@ export default function RootLayout({
                   var theme = localStorage.getItem('theme');
                   var supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
                   if (!theme && supportDarkMode) theme = 'dark';
-                  if (!theme) theme = 'light';
+                  if (!theme) theme = 'dark';
                   document.documentElement.classList.add(theme);
                 } catch (e) {}
               })();
@@ -108,9 +109,11 @@ export default function RootLayout({
                     }}
                 />
             </head>
-            <body className={`${ubuntu.className} ${ubuntu.variable} ${dancingScript.variable} font-sans antialiased`} suppressHydrationWarning>
+            <body className={`${ubuntu.className} ${ubuntu.variable} ${dancingScript.variable} font-sans antialiased bg-bg-main min-h-dvh`} suppressHydrationWarning>
                 <ThemeProvider>
-                    {children}
+                    <AppLoadingGate>
+                        {children}
+                    </AppLoadingGate>
                 </ThemeProvider>
             </body>
         </html>
