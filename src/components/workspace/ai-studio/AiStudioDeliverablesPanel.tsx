@@ -8,8 +8,6 @@ import type {
   DeliverableImage,
   DeliverableVideo,
 } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
-import { auth } from '@/config/firebase';
-
 const PANEL_EASE = [0.32, 0.72, 0, 1] as const;
 const PANEL_DURATION = 0.44;
 
@@ -19,35 +17,14 @@ type PreviewAsset = {
   kind: 'video' | 'image';
 };
 
-function triggerBlobDownload(blob: Blob, label: string) {
-  const objectUrl = URL.createObjectURL(blob);
+function downloadAsset(url: string) {
+  if (!url) throw new Error('Missing asset URL');
   const anchor = document.createElement('a');
-  anchor.href = objectUrl;
-  anchor.download = label || 'download';
+  anchor.href = url;
+  anchor.rel = 'noopener';
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(objectUrl);
-}
-
-async function downloadAsset(url: string, label: string) {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error('Not authenticated');
-
-  const qs = new URLSearchParams({ url, name: label || 'download' });
-  const response = await fetch(`/api/agent/download?${qs}`, {
-    cache: 'no-store',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Download failed: ${response.status}`);
-  }
-  const expected = Number(response.headers.get('content-length'));
-  const blob = await response.blob();
-  if (Number.isFinite(expected) && expected > 0 && blob.size !== expected) {
-    throw new Error(`Download incomplete: got ${blob.size} of ${expected} bytes`);
-  }
-  triggerBlobDownload(blob, label || 'download');
 }
 
 function VideoCard({
@@ -146,15 +123,14 @@ function AssetPreviewModal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const handleDownload = async () => {
-    setDownloading(true);
+  const handleDownload = () => {
     setDownloadError(null);
     try {
-      await downloadAsset(asset.url, asset.label);
+      downloadAsset(asset.url);
+      setDownloading(true);
+      window.setTimeout(() => setDownloading(false), 400);
     } catch {
       setDownloadError('Download failed. Try again.');
-    } finally {
-      setDownloading(false);
     }
   };
 

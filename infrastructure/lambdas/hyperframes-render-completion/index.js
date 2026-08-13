@@ -134,11 +134,15 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
 
   const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
   const file = bucket.file(firebasePath);
+  const safeBasename = basename.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'download';
   await pipeline(
     object.Body,
     file.createWriteStream({
       resumable: false,
-      metadata: { contentType: 'video/mp4' },
+      metadata: {
+        contentType: 'video/mp4',
+        contentDisposition: `attachment; filename="${safeBasename}"`,
+      },
     })
   );
   await file.makePublic();

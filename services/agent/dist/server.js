@@ -113,8 +113,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs21 = require("fs");
-    var path21 = require("path");
+    var fs22 = require("fs");
+    var path22 = require("path");
     var os4 = require("os");
     var crypto8 = require("crypto");
     var packageJson = require_package();
@@ -222,7 +222,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs21.existsSync(filepath)) {
+            if (fs22.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -230,15 +230,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path21.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path22.resolve(process.cwd(), ".env.vault");
       }
-      if (fs21.existsSync(possibleVaultPath)) {
+      if (fs22.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path21.join(os4.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path22.join(os4.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -255,7 +255,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path21.resolve(process.cwd(), ".env");
+      const dotenvPath = path22.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -279,13 +279,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path22 of optionPaths) {
+      for (const path23 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs21.readFileSync(path22, { encoding }));
+          const parsed = DotenvModule.parse(fs22.readFileSync(path23, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path22} ${e.message}`);
+            _debug(`Failed to load ${path23} ${e.message}`);
           }
           lastError = e;
         }
@@ -300,7 +300,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path21.relative(process.cwd(), filePath);
+            const relative = path22.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -970,10 +970,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path21) {
-  if (!path21)
+function getElementAtPath(obj, path22) {
+  if (!path22)
     return obj;
-  return path21.reduce((acc, key) => acc?.[key], obj);
+  return path22.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1222,11 +1222,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path21, issues) {
+function prefixIssues(path22, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path21);
+    iss.path.unshift(path22);
     return iss;
   });
 }
@@ -1415,7 +1415,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path21 = []) => {
+  const processError = (error41, path22 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1425,7 +1425,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path21, ...issue2.path];
+        const fullpath = [...path22, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1455,9 +1455,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path21) {
+function toDotPath(path22) {
   const segs = [];
-  for (const seg of path21) {
+  for (const seg of path22) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12790,8 +12790,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path21, errorMaps, issueData } = params;
-      const fullPath = [...path21, ...issueData.path || []];
+      const { data, path: path22, errorMaps, issueData } = params;
+      const fullPath = [...path22, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13099,11 +13099,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path21, key) {
+      constructor(parent, value, path22, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path21;
+        this._path = path22;
         this._key = key;
       }
       get path() {
@@ -19050,19 +19050,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS2(token_io_exports);
-    var import_path19 = __toESM2(require("path"));
-    var import_fs19 = __toESM2(require("fs"));
+    var import_path20 = __toESM2(require("path"));
+    var import_fs20 = __toESM2(require("fs"));
     var import_os4 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path19.default.dirname(dir)) {
-          const pkgPath = import_path19.default.join(dir, ".vercel");
-          if (import_fs19.default.existsSync(pkgPath)) {
+        while (dir !== import_path20.default.dirname(dir)) {
+          const pkgPath = import_path20.default.join(dir, ".vercel");
+          if (import_fs20.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path19.default.dirname(dir);
+          dir = import_path20.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19077,9 +19077,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os4.default.platform()) {
         case "darwin":
-          return import_path19.default.join(import_os4.default.homedir(), "Library/Application Support");
+          return import_path20.default.join(import_os4.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path19.default.join(import_os4.default.homedir(), ".local/share");
+          return import_path20.default.join(import_os4.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19130,8 +19130,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS2(auth_config_exports);
-    var fs21 = __toESM2(require("fs"));
-    var path21 = __toESM2(require("path"));
+    var fs22 = __toESM2(require("fs"));
+    var path22 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19140,15 +19140,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path21.join(dataDir, "auth.json");
+      return path22.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs21.existsSync(authPath)) {
+        if (!fs22.existsSync(authPath)) {
           return null;
         }
-        const content = fs21.readFileSync(authPath, "utf8");
+        const content = fs22.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19159,11 +19159,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path21.dirname(authPath);
-      if (!fs21.existsSync(authDir)) {
-        fs21.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path22.dirname(authPath);
+      if (!fs22.existsSync(authDir)) {
+        fs22.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs21.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs22.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19354,8 +19354,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS2(token_util_exports);
-    var path21 = __toESM2(require("path"));
-    var fs21 = __toESM2(require("fs"));
+    var path22 = __toESM2(require("path"));
+    var fs22 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19367,7 +19367,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path21.join(dataDir, vercelFolder);
+      return path22.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19443,13 +19443,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path21.join(dir, ".vercel", "project.json");
-      if (!fs21.existsSync(prjPath)) {
+      const prjPath = path22.join(dir, ".vercel", "project.json");
+      if (!fs22.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs21.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs22.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19464,11 +19464,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs21.mkdirSync(path21.dirname(tokenPath), { mode: 504, recursive: true });
-      fs21.writeFileSync(tokenPath, tokenJson);
-      fs21.chmodSync(tokenPath, 432);
+      fs22.mkdirSync(path22.dirname(tokenPath), { mode: 504, recursive: true });
+      fs22.writeFileSync(tokenPath, tokenJson);
+      fs22.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19478,11 +19478,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs21.existsSync(tokenPath)) {
+      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs22.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs21.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs22.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -32136,7 +32136,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path21 }) => `${baseURL}${path21}`,
+    url: ({ path: path22 }) => `${baseURL}${path22}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -32144,7 +32144,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path21 }) => `${baseURL}${path21}`,
+    url: ({ path: path22 }) => `${baseURL}${path22}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -32152,21 +32152,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path21 }) => `${baseURL}${path21}`,
+    url: ({ path: path22 }) => `${baseURL}${path22}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path21 }) => `${baseURL}${path21}`,
+    url: ({ path: path22 }) => `${baseURL}${path22}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path21 }) => `${baseURL}${path21}`,
+    url: ({ path: path22 }) => `${baseURL}${path22}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35575,6 +35575,48 @@ var init_renderSnapshot = __esm({
   }
 });
 
+// src/tools/lib/remuxMp4Faststart.ts
+async function remuxMp4Faststart(inputPath) {
+  const tmp = `${inputPath}.faststart.mp4`;
+  const result = await execCommand(
+    `ffmpeg -y -i "${inputPath}" -c copy -movflags +faststart "${tmp}"`,
+    { timeoutSeconds: 180 }
+  );
+  if (!result.success) {
+    import_fs.default.rmSync(tmp, { force: true });
+    throw new Error(result.stderr || "ffmpeg faststart remux failed");
+  }
+  import_fs.default.renameSync(tmp, inputPath);
+}
+var import_fs;
+var init_remuxMp4Faststart = __esm({
+  "src/tools/lib/remuxMp4Faststart.ts"() {
+    "use strict";
+    import_fs = __toESM(require("fs"));
+    init_utils();
+  }
+});
+
+// src/storageContentDisposition.ts
+function safeStorageBasename(storagePath) {
+  const cleaned = import_path.default.basename(storagePath).replace(/[/\\?%*:|"<>]/g, "_").trim();
+  return cleaned || "download";
+}
+function contentDispositionForStoragePath(storagePath) {
+  const ext = import_path.default.extname(storagePath).toLowerCase();
+  if (![".mp4", ".webm", ".mov", ".mp3", ".flac", ".png", ".jpg", ".jpeg"].includes(ext)) {
+    return void 0;
+  }
+  return `attachment; filename="${safeStorageBasename(storagePath)}"`;
+}
+var import_path;
+var init_storageContentDisposition = __esm({
+  "src/storageContentDisposition.ts"() {
+    "use strict";
+    import_path = __toESM(require("path"));
+  }
+});
+
 // src/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -35609,12 +35651,12 @@ function getPublicUrl(bucketName, storagePath) {
   return `https://storage.googleapis.com/${bucketName}/${storagePath}`;
 }
 function getTempPath(filename) {
-  return import_path.default.join(import_os.default.tmpdir(), filename);
+  return import_path2.default.join(import_os.default.tmpdir(), filename);
 }
 function walkDir(dir) {
   const results = [];
-  for (const entry of import_fs.default.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = import_path.default.join(dir, entry.name);
+  for (const entry of import_fs2.default.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = import_path2.default.join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...walkDir(fullPath));
     } else {
@@ -35624,7 +35666,7 @@ function walkDir(dir) {
   return results;
 }
 function contentTypeForPath(filePath) {
-  const ext = import_path.default.extname(filePath).toLowerCase();
+  const ext = import_path2.default.extname(filePath).toLowerCase();
   switch (ext) {
     case ".json":
       return "application/json";
@@ -35658,17 +35700,19 @@ function contentTypeForPath(filePath) {
 async function uploadFileToStorage(localFilePath, storagePath, options = {}) {
   const bucket = (0, import_storage.getStorage)().bucket(getStorageBucketName());
   const fileRef = bucket.file(storagePath);
-  await fileRef.save(import_fs.default.readFileSync(localFilePath), {
+  const contentDisposition = contentDispositionForStoragePath(storagePath);
+  await fileRef.save(import_fs2.default.readFileSync(localFilePath), {
     resumable: false,
     metadata: {
-      contentType: contentTypeForPath(localFilePath)
+      contentType: contentTypeForPath(localFilePath),
+      ...contentDisposition ? { contentDisposition } : {}
     }
   });
   await fileRef.makePublic();
   const url2 = getPublicUrl(fileRef.bucket.name, storagePath);
   if (options.deleteLocal !== false) {
     try {
-      import_fs.default.unlinkSync(localFilePath);
+      import_fs2.default.unlinkSync(localFilePath);
     } catch {
     }
   }
@@ -35685,7 +35729,7 @@ async function uploadDirectoryToStorage(localDir, storagePrefix) {
   const prefixUrl = getPublicUrl(bucket.name, storagePrefix);
   let indexUrl = "";
   for (const filePath of walkDir(localDir)) {
-    const relative = import_path.default.relative(localDir, filePath).replace(/\\/g, "/");
+    const relative = import_path2.default.relative(localDir, filePath).replace(/\\/g, "/");
     const storagePath = `${storagePrefix}/${relative}`;
     const url2 = await uploadFileToStorage(filePath, storagePath, { deleteLocal: false });
     if (relative === "index.html") {
@@ -35715,8 +35759,8 @@ async function downloadStoragePrefixToDir(storagePrefix, localDir) {
     if (file2.name.endsWith("/")) continue;
     const relative = file2.name.slice(prefix.length);
     if (!relative) continue;
-    const dest = import_path.default.join(localDir, ...relative.split("/"));
-    import_fs.default.mkdirSync(import_path.default.dirname(dest), { recursive: true });
+    const dest = import_path2.default.join(localDir, ...relative.split("/"));
+    import_fs2.default.mkdirSync(import_path2.default.dirname(dest), { recursive: true });
     await file2.download({ destination: dest });
   }
 }
@@ -35751,7 +35795,7 @@ async function allocateFinalVideoBasename(userId, sessionId) {
   }
   const session = (await db.collection("sessions").doc(sessionId).get()).data();
   if (session?.userId === userId && session.renderStatus === "RUNNING" && typeof session.renderOutputKey === "string") {
-    const reserved = import_path.default.basename(session.renderOutputKey);
+    const reserved = import_path2.default.basename(session.renderOutputKey);
     if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
   }
   return nextFinalVideoBasename(names);
@@ -35812,6 +35856,7 @@ async function finalizeRenderFromLocalFile(userId, sessionId, tempPath, preferre
   }
   const basename = preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename) ? preferredBasename : await allocateFinalVideoBasename(userId, sessionId);
   const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
+  await remuxMp4Faststart(tempPath);
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
   const metadata = draftMetadataFromRenderSnapshot(
     current?.renderSnapshot
@@ -35855,11 +35900,11 @@ async function finalizeRenderFromUrl(userId, sessionId, videoUrl) {
   if (!response.ok) {
     throw new Error(`Download failed: ${response.status} ${videoUrl}`);
   }
-  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  import_fs2.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
   try {
     return await finalizeRenderFromLocalFile(userId, sessionId, tempPath);
   } finally {
-    import_fs.default.rmSync(tempPath, { force: true });
+    import_fs2.default.rmSync(tempPath, { force: true });
   }
 }
 async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, region) {
@@ -35873,16 +35918,16 @@ async function finalizeRenderFromS3(userId, sessionId, bucketName, outputKey, re
   );
   if (!response.Body) throw new Error("Render output is missing from S3");
   const tempPath = getTempPath(`hyperframes-${sessionId}.mp4`);
-  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
+  import_fs2.default.writeFileSync(tempPath, Buffer.from(await response.Body.transformToByteArray()));
   try {
     return await finalizeRenderFromLocalFile(
       userId,
       sessionId,
       tempPath,
-      import_path.default.basename(outputKey)
+      import_path2.default.basename(outputKey)
     );
   } finally {
-    import_fs.default.rmSync(tempPath, { force: true });
+    import_fs2.default.rmSync(tempPath, { force: true });
   }
 }
 function backgroundAssetIdentity(kind, entryId) {
@@ -35903,7 +35948,7 @@ async function finalizeBackgroundFromUrl(userId, sessionId, kind, mediaUrl) {
   if (!response.ok) {
     throw new Error(`Download failed: ${response.status} ${mediaUrl}`);
   }
-  import_fs.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
+  import_fs2.default.writeFileSync(tempPath, Buffer.from(await response.arrayBuffer()));
   try {
     const storagePath = `users/${userId}/sessions/${sessionId}/${filename}`;
     const publicUrl = await uploadToStorage(tempPath, storagePath);
@@ -35927,7 +35972,7 @@ async function finalizeBackgroundFromUrl(userId, sessionId, kind, mediaUrl) {
     }
     return publicUrl;
   } finally {
-    import_fs.default.rmSync(tempPath, { force: true });
+    import_fs2.default.rmSync(tempPath, { force: true });
   }
 }
 function selfcheckBackgroundIdentity() {
@@ -35966,13 +36011,13 @@ async function claimHeygenEvent(eventId) {
     return false;
   }
 }
-var import_fs, import_os, import_path, import_client_s3, import_firestore3, import_storage;
+var import_fs2, import_os, import_path2, import_client_s3, import_firestore3, import_storage;
 var init_storage = __esm({
   "src/storage.ts"() {
     "use strict";
-    import_fs = __toESM(require("fs"));
+    import_fs2 = __toESM(require("fs"));
     import_os = __toESM(require("os"));
-    import_path = __toESM(require("path"));
+    import_path2 = __toESM(require("path"));
     import_client_s3 = require("@aws-sdk/client-s3");
     import_firestore3 = require("firebase-admin/firestore");
     import_storage = require("firebase-admin/storage");
@@ -35981,6 +36026,8 @@ var init_storage = __esm({
     init_finalVideoBasename();
     init_manimClipBasename();
     init_renderSnapshot();
+    init_remuxMp4Faststart();
+    init_storageContentDisposition();
     init_finalVideoBasename();
     init_manimClipBasename();
   }
@@ -35996,7 +36043,7 @@ function sanitizedShellEnv() {
 }
 function templateDirFor(orientation = "horizontal") {
   if (process.env.EDU_VIDEO_TEMPLATE_DIR) return process.env.EDU_VIDEO_TEMPLATE_DIR;
-  return import_path2.default.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
+  return import_path3.default.join(EDU_VIDEO_TEMPLATES_ROOT, orientation);
 }
 function canvasForOrientation(orientation) {
   return orientation === "vertical" ? { width: 1080, height: 1920, aspectRatio: "9:16" } : { width: 1920, height: 1080, aspectRatio: "16:9" };
@@ -36033,34 +36080,34 @@ ACCENT = "${colors.accent}"
 PROBLEM_DIM = "#444444"`;
 }
 function getSessionWorkdir(sessionId) {
-  const dir = import_path2.default.join(import_os2.default.tmpdir(), "okvevo", sessionId);
-  import_fs2.default.mkdirSync(dir, { recursive: true });
+  const dir = import_path3.default.join(import_os2.default.tmpdir(), "okvevo", sessionId);
+  import_fs3.default.mkdirSync(dir, { recursive: true });
   return dir;
 }
 function sessionArtifactLocalPath(workdir, need) {
   if (typeof need !== "string") return need.localPath;
   switch (need) {
     case "transcript":
-      return import_path2.default.join(workdir, "transcript.json");
+      return import_path3.default.join(workdir, "transcript.json");
     case "concepts":
-      return import_path2.default.join(workdir, "concepts.json");
+      return import_path3.default.join(workdir, "concepts.json");
     case "manim_scripts":
-      return import_path2.default.join(workdir, "manim_scripts");
+      return import_path3.default.join(workdir, "manim_scripts");
     case "hf_project":
-      return import_path2.default.join(workdir, "hf-project");
+      return import_path3.default.join(workdir, "hf-project");
   }
 }
 function sessionArtifactPresent(workdir, need) {
   const marker26 = sessionArtifactLocalPath(workdir, need);
-  if (typeof need !== "string") return import_fs2.default.existsSync(marker26);
+  if (typeof need !== "string") return import_fs3.default.existsSync(marker26);
   if (need === "transcript" || need === "concepts") {
-    return import_fs2.default.existsSync(marker26);
+    return import_fs3.default.existsSync(marker26);
   }
   if (need === "hf_project") {
-    return import_fs2.default.existsSync(import_path2.default.join(marker26, "index.html"));
+    return import_fs3.default.existsSync(import_path3.default.join(marker26, "index.html"));
   }
-  if (!import_fs2.default.existsSync(marker26) || !import_fs2.default.statSync(marker26).isDirectory()) return false;
-  return import_fs2.default.readdirSync(marker26).some((f) => f.endsWith(".py"));
+  if (!import_fs3.default.existsSync(marker26) || !import_fs3.default.statSync(marker26).isDirectory()) return false;
+  return import_fs3.default.readdirSync(marker26).some((f) => f.endsWith(".py"));
 }
 function isSessionWorkdirCold(sessionId) {
   const workdir = getSessionWorkdir(sessionId);
@@ -36068,15 +36115,15 @@ function isSessionWorkdirCold(sessionId) {
 }
 function artifactNeedsForResolvedPath(sessionId, resolvedPath, taggedArtifacts = []) {
   const workdir = getSessionWorkdir(sessionId);
-  const rel = import_path2.default.relative(workdir, resolvedPath);
-  if (!rel || rel.startsWith("..") || import_path2.default.isAbsolute(rel)) {
+  const rel = import_path3.default.relative(workdir, resolvedPath);
+  if (!rel || rel.startsWith("..") || import_path3.default.isAbsolute(rel)) {
     return [];
   }
   const tagged = taggedArtifacts.find(
-    (artifact) => import_path2.default.resolve(artifact.localPath) === import_path2.default.resolve(resolvedPath)
+    (artifact) => import_path3.default.resolve(artifact.localPath) === import_path3.default.resolve(resolvedPath)
   );
   if (tagged) return [tagged];
-  const top = rel.split(import_path2.default.sep)[0];
+  const top = rel.split(import_path3.default.sep)[0];
   if (top === "transcript.json" || rel === "transcript.json") return ["transcript"];
   if (top === "concepts.json" || rel === "concepts.json") return ["concepts"];
   if (top === "manim_scripts") return ["manim_scripts"];
@@ -36103,9 +36150,9 @@ async function resolveTaggedArtifacts(userId, sessionId, assets, parseStoragePat
     if (!storagePath.startsWith(prefix)) return [];
     const suffix = storagePath.slice(prefix.length);
     if (!suffix || suffix.endsWith("/")) return [];
-    const relativePath = isUpload ? import_path2.default.join("uploads", suffix) : suffix;
-    const localPath = import_path2.default.resolve(workdir, relativePath);
-    if (!localPath.startsWith(`${import_path2.default.resolve(workdir)}${import_path2.default.sep}`)) return [];
+    const relativePath = isUpload ? import_path3.default.join("uploads", suffix) : suffix;
+    const localPath = import_path3.default.resolve(workdir, relativePath);
+    if (!localPath.startsWith(`${import_path3.default.resolve(workdir)}${import_path3.default.sep}`)) return [];
     return [{ ...asset, localPath, key: `tagged_${index}` }];
   });
 }
@@ -36133,7 +36180,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
       continue;
     }
     if (typeof need !== "string") {
-      import_fs2.default.mkdirSync(import_path2.default.dirname(need.localPath), { recursive: true });
+      import_fs3.default.mkdirSync(import_path3.default.dirname(need.localPath), { recursive: true });
       await resolved.downloadFile(need.url, need.localPath);
       result[resultKey] = sessionArtifactPresent(workdir, need) ? "restored" : "unavailable";
       continue;
@@ -36151,7 +36198,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
     }
     if (need === "manim_scripts") {
       const dest2 = sessionArtifactLocalPath(workdir, "manim_scripts");
-      import_fs2.default.mkdirSync(dest2, { recursive: true });
+      import_fs3.default.mkdirSync(dest2, { recursive: true });
       const prefix = `users/${userId}/sessions/${sessionId}/manim_scripts`;
       await resolved.downloadStoragePrefixToDir(prefix, dest2);
       result[resultKey] = sessionArtifactPresent(workdir, "manim_scripts") ? "restored" : "unavailable";
@@ -36163,7 +36210,7 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
       continue;
     }
     const dest = sessionArtifactLocalPath(workdir, "hf_project");
-    import_fs2.default.mkdirSync(dest, { recursive: true });
+    import_fs3.default.mkdirSync(dest, { recursive: true });
     const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
     await resolved.downloadStoragePrefixToDir(storagePath, dest);
     result[resultKey] = sessionArtifactPresent(workdir, "hf_project") ? "restored" : "unavailable";
@@ -36171,11 +36218,11 @@ async function ensureSessionArtifacts(userId, sessionId, needs, deps) {
   return result;
 }
 function resolveToolPath(sessionId, inputPath) {
-  if (import_path2.default.isAbsolute(inputPath)) return inputPath;
+  if (import_path3.default.isAbsolute(inputPath)) return inputPath;
   if (inputPath.startsWith("Skills/")) {
-    return import_path2.default.join(SKILLS_DIR, inputPath.slice("Skills/".length));
+    return import_path3.default.join(SKILLS_DIR, inputPath.slice("Skills/".length));
   }
-  return import_path2.default.join(getSessionWorkdir(sessionId), inputPath);
+  return import_path3.default.join(getSessionWorkdir(sessionId), inputPath);
 }
 function globToRegex(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -36222,8 +36269,8 @@ async function execCommand(command, options = {}) {
 }
 function loadSkillFile(relativePath) {
   try {
-    const full = import_path2.default.join(SKILLS_DIR, relativePath);
-    return import_fs2.default.readFileSync(full, "utf-8");
+    const full = import_path3.default.join(SKILLS_DIR, relativePath);
+    return import_fs3.default.readFileSync(full, "utf-8");
   } catch {
     return "";
   }
@@ -36262,10 +36309,10 @@ async function downloadFile(url2, destPath) {
   if (!response.body) {
     throw new Error(`Download failed: empty body ${url2}`);
   }
-  import_fs2.default.mkdirSync(import_path2.default.dirname(destPath), { recursive: true });
+  import_fs3.default.mkdirSync(import_path3.default.dirname(destPath), { recursive: true });
   await (0, import_promises.pipeline)(
     import_stream2.Readable.fromWeb(response.body),
-    import_fs2.default.createWriteStream(destPath)
+    import_fs3.default.createWriteStream(destPath)
   );
 }
 async function normalizeSpeakerVideo(inputPath, outputPath) {
@@ -36276,7 +36323,7 @@ async function normalizeSpeakerVideo(inputPath, outputPath) {
   if (!probe.success) {
     throw new Error(probe.stderr || "ffprobe failed on speaker video");
   }
-  import_fs2.default.mkdirSync(import_path2.default.dirname(outputPath), { recursive: true });
+  import_fs3.default.mkdirSync(import_path3.default.dirname(outputPath), { recursive: true });
   const ffmpeg = await execCommand(
     `ffmpeg -y -i "${inputPath}" -vf "${SPEAKER_NORMALIZE_VF}" -an -c:v libx264 -crf ${SPEAKER_NORMALIZE_CRF} -preset ${SPEAKER_NORMALIZE_PRESET} -pix_fmt yuv420p -movflags +faststart "${outputPath}"`,
     { timeoutSeconds: 600 }
@@ -36289,10 +36336,10 @@ function stripCodeFences(text2) {
   return text2.replace(/```(?:python|json|html)?\n?/g, "").replace(/```\n?/g, "").trim();
 }
 function loadSessionTranscript(sessionId) {
-  const transcriptPath = import_path2.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (!import_fs2.default.existsSync(transcriptPath)) return null;
+  const transcriptPath = import_path3.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (!import_fs3.default.existsSync(transcriptPath)) return null;
   try {
-    const saved = JSON.parse(import_fs2.default.readFileSync(transcriptPath, "utf-8"));
+    const saved = JSON.parse(import_fs3.default.readFileSync(transcriptPath, "utf-8"));
     const text2 = typeof saved.text === "string" ? saved.text : "";
     const words = Array.isArray(saved.words) ? saved.words : [];
     if (!text2 && words.length === 0) return null;
@@ -36366,8 +36413,8 @@ function buildSegmentId(index, mode) {
 }
 function buildSegmentSection(seg, index, manimClips, brandCss, templateDir) {
   const mode = seg.mode.toLowerCase();
-  const templatePath = import_path2.default.join(templateDir, "compositions", `mode-${mode}.html`);
-  let html = import_fs2.default.readFileSync(templatePath, "utf-8");
+  const templatePath = import_path3.default.join(templateDir, "compositions", `mode-${mode}.html`);
+  let html = import_fs3.default.readFileSync(templatePath, "utf-8");
   const segmentId = buildSegmentId(index, seg.mode);
   const duration3 = seg.end - seg.start;
   const nn = padSegmentNum(index);
@@ -36625,14 +36672,14 @@ function substitutePlaceholders(template, replacements) {
   }
   return result;
 }
-var import_child_process, import_fs2, import_os2, import_path2, import_stream2, import_promises, import_util6, execAsync, SHELL_ENV_KEYS, SKILLS_DIR, EDU_VIDEO_TEMPLATES_ROOT, EDU_VIDEO_TEMPLATE_DIR, TOOL_MODEL, DEFAULT_BRAND_COLORS, DEFAULT_HYPERFRAMES_JSON, SPEAKER_MAX_BYTES, SPEAKER_NORMALIZE_CRF, SPEAKER_NORMALIZE_PRESET, SPEAKER_NORMALIZE_VF, SPEAKER_PRESETS;
+var import_child_process, import_fs3, import_os2, import_path3, import_stream2, import_promises, import_util6, execAsync, SHELL_ENV_KEYS, SKILLS_DIR, EDU_VIDEO_TEMPLATES_ROOT, EDU_VIDEO_TEMPLATE_DIR, TOOL_MODEL, DEFAULT_BRAND_COLORS, DEFAULT_HYPERFRAMES_JSON, SPEAKER_MAX_BYTES, SPEAKER_NORMALIZE_CRF, SPEAKER_NORMALIZE_PRESET, SPEAKER_NORMALIZE_VF, SPEAKER_PRESETS;
 var init_utils = __esm({
   "src/tools/lib/utils.ts"() {
     "use strict";
     import_child_process = require("child_process");
-    import_fs2 = __toESM(require("fs"));
+    import_fs3 = __toESM(require("fs"));
     import_os2 = __toESM(require("os"));
-    import_path2 = __toESM(require("path"));
+    import_path3 = __toESM(require("path"));
     import_stream2 = require("stream");
     import_promises = require("stream/promises");
     import_util6 = require("util");
@@ -36649,8 +36696,8 @@ var init_utils = __esm({
       "USER",
       "LOGNAME"
     ];
-    SKILLS_DIR = import_path2.default.resolve(__dirname, "../../../../../Skills");
-    EDU_VIDEO_TEMPLATES_ROOT = import_path2.default.join(SKILLS_DIR, "edu-video/templates");
+    SKILLS_DIR = import_path3.default.resolve(__dirname, "../../../../../Skills");
+    EDU_VIDEO_TEMPLATES_ROOT = import_path3.default.join(SKILLS_DIR, "edu-video/templates");
     EDU_VIDEO_TEMPLATE_DIR = templateDirFor("horizontal");
     TOOL_MODEL = process.env.AGENT_TOOL_MODEL ?? "anthropic/claude-sonnet-4-5";
     DEFAULT_BRAND_COLORS = {
@@ -37225,7 +37272,7 @@ async function probeOrientationHint(videoUrl) {
     return void 0;
   } finally {
     try {
-      import_fs3.default.unlinkSync(dest);
+      import_fs4.default.unlinkSync(dest);
     } catch {
     }
   }
@@ -37239,8 +37286,8 @@ async function extractBrandFromVideo(videoUrl) {
       `ffmpeg -y -ss 1 -i "${dest}" -vf "scale=1:1" -frames:v 1 -f rawvideo -pix_fmt rgb24 "${raw}"`,
       { timeoutSeconds: 60 }
     );
-    if (!ffmpeg.success || !import_fs3.default.existsSync(raw)) return DEFAULT_BRAND_COLORS;
-    const buf = import_fs3.default.readFileSync(raw);
+    if (!ffmpeg.success || !import_fs4.default.existsSync(raw)) return DEFAULT_BRAND_COLORS;
+    const buf = import_fs4.default.readFileSync(raw);
     if (buf.length < 3) return DEFAULT_BRAND_COLORS;
     const r = buf[0];
     const g = buf[1];
@@ -37253,7 +37300,7 @@ async function extractBrandFromVideo(videoUrl) {
   } finally {
     for (const p of [dest, raw]) {
       try {
-        import_fs3.default.unlinkSync(p);
+        import_fs4.default.unlinkSync(p);
       } catch {
       }
     }
@@ -37354,11 +37401,11 @@ async function maybeFrontLoadPrePipeline(opts) {
   });
   return { halted: true, checkpointDisplay: written.checkpointDisplay };
 }
-var import_fs3;
+var import_fs4;
 var init_prePipelineCheckpoint = __esm({
   "src/skills/eduVideo/prePipelineCheckpoint.ts"() {
     "use strict";
-    import_fs3 = __toESM(require("fs"));
+    import_fs4 = __toESM(require("fs"));
     init_checkpoint();
     init_storage();
     init_utils();
@@ -37516,8 +37563,8 @@ function resolveSkill(skillId, message) {
   if (skillId) {
     const normalized = skillId.replace(/^\//, "").trim();
     if (normalized) {
-      const skillPath = import_path3.default.join(SKILLS_DIR2, normalized, "SKILL.md");
-      if (import_fs4.default.existsSync(skillPath)) {
+      const skillPath = import_path4.default.join(SKILLS_DIR2, normalized, "SKILL.md");
+      if (import_fs5.default.existsSync(skillPath)) {
         return normalized;
       }
       console.warn(`Skill not found for skillId: ${skillId}`);
@@ -37559,26 +37606,26 @@ function detectSkill(message) {
   return null;
 }
 function loadSkillMd(skillName) {
-  const skillPath = import_path3.default.join(SKILLS_DIR2, skillName, "SKILL.md");
-  if (!import_fs4.default.existsSync(skillPath)) {
+  const skillPath = import_path4.default.join(SKILLS_DIR2, skillName, "SKILL.md");
+  if (!import_fs5.default.existsSync(skillPath)) {
     throw new Error(`SKILL.md not found: Skills/${skillName}/SKILL.md`);
   }
-  return import_fs4.default.readFileSync(skillPath, "utf-8");
+  return import_fs5.default.readFileSync(skillPath, "utf-8");
 }
 function loadAgentMd() {
-  const agentPath = import_path3.default.join(SKILLS_DIR2, "AGENT.md");
-  if (import_fs4.default.existsSync(agentPath)) {
-    return import_fs4.default.readFileSync(agentPath, "utf-8");
+  const agentPath = import_path4.default.join(SKILLS_DIR2, "AGENT.md");
+  if (import_fs5.default.existsSync(agentPath)) {
+    return import_fs5.default.readFileSync(agentPath, "utf-8");
   }
   return DEFAULT_AGENT_PROMPT;
 }
-var import_fs4, import_path3, SKILLS_DIR2, DEFAULT_AGENT_PROMPT;
+var import_fs5, import_path4, SKILLS_DIR2, DEFAULT_AGENT_PROMPT;
 var init_skills = __esm({
   "src/skills.ts"() {
     "use strict";
-    import_fs4 = __toESM(require("fs"));
-    import_path3 = __toESM(require("path"));
-    SKILLS_DIR2 = import_path3.default.resolve(__dirname, "../../../Skills");
+    import_fs5 = __toESM(require("fs"));
+    import_path4 = __toESM(require("path"));
+    SKILLS_DIR2 = import_path4.default.resolve(__dirname, "../../../Skills");
     DEFAULT_AGENT_PROMPT = `You are OkVevo AI, a helpful assistant for creating educational videos from lecture recordings.
 
 When a user wants to create an educational video, use your tools to complete the full pipeline: transcribe \u2192 extract concepts \u2192 render animations \u2192 build composition \u2192 render video.
@@ -37591,18 +37638,18 @@ For all other messages, respond conversationally.`;
 
 // src/systemPromptCache.ts
 function getAgentMdMtime() {
-  const agentPath = import_path4.default.join(SKILLS_DIR3, "AGENT.md");
-  if (!import_fs5.default.existsSync(agentPath)) {
+  const agentPath = import_path5.default.join(SKILLS_DIR3, "AGENT.md");
+  if (!import_fs6.default.existsSync(agentPath)) {
     return 0;
   }
-  return import_fs5.default.statSync(agentPath).mtimeMs;
+  return import_fs6.default.statSync(agentPath).mtimeMs;
 }
 function getSkillMdMtime(skillName) {
-  const skillPath = import_path4.default.join(SKILLS_DIR3, skillName, "SKILL.md");
-  if (!import_fs5.default.existsSync(skillPath)) {
+  const skillPath = import_path5.default.join(SKILLS_DIR3, skillName, "SKILL.md");
+  if (!import_fs6.default.existsSync(skillPath)) {
     return 0;
   }
-  return import_fs5.default.statSync(skillPath).mtimeMs;
+  return import_fs6.default.statSync(skillPath).mtimeMs;
 }
 function buildSystemPrompt(skillName) {
   let prompt = loadAgentMd();
@@ -37637,14 +37684,14 @@ function getCachedSystemPrompt(sessionId, skillName) {
   });
   return prompt;
 }
-var import_fs5, import_path4, SKILLS_DIR3, systemPromptCache;
+var import_fs6, import_path5, SKILLS_DIR3, systemPromptCache;
 var init_systemPromptCache = __esm({
   "src/systemPromptCache.ts"() {
     "use strict";
-    import_fs5 = __toESM(require("fs"));
-    import_path4 = __toESM(require("path"));
+    import_fs6 = __toESM(require("fs"));
+    import_path5 = __toESM(require("path"));
     init_skills();
-    SKILLS_DIR3 = import_path4.default.resolve(__dirname, "../../../Skills");
+    SKILLS_DIR3 = import_path5.default.resolve(__dirname, "../../../Skills");
     systemPromptCache = /* @__PURE__ */ new Map();
   }
 });
@@ -37708,13 +37755,13 @@ function oldStringNotFoundError(resolvedPath) {
   return `old_string not found. Call read_file on "${resolvedPath}" before retrying str_replace \u2014 do not guess content and do not use run_command.`;
 }
 function hfProjectObjectPath(userId, sessionId, resolvedPath, workdir = getSessionWorkdir(sessionId)) {
-  const projectDir = import_path5.default.join(workdir, "hf-project");
-  const rel = import_path5.default.relative(projectDir, resolvedPath).replace(/\\/g, "/");
-  if (!rel || rel.startsWith("..") || import_path5.default.isAbsolute(rel)) return null;
+  const projectDir = import_path6.default.join(workdir, "hf-project");
+  const rel = import_path6.default.relative(projectDir, resolvedPath).replace(/\\/g, "/");
+  if (!rel || rel.startsWith("..") || import_path6.default.isAbsolute(rel)) return null;
   return `users/${userId}/sessions/${sessionId}/hf-project/${rel}`;
 }
 async function syncHfProjectFileAfterEdit(userId, sessionId, resolvedPath, upload, workdir = getSessionWorkdir(sessionId)) {
-  if (!isHfProjectPath(resolvedPath) || !import_fs6.default.existsSync(resolvedPath)) {
+  if (!isHfProjectPath(resolvedPath) || !import_fs7.default.existsSync(resolvedPath)) {
     return null;
   }
   const storagePath = hfProjectObjectPath(userId, sessionId, resolvedPath, workdir);
@@ -37731,12 +37778,12 @@ async function syncHfProjectFileAfterEdit(userId, sessionId, resolvedPath, uploa
     };
   }
 }
-var import_fs6, import_path5;
+var import_fs7, import_path6;
 var init_hfProjectSync = __esm({
   "src/tools/lib/hfProjectSync.ts"() {
     "use strict";
-    import_fs6 = __toESM(require("fs"));
-    import_path5 = __toESM(require("path"));
+    import_fs7 = __toESM(require("fs"));
+    import_path6 = __toESM(require("path"));
     init_utils();
   }
 });
@@ -37757,7 +37804,7 @@ var init_ownedEditFiles = __esm({
 
 // src/tools/general/filesystem.ts
 async function ensurePathArtifacts(ctx, resolvedPath) {
-  if (import_fs7.default.existsSync(resolvedPath)) return;
+  if (import_fs8.default.existsSync(resolvedPath)) return;
   const needs = artifactNeedsForResolvedPath(
     ctx.sessionId,
     resolvedPath,
@@ -37831,8 +37878,8 @@ Paths are relative to the session work directory unless absolute.`,
       }),
       execute: async ({ path: filePath, content }) => {
         const baseDir = getSessionWorkdir(ctx.sessionId);
-        const resolved = import_path6.default.isAbsolute(filePath) ? filePath : import_path6.default.join(baseDir, filePath);
-        if (!import_fs7.default.existsSync(resolved)) {
+        const resolved = import_path7.default.isAbsolute(filePath) ? filePath : import_path7.default.join(baseDir, filePath);
+        if (!import_fs8.default.existsSync(resolved)) {
           await ensurePathArtifacts(ctx, resolved);
         }
         if (isManimScriptPath(resolved)) {
@@ -37841,8 +37888,8 @@ Paths are relative to the session work directory unless absolute.`,
             return { error: maxVisibleError, path: resolved };
           }
         }
-        import_fs7.default.mkdirSync(import_path6.default.dirname(resolved), { recursive: true });
-        import_fs7.default.writeFileSync(resolved, content, "utf-8");
+        import_fs8.default.mkdirSync(import_path7.default.dirname(resolved), { recursive: true });
+        import_fs8.default.writeFileSync(resolved, content, "utf-8");
         const result = {
           path: resolved,
           bytes_written: Buffer.byteLength(content, "utf-8")
@@ -37871,14 +37918,14 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs7.default.existsSync(resolved)) {
+          if (!import_fs8.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs7.default.statSync(resolved);
+          const stat = import_fs8.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs7.default.readFileSync(resolved);
+          const buf = import_fs8.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return {
               path: resolved,
@@ -37923,7 +37970,7 @@ Paths are relative to the session work directory unless absolute.`,
       execute: async ({ directory, pattern, content_search, max_results }) => {
         const resolved = resolveToolPath(ctx.sessionId, directory);
         await ensurePathArtifacts(ctx, resolved);
-        if (!import_fs7.default.existsSync(resolved)) {
+        if (!import_fs8.default.existsSync(resolved)) {
           return { error: "Directory not found", matches: [] };
         }
         let allFiles;
@@ -37934,7 +37981,7 @@ Paths are relative to the session work directory unless absolute.`,
           return { error: message, matches: [] };
         }
         const globRegex = pattern ? globToRegex(pattern) : null;
-        const candidates = globRegex ? allFiles.filter((file2) => globRegex.test(import_path6.default.basename(file2))) : allFiles;
+        const candidates = globRegex ? allFiles.filter((file2) => globRegex.test(import_path7.default.basename(file2))) : allFiles;
         const matches = [];
         for (const file2 of candidates) {
           if (matches.length >= max_results) {
@@ -37942,11 +37989,11 @@ Paths are relative to the session work directory unless absolute.`,
           }
           const entry = {
             path: file2,
-            relative: import_path6.default.relative(resolved, file2)
+            relative: import_path7.default.relative(resolved, file2)
           };
           if (content_search) {
             try {
-              const buf = import_fs7.default.readFileSync(file2);
+              const buf = import_fs8.default.readFileSync(file2);
               if (isBinaryBuffer(buf)) {
                 continue;
               }
@@ -37985,14 +38032,14 @@ Paths are relative to the session work directory unless absolute.`,
         const resolved = resolveToolPath(ctx.sessionId, filePath);
         await ensurePathArtifacts(ctx, resolved);
         try {
-          if (!import_fs7.default.existsSync(resolved)) {
+          if (!import_fs8.default.existsSync(resolved)) {
             return { error: "File not found", path: resolved };
           }
-          const stat = import_fs7.default.statSync(resolved);
+          const stat = import_fs8.default.statSync(resolved);
           if (stat.isDirectory()) {
             return { error: "Path is a directory", path: resolved };
           }
-          const buf = import_fs7.default.readFileSync(resolved);
+          const buf = import_fs8.default.readFileSync(resolved);
           if (isBinaryBuffer(buf)) {
             return { error: "File is binary and cannot be edited as text", path: resolved };
           }
@@ -38015,7 +38062,7 @@ Paths are relative to the session work directory unless absolute.`,
               return { error: maxVisibleError, path: resolved };
             }
           }
-          import_fs7.default.writeFileSync(resolved, updated, "utf-8");
+          import_fs8.default.writeFileSync(resolved, updated, "utf-8");
           const result = {
             path: resolved,
             bytes_written: Buffer.byteLength(updated, "utf-8")
@@ -38038,12 +38085,12 @@ Paths are relative to the session work directory unless absolute.`,
     })
   };
 }
-var import_fs7, import_path6;
+var import_fs8, import_path7;
 var init_filesystem = __esm({
   "src/tools/general/filesystem.ts"() {
     "use strict";
-    import_fs7 = __toESM(require("fs"));
-    import_path6 = __toESM(require("path"));
+    import_fs8 = __toESM(require("fs"));
+    import_path7 = __toESM(require("path"));
     init_dist5();
     init_zod();
     init_utils();
@@ -38185,7 +38232,7 @@ async function callOpenRouterVision(imageBase64, mimeType, question) {
   return content;
 }
 function detectMimeType(filePath) {
-  const ext = import_path7.default.extname(filePath).toLowerCase();
+  const ext = import_path8.default.extname(filePath).toLowerCase();
   const map2 = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -38206,8 +38253,8 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
         question: external_exports2.string().describe("What you want to know about the image. Be specific.")
       }),
       execute: async ({ image_url, question }) => {
-        const ext = import_path7.default.extname(new URL(image_url).pathname) || ".jpg";
-        const tempPath = import_path7.default.join(
+        const ext = import_path8.default.extname(new URL(image_url).pathname) || ".jpg";
+        const tempPath = import_path8.default.join(
           require("os").tmpdir(),
           "okvevo",
           ctx.sessionId,
@@ -38215,7 +38262,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
         );
         try {
           await downloadFile(image_url, tempPath);
-          const buf = import_fs8.default.readFileSync(tempPath);
+          const buf = import_fs9.default.readFileSync(tempPath);
           const base643 = buf.toString("base64");
           const mimeType = detectMimeType(tempPath);
           const analysis = await callOpenRouterVision(base643, mimeType, question);
@@ -38225,7 +38272,7 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
           throw new Error(`Vision analysis failed: ${message}`);
         } finally {
           try {
-            if (import_fs8.default.existsSync(tempPath)) import_fs8.default.unlinkSync(tempPath);
+            if (import_fs9.default.existsSync(tempPath)) import_fs9.default.unlinkSync(tempPath);
           } catch {
           }
         }
@@ -38233,12 +38280,12 @@ read text from screenshots, inspect thumbnails, or answer any visual question.`,
     })
   };
 }
-var import_fs8, import_path7, VISION_MODEL;
+var import_fs9, import_path8, VISION_MODEL;
 var init_vision = __esm({
   "src/tools/general/vision.ts"() {
     "use strict";
-    import_fs8 = __toESM(require("fs"));
-    import_path7 = __toESM(require("path"));
+    import_fs9 = __toESM(require("fs"));
+    import_path8 = __toESM(require("path"));
     init_dist5();
     init_zod();
     init_utils();
@@ -39090,13 +39137,13 @@ var init_planning = __esm({
 
 // src/tools/lib/audioChunks.ts
 function transcriptionDir(sessionId) {
-  const dir = import_path8.default.join(getSessionWorkdir(sessionId), "transcription");
-  import_fs9.default.mkdirSync(dir, { recursive: true });
+  const dir = import_path9.default.join(getSessionWorkdir(sessionId), "transcription");
+  import_fs10.default.mkdirSync(dir, { recursive: true });
   return dir;
 }
 function logTmpDisk(sessionId, tag) {
   try {
-    const s = import_fs9.default.statfsSync(import_os3.default.tmpdir());
+    const s = import_fs10.default.statfsSync(import_os3.default.tmpdir());
     const freeMb = Math.round(Number(s.bavail) * Number(s.bsize) / (1024 * 1024));
     console.error("[transcribe_video] disk", sessionId, tag, { freeMb });
   } catch {
@@ -39106,16 +39153,16 @@ function logTmpDisk(sessionId, tag) {
 function unlinkQuiet(filePath) {
   if (!filePath) return;
   try {
-    import_fs9.default.unlinkSync(filePath);
+    import_fs10.default.unlinkSync(filePath);
   } catch {
   }
 }
 function cleanupTranscriptionLocals(sessionId, extra = []) {
   for (const p of extra) unlinkQuiet(p);
-  const dir = import_path8.default.join(getSessionWorkdir(sessionId), "transcription");
-  if (!import_fs9.default.existsSync(dir)) return;
-  for (const name26 of import_fs9.default.readdirSync(dir)) {
-    unlinkQuiet(import_path8.default.join(dir, name26));
+  const dir = import_path9.default.join(getSessionWorkdir(sessionId), "transcription");
+  if (!import_fs10.default.existsSync(dir)) return;
+  for (const name26 of import_fs10.default.readdirSync(dir)) {
+    unlinkQuiet(import_path9.default.join(dir, name26));
   }
 }
 async function probeDurationSeconds(mediaPath) {
@@ -39133,7 +39180,7 @@ async function probeDurationSeconds(mediaPath) {
   return duration3;
 }
 async function extractFlac(inputPath, flacPath) {
-  import_fs9.default.mkdirSync(import_path8.default.dirname(flacPath), { recursive: true });
+  import_fs10.default.mkdirSync(import_path9.default.dirname(flacPath), { recursive: true });
   const cmd = `ffmpeg -y -i "${inputPath}" -map 0:a:0 -vn -ar 16000 -ac 1 -c:a flac "${flacPath}"`;
   let result;
   try {
@@ -39173,7 +39220,7 @@ function planWindows(totalDurationSeconds) {
   return windows;
 }
 async function extractWindow(flacPath, startOffsetSeconds, durationSeconds, outPath) {
-  import_fs9.default.mkdirSync(import_path8.default.dirname(outPath), { recursive: true });
+  import_fs10.default.mkdirSync(import_path9.default.dirname(outPath), { recursive: true });
   const cmd = `ffmpeg -y -ss ${startOffsetSeconds} -t ${durationSeconds} -i "${flacPath}" -c copy "${outPath}"`;
   const result = await execCommand(cmd, { timeoutSeconds: CHUNK_FFMPEG_TIMEOUT_SECONDS });
   if (!result.success) {
@@ -39188,9 +39235,9 @@ async function materializeWindows(flacPath, sessionId, planned) {
   const dir = transcriptionDir(sessionId);
   const out = [];
   async function materializeOne(win, depth, suffix) {
-    const outPath = import_path8.default.join(dir, `chunk-${win.index}${suffix}.flac`);
+    const outPath = import_path9.default.join(dir, `chunk-${win.index}${suffix}.flac`);
     await extractWindow(flacPath, win.startOffsetSeconds, win.durationSeconds, outPath);
-    const bytes = import_fs9.default.statSync(outPath).size;
+    const bytes = import_fs10.default.statSync(outPath).size;
     if (bytes <= MAX_CHUNK_BYTES || win.durationSeconds <= 30 || depth >= MAX_RESPLIT_DEPTH) {
       out.push({ ...win, path: outPath });
       return;
@@ -39223,7 +39270,7 @@ async function materializeWindows(flacPath, sessionId, planned) {
   return out;
 }
 async function extractSingleWindow(flacPath, sessionId, win, suffix = "") {
-  const outPath = import_path8.default.join(
+  const outPath = import_path9.default.join(
     transcriptionDir(sessionId),
     `chunk-${win.index}${suffix}.flac`
   );
@@ -39258,13 +39305,13 @@ async function splitWindowInHalf(flacPath, sessionId, win, depth) {
 function validateLocalChunkMeta(local, expected) {
   return Math.abs(local.startOffsetSeconds - expected.startOffsetSeconds) < 1e-3 && Math.abs(local.durationSeconds - expected.durationSeconds) < 1e-3;
 }
-var import_fs9, import_os3, import_path8, CHUNK_STEP_SECONDS, CHUNK_OVERLAP_SECONDS, MAX_CHUNK_BYTES, EXTRACT_TIMEOUT_SECONDS, CHUNK_FFMPEG_TIMEOUT_SECONDS, MAX_RESPLIT_DEPTH;
+var import_fs10, import_os3, import_path9, CHUNK_STEP_SECONDS, CHUNK_OVERLAP_SECONDS, MAX_CHUNK_BYTES, EXTRACT_TIMEOUT_SECONDS, CHUNK_FFMPEG_TIMEOUT_SECONDS, MAX_RESPLIT_DEPTH;
 var init_audioChunks = __esm({
   "src/tools/lib/audioChunks.ts"() {
     "use strict";
-    import_fs9 = __toESM(require("fs"));
+    import_fs10 = __toESM(require("fs"));
     import_os3 = __toESM(require("os"));
-    import_path8 = __toESM(require("path"));
+    import_path9 = __toESM(require("path"));
     init_utils();
     CHUNK_STEP_SECONDS = 480;
     CHUNK_OVERLAP_SECONDS = 2.5;
@@ -39314,9 +39361,9 @@ async function persistChunkResult(userId, sessionId, chunk) {
     ...chunk.provider !== void 0 ? { provider: chunk.provider } : {},
     ...chunk.skipped ? { skipped: true } : {}
   };
-  const localPath = import_path9.default.join(transcriptionDir(sessionId), `chunk-${chunk.index}.json`);
-  import_fs10.default.mkdirSync(import_path9.default.dirname(localPath), { recursive: true });
-  import_fs10.default.writeFileSync(localPath, JSON.stringify(payload, null, 2));
+  const localPath = import_path10.default.join(transcriptionDir(sessionId), `chunk-${chunk.index}.json`);
+  import_fs11.default.mkdirSync(import_path10.default.dirname(localPath), { recursive: true });
+  import_fs11.default.writeFileSync(localPath, JSON.stringify(payload, null, 2));
   const storagePath = chunkStoragePath(userId, sessionId, chunk.index);
   const url2 = await uploadFileToStorageKeepLocal(localPath, storagePath);
   await writeAssetUrl(userId, sessionId, "transcription_chunk", url2, {
@@ -39330,10 +39377,10 @@ async function persistChunkResult(userId, sessionId, chunk) {
   return url2;
 }
 async function loadChunkResult(userId, sessionId, index, expected) {
-  const localPath = import_path9.default.join(transcriptionDir(sessionId), `chunk-${index}.json`);
-  if (import_fs10.default.existsSync(localPath)) {
+  const localPath = import_path10.default.join(transcriptionDir(sessionId), `chunk-${index}.json`);
+  if (import_fs11.default.existsSync(localPath)) {
     try {
-      const parsed = JSON.parse(import_fs10.default.readFileSync(localPath, "utf-8"));
+      const parsed = JSON.parse(import_fs11.default.readFileSync(localPath, "utf-8"));
       if (validateLocalChunkMeta(
         {
           startOffsetSeconds: parsed.startOffsetSeconds,
@@ -39362,8 +39409,8 @@ async function loadChunkResult(userId, sessionId, index, expected) {
     )) {
       return null;
     }
-    import_fs10.default.mkdirSync(import_path9.default.dirname(localPath), { recursive: true });
-    import_fs10.default.writeFileSync(localPath, JSON.stringify(parsed, null, 2));
+    import_fs11.default.mkdirSync(import_path10.default.dirname(localPath), { recursive: true });
+    import_fs11.default.writeFileSync(localPath, JSON.stringify(parsed, null, 2));
     return parsed;
   } catch {
     return null;
@@ -39379,12 +39426,12 @@ async function deleteTranscriptionChunkObjects(userId, sessionId) {
     console.error("[transcribe_video] chunk cleanup", sessionId, err);
   }
 }
-var import_fs10, import_path9, import_firestore6, import_storage4;
+var import_fs11, import_path10, import_firestore6, import_storage4;
 var init_transcriptionProgress = __esm({
   "src/tools/lib/transcriptionProgress.ts"() {
     "use strict";
-    import_fs10 = __toESM(require("fs"));
-    import_path9 = __toESM(require("path"));
+    import_fs11 = __toESM(require("fs"));
+    import_path10 = __toESM(require("path"));
     import_firestore6 = require("firebase-admin/firestore");
     import_storage4 = require("firebase-admin/storage");
     init_firebase();
@@ -39546,10 +39593,10 @@ ${retryHint}` : userMessage
           }
           const concept_count = concepts.length;
           const conceptsPath = getTempPath(`${ctx.sessionId}_concepts.json`);
-          import_fs11.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
-          import_fs11.default.copyFileSync(
+          import_fs12.default.writeFileSync(conceptsPath, JSON.stringify(concepts, null, 2));
+          import_fs12.default.copyFileSync(
             conceptsPath,
-            import_path10.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
+            import_path11.default.join(getSessionWorkdir(ctx.sessionId), "concepts.json")
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/concepts.json`;
           const conceptsUrl = await uploadToStorage(conceptsPath, storagePath);
@@ -39593,12 +39640,12 @@ ${retryHint}` : userMessage
     })
   };
 }
-var import_fs11, import_path10, conceptSchema, conceptsArraySchema;
+var import_fs12, import_path11, conceptSchema, conceptsArraySchema;
 var init_concepts = __esm({
   "src/tools/pipeline/concepts.ts"() {
     "use strict";
-    import_fs11 = __toESM(require("fs"));
-    import_path10 = __toESM(require("path"));
+    import_fs12 = __toESM(require("fs"));
+    import_path11 = __toESM(require("path"));
     init_dist5();
     init_zod();
     init_utils();
@@ -39613,6 +39660,93 @@ var init_concepts = __esm({
       excerpt: external_exports2.string()
     });
     conceptsArraySchema = external_exports2.array(conceptSchema);
+  }
+});
+
+// src/tools/lib/resolveCompositionDuration.ts
+function resolveCompositionDuration(opts) {
+  const lastWord = Math.max(0, opts.lastWordEnd || 0);
+  const transcript = Math.max(0, opts.transcriptDuration || 0);
+  const probes = [opts.audioProbe, opts.videoProbe].filter(
+    (n) => typeof n === "number" && Number.isFinite(n) && n > 0
+  );
+  const containerProbe = probes.length > 0 ? Math.min(...probes) : 0;
+  if (lastWord <= 0) {
+    const d = Math.max(transcript, containerProbe);
+    return d > 0 ? d + COMPOSITION_DURATION_PAD_SECONDS : 0;
+  }
+  let contentEnd = lastWord;
+  if (transcript > 0 && transcript <= lastWord + COMPOSITION_DEAD_AIR_SLACK_SECONDS) {
+    contentEnd = Math.max(contentEnd, transcript);
+  }
+  const container = containerProbe > 0 ? containerProbe : transcript;
+  if (container > contentEnd + COMPOSITION_DEAD_AIR_SLACK_SECONDS) {
+    return contentEnd + COMPOSITION_DURATION_PAD_SECONDS;
+  }
+  return Math.max(contentEnd, containerProbe || contentEnd) + COMPOSITION_DURATION_PAD_SECONDS;
+}
+var COMPOSITION_DURATION_PAD_SECONDS, COMPOSITION_DEAD_AIR_SLACK_SECONDS;
+var init_resolveCompositionDuration = __esm({
+  "src/tools/lib/resolveCompositionDuration.ts"() {
+    "use strict";
+    COMPOSITION_DURATION_PAD_SECONDS = 0.5;
+    COMPOSITION_DEAD_AIR_SLACK_SECONDS = 10;
+  }
+});
+
+// src/tools/lib/transcriptSanitize.ts
+function sanitizeTranscriptWords(words, durationSeconds) {
+  if (words.length === 0) return [];
+  const out = words.map((word) => ({ ...word })).sort((a, b) => a.start - b.start);
+  const clampMax = durationSeconds > 0 ? durationSeconds : Infinity;
+  for (const word of out) {
+    word.start = Math.min(Math.max(word.start, 0), clampMax);
+    word.end = Math.min(Math.max(word.end, word.start), clampMax);
+  }
+  for (let i2 = 0; i2 < out.length - 1; i2++) {
+    const next = out[i2 + 1];
+    if (next.start > out[i2].start && out[i2].end > next.start) {
+      out[i2].end = next.start;
+    }
+  }
+  for (const word of out) {
+    if (word.end - word.start > MAX_WORD_SECONDS) {
+      word.end = word.start + MAX_WORD_SECONDS;
+    }
+  }
+  for (let i2 = 1; i2 < out.length; i2++) {
+    if (out[i2].start < out[i2 - 1].end) out[i2].start = out[i2 - 1].end;
+    if (out[i2].end < out[i2].start) out[i2].end = out[i2].start;
+  }
+  let i = 0;
+  while (i < out.length) {
+    if (out[i].end - out[i].start >= MIN_WORD_SECONDS) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < out.length && out[j].end - out[j].start < MIN_WORD_SECONDS) j++;
+    const runStart = out[i].start;
+    const count = j - i;
+    const hardCap = j < out.length ? out[j].start : Math.min(clampMax, runStart + count * MAX_SPREAD_PER_WORD);
+    const perWord = Math.min((hardCap - runStart) / count, MAX_SPREAD_PER_WORD);
+    if (perWord >= MIN_WORD_SECONDS) {
+      for (let k = 0; k < count; k++) {
+        out[i + k].start = runStart + perWord * k;
+        out[i + k].end = runStart + perWord * (k + 1);
+      }
+    }
+    i = j;
+  }
+  return out;
+}
+var MIN_WORD_SECONDS, MAX_WORD_SECONDS, MAX_SPREAD_PER_WORD;
+var init_transcriptSanitize = __esm({
+  "src/tools/lib/transcriptSanitize.ts"() {
+    "use strict";
+    MIN_WORD_SECONDS = 0.05;
+    MAX_WORD_SECONDS = 2.5;
+    MAX_SPREAD_PER_WORD = 1;
   }
 });
 
@@ -39737,62 +39871,6 @@ var init_sessionManimClips = __esm({
   }
 });
 
-// src/tools/lib/transcriptSanitize.ts
-function sanitizeTranscriptWords(words, durationSeconds) {
-  if (words.length === 0) return [];
-  const out = words.map((word) => ({ ...word })).sort((a, b) => a.start - b.start);
-  const clampMax = durationSeconds > 0 ? durationSeconds : Infinity;
-  for (const word of out) {
-    word.start = Math.min(Math.max(word.start, 0), clampMax);
-    word.end = Math.min(Math.max(word.end, word.start), clampMax);
-  }
-  for (let i2 = 0; i2 < out.length - 1; i2++) {
-    const next = out[i2 + 1];
-    if (next.start > out[i2].start && out[i2].end > next.start) {
-      out[i2].end = next.start;
-    }
-  }
-  for (const word of out) {
-    if (word.end - word.start > MAX_WORD_SECONDS) {
-      word.end = word.start + MAX_WORD_SECONDS;
-    }
-  }
-  for (let i2 = 1; i2 < out.length; i2++) {
-    if (out[i2].start < out[i2 - 1].end) out[i2].start = out[i2 - 1].end;
-    if (out[i2].end < out[i2].start) out[i2].end = out[i2].start;
-  }
-  let i = 0;
-  while (i < out.length) {
-    if (out[i].end - out[i].start >= MIN_WORD_SECONDS) {
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j < out.length && out[j].end - out[j].start < MIN_WORD_SECONDS) j++;
-    const runStart = out[i].start;
-    const count = j - i;
-    const hardCap = j < out.length ? out[j].start : Math.min(clampMax, runStart + count * MAX_SPREAD_PER_WORD);
-    const perWord = Math.min((hardCap - runStart) / count, MAX_SPREAD_PER_WORD);
-    if (perWord >= MIN_WORD_SECONDS) {
-      for (let k = 0; k < count; k++) {
-        out[i + k].start = runStart + perWord * k;
-        out[i + k].end = runStart + perWord * (k + 1);
-      }
-    }
-    i = j;
-  }
-  return out;
-}
-var MIN_WORD_SECONDS, MAX_WORD_SECONDS, MAX_SPREAD_PER_WORD;
-var init_transcriptSanitize = __esm({
-  "src/tools/lib/transcriptSanitize.ts"() {
-    "use strict";
-    MIN_WORD_SECONDS = 0.05;
-    MAX_WORD_SECONDS = 2.5;
-    MAX_SPREAD_PER_WORD = 1;
-  }
-});
-
 // src/tools/lib/orientationGuard.ts
 function parseStageCanvasSize(html) {
   const stageData = html.match(
@@ -39892,8 +39970,8 @@ function manimSafeName(conceptName) {
   return safe;
 }
 function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
-  if (!import_fs12.default.existsSync(filePath) || !import_fs12.default.statSync(filePath).isFile()) return null;
-  const buf = import_fs12.default.readFileSync(filePath);
+  if (!import_fs13.default.existsSync(filePath) || !import_fs13.default.statSync(filePath).isFile()) return null;
+  const buf = import_fs13.default.readFileSync(filePath);
   const truncated = buf.length > maxBytes;
   let content = (truncated ? buf.subarray(0, maxBytes) : buf).toString("utf-8");
   if (truncated) content += `
@@ -39901,9 +39979,9 @@ function readTruncated(filePath, maxBytes = MAX_INJECT_BYTES) {
   return { content, truncated };
 }
 function listSectionHtml(projectDir) {
-  const dir = import_path11.default.join(projectDir, "compositions", "sections");
-  if (!import_fs12.default.existsSync(dir)) return [];
-  return import_fs12.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path11.default.join(dir, f)).sort();
+  const dir = import_path12.default.join(projectDir, "compositions", "sections");
+  if (!import_fs13.default.existsSync(dir)) return [];
+  return import_fs13.default.readdirSync(dir).filter((f) => f.endsWith(".html")).map((f) => import_path12.default.join(dir, f)).sort();
 }
 function uniqFiles(files) {
   const seen = /* @__PURE__ */ new Set();
@@ -39914,15 +39992,15 @@ function uniqFiles(files) {
   });
 }
 function ref(projectDir, relative) {
-  return { path: import_path11.default.join(projectDir, relative), relative };
+  return { path: import_path12.default.join(projectDir, relative), relative };
 }
 function classifyTaggedForEdit(asset, workdir) {
   const local = asset.localPath.replace(/\\/g, "/");
-  const base = import_path11.default.basename(local);
+  const base = import_path12.default.basename(local);
   if (FINAL_VIDEO_NAME_RE.test(base)) return { kind: "draft_final" };
   const manimMatch = local.match(/\/manim\/([^/]+)\.mp4$/i);
   if (manimMatch) return { kind: "manim", safeName: manimMatch[1] };
-  const rel = import_path11.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
+  const rel = import_path12.default.relative(workdir, asset.localPath).replace(/\\/g, "/");
   if (rel.startsWith("uploads/") || /\/uploads\//.test(local)) {
     return { kind: "new_media" };
   }
@@ -39984,11 +40062,11 @@ function findOverlayMarkers(indexHtml) {
 }
 function conceptFilesFromMessage(message, projectDir, workdir) {
   const out = [];
-  const manifestPath = import_path11.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  const manifestPath = import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json");
   let segments = [];
-  if (import_fs12.default.existsSync(manifestPath)) {
+  if (import_fs13.default.existsSync(manifestPath)) {
     try {
-      const data = JSON.parse(import_fs12.default.readFileSync(manifestPath, "utf-8"));
+      const data = JSON.parse(import_fs13.default.readFileSync(manifestPath, "utf-8"));
       segments = data.segments ?? [];
     } catch {
       segments = [];
@@ -40001,24 +40079,24 @@ function conceptFilesFromMessage(message, projectDir, workdir) {
     if (!lower.includes(name26.toLowerCase())) continue;
     if (seg.file) out.push(ref(projectDir, seg.file));
     if (/\b(animation|manim|script|content)\b/i.test(message)) {
-      const script = import_path11.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+      const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
       out.push({
         path: script,
-        relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
+        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
       });
     }
   }
-  const conceptsPath = import_path11.default.join(workdir, "concepts.json");
-  if (import_fs12.default.existsSync(conceptsPath) && out.length === 0) {
+  const conceptsPath = import_path12.default.join(workdir, "concepts.json");
+  if (import_fs13.default.existsSync(conceptsPath) && out.length === 0) {
     try {
-      const concepts = JSON.parse(import_fs12.default.readFileSync(conceptsPath, "utf-8"));
+      const concepts = JSON.parse(import_fs13.default.readFileSync(conceptsPath, "utf-8"));
       for (const c of concepts) {
         const name26 = (c.name ?? "").trim();
         if (!name26 || !lower.includes(name26.toLowerCase())) continue;
-        const script = import_path11.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
+        const script = import_path12.default.join(workdir, "manim_scripts", `${manimSafeName(name26)}.py`);
         out.push({
           path: script,
-          relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
+          relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
         });
       }
     } catch {
@@ -40028,8 +40106,8 @@ function conceptFilesFromMessage(message, projectDir, workdir) {
 }
 function filesForIntentCategories(categories, projectDir, workdir, message) {
   const files = [];
-  const indexPath = import_path11.default.join(projectDir, "index.html");
-  const indexHtml = import_fs12.default.existsSync(indexPath) ? import_fs12.default.readFileSync(indexPath, "utf-8") : "";
+  const indexPath = import_path12.default.join(projectDir, "index.html");
+  const indexHtml = import_fs13.default.existsSync(indexPath) ? import_fs13.default.readFileSync(indexPath, "utf-8") : "";
   for (const cat of categories) {
     if (cat === "orientation") {
       continue;
@@ -40041,7 +40119,7 @@ function filesForIntentCategories(categories, projectDir, workdir, message) {
       for (const s of listSectionHtml(projectDir)) {
         files.push({
           path: s,
-          relative: import_path11.default.relative(projectDir, s).replace(/\\/g, "/")
+          relative: import_path12.default.relative(projectDir, s).replace(/\\/g, "/")
         });
       }
     } else if (cat === "speaker") {
@@ -40075,7 +40153,7 @@ function findRestoreGenerationTarget(taggedArtifacts, workdir) {
 }
 function resolveEditTargets(opts) {
   const workdir = opts.workdir ?? getSessionWorkdir(opts.sessionId);
-  const projectDir = import_path11.default.join(workdir, "hf-project");
+  const projectDir = import_path12.default.join(workdir, "hf-project");
   const files = [];
   let newMedia = false;
   const restoreGeneration = findRestoreGenerationTarget(
@@ -40097,10 +40175,10 @@ function resolveEditTargets(opts) {
         files.push(ref(projectDir, "compositions/captions-overlay.html"));
       }
     } else if (kind.kind === "manim" && kind.safeName) {
-      const script = import_path11.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
+      const script = import_path12.default.join(workdir, "manim_scripts", `${kind.safeName}.py`);
       files.push({
         path: script,
-        relative: import_path11.default.relative(workdir, script).replace(/\\/g, "/")
+        relative: import_path12.default.relative(workdir, script).replace(/\\/g, "/")
       });
     }
   }
@@ -40268,12 +40346,12 @@ function formatEditTargetsBlock(result, readFile = readTruncated, opts) {
 function shouldInjectEditTargets(result) {
   return result.needsClarification || result.files.length > 0 || !!result.orientationRebuild || !!result.restoreGeneration;
 }
-var import_fs12, import_path11, MAX_INJECT_BYTES, EDIT_SIGNAL, COLD_PIPELINE, RESTORE_GENERATION_MESSAGE;
+var import_fs13, import_path12, MAX_INJECT_BYTES, EDIT_SIGNAL, COLD_PIPELINE, RESTORE_GENERATION_MESSAGE;
 var init_editTargets = __esm({
   "src/editTargets.ts"() {
     "use strict";
-    import_fs12 = __toESM(require("fs"));
-    import_path11 = __toESM(require("path"));
+    import_fs13 = __toESM(require("fs"));
+    import_path12 = __toESM(require("path"));
     init_finalVideoBasename();
     init_utils();
     MAX_INJECT_BYTES = 5e4;
@@ -40285,7 +40363,7 @@ var init_editTargets = __esm({
 
 // src/tools/pipeline/hyperframes.ts
 function renderIdempotencyKeyFromZip(sessionId, zipPath) {
-  const hash = import_crypto.default.createHash("sha256").update(import_fs13.default.readFileSync(zipPath)).digest("hex");
+  const hash = import_crypto.default.createHash("sha256").update(import_fs14.default.readFileSync(zipPath)).digest("hex");
   return `${sessionId}.${hash.slice(0, 16)}`;
 }
 function renderIngestMode(zipBytes) {
@@ -40366,10 +40444,10 @@ function priorInputsFromSnapshot(snap) {
   };
 }
 function priorInputsFromManifest(projectDir) {
-  const manifestPath = import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json");
-  if (!import_fs13.default.existsSync(manifestPath)) return null;
+  const manifestPath = import_path13.default.join(projectDir, "COMPOSITION_MANIFEST.json");
+  if (!import_fs14.default.existsSync(manifestPath)) return null;
   try {
-    const m = JSON.parse(import_fs13.default.readFileSync(manifestPath, "utf-8"));
+    const m = JSON.parse(import_fs14.default.readFileSync(manifestPath, "utf-8"));
     const urls = [];
     for (const seg of m.segments ?? []) {
       if (typeof seg.manim_index === "number" && typeof seg.manim_clip_url === "string" && seg.manim_clip_url) {
@@ -40387,9 +40465,9 @@ function priorInputsFromManifest(projectDir) {
   }
 }
 function copyIfExists(src, dest) {
-  if (!import_fs13.default.existsSync(src)) return false;
-  import_fs13.default.mkdirSync(import_path12.default.dirname(dest), { recursive: true });
-  import_fs13.default.copyFileSync(src, dest);
+  if (!import_fs14.default.existsSync(src)) return false;
+  import_fs14.default.mkdirSync(import_path13.default.dirname(dest), { recursive: true });
+  import_fs14.default.copyFileSync(src, dest);
   return true;
 }
 async function runScaffoldHfProject(ctx, args) {
@@ -40426,7 +40504,7 @@ async function runScaffoldHfProject(ctx, args) {
   const sessionBrand = await getSessionBrandColors(ctx.sessionId);
   const colors = resolveBrandColors(args.brand_colors ?? sessionBrand);
   const brandCss = buildBrandCssVars(colors);
-  const projectDir = import_path12.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
+  const projectDir = import_path13.default.join(getSessionWorkdir(ctx.sessionId), "hf-project");
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["transcript"]);
   const sessionDoc = await db.collection("sessions").doc(ctx.sessionId).get();
   const prior = priorInputsFromSnapshot(sessionDoc.data()?.renderSnapshot) ?? priorInputsFromManifest(projectDir);
@@ -40437,11 +40515,11 @@ async function runScaffoldHfProject(ctx, args) {
     brand: colors
   });
   if (!diff.fullMediaInvalidation) {
-    const assetsMarker = import_path12.default.join(projectDir, "assets");
-    if (!import_fs13.default.existsSync(import_path12.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+    const assetsMarker = import_path13.default.join(projectDir, "assets");
+    if (!import_fs14.default.existsSync(import_path13.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
       await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
     }
-    if (!import_fs13.default.existsSync(import_path12.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
+    if (!import_fs14.default.existsSync(import_path13.default.join(assetsMarker, "speaker_noaudio.mp4"))) {
       diff = diffScaffoldInputs(null, {
         orientation,
         speaker_video_url: args.speaker_video_url,
@@ -40450,53 +40528,53 @@ async function runScaffoldHfProject(ctx, args) {
       });
     }
   }
-  const assetsDir = import_path12.default.join(projectDir, "assets");
+  const assetsDir = import_path13.default.join(projectDir, "assets");
   let stashDir = null;
-  if (!diff.fullMediaInvalidation && import_fs13.default.existsSync(assetsDir)) {
-    stashDir = import_path12.default.join(
+  if (!diff.fullMediaInvalidation && import_fs14.default.existsSync(assetsDir)) {
+    stashDir = import_path13.default.join(
       getSessionWorkdir(ctx.sessionId),
       `_hf_assets_stash_${Date.now()}`
     );
-    import_fs13.default.cpSync(assetsDir, stashDir, { recursive: true });
+    import_fs14.default.cpSync(assetsDir, stashDir, { recursive: true });
   }
-  import_fs13.default.rmSync(projectDir, { recursive: true, force: true });
-  import_fs13.default.cpSync(templateDir, projectDir, { recursive: true });
-  import_fs13.default.mkdirSync(assetsDir, { recursive: true });
+  import_fs14.default.rmSync(projectDir, { recursive: true, force: true });
+  import_fs14.default.cpSync(templateDir, projectDir, { recursive: true });
+  import_fs14.default.mkdirSync(assetsDir, { recursive: true });
   let speakerChanged = diff.speakerChanged;
   let brandChanged = diff.brandChanged;
   const manimNeedDownload = new Set(diff.manimChangedIndices);
   if (stashDir) {
     if (!speakerChanged) {
       const ok = copyIfExists(
-        import_path12.default.join(stashDir, "speaker_noaudio.mp4"),
-        import_path12.default.join(assetsDir, "speaker_noaudio.mp4")
-      ) && copyIfExists(import_path12.default.join(stashDir, "audio.mp3"), import_path12.default.join(assetsDir, "audio.mp3"));
+        import_path13.default.join(stashDir, "speaker_noaudio.mp4"),
+        import_path13.default.join(assetsDir, "speaker_noaudio.mp4")
+      ) && copyIfExists(import_path13.default.join(stashDir, "audio.mp3"), import_path13.default.join(assetsDir, "audio.mp3"));
       if (!ok) speakerChanged = true;
     }
     for (let index = 0; index < manim_clips.length; index++) {
       if (manimNeedDownload.has(index)) continue;
       if (!copyIfExists(
-        import_path12.default.join(stashDir, `manim-${index}.mp4`),
-        import_path12.default.join(assetsDir, `manim-${index}.mp4`)
+        import_path13.default.join(stashDir, `manim-${index}.mp4`),
+        import_path13.default.join(assetsDir, `manim-${index}.mp4`)
       )) {
         manimNeedDownload.add(index);
       }
     }
     if (!brandChanged) {
       if (!copyIfExists(
-        import_path12.default.join(stashDir, "brand-tokens.css"),
-        import_path12.default.join(assetsDir, "brand-tokens.css")
+        import_path13.default.join(stashDir, "brand-tokens.css"),
+        import_path13.default.join(assetsDir, "brand-tokens.css")
       )) {
         brandChanged = true;
       }
     }
-    import_fs13.default.rmSync(stashDir, { recursive: true, force: true });
+    import_fs14.default.rmSync(stashDir, { recursive: true, force: true });
   }
   let words = loadSessionTranscriptWords(ctx.sessionId, args.transcript_words);
-  const speakerVideoPath = import_path12.default.join(assetsDir, "speaker_noaudio.mp4");
-  const audioPath = import_path12.default.join(assetsDir, "audio.mp3");
+  const speakerVideoPath = import_path13.default.join(assetsDir, "speaker_noaudio.mp4");
+  const audioPath = import_path13.default.join(assetsDir, "audio.mp3");
   if (speakerChanged) {
-    const speakerRawPath = import_path12.default.join(assetsDir, "speaker_raw.mp4");
+    const speakerRawPath = import_path13.default.join(assetsDir, "speaker_raw.mp4");
     await downloadFile(args.speaker_video_url, speakerRawPath);
     const audioExtract = await execCommand(
       `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
@@ -40506,11 +40584,7 @@ async function runScaffoldHfProject(ctx, args) {
       throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
     }
     await normalizeSpeakerVideo(speakerRawPath, speakerVideoPath);
-    import_fs13.default.unlinkSync(speakerRawPath);
-    const speakerBytes = import_fs13.default.statSync(speakerVideoPath).size;
-    if (speakerBytes > SPEAKER_MAX_BYTES) {
-      throw new Error("Speaker video is too long to upload after 1080p normalization");
-    }
+    import_fs14.default.unlinkSync(speakerRawPath);
   }
   const ffprobe = await execCommand(
     `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
@@ -40519,16 +40593,42 @@ async function runScaffoldHfProject(ctx, args) {
   const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
   words = sanitizeTranscriptWords(words, Math.max(args.total_duration, probedDuration));
   const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
-  const effectiveDuration = Math.max(args.total_duration, probedDuration, lastWordEnd);
+  const effectiveDuration = resolveCompositionDuration({
+    lastWordEnd,
+    transcriptDuration: args.total_duration,
+    audioProbe: probedDuration,
+    videoProbe: probedDuration
+  });
+  if (probedDuration > effectiveDuration + 0.05) {
+    for (const mediaPath of [speakerVideoPath, audioPath]) {
+      if (!import_fs14.default.existsSync(mediaPath)) continue;
+      const tmp = `${mediaPath}.trim${import_path13.default.extname(mediaPath)}`;
+      const trim = await execCommand(
+        `ffmpeg -y -i "${mediaPath}" -t ${effectiveDuration} -c copy "${tmp}"`,
+        { timeoutSeconds: 120 }
+      );
+      if (!trim.success) {
+        import_fs14.default.rmSync(tmp, { force: true });
+        throw new Error(trim.stderr || `ffmpeg trim failed: ${mediaPath}`);
+      }
+      import_fs14.default.renameSync(tmp, mediaPath);
+    }
+  }
+  if (speakerChanged) {
+    const speakerBytes = import_fs14.default.statSync(speakerVideoPath).size;
+    if (speakerBytes > SPEAKER_MAX_BYTES) {
+      throw new Error("Speaker video is too long to upload after 1080p normalization");
+    }
+  }
   for (const index of manimNeedDownload) {
     await downloadFile(
       manim_clips[index].clip_url,
-      import_path12.default.join(assetsDir, `manim-${index}.mp4`)
+      import_path13.default.join(assetsDir, `manim-${index}.mp4`)
     );
   }
   const sectionMeta = [];
-  const sectionsDir = import_path12.default.join(projectDir, "compositions", "sections");
-  import_fs13.default.mkdirSync(sectionsDir, { recursive: true });
+  const sectionsDir = import_path13.default.join(projectDir, "compositions", "sections");
+  import_fs14.default.mkdirSync(sectionsDir, { recursive: true });
   for (let index = 0; index < segments.length; index++) {
     const seg = segments[index];
     if (seg.mode === "A" && seg.manim_index == null) {
@@ -40536,7 +40636,7 @@ async function runScaffoldHfProject(ctx, args) {
     }
     const built = buildSegmentSection(seg, index, manim_clips, brandCss, projectDir);
     sectionMeta.push(built.meta);
-    import_fs13.default.writeFileSync(import_path12.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
+    import_fs14.default.writeFileSync(import_path13.default.join(sectionsDir, built.meta.filename), built.html, "utf-8");
   }
   const segmentWiring = buildSegmentWiring(segments, sectionMeta, orientation);
   const manimClipsHtml = buildManimClipsHtml(manim_clips, segments);
@@ -40544,8 +40644,8 @@ async function runScaffoldHfProject(ctx, args) {
   const captionPosGsap = buildCaptionPosGsap(segments, orientation);
   const manimGsap = buildManimGsap(segments);
   const captionsJson = JSON.stringify(groupCaptionWords(words));
-  const indexRootPath = import_path12.default.join(projectDir, "index-root.html");
-  const indexHtml = substitutePlaceholders(import_fs13.default.readFileSync(indexRootPath, "utf-8"), {
+  const indexRootPath = import_path13.default.join(projectDir, "index-root.html");
+  const indexHtml = substitutePlaceholders(import_fs14.default.readFileSync(indexRootPath, "utf-8"), {
     TOTAL_DURATION: String(effectiveDuration),
     SEGMENT_WIRING: segmentWiring,
     MANIM_CLIPS: manimClipsHtml,
@@ -40554,20 +40654,20 @@ async function runScaffoldHfProject(ctx, args) {
     LIQUID_GLASS_INIT: "",
     TRANSITION_WIRING: ""
   });
-  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), indexHtml, "utf-8");
-  const captionsPath = import_path12.default.join(projectDir, "compositions", "captions-overlay.html");
-  const captionsHtml = substitutePlaceholders(import_fs13.default.readFileSync(captionsPath, "utf-8"), {
+  import_fs14.default.writeFileSync(import_path13.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  const captionsPath = import_path13.default.join(projectDir, "compositions", "captions-overlay.html");
+  const captionsHtml = substitutePlaceholders(import_fs14.default.readFileSync(captionsPath, "utf-8"), {
     CAPTIONS_JSON: captionsJson,
     TOTAL_DURATION: String(effectiveDuration),
     BRAND_CSS_VARS: brandCss,
     CAPTION_POS_GSAP: captionPosGsap
   });
-  import_fs13.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
+  import_fs14.default.writeFileSync(captionsPath, captionsHtml, "utf-8");
   if (brandChanged) {
-    import_fs13.default.writeFileSync(import_path12.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
+    import_fs14.default.writeFileSync(import_path13.default.join(assetsDir, "brand-tokens.css"), brandCss, "utf-8");
   }
-  import_fs13.default.writeFileSync(
-    import_path12.default.join(assetsDir, "transcript.json"),
+  import_fs14.default.writeFileSync(
+    import_path13.default.join(assetsDir, "transcript.json"),
     JSON.stringify({ words }, null, 2),
     "utf-8"
   );
@@ -40579,18 +40679,18 @@ async function runScaffoldHfProject(ctx, args) {
     fps: 30,
     orientation
   };
-  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
-  import_fs13.default.rmSync(import_path12.default.join(projectDir, "index-root.html"), { force: true });
+  import_fs14.default.writeFileSync(import_path13.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
+  import_fs14.default.rmSync(import_path13.default.join(projectDir, "index-root.html"), { force: true });
   for (const m of ["a", "c"]) {
-    import_fs13.default.rmSync(import_path12.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
+    import_fs14.default.rmSync(import_path13.default.join(projectDir, "compositions", `mode-${m}.html`), { force: true });
   }
   const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
   const indexUrl = await uploadToStorage(
-    import_path12.default.join(projectDir, "index.html"),
+    import_path13.default.join(projectDir, "index.html"),
     compositionStoragePath
   );
   await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
-  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  import_fs14.default.writeFileSync(import_path13.default.join(projectDir, "index.html"), indexHtml, "utf-8");
   const manifest = buildCompositionManifest({
     projectDir,
     total_duration: effectiveDuration,
@@ -40600,8 +40700,8 @@ async function runScaffoldHfProject(ctx, args) {
     manim_clips,
     orientation
   });
-  import_fs13.default.writeFileSync(
-    import_path12.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
+  import_fs14.default.writeFileSync(
+    import_path13.default.join(projectDir, "COMPOSITION_MANIFEST.json"),
     JSON.stringify(manifest, null, 2),
     "utf-8"
   );
@@ -40612,7 +40712,7 @@ async function runScaffoldHfProject(ctx, args) {
   } else {
     const uploadRels = /* @__PURE__ */ new Set();
     for (const abs of walkDir(projectDir)) {
-      const rel = import_path12.default.relative(projectDir, abs).split(import_path12.default.sep).join("/");
+      const rel = import_path13.default.relative(projectDir, abs).split(import_path13.default.sep).join("/");
       if (rel === "index.html" || rel === "meta.json" || rel === "COMPOSITION_MANIFEST.json" || rel === "hyperframes.json" || rel.startsWith("compositions/") || rel === "assets/transcript.json") {
         uploadRels.add(rel);
       }
@@ -40626,8 +40726,8 @@ async function runScaffoldHfProject(ctx, args) {
     }
     if (brandChanged) uploadRels.add("assets/brand-tokens.css");
     for (const rel of uploadRels) {
-      const abs = import_path12.default.join(projectDir, rel);
-      if (import_fs13.default.existsSync(abs)) {
+      const abs = import_path13.default.join(projectDir, rel);
+      if (import_fs14.default.existsSync(abs)) {
         await uploadFileToStorageKeepLocal(abs, `${hfProjectPrefix}/${rel}`);
       }
     }
@@ -40662,13 +40762,13 @@ async function runScaffoldHfProject(ctx, args) {
   };
 }
 async function probeManimFitNotes(projectDir, orientation) {
-  const assetsDir = import_path12.default.join(projectDir, "assets");
-  if (!import_fs13.default.existsSync(assetsDir)) return void 0;
+  const assetsDir = import_path13.default.join(projectDir, "assets");
+  if (!import_fs14.default.existsSync(assetsDir)) return void 0;
   const notes = [];
-  const files = import_fs13.default.readdirSync(assetsDir).filter((f) => /^manim-\d+\.mp4$/i.test(f)).sort();
+  const files = import_fs14.default.readdirSync(assetsDir).filter((f) => /^manim-\d+\.mp4$/i.test(f)).sort();
   for (const file2 of files) {
     const probe = await execCommand(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${import_path12.default.join(assetsDir, file2)}"`,
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${import_path13.default.join(assetsDir, file2)}"`,
       { timeoutSeconds: 30 }
     );
     if (!probe.success) continue;
@@ -40679,12 +40779,12 @@ async function probeManimFitNotes(projectDir, orientation) {
   return notes.length > 0 ? notes.join(" ") : void 0;
 }
 async function zipHyperframesProject(projectDir, zipPath) {
-  if (!import_fs13.default.existsSync(import_path12.default.join(projectDir, "index.html"))) {
+  if (!import_fs14.default.existsSync(import_path13.default.join(projectDir, "index.html"))) {
     throw new Error("NON_RETRYABLE: HyperFrames project missing root index.html");
   }
-  import_fs13.default.rmSync(zipPath, { force: true });
+  import_fs14.default.rmSync(zipPath, { force: true });
   const pyPath = `${zipPath}.py`;
-  import_fs13.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
+  import_fs14.default.writeFileSync(pyPath, ZIP_PY_SCRIPT);
   try {
     const result = await execCommand(
       `python3 ${JSON.stringify(pyPath)} ${JSON.stringify(projectDir)} ${JSON.stringify(zipPath)}`,
@@ -40694,7 +40794,7 @@ async function zipHyperframesProject(projectDir, zipPath) {
       throw new Error(result.stderr || result.stdout || "Failed to zip HyperFrames project");
     }
   } finally {
-    import_fs13.default.rmSync(pyPath, { force: true });
+    import_fs14.default.rmSync(pyPath, { force: true });
   }
 }
 async function uploadZipAssetIdOnce(zipPath, apiKey, idempotencyKey, zipBytes, attempt) {
@@ -40710,7 +40810,7 @@ async function uploadZipAssetIdOnce(zipPath, apiKey, idempotencyKey, zipBytes, a
       "Idempotency-Key": idempotencyKey
     },
     body: JSON.stringify({
-      filename: import_path12.default.basename(zipPath),
+      filename: import_path13.default.basename(zipPath),
       content_type: "application/zip",
       size_bytes: zipBytes
     })
@@ -40725,7 +40825,7 @@ async function uploadZipAssetIdOnce(zipPath, apiKey, idempotencyKey, zipBytes, a
   const putResp = await fetch(upload_url, {
     method: "PUT",
     headers: upload_headers ?? {},
-    body: import_fs13.default.readFileSync(zipPath)
+    body: import_fs14.default.readFileSync(zipPath)
   });
   if (!putResp.ok) {
     const putText = await putResp.text().catch(() => "");
@@ -40754,7 +40854,7 @@ async function uploadZipAssetIdOnce(zipPath, apiKey, idempotencyKey, zipBytes, a
   return asset_id;
 }
 async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
-  const zipBytes = import_fs13.default.statSync(zipPath).size;
+  const zipBytes = import_fs14.default.statSync(zipPath).size;
   try {
     const assetId = await uploadZipAssetIdOnce(
       zipPath,
@@ -40786,9 +40886,9 @@ async function uploadZipAssetId(zipPath, apiKey, idempotencyKey) {
   }
 }
 async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, orientation = "horizontal") {
-  import_fs13.default.mkdirSync(import_path12.default.join(projectDir, "compositions", "components"), { recursive: true });
-  import_fs13.default.mkdirSync(import_path12.default.join(projectDir, "assets"), { recursive: true });
-  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "index.html"), htmlContent);
+  import_fs14.default.mkdirSync(import_path13.default.join(projectDir, "compositions", "components"), { recursive: true });
+  import_fs14.default.mkdirSync(import_path13.default.join(projectDir, "assets"), { recursive: true });
+  import_fs14.default.writeFileSync(import_path13.default.join(projectDir, "index.html"), htmlContent);
   const { width, height } = canvasForOrientation(orientation);
   const meta = {
     id: `edu-${sessionId.slice(0, 8)}`,
@@ -40797,10 +40897,10 @@ async function scaffoldHyperframesProject(projectDir, htmlContent, sessionId, or
     height,
     fps: 30
   };
-  import_fs13.default.writeFileSync(import_path12.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
-  const hfPath = import_path12.default.join(projectDir, "hyperframes.json");
-  if (!import_fs13.default.existsSync(hfPath)) {
-    import_fs13.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
+  import_fs14.default.writeFileSync(import_path13.default.join(projectDir, "meta.json"), JSON.stringify(meta, null, 2));
+  const hfPath = import_path13.default.join(projectDir, "hyperframes.json");
+  if (!import_fs14.default.existsSync(hfPath)) {
+    import_fs14.default.writeFileSync(hfPath, DEFAULT_HYPERFRAMES_JSON);
   }
 }
 function createHyperframesTools(ctx) {
@@ -40956,22 +41056,22 @@ function createHyperframesTools(ctx) {
       execute: async ({ composition_url }) => {
         try {
           const workdir = getSessionWorkdir(ctx.sessionId);
-          const projectDir = import_path12.default.join(workdir, "hf-project");
+          const projectDir = import_path13.default.join(workdir, "hf-project");
           const orientation = await getSessionOrientation(ctx.sessionId);
           const { width, height, aspectRatio } = canvasForOrientation(orientation);
           await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["hf_project"]);
-          const hasLocalProject = import_fs13.default.existsSync(import_path12.default.join(projectDir, "index.html"));
+          const hasLocalProject = import_fs14.default.existsSync(import_path13.default.join(projectDir, "index.html"));
           if (!hasLocalProject) {
-            import_fs13.default.mkdirSync(projectDir, { recursive: true });
-            const htmlPath = import_path12.default.join(projectDir, "index.html");
+            import_fs14.default.mkdirSync(projectDir, { recursive: true });
+            const htmlPath = import_path13.default.join(projectDir, "index.html");
             await downloadFile(composition_url, htmlPath);
-            const htmlContent = import_fs13.default.readFileSync(htmlPath, "utf-8");
+            const htmlContent = import_fs14.default.readFileSync(htmlPath, "utf-8");
             await scaffoldHyperframesProject(projectDir, htmlContent, ctx.sessionId, orientation);
           }
-          const indexHtmlPath = import_path12.default.join(projectDir, "index.html");
-          if (import_fs13.default.existsSync(indexHtmlPath)) {
+          const indexHtmlPath = import_path13.default.join(projectDir, "index.html");
+          if (import_fs14.default.existsSync(indexHtmlPath)) {
             assertHtmlMatchesOrientation(
-              import_fs13.default.readFileSync(indexHtmlPath, "utf-8"),
+              import_fs14.default.readFileSync(indexHtmlPath, "utf-8"),
               orientation,
               { width, height }
             );
@@ -41001,7 +41101,7 @@ function createHyperframesTools(ctx) {
             if (!apiKey || !baseCallbackUrl) {
               throw new Error("Missing HEYGEN_API_KEY or HEYGEN_CALLBACK_URL");
             }
-            const zipPath = import_path12.default.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
+            const zipPath = import_path13.default.join(workdir, `render-${ctx.sessionId.slice(0, 8)}.zip`);
             let idempotencyKey = "";
             let fingerprint = "";
             let cloudCmdSource = "";
@@ -41039,7 +41139,7 @@ function createHyperframesTools(ctx) {
                 exp: Math.floor(Date.now() / 1e3) + 24 * 60 * 60
               });
               const callbackUrl = `${baseCallbackUrl}?token=${token}`;
-              const zipBytes = import_fs13.default.statSync(zipPath).size;
+              const zipBytes = import_fs14.default.statSync(zipPath).size;
               const ingest = renderIngestMode(zipBytes);
               console.log(
                 `[render_hyperframes] fingerprint=${fingerprint} zip_bytes=${zipBytes} ingest=${ingest}`
@@ -41088,7 +41188,7 @@ function createHyperframesTools(ctx) {
                 ...manim_fit_note ? { manim_fit_note } : {}
               };
             } finally {
-              import_fs13.default.rmSync(zipPath, { force: true });
+              import_fs14.default.rmSync(zipPath, { force: true });
             }
           }
           const region = process.env.AWS_REGION;
@@ -41146,17 +41246,19 @@ function createHyperframesTools(ctx) {
     })
   };
 }
-var import_crypto, import_fs13, import_path12, RENDER_BACKEND, HEYGEN_API_BASE2, RENDER_ZIP_URL_CAP_BYTES, RENDER_ZIP_DIRECT_CAP_BYTES, ZIP_SKIP_DIRS, ZIP_PY_SCRIPT, brandColorsSchema, plannedSegmentSchema;
+var import_crypto, import_fs14, import_path13, RENDER_BACKEND, HEYGEN_API_BASE2, RENDER_ZIP_URL_CAP_BYTES, RENDER_ZIP_DIRECT_CAP_BYTES, ZIP_SKIP_DIRS, ZIP_PY_SCRIPT, brandColorsSchema, plannedSegmentSchema;
 var init_hyperframes = __esm({
   "src/tools/pipeline/hyperframes.ts"() {
     "use strict";
     import_crypto = __toESM(require("crypto"));
-    import_fs13 = __toESM(require("fs"));
-    import_path12 = __toESM(require("path"));
+    import_fs14 = __toESM(require("fs"));
+    import_path13 = __toESM(require("path"));
     init_dist5();
     init_zod();
     init_planning();
     init_utils();
+    init_resolveCompositionDuration();
+    init_transcriptSanitize();
     init_heygenWebhook();
     init_callbackToken();
     init_checkpoint();
@@ -41164,7 +41266,6 @@ var init_hyperframes = __esm({
     init_firebase();
     init_storage();
     init_sessionManimClips();
-    init_transcriptSanitize();
     init_orientationGuard();
     init_renderSnapshot();
     init_scaffoldInputDiff();
@@ -41257,13 +41358,13 @@ var init_manimOrientation = __esm({
 // src/tools/lib/manimScriptPath.ts
 function defaultSessionManimScriptPath(sessionId, className) {
   const safeName = className.replace("Scene", "");
-  return import_path13.default.join(getSessionWorkdir(sessionId), "manim_scripts", `${safeName}.py`);
+  return import_path14.default.join(getSessionWorkdir(sessionId), "manim_scripts", `${safeName}.py`);
 }
-var import_path13;
+var import_path14;
 var init_manimScriptPath = __esm({
   "src/tools/lib/manimScriptPath.ts"() {
     "use strict";
-    import_path13 = __toESM(require("path"));
+    import_path14 = __toESM(require("path"));
     init_utils();
   }
 });
@@ -41299,10 +41400,10 @@ function validatePythonSyntax(scriptPath) {
   }
 }
 function loadSessionConcepts(sessionId) {
-  const conceptsPath = import_path14.default.join(getSessionWorkdir(sessionId), "concepts.json");
-  if (!import_fs14.default.existsSync(conceptsPath)) return [];
+  const conceptsPath = import_path15.default.join(getSessionWorkdir(sessionId), "concepts.json");
+  if (!import_fs15.default.existsSync(conceptsPath)) return [];
   try {
-    const parsed = JSON.parse(import_fs14.default.readFileSync(conceptsPath, "utf-8"));
+    const parsed = JSON.parse(import_fs15.default.readFileSync(conceptsPath, "utf-8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -41390,7 +41491,7 @@ This clip's window is ~${window_seconds}s.`;
         let scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
         let cleanScript = stripCodeFences(scriptText);
         const validatePath = getTempPath(`${ctx.sessionId}_${safeName}_validate.py`);
-        import_fs14.default.writeFileSync(validatePath, cleanScript);
+        import_fs15.default.writeFileSync(validatePath, cleanScript);
         let validation = validatePythonSyntax(validatePath);
         if (!validation.ok) {
           console.error(`Manim syntax check failed for ${concept_name}:`, validation.error);
@@ -41400,7 +41501,7 @@ The previous script failed syntax check: ${validation.error}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs14.default.writeFileSync(validatePath, cleanScript);
+          import_fs15.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -41420,7 +41521,7 @@ The previous script failed validation: ${maxVisibleError}
 Fix these specific issues and return corrected Python only.`;
           scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
           cleanScript = stripCodeFences(scriptText);
-          import_fs14.default.writeFileSync(validatePath, cleanScript);
+          import_fs15.default.writeFileSync(validatePath, cleanScript);
           validation = validatePythonSyntax(validatePath);
           if (!validation.ok) {
             throw new Error(
@@ -41448,7 +41549,7 @@ config.frame_height = 8
 Return corrected Python only.`;
             scriptText = await callOpenRouter(TOOL_MODEL, systemPrompt, userPrompt);
             cleanScript = stripCodeFences(scriptText);
-            import_fs14.default.writeFileSync(validatePath, cleanScript);
+            import_fs15.default.writeFileSync(validatePath, cleanScript);
             validation = validatePythonSyntax(validatePath);
             if (!validation.ok) {
               throw new Error(
@@ -41464,16 +41565,16 @@ ${cleanScript}`
             }
           }
         }
-        const scriptDir = import_path14.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
-        import_fs14.default.mkdirSync(scriptDir, { recursive: true });
-        const scriptPath = import_path14.default.join(scriptDir, `${safeName}.py`);
-        import_fs14.default.writeFileSync(scriptPath, cleanScript);
+        const scriptDir = import_path15.default.join(getSessionWorkdir(ctx.sessionId), "manim_scripts");
+        import_fs15.default.mkdirSync(scriptDir, { recursive: true });
+        const scriptPath = import_path15.default.join(scriptDir, `${safeName}.py`);
+        import_fs15.default.writeFileSync(scriptPath, cleanScript);
         const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim_scripts/${safeName}.py`;
         const scriptUrl = await uploadToStorage(scriptPath, storagePath);
         await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_script_${safeName}`, scriptUrl);
-        import_fs14.default.writeFileSync(scriptPath, cleanScript);
+        import_fs15.default.writeFileSync(scriptPath, cleanScript);
         try {
-          import_fs14.default.unlinkSync(validatePath);
+          import_fs15.default.unlinkSync(validatePath);
         } catch {
         }
         return {
@@ -41529,28 +41630,28 @@ ${cleanScript}`
         if (persist) await persistOrientation(ctx.sessionId, orientation);
         try {
           if (script_path) {
-            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs15.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs15.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `Script not found at ${resolvedScriptPath}. Session has no stored manim_scripts \u2014 regenerate or re-upload.`
               );
             }
           } else if (script) {
-            import_fs14.default.writeFileSync(resolvedScriptPath, script);
+            import_fs15.default.writeFileSync(resolvedScriptPath, script);
           } else {
-            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs15.default.existsSync(resolvedScriptPath)) {
               await ensureSessionArtifacts(ctx.userId, ctx.sessionId, ["manim_scripts"]);
             }
-            if (!import_fs14.default.existsSync(resolvedScriptPath)) {
+            if (!import_fs15.default.existsSync(resolvedScriptPath)) {
               throw new Error(
                 `No script or script_path for "${concept_name}". Expected session script at ${resolvedScriptPath} \u2014 call generate_manim_script first.`
               );
             }
           }
           if (orientation === "vertical") {
-            const scriptText = import_fs14.default.readFileSync(resolvedScriptPath, "utf-8");
+            const scriptText = import_fs15.default.readFileSync(resolvedScriptPath, "utf-8");
             const frameErr = assertSquareManimFrame(scriptText);
             if (frameErr) {
               throw new Error(
@@ -41570,17 +41671,17 @@ ${cleanScript}`
               `Manim render failed for "${concept_name}": ${renderResult.stderr || `exited with code ${renderResult.exit_code}`}. Read Skills/manim-video/references/troubleshooting.md, read_file the script at ${resolvedScriptPath}, patch only the broken lines with write_file, then re-render with script_path \u2014 do not call generate_manim_script again unless the script needs a full rewrite.`
             );
           }
-          const scriptBaseName = import_path14.default.basename(resolvedScriptPath, ".py");
-          const expectedPath = import_path14.default.join(
+          const scriptBaseName = import_path15.default.basename(resolvedScriptPath, ".py");
+          const expectedPath = import_path15.default.join(
             outputDir,
             "videos",
             scriptBaseName,
             "480p15",
             "output.mp4"
           );
-          let outputMp4Path = import_fs14.default.existsSync(expectedPath) ? expectedPath : null;
+          let outputMp4Path = import_fs15.default.existsSync(expectedPath) ? expectedPath : null;
           if (!outputMp4Path) {
-            const found = walkDir(outputDir).filter((p) => import_path14.default.basename(p) === "output.mp4");
+            const found = walkDir(outputDir).filter((p) => import_path15.default.basename(p) === "output.mp4");
             outputMp4Path = found[0] ?? null;
           }
           if (!outputMp4Path) {
@@ -41594,13 +41695,14 @@ ${cleanScript}`
             safeName
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/manim/${basename}`;
-          const canonicalPath = import_path14.default.join(
+          const canonicalPath = import_path15.default.join(
             getSessionWorkdir(ctx.sessionId),
             "manim",
             `${safeName}.mp4`
           );
-          import_fs14.default.mkdirSync(import_path14.default.dirname(canonicalPath), { recursive: true });
-          import_fs14.default.copyFileSync(outputMp4Path, canonicalPath);
+          await remuxMp4Faststart(outputMp4Path);
+          import_fs15.default.mkdirSync(import_path15.default.dirname(canonicalPath), { recursive: true });
+          import_fs15.default.copyFileSync(outputMp4Path, canonicalPath);
           const clipUrl = await uploadToStorage(outputMp4Path, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, `manim_${safeName}`, clipUrl, {
             label: basename
@@ -41618,13 +41720,13 @@ ${cleanScript}`
           };
         } finally {
           try {
-            if (wroteTempScript && import_fs14.default.existsSync(resolvedScriptPath)) {
-              import_fs14.default.unlinkSync(resolvedScriptPath);
+            if (wroteTempScript && import_fs15.default.existsSync(resolvedScriptPath)) {
+              import_fs15.default.unlinkSync(resolvedScriptPath);
             }
           } catch {
           }
           try {
-            if (import_fs14.default.existsSync(outputDir)) import_fs14.default.rmSync(outputDir, { recursive: true, force: true });
+            if (import_fs15.default.existsSync(outputDir)) import_fs15.default.rmSync(outputDir, { recursive: true, force: true });
           } catch {
           }
         }
@@ -41632,12 +41734,12 @@ ${cleanScript}`
     })
   };
 }
-var import_fs14, import_path14, import_child_process2, brandColorsSchema2, orientationSchema;
+var import_fs15, import_path15, import_child_process2, brandColorsSchema2, orientationSchema;
 var init_manim = __esm({
   "src/tools/pipeline/manim.ts"() {
     "use strict";
-    import_fs14 = __toESM(require("fs"));
-    import_path14 = __toESM(require("path"));
+    import_fs15 = __toESM(require("fs"));
+    import_path15 = __toESM(require("path"));
     import_child_process2 = require("child_process");
     init_dist5();
     init_zod();
@@ -41648,6 +41750,7 @@ var init_manim = __esm({
     init_manimOrientation();
     init_sessionManimClips();
     init_manimScriptPath();
+    init_remuxMp4Faststart();
     brandColorsSchema2 = external_exports2.object({
       primary: external_exports2.string(),
       accent: external_exports2.string(),
@@ -41663,34 +41766,34 @@ function flacSourceUrlLocalPath(flacPath) {
 }
 function unlinkQuiet2(filePath) {
   try {
-    import_fs15.default.unlinkSync(filePath);
+    import_fs16.default.unlinkSync(filePath);
   } catch {
   }
 }
 function flacMatchesVideo(flacPath, videoUrl) {
-  if (!import_fs15.default.existsSync(flacPath) || import_fs15.default.statSync(flacPath).size <= 0) return false;
+  if (!import_fs16.default.existsSync(flacPath) || import_fs16.default.statSync(flacPath).size <= 0) return false;
   const sidecar = flacSourceUrlLocalPath(flacPath);
-  if (!import_fs15.default.existsSync(sidecar)) return false;
+  if (!import_fs16.default.existsSync(sidecar)) return false;
   try {
-    return import_fs15.default.readFileSync(sidecar, "utf-8").trim() === videoUrl.trim();
+    return import_fs16.default.readFileSync(sidecar, "utf-8").trim() === videoUrl.trim();
   } catch {
     return false;
   }
 }
 function writeFlacSourceUrl(flacPath, videoUrl) {
-  import_fs15.default.mkdirSync(import_path15.default.dirname(flacPath), { recursive: true });
-  import_fs15.default.writeFileSync(flacSourceUrlLocalPath(flacPath), videoUrl, "utf-8");
+  import_fs16.default.mkdirSync(import_path16.default.dirname(flacPath), { recursive: true });
+  import_fs16.default.writeFileSync(flacSourceUrlLocalPath(flacPath), videoUrl, "utf-8");
 }
 function clearLocalFlac(flacPath) {
   unlinkQuiet2(flacPath);
   unlinkQuiet2(flacSourceUrlLocalPath(flacPath));
 }
-var import_fs15, import_path15;
+var import_fs16, import_path16;
 var init_flacSourceUrl = __esm({
   "src/tools/lib/flacSourceUrl.ts"() {
     "use strict";
-    import_fs15 = __toESM(require("fs"));
-    import_path15 = __toESM(require("path"));
+    import_fs16 = __toESM(require("fs"));
+    import_path16 = __toESM(require("path"));
   }
 });
 
@@ -41699,7 +41802,7 @@ function fullAudioStoragePath(userId, sessionId) {
   return `users/${userId}/sessions/${sessionId}/transcription/audio.flac`;
 }
 function fullAudioLocalPath(sessionId) {
-  return import_path16.default.join(transcriptionDir(sessionId), "audio.flac");
+  return import_path17.default.join(transcriptionDir(sessionId), "audio.flac");
 }
 function fullAudioSourceUrlStoragePath(userId, sessionId) {
   return `${fullAudioStoragePath(userId, sessionId)}.source_url`;
@@ -41728,9 +41831,9 @@ async function downloadStorageFile(storagePath, dest) {
     const file2 = bucket.file(storagePath);
     const [exists] = await file2.exists();
     if (!exists) return false;
-    import_fs16.default.mkdirSync(import_path16.default.dirname(dest), { recursive: true });
+    import_fs17.default.mkdirSync(import_path17.default.dirname(dest), { recursive: true });
     await file2.download({ destination: dest });
-    return import_fs16.default.existsSync(dest) && import_fs16.default.statSync(dest).size > 0;
+    return import_fs17.default.existsSync(dest) && import_fs17.default.statSync(dest).size > 0;
   } catch (err) {
     console.error(
       "[ensureFullAudio] storage download failed",
@@ -41757,12 +41860,12 @@ async function ensureFullAudio(opts) {
     clearLocalFlac(local);
   }
   const workdir = getSessionWorkdir(opts.sessionId);
-  const videoPath = import_path16.default.join(workdir, "transcription", "_source_video_tmp");
-  import_fs16.default.mkdirSync(import_path16.default.dirname(videoPath), { recursive: true });
+  const videoPath = import_path17.default.join(workdir, "transcription", "_source_video_tmp");
+  import_fs17.default.mkdirSync(import_path17.default.dirname(videoPath), { recursive: true });
   try {
     await downloadFile(opts.videoUrl, videoPath);
     await extractFlac(videoPath, local);
-    if (!import_fs16.default.existsSync(local) || import_fs16.default.statSync(local).size <= 0) {
+    if (!import_fs17.default.existsSync(local) || import_fs17.default.statSync(local).size <= 0) {
       throw new Error("FLAC extract produced empty file");
     }
     writeFlacSourceUrl(local, opts.videoUrl);
@@ -41773,12 +41876,12 @@ async function ensureFullAudio(opts) {
     unlinkQuiet(videoPath);
   }
 }
-var import_fs16, import_path16, import_storage9;
+var import_fs17, import_path17, import_storage9;
 var init_ensureFullAudio = __esm({
   "src/tools/lib/ensureFullAudio.ts"() {
     "use strict";
-    import_fs16 = __toESM(require("fs"));
-    import_path16 = __toESM(require("path"));
+    import_fs17 = __toESM(require("fs"));
+    import_path17 = __toESM(require("path"));
     import_storage9 = require("firebase-admin/storage");
     init_firebase();
     init_storage();
@@ -41851,11 +41954,17 @@ function stitchChunkTranscripts(chunks, totalDurationSeconds) {
     prev = { ...chunk, absWords, absSegments };
   }
   const text2 = words.map((w) => w.word).join(" ").replace(/\s+/g, " ").trim();
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
   return {
     text: text2,
     words,
     segments,
-    duration_seconds: totalDurationSeconds,
+    duration_seconds: resolveCompositionDuration({
+      lastWordEnd,
+      transcriptDuration: totalDurationSeconds,
+      audioProbe: totalDurationSeconds,
+      videoProbe: totalDurationSeconds
+    }),
     ...language !== void 0 ? { language } : {},
     gaps
   };
@@ -41863,6 +41972,7 @@ function stitchChunkTranscripts(chunks, totalDurationSeconds) {
 var init_transcriptStitch = __esm({
   "src/tools/lib/transcriptStitch.ts"() {
     "use strict";
+    init_resolveCompositionDuration();
   }
 });
 
@@ -42209,7 +42319,14 @@ function normalizeElevenLabsTranscript(raw, fallbackDurationSeconds) {
     start: typeof w.start === "number" ? w.start : 0,
     end: typeof w.end === "number" ? w.end : typeof w.start === "number" ? w.start : 0
   })).filter((w) => w.word.length > 0);
-  const duration_seconds = typeof raw.audio_duration_secs === "number" && raw.audio_duration_secs > 0 ? raw.audio_duration_secs : fallbackDurationSeconds > 0 ? fallbackDurationSeconds : words.length > 0 ? words[words.length - 1].end : 0;
+  const rawDuration = typeof raw.audio_duration_secs === "number" && raw.audio_duration_secs > 0 ? raw.audio_duration_secs : fallbackDurationSeconds > 0 ? fallbackDurationSeconds : words.length > 0 ? words[words.length - 1].end : 0;
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
+  const duration_seconds = resolveCompositionDuration({
+    lastWordEnd,
+    transcriptDuration: rawDuration,
+    audioProbe: rawDuration,
+    videoProbe: rawDuration
+  });
   const text2 = typeof raw.text === "string" && raw.text.trim() ? raw.text.trim() : words.map((w) => w.word).join(" ");
   const language = normalizeLanguageCode(raw.language_code);
   const segments = wordsToSegments(words, duration_seconds);
@@ -42226,6 +42343,7 @@ var init_normalizeElevenLabsTranscript = __esm({
   "src/tools/lib/normalizeElevenLabsTranscript.ts"() {
     "use strict";
     init_transcriptionLanguage();
+    init_resolveCompositionDuration();
     PAUSE_GAP_SECONDS = 0.6;
   }
 });
@@ -42255,10 +42373,10 @@ async function downloadJson(url2) {
 }
 async function persistTranscript(userId, sessionId, transcriptData) {
   const transcriptPath = getTempPath(`${sessionId}_transcript.json`);
-  import_fs17.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-  import_fs17.default.mkdirSync(getSessionWorkdir(sessionId), { recursive: true });
-  import_fs17.default.writeFileSync(
-    import_path17.default.join(getSessionWorkdir(sessionId), "transcript.json"),
+  import_fs18.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+  import_fs18.default.mkdirSync(getSessionWorkdir(sessionId), { recursive: true });
+  import_fs18.default.writeFileSync(
+    import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json"),
     JSON.stringify(transcriptData, null, 2)
   );
   const storagePath = `users/${userId}/sessions/${sessionId}/transcript.json`;
@@ -42296,8 +42414,8 @@ async function patchProgress(sessionId, patch) {
   await writeTranscriptionProgress(sessionId, { ...current, ...patch });
 }
 async function sessionHasTranscript(userId, sessionId) {
-  const localTranscript = import_path17.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (import_fs17.default.existsSync(localTranscript)) return true;
+  const localTranscript = import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (import_fs18.default.existsSync(localTranscript)) return true;
   return Boolean(await getAssetUrl(userId, sessionId, "transcript"));
 }
 async function claimFalSttWake(sessionId) {
@@ -42650,12 +42768,12 @@ async function deliverFalStt(sessionId, userId, event) {
   });
   return result.message;
 }
-var import_fs17, import_path17, import_firestore7, FAL_STT_CONTINUE_PROMPT, STILL_PROCESSING_TEXT, RESUME_RETRIES, RESUME_BACKOFF_MS;
+var import_fs18, import_path18, import_firestore7, FAL_STT_CONTINUE_PROMPT, STILL_PROCESSING_TEXT, RESUME_RETRIES, RESUME_BACKOFF_MS;
 var init_falSttDeliver = __esm({
   "src/falSttDeliver.ts"() {
     "use strict";
-    import_fs17 = __toESM(require("fs"));
-    import_path17 = __toESM(require("path"));
+    import_fs18 = __toESM(require("fs"));
+    import_path18 = __toESM(require("path"));
     import_firestore7 = require("firebase-admin/firestore");
     init_agent();
     init_checkpoint();
@@ -42735,7 +42853,7 @@ async function callGroq(chunkPath, language) {
   const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
   try {
     const transcription = await groq.audio.transcriptions.create({
-      file: import_fs18.default.createReadStream(chunkPath),
+      file: import_fs19.default.createReadStream(chunkPath),
       model: "whisper-large-v3-turbo",
       response_format: "verbose_json",
       timestamp_granularities: ["word", "segment"],
@@ -42754,11 +42872,11 @@ async function callGroq(chunkPath, language) {
   }
 }
 async function callOpenRouterAudio(chunkPath, language) {
-  const buf = import_fs18.default.readFileSync(chunkPath);
+  const buf = import_fs19.default.readFileSync(chunkPath);
   const form = new FormData();
   form.append(
     "file",
-    new File([buf], import_path18.default.basename(chunkPath), { type: "audio/flac" })
+    new File([buf], import_path19.default.basename(chunkPath), { type: "audio/flac" })
   );
   form.append("model", "openai/whisper-large-v3-turbo");
   form.append("response_format", "verbose_json");
@@ -42907,12 +43025,12 @@ async function transcribeWindowWithResplit(flacPath, sessionId, win, depth, lang
   }
 }
 async function ensureFlac(sessionId, videoUrl, videoPath) {
-  const flacPath = import_path18.default.join(transcriptionDir(sessionId), "audio.flac");
+  const flacPath = import_path19.default.join(transcriptionDir(sessionId), "audio.flac");
   if (!flacMatchesVideo(flacPath, videoUrl)) {
     unlinkQuiet(flacPath);
     unlinkQuiet(flacSourceUrlLocalPath(flacPath));
     logTmpDisk(sessionId, "pre-extract");
-    if (!import_fs18.default.existsSync(videoPath)) {
+    if (!import_fs19.default.existsSync(videoPath)) {
       await downloadFile(videoUrl, videoPath);
     }
     await extractFlac(videoPath, flacPath);
@@ -42949,15 +43067,15 @@ function createTranscribeTools(ctx) {
           }
           if (progress?.status === "complete") {
             const existingUrl = await getAssetUrl(ctx.userId, ctx.sessionId, "transcript");
-            const local = import_path18.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
-            if (existingUrl && !import_fs18.default.existsSync(local)) {
+            const local = import_path19.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
+            if (existingUrl && !import_fs19.default.existsSync(local)) {
               try {
                 await downloadFile(existingUrl, local);
               } catch {
               }
             }
-            if (existingUrl && import_fs18.default.existsSync(local)) {
-              const saved = JSON.parse(import_fs18.default.readFileSync(local, "utf-8"));
+            if (existingUrl && import_fs19.default.existsSync(local)) {
+              const saved = JSON.parse(import_fs19.default.readFileSync(local, "utf-8"));
               return {
                 transcript_url: existingUrl,
                 transcript_text: saved.text ?? "",
@@ -43385,9 +43503,9 @@ function createTranscribeTools(ctx) {
             ...stitched.language !== void 0 ? { language: stitched.language } : pinnedLanguage ? { language: pinnedLanguage } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs18.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs18.default.writeFileSync(
-            import_path18.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs19.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs19.default.writeFileSync(
+            import_path19.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
@@ -43447,12 +43565,12 @@ function createTranscribeTools(ctx) {
     })
   };
 }
-var import_fs18, import_path18, import_groq_sdk, FAIL_CHOICES, ProviderError;
+var import_fs19, import_path19, import_groq_sdk, FAIL_CHOICES, ProviderError;
 var init_transcribe = __esm({
   "src/tools/pipeline/transcribe.ts"() {
     "use strict";
-    import_fs18 = __toESM(require("fs"));
-    import_path18 = __toESM(require("path"));
+    import_fs19 = __toESM(require("fs"));
+    import_path19 = __toESM(require("path"));
     import_groq_sdk = __toESM(require("groq-sdk"));
     init_dist5();
     init_zod();

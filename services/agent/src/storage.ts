@@ -10,6 +10,7 @@ import { FINAL_VIDEO_NAME_RE, nextFinalVideoBasename } from './finalVideoBasenam
 import { nextManimClipBasename } from './manimClipBasename';
 import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
 import { remuxMp4Faststart } from './tools/lib/remuxMp4Faststart';
+import { contentDispositionForStoragePath } from './storageContentDisposition';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
 export { nextManimClipBasename } from './manimClipBasename';
@@ -84,10 +85,12 @@ async function uploadFileToStorage(
   const bucket = getStorage().bucket(getStorageBucketName());
   const fileRef = bucket.file(storagePath);
 
+  const contentDisposition = contentDispositionForStoragePath(storagePath);
   await fileRef.save(fs.readFileSync(localFilePath), {
     resumable: false,
     metadata: {
       contentType: contentTypeForPath(localFilePath),
+      ...(contentDisposition ? { contentDisposition } : {}),
     },
   });
   await fileRef.makePublic();
