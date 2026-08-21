@@ -21,6 +21,14 @@ const SKILLS = [
     icon: '🖼️',
     requiresVideo: false,
   },
+  {
+    id: 'talking-head',
+    name: 'Talking Head',
+    description:
+      'Package a talking-head clip with timed graphic cards — titles, side panels, PiP, overlays synced to the transcript.',
+    icon: '🎙️',
+    requiresVideo: true,
+  },
 ] as const;
 interface SkillsPopupProps {
   isOpen: boolean;

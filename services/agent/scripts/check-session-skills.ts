@@ -85,9 +85,11 @@ assert.deepEqual(
   ]),
   []
 );
+// transcribe_video is shared by edu-video + talking-head → no unique owner
+assert.deepEqual(skillsEngagedByToolCalls(null, ['transcribe_video']), []);
 assert.deepEqual(
-  skillsEngagedByToolCalls(null, ['transcribe_video']),
-  ['edu-video']
+  skillsEngagedByToolCalls('talking-head', ['transcribe_video']),
+  ['talking-head']
 );
 
 const guidanceSession = 'check-current-guidance';
@@ -104,6 +106,14 @@ assert.equal(hyperframesSkill, 'hyperframes');
 assert(
   getCachedSystemPrompt(guidanceSession, hyperframesSkill).endsWith(
     loadSkillMd('hyperframes')
+  )
+);
+
+const talkingHeadSkill = resolveSkill('talking-head', 'package this clip');
+assert.equal(talkingHeadSkill, 'talking-head');
+assert(
+  getCachedSystemPrompt(guidanceSession, talkingHeadSkill).endsWith(
+    loadSkillMd('talking-head')
   )
 );
 

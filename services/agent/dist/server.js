@@ -113,8 +113,8 @@ var require_package = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs22 = require("fs");
-    var path22 = require("path");
+    var fs23 = require("fs");
+    var path23 = require("path");
     var os4 = require("os");
     var crypto8 = require("crypto");
     var packageJson = require_package();
@@ -222,7 +222,7 @@ var require_main = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs22.existsSync(filepath)) {
+            if (fs23.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -230,15 +230,15 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path22.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path23.resolve(process.cwd(), ".env.vault");
       }
-      if (fs22.existsSync(possibleVaultPath)) {
+      if (fs23.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path22.join(os4.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path23.join(os4.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = Boolean(options && options.debug);
@@ -255,7 +255,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path22.resolve(process.cwd(), ".env");
+      const dotenvPath = path23.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       const debug = Boolean(options && options.debug);
       const quiet = options && "quiet" in options ? options.quiet : true;
@@ -279,13 +279,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path23 of optionPaths) {
+      for (const path24 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs22.readFileSync(path23, { encoding }));
+          const parsed = DotenvModule.parse(fs23.readFileSync(path24, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`Failed to load ${path23} ${e.message}`);
+            _debug(`Failed to load ${path24} ${e.message}`);
           }
           lastError = e;
         }
@@ -300,7 +300,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path22.relative(process.cwd(), filePath);
+            const relative = path23.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -970,10 +970,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path22) {
-  if (!path22)
+function getElementAtPath(obj, path23) {
+  if (!path23)
     return obj;
-  return path22.reduce((acc, key) => acc?.[key], obj);
+  return path23.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1222,11 +1222,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path22, issues) {
+function prefixIssues(path23, issues) {
   return issues.map((iss) => {
     var _a26;
     (_a26 = iss).path ?? (_a26.path = []);
-    iss.path.unshift(path22);
+    iss.path.unshift(path23);
     return iss;
   });
 }
@@ -1415,7 +1415,7 @@ function treeifyError(error40, _mapper) {
     return issue2.message;
   };
   const result = { errors: [] };
-  const processError = (error41, path22 = []) => {
+  const processError = (error41, path23 = []) => {
     var _a26, _b18;
     for (const issue2 of error41.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -1425,7 +1425,7 @@ function treeifyError(error40, _mapper) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path22, ...issue2.path];
+        const fullpath = [...path23, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1455,9 +1455,9 @@ function treeifyError(error40, _mapper) {
   processError(error40);
   return result;
 }
-function toDotPath(path22) {
+function toDotPath(path23) {
   const segs = [];
-  for (const seg of path22) {
+  for (const seg of path23) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -12790,8 +12790,8 @@ var init_parseUtil = __esm({
     init_errors3();
     init_en2();
     makeIssue = (params) => {
-      const { data, path: path22, errorMaps, issueData } = params;
-      const fullPath = [...path22, ...issueData.path || []];
+      const { data, path: path23, errorMaps, issueData } = params;
+      const fullPath = [...path23, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -13099,11 +13099,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util2();
     ParseInputLazyPath = class {
-      constructor(parent, value, path22, key) {
+      constructor(parent, value, path23, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path22;
+        this._path = path23;
         this._key = key;
       }
       get path() {
@@ -19050,19 +19050,19 @@ var require_token_io = __commonJS({
       getUserDataDir: () => getUserDataDir
     });
     module2.exports = __toCommonJS2(token_io_exports);
-    var import_path20 = __toESM2(require("path"));
-    var import_fs20 = __toESM2(require("fs"));
+    var import_path21 = __toESM2(require("path"));
+    var import_fs21 = __toESM2(require("fs"));
     var import_os4 = __toESM2(require("os"));
     var import_token_error = require_token_error();
     function findRootDir() {
       try {
         let dir = process.cwd();
-        while (dir !== import_path20.default.dirname(dir)) {
-          const pkgPath = import_path20.default.join(dir, ".vercel");
-          if (import_fs20.default.existsSync(pkgPath)) {
+        while (dir !== import_path21.default.dirname(dir)) {
+          const pkgPath = import_path21.default.join(dir, ".vercel");
+          if (import_fs21.default.existsSync(pkgPath)) {
             return dir;
           }
-          dir = import_path20.default.dirname(dir);
+          dir = import_path21.default.dirname(dir);
         }
       } catch (e) {
         throw new import_token_error.VercelOidcTokenError(
@@ -19077,9 +19077,9 @@ var require_token_io = __commonJS({
       }
       switch (import_os4.default.platform()) {
         case "darwin":
-          return import_path20.default.join(import_os4.default.homedir(), "Library/Application Support");
+          return import_path21.default.join(import_os4.default.homedir(), "Library/Application Support");
         case "linux":
-          return import_path20.default.join(import_os4.default.homedir(), ".local/share");
+          return import_path21.default.join(import_os4.default.homedir(), ".local/share");
         case "win32":
           if (process.env.LOCALAPPDATA) {
             return process.env.LOCALAPPDATA;
@@ -19130,8 +19130,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module2.exports = __toCommonJS2(auth_config_exports);
-    var fs22 = __toESM2(require("fs"));
-    var path22 = __toESM2(require("path"));
+    var fs23 = __toESM2(require("fs"));
+    var path23 = __toESM2(require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -19140,15 +19140,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path22.join(dataDir, "auth.json");
+      return path23.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs22.existsSync(authPath)) {
+        if (!fs23.existsSync(authPath)) {
           return null;
         }
-        const content = fs22.readFileSync(authPath, "utf8");
+        const content = fs23.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -19159,11 +19159,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path22.dirname(authPath);
-      if (!fs22.existsSync(authDir)) {
-        fs22.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path23.dirname(authPath);
+      if (!fs23.existsSync(authDir)) {
+        fs23.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs22.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs23.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -19354,8 +19354,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module2.exports = __toCommonJS2(token_util_exports);
-    var path22 = __toESM2(require("path"));
-    var fs22 = __toESM2(require("fs"));
+    var path23 = __toESM2(require("path"));
+    var fs23 = __toESM2(require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -19367,7 +19367,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path22.join(dataDir, vercelFolder);
+      return path23.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -19443,13 +19443,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path22.join(dir, ".vercel", "project.json");
-      if (!fs22.existsSync(prjPath)) {
+      const prjPath = path23.join(dir, ".vercel", "project.json");
+      if (!fs23.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs22.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs23.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -19464,11 +19464,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path23.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs22.mkdirSync(path22.dirname(tokenPath), { mode: 504, recursive: true });
-      fs22.writeFileSync(tokenPath, tokenJson);
-      fs22.chmodSync(tokenPath, 432);
+      fs23.mkdirSync(path23.dirname(tokenPath), { mode: 504, recursive: true });
+      fs23.writeFileSync(tokenPath, tokenJson);
+      fs23.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -19478,11 +19478,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs22.existsSync(tokenPath)) {
+      const tokenPath = path23.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs23.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs22.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs23.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -32136,7 +32136,7 @@ function createOpenRouter(options = {}) {
   );
   const createChatModel = (modelId, settings = {}) => new OpenRouterChatLanguageModel(modelId, settings, {
     provider: "openrouter.chat",
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -32144,7 +32144,7 @@ function createOpenRouter(options = {}) {
   });
   const createCompletionModel = (modelId, settings = {}) => new OpenRouterCompletionLanguageModel(modelId, settings, {
     provider: "openrouter.completion",
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     compatibility,
     fetch: options.fetch,
@@ -32152,21 +32152,21 @@ function createOpenRouter(options = {}) {
   });
   const createEmbeddingModel = (modelId, settings = {}) => new OpenRouterEmbeddingModel(modelId, settings, {
     provider: "openrouter.embedding",
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createImageModel = (modelId, settings = {}) => new OpenRouterImageModel(modelId, settings, {
     provider: "openrouter.image",
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
   });
   const createVideoModel = (modelId, settings = {}) => new OpenRouterVideoModel(modelId, settings, {
     provider: "openrouter.video",
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch,
     extraBody: options.extraBody
@@ -35210,7 +35210,7 @@ var init_firebase = __esm({
 });
 
 // src/tools/catalog.ts
-var BASE_TOOLS, SKILL_TOOLS, SKILL_BASE_OVERRIDES;
+var BASE_TOOLS, SKILL_TOOLS, SKILL_BASE_OVERRIDES, SKILL_COMMAND_PREFIXES;
 var init_catalog = __esm({
   "src/tools/catalog.ts"() {
     "use strict";
@@ -35238,6 +35238,11 @@ var init_catalog = __esm({
         "restore_generation",
         "render_hyperframes"
       ],
+      "talking-head": [
+        "transcribe_video",
+        "scaffold_talking_head_project",
+        "render_hyperframes"
+      ],
       "manim-video": ["generate_manim_script", "render_manim_clip"],
       "hyperframes": ["render_hyperframes"]
     };
@@ -35246,8 +35251,11 @@ var init_catalog = __esm({
         "ask_clarification",
         "image_generate",
         "video_generate"
-      ]
+      ],
+      // Same mechanism as background-generation (replace base), not the same tool set.
+      "talking-head": BASE_TOOLS.filter((t) => t !== "run_command")
     };
+    SKILL_COMMAND_PREFIXES = {};
   }
 });
 
@@ -36737,6 +36745,7 @@ var checkpoint_exports = {};
 __export(checkpoint_exports, {
   CONCEPTS_REVISION_RESUME_MANDATORY: () => CONCEPTS_REVISION_RESUME_MANDATORY,
   CheckpointConflictError: () => CheckpointConflictError,
+  STORYBOARD_REVISION_RESUME_MANDATORY: () => STORYBOARD_REVISION_RESUME_MANDATORY,
   answerCheckpointTransaction: () => answerCheckpointTransaction,
   buildResumeSystemContext: () => buildResumeSystemContext,
   clearPendingCheckpoint: () => clearPendingCheckpoint,
@@ -36746,6 +36755,7 @@ __export(checkpoint_exports, {
   getSessionOrientation: () => getSessionOrientation,
   getSessionPipelineFields: () => getSessionPipelineFields,
   getSessionRequestedLanguage: () => getSessionRequestedLanguage,
+  getSessionTalkingHeadStyle: () => getSessionTalkingHeadStyle,
   isHaltTurnOutput: () => isHaltTurnOutput,
   isPrePipelineResolved: () => isPrePipelineResolved,
   loadCheckpoint: () => loadCheckpoint,
@@ -36760,6 +36770,7 @@ __export(checkpoint_exports, {
   persistPrePipelineAnswers: () => persistPrePipelineAnswers,
   persistRequestedLanguage: () => persistRequestedLanguage,
   persistSkillId: () => persistSkillId,
+  persistTalkingHeadStyle: () => persistTalkingHeadStyle,
   recordSkillsUsed: () => recordSkillsUsed,
   writeAskCheckpoint: () => writeAskCheckpoint,
   writeAskCheckpointBatch: () => writeAskCheckpointBatch
@@ -37058,6 +37069,21 @@ async function getSessionAnimationStyle(sessionId) {
   if (raw === "minimal" || raw === "moderate" || raw === "detailed") return raw;
   return "moderate";
 }
+async function persistTalkingHeadStyle(sessionId, talkingHeadStyle, talkingHeadStyleBrief) {
+  const patch = { talkingHeadStyle };
+  if (typeof talkingHeadStyleBrief === "string" && talkingHeadStyleBrief.trim()) {
+    patch.talkingHeadStyleBrief = talkingHeadStyleBrief.trim();
+  }
+  await db.collection("sessions").doc(sessionId).set(patch, { merge: true });
+}
+async function getSessionTalkingHeadStyle(sessionId) {
+  const snap = await db.collection("sessions").doc(sessionId).get();
+  const data = snap.data();
+  const raw = data?.talkingHeadStyle;
+  const style = TALKING_HEAD_STYLE_SET.has(raw) ? raw : "minimal";
+  const brief = typeof data?.talkingHeadStyleBrief === "string" && data.talkingHeadStyleBrief.trim() ? data.talkingHeadStyleBrief.trim() : void 0;
+  return { style, brief };
+}
 async function markPrePipelineResolved(sessionId) {
   await db.collection("sessions").doc(sessionId).set({ prePipelineResolved: true }, { merge: true });
 }
@@ -37101,6 +37127,13 @@ async function persistPrePipelineAnswers(sessionId, answers, questions) {
     } else if (q.id === "animation_style") {
       const style = choiceId === "minimal" || choiceId === "detailed" ? choiceId : "moderate";
       await persistAnimationStyle(sessionId, style);
+    } else if (q.id === "card_style") {
+      if (ans?.type === "freeform") {
+        await persistTalkingHeadStyle(sessionId, "custom", ans.text);
+      } else {
+        const style = choiceId && TALKING_HEAD_STYLE_SET.has(choiceId) && choiceId !== "custom" ? choiceId : "minimal";
+        await persistTalkingHeadStyle(sessionId, style);
+      }
     }
   }
   await markPrePipelineResolved(sessionId);
@@ -37127,11 +37160,27 @@ function buildResumeSystemContext(checkpoint) {
   const choiceId = answer?.choiceId;
   const orientationChosen = choiceId === "horizontal" || choiceId === "vertical" ? choiceId : null;
   const answerType = answer?.type;
+  const isTalkingHeadPrefs = checkpoint.resume.questions?.some(
+    (q) => q.id === "card_style"
+  );
   let phaseGuidance = "";
   if (checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline") {
-    phaseGuidance = `
+    phaseGuidance = isTalkingHeadPrefs ? `
+- Preferences saved on the session. Call transcribe_video with the same video URL next.
+- Do NOT ask language, style, palette, orientation, layout, or density again.` : `
 - Preferences saved on the session. Call transcribe_video with the same video URL next.
 - Do NOT ask language, orientation, brand colors, or animation style again.`;
+  } else if (checkpoint.completedPhaseLabel === "Storyboard ready") {
+    if (answerType === "revision" || answerType === "freeform") {
+      phaseGuidance = `
+
+${STORYBOARD_REVISION_RESUME_MANDATORY}`;
+    } else {
+      phaseGuidance = `
+- Storyboard approved. Call scaffold_talking_head_project next, then render_hyperframes.
+- Do NOT rewrite cards unless the user asked for edits.
+- Never ask orientation, layout, or density.`;
+    }
   } else if (checkpoint.completedPhaseLabel === "Concepts extracted") {
     if (answerType === "revision" || answerType === "freeform") {
       phaseGuidance = `
@@ -37158,7 +37207,7 @@ ${CONCEPTS_REVISION_RESUME_MANDATORY}`;
 - Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.
 - Do NOT re-ask language / orientation / brand / animation style.`;
   }
-  const continueLine = checkpoint.completedPhaseLabel === "Transcription language" ? "- Continue after transcribe_video succeeds \u2014 then extract_concepts." : checkpoint.completedPhaseLabel === "Lecture heard" ? "- Continue with extract_concepts." : checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline" ? "- Continue with transcribe_video, then extract_concepts." : "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
+  const continueLine = checkpoint.completedPhaseLabel === "Transcription language" ? "- Continue after transcribe_video succeeds \u2014 then extract_concepts." : checkpoint.completedPhaseLabel === "Lecture heard" ? "- Continue with extract_concepts." : checkpoint.completedPhaseLabel === "Storyboard ready" ? answerType === "revision" || answerType === "freeform" ? "- Apply card edits, re-gate Storyboard ready, then scaffold only after Continue." : "- Continue with scaffold_talking_head_project, then render_hyperframes." : checkpoint.completedPhaseLabel === "Video preferences" || checkpoint.completedPhase === "pre_pipeline" ? isTalkingHeadPrefs ? "- Continue with transcribe_video, then write storyboard.json + cards." : "- Continue with transcribe_video, then extract_concepts." : "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
   return `
 CHECKPOINT RESUME
 - Completed: ${checkpoint.completedPhaseLabel} \u2014 ${checkpoint.summary.title}
@@ -37169,7 +37218,7 @@ ${continueLine}
 function isHaltTurnOutput(output) {
   return typeof output === "object" && output !== null && output.haltTurn === true;
 }
-var import_node_crypto, import_firestore4, TOOL_OWNED_CHOICE_IDS, PHASE_NUMBERS, RESUME_ARTIFACT_NEEDS, CONCEPTS_REVISION_RESUME_MANDATORY, CheckpointConflictError;
+var import_node_crypto, import_firestore4, TOOL_OWNED_CHOICE_IDS, TALKING_HEAD_STYLE_SET, PHASE_NUMBERS, RESUME_ARTIFACT_NEEDS, CONCEPTS_REVISION_RESUME_MANDATORY, STORYBOARD_REVISION_RESUME_MANDATORY, CheckpointConflictError;
 var init_checkpoint = __esm({
   "src/checkpoint.ts"() {
     "use strict";
@@ -37182,8 +37231,27 @@ var init_checkpoint = __esm({
       transcription_language: /* @__PURE__ */ new Set(["en", "auto"]),
       orientation: /* @__PURE__ */ new Set(["horizontal", "vertical"]),
       brand_colors: /* @__PURE__ */ new Set(["default", "from_video"]),
-      animation_style: /* @__PURE__ */ new Set(["minimal", "moderate", "detailed"])
+      animation_style: /* @__PURE__ */ new Set(["minimal", "moderate", "detailed"]),
+      card_style: /* @__PURE__ */ new Set([
+        "academic",
+        "editorial",
+        "minimal",
+        "corporate",
+        "technical",
+        "whiteboard",
+        "social"
+      ])
     };
+    TALKING_HEAD_STYLE_SET = /* @__PURE__ */ new Set([
+      "academic",
+      "editorial",
+      "minimal",
+      "corporate",
+      "technical",
+      "whiteboard",
+      "social",
+      "custom"
+    ]);
     PHASE_NUMBERS = {
       transcription: 2,
       concepts: 3,
@@ -37210,6 +37278,15 @@ var init_checkpoint = __esm({
    - allowFreeform: false
 4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.
 5. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
+    STORYBOARD_REVISION_RESUME_MANDATORY = `STORYBOARD REVISION RESUME \u2014 MANDATORY NEXT TOOL
+1. Apply the user's storyboard/card edits via write_file or str_replace only (storyboard.json and/or cards/*.html).
+2. Immediately after edits succeed, call ask_clarification exactly once with:
+   - kind: "phase_gate"
+   - phase_label: "Storyboard ready"
+   - question summarizing the updated cards
+   - allowFreeform: true
+3. Do NOT call scaffold_talking_head_project or render_hyperframes until the user Continues on Storyboard ready.
+4. Never ask orientation, layout, or density.`;
     CheckpointConflictError = class extends Error {
       constructor(message) {
         super(message);
@@ -37409,6 +37486,146 @@ var init_prePipelineCheckpoint = __esm({
     init_checkpoint();
     init_storage();
     init_utils();
+  }
+});
+
+// src/skills/talkingHead/prePipelineCheckpoint.ts
+function parseTalkingHeadStatedPrefs(prompt) {
+  const base = parseStatedPrefs(prompt);
+  const out = {};
+  if (base.language) out.language = base.language;
+  if (base.brandColors) out.brandColors = base.brandColors;
+  const lower = prompt.toLowerCase();
+  for (const id of TALKING_HEAD_STYLE_IDS) {
+    if (new RegExp(`\\b${id}\\b`, "i").test(lower)) {
+      out.style = id;
+      break;
+    }
+  }
+  return out;
+}
+function buildTalkingHeadPrefQuestions(stated, opts) {
+  const questions = [];
+  if (!stated.language) {
+    questions.push({
+      id: "transcription_language",
+      prompt: "Choose language you require captions in.",
+      kind: "single_select",
+      choices: [
+        { id: "en", label: "English" },
+        { id: "auto", label: "Auto-detect" }
+      ],
+      allowFreeform: false,
+      skipDefault: { choiceId: "auto" }
+    });
+  }
+  if (!stated.style) {
+    questions.push({
+      id: "card_style",
+      prompt: "Choose a graphic card style.",
+      kind: "single_select",
+      choices: TALKING_HEAD_STYLE_IDS.map((id) => ({
+        id,
+        label: `${STYLE_LABEL[id]} \u2014 best ${STYLE_ORIENTATION_HINT[id]}`
+      })),
+      allowFreeform: true,
+      freeformPlaceholder: "Describe a custom style\u2026",
+      skipDefault: { choiceId: "minimal" }
+    });
+  }
+  if (!stated.brandColors) {
+    const fromVideo = opts.extractedBrand ?? DEFAULT_BRAND_COLORS;
+    questions.push({
+      id: "brand_colors",
+      prompt: "Choose brand colors for cards.",
+      kind: "single_select",
+      choices: [
+        { id: "default", label: "Default" },
+        { id: "from_video", label: `From video (${fromVideo.primary})` }
+      ],
+      allowFreeform: true,
+      freeformPlaceholder: "Enter brand colors as hex\u2026 e.g. #f97316 #fb923c",
+      skipDefault: { choiceId: "from_video", value: fromVideo }
+    });
+  }
+  return questions;
+}
+async function applySilentDefaults2(sessionId, stated, videoUrl) {
+  await persistRequestedLanguage(sessionId, stated.language ?? "auto");
+  const probed = videoUrl ? await probeOrientationHint(videoUrl) : void 0;
+  const orientation = probed ?? "horizontal";
+  await persistOrientation(sessionId, orientation);
+  const brand = stated.brandColors ?? (videoUrl ? await extractBrandFromVideo(videoUrl) : DEFAULT_BRAND_COLORS);
+  await persistBrandColors(sessionId, brand);
+  await persistTalkingHeadStyle(sessionId, stated.style ?? "minimal", stated.styleBrief);
+  await markPrePipelineResolved(sessionId);
+}
+async function maybeFrontLoadTalkingHeadPrePipeline(opts) {
+  const { ctx, userMessage, videoUrl } = opts;
+  if (await isPrePipelineResolved(ctx.sessionId)) {
+    return { halted: false };
+  }
+  if (!videoUrl) return { halted: false };
+  if (ctx.skillName !== "talking-head") return { halted: false };
+  const stated = parseTalkingHeadStatedPrefs(userMessage);
+  if (ctx.pipelineMode !== "ask") {
+    await applySilentDefaults2(ctx.sessionId, stated, videoUrl);
+    return { halted: false };
+  }
+  if (stated.language) await persistRequestedLanguage(ctx.sessionId, stated.language);
+  if (stated.brandColors) await persistBrandColors(ctx.sessionId, stated.brandColors);
+  if (stated.style) {
+    await persistTalkingHeadStyle(ctx.sessionId, stated.style, stated.styleBrief);
+  }
+  const probed = await probeOrientationHint(videoUrl);
+  await persistOrientation(ctx.sessionId, probed ?? "horizontal");
+  const extractedBrand = stated.brandColors || !videoUrl ? void 0 : await extractBrandFromVideo(videoUrl);
+  const questions = buildTalkingHeadPrefQuestions(stated, { extractedBrand });
+  if (questions.length === 0) {
+    await markPrePipelineResolved(ctx.sessionId);
+    return { halted: false };
+  }
+  const written = await writeAskCheckpointBatch(ctx, {
+    phase_label: "Video preferences",
+    completedPhase: "pre_pipeline",
+    questions
+  });
+  return { halted: true, checkpointDisplay: written.checkpointDisplay };
+}
+var STYLE_ORIENTATION_HINT, TALKING_HEAD_STYLE_IDS, STYLE_LABEL;
+var init_prePipelineCheckpoint2 = __esm({
+  "src/skills/talkingHead/prePipelineCheckpoint.ts"() {
+    "use strict";
+    init_checkpoint();
+    init_utils();
+    init_prePipelineCheckpoint();
+    STYLE_ORIENTATION_HINT = {
+      academic: "16:9",
+      editorial: "16:9",
+      minimal: "16:9",
+      corporate: "16:9",
+      technical: "16:9",
+      whiteboard: "16:9",
+      social: "9:16"
+    };
+    TALKING_HEAD_STYLE_IDS = [
+      "academic",
+      "editorial",
+      "minimal",
+      "corporate",
+      "technical",
+      "whiteboard",
+      "social"
+    ];
+    STYLE_LABEL = {
+      academic: "Academic",
+      editorial: "Editorial",
+      minimal: "Minimal",
+      corporate: "Corporate",
+      technical: "Technical",
+      whiteboard: "Whiteboard",
+      social: "Social"
+    };
   }
 });
 
@@ -37816,6 +38033,20 @@ async function ensurePathArtifacts(ctx, resolvedPath) {
 function referencesProcEnviron(command) {
   return /\/proc\/[^/\s'"]+\/environ\b/.test(command);
 }
+function commandBinaryToken(command) {
+  const trimmed = command.trim();
+  if (!trimmed) return "";
+  const withoutEnv = trimmed.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, "");
+  const token = withoutEnv.split(/\s+/)[0] ?? "";
+  return import_path7.default.basename(token.replace(/^['"]|['"]$/g, ""));
+}
+function commandAllowedBySkillPrefixes(command, skillName) {
+  if (!skillName || !(skillName in SKILL_COMMAND_PREFIXES)) return true;
+  const prefixes = SKILL_COMMAND_PREFIXES[skillName];
+  if (prefixes.length === 0) return false;
+  const binary = commandBinaryToken(command);
+  return prefixes.includes(binary);
+}
 function createFilesystemTools(ctx) {
   return {
     run_command: tool({
@@ -37846,6 +38077,14 @@ Returns stdout, stderr, and exit code.`,
           return {
             stdout: "",
             stderr: OWNED_EDIT_SHELL_STDERR,
+            exit_code: 1,
+            success: false
+          };
+        }
+        if (!commandAllowedBySkillPrefixes(command, ctx.skillName)) {
+          return {
+            stdout: "",
+            stderr: `Command not allowed for skill "${ctx.skillName}".`,
             exit_code: 1,
             success: false
           };
@@ -38099,6 +38338,7 @@ var init_filesystem = __esm({
     init_hfProjectSync();
     init_ownedEditFiles();
     init_storage();
+    init_catalog();
   }
 });
 
@@ -38297,7 +38537,7 @@ var init_vision = __esm({
 function createClarifyTools(ctx) {
   return {
     ask_clarification: tool({
-      description: "Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, or animation style \u2014 those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.",
+      description: "Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, animation style, or talking-head card style/palette \u2014 those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.",
       inputSchema: external_exports2.object({
         kind: external_exports2.enum(["single_select", "phase_gate"]).describe(
           "single_select = numbered choices; phase_gate = Continue only (no choices)"
@@ -41760,40 +42000,516 @@ var init_manim = __esm({
   }
 });
 
+// src/tools/pipeline/talkingHead.ts
+function loadTalkingHeadLayouts() {
+  const p = import_path16.default.join(SKILLS_DIR2, "talking-head", "references", "layouts.json");
+  return JSON.parse(import_fs16.default.readFileSync(p, "utf-8"));
+}
+function resolveLayoutBounds(layoutKey, orientation, layouts = loadTalkingHeadLayouts()) {
+  const entry = layouts.layouts[layoutKey];
+  if (!entry) {
+    throw new Error(
+      `Unknown layout "${layoutKey}". Use split|stack|pip|overlay (see Skills/talking-head/references/layouts.json).`
+    );
+  }
+  const orient = orientation === "vertical" ? entry.vertical : entry.horizontal;
+  return {
+    zone: entry.zone,
+    ...entry.chrome ? { chrome: entry.chrome } : {},
+    video: orient.video,
+    card: orient.card
+  };
+}
+function layoutKeyForZone(zone, layouts = loadTalkingHeadLayouts()) {
+  for (const [key, entry] of Object.entries(layouts.layouts)) {
+    if (entry.zone === zone) return key;
+  }
+  throw new Error(`No layout maps to zone "${zone}"`);
+}
+function quantizeSec(sec, fps = FPS) {
+  return Math.round(sec * fps) / fps;
+}
+function speakerNormalizeGopCommand(inputPath, outputPath) {
+  return `ffmpeg -y -i "${inputPath}" -vf "${SPEAKER_NORMALIZE_VF}" -an -c:v libx264 -crf ${SPEAKER_NORMALIZE_CRF} -preset ${SPEAKER_NORMALIZE_PRESET} -g 30 -keyint_min 30 -pix_fmt yuv420p -movflags +faststart "${outputPath}"`;
+}
+async function normalizeSpeakerVideoDenseGop(inputPath, outputPath) {
+  import_fs16.default.mkdirSync(import_path16.default.dirname(outputPath), { recursive: true });
+  const cmd = speakerNormalizeGopCommand(inputPath, outputPath);
+  const ffmpeg = await execCommand(cmd, { timeoutSeconds: 600 });
+  if (!ffmpeg.success) {
+    throw new Error(ffmpeg.stderr || "ffmpeg speaker normalize (GOP) failed");
+  }
+}
+async function assertSessionNotRendering2(sessionId) {
+  const { db: db2 } = await Promise.resolve().then(() => (init_firebase(), firebase_exports));
+  const snap = await db2.collection("sessions").doc(sessionId).get();
+  if (snap.data()?.renderStatus === "RUNNING") {
+    throw new Error(
+      "A render is already in progress for this session. Wait for it to finish before scaffolding or restoring \u2014 do not wipe the project mid-flight."
+    );
+  }
+}
+function escapeSel(s) {
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+function extractDataAnims(cardHtml) {
+  const out = [];
+  const tagRe = /<([a-zA-Z0-9]+)([^>]*\bdata-anim=['"][^'"]+['"][^>]*)>/g;
+  let m;
+  while (m = tagRe.exec(cardHtml)) {
+    const attrs = m[2];
+    const get = (name26) => {
+      const am = attrs.match(new RegExp(`data-anim-${name26}=['"]([^'"]*)['"]`));
+      if (am) return am[1];
+      if (name26 === "kind") {
+        const km = attrs.match(/data-anim=['"]([^'"]+)['"]/);
+        return km?.[1];
+      }
+      return void 0;
+    };
+    const kind = get("kind");
+    if (!kind) continue;
+    const idMatch = attrs.match(/\bid=['"]([^'"]+)['"]/);
+    out.push({
+      kind,
+      at: Number(get("at") ?? 0),
+      duration: Number(get("duration") ?? 0.4),
+      stagger: get("stagger") != null ? Number(get("stagger")) : void 0,
+      from: get("from"),
+      distance: get("distance") != null ? Number(get("distance")) : void 0,
+      targetW: get("target-w") != null ? Number(get("target-w")) : void 0,
+      targetH: get("target-h") != null ? Number(get("target-h")) : void 0,
+      direction: get("direction"),
+      id: idMatch?.[1]
+    });
+  }
+  return out;
+}
+function compileDataAnimStatement(cardId, anim, absSec) {
+  const T = quantizeSec(absSec);
+  const D = anim.duration;
+  const idPart = anim.id ? `#${escapeSel(anim.id)}` : `[data-anim="${escapeSel(anim.kind)}"]`;
+  const SEL = `'.card[data-card-id="${escapeSel(cardId)}"] ${idPart}'`;
+  switch (anim.kind) {
+    case "fade-in":
+      return `tl.fromTo(${SEL},{opacity:0},{opacity:1,duration:${D},ease:'power2.out'},${T});`;
+    case "fade-out":
+      return `tl.to(${SEL},{opacity:0,duration:${D},ease:'power2.in'},${T});`;
+    case "slide-in": {
+      const dist = anim.distance ?? 80;
+      const from = anim.from ?? "left";
+      const x = from === "right" ? dist : from === "left" ? -dist : 0;
+      const y = from === "top" ? -dist : from === "bottom" ? dist : 0;
+      return `tl.fromTo(${SEL},{opacity:0,x:${x},y:${y}},{opacity:1,x:0,y:0,duration:${D},ease:'power2.out'},${T});`;
+    }
+    case "kinetic-chars": {
+      const S = anim.stagger ?? 0.04;
+      return `tl.from(${SEL}+' .char',{opacity:0,y:8,scale:0.8,duration:${D},ease:'power2.out',stagger:${S}},${T});`;
+    }
+    case "grow-x": {
+      const W = anim.targetW ?? 240;
+      return `tl.fromTo(${SEL},{width:0},{width:${W},duration:${D},ease:'power2.out'},${T});`;
+    }
+    case "grow-y": {
+      const H = anim.targetH ?? 240;
+      return `tl.fromTo(${SEL},{height:0},{height:${H},duration:${D},ease:'power2.out'},${T});`;
+    }
+    case "scale-pop":
+      return `tl.fromTo(${SEL},{opacity:0,scale:0.6},{opacity:1,scale:1,duration:${D},ease:'back.out(1.6)'},${T});`;
+    case "blur-in":
+      return `tl.fromTo(${SEL},{opacity:0,filter:'blur(12px)'},{opacity:1,filter:'blur(0px)',duration:${D},ease:'power2.out'},${T});`;
+    case "draw-path":
+      return `(function(){const el=document.querySelector(${SEL});if(el&&el.getTotalLength){const L=el.getTotalLength();tl.set(${SEL},{strokeDasharray:L,strokeDashoffset:L},${T});tl.to(${SEL},{strokeDashoffset:0,duration:${D},ease:'power2.inOut'},${T});}})();`;
+    case "mask-reveal": {
+      const dir = anim.direction ?? "left";
+      const inset = dir === "right" ? "inset(0 0 0 100%)" : dir === "top" ? "inset(100% 0 0 0)" : dir === "bottom" ? "inset(0 0 100% 0)" : "inset(0 100% 0 0)";
+      return `tl.fromTo(${SEL},{clipPath:'${inset}'},{clipPath:'inset(0 0 0 0)',duration:${D},ease:'power2.inOut'},${T});`;
+    }
+    default:
+      return `/* unsupported data-anim="${escapeSel(anim.kind)}" */`;
+  }
+}
+function rectCss(r) {
+  return `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+}
+function stripCardShell(html) {
+  const cardMatch = html.match(/<div\s+class="card"[^>]*>[\s\S]*<\/div>\s*<\/div>\s*<\/div>\s*<\/body>/i);
+  if (cardMatch) {
+  }
+  const start = html.search(/<div\s+class="card"[^>]*>/i);
+  if (start < 0) {
+    const body = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return (body?.[1] ?? html).trim();
+  }
+  const openTagEnd = html.indexOf(">", start) + 1;
+  let depth = 1;
+  let i = openTagEnd;
+  while (i < html.length && depth > 0) {
+    const nextOpen = html.indexOf("<div", i);
+    const nextClose = html.indexOf("</div>", i);
+    if (nextClose < 0) break;
+    if (nextOpen >= 0 && nextOpen < nextClose) {
+      depth += 1;
+      i = nextOpen + 4;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        return html.slice(start, nextClose + 6);
+      }
+      i = nextClose + 6;
+    }
+  }
+  return html.slice(start);
+}
+function rewriteCardId(cardHtml, cardId) {
+  return cardHtml.replace(/data-card-id="[^"]*"/g, `data-card-id="${cardId}"`).replace(/\.card\[data-card-id="[^"]*"\]/g, `.card[data-card-id="${cardId}"]`);
+}
+function loadStoryboard(workdir) {
+  const p = import_path16.default.join(workdir, "storyboard.json");
+  if (!import_fs16.default.existsSync(p)) {
+    throw new Error("storyboard.json not found. Write it via write_file before scaffolding.");
+  }
+  const raw = JSON.parse(import_fs16.default.readFileSync(p, "utf-8"));
+  if (!Array.isArray(raw.cards) || raw.cards.length === 0) {
+    throw new Error("storyboard.json must include a non-empty cards array.");
+  }
+  return raw;
+}
+function resolveCardLayoutKey(card, fallback) {
+  if (card.layout && typeof card.layout === "string") return card.layout;
+  if (card.zone) {
+    try {
+      return layoutKeyForZone(card.zone);
+    } catch {
+    }
+  }
+  return fallback;
+}
+function buildIndexHtml(opts) {
+  const { width, height, duration: duration3, cards } = opts;
+  const first = cards[0];
+  const initialVideo = first.videoRect;
+  const initialClass = first.chrome === "pip-pill" ? "video-wrapper pip-pill" : "video-wrapper";
+  const hosts = cards.map((c, i) => {
+    const dur = Math.max(0.01, c.endSec - c.startSec);
+    const inner = rewriteCardId(stripCardShell(c.cardHtml), c.id);
+    return `      <div class="card-host clip" data-card-id="${c.id}" data-start="${quantizeSec(c.startSec).toFixed(4)}" data-duration="${quantizeSec(dur).toFixed(4)}" data-track-index="${2 + i}" style="${rectCss(c.cardRect)};visibility:hidden;opacity:0;">
+        ${inner}
+      </div>`;
+  }).join("\n");
+  const scriptLines = [
+    `const tl = window.gsap.timeline({ paused: true });`,
+    `tl.set('#video-wrap', { left: ${initialVideo.left}, top: ${initialVideo.top}, width: ${initialVideo.width}, height: ${initialVideo.height}, className: '${initialClass}' }, 0);`
+  ];
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    const start = quantizeSec(c.startSec);
+    const end = quantizeSec(c.endSec);
+    const exitAt = Math.max(start, quantizeSec(end - EXIT_DUR));
+    const hostSel = `'.card-host[data-card-id="${escapeSel(c.id)}"]'`;
+    if (i > 0) {
+      const prev = cards[i - 1];
+      const tweenAt = quantizeSec(Math.max(0, c.startSec - VIDEO_TWEEN_DUR));
+      const sameRect = prev.videoRect.left === c.videoRect.left && prev.videoRect.top === c.videoRect.top && prev.videoRect.width === c.videoRect.width && prev.videoRect.height === c.videoRect.height && prev.chrome === c.chrome;
+      if (!sameRect) {
+        const cls = c.chrome === "pip-pill" ? "video-wrapper pip-pill" : "video-wrapper";
+        scriptLines.push(
+          `tl.set('#video-wrap', { className: '${cls}' }, ${tweenAt});`,
+          `tl.to('#video-wrap', { left: ${c.videoRect.left}, top: ${c.videoRect.top}, width: ${c.videoRect.width}, height: ${c.videoRect.height}, duration: ${VIDEO_TWEEN_DUR}, ease: 'power2.inOut' }, ${tweenAt});`
+        );
+      }
+    }
+    scriptLines.push(
+      `tl.set(${hostSel}, { visibility: 'visible' }, ${start});`,
+      `tl.fromTo(${hostSel}, { opacity: 0 }, { opacity: 1, duration: ${ENTER_DUR}, ease: 'power2.out' }, ${start});`
+    );
+    for (const anim of extractDataAnims(c.cardHtml)) {
+      scriptLines.push(
+        compileDataAnimStatement(c.id, anim, c.startSec + anim.at)
+      );
+    }
+    scriptLines.push(
+      `tl.to(${hostSel}, { opacity: 0, duration: ${EXIT_DUR}, ease: 'power2.in' }, ${exitAt});`,
+      `tl.set(${hostSel}, { visibility: 'hidden' }, ${end});`
+    );
+  }
+  scriptLines.push(
+    `window.__timelines = window.__timelines || {};`,
+    `window.__timelines["talking-head"] = tl;`
+  );
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>talking-head</title>
+    <style>
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+        background: #0a0c12;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      #stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0a0c12; }
+      .video-wrapper {
+        position: absolute; overflow: hidden; border-radius: 0; box-shadow: none;
+      }
+      .video-wrapper video { width: 100%; height: 100%; object-fit: cover; }
+      .video-wrapper.pip-pill {
+        border-radius: 14px;
+        box-shadow:
+          0 24px 60px -20px rgba(0,0,0,.45),
+          0 0 0 4px rgba(255,255,255,.7),
+          0 0 0 5px rgba(0,0,0,.18);
+        overflow: hidden;
+        z-index: 5;
+      }
+      .card-host { position: absolute; pointer-events: none; overflow: hidden; }
+      .card-host .card { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .card-host .char { display: inline-block; visibility: visible; }
+    </style>
+  </head>
+  <body>
+    <div id="stage" data-composition-id="talking-head" data-start="0" data-duration="${duration3}" data-fps="${FPS}" data-width="${width}" data-height="${height}">
+      <div class="${initialClass}" id="video-wrap" style="${rectCss(initialVideo)};">
+        <video id="bg-video" src="assets/speaker_noaudio.mp4" muted playsinline data-start="0" data-duration="${duration3}" data-track-index="1"></video>
+      </div>
+${hosts}
+      <audio id="bg-audio" src="assets/audio.mp3" data-start="0" data-duration="${duration3}" data-track-index="0"></audio>
+      <script src="vendor/gsap.min.js"></script>
+      <script>
+        (function () {
+          ${scriptLines.join("\n          ")}
+        })();
+      </script>
+    </div>
+  </body>
+</html>
+`;
+}
+async function runScaffoldTalkingHead(ctx, args) {
+  await assertSessionNotRendering2(ctx.sessionId);
+  const sessionAssetUrls = await listSessionAssetUrls(ctx.userId, ctx.sessionId);
+  const allowlist = [
+    ...ctx.taggedArtifacts,
+    ...ctx.restoreAllowlistUrls.map((u) => ({ url: u })),
+    ...sessionAssetUrls.map((u) => ({ url: u }))
+  ];
+  assertTaggedUrlAllowed(args.speaker_video_url, allowlist);
+  const orientation = args.orientation ?? await getSessionOrientation(ctx.sessionId);
+  await persistOrientation(ctx.sessionId, orientation);
+  const { width, height } = canvasForOrientation(orientation);
+  const workdir = getSessionWorkdir(ctx.sessionId);
+  const storyboard = loadStoryboard(workdir);
+  const defaultLayout = storyboard.layout ?? "split";
+  const layouts = loadTalkingHeadLayouts();
+  const projectDir = import_path16.default.join(workdir, "hf-project");
+  import_fs16.default.rmSync(projectDir, { recursive: true, force: true });
+  const assetsDir = import_path16.default.join(projectDir, "assets");
+  const vendorDir = import_path16.default.join(projectDir, "vendor");
+  import_fs16.default.mkdirSync(assetsDir, { recursive: true });
+  import_fs16.default.mkdirSync(vendorDir, { recursive: true });
+  const gsapSrc = import_path16.default.join(
+    SKILLS_DIR2,
+    "talking-head",
+    "assets",
+    "vendor",
+    "gsap.min.js"
+  );
+  if (!import_fs16.default.existsSync(gsapSrc)) {
+    throw new Error("Bundled gsap.min.js missing under Skills/talking-head/assets/vendor/");
+  }
+  import_fs16.default.copyFileSync(gsapSrc, import_path16.default.join(vendorDir, "gsap.min.js"));
+  const speakerRawPath = import_path16.default.join(assetsDir, "speaker_raw.mp4");
+  const speakerVideoPath = import_path16.default.join(assetsDir, "speaker_noaudio.mp4");
+  const audioPath = import_path16.default.join(assetsDir, "audio.mp3");
+  await downloadFile(args.speaker_video_url, speakerRawPath);
+  const audioExtract = await execCommand(
+    `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
+    { timeoutSeconds: 120 }
+  );
+  if (!audioExtract.success) {
+    throw new Error(audioExtract.stderr || "ffmpeg audio extraction failed");
+  }
+  await normalizeSpeakerVideoDenseGop(speakerRawPath, speakerVideoPath);
+  import_fs16.default.unlinkSync(speakerRawPath);
+  const ffprobe = await execCommand(
+    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
+    { timeoutSeconds: 60 }
+  );
+  const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+  const transcript = loadSessionTranscript(ctx.sessionId);
+  const words = transcript?.words ?? [];
+  const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
+  const effectiveDuration = resolveCompositionDuration({
+    lastWordEnd,
+    transcriptDuration: transcript?.duration_seconds ?? storyboard.durationSeconds ?? probedDuration,
+    audioProbe: probedDuration,
+    videoProbe: probedDuration
+  });
+  if (probedDuration > effectiveDuration + 0.05) {
+    for (const mediaPath of [speakerVideoPath, audioPath]) {
+      const tmp = `${mediaPath}.trim${import_path16.default.extname(mediaPath)}`;
+      const trim = await execCommand(
+        `ffmpeg -y -i "${mediaPath}" -t ${effectiveDuration} -c copy "${tmp}"`,
+        { timeoutSeconds: 120 }
+      );
+      if (!trim.success) {
+        import_fs16.default.rmSync(tmp, { force: true });
+        throw new Error(trim.stderr || `ffmpeg trim failed: ${mediaPath}`);
+      }
+      import_fs16.default.renameSync(tmp, mediaPath);
+    }
+  }
+  const speakerBytes = import_fs16.default.statSync(speakerVideoPath).size;
+  if (speakerBytes > SPEAKER_MAX_BYTES) {
+    throw new Error("Speaker video is too long to upload after 1080p normalization");
+  }
+  const resolvedCards = [];
+  for (const card of storyboard.cards) {
+    const endSec = Math.min(card.endSec, effectiveDuration);
+    const startSec = Math.min(card.startSec, endSec);
+    if (endSec <= startSec) continue;
+    const layoutKey = resolveCardLayoutKey(card, defaultLayout);
+    const bounds = resolveLayoutBounds(layoutKey, orientation, layouts);
+    const cardPath = import_path16.default.join(workdir, "cards", `${card.id}.html`);
+    if (!import_fs16.default.existsSync(cardPath)) {
+      throw new Error(`Missing card HTML: cards/${card.id}.html`);
+    }
+    const cardHtml = import_fs16.default.readFileSync(cardPath, "utf-8");
+    resolvedCards.push({
+      id: card.id,
+      startSec,
+      endSec,
+      layoutKey,
+      cardHtml,
+      cardRect: bounds.card,
+      videoRect: bounds.video,
+      chrome: bounds.chrome
+    });
+  }
+  if (resolvedCards.length === 0) {
+    throw new Error("No cards remain after clamping to media duration.");
+  }
+  const indexHtml = buildIndexHtml({
+    width,
+    height,
+    duration: effectiveDuration,
+    orientation,
+    cards: resolvedCards
+  });
+  import_fs16.default.writeFileSync(import_path16.default.join(projectDir, "index.html"), indexHtml, "utf-8");
+  import_fs16.default.writeFileSync(import_path16.default.join(projectDir, "hyperframes.json"), DEFAULT_HYPERFRAMES_JSON);
+  import_fs16.default.writeFileSync(
+    import_path16.default.join(projectDir, "meta.json"),
+    JSON.stringify(
+      {
+        id: `th-${ctx.sessionId.slice(0, 8)}`,
+        total_duration: effectiveDuration,
+        width,
+        height,
+        fps: FPS,
+        orientation
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
+  const indexUrl = await uploadToStorage(
+    import_path16.default.join(projectDir, "index.html"),
+    compositionStoragePath
+  );
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "composition", indexUrl);
+  const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
+  const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
+  await writeAssetUrl(ctx.userId, ctx.sessionId, "hf_project", prefixUrl);
+  return {
+    project_dir: projectDir,
+    composition_url: indexUrl,
+    orientation,
+    width,
+    height,
+    duration: formatDuration(effectiveDuration),
+    card_count: resolvedCards.length
+  };
+}
+function createTalkingHeadTools(ctx) {
+  return {
+    scaffold_talking_head_project: tool({
+      description: `Scaffold a talking-head HyperFrames project from session storyboard.json + cards/*.html: normalize speaker (dense GOP), compile layout GSAP + data-anim into index.html, copy bundled GSAP, upload hf-project. Call after writing storyboard and cards; then call render_hyperframes.`,
+      inputSchema: external_exports2.object({
+        speaker_video_url: external_exports2.string().describe("Firebase Storage URL of the source talking-head video"),
+        orientation: external_exports2.enum(["horizontal", "vertical"]).optional().describe("Canvas orientation \u2014 reads session when omitted; defaults horizontal")
+      }),
+      execute: async ({ speaker_video_url, orientation }) => {
+        try {
+          return await runScaffoldTalkingHead(ctx, {
+            speaker_video_url,
+            orientation
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`Talking-head scaffold failed: ${message}`);
+        }
+      }
+    })
+  };
+}
+var import_fs16, import_path16, FPS, ENTER_DUR, EXIT_DUR, VIDEO_TWEEN_DUR;
+var init_talkingHead = __esm({
+  "src/tools/pipeline/talkingHead.ts"() {
+    "use strict";
+    import_fs16 = __toESM(require("fs"));
+    import_path16 = __toESM(require("path"));
+    init_dist5();
+    init_zod();
+    init_utils();
+    init_resolveCompositionDuration();
+    init_checkpoint();
+    init_taggedAssets();
+    init_storage();
+    init_skills();
+    FPS = 30;
+    ENTER_DUR = 0.4;
+    EXIT_DUR = 0.35;
+    VIDEO_TWEEN_DUR = 0.6;
+  }
+});
+
 // src/tools/lib/flacSourceUrl.ts
 function flacSourceUrlLocalPath(flacPath) {
   return `${flacPath}.source_url`;
 }
 function unlinkQuiet2(filePath) {
   try {
-    import_fs16.default.unlinkSync(filePath);
+    import_fs17.default.unlinkSync(filePath);
   } catch {
   }
 }
 function flacMatchesVideo(flacPath, videoUrl) {
-  if (!import_fs16.default.existsSync(flacPath) || import_fs16.default.statSync(flacPath).size <= 0) return false;
+  if (!import_fs17.default.existsSync(flacPath) || import_fs17.default.statSync(flacPath).size <= 0) return false;
   const sidecar = flacSourceUrlLocalPath(flacPath);
-  if (!import_fs16.default.existsSync(sidecar)) return false;
+  if (!import_fs17.default.existsSync(sidecar)) return false;
   try {
-    return import_fs16.default.readFileSync(sidecar, "utf-8").trim() === videoUrl.trim();
+    return import_fs17.default.readFileSync(sidecar, "utf-8").trim() === videoUrl.trim();
   } catch {
     return false;
   }
 }
 function writeFlacSourceUrl(flacPath, videoUrl) {
-  import_fs16.default.mkdirSync(import_path16.default.dirname(flacPath), { recursive: true });
-  import_fs16.default.writeFileSync(flacSourceUrlLocalPath(flacPath), videoUrl, "utf-8");
+  import_fs17.default.mkdirSync(import_path17.default.dirname(flacPath), { recursive: true });
+  import_fs17.default.writeFileSync(flacSourceUrlLocalPath(flacPath), videoUrl, "utf-8");
 }
 function clearLocalFlac(flacPath) {
   unlinkQuiet2(flacPath);
   unlinkQuiet2(flacSourceUrlLocalPath(flacPath));
 }
-var import_fs16, import_path16;
+var import_fs17, import_path17;
 var init_flacSourceUrl = __esm({
   "src/tools/lib/flacSourceUrl.ts"() {
     "use strict";
-    import_fs16 = __toESM(require("fs"));
-    import_path16 = __toESM(require("path"));
+    import_fs17 = __toESM(require("fs"));
+    import_path17 = __toESM(require("path"));
   }
 });
 
@@ -41802,14 +42518,14 @@ function fullAudioStoragePath(userId, sessionId) {
   return `users/${userId}/sessions/${sessionId}/transcription/audio.flac`;
 }
 function fullAudioLocalPath(sessionId) {
-  return import_path17.default.join(transcriptionDir(sessionId), "audio.flac");
+  return import_path18.default.join(transcriptionDir(sessionId), "audio.flac");
 }
 function fullAudioSourceUrlStoragePath(userId, sessionId) {
   return `${fullAudioStoragePath(userId, sessionId)}.source_url`;
 }
 async function deleteStorageFileQuiet(storagePath) {
   try {
-    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
+    const bucket = (0, import_storage10.getStorage)().bucket(getStorageBucketName());
     await bucket.file(storagePath).delete({ ignoreNotFound: true });
   } catch (err) {
     console.error(
@@ -41827,13 +42543,13 @@ async function invalidateFullAudio(userId, sessionId) {
 }
 async function downloadStorageFile(storagePath, dest) {
   try {
-    const bucket = (0, import_storage9.getStorage)().bucket(getStorageBucketName());
+    const bucket = (0, import_storage10.getStorage)().bucket(getStorageBucketName());
     const file2 = bucket.file(storagePath);
     const [exists] = await file2.exists();
     if (!exists) return false;
-    import_fs17.default.mkdirSync(import_path17.default.dirname(dest), { recursive: true });
+    import_fs18.default.mkdirSync(import_path18.default.dirname(dest), { recursive: true });
     await file2.download({ destination: dest });
-    return import_fs17.default.existsSync(dest) && import_fs17.default.statSync(dest).size > 0;
+    return import_fs18.default.existsSync(dest) && import_fs18.default.statSync(dest).size > 0;
   } catch (err) {
     console.error(
       "[ensureFullAudio] storage download failed",
@@ -41860,12 +42576,12 @@ async function ensureFullAudio(opts) {
     clearLocalFlac(local);
   }
   const workdir = getSessionWorkdir(opts.sessionId);
-  const videoPath = import_path17.default.join(workdir, "transcription", "_source_video_tmp");
-  import_fs17.default.mkdirSync(import_path17.default.dirname(videoPath), { recursive: true });
+  const videoPath = import_path18.default.join(workdir, "transcription", "_source_video_tmp");
+  import_fs18.default.mkdirSync(import_path18.default.dirname(videoPath), { recursive: true });
   try {
     await downloadFile(opts.videoUrl, videoPath);
     await extractFlac(videoPath, local);
-    if (!import_fs17.default.existsSync(local) || import_fs17.default.statSync(local).size <= 0) {
+    if (!import_fs18.default.existsSync(local) || import_fs18.default.statSync(local).size <= 0) {
       throw new Error("FLAC extract produced empty file");
     }
     writeFlacSourceUrl(local, opts.videoUrl);
@@ -41876,13 +42592,13 @@ async function ensureFullAudio(opts) {
     unlinkQuiet(videoPath);
   }
 }
-var import_fs17, import_path17, import_storage9;
+var import_fs18, import_path18, import_storage10;
 var init_ensureFullAudio = __esm({
   "src/tools/lib/ensureFullAudio.ts"() {
     "use strict";
-    import_fs17 = __toESM(require("fs"));
-    import_path17 = __toESM(require("path"));
-    import_storage9 = require("firebase-admin/storage");
+    import_fs18 = __toESM(require("fs"));
+    import_path18 = __toESM(require("path"));
+    import_storage10 = require("firebase-admin/storage");
     init_firebase();
     init_storage();
     init_utils();
@@ -42373,10 +43089,10 @@ async function downloadJson(url2) {
 }
 async function persistTranscript(userId, sessionId, transcriptData) {
   const transcriptPath = getTempPath(`${sessionId}_transcript.json`);
-  import_fs18.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-  import_fs18.default.mkdirSync(getSessionWorkdir(sessionId), { recursive: true });
-  import_fs18.default.writeFileSync(
-    import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json"),
+  import_fs19.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+  import_fs19.default.mkdirSync(getSessionWorkdir(sessionId), { recursive: true });
+  import_fs19.default.writeFileSync(
+    import_path19.default.join(getSessionWorkdir(sessionId), "transcript.json"),
     JSON.stringify(transcriptData, null, 2)
   );
   const storagePath = `users/${userId}/sessions/${sessionId}/transcript.json`;
@@ -42414,8 +43130,8 @@ async function patchProgress(sessionId, patch) {
   await writeTranscriptionProgress(sessionId, { ...current, ...patch });
 }
 async function sessionHasTranscript(userId, sessionId) {
-  const localTranscript = import_path18.default.join(getSessionWorkdir(sessionId), "transcript.json");
-  if (import_fs18.default.existsSync(localTranscript)) return true;
+  const localTranscript = import_path19.default.join(getSessionWorkdir(sessionId), "transcript.json");
+  if (import_fs19.default.existsSync(localTranscript)) return true;
   return Boolean(await getAssetUrl(userId, sessionId, "transcript"));
 }
 async function claimFalSttWake(sessionId) {
@@ -42768,12 +43484,12 @@ async function deliverFalStt(sessionId, userId, event) {
   });
   return result.message;
 }
-var import_fs18, import_path18, import_firestore7, FAL_STT_CONTINUE_PROMPT, STILL_PROCESSING_TEXT, RESUME_RETRIES, RESUME_BACKOFF_MS;
+var import_fs19, import_path19, import_firestore7, FAL_STT_CONTINUE_PROMPT, STILL_PROCESSING_TEXT, RESUME_RETRIES, RESUME_BACKOFF_MS;
 var init_falSttDeliver = __esm({
   "src/falSttDeliver.ts"() {
     "use strict";
-    import_fs18 = __toESM(require("fs"));
-    import_path18 = __toESM(require("path"));
+    import_fs19 = __toESM(require("fs"));
+    import_path19 = __toESM(require("path"));
     import_firestore7 = require("firebase-admin/firestore");
     init_agent();
     init_checkpoint();
@@ -42853,7 +43569,7 @@ async function callGroq(chunkPath, language) {
   const groq = new import_groq_sdk.default({ apiKey: process.env.GROQ_API_KEY });
   try {
     const transcription = await groq.audio.transcriptions.create({
-      file: import_fs19.default.createReadStream(chunkPath),
+      file: import_fs20.default.createReadStream(chunkPath),
       model: "whisper-large-v3-turbo",
       response_format: "verbose_json",
       timestamp_granularities: ["word", "segment"],
@@ -42872,11 +43588,11 @@ async function callGroq(chunkPath, language) {
   }
 }
 async function callOpenRouterAudio(chunkPath, language) {
-  const buf = import_fs19.default.readFileSync(chunkPath);
+  const buf = import_fs20.default.readFileSync(chunkPath);
   const form = new FormData();
   form.append(
     "file",
-    new File([buf], import_path19.default.basename(chunkPath), { type: "audio/flac" })
+    new File([buf], import_path20.default.basename(chunkPath), { type: "audio/flac" })
   );
   form.append("model", "openai/whisper-large-v3-turbo");
   form.append("response_format", "verbose_json");
@@ -43025,12 +43741,12 @@ async function transcribeWindowWithResplit(flacPath, sessionId, win, depth, lang
   }
 }
 async function ensureFlac(sessionId, videoUrl, videoPath) {
-  const flacPath = import_path19.default.join(transcriptionDir(sessionId), "audio.flac");
+  const flacPath = import_path20.default.join(transcriptionDir(sessionId), "audio.flac");
   if (!flacMatchesVideo(flacPath, videoUrl)) {
     unlinkQuiet(flacPath);
     unlinkQuiet(flacSourceUrlLocalPath(flacPath));
     logTmpDisk(sessionId, "pre-extract");
-    if (!import_fs19.default.existsSync(videoPath)) {
+    if (!import_fs20.default.existsSync(videoPath)) {
       await downloadFile(videoUrl, videoPath);
     }
     await extractFlac(videoPath, flacPath);
@@ -43067,15 +43783,15 @@ function createTranscribeTools(ctx) {
           }
           if (progress?.status === "complete") {
             const existingUrl = await getAssetUrl(ctx.userId, ctx.sessionId, "transcript");
-            const local = import_path19.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
-            if (existingUrl && !import_fs19.default.existsSync(local)) {
+            const local = import_path20.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json");
+            if (existingUrl && !import_fs20.default.existsSync(local)) {
               try {
                 await downloadFile(existingUrl, local);
               } catch {
               }
             }
-            if (existingUrl && import_fs19.default.existsSync(local)) {
-              const saved = JSON.parse(import_fs19.default.readFileSync(local, "utf-8"));
+            if (existingUrl && import_fs20.default.existsSync(local)) {
+              const saved = JSON.parse(import_fs20.default.readFileSync(local, "utf-8"));
               return {
                 transcript_url: existingUrl,
                 transcript_text: saved.text ?? "",
@@ -43503,9 +44219,9 @@ function createTranscribeTools(ctx) {
             ...stitched.language !== void 0 ? { language: stitched.language } : pinnedLanguage ? { language: pinnedLanguage } : {}
           };
           const transcriptPath = getTempPath(`${ctx.sessionId}_transcript.json`);
-          import_fs19.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-          import_fs19.default.writeFileSync(
-            import_path19.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
+          import_fs20.default.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+          import_fs20.default.writeFileSync(
+            import_path20.default.join(getSessionWorkdir(ctx.sessionId), "transcript.json"),
             JSON.stringify(transcriptData, null, 2)
           );
           const storagePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/transcript.json`;
@@ -43565,12 +44281,12 @@ function createTranscribeTools(ctx) {
     })
   };
 }
-var import_fs19, import_path19, import_groq_sdk, FAIL_CHOICES, ProviderError;
+var import_fs20, import_path20, import_groq_sdk, FAIL_CHOICES, ProviderError;
 var init_transcribe = __esm({
   "src/tools/pipeline/transcribe.ts"() {
     "use strict";
-    import_fs19 = __toESM(require("fs"));
-    import_path19 = __toESM(require("path"));
+    import_fs20 = __toESM(require("fs"));
+    import_path20 = __toESM(require("path"));
     import_groq_sdk = __toESM(require("groq-sdk"));
     init_dist5();
     init_zod();
@@ -43615,6 +44331,7 @@ function buildTools(ctx, skills = []) {
     ...createConceptsTools(ctx),
     ...createManimTools(ctx),
     ...createHyperframesTools(ctx),
+    ...createTalkingHeadTools(ctx),
     ...createImageGenerateTools(ctx),
     ...createVideoGenerateTools(ctx)
   };
@@ -43643,6 +44360,7 @@ var init_tools = __esm({
     init_concepts();
     init_hyperframes();
     init_manim();
+    init_talkingHead();
     init_transcribe();
     init_catalog();
     init_utils();
@@ -43796,7 +44514,7 @@ async function runAgent(params) {
           );
           resumeSystemAppend = `${resumeSystemAppend}
 
-- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/orientation/brand/style again.`;
+- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/style/palette/orientation/layout/density again.`;
         } else if (isConceptsApproveResume(resumeCheckpoint)) {
           if (await isPrePipelineResolved(params.sessionId)) {
             orientationResumeForce = true;
@@ -43975,20 +44693,38 @@ ${resumeSystemAppend}`;
     restoreAllowlistUrls: []
   };
   const tools = buildTools(toolCtx, capabilitySkills);
-  if (!params.checkpointAnswer && !resumeCheckpoint && !sessionFields.pendingCheckpointId && (resolvedSkill === "edu-video" || sessionFields.skillsUsed.includes("edu-video"))) {
-    const front = await maybeFrontLoadPrePipeline({
-      ctx: {
-        sessionId: params.sessionId,
-        userId: params.userId,
-        skillName: "edu-video",
-        pipelineMode: effectiveMode
-      },
-      userMessage: params.userMessage,
-      videoUrl: processing.urls[0] ?? params.videoUrl
-    });
-    if (front.halted) {
-      capturedCheckpointDisplay = front.checkpointDisplay;
-      prePipelineHalt = true;
+  if (!params.checkpointAnswer && !resumeCheckpoint && !sessionFields.pendingCheckpointId) {
+    const videoUrl = processing.urls[0] ?? params.videoUrl;
+    if (resolvedSkill === "edu-video" || sessionFields.skillsUsed.includes("edu-video")) {
+      const front = await maybeFrontLoadPrePipeline({
+        ctx: {
+          sessionId: params.sessionId,
+          userId: params.userId,
+          skillName: "edu-video",
+          pipelineMode: effectiveMode
+        },
+        userMessage: params.userMessage,
+        videoUrl
+      });
+      if (front.halted) {
+        capturedCheckpointDisplay = front.checkpointDisplay;
+        prePipelineHalt = true;
+      }
+    } else if (resolvedSkill === "talking-head" || sessionFields.skillsUsed.includes("talking-head")) {
+      const front = await maybeFrontLoadTalkingHeadPrePipeline({
+        ctx: {
+          sessionId: params.sessionId,
+          userId: params.userId,
+          skillName: "talking-head",
+          pipelineMode: effectiveMode
+        },
+        userMessage: params.userMessage,
+        videoUrl
+      });
+      if (front.halted) {
+        capturedCheckpointDisplay = front.checkpointDisplay;
+        prePipelineHalt = true;
+      }
     }
   }
   if (orientationResumeForce) {
@@ -44162,6 +44898,7 @@ var init_agent = __esm({
     init_dist6();
     init_checkpoint();
     init_prePipelineCheckpoint();
+    init_prePipelineCheckpoint2();
     init_messagePruning();
     init_errorMessage();
     init_systemPromptCache();

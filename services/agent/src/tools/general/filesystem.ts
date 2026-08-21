@@ -26,6 +26,7 @@ import {
 } from '../lib/ownedEditFiles';
 import { uploadFileToStorageKeepLocal, walkDir } from '../../storage';
 import type { ResolvedTaggedAsset } from '../../taggedAssets';
+import { SKILL_COMMAND_PREFIXES } from '../catalog';
 
 async function ensurePathArtifacts(
   ctx: {
@@ -49,9 +50,31 @@ export function referencesProcEnviron(command: string): boolean {
   return /\/proc\/[^/\s'"]+\/environ\b/.test(command);
 }
 
+/** First argv token or known binary name for command-prefix policy. */
+export function commandBinaryToken(command: string): string {
+  const trimmed = command.trim();
+  if (!trimmed) return '';
+  // Strip env assignments: FOO=bar ffmpeg ...
+  const withoutEnv = trimmed.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, '');
+  const token = withoutEnv.split(/\s+/)[0] ?? '';
+  return path.basename(token.replace(/^['"]|['"]$/g, ''));
+}
+
+export function commandAllowedBySkillPrefixes(
+  command: string,
+  skillName: string | undefined
+): boolean {
+  if (!skillName || !(skillName in SKILL_COMMAND_PREFIXES)) return true;
+  const prefixes = SKILL_COMMAND_PREFIXES[skillName];
+  if (prefixes.length === 0) return false;
+  const binary = commandBinaryToken(command);
+  return prefixes.includes(binary);
+}
+
 export function createFilesystemTools(ctx: {
   sessionId: string;
   userId: string;
+  skillName?: string;
   taggedArtifacts?: ResolvedTaggedAsset[];
 }) {
   return {
@@ -88,6 +111,14 @@ Returns stdout, stderr, and exit code.`,
           return {
             stdout: '',
             stderr: OWNED_EDIT_SHELL_STDERR,
+            exit_code: 1,
+            success: false,
+          };
+        }
+        if (!commandAllowedBySkillPrefixes(command, ctx.skillName)) {
+          return {
+            stdout: '',
+            stderr: `Command not allowed for skill "${ctx.skillName}".`,
             exit_code: 1,
             success: false,
           };

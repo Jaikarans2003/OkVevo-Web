@@ -34,6 +34,7 @@ import {
   type LoadedCheckpoint,
 } from './checkpoint';
 import { maybeFrontLoadPrePipeline } from './skills/eduVideo/prePipelineCheckpoint';
+import { maybeFrontLoadTalkingHeadPrePipeline } from './skills/talkingHead/prePipelineCheckpoint';
 import { pruneToolResults } from './messagePruning';
 import { errorMessage } from './errorMessage';
 import { getCachedSystemPrompt } from './systemPromptCache';
@@ -246,7 +247,7 @@ export async function runAgent(params: RunAgentParams) {
             answers,
             resumeCheckpoint.resume.questions ?? []
           );
-          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/orientation/brand/style again.`;
+          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/style/palette/orientation/layout/density again.`;
         } else if (isConceptsApproveResume(resumeCheckpoint)) {
           // Orientation already front-loaded → skip second gate, force Manim.
           if (await isPrePipelineResolved(params.sessionId)) {
@@ -456,22 +457,42 @@ export async function runAgent(params: RunAgentParams) {
   if (
     !params.checkpointAnswer &&
     !resumeCheckpoint &&
-    !sessionFields.pendingCheckpointId &&
-    (resolvedSkill === 'edu-video' || sessionFields.skillsUsed.includes('edu-video'))
+    !sessionFields.pendingCheckpointId
   ) {
-    const front = await maybeFrontLoadPrePipeline({
-      ctx: {
-        sessionId: params.sessionId,
-        userId: params.userId,
-        skillName: 'edu-video',
-        pipelineMode: effectiveMode,
-      },
-      userMessage: params.userMessage,
-      videoUrl: processing.urls[0] ?? params.videoUrl,
-    });
-    if (front.halted) {
-      capturedCheckpointDisplay = front.checkpointDisplay;
-      prePipelineHalt = true;
+    const videoUrl = processing.urls[0] ?? params.videoUrl;
+    if (resolvedSkill === 'edu-video' || sessionFields.skillsUsed.includes('edu-video')) {
+      const front = await maybeFrontLoadPrePipeline({
+        ctx: {
+          sessionId: params.sessionId,
+          userId: params.userId,
+          skillName: 'edu-video',
+          pipelineMode: effectiveMode,
+        },
+        userMessage: params.userMessage,
+        videoUrl,
+      });
+      if (front.halted) {
+        capturedCheckpointDisplay = front.checkpointDisplay;
+        prePipelineHalt = true;
+      }
+    } else if (
+      resolvedSkill === 'talking-head' ||
+      sessionFields.skillsUsed.includes('talking-head')
+    ) {
+      const front = await maybeFrontLoadTalkingHeadPrePipeline({
+        ctx: {
+          sessionId: params.sessionId,
+          userId: params.userId,
+          skillName: 'talking-head',
+          pipelineMode: effectiveMode,
+        },
+        userMessage: params.userMessage,
+        videoUrl,
+      });
+      if (front.halted) {
+        capturedCheckpointDisplay = front.checkpointDisplay;
+        prePipelineHalt = true;
+      }
     }
   }
 

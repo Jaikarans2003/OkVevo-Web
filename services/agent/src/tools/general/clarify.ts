@@ -7,7 +7,7 @@ export function createClarifyTools(ctx: ToolCtx) {
   return {
     ask_clarification: tool({
       description:
-        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, or animation style — those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.',
+        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, animation style, or talking-head card style/palette — those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.',
       inputSchema: z.object({
         kind: z
           .enum(['single_select', 'phase_gate'])

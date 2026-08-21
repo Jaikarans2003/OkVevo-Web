@@ -228,7 +228,12 @@ function ChoiceList({
   onChoice: (id: string) => void;
 }) {
   return (
-    <ol className="mt-3 space-y-2">
+    <ol
+      className={cn(
+        'mt-3 space-y-2',
+        choices.length > 4 && 'max-h-56 overflow-y-auto'
+      )}
+    >
       {choices.map((choice, i) => {
         const selected = draft.choiceId === choice.id && !draft.skipped;
         return (

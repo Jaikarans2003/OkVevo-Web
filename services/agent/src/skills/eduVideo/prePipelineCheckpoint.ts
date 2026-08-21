@@ -90,7 +90,7 @@ export function selfcheckParseStatedPrefs(): void {
   console.log('parseStatedPrefs selfcheck ok');
 }
 
-async function probeOrientationHint(
+export async function probeOrientationHint(
   videoUrl: string
 ): Promise<VideoOrientation | undefined> {
   const dest = getTempPath(`prepipe_probe_${Date.now()}.mp4`);
@@ -118,7 +118,7 @@ async function probeOrientationHint(
 }
 
 /** Sample center pixel → brand palette hint. Falls back to DEFAULT. */
-async function extractBrandFromVideo(videoUrl: string): Promise<BrandColors> {
+export async function extractBrandFromVideo(videoUrl: string): Promise<BrandColors> {
   const dest = getTempPath(`prepipe_frame_${Date.now()}.mp4`);
   const raw = getTempPath(`prepipe_px_${Date.now()}.rgb`);
   try {

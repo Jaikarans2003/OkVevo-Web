@@ -80,13 +80,23 @@ export type PipelineDecisionKey =
   | 'transcription_language'
   | 'orientation'
   | 'brand_colors'
-  | 'animation_style';
+  | 'animation_style'
+  | 'card_style';
 
 const TOOL_OWNED_CHOICE_IDS: Record<PipelineDecisionKey, Set<string>> = {
   transcription_language: new Set(['en', 'auto']),
   orientation: new Set(['horizontal', 'vertical']),
   brand_colors: new Set(['default', 'from_video']),
   animation_style: new Set(['minimal', 'moderate', 'detailed']),
+  card_style: new Set([
+    'academic',
+    'editorial',
+    'minimal',
+    'corporate',
+    'technical',
+    'whiteboard',
+    'social',
+  ]),
 };
 
 export function matchToolOwnedDecision(
@@ -121,6 +131,27 @@ export function matchToolOwnedDecision(
 }
 
 export type AnimationStyle = 'minimal' | 'moderate' | 'detailed';
+
+export type TalkingHeadStyle =
+  | 'academic'
+  | 'editorial'
+  | 'minimal'
+  | 'corporate'
+  | 'technical'
+  | 'whiteboard'
+  | 'social'
+  | 'custom';
+
+const TALKING_HEAD_STYLE_SET = new Set<string>([
+  'academic',
+  'editorial',
+  'minimal',
+  'corporate',
+  'technical',
+  'whiteboard',
+  'social',
+  'custom',
+]);
 
 const PHASE_NUMBERS: Record<string, number> = {
   transcription: 2,
@@ -606,6 +637,33 @@ export async function getSessionAnimationStyle(
   return 'moderate';
 }
 
+export async function persistTalkingHeadStyle(
+  sessionId: string,
+  talkingHeadStyle: TalkingHeadStyle,
+  talkingHeadStyleBrief?: string
+): Promise<void> {
+  const patch: Record<string, unknown> = { talkingHeadStyle };
+  if (typeof talkingHeadStyleBrief === 'string' && talkingHeadStyleBrief.trim()) {
+    patch.talkingHeadStyleBrief = talkingHeadStyleBrief.trim();
+  }
+  await db.collection('sessions').doc(sessionId).set(patch, { merge: true });
+}
+
+export async function getSessionTalkingHeadStyle(sessionId: string): Promise<{
+  style: TalkingHeadStyle;
+  brief?: string;
+}> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const data = snap.data();
+  const raw = data?.talkingHeadStyle;
+  const style = TALKING_HEAD_STYLE_SET.has(raw) ? (raw as TalkingHeadStyle) : 'minimal';
+  const brief =
+    typeof data?.talkingHeadStyleBrief === 'string' && data.talkingHeadStyleBrief.trim()
+      ? data.talkingHeadStyleBrief.trim()
+      : undefined;
+  return { style, brief };
+}
+
 export async function markPrePipelineResolved(sessionId: string): Promise<void> {
   await db
     .collection('sessions')
@@ -677,6 +735,16 @@ export async function persistPrePipelineAnswers(
       const style =
         choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
       await persistAnimationStyle(sessionId, style);
+    } else if (q.id === 'card_style') {
+      if (ans?.type === 'freeform') {
+        await persistTalkingHeadStyle(sessionId, 'custom', ans.text);
+      } else {
+        const style =
+          choiceId && TALKING_HEAD_STYLE_SET.has(choiceId) && choiceId !== 'custom'
+            ? (choiceId as TalkingHeadStyle)
+            : 'minimal';
+        await persistTalkingHeadStyle(sessionId, style);
+      }
     }
   }
   await markPrePipelineResolved(sessionId);
@@ -715,6 +783,17 @@ export const CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME — 
 4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.
 5. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
 
+/** Directive after Storyboard ready freeform/revision. */
+export const STORYBOARD_REVISION_RESUME_MANDATORY = `STORYBOARD REVISION RESUME — MANDATORY NEXT TOOL
+1. Apply the user's storyboard/card edits via write_file or str_replace only (storyboard.json and/or cards/*.html).
+2. Immediately after edits succeed, call ask_clarification exactly once with:
+   - kind: "phase_gate"
+   - phase_label: "Storyboard ready"
+   - question summarizing the updated cards
+   - allowFreeform: true
+3. Do NOT call scaffold_talking_head_project or render_hyperframes until the user Continues on Storyboard ready.
+4. Never ask orientation, layout, or density.`;
+
 export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const answer = checkpoint.answer;
   const answerLine = answer
@@ -725,15 +804,31 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const orientationChosen =
     choiceId === 'horizontal' || choiceId === 'vertical' ? choiceId : null;
   const answerType = answer?.type;
+  const isTalkingHeadPrefs = checkpoint.resume.questions?.some(
+    (q) => q.id === 'card_style'
+  );
 
   let phaseGuidance = '';
   if (
     checkpoint.completedPhaseLabel === 'Video preferences' ||
     checkpoint.completedPhase === 'pre_pipeline'
   ) {
-    phaseGuidance = `
+    phaseGuidance = isTalkingHeadPrefs
+      ? `
+- Preferences saved on the session. Call transcribe_video with the same video URL next.
+- Do NOT ask language, style, palette, orientation, layout, or density again.`
+      : `
 - Preferences saved on the session. Call transcribe_video with the same video URL next.
 - Do NOT ask language, orientation, brand colors, or animation style again.`;
+  } else if (checkpoint.completedPhaseLabel === 'Storyboard ready') {
+    if (answerType === 'revision' || answerType === 'freeform') {
+      phaseGuidance = `\n\n${STORYBOARD_REVISION_RESUME_MANDATORY}`;
+    } else {
+      phaseGuidance = `
+- Storyboard approved. Call scaffold_talking_head_project next, then render_hyperframes.
+- Do NOT rewrite cards unless the user asked for edits.
+- Never ask orientation, layout, or density.`;
+    }
   } else if (checkpoint.completedPhaseLabel === 'Concepts extracted') {
     if (answerType === 'revision' || answerType === 'freeform') {
       phaseGuidance = `\n\n${CONCEPTS_REVISION_RESUME_MANDATORY}`;
@@ -767,10 +862,16 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
       ? '- Continue after transcribe_video succeeds — then extract_concepts.'
       : checkpoint.completedPhaseLabel === 'Lecture heard'
         ? '- Continue with extract_concepts.'
-        : checkpoint.completedPhaseLabel === 'Video preferences' ||
-            checkpoint.completedPhase === 'pre_pipeline'
-          ? '- Continue with transcribe_video, then extract_concepts.'
-          : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
+        : checkpoint.completedPhaseLabel === 'Storyboard ready'
+          ? answerType === 'revision' || answerType === 'freeform'
+            ? '- Apply card edits, re-gate Storyboard ready, then scaffold only after Continue.'
+            : '- Continue with scaffold_talking_head_project, then render_hyperframes.'
+          : checkpoint.completedPhaseLabel === 'Video preferences' ||
+              checkpoint.completedPhase === 'pre_pipeline'
+            ? isTalkingHeadPrefs
+              ? '- Continue with transcribe_video, then write storyboard.json + cards.'
+              : '- Continue with transcribe_video, then extract_concepts.'
+            : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
 
   return `
 CHECKPOINT RESUME
