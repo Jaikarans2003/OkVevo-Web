@@ -3,7 +3,7 @@ import {
   isPartInFlight,
   isToolActivityPart,
 } from '@/lib/agent-tool-summaries';
-import { getToolFriendlyLabel } from '@/lib/agent/friendlyStatus';
+import { getToolFriendlyLabel, isInternalTool } from '@/lib/agent/friendlyStatus';
 
 export type ActivityPart = {
   type: string;
@@ -91,7 +91,9 @@ export function extractStatusLinesFromParts(
     }
 
     if (isToolActivityPart(part) && !isPartInFlight(part)) {
-      const label = getToolFriendlyLabel(getToolNameFromPart(part));
+      const toolName = getToolNameFromPart(part);
+      if (isInternalTool(toolName)) continue;
+      const label = getToolFriendlyLabel(toolName);
       index = pushLine(lines, label, base, index);
     }
   }

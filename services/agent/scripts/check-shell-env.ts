@@ -6,7 +6,6 @@ import {
 } from '../src/tools/general/filesystem';
 import { commandTargetsOwnedEditFile } from '../src/tools/lib/ownedEditFiles';
 import { execCommand, sanitizedShellEnv } from '../src/tools/lib/utils';
-import { SKILL_COMMAND_PREFIXES } from '../src/tools/catalog';
 
 async function main() {
   process.env.CHECK_FAKE_SECRET_TOKEN = 'must-not-leak';
@@ -25,22 +24,16 @@ async function main() {
   // Owned HTML rewrite denied
   assert(commandTargetsOwnedEditFile('sed -i s/a/b/ hf-project/index.html'));
 
-  // Prefix policy (temporary key for the assert — do not leave in catalog)
-  const prev = SKILL_COMMAND_PREFIXES['__check_shell_prefixes__'];
-  SKILL_COMMAND_PREFIXES['__check_shell_prefixes__'] = ['ffmpeg'];
   assert.equal(
-    commandAllowedBySkillPrefixes('python -c "print(1)"', '__check_shell_prefixes__'),
+    commandAllowedBySkillPrefixes('python -c "print(1)"', ['ffmpeg']),
     false
   );
   assert.equal(
-    commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', '__check_shell_prefixes__'),
+    commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', ['ffmpeg']),
     true
   );
-  if (prev === undefined) {
-    delete SKILL_COMMAND_PREFIXES['__check_shell_prefixes__'];
-  } else {
-    SKILL_COMMAND_PREFIXES['__check_shell_prefixes__'] = prev;
-  }
+  assert.equal(commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', undefined), true);
+  assert.equal(commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', []), false);
 
   const result = await execCommand('env', { env });
   assert(result.success, result.stderr);

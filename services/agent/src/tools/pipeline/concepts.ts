@@ -238,6 +238,7 @@ export function createConceptsTools(ctx: ToolCtx) {
                   `${concept_count} concept(s) ready. Approve these concepts, or describe edits below.`,
                 allowFreeform: true,
                 freeformPlaceholder: 'Describe your revision…',
+                phaseKey: 'concepts-extracted',
               }
             );
             return {

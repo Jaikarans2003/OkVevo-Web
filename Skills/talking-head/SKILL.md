@@ -13,8 +13,10 @@ Layers designed **graphic cards** onto a full-length source video. The clip play
 untouched — you design cards from the transcript, then scaffold + render.
 
 **Canvas:** 16:9 (`horizontal`) or 9:16 (`vertical`) only. No 4:5.
-Pick canvas from the source probe on the session (else horizontal). Style labels
-may show a best-orientation hint — that is informational only, not a user answer.
+Infer orientation from the source aspect ratio. Ask only when the source is
+ambiguous **or** the user request conflicts (e.g. social / vertical style on a
+clearly horizontal source). Style “Best with” hints are informational, not a
+user answer.
 
 **Tools available:** `transcribe_video`, `write_file` / `read_file` / `search_files` /
 `str_replace`, `ask_clarification`, `scaffold_talking_head_project`, `render_hyperframes`.
@@ -22,25 +24,25 @@ may show a best-orientation hint — that is informational only, not a user answ
 
 ## Sequence
 
-1. Prefs are front-loaded (Video preferences batch) — language, card style (+ freeform),
-   brand colors. Do **not** ask language, style, palette, orientation, layout, or density.
-2. `transcribe_video` on the tagged speaker video.
-3. Resolve style: if session `talkingHeadStyle` is a seed id, read that seed; if `custom`,
+1. Ask-Me prefs (see Ask-Me below) — then `transcribe_video` on the tagged speaker video.
+2. Resolve style: if session `talkingHeadStyle` is a seed id, read that seed; if `custom`,
    pick the **nearest of the 7 seeds** by keyword/tone, then apply `talkingHeadStyleBrief`
    as token-level adjustments (colors, accent, density) only — not open CSS authorship.
    Same contract as seeded styles: scoped CSS, no external URLs, no `<script>`.
    Apply session brand colors. Write `storyboard.json` + `cards/card-XX.html`.
-4. **Ask-Me only:** `ask_clarification` with `kind: phase_gate`,
-   `phase_label: "Storyboard ready"`, bullets = card titles/kickers from storyboard,
-   `allowFreeform: true` for edits. Scaffold only after Continue (or after applying edits
-   and re-gating once). This gate is the render-cost guardrail.
-5. Auto-Run: skip the storyboard gate → `scaffold_talking_head_project` → `render_hyperframes`.
+3. **Ask-Me only:** `ask_clarification` with `kind: phase_gate`,
+   `phase_label: "Storyboard ready"`, `question` = one line
+   (`"5 cards ready. Approve or describe edits."`), `bullets` = `kicker — title`
+   per card (never put the list in `question`), `allowFreeform: true` for edits.
+   Scaffold only after Continue (or after applying edits and re-gating once).
+   This gate is the render-cost guardrail.
+4. Auto-Run: skip prefs and the storyboard gate → `scaffold_talking_head_project` → `render_hyperframes`. Tools use defaults when session fields are unset.
 
 ## Never ask
 
-Never ask orientation, layout, or density as separate questions. Orientation appears
-only as label hints on style choices in the front-loaded batch. Choose layout/density
-internally from the transcript + style seed “Best with” hints.
+Never ask layout or density as separate questions. Choose them internally from the
+transcript + style seed “Best with” hints + `references/motion-catalog.md`.
+Do not `str_replace` `hf-project/index.html` — rewrite cards, then re-scaffold.
 
 ## Freeform custom style
 
@@ -52,22 +54,28 @@ Persist conceptually as seed + brief. Do not invent a new design system from scr
 - Layouts + pixel bounds: `Skills/talking-head/references/layouts.json`
 - Style seeds: `Skills/talking-head/references/styles/{academic,editorial,minimal,corporate,technical,whiteboard,social}.html`
 - Mix guide: `Skills/talking-head/references/DESIGN_INDEX.md`
+- Motion catalog: `Skills/talking-head/references/motion-catalog.md`
 
 Use `read_file` / `search_files` to load what you need.
 
 ## Layouts (defaults, not a whitelist — internal only; never show in checkpoints)
 
 
-| layout    | zone            | use                         |
-| --------- | --------------- | --------------------------- |
-| `split`   | `side-panel`    | speaker + data side-by-side |
-| `stack`   | `lower-third`   | video top, card below       |
-| `pip`     | `fullscreen`    | card fills, video PiP pill  |
-| `overlay` | `video-overlay` | full-bleed video + glass    |
+| layout    | zone            | use                                      |
+| --------- | --------------- | ---------------------------------------- |
+| `split`   | `side-panel`    | 16:9 default — data / definition beside the face |
+| `stack`   | `lower-third`   | **Social only.** Cards top, speaker bottom. Scaffold coerces stack → split for other styles |
+| `pip`     | `fullscreen`    | dense motion graphics, lists, diagrams — speaker as pill |
+| `overlay` | `video-overlay` | hook / title / mantra / quote (blur + glass — scaffold injects this) |
 
 
-Each style’s “Best with: layouts” list is a **suggestion** Nia prefers — all four
-layouts work in both orientations.
+**Per-card mix** — one layout per card, not per video. Change layout when the card’s
+job changes (hook → overlay, definition → split, dense list → pip, social lower-third → stack);
+consecutive cards with the same job keep the previous layout. No mix quota — mix by beat,
+do not default to all-split. Social style: only `stack` or `overlay`. Non-social: never `stack`.
+
+Each style’s “Best with: layouts” list is a **suggestion** within those rules. Prefer session
+uploaded-asset / GCS copy over expiring Firebase `?token=` links for the speaker.
 
 ## Styles
 
@@ -122,11 +130,35 @@ tokens. Do **not** use `hyperframes-registry` or any `hyperframes add` CLI —
 ```
 
 Write each card to `cards/<id>.html`. Scaffold reads these from disk.
+Optional `card.transition`: `"cut"` | `"fade"`. Default is a cut between abutting
+same-layout cards; layout changes tween the speaker wrap with motion blur.
 
-## Ask-Me
+## Repair
 
-Front-loaded prefs replace chat questions for language/style/palette. After storyboard
-cards are written, gate with **Storyboard ready** before scaffold/render. After resume,
-call the next tool before status text.
+If the user says the last MP4 is the wrong skill (looks like edu-video, leftover
+composition, etc.): call `scaffold_talking_head_project` on the **original tagged
+speaker upload**, never `str_replace` an edu `index.html`, and never use
+`final*.mp4` / `{skillId}*.mp4` as the speaker.
+
+## Ask-Me (pipelineMode=ask)
+
+Before expensive tools, ask missing prefs with `ask_clarification` —
+one question per call (never combine language + orientation + brand + style).
+
+Order:
+1. language
+2. card style (+ freeform)
+3. brand colors
+4. orientation ONLY if source is ambiguous or conflicts with style/request
+
+Never ask layout or density.
+Then transcribe → storyboard gate → scaffold → render.
+
+Also ask any other blocking doubt.
+Auto-Run: do not ask prefs; tools use defaults when session fields unset.
+Mid-session “actually make it vertical” is allowed — ask orientation again and overwrite.
+
+After storyboard cards are written, gate with **Storyboard ready** before scaffold/render.
+After resume, call the next tool before status text.
 
 Attribution: see `Skills/talking-head/NOTICE.md` (MIT, adapted from vtake-skills).

@@ -7,7 +7,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { IDLE_STATUS_WORDS, getToolFriendlyLabel } from '@/lib/agent/friendlyStatus';
+import { IDLE_STATUS_WORDS, getToolFriendlyLabel, isInternalTool } from '@/lib/agent/friendlyStatus';
 import {
   extractStatusLinesFromParts,
   getLatestStatusMarker,
@@ -29,7 +29,9 @@ function getLatestCompletedToolLabel(parts: ActivityPart[]): string | null {
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const part = parts[i];
     if (!isToolActivityPart(part) || isPartInFlight(part)) continue;
-    return getToolFriendlyLabel(getToolNameFromPart(part));
+    const toolName = getToolNameFromPart(part);
+    if (isInternalTool(toolName)) continue;
+    return getToolFriendlyLabel(toolName);
   }
   return null;
 }
@@ -38,7 +40,9 @@ function getLatestInFlightToolLabel(parts: ActivityPart[]): string | null {
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const part = parts[i];
     if (!isToolActivityPart(part) || !isPartInFlight(part)) continue;
-    return getToolFriendlyLabel(getToolNameFromPart(part));
+    const toolName = getToolNameFromPart(part);
+    if (isInternalTool(toolName)) continue;
+    return getToolFriendlyLabel(toolName);
   }
   return null;
 }

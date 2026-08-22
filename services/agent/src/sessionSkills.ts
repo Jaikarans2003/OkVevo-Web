@@ -1,4 +1,4 @@
-import { SKILL_TOOLS } from './tools/catalog';
+import { hasSkillManifest, listSkillIds, skillExtraTools } from './catalog/manifest';
 
 type SessionSkillFields = {
   skillsUsed?: unknown;
@@ -7,7 +7,7 @@ type SessionSkillFields = {
 };
 
 export function isKnownSkill(value: unknown): value is string {
-  return typeof value === 'string' && value in SKILL_TOOLS;
+  return typeof value === 'string' && hasSkillManifest(value);
 }
 
 export function resolveSessionSkillState(fields: SessionSkillFields): {
@@ -26,14 +26,6 @@ export function resolveSessionSkillState(fields: SessionSkillFields): {
     skillsUsed.push(legacySkillId);
     inferredSkills.push(legacySkillId);
   }
-  if (
-    skillsUsed.length === 0 &&
-    typeof fields.pipelinePhase === 'number' &&
-    fields.pipelinePhase > 0
-  ) {
-    skillsUsed.push('edu-video');
-    inferredSkills.push('edu-video');
-  }
 
   return { skillsUsed, inferredSkills, legacySkillId };
 }
@@ -45,18 +37,20 @@ export function skillsEngagedByToolCalls(
   const called = new Set(toolNames);
   if (
     currentSkill &&
-    SKILL_TOOLS[currentSkill]?.some((toolName) => called.has(toolName))
+    isKnownSkill(currentSkill) &&
+    skillExtraTools(currentSkill).some((toolName) => called.has(toolName))
   ) {
     return [currentSkill];
   }
   if (currentSkill) return [];
 
+  const extrasBySkill = listSkillIds().map((id) => [id, skillExtraTools(id)] as const);
   const engaged = new Set<string>();
   for (const toolName of called) {
-    const owners = Object.entries(SKILL_TOOLS)
+    const owners = extrasBySkill
       .filter(([, tools]) => tools.includes(toolName))
       .map(([skill]) => skill);
-    if (owners.length === 1) engaged.add(owners[0]);
+    if (owners.length === 1) engaged.add(owners[0]!);
   }
   return [...engaged];
 }

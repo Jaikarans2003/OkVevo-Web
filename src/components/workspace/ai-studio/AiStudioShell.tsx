@@ -34,6 +34,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { hasAssetMention, type TaggedAsset } from '@/lib/agent/taggedAssets';
+import { skillReadyMessage } from '@/lib/agent/skillReadyMessage';
 import {
   UPLOADED_PHOTO_PREFIX,
   UPLOADED_VIDEO_PREFIX,
@@ -211,7 +212,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   } = useAiStudioWorkspace();
   const chatId = activeSessionId ?? draftChatId;
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-haiku-4-5');
+  const [selectedModel, setSelectedModel] = useState('minimax/minimax-m3');
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<
     PendingAttachment[]
@@ -856,6 +857,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
     // Instant feedback: lock + clear composer before any network wait.
     setInput('');
+    clearPendingAttachments();
 
     const unlockPrepare = () => {
       submittingRef.current = false;
@@ -962,9 +964,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         });
     }
 
-    // Defer clear so the transport body snapshot cannot race with send.
+    // Tagged-asset draft is independent of the thumbnail strip.
     queueMicrotask(() => {
-      clearPendingAttachments();
       setActiveSkill(null);
       draftTaggedAssetsRef.current = [];
       setDraftTaggedAssets([]);
@@ -1027,7 +1028,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         url: draftVideoUrl,
         kind: 'video',
         injectId: `${activeSessionId}-draft-video`,
-        text: 'Your educational video is ready.',
+        text: skillReadyMessage(pipelineState?.skillId),
       });
     }
     for (const asset of availableAssets) {
@@ -1090,6 +1091,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     draftVideoUrl,
     availableAssets,
     activeSessionId,
+    pipelineState?.skillId,
     setMessages,
     setDeliverablesOpen,
     setShowDeliverablesToggle,

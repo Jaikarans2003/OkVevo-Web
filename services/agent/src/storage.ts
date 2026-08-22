@@ -11,6 +11,7 @@ import { nextManimClipBasename } from './manimClipBasename';
 import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
 import { remuxMp4Faststart } from './tools/lib/remuxMp4Faststart';
 import { contentDispositionForStoragePath } from './storageContentDisposition';
+import { skillReadyMessage } from './catalog/manifest';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
 export { nextManimClipBasename } from './manimClipBasename';
@@ -151,7 +152,8 @@ export async function uploadDirectoryToStorage(
 export async function getAssetUrl(
   userId: string,
   sessionId: string,
-  assetKey: string
+  assetKey: string,
+  opts?: { runId?: string }
 ): Promise<string | null> {
   const snap = await db
     .collection('users')
@@ -161,9 +163,23 @@ export async function getAssetUrl(
     .collection('assets')
     .where('kind', '==', assetKey)
     .orderBy('createdAt', 'desc')
-    .limit(1)
+    .limit(50)
     .get();
-  const url = snap.docs[0]?.data()?.url;
+  let runId = opts?.runId;
+  if (
+    runId === undefined &&
+    (assetKey === 'hf_project' ||
+      assetKey === 'composition' ||
+      assetKey === 'composition_manifest')
+  ) {
+    const session = (await db.collection('sessions').doc(sessionId).get()).data();
+    if (typeof session?.scaffoldRunId === 'string') runId = session.scaffoldRunId;
+  }
+  const docs = snap.docs;
+  const preferred = runId
+    ? docs.find((d) => d.data()?.runId === runId)
+    : undefined;
+  const url = (preferred ?? docs[0])?.data()?.url;
   return typeof url === 'string' && url.length > 0 ? url : null;
 }
 
@@ -196,6 +212,10 @@ export type WriteAssetFields = {
   mimeType?: string;
   sourceTool?: string;
   metadata?: Record<string, unknown>;
+  runId?: string;
+  skillId?: string;
+  contentRole?: string;
+  carriedFromAssetId?: string | null;
 };
 
 export async function writeAssetUrl(
@@ -204,8 +224,8 @@ export async function writeAssetUrl(
   kind: string,
   url: string,
   fields?: WriteAssetFields
-): Promise<void> {
-  await db
+): Promise<string> {
+  const ref = await db
     .collection('users')
     .doc(userId)
     .collection('sessions')
@@ -220,7 +240,14 @@ export async function writeAssetUrl(
       ...(fields?.mimeType !== undefined ? { mimeType: fields.mimeType } : {}),
       ...(fields?.sourceTool !== undefined ? { sourceTool: fields.sourceTool } : {}),
       ...(fields?.metadata !== undefined ? { metadata: fields.metadata } : {}),
+      ...(fields?.runId !== undefined ? { runId: fields.runId } : {}),
+      ...(fields?.skillId !== undefined ? { skillId: fields.skillId } : {}),
+      ...(fields?.contentRole !== undefined ? { contentRole: fields.contentRole } : {}),
+      ...(fields?.carriedFromAssetId !== undefined
+        ? { carriedFromAssetId: fields.carriedFromAssetId }
+        : {}),
     });
+  return ref.id;
 }
 
 export async function writeHfSegmentsPlan(
@@ -253,22 +280,43 @@ export async function getHfSegmentsPlan(
   return snap.exists ? (snap.data() as HfSegmentsPlan) : null;
 }
 
-/** Allocate next free final*.mp4 under the session GCS prefix. */
+/** Allocate next {skillId}.mp4 from this session's draft_video asset docs. */
 export async function allocateFinalVideoBasename(
   userId: string,
-  sessionId: string
+  sessionId: string,
+  skillId?: string
 ): Promise<string> {
-  const bucket = getStorage().bucket(getStorageBucketName());
-  const prefix = `users/${userId}/sessions/${sessionId}/`;
-  const [files] = await bucket.getFiles({ prefix });
-  const names: string[] = [];
-  for (const file of files) {
-    const name = file.name.slice(prefix.length);
-    if (!name || name.includes('/')) continue;
-    if (FINAL_VIDEO_NAME_RE.test(name)) names.push(name);
-  }
-  // In-flight render already reserved a basename on S3 — don't reuse it.
   const session = (await db.collection('sessions').doc(sessionId).get()).data();
+  const sid =
+    skillId ??
+    (typeof session?.scaffoldSkillId === 'string'
+      ? session.scaffoldSkillId
+      : typeof session?.skillId === 'string'
+        ? session.skillId
+        : undefined);
+
+  const snap = await db
+    .collection('users')
+    .doc(userId)
+    .collection('sessions')
+    .doc(sessionId)
+    .collection('assets')
+    .where('kind', '==', 'draft_video')
+    .get();
+  const names: string[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (sid && data.skillId && data.skillId !== sid) continue;
+    if (sid && data.skillId && data.skillId === sid) {
+      const label = typeof data.label === 'string' ? data.label : '';
+      if (label) names.push(label);
+      continue;
+    }
+    if (!sid) {
+      const label = typeof data.label === 'string' ? data.label : '';
+      if (label && FINAL_VIDEO_NAME_RE.test(label)) names.push(label);
+    }
+  }
   if (
     session?.userId === userId &&
     session.renderStatus === 'RUNNING' &&
@@ -277,7 +325,7 @@ export async function allocateFinalVideoBasename(
     const reserved = path.basename(session.renderOutputKey);
     if (FINAL_VIDEO_NAME_RE.test(reserved)) names.push(reserved);
   }
-  return nextFinalVideoBasename(names);
+  return nextFinalVideoBasename(names, sid);
 }
 
 /** Allocate next free manim/{safeName}[_N].mp4 — never overwrite a prior version. */
@@ -380,11 +428,22 @@ export async function finalizeRenderFromLocalFile(
     return current.draftVideoUrl;
   }
 
+  const skillId =
+    typeof current?.scaffoldSkillId === 'string'
+      ? current.scaffoldSkillId
+      : typeof current?.skillId === 'string'
+        ? current.skillId
+        : undefined;
+  const runId =
+    typeof current?.scaffoldRunId === 'string' ? current.scaffoldRunId : undefined;
   const basename =
     preferredBasename && FINAL_VIDEO_NAME_RE.test(preferredBasename)
       ? preferredBasename
-      : await allocateFinalVideoBasename(userId, sessionId);
-  const firebasePath = `users/${userId}/sessions/${sessionId}/${basename}`;
+      : await allocateFinalVideoBasename(userId, sessionId, skillId);
+  const firebasePath =
+    runId && skillId
+      ? `users/${userId}/sessions/${sessionId}/runs/${skillId}-${runId}/${basename}`
+      : `users/${userId}/sessions/${sessionId}/${basename}`;
   // ponytail: remux here — completion Lambda has no ffmpeg layer
   await remuxMp4Faststart(tempPath);
   const videoUrl = await uploadToStorage(tempPath, firebasePath);
@@ -395,6 +454,8 @@ export async function finalizeRenderFromLocalFile(
   await writeAssetUrl(userId, sessionId, 'draft_video', videoUrl, {
     label: basename,
     mimeType: 'video/mp4',
+    ...(runId ? { runId } : {}),
+    ...(skillId ? { skillId } : {}),
     ...(metadata ? { metadata } : {}),
   });
   await sessionRef.set(
@@ -414,7 +475,7 @@ export async function finalizeRenderFromLocalFile(
   // Surface the finished video in chat — webhook/Check Now used to only write
   // Firestore fields, so the UI never got an assistant message with the player.
   try {
-    const text = 'Your educational video is ready.';
+    const text = skillReadyMessage(skillId);
     await saveMessage(sessionId, userId, 'assistant', text, [
       { type: 'text', text },
     ], { videoUrl });

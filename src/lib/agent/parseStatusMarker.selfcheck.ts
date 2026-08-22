@@ -115,4 +115,14 @@ assert.equal(
   'placeholder markers do not enter the trail'
 );
 
+const hidesInternal = extractStatusLinesFromParts([
+  { type: 'tool-write_file', state: 'output-available' },
+  { type: 'tool-transcribe_video', state: 'output-available' },
+]);
+assert.deepEqual(
+  hidesInternal.map((line) => line.text),
+  ['Listening to your lecture'],
+  'internal tools do not enter the status trail'
+);
+
 console.log('parseStatusMarker.selfcheck: ok');

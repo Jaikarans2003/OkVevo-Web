@@ -31,6 +31,8 @@ const indexKeys = new Set([
   'MANIM_GSAP',
   'LIQUID_GLASS_INIT',
   'TRANSITION_WIRING',
+  'SPEAKER_SRC',
+  'AUDIO_SRC',
 ]);
 // Keys buildSegmentSection replaces in mode-*.html
 const sectionKeys = new Set([

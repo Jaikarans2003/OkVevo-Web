@@ -14,12 +14,12 @@
     "stack": {
       "zone": "lower-third",
       "horizontal": {
-        "video": { "left": 14, "top": 14, "width": 1892, "height": 548 },
-        "card": { "left": 14, "top": 576, "width": 1892, "height": 490 }
+        "video": { "left": 14, "top": 576, "width": 1892, "height": 490 },
+        "card": { "left": 14, "top": 14, "width": 1892, "height": 548 }
       },
       "vertical": {
-        "video": { "left": 0, "top": 0, "width": 1080, "height": 844 },
-        "card": { "left": 0, "top": 844, "width": 1080, "height": 1076 }
+        "video": { "left": 0, "top": 844, "width": 1080, "height": 1076 },
+        "card": { "left": 0, "top": 0, "width": 1080, "height": 844 }
       }
     },
     "pip": {

@@ -340,6 +340,8 @@ export async function ensureSessionArtifacts(
     fs.mkdirSync(dest, { recursive: true });
     const storagePath = resolved.parseStoragePathFromPublicUrl(hfUrl);
     await resolved.downloadStoragePrefixToDir(storagePath, dest);
+    const { stampFromStoragePrefix } = await import('./hfProjectSync');
+    stampFromStoragePrefix(workdir, storagePath);
     result[resultKey] = sessionArtifactPresent(workdir, 'hf_project')
       ? 'restored'
       : 'unavailable';
@@ -511,6 +513,33 @@ export async function normalizeSpeakerVideo(
   );
   if (!ffmpeg.success) {
     throw new Error(ffmpeg.stderr || 'ffmpeg speaker normalize failed');
+  }
+}
+
+export async function probeFileDuration(filePath: string): Promise<number> {
+  const ffprobe = await execCommand(
+    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+    { timeoutSeconds: 60 }
+  );
+  return Number.parseFloat(ffprobe.stdout.trim()) || 0;
+}
+
+export async function trimMediaToDuration(
+  paths: string[],
+  duration: number
+): Promise<void> {
+  for (const mediaPath of paths) {
+    if (!fs.existsSync(mediaPath)) continue;
+    const tmp = `${mediaPath}.trim${path.extname(mediaPath)}`;
+    const trim = await execCommand(
+      `ffmpeg -y -i "${mediaPath}" -t ${duration} -c copy "${tmp}"`,
+      { timeoutSeconds: 120 }
+    );
+    if (!trim.success) {
+      fs.rmSync(tmp, { force: true });
+      throw new Error(trim.stderr || `ffmpeg trim failed: ${mediaPath}`);
+    }
+    fs.renameSync(tmp, mediaPath);
   }
 }
 
@@ -733,7 +762,7 @@ export function buildManimClipsHtml(
       const start = seg ? seg.start : clip.start_seconds;
       const end = seg ? seg.end : clip.end_seconds;
       const duration = end - start;
-      return `<video id="manim-${index}" class="clip" data-start="${start}" data-duration="${duration}" data-track-index="2" src="assets/manim-${index}.mp4" muted playsinline></video>`;
+      return `<video id="manim-${index}" class="clip" data-start="${start}" data-duration="${duration}" data-track-index="2" src="${clip.clip_url}" muted playsinline></video>`;
     })
     .join('\n      ');
 }

@@ -1,0 +1,18 @@
+{
+  "id": "background-generation",
+  "version": 1,
+  "triggers": [
+    "/background-generation",
+    "background",
+    "backdrop",
+    "background image",
+    "background video",
+    "studio background"
+  ],
+  "tools": [],
+  "baseTools": [
+    "ask_clarification",
+    "image_generate",
+    "video_generate"
+  ]
+}

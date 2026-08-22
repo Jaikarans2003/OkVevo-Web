@@ -6,12 +6,16 @@ export type PendingFalJob = {
   taskId: FalTaskId;
   requestId: string;
   resumeOnCompletion: boolean;
+  skillId?: string;
 };
 
 export async function persistPendingFalJob(
   sessionId: string,
   job: PendingFalJob
 ): Promise<void> {
+  if (job.resumeOnCompletion && !job.skillId) {
+    throw new Error('pendingFalJob resumeOnCompletion requires skillId stamp');
+  }
   await db.collection('sessions').doc(sessionId).set({ pendingFalJob: job }, { merge: true });
 }
 
@@ -27,6 +31,7 @@ export async function readPendingFalJob(
     taskId: j.taskId,
     requestId: j.requestId,
     resumeOnCompletion: j.resumeOnCompletion === true,
+    ...(typeof j.skillId === 'string' && j.skillId ? { skillId: j.skillId } : {}),
   };
 }
 

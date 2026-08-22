@@ -1,6 +1,4 @@
 import path from 'node:path';
-import { Timestamp } from 'firebase-admin/firestore';
-import { db } from '@/lib/firebase-admin';
 
 const SOURCE_EXTENSIONS = new Set([
   '.css',
@@ -43,17 +41,6 @@ export function assetType(kind: string, url: string): string {
 }
 
 
-export function isTaggableAsset(kind: string, url: string): boolean {
-  try {
-    const pathname = decodeURIComponent(new URL(url).pathname);
-    const ext = path.extname(pathname).toLowerCase();
-    const lastSegment = pathname.split('/').filter(Boolean).at(-1) ?? '';
-    return !SOURCE_EXTENSIONS.has(ext) && lastSegment.includes('.');
-  } catch {
-    return false;
-  }
-}
-
 export type SessionAssetDoc = {
   id: string;
   kind: string;
@@ -66,10 +53,59 @@ export type SessionAssetDoc = {
   metadata?: unknown;
 };
 
+export function isTaggableAsset(kind: string, url: string): boolean {
+  try {
+    const pathname = decodeURIComponent(new URL(url).pathname);
+    const ext = path.extname(pathname).toLowerCase();
+    const lastSegment = pathname.split('/').filter(Boolean).at(-1) ?? '';
+    return !SOURCE_EXTENSIONS.has(ext) && lastSegment.includes('.');
+  } catch {
+    return false;
+  }
+}
+
+type AssetDocInput = {
+  id: string;
+  kind: string;
+  url: string;
+  label?: string;
+  mimeType?: string;
+  status?: string;
+  createdAt: string | null;
+  metadata?: unknown;
+};
+
+/** Deduped taggable assets — unique URLs keep every run's drafts. */
+export function selectTaggableSessionAssets(
+  docs: AssetDocInput[]
+): SessionAssetDoc[] {
+  const seenUrls = new Set<string>();
+  const out: SessionAssetDoc[] = [];
+  for (const data of docs) {
+    if (!data.kind || !isTaggableAsset(data.kind, data.url)) continue;
+    if (seenUrls.has(data.url)) continue;
+    seenUrls.add(data.url);
+    out.push({
+      id: data.id,
+      kind: data.kind,
+      url: data.url,
+      label: data.label && data.label.length > 0 ? data.label : assetLabel(data.kind),
+      type: assetType(data.kind, data.url),
+      ...(data.mimeType ? { mimeType: data.mimeType } : {}),
+      ...(data.status ? { status: data.status } : {}),
+      createdAt: data.createdAt,
+      ...(data.metadata !== undefined ? { metadata: data.metadata } : {}),
+    });
+  }
+  return out;
+}
+
 export async function listSessionAssetDocs(
   userId: string,
   sessionId: string
 ): Promise<SessionAssetDoc[]> {
+  const { Timestamp } = await import('firebase-admin/firestore');
+  const { db } = await import('@/lib/firebase-admin');
   const snap = await db
     .collection('users')
     .doc(userId)
@@ -79,33 +115,23 @@ export async function listSessionAssetDocs(
     .orderBy('createdAt', 'desc')
     .get();
 
-  const seenUrls = new Set<string>();
-  return snap.docs.flatMap((doc) => {
-    const data = doc.data();
-    const url = data.url;
-    const kind = typeof data.kind === 'string' ? data.kind : '';
-    if (typeof url !== 'string' || !kind || !isTaggableAsset(kind, url)) return [];
-    if (seenUrls.has(url)) return [];
-    seenUrls.add(url);
-    const createdAt =
-      data.createdAt instanceof Timestamp
-        ? data.createdAt.toDate().toISOString()
-        : null;
-    return [
-      {
+  return selectTaggableSessionAssets(
+    snap.docs.map((doc) => {
+      const data = doc.data();
+      const createdAt =
+        data.createdAt instanceof Timestamp
+          ? data.createdAt.toDate().toISOString()
+          : null;
+      return {
         id: doc.id,
-        kind,
-        url,
-        label:
-          typeof data.label === 'string' && data.label
-            ? data.label
-            : assetLabel(kind),
-        type: assetType(kind, url),
-        ...(typeof data.mimeType === 'string' ? { mimeType: data.mimeType } : {}),
-        ...(typeof data.status === 'string' ? { status: data.status } : {}),
+        kind: typeof data.kind === 'string' ? data.kind : '',
+        url: typeof data.url === 'string' ? data.url : '',
+        label: typeof data.label === 'string' ? data.label : undefined,
+        mimeType: typeof data.mimeType === 'string' ? data.mimeType : undefined,
+        status: typeof data.status === 'string' ? data.status : undefined,
         createdAt,
-        ...(data.metadata !== undefined ? { metadata: data.metadata } : {}),
-      },
-    ];
-  });
+        metadata: data.metadata,
+      };
+    })
+  );
 }

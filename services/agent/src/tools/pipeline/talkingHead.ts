@@ -10,7 +10,9 @@ import {
   execCommand,
   getSessionWorkdir,
   loadSessionTranscript,
+  probeFileDuration,
   SPEAKER_MAX_BYTES,
+  trimMediaToDuration,
   SPEAKER_NORMALIZE_CRF,
   SPEAKER_NORMALIZE_PRESET,
   SPEAKER_NORMALIZE_VF,
@@ -20,7 +22,10 @@ import { resolveCompositionDuration } from '../lib/resolveCompositionDuration';
 import {
   formatDuration,
   getSessionOrientation,
+  getSessionTalkingHeadStyle,
+  getSessionVideoUrl,
   persistOrientation,
+  persistScaffoldRun,
 } from '../../checkpoint';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import {
@@ -29,8 +34,21 @@ import {
   uploadToStorage,
   writeAssetUrl,
 } from '../../storage';
+import {
+  findParentRoleDoc,
+  listCarryAssetDocs,
+  resolveOrCarryAsset,
+  roleDuration,
+  roleSourceUrl,
+  sessionMediaObjectPath,
+} from '../../assets/resolveOrCarryAsset';
 import { SKILLS_DIR } from '../../skills';
 import type { ToolCtx } from '../index';
+import {
+  newScaffoldRunId,
+  runHfProjectPrefix,
+  writeScaffoldRunStamp,
+} from '../lib/hfProjectSync';
 
 export type Rect = { left: number; top: number; width: number; height: number };
 
@@ -49,6 +67,7 @@ type StoryboardCard = {
   endSec: number;
   zone?: string;
   layout?: string;
+  transition?: 'cut' | 'fade';
 };
 
 type Storyboard = {
@@ -58,9 +77,12 @@ type Storyboard = {
 };
 
 const FPS = 30;
-const ENTER_DUR = 0.4;
-const EXIT_DUR = 0.35;
 const VIDEO_TWEEN_DUR = 0.6;
+const ABUT_GAP_SEC = 0.15;
+const FADE_ABUT_DUR = 0.12;
+const FADE_GAP_DUR = 0.2;
+const BLUR_PEAK_PX = 16;
+const OVERLAY_BLUR_PX = 10;
 
 export function loadTalkingHeadLayouts(): LayoutsFile {
   const p = path.join(SKILLS_DIR, 'talking-head', 'references', 'layouts.json');
@@ -320,23 +342,52 @@ function loadStoryboard(workdir: string): Storyboard {
   return raw;
 }
 
-function resolveCardLayoutKey(card: StoryboardCard, fallback: string): string {
-  if (card.layout && typeof card.layout === 'string') return card.layout;
-  if (card.zone) {
+export function resolveCardLayoutKey(
+  card: StoryboardCard,
+  fallback: string,
+  orientation: VideoOrientation,
+  style?: string
+): string {
+  let key = fallback;
+  if (card.layout && typeof card.layout === 'string') key = card.layout;
+  else if (card.zone) {
     try {
-      return layoutKeyForZone(card.zone);
+      key = layoutKeyForZone(card.zone);
     } catch {
-      /* fall through */
+      /* keep fallback */
     }
   }
-  return fallback;
+  if (style === 'social') {
+    if (key !== 'stack' && key !== 'overlay') return 'overlay';
+    return key;
+  }
+  if (key === 'stack') return 'split';
+  return key;
 }
 
-function buildIndexHtml(opts: {
+/** Host fade seconds for one edge (enter from prev, or exit toward next). */
+export function hostFadeSec(opts: {
+  neighborLayout: string | undefined;
+  currentLayout: string;
+  gapSec: number;
+  transition?: 'cut' | 'fade';
+}): number {
+  if (opts.neighborLayout == null) return 0;
+  if (opts.neighborLayout !== opts.currentLayout) return 0;
+  if (opts.transition === 'cut') return 0;
+  if (opts.transition === 'fade') {
+    return opts.gapSec <= ABUT_GAP_SEC ? FADE_ABUT_DUR : FADE_GAP_DUR;
+  }
+  return opts.gapSec <= ABUT_GAP_SEC ? 0 : FADE_GAP_DUR;
+}
+
+export function buildIndexHtml(opts: {
   width: number;
   height: number;
   duration: number;
   orientation: VideoOrientation;
+  speakerSrc: string;
+  audioSrc: string;
   cards: Array<{
     id: string;
     startSec: number;
@@ -346,6 +397,7 @@ function buildIndexHtml(opts: {
     cardRect: Rect;
     videoRect: Rect;
     chrome?: string;
+    transition?: 'cut' | 'fade';
   }>;
 }): string {
   const { width, height, duration, cards } = opts;
@@ -358,47 +410,86 @@ function buildIndexHtml(opts: {
     .map((c, i) => {
       const dur = Math.max(0.01, c.endSec - c.startSec);
       const inner = rewriteCardId(stripCardShell(c.cardHtml), c.id);
-      return `      <div class="card-host clip" data-card-id="${c.id}" data-start="${quantizeSec(c.startSec).toFixed(4)}" data-duration="${quantizeSec(dur).toFixed(4)}" data-track-index="${2 + i}" style="${rectCss(c.cardRect)};visibility:hidden;opacity:0;">
+      return `      <div class="card-host clip" data-card-id="${c.id}" data-layout="${c.layoutKey}" data-start="${quantizeSec(c.startSec).toFixed(4)}" data-duration="${quantizeSec(dur).toFixed(4)}" data-track-index="${2 + i}" style="${rectCss(c.cardRect)};visibility:hidden;opacity:0;">
         ${inner}
       </div>`;
     })
     .join('\n');
 
+  const initialFilter =
+    first.layoutKey === 'overlay' ? `blur(${OVERLAY_BLUR_PX}px)` : 'blur(0px)';
   const scriptLines: string[] = [
     `const tl = window.gsap.timeline({ paused: true });`,
-    `tl.set('#video-wrap', { left: ${initialVideo.left}, top: ${initialVideo.top}, width: ${initialVideo.width}, height: ${initialVideo.height}, className: '${initialClass}' }, 0);`,
+    `tl.set('#video-wrap', { left: ${initialVideo.left}, top: ${initialVideo.top}, width: ${initialVideo.width}, height: ${initialVideo.height}, filter: '${initialFilter}', className: '${initialClass}' }, 0);`,
   ];
 
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i];
+    const prev = i > 0 ? cards[i - 1] : undefined;
+    const next = i < cards.length - 1 ? cards[i + 1] : undefined;
     const start = quantizeSec(c.startSec);
     const end = quantizeSec(c.endSec);
-    const exitAt = Math.max(start, quantizeSec(end - EXIT_DUR));
     const hostSel = `'.card-host[data-card-id="${escapeSel(c.id)}"]'`;
+    const enterDur = hostFadeSec({
+      neighborLayout: prev?.layoutKey,
+      currentLayout: c.layoutKey,
+      gapSec: prev ? c.startSec - prev.endSec : 0,
+      transition: c.transition,
+    });
+    const exitDur = hostFadeSec({
+      neighborLayout: next?.layoutKey,
+      currentLayout: c.layoutKey,
+      gapSec: next ? next.startSec - c.endSec : 0,
+      transition: c.transition,
+    });
+    const exitAt = Math.max(start, quantizeSec(end - exitDur));
 
-    if (i > 0) {
-      const prev = cards[i - 1];
+    if (prev) {
       const tweenAt = quantizeSec(Math.max(0, c.startSec - VIDEO_TWEEN_DUR));
+      const layoutChanged = prev.layoutKey !== c.layoutKey;
       const sameRect =
         prev.videoRect.left === c.videoRect.left &&
         prev.videoRect.top === c.videoRect.top &&
         prev.videoRect.width === c.videoRect.width &&
         prev.videoRect.height === c.videoRect.height &&
         prev.chrome === c.chrome;
-      if (!sameRect) {
+      if (!sameRect || layoutChanged) {
         const cls =
           c.chrome === 'pip-pill' ? 'video-wrapper pip-pill' : 'video-wrapper';
         scriptLines.push(
-          `tl.set('#video-wrap', { className: '${cls}' }, ${tweenAt});`,
-          `tl.to('#video-wrap', { left: ${c.videoRect.left}, top: ${c.videoRect.top}, width: ${c.videoRect.width}, height: ${c.videoRect.height}, duration: ${VIDEO_TWEEN_DUR}, ease: 'power2.inOut' }, ${tweenAt});`
+          `tl.set('#video-wrap', { className: '${cls}' }, ${tweenAt});`
         );
+        if (!sameRect) {
+          scriptLines.push(
+            `tl.to('#video-wrap', { left: ${c.videoRect.left}, top: ${c.videoRect.top}, width: ${c.videoRect.width}, height: ${c.videoRect.height}, duration: ${VIDEO_TWEEN_DUR}, ease: 'power2.inOut' }, ${tweenAt});`
+          );
+        }
+        const overlayEdge =
+          prev.layoutKey === 'overlay' || c.layoutKey === 'overlay';
+        if (layoutChanged && !overlayEdge) {
+          const half = VIDEO_TWEEN_DUR / 2;
+          scriptLines.push(
+            `tl.fromTo('#video-wrap', { filter: 'blur(0px)' }, { filter: 'blur(${BLUR_PEAK_PX}px)', duration: ${half}, ease: 'power1.in', yoyo: true, repeat: 1 }, ${tweenAt});`
+          );
+        }
       }
     }
+    if (c.layoutKey === 'overlay') {
+      scriptLines.push(
+        `tl.set('#video-wrap', { filter: 'blur(${OVERLAY_BLUR_PX}px)' }, ${start});`
+      );
+    } else if (prev?.layoutKey === 'overlay') {
+      scriptLines.push(`tl.set('#video-wrap', { filter: 'blur(0px)' }, ${start});`);
+    }
 
-    scriptLines.push(
-      `tl.set(${hostSel}, { visibility: 'visible' }, ${start});`,
-      `tl.fromTo(${hostSel}, { opacity: 0 }, { opacity: 1, duration: ${ENTER_DUR}, ease: 'power2.out' }, ${start});`
-    );
+    scriptLines.push(`tl.set(${hostSel}, { visibility: 'visible' }, ${start});`);
+    if (enterDur > 0) {
+      scriptLines.push(
+        `tl.fromTo(${hostSel}, { opacity: 0 }, { opacity: 1, duration: ${enterDur}, ease: 'power2.out' }, ${start});`
+      );
+    } else {
+      scriptLines.push(`tl.set(${hostSel}, { opacity: 1 }, ${start});`);
+    }
 
     for (const anim of extractDataAnims(c.cardHtml)) {
       scriptLines.push(
@@ -406,10 +497,12 @@ function buildIndexHtml(opts: {
       );
     }
 
-    scriptLines.push(
-      `tl.to(${hostSel}, { opacity: 0, duration: ${EXIT_DUR}, ease: 'power2.in' }, ${exitAt});`,
-      `tl.set(${hostSel}, { visibility: 'hidden' }, ${end});`
-    );
+    if (exitDur > 0) {
+      scriptLines.push(
+        `tl.to(${hostSel}, { opacity: 0, duration: ${exitDur}, ease: 'power2.in' }, ${exitAt});`
+      );
+    }
+    scriptLines.push(`tl.set(${hostSel}, { visibility: 'hidden', opacity: 0 }, ${end});`);
   }
 
   scriptLines.push(
@@ -445,15 +538,21 @@ function buildIndexHtml(opts: {
       .card-host { position: absolute; pointer-events: none; overflow: hidden; }
       .card-host .card { position: relative; width: 100%; height: 100%; overflow: hidden; }
       .card-host .char { display: inline-block; visibility: visible; }
+      .card-host[data-layout="overlay"] .root {
+        background: rgba(255,255,255,.18) !important;
+        backdrop-filter: blur(18px) saturate(1.35);
+        -webkit-backdrop-filter: blur(18px) saturate(1.35);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+      }
     </style>
   </head>
   <body>
     <div id="stage" data-composition-id="talking-head" data-start="0" data-duration="${duration}" data-fps="${FPS}" data-width="${width}" data-height="${height}">
-      <div class="${initialClass}" id="video-wrap" style="${rectCss(initialVideo)};">
-        <video id="bg-video" src="assets/speaker_noaudio.mp4" muted playsinline data-start="0" data-duration="${duration}" data-track-index="1"></video>
+      <div class="${initialClass}" id="video-wrap" style="${rectCss(initialVideo)};filter:${initialFilter};">
+        <video id="bg-video" src="${opts.speakerSrc}" muted playsinline data-start="0" data-duration="${duration}" data-track-index="1"></video>
       </div>
 ${hosts}
-      <audio id="bg-audio" src="assets/audio.mp3" data-start="0" data-duration="${duration}" data-track-index="0"></audio>
+      <audio id="bg-audio" src="${opts.audioSrc}" data-start="0" data-duration="${duration}" data-track-index="0"></audio>
       <script src="vendor/gsap.min.js"></script>
       <script>
         (function () {
@@ -466,11 +565,44 @@ ${hosts}
 `;
 }
 
+/** Mute/role URL → original upload (metadata.sourceUrl or session.videoUrl). */
+export function remapSpeakerUrlFromDocs(
+  speakerVideoUrl: string,
+  docs: Awaited<ReturnType<typeof listCarryAssetDocs>>,
+  sessionVideoUrl: string | null
+): string {
+  const byUrl = docs.find(
+    (d) => d.contentRole === 'primary-speaker-source' && d.url === speakerVideoUrl
+  );
+  if (byUrl) {
+    const src = roleSourceUrl(byUrl);
+    if (src && src !== speakerVideoUrl) return src;
+  }
+  const looksMute =
+    /speaker_noaudio/i.test(speakerVideoUrl) || Boolean(byUrl);
+  if (looksMute && sessionVideoUrl) return sessionVideoUrl;
+  return speakerVideoUrl;
+}
+
+export async function remapSpeakerUrlToOriginal(
+  opts: { userId: string; sessionId: string },
+  speakerVideoUrl: string
+): Promise<string> {
+  const docs = await listCarryAssetDocs(opts.userId, opts.sessionId);
+  const sessionUrl = await getSessionVideoUrl(opts.sessionId);
+  return remapSpeakerUrlFromDocs(speakerVideoUrl, docs, sessionUrl);
+}
+
 async function runScaffoldTalkingHead(
   ctx: ToolCtx,
   args: { speaker_video_url: string; orientation?: VideoOrientation }
 ) {
   await assertSessionNotRendering(ctx.sessionId);
+
+  const speakerVideoUrl = await remapSpeakerUrlToOriginal(
+    { userId: ctx.userId, sessionId: ctx.sessionId },
+    args.speaker_video_url
+  );
 
   const sessionAssetUrls = await listSessionAssetUrls(ctx.userId, ctx.sessionId);
   const allowlist = [
@@ -478,7 +610,7 @@ async function runScaffoldTalkingHead(
     ...ctx.restoreAllowlistUrls.map((u) => ({ url: u })),
     ...sessionAssetUrls.map((u) => ({ url: u })),
   ];
-  assertTaggedUrlAllowed(args.speaker_video_url, allowlist);
+  assertTaggedUrlAllowed(speakerVideoUrl, allowlist);
 
   const orientation: VideoOrientation =
     args.orientation ?? (await getSessionOrientation(ctx.sessionId));
@@ -489,12 +621,16 @@ async function runScaffoldTalkingHead(
   const storyboard = loadStoryboard(workdir);
   const defaultLayout = storyboard.layout ?? 'split';
   const layouts = loadTalkingHeadLayouts();
+  const { style: sessionStyle } = await getSessionTalkingHeadStyle(ctx.sessionId);
+
+  const skillId = ctx.skillName || 'talking-head';
+  const runId = newScaffoldRunId();
+  const { parentRunId } = await persistScaffoldRun(ctx.sessionId, runId, skillId);
+  writeScaffoldRunStamp(workdir, { skillId, runId });
 
   const projectDir = path.join(workdir, 'hf-project');
   fs.rmSync(projectDir, { recursive: true, force: true });
-  const assetsDir = path.join(projectDir, 'assets');
   const vendorDir = path.join(projectDir, 'vendor');
-  fs.mkdirSync(assetsDir, { recursive: true });
   fs.mkdirSync(vendorDir, { recursive: true });
 
   const gsapSrc = path.join(
@@ -509,59 +645,122 @@ async function runScaffoldTalkingHead(
   }
   fs.copyFileSync(gsapSrc, path.join(vendorDir, 'gsap.min.js'));
 
-  const speakerRawPath = path.join(assetsDir, 'speaker_raw.mp4');
-  const speakerVideoPath = path.join(assetsDir, 'speaker_noaudio.mp4');
-  const audioPath = path.join(assetsDir, 'audio.mp3');
-
-  await downloadFile(args.speaker_video_url, speakerRawPath);
-
-  const audioExtract = await execCommand(
-    `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
-    { timeoutSeconds: 120 }
-  );
-  if (!audioExtract.success) {
-    throw new Error(audioExtract.stderr || 'ffmpeg audio extraction failed');
-  }
-
-  await normalizeSpeakerVideoDenseGop(speakerRawPath, speakerVideoPath);
-  fs.unlinkSync(speakerRawPath);
-
-  const ffprobe = await execCommand(
-    `ffprobe -v error -show_entries format=duration -of csv=p=0 "${speakerVideoPath}"`,
-    { timeoutSeconds: 60 }
-  );
-  const probedDuration = Number.parseFloat(ffprobe.stdout.trim()) || 0;
+  const priorDocs = await listCarryAssetDocs(ctx.userId, ctx.sessionId);
+  const priorVideo = findParentRoleDoc(priorDocs, 'primary-speaker-source', parentRunId);
+  const priorAudio = findParentRoleDoc(priorDocs, 'primary-speaker-audio', parentRunId);
+  const sourceMatch =
+    !!priorVideo &&
+    !!priorAudio &&
+    speakerVideoUrl === roleSourceUrl(priorVideo);
+  const storedDuration = roleDuration(priorVideo);
 
   const transcript = loadSessionTranscript(ctx.sessionId);
   const words = transcript?.words ?? [];
   const lastWordEnd = words.length > 0 ? words[words.length - 1].end : 0;
-  const effectiveDuration = resolveCompositionDuration({
+  let probedDuration = storedDuration ?? 0;
+  let effectiveDuration = resolveCompositionDuration({
     lastWordEnd,
     transcriptDuration:
       transcript?.duration_seconds ?? storyboard.durationSeconds ?? probedDuration,
     audioProbe: probedDuration,
     videoProbe: probedDuration,
   });
+  const durationShrink =
+    storedDuration != null && storedDuration > effectiveDuration + 0.05;
+  const unchanged = sourceMatch && !durationShrink;
 
-  if (probedDuration > effectiveDuration + 0.05) {
-    for (const mediaPath of [speakerVideoPath, audioPath]) {
-      const tmp = `${mediaPath}.trim${path.extname(mediaPath)}`;
-      const trim = await execCommand(
-        `ffmpeg -y -i "${mediaPath}" -t ${effectiveDuration} -c copy "${tmp}"`,
+  const mediaDir = path.join(workdir, '_speaker_media');
+  let speakerVideoPath = '';
+  let audioPath = '';
+  if (!unchanged) {
+    fs.rmSync(mediaDir, { recursive: true, force: true });
+    fs.mkdirSync(mediaDir, { recursive: true });
+    speakerVideoPath = path.join(mediaDir, 'speaker_noaudio.mp4');
+    audioPath = path.join(mediaDir, 'audio.mp3');
+    if (sourceMatch && durationShrink && priorVideo && priorAudio) {
+      await downloadFile(priorVideo.url, speakerVideoPath);
+      await downloadFile(priorAudio.url, audioPath);
+    } else {
+      const speakerRawPath = path.join(mediaDir, 'speaker_raw.mp4');
+      await downloadFile(speakerVideoUrl, speakerRawPath);
+      const audioExtract = await execCommand(
+        `ffmpeg -y -i "${speakerRawPath}" -vn -acodec mp3 "${audioPath}"`,
         { timeoutSeconds: 120 }
       );
-      if (!trim.success) {
-        fs.rmSync(tmp, { force: true });
-        throw new Error(trim.stderr || `ffmpeg trim failed: ${mediaPath}`);
+      if (!audioExtract.success) {
+        throw new Error(audioExtract.stderr || 'ffmpeg audio extraction failed');
       }
-      fs.renameSync(tmp, mediaPath);
+      await normalizeSpeakerVideoDenseGop(speakerRawPath, speakerVideoPath);
+      fs.unlinkSync(speakerRawPath);
+    }
+    probedDuration = await probeFileDuration(speakerVideoPath);
+    effectiveDuration = resolveCompositionDuration({
+      lastWordEnd,
+      transcriptDuration:
+        transcript?.duration_seconds ?? storyboard.durationSeconds ?? probedDuration,
+      audioProbe: probedDuration,
+      videoProbe: probedDuration,
+    });
+    if (probedDuration > effectiveDuration + 0.05) {
+      await trimMediaToDuration([speakerVideoPath, audioPath], effectiveDuration);
+      probedDuration = effectiveDuration;
+    }
+    const speakerBytes = fs.statSync(speakerVideoPath).size;
+    if (speakerBytes > SPEAKER_MAX_BYTES) {
+      throw new Error('Speaker video is too long to upload after 1080p normalization');
     }
   }
 
-  const speakerBytes = fs.statSync(speakerVideoPath).size;
-  if (speakerBytes > SPEAKER_MAX_BYTES) {
-    throw new Error('Speaker video is too long to upload after 1080p normalization');
-  }
+  const mediaDuration = unchanged ? (storedDuration as number) : probedDuration;
+  const speakerMeta = {
+    sourceUrl: speakerVideoUrl,
+    duration: mediaDuration,
+  };
+  const speaker = await resolveOrCarryAsset({
+    userId: ctx.userId,
+    sessionId: ctx.sessionId,
+    contentRole: 'primary-speaker-source',
+    unchanged,
+    parentRunId,
+    runId,
+    kind: 'primary-speaker-source',
+    skillId,
+    mimeType: 'video/mp4',
+    metadata: speakerMeta,
+    uploadFn: () =>
+      uploadToStorage(
+        speakerVideoPath,
+        sessionMediaObjectPath(
+          ctx.userId,
+          ctx.sessionId,
+          'primary-speaker-source',
+          `speaker_noaudio-${runId}.mp4`
+        )
+      ),
+  });
+  const audio = await resolveOrCarryAsset({
+    userId: ctx.userId,
+    sessionId: ctx.sessionId,
+    contentRole: 'primary-speaker-audio',
+    unchanged,
+    parentRunId,
+    runId,
+    kind: 'primary-speaker-audio',
+    skillId,
+    mimeType: 'audio/mpeg',
+    metadata: speakerMeta,
+    uploadFn: () =>
+      uploadToStorage(
+        audioPath,
+        sessionMediaObjectPath(
+          ctx.userId,
+          ctx.sessionId,
+          'primary-speaker-audio',
+          `audio-${runId}.mp3`
+        )
+      ),
+  });
+  fs.rmSync(mediaDir, { recursive: true, force: true });
 
   const resolvedCards = [];
   for (const card of storyboard.cards) {
@@ -569,7 +768,12 @@ async function runScaffoldTalkingHead(
     const startSec = Math.min(card.startSec, endSec);
     if (endSec <= startSec) continue;
 
-    const layoutKey = resolveCardLayoutKey(card, defaultLayout);
+    const layoutKey = resolveCardLayoutKey(
+      card,
+      defaultLayout,
+      orientation,
+      sessionStyle
+    );
     const bounds = resolveLayoutBounds(layoutKey, orientation, layouts);
     const cardPath = path.join(workdir, 'cards', `${card.id}.html`);
     if (!fs.existsSync(cardPath)) {
@@ -585,6 +789,9 @@ async function runScaffoldTalkingHead(
       cardRect: bounds.card,
       videoRect: bounds.video,
       chrome: bounds.chrome,
+      ...(card.transition === 'cut' || card.transition === 'fade'
+        ? { transition: card.transition }
+        : {}),
     });
   }
 
@@ -597,6 +804,8 @@ async function runScaffoldTalkingHead(
     height,
     duration: effectiveDuration,
     orientation,
+    speakerSrc: speaker.url,
+    audioSrc: audio.url,
     cards: resolvedCards,
   });
   fs.writeFileSync(path.join(projectDir, 'index.html'), indexHtml, 'utf-8');
@@ -618,20 +827,28 @@ async function runScaffoldTalkingHead(
     'utf-8'
   );
 
-  const compositionStoragePath = `users/${ctx.userId}/sessions/${ctx.sessionId}/composition.html`;
-  const indexUrl = await uploadToStorage(
-    path.join(projectDir, 'index.html'),
-    compositionStoragePath
+  const hfProjectPrefix = runHfProjectPrefix(
+    ctx.userId,
+    ctx.sessionId,
+    skillId,
+    runId
   );
-  await writeAssetUrl(ctx.userId, ctx.sessionId, 'composition', indexUrl);
-
-  const hfProjectPrefix = `users/${ctx.userId}/sessions/${ctx.sessionId}/hf-project`;
-  const { prefixUrl } = await uploadDirectoryToStorage(projectDir, hfProjectPrefix);
-  await writeAssetUrl(ctx.userId, ctx.sessionId, 'hf_project', prefixUrl);
+  const { indexUrl, prefixUrl } = await uploadDirectoryToStorage(
+    projectDir,
+    hfProjectPrefix
+  );
+  await writeAssetUrl(ctx.userId, ctx.sessionId, 'composition', indexUrl, {
+    runId,
+    skillId,
+  });
+  await writeAssetUrl(ctx.userId, ctx.sessionId, 'hf_project', prefixUrl, {
+    runId,
+    skillId,
+  });
 
   return {
     project_dir: projectDir,
-    composition_url: indexUrl,
+    composition_url: `${prefixUrl}/index.html`,
     orientation,
     width,
     height,

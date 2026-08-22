@@ -24,6 +24,7 @@ function resolveFalVideoKey(): string {
 export function createVideoGenerateTools(ctx: {
   sessionId: string;
   userId: string;
+  skillName?: string;
 }) {
   return {
     video_generate: tool({
@@ -85,6 +86,7 @@ export function createVideoGenerateTools(ctx: {
             taskId: 'fal_video',
             requestId: request_id,
             resumeOnCompletion: false,
+            ...(ctx.skillName ? { skillId: ctx.skillName } : {}),
           });
 
           return {

@@ -1,0 +1,5 @@
+{
+  "id": "manim-video",
+  "version": 1,
+  "tools": ["generate_manim_script", "render_manim_clip"]
+}

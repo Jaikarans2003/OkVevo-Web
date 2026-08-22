@@ -65,7 +65,7 @@ import {
   resolveRequestedLanguage,
   TRANSCRIPTION_LANGUAGE_CHOICES,
 } from '../lib/transcriptionLanguage';
-import { persistPendingFalJob } from '../../pendingFalJob';
+import { persistPendingFalJob, readPendingFalJob } from '../../pendingFalJob';
 import { falQueueResult, falQueueStatus } from '../../falQueue';
 import { finalizeFalSttFromPayload } from '../../falSttDeliver';
 import {
@@ -477,6 +477,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
                 kind: 'single_select',
                 phase_label: 'Transcription language',
                 completedPhase: 'transcription',
+                phaseKey: 'transcription-language',
                 question: 'Choose language you require captions in.',
                 choices: TRANSCRIPTION_LANGUAGE_CHOICES,
                 allowFreeform: false,
@@ -513,8 +514,14 @@ export function createTranscribeTools(ctx: ToolCtx) {
                       progress.requestId,
                       falKey
                     );
-                    const { pipelineMode, skillsUsed } =
+                    const { pipelineMode } =
                       await getSessionPipelineFields(ctx.sessionId);
+                    const job = await readPendingFalJob(ctx.sessionId);
+                    if (!job?.skillId) {
+                      throw new Error(
+                        `pendingFalJob missing skillId stamp for session ${ctx.sessionId}`
+                      );
+                    }
                     const finalized = await finalizeFalSttFromPayload({
                       sessionId: ctx.sessionId,
                       userId: ctx.userId,
@@ -522,7 +529,6 @@ export function createTranscribeTools(ctx: ToolCtx) {
                       progress: { ...progress, videoUrl: progress.videoUrl || video_url },
                       requestId: progress.requestId,
                       pipelineMode,
-                      skillName: skillsUsed[0] ?? ctx.skillName,
                     });
                     if (finalized.status === 'ask_checkpoint') {
                       return {
@@ -590,6 +596,7 @@ export function createTranscribeTools(ctx: ToolCtx) {
               taskId: 'fal_stt',
               requestId: request_id,
               resumeOnCompletion: true,
+              skillId: ctx.skillName,
             });
 
             return {

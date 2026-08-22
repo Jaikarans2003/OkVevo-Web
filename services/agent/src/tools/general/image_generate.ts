@@ -21,6 +21,7 @@ function resolveFalImageKey(): string {
 export function createImageGenerateTools(ctx: {
   sessionId: string;
   userId: string;
+  skillName?: string;
 }) {
   return {
     image_generate: tool({
@@ -67,6 +68,7 @@ export function createImageGenerateTools(ctx: {
             taskId: 'fal_image',
             requestId: request_id,
             resumeOnCompletion: false,
+            ...(ctx.skillName ? { skillId: ctx.skillName } : {}),
           });
 
           return {

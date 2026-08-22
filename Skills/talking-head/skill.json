@@ -1,0 +1,55 @@
+{
+  "id": "talking-head",
+  "version": 1,
+  "readyMessage": "Your talking-head video is ready.",
+  "triggers": ["talking-head", "/talking-head"],
+  "styleSeeds": [
+    "academic",
+    "editorial",
+    "minimal",
+    "corporate",
+    "technical",
+    "whiteboard",
+    "social"
+  ],
+  "styleSeedResume": "Restyle resume — rewrite cards from the {seed} seed HTML, apply session brand colors, keep orientation. Gate Storyboard ready again, then scaffold from the original upload (not speaker_noaudio).",
+  "tools": [
+    "transcribe_video",
+    "scaffold_talking_head_project",
+    "render_hyperframes"
+  ],
+  "baseTools": [
+    "write_file",
+    "read_file",
+    "search_files",
+    "web_search",
+    "web_extract",
+    "vision_analyze",
+    "str_replace",
+    "ask_clarification",
+    "image_generate",
+    "video_generate"
+  ],
+  "hooks": {
+    "on_transcript_ready": {
+      "continuePrompt": "The lecture transcript is ready. Continue the talking-head pipeline: write storyboard.json and cards from the transcript, then proceed with the next steps."
+    }
+  },
+  "phases": {
+    "pre_pipeline": {
+      "label": "Video preferences",
+      "completedPhase": "pre_pipeline",
+      "resume": {
+        "approve": "\n- Preferences saved on the session. Call transcribe_video with the same video URL next.\n- Continue with transcribe_video, then write storyboard.json + cards.",
+        "forceToolName": "transcribe_video"
+      }
+    },
+    "storyboard-ready": {
+      "label": "Storyboard ready",
+      "resume": {
+        "approve": "\n- Storyboard approved. Call scaffold_talking_head_project next, then render_hyperframes.\n- Do NOT rewrite cards unless the user asked for edits.\n- Never ask layout or density.\n- Continue with scaffold_talking_head_project, then render_hyperframes.",
+        "revision": "\n\nSTORYBOARD REVISION RESUME — MANDATORY NEXT TOOL\n1. Apply the user's storyboard/card edits via write_file or str_replace only (storyboard.json and/or cards/*.html).\n2. Immediately after edits succeed, call ask_clarification exactly once with:\n   - kind: \"phase_gate\"\n   - phase_label: \"Storyboard ready\"\n   - question: one line (\"N cards ready. Approve or describe edits.\")\n   - bullets: kicker — title per card\n   - allowFreeform: true\n3. Do NOT call scaffold_talking_head_project or render_hyperframes until the user Continues on Storyboard ready.\n4. Never ask layout or density.\n- Apply card edits, re-gate Storyboard ready, then scaffold only after Continue."
+      }
+    }
+  }
+}

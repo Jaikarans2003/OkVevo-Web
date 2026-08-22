@@ -1,0 +1,74 @@
+{
+  "id": "edu-video",
+  "version": 1,
+  "readyMessage": "Your educational video is ready.",
+  "triggers": [
+    "/edu-video",
+    "educational video",
+    "edu video",
+    "lecture video",
+    "teacher video",
+    "teaching video"
+  ],
+  "tools": [
+    "transcribe_video",
+    "extract_concepts",
+    "generate_manim_script",
+    "render_manim_clip",
+    "plan_segments",
+    "scaffold_hf_project",
+    "restore_generation",
+    "render_hyperframes"
+  ],
+  "hooks": {
+    "on_transcript_ready": {
+      "continuePrompt": "The lecture transcript is ready. Continue the edu-video pipeline: extract concepts and proceed with the next steps.",
+      "askPhaseKey": "lecture-heard"
+    }
+  },
+  "phases": {
+    "lecture-heard": {
+      "label": "Lecture heard",
+      "completedPhase": "transcription",
+      "question": "I've heard your lecture. Ready to continue?",
+      "kind": "phase_gate",
+      "allowFreeform": false,
+      "resume": {
+        "approve": "\n- Transcript is durable. Call extract_concepts next (pass duration_seconds only).\n- Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.\n- Continue with extract_concepts."
+      }
+    },
+    "concepts-extracted": {
+      "label": "Concepts extracted",
+      "completedPhase": "concepts",
+      "resume": {
+        "approve": "\n- concepts.json is restored and user-approved. Do NOT call extract_concepts again.\n- Do not ask for a video URL — transcription already completed.\n- If orientation is already on the session, proceed to generate_manim_script. Otherwise ask orientation once.\n- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.",
+        "revision": "\n\nCONCEPTS REVISION RESUME — MANDATORY NEXT TOOL\n1. Apply the user's concept edits to concepts.json via write_file or str_replace only.\n2. If session already has orientation, proceed to generate_manim_script — do NOT ask orientation again unless the user wants to change it.\n3. Otherwise, immediately after those edits succeed, call ask_clarification exactly once with:\n   - kind: \"single_select\"\n   - phase_label: \"Video orientation\"\n   - question: \"Choose video orientation to continue.\"\n   - choices: [{ id: \"horizontal\", label: \"Horizontal (16:9)\" }, { id: \"vertical\", label: \"Vertical (9:16)\" }]\n   - allowFreeform: false\n4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.\n5. Do NOT invent a different clarification question or skip ask_clarification after edits.\n- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.",
+        "forceToolName": "generate_manim_script"
+      }
+    },
+    "video-orientation": {
+      "label": "Video orientation",
+      "completedPhase": "concepts",
+      "resume": {
+        "approve": "\n- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.\n- Do not ask for a video URL — transcription already completed; next step is Manim via concepts.json.{orientationLine}\n- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.",
+        "forceToolName": "generate_manim_script"
+      }
+    },
+    "transcription-language": {
+      "label": "Transcription language",
+      "completedPhase": "transcription",
+      "resume": {
+        "approve": "\n- Call transcribe_video again with the same video_url to continue with the chosen language (English→Groq, Auto-detect→Fal Scribe v2).\n- Do NOT call extract_concepts or scaffold yet.\n- Continue after transcribe_video succeeds — then extract_concepts.",
+        "forceToolName": "transcribe_video"
+      }
+    },
+    "pre_pipeline": {
+      "label": "Video preferences",
+      "completedPhase": "pre_pipeline",
+      "resume": {
+        "approve": "\n- Preferences saved on the session. Call transcribe_video with the same video URL next.\n- Continue with transcribe_video, then extract_concepts.",
+        "forceToolName": "transcribe_video"
+      }
+    }
+  }
+}

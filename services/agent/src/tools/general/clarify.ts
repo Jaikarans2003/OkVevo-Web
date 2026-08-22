@@ -1,13 +1,15 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { matchToolOwnedDecision, writeAskCheckpoint } from '../../checkpoint';
+import { writeAskCheckpoint } from '../../checkpoint';
+import { hasSkillManifest, lookupPhase } from '../../catalog/manifest';
 import type { ToolCtx } from '../index';
+import { askFingerprint, concatenatedChoiceError } from '../../clarifyShape';
 
 export function createClarifyTools(ctx: ToolCtx) {
   return {
     ask_clarification: tool({
       description:
-        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. Do NOT use for transcription language, orientation, brand colors, animation style, or talking-head card style/palette — those are front-loaded or tool-owned. Always declare kind (single_select | phase_gate) and allowFreeform.',
+        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. One concern per call — never combine unrelated topics in one choice set. Always declare kind (single_select | phase_gate) and allowFreeform.',
       inputSchema: z.object({
         kind: z
           .enum(['single_select', 'phase_gate'])
@@ -30,21 +32,29 @@ export function createClarifyTools(ctx: ToolCtx) {
           .string()
           .optional()
           .describe('Optional phase title for check-in cards (e.g. "Transcription complete")'),
+        bullets: z
+          .array(z.string())
+          .optional()
+          .describe('Optional numbered bullets for the checkpoint card (e.g. card titles)'),
       }),
-      execute: async ({ kind, question, context, choices, allowFreeform, phase_label }) => {
-        const owned = matchToolOwnedDecision(choices);
-        // Allow legacy phase-labeled gates; block freelanced duplicates.
-        const allowedPhase =
-          phase_label === 'Video orientation' ||
-          phase_label === 'Transcription language';
-        if (owned && !allowedPhase) {
+      execute: async ({ kind, question, context, choices, allowFreeform, phase_label, bullets }) => {
+        const shape = concatenatedChoiceError(choices);
+        if (shape) {
+          console.warn('[clarify] concatenated choice rejected', { sessionId: ctx.sessionId, shape });
+          return { error: shape };
+        }
+
+        const seen = (ctx.askFingerprints ??= new Set<string>());
+        const fp = askFingerprint(question, choices);
+        if (seen.has(fp)) {
           return {
-            error: `Decision "${owned}" is tool-owned / front-loaded. Do not ask_clarification for it — use the pipeline tool or wait for the Video preferences batch.`,
-            decision: owned,
+            error:
+              'This turn already asked an equivalent clarification. Do not repeat the same question or choice set.',
           };
         }
 
         if (ctx.pipelineMode !== 'ask') {
+          seen.add(fp);
           return context ? `${context}\n\n${question}` : question;
         }
 
@@ -59,6 +69,11 @@ export function createClarifyTools(ctx: ToolCtx) {
           };
         }
 
+        const found =
+          phase_label && ctx.skillName && hasSkillManifest(ctx.skillName)
+            ? lookupPhase(ctx.skillName, { completedPhaseLabel: phase_label })
+            : null;
+
         const written =
           kind === 'single_select'
             ? await writeAskCheckpoint(ctx, {
@@ -68,6 +83,9 @@ export function createClarifyTools(ctx: ToolCtx) {
                 choices: choices!,
                 allowFreeform,
                 phase_label,
+                bullets,
+                phaseKey: found?.phaseKey,
+                completedPhase: found?.phase.completedPhase,
               })
             : await writeAskCheckpoint(ctx, {
                 kind: 'phase_gate',
@@ -75,8 +93,12 @@ export function createClarifyTools(ctx: ToolCtx) {
                 context,
                 allowFreeform,
                 phase_label,
+                bullets,
+                phaseKey: found?.phaseKey,
+                completedPhase: found?.phase.completedPhase,
               });
 
+        seen.add(fp);
         return {
           haltTurn: true,
           checkpointId: written.checkpointId,

@@ -13,13 +13,13 @@ description: >
 Transforms a teacher's video recording into an educational video (horizontal 1920×1080 or vertical 1080×1920).
 Every extracted concept is animated with Manim. HyperFrames assembles and renders the final composite — no per-segment creative HTML generation.
 
-**Transcription resilience:** `transcribe_video` routes by language choice. **English** extracts FLAC, splits into overlapping ~8 min chunks, and tries Groq then OpenRouter per chunk (Ask-Me chunk failures pause with Retry / Continue-with-gap / Abort). **Auto-detect** sends full audio to Fal ElevenLabs Scribe v2 (no our-side chunking). Language is chosen in the **front-loaded Video preferences** batch (Ask) or defaults to Auto-detect (Auto-Run) — `transcribe_video` does not re-ask if `requestedLanguage` is already on the session.
+**Transcription resilience:** `transcribe_video` routes by language choice. **English** extracts FLAC, splits into overlapping ~8 min chunks, and tries Groq then OpenRouter per chunk (Ask-Me chunk failures pause with Retry / Continue-with-gap / Abort). **Auto-detect** sends full audio to Fal ElevenLabs Scribe v2 (no our-side chunking). Language is asked via `ask_clarification` when missing (Ask-Me) or defaults to Auto-detect (Auto-Run) — `transcribe_video` does not re-ask if `requestedLanguage` is already on the session.
 
-**Front-loaded preferences (Ask-Me, before transcription):** One paginated checkpoint covers language, orientation, brand colors, and animation style when not already stated in the user prompt. Skip uses defaults (language=`auto`, orientation from ffprobe hint or horizontal, brand from video sample or orange/black, animation=`moderate`). Auto-Run applies those defaults silently. Never re-ask via `ask_clarification`.
+**Ask-Me preferences (one question per `ask_clarification` call, before Manim):** See Ask-Me below. Auto-Run does not ask; tools use defaults when session fields are unset.
 
-**Orientation:** Prefer the front-loaded choice. Legacy fallback: after Concepts approve, a Video orientation checkpoint may still appear only if preferences were not front-loaded. Auto-Run silently uses horizontal when unset. Session field `orientation` drives Manim (vertical = square 1080×1080 pixels + equal `config.frame_width`/`frame_height`) and which template tree is copied.
+**Orientation:** Ask as an early one-question gate when missing or in conflict, **before** `generate_manim_script`. Auto-Run silently uses horizontal when unset. Session field `orientation` drives Manim (vertical = square 1080×1080 pixels + equal `config.frame_width`/`frame_height`) and which template tree is copied.
 
-**Animation style:** Front-loaded choices `minimal` (no arrows) / `moderate` (default) / `detailed`. Session field `animationStyle` is injected into `generate_manim_script`.
+**Animation style:** Ask-Me choices `minimal` (no arrows) / `moderate` (default) / `detailed`. Session field `animationStyle` is injected into `generate_manim_script`.
 
 Two display modes, auto-assigned per transcript segment:
 
@@ -33,29 +33,39 @@ Two display modes, auto-assigned per transcript segment:
 
 Mode C covers intros, transitions, narrative, speaker-attention beats between animations (anecdotes, direct appeals, key spoken takeaways), and any time not covered by a successful Manim clip. Every Mode C segment lasts at least 3s — shorter gaps are absorbed into continuous animation. Zero concepts on a very short or meta-only recording is valid (all Mode C).
 
-## Ask-Me check-ins
+## Ask-Me (pipelineMode=ask)
+
+Before expensive tools, ask missing prefs with `ask_clarification` —
+one question per call (never combine language + orientation + brand + style).
+
+Order:
+1. transcription language
+2. orientation (if missing / conflict)
+3. brand colors
+4. animation style
+Then transcribe → concepts gate → manim → …
+
+Also ask any other blocking doubt.
+Auto-Run: do not ask prefs; tools use defaults when session fields unset.
+Mid-session “actually make it vertical” is allowed — ask orientation again and overwrite.
 
 These apply **only in Ask-Me mode** (`pipelineMode: ask`). In Auto-Run mode, do not call `ask_clarification` for routine phase boundaries — proceed autonomously.
 
-### Tool-owned vs non-tool (do not duplicate)
+### Prefs vs tool-owned gates
 
-| Decision | Classification | Where |
-| --- | --- | --- |
-| Transcription language | Non-tool, front-load | Video preferences batch |
-| Video orientation | Non-tool, front-load | Video preferences batch |
-| Brand colors | Non-tool, front-load | Video preferences batch |
-| Animation style | Non-tool, front-load | Video preferences batch (Skip/Auto default = `moderate`) |
-| Concepts approval | Tool-owned | `extract_concepts` |
-| "Lecture heard" continue | Tool-owned | Fal STT finalize |
-| Chunk-failure retry | Tool-owned | English `transcribe_video` path |
+| Decision | Where |
+| --- | --- |
+| Transcription language | Ask-Me checklist (one question) |
+| Video orientation | Ask-Me checklist when missing / conflict (before Manim) |
+| Brand colors | Ask-Me checklist (one question) |
+| Animation style | Ask-Me checklist (one question) |
+| Concepts approval | `extract_concepts` |
+| "Lecture heard" continue | Fal STT finalize |
+| Chunk-failure retry | English `transcribe_video` path |
 
-**Never** ask language / orientation / brand / animation style via `ask_clarification` when they were already answered in Video preferences or stated in the prompt.
+**Mandatory:** Ask-Me mode auto-pauses after `extract_concepts` with a Concepts extracted phase gate (Continue + freeform edits). Approving Continue proceeds to Manim when orientation is already on the session; otherwise ask orientation once. Do not call `ask_clarification` again for concepts on the approve path — wait for the user.
 
-**Precise preference rule:** Before generating content, if a preference would materially affect output quality and is neither stated in the user's prompt nor derivable from already-available context, surface it as a front-loaded question rather than silently defaulting. Never ask about something already stated. Never ask about something that genuinely depends on a pipeline step that hasn't run yet.
-
-**Mandatory:** Ask-Me mode auto-pauses after `extract_concepts` with a Concepts extracted phase gate (Continue + freeform edits). Approving Continue proceeds to Manim when orientation was front-loaded; otherwise a deterministic Video orientation checkpoint may still open. Do not call `ask_clarification` again for concepts on the approve path — wait for the user.
-
-**After concept revision / freeform edits:** apply edits to `concepts.json` via `write_file` or `str_replace` only. If orientation is already on the session from Video preferences, proceed to `generate_manim_script`. Otherwise call `ask_clarification` exactly once with:
+**After concept revision / freeform edits:** apply edits to `concepts.json` via `write_file` or `str_replace` only. If orientation is already on the session, proceed to `generate_manim_script`. Otherwise call `ask_clarification` exactly once with:
 - `phase_label: "Video orientation"`
 - `question: "Choose video orientation to continue."`
 - `choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]`
@@ -136,7 +146,7 @@ Never mention tool names, file paths, or technical details to the user.
 **Step 1:** `transcribe_video`
 
 - Pass: video_url from context
-- Ask-Me: language/orientation/brand/style come from the front-loaded Video preferences batch (or prompt). On resume call `transcribe_video` with the same `video_url`. English pins Whisper `language: en`; Auto-detect uses Fal Scribe v2 (native script). Auto-Run defaults to Auto-detect.
+- Ask-Me: if language/orientation/brand/style are still missing, ask them **one question per call** before transcribe (language) and before Manim (orientation, brand, style). On resume call `transcribe_video` with the same `video_url`. English pins Whisper `language: en`; Auto-detect uses Fal Scribe v2 (native script). Auto-Run defaults to Auto-detect.
 - Returns: transcript_url, transcript_text, duration_seconds, word_count
 - Word-level timestamps are written to session `transcript.json` (disk + Storage). Later tools load them — do not re-pass the words array.
 - **Auto-detect (`haltTurn`):** when `transcribe_video` returns `{ status: 'queued', haltTurn: true }`, end the turn immediately. Do **not** call `run_command` with `sleep` / `ls` / `find` (or any filesystem poll) looking for `transcript.json`. Completion arrives via webhook + entry-gate wake (Ask checkpoint or Auto continue) — never via shell discovery.

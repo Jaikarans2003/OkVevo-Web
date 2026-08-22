@@ -1,13 +1,21 @@
 /**
  * Display-boundary cleaner for assistant narrative.
- * Order is pinned: URLs → status markers → optional stack names.
- * URL-first is mandatory — \bFal\b would match inside fal.media otherwise.
+ * Order is pinned: fake tool markup → URLs → status markers → optional stack names.
+ * URL-first among content scrubbers is mandatory — \bFal\b would match inside fal.media otherwise.
  */
 import { stripStatusMarkers } from '@/lib/agent/parseStatusMarker';
 
 const STACK_NAMES =
-  'Manim|HyperFrames|Fal|Firestore|Firebase|GCS|OpenRouter|Groq';
+  'Manim|HyperFrames|Fal|Amplitude|Firebase|GCS|OpenRouter|Groq';
 const STACK_NAME_RE = new RegExp(`\\b(?:${STACK_NAMES})\\b`, 'gi');
+
+/** `<tool_call>…</tool_call>`, `<snake_case>…</snake_case>`, leftover `` `snake_case` ``. */
+const FAKE_TOOL_CALL_BLOCK_RE = /<tool_call\b[^>]*>[\s\S]*?<\/tool_call>/gi;
+const SNAKE_CASE_BLOCK_RE =
+  /<[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b[^>]*>[\s\S]*?<\/[a-z][a-z0-9]*(?:_[a-z0-9]+)+>/gi;
+const SNAKE_CASE_ORPHAN_TAG_RE =
+  /<\/?[a-z][a-z0-9]*(?:_[a-z0-9]+)+(?:\s[^>]*)?>/gi;
+const BACKTICK_SNAKE_TOOL_RE = /`[a-z][a-z0-9]*(?:_[a-z0-9]+)+`/g;
 
 function tidyWhitespace(text: string): string {
   return text
@@ -15,6 +23,17 @@ function tidyWhitespace(text: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
+}
+
+/** Strip model-emitted fake tool markup by shape (not by tool-name list). */
+export function stripFakeToolMarkup(text: string): string {
+  return tidyWhitespace(
+    text
+      .replace(FAKE_TOOL_CALL_BLOCK_RE, '')
+      .replace(SNAKE_CASE_BLOCK_RE, '')
+      .replace(SNAKE_CASE_ORPHAN_TAG_RE, '')
+      .replace(BACKTICK_SNAKE_TOOL_RE, '')
+  );
 }
 
 /** Strip Storage / fal.media / common media URLs from prose. */
@@ -43,13 +62,13 @@ export type CleanNarrativeOptions = {
 };
 
 /**
- * Pinned pipeline: stripAssetUrls → stripStatusMarkers → optional stripStackNames.
+ * Pinned pipeline: stripFakeToolMarkup → stripAssetUrls → stripStatusMarkers → optional stripStackNames.
  */
 export function cleanNarrativeText(
   text: string,
   options?: CleanNarrativeOptions
 ): string {
-  let out = stripStatusMarkers(stripAssetUrls(text));
+  let out = stripStatusMarkers(stripAssetUrls(stripFakeToolMarkup(text)));
   if (options?.scrubStackNames) {
     out = stripStackNames(out);
   }

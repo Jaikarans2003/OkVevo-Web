@@ -1,0 +1,30 @@
+{
+  "run_command": { "friendlyLabel": "Running a command", "internal": true },
+  "write_file": { "friendlyLabel": "Saving a file", "internal": true },
+  "read_file": { "friendlyLabel": "Reading a file", "internal": true },
+  "search_files": { "friendlyLabel": "Searching files", "internal": true },
+  "web_search": { "friendlyLabel": "Searching the web", "internal": true },
+  "web_extract": { "friendlyLabel": "Reading a web page", "internal": true },
+  "vision_analyze": { "friendlyLabel": "Looking at your image", "internal": false },
+  "str_replace": { "friendlyLabel": "Editing a file", "internal": true },
+  "ask_clarification": { "friendlyLabel": "Asking a quick question", "internal": false },
+  "image_generate": { "friendlyLabel": "Creating your image", "internal": false },
+  "video_generate": { "friendlyLabel": "Creating your video", "internal": false },
+  "transcribe_video": { "friendlyLabel": "Listening to your lecture", "internal": false },
+  "extract_concepts": { "friendlyLabel": "Finding key ideas", "internal": false },
+  "generate_manim_script": {
+    "friendlyLabel": "Sketching the animation",
+    "internal": false,
+    "requiresConfirmedFields": ["language", "orientation"]
+  },
+  "render_manim_clip": { "friendlyLabel": "Rendering the animation", "internal": false },
+  "plan_segments": { "friendlyLabel": "Planning the video flow", "internal": false },
+  "scaffold_hf_project": { "friendlyLabel": "Putting it all together", "internal": false },
+  "restore_generation": { "friendlyLabel": "Restoring your project", "internal": false },
+  "render_hyperframes": { "friendlyLabel": "Rendering your video", "internal": false },
+  "scaffold_talking_head_project": {
+    "friendlyLabel": "Building your talking-head video",
+    "internal": false,
+    "requiresConfirmedFields": ["language", "cardStyle"]
+  }
+}

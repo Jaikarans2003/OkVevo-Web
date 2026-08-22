@@ -1,0 +1,5 @@
+{
+  "id": "hyperframes",
+  "version": 1,
+  "tools": ["render_hyperframes"]
+}

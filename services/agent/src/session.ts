@@ -146,8 +146,9 @@ export async function saveMessage(
     {
       lastMessageAt: FieldValue.serverTimestamp(),
       messageCount: FieldValue.increment(1),
-      ...(extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
-      ...(extras?.videoName ? { videoName: extras.videoName } : {}),
+      // Draft MP4s live on the message; session.videoUrl stays the source upload.
+      ...(role === 'user' && extras?.videoUrl ? { videoUrl: extras.videoUrl } : {}),
+      ...(role === 'user' && extras?.videoName ? { videoName: extras.videoName } : {}),
       ...(extras?.imageUrl ? { imageUrl: extras.imageUrl } : {}),
     },
     { merge: true }

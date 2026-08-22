@@ -26,7 +26,7 @@ import {
 } from '../lib/ownedEditFiles';
 import { uploadFileToStorageKeepLocal, walkDir } from '../../storage';
 import type { ResolvedTaggedAsset } from '../../taggedAssets';
-import { SKILL_COMMAND_PREFIXES } from '../catalog';
+import { getCommandPolicy } from '../../catalog/manifest';
 
 async function ensurePathArtifacts(
   ctx: {
@@ -62,10 +62,9 @@ export function commandBinaryToken(command: string): string {
 
 export function commandAllowedBySkillPrefixes(
   command: string,
-  skillName: string | undefined
+  prefixes: readonly string[] | undefined
 ): boolean {
-  if (!skillName || !(skillName in SKILL_COMMAND_PREFIXES)) return true;
-  const prefixes = SKILL_COMMAND_PREFIXES[skillName];
+  if (!prefixes) return true;
   if (prefixes.length === 0) return false;
   const binary = commandBinaryToken(command);
   return prefixes.includes(binary);
@@ -115,7 +114,7 @@ Returns stdout, stderr, and exit code.`,
             success: false,
           };
         }
-        if (!commandAllowedBySkillPrefixes(command, ctx.skillName)) {
+        if (!commandAllowedBySkillPrefixes(command, getCommandPolicy(ctx.skillName))) {
           return {
             stdout: '',
             stderr: `Command not allowed for skill "${ctx.skillName}".`,

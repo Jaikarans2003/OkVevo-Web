@@ -39,62 +39,6 @@ function recoveryBranch(
   return 'none';
 }
 
-/** Mirror of matchToolOwnedDecision — keep in sync with checkpoint.ts. */
-function matchToolOwnedDecision(
-  choices: { id: string }[] | undefined
-): string | null {
-  if (!choices?.length) return null;
-  const ids = new Set(choices.map((c) => c.id));
-  if (ids.has('horizontal') && ids.has('vertical') && ids.size <= 2) {
-    return 'orientation';
-  }
-  if (ids.has('en') && ids.has('auto') && ids.size <= 2) {
-    return 'transcription_language';
-  }
-  if (
-    ids.has('minimal') &&
-    ids.has('moderate') &&
-    ids.has('detailed') &&
-    ids.size <= 3
-  ) {
-    return 'animation_style';
-  }
-  return null;
-}
-
-/** Mirror of parseStatedPrefs — keep in sync with prePipelineCheckpoint.ts. */
-function parseStatedPrefs(prompt: string): {
-  language?: string;
-  orientation?: string;
-  animationStyle?: string;
-} {
-  const lower = prompt.toLowerCase();
-  const out: {
-    language?: string;
-    orientation?: string;
-    animationStyle?: string;
-  } = {};
-  if (/\b(english|en\b|captions?\s+in\s+english)/i.test(prompt)) out.language = 'en';
-  else if (
-    /\b(auto[- ]?detect|detect\s+language|native\s+language|kannada|hindi|tamil|telugu|malayalam|bengali|marathi)\b/i.test(
-      prompt
-    )
-  ) {
-    out.language = 'auto';
-  }
-  if (/\b(vertical|9\s*[:x]\s*16|portrait|shorts?|reels?)\b/i.test(lower)) {
-    out.orientation = 'vertical';
-  } else if (/\b(horizontal|16\s*[:x]\s*9|landscape|widescreen)\b/i.test(lower)) {
-    out.orientation = 'horizontal';
-  }
-  if (/\b(minimal(?:istic)?|no\s+arrows?|simple\s+animations?|without\s+arrows?)\b/i.test(lower)) {
-    out.animationStyle = 'minimal';
-  } else if (/\b(detailed|rich\s+animations?|with\s+arrows?)\b/i.test(lower)) {
-    out.animationStyle = 'detailed';
-  }
-  return out;
-}
-
 /**
  * Dedup scenario matrix (documented in fal webhook route):
  * 1. Concurrent duplicate → create wins once (noop on second) — covered by idempotency noop.
@@ -215,24 +159,6 @@ function selfcheck(): void {
     syncSeedIdx >= 0 && afterIdx >= 0 && syncSeedIdx < afterIdx,
     'webhook must seed falSttFinalizePending before after()'
   );
-
-  assert(
-    matchToolOwnedDecision([{ id: 'en' }, { id: 'auto' }]) ===
-      'transcription_language',
-    'language owned'
-  );
-  assert(
-    matchToolOwnedDecision([{ id: 'horizontal' }, { id: 'vertical' }]) ===
-      'orientation',
-    'orientation owned'
-  );
-  assert(matchToolOwnedDecision([{ id: 'continue' }]) === null, 'continue not owned');
-
-  const prefs = parseStatedPrefs('vertical shorts, minimal no arrows');
-  assert(prefs.orientation === 'vertical', 'stated orientation');
-  assert(prefs.animationStyle === 'minimal', 'stated style');
-  const en = parseStatedPrefs('English captions please, 16:9');
-  assert(en.language === 'en' && en.orientation === 'horizontal', 'en+horizontal');
 
   // Short-circuit ordering in server.ts: recover → resume → short-circuit → agent
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.ts'), 'utf8');

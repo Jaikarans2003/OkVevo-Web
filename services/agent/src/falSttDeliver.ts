@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { FieldValue } from 'firebase-admin/firestore';
-import { injectCheckpointPart, runAgent } from './agent';
-import { getSessionPipelineFields, writeAskCheckpoint } from './checkpoint';
+import { injectCheckpointPart } from './agent';
+import { getSessionPipelineFields } from './checkpoint';
 import { falQueueResult, falQueueStatus } from './falQueue';
-import { clearPendingFalJob, readPendingFalJob } from './pendingFalJob';
+import { clearPendingFalJob, readPendingFalJob, type PendingFalJob } from './pendingFalJob';
 import {
   falSttDeliveryAction,
   progressUpdatedAtMs,
@@ -30,9 +30,7 @@ import {
   type TranscriptionProgress,
 } from './tools/lib/transcriptionProgress';
 import { getSessionWorkdir } from './tools/lib/utils';
-
-export const FAL_STT_CONTINUE_PROMPT =
-  'The lecture transcript is ready. Continue the edu-video pipeline: extract concepts and proceed with the next steps.';
+import { dispatchHook } from './hooks/dispatch';
 
 const STILL_PROCESSING_TEXT =
   'Transcription still processing — results arrive automatically; I will update this thread when ready.';
@@ -78,19 +76,39 @@ async function persistTranscript(
   return transcriptUrl;
 }
 
-async function runAutoContinue(sessionId: string, userId: string): Promise<void> {
+async function requireStampedJob(sessionId: string): Promise<PendingFalJob> {
+  const job = await readPendingFalJob(sessionId);
+  if (!job?.skillId) {
+    throw new Error(`pendingFalJob missing skillId stamp for session ${sessionId}`);
+  }
+  return job;
+}
+
+async function runTranscriptHook(
+  sessionId: string,
+  userId: string,
+  pipelineMode: 'ask' | 'auto',
+  continueOnly = false
+) {
+  const job = await requireStampedJob(sessionId);
+  if (!continueOnly) {
+    return dispatchHook('on_transcript_ready', {
+      job,
+      sessionId,
+      userId,
+      pipelineMode,
+    });
+  }
   let lastErr: unknown;
   for (let attempt = 0; attempt < RESUME_RETRIES; attempt++) {
     try {
-      const result = await runAgent({
-        userMessage: FAL_STT_CONTINUE_PROMPT,
+      return await dispatchHook('on_transcript_ready', {
+        job,
         sessionId,
         userId,
-        pipelineMode: 'auto',
-        skillId: 'edu-video',
+        pipelineMode,
+        continueOnly: true,
       });
-      await result.result.text;
-      return;
     } catch (err) {
       lastErr = err;
       if (attempt < RESUME_RETRIES - 1) {
@@ -144,49 +162,47 @@ export async function claimFalSttWake(
 }
 
 /**
- * Ask: lecture-heard checkpoint + data-checkpoint message for floating card.
- * Auto: assistant text + runAutoContinue (claim already done by caller).
+ * Ask: lecture-heard checkpoint when the skill hook has askPhaseKey; else continue.
+ * Auto: assistant text + transcript hook continue (claim already done by caller).
  */
 export async function handOffAfterFalStt(opts: {
   sessionId: string;
   userId: string;
   pipelineMode: 'ask' | 'auto';
-  skillName: string;
 }): Promise<{ status: 'ask_checkpoint' | 'auto_continued' | 'auto_pending'; message: string }> {
-  const { sessionId, userId, pipelineMode, skillName } = opts;
+  const { sessionId, userId, pipelineMode } = opts;
 
   if (pipelineMode === 'ask') {
-    await clearPendingFalJob(sessionId);
     try {
-      const written = await writeAskCheckpoint(
-        { sessionId, userId, skillName, pipelineMode },
-        {
-          kind: 'phase_gate',
-          phase_label: 'Lecture heard',
-          completedPhase: 'transcription',
-          question: "I've heard your lecture. Ready to continue?",
-          allowFreeform: false,
-        }
-      );
-      const assistantText = "I've heard your lecture. Ready to continue?";
-      await saveMessage(
-        sessionId,
-        userId,
-        'assistant',
-        assistantText,
-        injectCheckpointPart([{ type: 'text', text: assistantText }], written.checkpointDisplay)
-      );
+      const result = await runTranscriptHook(sessionId, userId, pipelineMode);
+      if (result.status === 'ask_checkpoint') {
+        await clearPendingFalJob(sessionId);
+        const assistantText = result.assistantText;
+        await saveMessage(
+          sessionId,
+          userId,
+          'assistant',
+          assistantText,
+          injectCheckpointPart([{ type: 'text', text: assistantText }], result.checkpointDisplay)
+        );
+        return {
+          status: 'ask_checkpoint',
+          message: `fal_stt ask checkpoint for session ${sessionId}`,
+        };
+      }
+      await clearPendingFalJob(sessionId);
+      return {
+        status: 'auto_continued',
+        message: `fal_stt ask continue for session ${sessionId}`,
+      };
     } catch (err) {
       console.error(
         '[falStt] checkpoint write failed after transcript durable',
         sessionId,
         err
       );
+      throw err;
     }
-    return {
-      status: 'ask_checkpoint',
-      message: `fal_stt ask checkpoint for session ${sessionId}`,
-    };
   }
 
   const assistantText = 'I understood your lecture.';
@@ -195,7 +211,7 @@ export async function handOffAfterFalStt(opts: {
   ]);
   await patchProgress(sessionId, { falSttResumePending: true });
   try {
-    await runAutoContinue(sessionId, userId);
+    await runTranscriptHook(sessionId, userId, pipelineMode, true);
     await patchProgress(sessionId, { falSttResumePending: false });
     await clearPendingFalJob(sessionId);
     return {
@@ -204,8 +220,7 @@ export async function handOffAfterFalStt(opts: {
     };
   } catch (err) {
     console.error('[falStt] auto continue failed', sessionId, err);
-    await clearPendingFalJob(sessionId);
-    // Leave falSttWakeClaimed set; tryResumeFalSttPending retries continue only.
+    // Leave pendingFalJob so tryResume can read the skillId stamp.
     return {
       status: 'auto_pending',
       message: `fal_stt auto continue for session ${sessionId}`,
@@ -217,7 +232,6 @@ async function claimAndHandOff(opts: {
   sessionId: string;
   userId: string;
   pipelineMode: 'ask' | 'auto';
-  skillName: string;
 }): Promise<{ status: 'ask_checkpoint' | 'auto_continued' | 'auto_pending' | 'already'; message: string }> {
   const claim = await claimFalSttWake(opts.sessionId);
   if (claim === 'incomplete') {
@@ -243,12 +257,11 @@ export async function finalizeFalSttFromPayload(opts: {
   progress: TranscriptionProgress;
   requestId?: string;
   pipelineMode: 'ask' | 'auto';
-  skillName: string;
 }): Promise<{
   status: 'ask_checkpoint' | 'auto_continued' | 'auto_pending' | 'already';
   message: string;
 }> {
-  const { sessionId, userId, payload, progress, requestId, pipelineMode, skillName } =
+  const { sessionId, userId, payload, progress, requestId, pipelineMode } =
     opts;
   const durationSeconds = progress.durationSeconds ?? 0;
   const normalized = normalizeElevenLabsTranscript(payload, durationSeconds);
@@ -276,7 +289,7 @@ export async function finalizeFalSttFromPayload(opts: {
     ...(normalized.language ? { pinnedLanguage: normalized.language } : {}),
   });
 
-  return claimAndHandOff({ sessionId, userId, pipelineMode, skillName });
+  return claimAndHandOff({ sessionId, userId, pipelineMode });
 }
 
 /** Auto-only: entry gate when falSttResumePending after a failed inline resume. */
@@ -289,7 +302,7 @@ export async function tryResumeFalSttPending(
   const progress = await readTranscriptionProgress(sessionId);
   if (!progress?.falSttResumePending) return;
   try {
-    await runAutoContinue(sessionId, userId);
+    await runTranscriptHook(sessionId, userId, pipelineMode, true);
     await patchProgress(sessionId, { falSttResumePending: false });
   } catch (err) {
     console.error('[falStt] entry gate resume failed', sessionId, err);
@@ -319,12 +332,11 @@ export async function tryRecoverFalSttFinalize(
         falSttWebhookPayloadUrl: undefined,
       });
     }
-    const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+    const { pipelineMode } = await getSessionPipelineFields(sessionId);
     await claimAndHandOff({
       sessionId,
       userId,
       pipelineMode,
-      skillName: skillsUsed[0] ?? 'edu-video',
     });
     return true;
   }
@@ -390,7 +402,7 @@ export async function tryRecoverFalSttFinalize(
     }
 
     const result = await falQueueResult(ELEVENLABS_SCRIBE_V2_MODEL, requestId, falKey);
-    const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+    const { pipelineMode } = await getSessionPipelineFields(sessionId);
     await finalizeFalSttFromPayload({
       sessionId,
       userId,
@@ -398,7 +410,6 @@ export async function tryRecoverFalSttFinalize(
       progress,
       requestId,
       pipelineMode,
-      skillName: skillsUsed[0] ?? 'edu-video',
     });
     return true;
   } catch (err) {
@@ -466,7 +477,7 @@ export async function tryShortCircuitFalSttPending(
     }
     if (falStatus === 'COMPLETED' && progress.videoUrl) {
       const result = await falQueueResult(ELEVENLABS_SCRIBE_V2_MODEL, requestId, falKey);
-      const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+      const { pipelineMode } = await getSessionPipelineFields(sessionId);
       const handoff = await finalizeFalSttFromPayload({
         sessionId,
         userId,
@@ -474,7 +485,6 @@ export async function tryShortCircuitFalSttPending(
         progress,
         requestId,
         pipelineMode,
-        skillName: skillsUsed[0] ?? 'edu-video',
       });
       // Handoff already wrote Ask card / Auto continue — skip LLM with a brief ack.
       return handoff.status === 'ask_checkpoint'
@@ -500,9 +510,8 @@ export async function deliverFalStt(
 ): Promise<string> {
   const pending = await readPendingFalJob(sessionId);
   const progress = await readTranscriptionProgress(sessionId);
-  const { pipelineMode, skillsUsed } = await getSessionPipelineFields(sessionId);
+  const { pipelineMode } = await getSessionPipelineFields(sessionId);
   const requestId = pending?.requestId ?? progress?.requestId;
-  const skillName = skillsUsed[0] ?? 'edu-video';
 
   if (event.status === 'failed') {
     const text = `Transcription failed${event.error ? `: ${event.error}` : '.'}`;
@@ -525,7 +534,7 @@ export async function deliverFalStt(
   }
   if (action === 'resume_only') {
     try {
-      await runAutoContinue(sessionId, userId);
+      await runTranscriptHook(sessionId, userId, pipelineMode, true);
       await patchProgress(sessionId, { falSttResumePending: false });
     } catch (err) {
       console.error('[falStt] resume-only failed', sessionId, err);
@@ -538,7 +547,6 @@ export async function deliverFalStt(
       sessionId,
       userId,
       pipelineMode,
-      skillName,
     });
     await clearPendingFalJob(sessionId);
     return result.message;
@@ -559,7 +567,6 @@ export async function deliverFalStt(
     progress,
     requestId,
     pipelineMode,
-    skillName,
   });
   return result.message;
 }

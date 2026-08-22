@@ -39,7 +39,7 @@ type ModelOption = { id: string; label: string; value: string };
 const MODEL_GROUPS: { company: string; models: ModelOption[] }[] = [
   {
     company: 'OkVevo',
-    models: [{ id: 'okvevo', label: 'OkVevo Auto', value: 'minimax/minimax-m3' }],
+    models: [{ id: 'okvevo', label: 'OkVevo Auto', value: 'anthropic/claude-sonnet-4-6' }],
   },
   {
     company: 'Anthropic',

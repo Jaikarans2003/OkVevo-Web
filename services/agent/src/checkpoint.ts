@@ -10,12 +10,14 @@ import crypto from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase';
 import { isKnownSkill, resolveSessionSkillState } from './sessionSkills';
+import { hasSkillManifest, lookupPhase } from './catalog/manifest';
 import type {
   BrandColors,
   SessionArtifactNeed,
   VideoOrientation,
 } from './tools/lib/utils';
 import { DEFAULT_BRAND_COLORS, parseBrandColorsFromText } from './tools/lib/utils';
+import { missingFieldsFromData } from './confirmedFields';
 
 export type { VideoOrientation };
 
@@ -75,7 +77,7 @@ export type CheckpointDisplayData = {
   answer?: { type: string; text: string; choiceId?: string };
 };
 
-/** Pipeline decisions owned by tools / front-load — not ask_clarification. */
+/** Map choice-id sets onto session pref fields for persist (not a block list). */
 export type PipelineDecisionKey =
   | 'transcription_language'
   | 'orientation'
@@ -170,6 +172,22 @@ const RESUME_ARTIFACT_NEEDS: SessionArtifactNeed[] = [
   'hf_project',
 ];
 
+function resumeArtifactsForSkill(skillName: string): {
+  artifactNeeds: SessionArtifactNeed[];
+  assetKeys: string[];
+} {
+  if (skillName === 'talking-head') {
+    return {
+      artifactNeeds: ['transcript', 'hf_project'],
+      assetKeys: ['transcript', 'composition', 'hf_project'],
+    };
+  }
+  return {
+    artifactNeeds: RESUME_ARTIFACT_NEEDS,
+    assetKeys: ['transcript', 'concepts', 'manim_scripts', 'composition', 'hf_project'],
+  };
+}
+
 export type CheckpointCtx = {
   sessionId: string;
   userId: string;
@@ -226,6 +244,7 @@ type WriteAskBase = {
   /** Override default phase (single_select→concepts, phase_gate→clarification). */
   completedPhase?: CheckpointPhase | string;
   freeformPlaceholder?: string;
+  phaseKey?: string;
 };
 
 export type WriteAskCheckpointInput =
@@ -281,7 +300,7 @@ async function supersedePendingCheckpoints(sessionId: string): Promise<void> {
 
 async function writeCheckpointDoc(
   ctx: CheckpointCtx,
-  input: WriteCheckpointInput
+  input: WriteCheckpointInput & { phaseKey?: string }
 ): Promise<{ id: string; display: CheckpointDisplayData }> {
   const checkpointId = crypto.randomUUID();
   const sessionRef = db.collection('sessions').doc(ctx.sessionId);
@@ -301,6 +320,8 @@ async function writeCheckpointDoc(
     summary: input.summary,
     next: input.next,
     resume: input.resume,
+    skillId: ctx.skillName,
+    ...(input.phaseKey ? { phaseKey: input.phaseKey } : {}),
   };
 
   await cpRef.set(doc);
@@ -313,6 +334,12 @@ async function writeCheckpointDoc(
     },
     { merge: true }
   );
+
+  // Prefs / soft-ask halt never reaches onStepFinish tool persistence — stamp here.
+  if (isKnownSkill(ctx.skillName)) {
+    await persistSkillId(ctx.sessionId, ctx.skillName);
+    await recordSkillsUsed(ctx.sessionId, [ctx.skillName]);
+  }
 
   return {
     id: checkpointId,
@@ -328,6 +355,7 @@ export async function writeAskCheckpoint(
 
   const written = await writeCheckpointDoc(ctx, {
     kind: input.kind,
+    phaseKey: input.phaseKey,
     completedPhase:
       input.completedPhase ??
       (input.kind === 'phase_gate' ? 'clarification' : 'concepts'),
@@ -341,8 +369,7 @@ export async function writeAskCheckpoint(
       description: 'Answer or approve to continue the pipeline.',
     },
     resume: {
-      artifactNeeds: RESUME_ARTIFACT_NEEDS,
-      assetKeys: ['transcript', 'concepts', 'manim_scripts', 'composition', 'hf_project'],
+      ...resumeArtifactsForSkill(ctx.skillName),
       question: {
         prompt: input.question,
         ...(input.choices ? { choices: input.choices } : {}),
@@ -369,6 +396,7 @@ export async function writeAskCheckpointBatch(
     questions: CheckpointQuestion[];
     bullets?: string[];
     completedPhase?: CheckpointPhase | string;
+    phaseKey?: string;
   }
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
   if (input.questions.length === 0) {
@@ -380,6 +408,7 @@ export async function writeAskCheckpointBatch(
   const first = input.questions[0]!;
   const written = await writeCheckpointDoc(ctx, {
     kind: first.kind,
+    phaseKey: input.phaseKey,
     completedPhase: input.completedPhase ?? 'pre_pipeline',
     completedPhaseLabel: input.phase_label,
     summary: {
@@ -456,11 +485,18 @@ export type LoadedCheckpoint = {
   id: string;
   completedPhase: string;
   completedPhaseLabel: string;
+  skillId?: string;
+  phaseKey?: string;
   summary: { title: string; bullets: string[] };
   next: { label: string; description: string };
   resume: {
     artifactNeeds: SessionArtifactNeed[];
     assetKeys: string[];
+    question?: {
+      prompt: string;
+      choices?: CheckpointChoice[];
+      allowFreeform?: boolean;
+    };
     questions?: CheckpointQuestion[];
   };
   answer?: {
@@ -490,6 +526,12 @@ export async function loadCheckpoint(
     id: snap.id,
     completedPhase: String(data.completedPhase ?? ''),
     completedPhaseLabel: String(data.completedPhaseLabel ?? ''),
+    ...(typeof data.skillId === 'string' && data.skillId
+      ? { skillId: data.skillId }
+      : {}),
+    ...(typeof data.phaseKey === 'string' && data.phaseKey
+      ? { phaseKey: data.phaseKey }
+      : {}),
     summary: data.summary as LoadedCheckpoint['summary'],
     next: data.next as LoadedCheckpoint['next'],
     resume: data.resume as LoadedCheckpoint['resume'],
@@ -564,6 +606,35 @@ export async function getSessionPipelineFields(sessionId: string): Promise<{
 
 export async function persistSkillId(sessionId: string, skillId: string): Promise<void> {
   await db.collection('sessions').doc(sessionId).set({ skillId }, { merge: true });
+}
+
+/** Parent is the run the user is looking at, not session-latest by createdAt. */
+export function parentRunIdFromSession(
+  existing: { scaffoldRunId?: unknown; scaffoldSkillId?: unknown } | undefined,
+  skillId: string
+): string | null {
+  if (typeof existing?.scaffoldRunId !== 'string' || !existing.scaffoldRunId) return null;
+  // ponytail: skill mismatch → no parent so talking-head never children an edu run
+  if (existing.scaffoldSkillId !== skillId) return null;
+  return existing.scaffoldRunId;
+}
+
+export async function persistScaffoldRun(
+  sessionId: string,
+  runId: string,
+  skillId: string
+): Promise<{ runId: string; parentRunId: string | null }> {
+  const sessionRef = db.collection('sessions').doc(sessionId);
+  const existing = (await sessionRef.get()).data();
+  const parentRunId = parentRunIdFromSession(existing, skillId);
+  await sessionRef.set({ scaffoldRunId: runId, scaffoldSkillId: skillId }, { merge: true });
+  await sessionRef.collection('runs').doc(runId).set({
+    runId,
+    skillId,
+    parentRunId,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return { runId, parentRunId };
 }
 
 export async function recordSkillsUsed(
@@ -642,11 +713,38 @@ export async function persistTalkingHeadStyle(
   talkingHeadStyle: TalkingHeadStyle,
   talkingHeadStyleBrief?: string
 ): Promise<void> {
-  const patch: Record<string, unknown> = { talkingHeadStyle };
+  const patch: Record<string, unknown> = {
+    talkingHeadStyle,
+    activeStyleSeed: talkingHeadStyle,
+  };
   if (typeof talkingHeadStyleBrief === 'string' && talkingHeadStyleBrief.trim()) {
     patch.talkingHeadStyleBrief = talkingHeadStyleBrief.trim();
   }
   await db.collection('sessions').doc(sessionId).set(patch, { merge: true });
+}
+
+export async function persistActiveStyleSeed(
+  sessionId: string,
+  seed: string
+): Promise<void> {
+  await db
+    .collection('sessions')
+    .doc(sessionId)
+    .set({ activeStyleSeed: seed }, { merge: true });
+}
+
+export async function getSessionActiveStyleSeed(
+  sessionId: string
+): Promise<string | null> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const data = snap.data();
+  if (typeof data?.activeStyleSeed === 'string' && data.activeStyleSeed.trim()) {
+    return data.activeStyleSeed.trim();
+  }
+  if (typeof data?.talkingHeadStyle === 'string' && data.talkingHeadStyle.trim()) {
+    return data.talkingHeadStyle.trim();
+  }
+  return null;
 }
 
 export async function getSessionTalkingHeadStyle(sessionId: string): Promise<{
@@ -655,13 +753,19 @@ export async function getSessionTalkingHeadStyle(sessionId: string): Promise<{
 }> {
   const snap = await db.collection('sessions').doc(sessionId).get();
   const data = snap.data();
-  const raw = data?.talkingHeadStyle;
+  const raw = data?.activeStyleSeed ?? data?.talkingHeadStyle;
   const style = TALKING_HEAD_STYLE_SET.has(raw) ? (raw as TalkingHeadStyle) : 'minimal';
   const brief =
     typeof data?.talkingHeadStyleBrief === 'string' && data.talkingHeadStyleBrief.trim()
       ? data.talkingHeadStyleBrief.trim()
       : undefined;
   return { style, brief };
+}
+
+export async function getSessionVideoUrl(sessionId: string): Promise<string | null> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const url = snap.data()?.videoUrl;
+  return typeof url === 'string' && url ? url : null;
 }
 
 export async function markPrePipelineResolved(sessionId: string): Promise<void> {
@@ -750,6 +854,71 @@ export async function persistPrePipelineAnswers(
   await markPrePipelineResolved(sessionId);
 }
 
+/** Persist a single-select/freeform clarification onto session fields (overwrites). */
+export async function persistClarificationAnswer(
+  sessionId: string,
+  choices: CheckpointChoice[] | undefined,
+  answer: { type: CheckpointAnswerType; choiceId?: string; text: string }
+): Promise<void> {
+  const field = matchToolOwnedDecision(choices);
+  const choiceId = answer.choiceId;
+  if (field === 'transcription_language') {
+    await persistRequestedLanguage(sessionId, choiceId === 'en' ? 'en' : 'auto');
+    return;
+  }
+  if (field === 'orientation') {
+    await persistOrientation(
+      sessionId,
+      choiceId === 'vertical' ? 'vertical' : 'horizontal'
+    );
+    return;
+  }
+  if (field === 'brand_colors') {
+    if (answer.type === 'freeform') {
+      const parsed = parseBrandColorsFromText(answer.text);
+      await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
+    } else if (choiceId === 'from_video') {
+      await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
+    } else {
+      await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
+    }
+    return;
+  }
+  if (field === 'animation_style') {
+    const style =
+      choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
+    await persistAnimationStyle(sessionId, style);
+    return;
+  }
+  if (field === 'card_style') {
+    if (answer.type === 'freeform') {
+      await persistTalkingHeadStyle(sessionId, 'custom', answer.text);
+    } else {
+      const style =
+        choiceId && TALKING_HEAD_STYLE_SET.has(choiceId) && choiceId !== 'custom'
+          ? (choiceId as TalkingHeadStyle)
+          : 'minimal';
+      await persistTalkingHeadStyle(sessionId, style);
+    }
+    return;
+  }
+  if (answer.type === 'freeform') {
+    const parsed = parseBrandColorsFromText(answer.text);
+    if (parsed) await persistBrandColors(sessionId, parsed);
+  }
+}
+
+export async function missingConfirmedFields(
+  sessionId: string,
+  fields: readonly string[]
+): Promise<string[]> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  return missingFieldsFromData(
+    snap.data() as Record<string, unknown> | undefined,
+    fields
+  );
+}
+
 export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   const sessionRef = db.collection('sessions').doc(sessionId);
   const snap = await sessionRef.get();
@@ -770,29 +939,20 @@ export async function clearPendingCheckpoint(sessionId: string): Promise<void> {
   );
 }
 
-/** Directive after Concepts revision — orientation only if not front-loaded. */
-export const CONCEPTS_REVISION_RESUME_MANDATORY = `CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL
-1. Apply the user's concept edits to concepts.json via write_file or str_replace only.
-2. If session already has orientation from Video preferences (prePipelineResolved), proceed to generate_manim_script — do NOT ask orientation again.
-3. Otherwise, immediately after those edits succeed, call ask_clarification exactly once with:
-   - kind: "single_select"
-   - phase_label: "Video orientation"
-   - question: "Choose video orientation to continue."
-   - choices: [{ id: "horizontal", label: "Horizontal (16:9)" }, { id: "vertical", label: "Vertical (9:16)" }]
-   - allowFreeform: false
-4. Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes in this turn when orientation is still needed.
-5. Do NOT invent a different clarification question or skip ask_clarification after edits.`;
+const GENERIC_RESUME_CONTINUE =
+  "- Continue the pipeline from where you left off based on the user's response. Do not restart from transcription unless the user explicitly asked to start over.";
 
-/** Directive after Storyboard ready freeform/revision. */
-export const STORYBOARD_REVISION_RESUME_MANDATORY = `STORYBOARD REVISION RESUME — MANDATORY NEXT TOOL
-1. Apply the user's storyboard/card edits via write_file or str_replace only (storyboard.json and/or cards/*.html).
-2. Immediately after edits succeed, call ask_clarification exactly once with:
-   - kind: "phase_gate"
-   - phase_label: "Storyboard ready"
-   - question summarizing the updated cards
-   - allowFreeform: true
-3. Do NOT call scaffold_talking_head_project or render_hyperframes until the user Continues on Storyboard ready.
-4. Never ask orientation, layout, or density.`;
+function applyResumePlaceholders(
+  text: string,
+  checkpoint: LoadedCheckpoint
+): string {
+  const choiceId = checkpoint.answer?.choiceId;
+  const orientationLine =
+    choiceId === 'horizontal' || choiceId === 'vertical'
+      ? `\n- Orientation chosen: ${choiceId}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
+      : '';
+  return text.replaceAll('{orientationLine}', orientationLine);
+}
 
 export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
   const answer = checkpoint.answer;
@@ -800,84 +960,32 @@ export function buildResumeSystemContext(checkpoint: LoadedCheckpoint): string {
     ? `- User response: ${answer.type}: "${answer.text}"`
     : '- User response: (none recorded)';
 
-  const choiceId = answer?.choiceId;
-  const orientationChosen =
-    choiceId === 'horizontal' || choiceId === 'vertical' ? choiceId : null;
   const answerType = answer?.type;
-  const isTalkingHeadPrefs = checkpoint.resume.questions?.some(
-    (q) => q.id === 'card_style'
-  );
+  const useRevision = answerType === 'revision' || answerType === 'freeform';
 
-  let phaseGuidance = '';
-  if (
-    checkpoint.completedPhaseLabel === 'Video preferences' ||
-    checkpoint.completedPhase === 'pre_pipeline'
-  ) {
-    phaseGuidance = isTalkingHeadPrefs
-      ? `
-- Preferences saved on the session. Call transcribe_video with the same video URL next.
-- Do NOT ask language, style, palette, orientation, layout, or density again.`
-      : `
-- Preferences saved on the session. Call transcribe_video with the same video URL next.
-- Do NOT ask language, orientation, brand colors, or animation style again.`;
-  } else if (checkpoint.completedPhaseLabel === 'Storyboard ready') {
-    if (answerType === 'revision' || answerType === 'freeform') {
-      phaseGuidance = `\n\n${STORYBOARD_REVISION_RESUME_MANDATORY}`;
-    } else {
-      phaseGuidance = `
-- Storyboard approved. Call scaffold_talking_head_project next, then render_hyperframes.
-- Do NOT rewrite cards unless the user asked for edits.
-- Never ask orientation, layout, or density.`;
+  let phaseBody = `\n${GENERIC_RESUME_CONTINUE}`;
+  const skillId =
+    checkpoint.skillId && hasSkillManifest(checkpoint.skillId)
+      ? checkpoint.skillId
+      : null;
+  if (skillId) {
+    const found = lookupPhase(skillId, {
+      phaseKey: checkpoint.phaseKey,
+      completedPhaseLabel: checkpoint.completedPhaseLabel,
+      completedPhase: checkpoint.completedPhase,
+    });
+    if (found?.phase.resume) {
+      const picked = useRevision
+        ? found.phase.resume.revision ?? found.phase.resume.approve
+        : found.phase.resume.approve ?? found.phase.resume.revision;
+      if (picked) phaseBody = applyResumePlaceholders(picked, checkpoint);
     }
-  } else if (checkpoint.completedPhaseLabel === 'Concepts extracted') {
-    if (answerType === 'revision' || answerType === 'freeform') {
-      phaseGuidance = `\n\n${CONCEPTS_REVISION_RESUME_MANDATORY}`;
-    } else {
-      phaseGuidance = `
-- concepts.json is restored and user-approved. Do NOT call extract_concepts again.
-- Do not ask for a video URL — transcription already completed.
-- If orientation was already chosen in Video preferences, proceed to generate_manim_script. Otherwise Video orientation is next.`;
-    }
-  } else if (checkpoint.completedPhaseLabel === 'Video orientation') {
-    phaseGuidance = `
-- concepts.json is restored. Proceed directly to generate_manim_script / render_manim_clip for each concept. Do NOT call extract_concepts again.
-- Do not ask for a video URL — transcription already completed; next step is Manim via concepts.json.${
-      orientationChosen
-        ? `\n- Orientation chosen: ${orientationChosen}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
-        : ''
-    }`;
-  } else if (checkpoint.completedPhaseLabel === 'Transcription language') {
-    phaseGuidance = `
-- Call transcribe_video again with the same video_url to continue with the chosen language (English→Groq, Auto-detect→Fal Scribe v2).
-- Do NOT call extract_concepts or scaffold yet.`;
-  } else if (checkpoint.completedPhaseLabel === 'Lecture heard') {
-    phaseGuidance = `
-- Transcript is durable. Call extract_concepts next (pass duration_seconds only).
-- Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.
-- Do NOT re-ask language / orientation / brand / animation style.`;
   }
-
-  const continueLine =
-    checkpoint.completedPhaseLabel === 'Transcription language'
-      ? '- Continue after transcribe_video succeeds — then extract_concepts.'
-      : checkpoint.completedPhaseLabel === 'Lecture heard'
-        ? '- Continue with extract_concepts.'
-        : checkpoint.completedPhaseLabel === 'Storyboard ready'
-          ? answerType === 'revision' || answerType === 'freeform'
-            ? '- Apply card edits, re-gate Storyboard ready, then scaffold only after Continue.'
-            : '- Continue with scaffold_talking_head_project, then render_hyperframes.'
-          : checkpoint.completedPhaseLabel === 'Video preferences' ||
-              checkpoint.completedPhase === 'pre_pipeline'
-            ? isTalkingHeadPrefs
-              ? '- Continue with transcribe_video, then write storyboard.json + cards.'
-              : '- Continue with transcribe_video, then extract_concepts.'
-            : '- Continue the pipeline from where you left off based on the user\'s response. Do not restart from transcription unless the user explicitly asked to start over.';
 
   return `
 CHECKPOINT RESUME
 - Completed: ${checkpoint.completedPhaseLabel} — ${checkpoint.summary.title}
-${answerLine}${phaseGuidance}
-${continueLine}
+${answerLine}${phaseBody}
 - Do not invent counts, concept names, or status for work not confirmed by this turn's tool results. Prior phases already shown on the checkpoint card — do not re-narrate them.`.trim();
 }
 

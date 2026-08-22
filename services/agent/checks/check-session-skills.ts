@@ -22,8 +22,8 @@ const incident = resolveSessionSkillState({
   skillId: null,
   pipelinePhase: 7,
 });
-assert.deepEqual(incident.skillsUsed, ['edu-video']);
-assert.deepEqual(incident.inferredSkills, ['edu-video']);
+assert.deepEqual(incident.skillsUsed, []);
+assert.deepEqual(incident.inferredSkills, []);
 assert.deepEqual(
   resolveSessionSkillState({
     skillsUsed: ['unknown'],
@@ -37,7 +37,7 @@ assert.deepEqual(
   }
 );
 
-const incidentTools = buildTools(ctx, incident.skillsUsed);
+const incidentTools = buildTools(ctx, 'edu-video');
 const requiredIncidentTools = [
   'generate_manim_script',
   'render_manim_clip',
@@ -52,30 +52,21 @@ assert.match(
   String((incidentTools.run_command as { description?: string }).description),
   /Never reimplement a missing pipeline tool/
 );
-console.log(
-  'incident tool calls:',
-  JSON.stringify({ requiredIncidentTools, manualShellFallback: false })
-);
 
-const used = new Set<string>();
-for (const skill of skillsEngagedByToolCalls('manim-video', [
-  'generate_manim_script',
-])) {
-  used.add(skill);
-}
-for (const skill of skillsEngagedByToolCalls('hyperframes', [
-  'render_hyperframes',
-])) {
-  used.add(skill);
-}
-assert.deepEqual(used, new Set(['manim-video', 'hyperframes']));
-const laterTools = buildTools(ctx, used);
-for (const toolName of [
-  ...requiredIncidentTools.slice(0, 2),
-  'render_hyperframes',
-]) {
-  assert(toolName in laterTools, `Additive registry lost ${toolName}`);
-}
+const talkingHeadTools = buildTools(ctx, 'talking-head');
+assert(!('extract_concepts' in talkingHeadTools));
+assert(!('generate_manim_script' in talkingHeadTools));
+assert(!('run_command' in talkingHeadTools));
+assert('scaffold_talking_head_project' in talkingHeadTools);
+
+assert.deepEqual(
+  skillsEngagedByToolCalls('manim-video', ['generate_manim_script']),
+  ['manim-video']
+);
+assert.deepEqual(
+  skillsEngagedByToolCalls('hyperframes', ['render_hyperframes']),
+  ['hyperframes']
+);
 
 assert.deepEqual(
   skillsEngagedByToolCalls(null, [
@@ -85,7 +76,6 @@ assert.deepEqual(
   ]),
   []
 );
-// transcribe_video is shared by edu-video + talking-head → no unique owner
 assert.deepEqual(skillsEngagedByToolCalls(null, ['transcribe_video']), []);
 assert.deepEqual(
   skillsEngagedByToolCalls('talking-head', ['transcribe_video']),

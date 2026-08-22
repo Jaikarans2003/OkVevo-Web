@@ -71,7 +71,11 @@ export function isCheckpointResolved(
 
 /** Static Q+A summary — no buttons. */
 export function CheckpointCard({ data }: { data: CheckpointCardData }) {
-  const title = scrub(data.question?.trim() ? data.question : data.title);
+  const title = scrub(data.title);
+  const prompt =
+    data.question?.trim() && data.question.trim() !== data.title.trim()
+      ? scrub(data.question)
+      : undefined;
   const answerText = data.answer?.text?.trim()
     ? scrub(data.answer.text)
     : undefined;
@@ -93,6 +97,7 @@ export function CheckpointCard({ data }: { data: CheckpointCardData }) {
           ))}
         </ul>
       ) : null}
+      {prompt ? <p className="mb-2 text-sm text-white/70">{prompt}</p> : null}
       {answerText ? (
         <p className="text-sm text-white/60">{answerText}</p>
       ) : null}
@@ -388,9 +393,9 @@ export function CheckpointFloatingCard({
 
   return (
     <div className="mb-3 rounded-2xl bg-[#2F2F2F] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
-      {current ? (
-        <p className="text-sm font-medium text-white/80">{current.prompt}</p>
-      ) : null}
+      <p className="text-sm font-medium text-white/80">
+        {isPhaseGate ? scrub(data.title) : current ? current.prompt : scrub(data.title)}
+      </p>
 
       {bullets.length > 0 ? (
         <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto text-sm text-white/70">
@@ -401,6 +406,10 @@ export function CheckpointFloatingCard({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {isPhaseGate && current?.prompt ? (
+        <p className="mt-2 text-sm text-white/70">{current.prompt}</p>
       ) : null}
 
       {!isPhaseGate && current?.choices && current.choices.length > 0 ? (

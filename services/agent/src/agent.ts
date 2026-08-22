@@ -20,27 +20,27 @@ import {
   clearPendingCheckpoint,
   getSessionPipelineFields,
   isHaltTurnOutput,
-  isPrePipelineResolved,
   loadCheckpoint,
-  persistOrientation,
+  persistClarificationAnswer,
   persistPrePipelineAnswers,
-  persistRequestedLanguage,
   persistPipelineMode,
   persistSkillId,
   recordSkillsUsed,
   writeAskCheckpoint,
+  missingConfirmedFields,
   type CheckpointAnswer,
   type CheckpointDisplayData,
   type LoadedCheckpoint,
 } from './checkpoint';
-import { maybeFrontLoadPrePipeline } from './skills/eduVideo/prePipelineCheckpoint';
-import { maybeFrontLoadTalkingHeadPrePipeline } from './skills/talkingHead/prePipelineCheckpoint';
+import { detectAndApplyStyleSeed } from './skills-runtime/detectAndApplyStyleSeed';
 import { pruneToolResults } from './messagePruning';
+import { lookupPhase, resolveResumeForce } from './catalog/manifest';
 import { errorMessage } from './errorMessage';
 import { getCachedSystemPrompt } from './systemPromptCache';
+import { FINAL_VIDEO_NAME_RE } from './finalVideoBasename';
 import { buildTools } from './tools';
 import { resolveSkill } from './skills';
-import { skillsEngagedByToolCalls } from './sessionSkills';
+import { isKnownSkill, skillsEngagedByToolCalls } from './sessionSkills';
 import {
   ensureSessionArtifacts,
   getSessionWorkdir,
@@ -145,12 +145,6 @@ function isOrientationChoiceResume(checkpoint: LoadedCheckpoint): boolean {
   return type === 'approve' || type === 'choice';
 }
 
-function isTranscriptionLanguageResume(checkpoint: LoadedCheckpoint): boolean {
-  if (checkpoint.completedPhaseLabel !== 'Transcription language') return false;
-  const id = checkpoint.answer?.choiceId;
-  return id === 'en' || id === 'auto';
-}
-
 function isPrePipelineResume(checkpoint: LoadedCheckpoint): boolean {
   return (
     checkpoint.completedPhaseLabel === 'Video preferences' ||
@@ -183,9 +177,7 @@ export async function runAgent(params: RunAgentParams) {
 
   let resumeCheckpoint: LoadedCheckpoint | null = null;
   let resumeSystemAppend = '';
-  let orientationResumeForce = false;
   let conceptsApproveChain = false;
-  let prePipelineHalt = false;
   let capturedCheckpointDisplay: CheckpointDisplayData | null = null;
 
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
@@ -247,11 +239,14 @@ export async function runAgent(params: RunAgentParams) {
             answers,
             resumeCheckpoint.resume.questions ?? []
           );
-          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next. Do NOT ask language/style/palette/orientation/layout/density again.`;
+          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next.`;
         } else if (isConceptsApproveResume(resumeCheckpoint)) {
-          // Orientation already front-loaded → skip second gate, force Manim.
-          if (await isPrePipelineResolved(params.sessionId)) {
-            orientationResumeForce = true;
+          // Orientation already on session → skip second gate; force via phase.resume.forceToolName.
+          const orientationMissing = await missingConfirmedFields(
+            params.sessionId,
+            ['orientation']
+          );
+          if (orientationMissing.length === 0) {
             const hint = firstConceptResumeHint(params.sessionId);
             if (hint) {
               resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
@@ -261,30 +256,33 @@ export async function runAgent(params: RunAgentParams) {
               {
                 sessionId: params.sessionId,
                 userId: params.userId,
-                skillName: sessionFields.skillsUsed[0] ?? params.skillId ?? 'edu-video',
+                skillName:
+                  resumeCheckpoint.skillId ??
+                  params.skillId ??
+                  sessionFields.skillId ??
+                  '',
                 pipelineMode: effectiveMode,
               },
-              { ...VIDEO_ORIENTATION_CHECKPOINT }
+              { ...VIDEO_ORIENTATION_CHECKPOINT, phaseKey: 'video-orientation' }
             );
             capturedCheckpointDisplay = written.checkpointDisplay;
             conceptsApproveChain = true;
           }
-        } else if (isOrientationChoiceResume(resumeCheckpoint)) {
-          orientationResumeForce = true;
-          const choiceId = resumeCheckpoint.answer?.choiceId;
-          const orientation =
-            choiceId === 'vertical' || choiceId === 'horizontal' ? choiceId : 'horizontal';
-          await persistOrientation(params.sessionId, orientation);
-          const hint = firstConceptResumeHint(params.sessionId);
-          if (hint) {
-            resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
-          }
-        } else if (isTranscriptionLanguageResume(resumeCheckpoint)) {
-          const choiceId = resumeCheckpoint.answer?.choiceId;
-          await persistRequestedLanguage(
+        } else if (resumeCheckpoint.answer) {
+          const choices =
+            resumeCheckpoint.resume.questions?.[0]?.choices ??
+            resumeCheckpoint.resume.question?.choices;
+          await persistClarificationAnswer(
             params.sessionId,
-            choiceId === 'en' ? 'en' : 'auto'
+            choices,
+            resumeCheckpoint.answer
           );
+          if (isOrientationChoiceResume(resumeCheckpoint)) {
+            const hint = firstConceptResumeHint(params.sessionId);
+            if (hint) {
+              resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
+            }
+          }
         }
       }
     }
@@ -362,7 +360,7 @@ export async function runAgent(params: RunAgentParams) {
           f.path.startsWith(editTargets.projectDir + path.sep)
         ) ||
         taggedArtifacts.some((a) =>
-          /^(final(?:_\d+)?|draft_video)\.mp4$/i.test(path.basename(a.localPath))
+          FINAL_VIDEO_NAME_RE.test(path.basename(a.localPath))
         ) ||
         editTargets.orientationRebuild ||
         editTargets.restoreGeneration
@@ -422,9 +420,10 @@ export async function runAgent(params: RunAgentParams) {
     Object.keys(saveExtras).length > 0 ? saveExtras : undefined
   );
 
-  const resolvedSkill = resolveSkill(params.skillId, params.userMessage);
-  const capabilitySkills = new Set(sessionFields.skillsUsed);
-  if (resolvedSkill) capabilitySkills.add(resolvedSkill);
+  const resolvedSkill =
+    (resumeCheckpoint?.skillId ? resumeCheckpoint.skillId : null) ??
+    resolveSkill(params.skillId, params.userMessage) ??
+    (isKnownSkill(sessionFields.skillId) ? sessionFields.skillId : null);
 
   const modeBanner =
     effectiveMode === 'ask'
@@ -432,84 +431,69 @@ export async function runAgent(params: RunAgentParams) {
       : 'Current mode: Auto-Run — proceed autonomously without asking permission.';
 
   let systemPrompt = `${modeBanner}\n\n${getCachedSystemPrompt(params.sessionId, resolvedSkill)}`;
-  if (!resolvedSkill && sessionFields.skillsUsed.length > 1) {
-    systemPrompt +=
-      '\n\nTools from multiple previously used skills are available. If the current request remains genuinely ambiguous after considering the conversation and referenced assets, use ask_clarification; otherwise proceed without selecting old skill guidance.';
-  }
   if (resumeSystemAppend) {
     systemPrompt = `${systemPrompt}\n\n${resumeSystemAppend}`;
   }
 
-  const modelId = params.model ?? 'anthropic/claude-sonnet-4-5';
+  const modelId = params.model ?? 'anthropic/claude-sonnet-4-6';
 
   const toolCtx = {
     sessionId: params.sessionId,
     userId: params.userId,
     pipelineMode: effectiveMode,
-    skillName: resolvedSkill ?? sessionFields.skillsUsed[0] ?? 'edu-video',
+    skillName: resolvedSkill ?? '',
     taggedArtifacts,
     restoreAllowlistUrls: [] as string[],
   };
 
-  const tools = buildTools(toolCtx, capabilitySkills);
+  const tools = buildTools(
+    toolCtx,
+    resolvedSkill,
+    resumeCheckpoint ? 'gate-stamp' : 'new-turn'
+  );
 
-  // Front-load non-tool prefs before first transcribe (Ask batch / Auto defaults).
+  let resumeForceToolName: string | null = null;
   if (
-    !params.checkpointAnswer &&
-    !resumeCheckpoint &&
-    !sessionFields.pendingCheckpointId
+    resumeCheckpoint &&
+    !conceptsApproveChain &&
+    resolvedSkill &&
+    resumeCheckpoint.answer?.type !== 'revision' &&
+    resumeCheckpoint.answer?.type !== 'freeform'
   ) {
-    const videoUrl = processing.urls[0] ?? params.videoUrl;
-    if (resolvedSkill === 'edu-video' || sessionFields.skillsUsed.includes('edu-video')) {
-      const front = await maybeFrontLoadPrePipeline({
-        ctx: {
-          sessionId: params.sessionId,
-          userId: params.userId,
-          skillName: 'edu-video',
-          pipelineMode: effectiveMode,
-        },
-        userMessage: params.userMessage,
-        videoUrl,
-      });
-      if (front.halted) {
-        capturedCheckpointDisplay = front.checkpointDisplay;
-        prePipelineHalt = true;
-      }
-    } else if (
-      resolvedSkill === 'talking-head' ||
-      sessionFields.skillsUsed.includes('talking-head')
-    ) {
-      const front = await maybeFrontLoadTalkingHeadPrePipeline({
-        ctx: {
-          sessionId: params.sessionId,
-          userId: params.userId,
-          skillName: 'talking-head',
-          pipelineMode: effectiveMode,
-        },
-        userMessage: params.userMessage,
-        videoUrl,
-      });
-      if (front.halted) {
-        capturedCheckpointDisplay = front.checkpointDisplay;
-        prePipelineHalt = true;
-      }
-    }
-  }
-
-  if (orientationResumeForce) {
-    if (!('generate_manim_script' in tools)) {
-      console.error('[agent] orientation resume force failed: generate_manim_script missing', {
+    const phaseKey =
+      resumeCheckpoint.phaseKey ??
+      lookupPhase(resolvedSkill, {
+        completedPhaseLabel: resumeCheckpoint.completedPhaseLabel,
+        completedPhase: resumeCheckpoint.completedPhase,
+      })?.phaseKey;
+    resumeForceToolName = resolveResumeForce(resolvedSkill, phaseKey);
+    if (resumeForceToolName && !(resumeForceToolName in tools)) {
+      console.error('[agent] resume force failed: tool missing from registry', {
         sessionId: params.sessionId,
         resolvedSkill,
+        resumeForceToolName,
         toolNames: Object.keys(tools),
       });
       throw new Error(
-        'Orientation resume cannot proceed: generate_manim_script not in tool registry (skillId?)'
+        `Checkpoint resume cannot proceed: ${resumeForceToolName} not in tool registry (skillId?)`
       );
     }
-    console.log(
-      `[agent] checkpoint.resume orientationForce tx=ok skill=${resolvedSkill ?? 'null'} tool=generate_manim_script appendChars=${resumeSystemAppend.length}`
+    if (resumeForceToolName) {
+      console.log(
+        `[agent] checkpoint.resume force tx=ok skill=${resolvedSkill} tool=${resumeForceToolName} appendChars=${resumeSystemAppend.length}`
+      );
+    }
+  }
+
+  if (resolvedSkill) {
+    const styleAppend = await detectAndApplyStyleSeed(
+      params.sessionId,
+      resolvedSkill,
+      params.userMessage
     );
+    if (styleAppend) {
+      systemPrompt = `${systemPrompt}\n\n${styleAppend}`;
+    }
   }
 
   const result = streamText({
@@ -522,27 +506,23 @@ export async function runAgent(params: RunAgentParams) {
       delayInMs: 18,
     }),
     stopWhen: ({ steps }) => {
-      if (prePipelineHalt && steps.length >= 1) return true;
       if (conceptsApproveChain && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
       return stepCountIs(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      if (prePipelineHalt || conceptsApproveChain) {
+      if (conceptsApproveChain) {
         return { ...base, activeTools: [] as string[] };
       }
-      // Video orientation choice only — force first Manim tool on step 0
-      if (orientationResumeForce && stepNumber === 0) {
+      if (resumeForceToolName && stepNumber === 0) {
         return {
           ...base,
           toolChoice: {
             type: 'tool' as const,
-            toolName: 'generate_manim_script',
+            toolName: resumeForceToolName,
           },
-          activeTools: ['generate_manim_script'] as Array<
-            'generate_manim_script'
-          >,
+          activeTools: [resumeForceToolName],
         };
       }
       return base;

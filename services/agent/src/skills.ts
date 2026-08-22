@@ -30,35 +30,15 @@ export function resolveSkill(
 
 export function detectSkill(message: string): string | null {
   const text = message.toLowerCase();
+  // Deferred import: catalog/manifest imports SKILLS_DIR from this file.
+  const { listSkillIds, loadSkillManifest } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('./catalog/manifest') as typeof import('./catalog/manifest');
 
-  const skillTriggers: { skill: string; triggers: string[] }[] = [
-    {
-      skill: 'edu-video',
-      triggers: [
-        '/edu-video',
-        'educational video',
-        'edu video',
-        'lecture video',
-        'teacher video',
-        'teaching video',
-      ],
-    },
-    {
-      skill: 'background-generation',
-      triggers: [
-        '/background-generation',
-        'background',
-        'backdrop',
-        'background image',
-        'background video',
-        'studio background',
-      ],
-    },
-  ];
-
-  for (const { skill, triggers } of skillTriggers) {
-    if (triggers.some((trigger) => text.includes(trigger))) {
-      return skill;
+  for (const skillId of listSkillIds()) {
+    const triggers = loadSkillManifest(skillId).triggers ?? [];
+    if (triggers.some((trigger) => text.includes(trigger.toLowerCase()))) {
+      return skillId;
     }
   }
 

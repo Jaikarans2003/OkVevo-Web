@@ -1,7 +1,7 @@
 ---
-name: hyperframes-creative
+
+## name: hyperframes-creative
 description: Non-animation creative direction for HyperFrames videos. Use for design spec (frame.md / design.md) handling, palettes, typography, narration, beat planning, audio-reactive visuals, composition patterns, and brand / style decisions. For atomic motion patterns and scene blueprints, use `hyperframes-animation`.
----
 
 # HyperFrames Creative
 
@@ -11,23 +11,28 @@ For motion patterns, scene blueprints, transitions, and CSS marker effects, use 
 
 > **Read these two FIRST for any non-trivial composition — they override web instincts:**
 >
-> - `references/house-style.md` — "interpret the prompt, generate real content," the lazy-default list, and the background/foreground layer recipe. This is what turns a literal restyle into a _concept_.
+> - `references/house-style.md` — "interpret the prompt, generate real content," the lazy-default list, and the background/foreground layer recipe. This is what turns a literal restyle into a *concept*.
 > - `references/video-composition.md` — video-medium density, scale, foreground metadata (the "produced, not generated" detailing: data bars, registration marks, monospace readouts, 8-10 elements/scene).
 >
 > Skipping these is the single biggest cause of generic, web-page-looking output. They are not optional rows in the routing table below — for anything beyond a one-line edit, open both before you choose colors or write HTML.
 
+
+
 ## Workflow
 
-1. If a project has a design spec, **read it first** and treat its frontmatter tokens as brand truth (colors, fonts, spacing, tone, constraints). Which file to read (precedence `frame.md` → `design.md` → `DESIGN.md`) and how to parse it (frontmatter = normative, prose = context) are defined once in [`references/design-spec.md`](references/design-spec.md) — resolve and load per that doc.
+1. If a project has a design spec, **read it first** and treat its frontmatter tokens as brand truth (colors, fonts, spacing, tone, constraints). Which file to read (precedence `frame.md` → `design.md` → `DESIGN.md`) and how to parse it (frontmatter = normative, prose = context) are defined once in `[references/design-spec.md](references/design-spec.md)` — resolve and load per that doc.
 2. If no design spec exists and the user asks for visual direction, choose a route:
-   - Ready-made frame-preset (optional) → `frame-presets/` (adopt a `FRAME.md` as `frame.md`; see `references/design-spec.md`)
-   - Named style or mood → `references/visual-styles.md`
-   - Fast defaults → `references/house-style.md`
-   - Interactive selection → `references/design-picker.md`
+  - Ready-made frame-preset (optional) → `frame-presets/` (adopt a `FRAME.md` as `frame.md`; see `references/design-spec.md`)
+  - Named style or mood → `references/visual-styles.md`
+  - Fast defaults → `references/house-style.md`
+  - Interactive selection → `references/design-picker.md`
 3. For multi-scene work, plan beats and rhythm before writing HTML → `references/beat-direction.md`. For scene transitions, jump to `hyperframes-animation/transitions/`.
 4. For motion-heavy work, read `references/motion-principles.md` (high-level guardrails), then go to `hyperframes-animation` for atomic rules.
 
+
+
 ## Routing
+
 
 | Topic                                                                    | Read                                           |
 | ------------------------------------------------------------------------ | ---------------------------------------------- |
@@ -45,6 +50,9 @@ For motion patterns, scene blueprints, transitions, and CSS marker effects, use 
 | Font selection, pairings, rendered-video type guardrails                 | `references/typography.md`                     |
 | Script pacing, tone, openings, number pronunciation                      | `references/narration.md`                      |
 | Precomputed audio bands mapped to motion                                 | `references/audio-reactive.md`                 |
+
+
+
 
 ## Scripts
 
@@ -66,3 +74,4 @@ Animation analysis (`animation-map.mjs`) lives in `hyperframes-animation/scripts
 - Do not require a design system for a minimal technical composition.
 - Do not add extra scenes, narration, music, captions, or transitions unless the request calls for them or you first propose the expansion.
 - Keep recipe references task-specific; do not read every reference for simple edits.
+

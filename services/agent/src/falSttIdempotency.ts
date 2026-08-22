@@ -246,12 +246,14 @@ export function selfcheck(): void {
   if (/\{ type: ['"]data-checkpoint['"]/.test(deliverSrc)) {
     throw new Error('Ask handoff must not hand-build data-checkpoint literal');
   }
-  if (!/phase_label:\s*['"]Lecture heard['"]/.test(deliverSrc)) {
-    throw new Error('Ask handoff phase_label must be Lecture heard');
+  if (/FAL_STT_CONTINUE_PROMPT/.test(deliverSrc)) {
+    throw new Error('FAL_STT_CONTINUE_PROMPT must be deleted in favor of dispatchHook');
+  }
+  if (!/dispatchHook\(/.test(deliverSrc)) {
+    throw new Error('falSttDeliver must dispatch on_transcript_ready from the job stamp');
   }
 
   // R2: Lecture heard resume must steer to extract_concepts (not re-transcribe).
-  // Lazy require so module import stays firebase-free; dotenv when run as main.
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('dotenv').config();
@@ -264,6 +266,8 @@ export function selfcheck(): void {
     id: 'cp_lecture_heard',
     completedPhase: 'transcription',
     completedPhaseLabel: 'Lecture heard',
+    skillId: 'edu-video',
+    phaseKey: 'lecture-heard',
     summary: { title: 'Lecture heard', bullets: [] },
     next: { label: 'Extract concepts', description: 'Continue' },
     resume: { artifactNeeds: [], assetKeys: [] },
@@ -275,13 +279,21 @@ export function selfcheck(): void {
   if (resume.includes('Call transcribe_video again')) {
     throw new Error('Lecture heard resume must not use language-gate re-transcribe guidance');
   }
-  if (!resume.includes('Continue with extract_concepts')) {
+  if (!/Continue with extract_concepts/.test(resume)) {
     throw new Error('Lecture heard continueLine must be Continue with extract_concepts');
   }
-  if (!/kind:\s*['"]phase_gate['"]/.test(deliverSrc)) {
+  const eduManifest = fs.readFileSync(
+    path.join(__dirname, '../../../Skills/edu-video/skill.json'),
+    'utf8'
+  );
+  if (!/"askPhaseKey":\s*"lecture-heard"/.test(eduManifest)) {
+    throw new Error('edu-video on_transcript_ready must ask lecture-heard');
+  }
+  const lectureHeard = JSON.parse(eduManifest).phases['lecture-heard'];
+  if (lectureHeard.kind !== 'phase_gate') {
     throw new Error('Lecture heard must declare kind phase_gate');
   }
-  if (/choices:\s*\[\s*\{\s*id:\s*['"]continue['"]/.test(deliverSrc)) {
+  if (Array.isArray(lectureHeard.choices)) {
     throw new Error('Lecture heard must not use a Continue choice');
   }
 

@@ -21,6 +21,19 @@ function main() {
     path.join(__dirname, '../src/tools/general/clarify.ts'),
     'utf-8'
   );
+  const eduSkillJson = fs.readFileSync(
+    path.join(__dirname, '../../../Skills/edu-video/skill.json'),
+    'utf-8'
+  );
+  const eduManifest = JSON.parse(eduSkillJson) as {
+    phases: Record<
+      string,
+      { resume?: { revision?: string; approve?: string; forceToolName?: string } }
+    >;
+  };
+  const conceptsResume = eduManifest.phases['concepts-extracted']?.resume;
+  const conceptsRevision = conceptsResume?.revision ?? '';
+  const conceptsApprove = conceptsResume?.approve ?? '';
 
   assert.match(checkpointSource, /export async function writeAskCheckpoint/);
   assert.doesNotMatch(checkpointSource, /maybeWriteCheckpoint/);
@@ -30,7 +43,7 @@ function main() {
     /Continue the pipeline from where you left off/
   );
   assert.doesNotMatch(checkpointSource, /Required next tool/);
-  assert.match(checkpointSource, /Do not ask for a video URL/);
+  assert.match(conceptsApprove, /Do not ask for a video URL/);
 
   assert.match(
     clarifySource,
@@ -73,38 +86,54 @@ function main() {
   assert.match(agentSource, /phase_label:\s*'Video orientation'/);
   assert.match(agentSource, /conceptsApproveChain/);
 
-  // Manim force keyed off Video orientation only — not Concepts extracted
+  // Manim / prefs force keyed by phase.resume.forceToolName — not hardcoded in agent.ts
   assert.match(agentSource, /isOrientationChoiceResume/);
   assert.match(
     agentSource,
     /completedPhaseLabel !== 'Video orientation'/
   );
-  assert.match(
+  assert.match(agentSource, /resolveResumeForce/);
+  assert.match(agentSource, /resumeForceToolName/);
+  assert.doesNotMatch(agentSource, /orientationResumeForce/);
+  assert.doesNotMatch(agentSource, /transcribeResumeForce/);
+  assert.doesNotMatch(
     agentSource,
-    /orientationResumeForce[\s\S]*toolChoice:\s*\{\s*type:\s*'tool'[\s\S]*toolName:\s*'generate_manim_script'/
+    /toolName:\s*'generate_manim_script'/
   );
   assert.match(agentSource, /firstConceptResumeHint/);
   assert.match(
     agentSource,
-    /checkpoint\.resume orientationForce tx=ok skill=.*tool=generate_manim_script/
+    /checkpoint\.resume force tx=ok skill=.*tool=/
   );
   assert.doesNotMatch(
     agentSource,
     /completedPhaseLabel !== 'Concepts extracted'[\s\S]{0,200}orientationResumeForce|conceptsResumeForce/
   );
 
-  // Revision path fixture: directive preamble with exact ask_clarification payload
-  assert.match(checkpointSource, /CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL/);
-  assert.match(checkpointSource, /phase_label: "Video orientation"/);
-  assert.match(checkpointSource, /id: "horizontal"/);
-  assert.match(checkpointSource, /id: "vertical"/);
-  assert.match(checkpointSource, /allowFreeform: false/);
+  assert.equal(
+    eduManifest.phases['concepts-extracted']?.resume?.forceToolName,
+    'generate_manim_script'
+  );
+  assert.equal(
+    eduManifest.phases['pre_pipeline']?.resume?.forceToolName,
+    'transcribe_video'
+  );
+  assert.equal(
+    eduManifest.phases['video-orientation']?.resume?.forceToolName,
+    'generate_manim_script'
+  );
+
+  assert.match(conceptsRevision, /CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL/);
+  assert.match(conceptsRevision, /phase_label: "Video orientation"/);
+  assert.match(conceptsRevision, /id: "horizontal"/);
+  assert.match(conceptsRevision, /id: "vertical"/);
+  assert.match(conceptsRevision, /allowFreeform: false/);
   assert.match(
-    checkpointSource,
+    conceptsRevision,
     /Do NOT call generate_manim_script, render_manim_clip, extract_concepts, scaffold_hf_project, or render_hyperframes/
   );
   assert.match(
-    checkpointSource,
+    conceptsRevision,
     /Do NOT invent a different clarification question or skip ask_clarification after edits/
   );
 

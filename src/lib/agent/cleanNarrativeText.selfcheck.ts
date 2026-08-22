@@ -40,4 +40,24 @@ assert.equal(
   'dev path keeps Manim'
 );
 
+assert.equal(
+  cleanNarrativeText(
+    'Next up.\n\n<transcribe_video>\n{"video_url":"https://x"}\n</transcribe_video>\n\nOn it.'
+  ),
+  'Next up.\n\nOn it.',
+  'strips snake_case fake tool tags'
+);
+assert.equal(
+  cleanNarrativeText(
+    'Calling tools.\n\n<tool_call>\ntranscribe_video\n</tool_call>\n\nDone.'
+  ),
+  'Calling tools.\n\nDone.',
+  'strips tool_call blocks'
+);
+assert.equal(
+  cleanNarrativeText('Please run `scaffold_talking_head_project` next.'),
+  'Please run next.',
+  'strips backtick-only snake_case tool names'
+);
+
 console.log('cleanNarrativeText.selfcheck: ok');
