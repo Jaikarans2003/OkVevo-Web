@@ -3,10 +3,11 @@
  * - every writeAskCheckpoint( call declares kind + allowFreeform
  * - brand hex parse 1-hex / 2-hex
  * - renderer structure for kind × freeform (source asserts)
+ * - HITL: four kinds, no phase enum, no talking-head style type
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
+import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { parseBrandColorsFromText, DEFAULT_BRAND_COLORS } from './tools/lib/utils.ts';
 
@@ -25,38 +26,22 @@ function walkTsFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Extract object-literal args for writeAskCheckpoint( / Batch questions. */
+/** Extract object-literal args for writeAskCheckpoint(. */
 function assertCallSitesDeclareKindAndFreeform(src: string, file: string): void {
-  // Skip the definition itself.
-  if (
-    /export async function writeAskCheckpoint\b/.test(src) ||
-    /export async function writeAskCheckpointBatch\b/.test(src)
-  ) {
+  if (/export async function writeAskCheckpoint\b/.test(src)) {
     return;
   }
 
-  const callRe = /writeAskCheckpoint(Batch)?\s*\(/g;
+  const callRe = /writeAskCheckpoint\s*\(/g;
   let m: RegExpExecArray | null;
   while ((m = callRe.exec(src))) {
     const from = m.index;
-    const isBatch = Boolean(m[1]);
     const window = src.slice(from, from + 1600);
-
-    // Batch: kind + allowFreeform live on each question (validated via questions.push below).
-    if (isBatch) {
-      if (!/\bquestions\b/.test(window)) {
-        throw new Error(
-          `${file}: writeAskCheckpointBatch missing questions near offset ${from}`
-        );
-      }
-      continue;
-    }
 
     const hasKind = /\bkind\s*:/.test(window);
     const hasFreeform = /\ballowFreeform\b/.test(window);
     if (hasKind && hasFreeform) continue;
 
-    // Spread / pass-through of a file-local constant that itself declares both.
     const spread = window.match(/\.\.\.([A-Z][A-Z0-9_]*)\b/);
     const bare = window.match(
       /writeAskCheckpoint\s*\(\s*\{[\s\S]*?\}\s*,\s*([A-Z][A-Z0-9_]*)\s*\)/
@@ -79,20 +64,6 @@ function assertCallSitesDeclareKindAndFreeform(src: string, file: string): void 
       );
     }
   }
-
-  // Batch questions pushed as CheckpointQuestion objects should also declare both.
-  if (/CheckpointQuestion/.test(src) && /questions\.push\(/.test(src)) {
-    const pushBlocks = src.split(/questions\.push\(/).slice(1);
-    for (const block of pushBlocks) {
-      const obj = block.slice(0, 800);
-      if (!/\bkind\s*:/.test(obj)) {
-        throw new Error(`${file}: questions.push missing kind`);
-      }
-      if (!/\ballowFreeform\s*:/.test(obj)) {
-        throw new Error(`${file}: questions.push missing allowFreeform`);
-      }
-    }
-  }
 }
 
 function assertRendererStructure(): void {
@@ -101,17 +72,19 @@ function assertRendererStructure(): void {
     '../../../src/components/workspace/ai-studio/CheckpointCard.tsx'
   );
   const ui = fs.readFileSync(uiPath, 'utf8');
-  assert.match(ui, /kind === ['"]phase_gate['"]|kind: CheckpointKind/, 'UI knows phase_gate');
+  assert.match(ui, /kind === ['"]approval['"]|asKind/, 'UI knows approval');
+  assert.match(ui, /phase_gate/, 'UI still maps legacy phase_gate');
   assert.doesNotMatch(ui, /Recommended/, 'no Recommended tag');
-  assert.doesNotMatch(ui, /scrub\(data\.title\)/, 'floating card must not render title heading');
   assert.doesNotMatch(ui, /<h4/, 'no h4 heading on checkpoint cards');
   assert.match(ui, /data\.bullets/, 'content bullets (e.g. concepts) still render');
-  assert.match(ui, /Continue/, 'phase_gate Continue');
-  assert.match(ui, /Skip/, 'single_select Skip');
+  assert.match(ui, /Continue/, 'approval Continue');
+  assert.match(ui, /Skip/, 'selection Skip');
   assert.match(ui, /className="ml-auto[^"]*"[\s\S]{0,80}Skip|Skip[\s\S]{0,40}ml-auto/, 'Skip on right');
-  // Freeform on both kinds via allowFreeform flag
   assert.match(ui, /allowFreeform/, 'freeform orthogonal flag');
   assert.doesNotMatch(ui, /Click Continue Or Customise/, 'no customize chrome');
+  assert.match(ui, /Type your answer/, 'generic freeform fallback, not brand-only');
+  assert.match(ui, /placeholderForQuestion/, 'placeholder follows the question');
+  assert.match(ui, /Type a language/, 'language questions get a language hint');
 }
 
 function assertBrandParse(): void {
@@ -130,9 +103,32 @@ function assertBrandParse(): void {
   assert.equal(parseBrandColorsFromText('no colors here'), null);
 }
 
+function assertHitlGeneralization(checkpointSource: string): void {
+  assert.match(checkpointSource, /export type CheckpointKind =/);
+  assert.match(checkpointSource, /'approval'/);
+  assert.match(checkpointSource, /'selection'/);
+  assert.match(checkpointSource, /'elicitation'/);
+  assert.match(checkpointSource, /'tool_approval'/);
+  assert.match(checkpointSource, /export async function writeAskFromPhase/);
+  assert.match(checkpointSource, /export function resolveResumeArtifacts/);
+  assert.doesNotMatch(checkpointSource, /writeAskCheckpointBatch/);
+  assert.doesNotMatch(checkpointSource, /loadPendingCheckpointDisplay/);
+  assert.doesNotMatch(checkpointSource, /isPrePipelineResolved/);
+  assert.doesNotMatch(checkpointSource, /export type CheckpointPhase/);
+  assert.doesNotMatch(checkpointSource, /PHASE_NUMBERS/);
+  assert.doesNotMatch(checkpointSource, /export type TalkingHeadStyle/);
+  assert.doesNotMatch(checkpointSource, /persistTalkingHeadStyle/);
+  assert.doesNotMatch(checkpointSource, /getSessionTalkingHeadStyle/);
+  assert.doesNotMatch(checkpointSource, /skillName === 'talking-head'/);
+  assert.match(checkpointSource, /export function defaultFreeformPlaceholder/);
+}
+
 function main() {
   assertBrandParse();
   assertRendererStructure();
+
+  const checkpointSource = fs.readFileSync(path.join(SRC_ROOT, 'checkpoint.ts'), 'utf8');
+  assertHitlGeneralization(checkpointSource);
 
   const files = walkTsFiles(SRC_ROOT);
   let callsFound = 0;
@@ -140,16 +136,33 @@ function main() {
     const src = fs.readFileSync(file, 'utf8');
     if (!/writeAskCheckpoint/.test(src)) continue;
     assertCallSitesDeclareKindAndFreeform(src, path.relative(SRC_ROOT, file));
-    if (/writeAskCheckpoint(?:Batch)?\s*\(/.test(src) && !/export async function writeAskCheckpoint/.test(src)) {
+    if (/writeAskCheckpoint\s*\(/.test(src) && !/export async function writeAskCheckpoint/.test(src)) {
       callsFound += 1;
     }
   }
-  assert.ok(callsFound >= 4, `expected multiple call-site files, got ${callsFound}`);
+  assert.ok(callsFound >= 3, `expected multiple call-site files, got ${callsFound}`);
 
-  // VIDEO_ORIENTATION_CHECKPOINT constant
-  const agentSrc = fs.readFileSync(path.join(SRC_ROOT, 'agent.ts'), 'utf8');
-  assert.match(agentSrc, /VIDEO_ORIENTATION_CHECKPOINT[\s\S]*kind:\s*['"]single_select['"]/);
-  assert.match(agentSrc, /VIDEO_ORIENTATION_CHECKPOINT[\s\S]*allowFreeform:\s*false/);
+  const eduManifest = JSON.parse(
+    fs.readFileSync(
+      path.resolve(SRC_ROOT, '../../../Skills/edu-video/skill.json'),
+      'utf8'
+    )
+  ) as {
+    phases?: Record<
+      string,
+      { kind?: string; allowFreeform?: boolean; choices?: unknown[] }
+    >;
+  };
+  const orientation = eduManifest.phases?.['video-orientation'];
+  assert.equal(orientation?.kind, 'selection');
+  assert.equal(orientation?.allowFreeform, false);
+  assert.ok(
+    (orientation?.choices?.length ?? 0) >= 2,
+    'video-orientation declares its choices'
+  );
+  assert.equal(eduManifest.phases?.['lecture-heard']?.kind, 'approval');
+  assert.equal(eduManifest.phases?.['transcription-language']?.kind, 'selection');
+  assert.equal(eduManifest.phases?.['transcription-paused']?.kind, 'selection');
 
   console.log('checkpointKind.selfcheck: ok');
 }

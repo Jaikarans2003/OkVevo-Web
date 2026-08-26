@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["../../../src/pipelines/edu-video/types.ts"],
-  "sourcesContent": ["export type PipelinePhase = 1 | 2 | 3 | 4 | 5 | 6 | 7\n\nexport type PipelineMode = 'ask' | 'auto'\n\nexport interface TranscriptWord {\n  text: string\n  start: number\n  end: number\n}\n\nexport interface Transcript {\n  text: string\n  words: TranscriptWord[]\n  durationSec: number\n}\n\nexport interface Concept {\n  moment_id: string\n  start: number\n  end: number\n  type: 'formula' | 'steps' | 'definition' | 'diagram' | 'comparison'\n  topic: string\n  excerpt: string\n  manim_brief: string\n}\n\nexport interface ManimClip {\n  moment_id: string\n  url: string\n  durationSec: number\n}\n\nexport type ExtractConceptsOutput =\n  | {\n      success: true\n      cached?: boolean\n      concepts: Concept[]\n      awaitingApproval?: boolean\n      message?: string\n    }\n  | { success: false; error: string }\n\nexport type RenderManimClipsOutput = {\n  success: boolean\n  clips: ManimClip[]\n  failed: { moment_id: string; error: string }[]\n  error?: string\n}\n\nexport interface PipelineState {\n  phase: PipelinePhase\n  mode: PipelineMode\n  videoUrl?: string\n  completedPhases: number[]\n  draftVideoUrl?: string\n}\n"],
-  "mappings": ";;;;;;;;;;;;;;AAAA;AAAA;",
-  "names": []
-}

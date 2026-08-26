@@ -41,5 +41,8 @@ assert.ok(FINAL_VIDEO_NAME_RE.test('final_2.mp4'));
 assert.ok(FINAL_VIDEO_NAME_RE.test('draft_video.mp4'));
 assert.ok(FINAL_VIDEO_NAME_RE.test('talking-head.mp4'));
 assert.ok(FINAL_VIDEO_NAME_RE.test('edu-video_2.mp4'));
+assert.ok(FINAL_VIDEO_NAME_RE.test('other-skill.mp4'));
+assert.ok(FINAL_VIDEO_NAME_RE.test('other-skill_2.mp4'));
+assert.ok(!FINAL_VIDEO_NAME_RE.test('foo_bar.mp4'));
 
 console.log('finalVideoBasename.selfcheck: ok');

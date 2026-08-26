@@ -5,6 +5,13 @@ import { auth } from '@/config/firebase';
 import type { PipelineState } from '@/hooks/usePipelineState';
 import { isAgentDevTrace } from '@/lib/agent/agentTraceMode';
 
+const STATUS_LABELS: Record<string, string> = {
+  running: 'Working…',
+  awaiting_checkpoint: 'Waiting for your answer…',
+  rendering: 'Final render running in background...',
+  failed: 'Render failed',
+};
+
 const PHASE_LABELS: Record<number, string> = {
   2: 'Transcribing video...',
   3: 'Extracting animation concepts...',
@@ -28,7 +35,7 @@ export function PipelineStatusBar({
     return null;
   }
 
-  if (pipelineState === null || pipelineState.pipelinePhase === 0) {
+  if (pipelineState === null) {
     return null;
   }
 
@@ -44,9 +51,12 @@ export function PipelineStatusBar({
     return null;
   }
 
-  const phaseLabel = PHASE_LABELS[pipelinePhase];
+  const phaseLabel =
+    STATUS_LABELS[pipelineStatus] ?? PHASE_LABELS[pipelinePhase];
   const showCheckNow =
-    pipelinePhase === 6 && renderStatus === 'RUNNING' && sessionId;
+    (pipelineStatus === 'rendering' || pipelinePhase === 6) &&
+    renderStatus === 'RUNNING' &&
+    sessionId;
 
   const checkNow = async () => {
     if (!sessionId || checking) return;

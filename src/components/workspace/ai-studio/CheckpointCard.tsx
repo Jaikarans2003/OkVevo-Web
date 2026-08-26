@@ -20,7 +20,7 @@ export type CheckpointChoice = {
   label: string;
 };
 
-export type CheckpointKind = 'single_select' | 'phase_gate';
+export type CheckpointKind = 'approval' | 'selection' | 'elicitation' | 'tool_approval';
 
 export type CheckpointQuestionData = {
   id: string;
@@ -34,8 +34,8 @@ export type CheckpointQuestionData = {
 
 export type CheckpointCardData = {
   checkpointId: string;
-  /** Legacy 'question' treated as single_select. */
-  kind: CheckpointKind | 'question';
+  /** Legacy 'question' / 'single_select' treated as selection. */
+  kind: CheckpointKind | 'question' | 'phase_gate' | 'single_select';
   status: 'pending' | 'answered';
   title: string;
   bullets: string[];
@@ -48,15 +48,51 @@ export type CheckpointCardData = {
   freeformPlaceholder?: string;
   questions?: CheckpointQuestionData[];
   answer?: { type: string; text: string; choiceId?: string };
+  seq?: number;
 };
+
+export function checkpointSeq(data: { seq?: number }): number {
+  return typeof data.seq === 'number' ? data.seq : 0;
+}
+
+/** Highest seq wins; returns checkpoint ids allowed on each message. */
+export function winningCheckpointIdsByMessage(
+  messages: Array<{
+    id: string;
+    parts: Array<{ type: string; data?: CheckpointCardData }>;
+  }>
+): Map<string, Set<string>> {
+  const best = new Map<string, { messageId: string; seq: number }>();
+  for (const msg of messages) {
+    for (const part of msg.parts ?? []) {
+      if (part.type !== 'data-checkpoint' || !part.data?.checkpointId) continue;
+      const seq = checkpointSeq(part.data);
+      const prev = best.get(part.data.checkpointId);
+      if (!prev || seq > prev.seq) {
+        best.set(part.data.checkpointId, { messageId: msg.id, seq });
+      }
+    }
+  }
+  const byMessage = new Map<string, Set<string>>();
+  for (const [id, win] of best) {
+    const set = byMessage.get(win.messageId) ?? new Set<string>();
+    set.add(id);
+    byMessage.set(win.messageId, set);
+  }
+  return byMessage;
+}
 
 function scrub(text: string): string {
   return cleanNarrativeText(text, { scrubStackNames: true });
 }
 
 function asKind(raw: unknown): CheckpointKind {
-  if (raw === 'phase_gate') return 'phase_gate';
-  return 'single_select';
+  if (raw === 'single_select' || raw === 'selection' || raw === 'question') {
+    return 'selection';
+  }
+  if (raw === 'elicitation') return 'elicitation';
+  if (raw === 'tool_approval') return 'tool_approval';
+  return 'approval';
 }
 
 /** Resolved when not the live pending id, or when the part already carries an answer. */
@@ -142,6 +178,24 @@ function normalizeQuestions(data: CheckpointCardData): InternalQuestion[] {
 
 type DraftAnswer = { choiceId?: string; freeform: string; skipped?: boolean };
 
+const BRAND_HEX_HINT = 'Enter brand colors as hex… e.g. #f97316 #fb923c';
+
+function placeholderForQuestion(
+  prompt: string,
+  isApproval: boolean,
+  supplied?: string
+): string {
+  if (isApproval) return supplied?.trim() || 'Describe your revision…';
+  const aboutColors = /\b(color|hex|palette|brand)\b/i.test(prompt);
+  if (supplied?.trim() && (!/brand colors as hex/i.test(supplied) || aboutColors)) {
+    return supplied;
+  }
+  if (aboutColors) return BRAND_HEX_HINT;
+  if (/\blanguage\b/i.test(prompt)) return 'Type a language…';
+  if (/\b(style|seed|look)\b/i.test(prompt)) return 'Describe a style…';
+  return 'Type your answer…';
+}
+
 function initialDrafts(
   questions: InternalQuestion[]
 ): Record<string, DraftAnswer> {
@@ -179,7 +233,7 @@ function isDraftComplete(
   drafts: Record<string, DraftAnswer>
 ): boolean {
   return questions.every((q) => {
-    if (q.kind === 'phase_gate') return true;
+    if (q.kind === 'approval') return true;
     const d = drafts[q.id] ?? { freeform: '' };
     return Boolean(d.choiceId) || Boolean(d.freeform.trim()) || Boolean(d.skipped);
   });
@@ -189,7 +243,7 @@ function buildBatchPayload(
   questions: InternalQuestion[],
   drafts: Record<string, DraftAnswer>
 ): CheckpointAnswerPayload | null {
-  if (questions.length === 1 && questions[0]!.kind === 'phase_gate') {
+  if (questions.length === 1 && questions[0]!.kind === 'approval') {
     const draft = drafts[questions[0]!.id] ?? { freeform: '' };
     const freeform = draft.freeform.trim();
     if (freeform) return { type: 'revision', text: freeform };
@@ -318,7 +372,7 @@ export function CheckpointFloatingCard({
   const draft = drafts[current?.id ?? '0'] ?? { freeform: '' };
   const canSubmit = !disabled && isDraftComplete(questions, drafts);
   const showNav = questions.length > 1;
-  const isPhaseGate = current?.kind === 'phase_gate';
+  const isApproval = current?.kind === 'approval';
   const isLast = index >= questions.length - 1;
 
   const setDraft = (patch: Partial<DraftAnswer>) => {
@@ -374,7 +428,7 @@ export function CheckpointFloatingCard({
   };
 
   const handleSubmit = () => {
-    if (isPhaseGate) {
+    if (isApproval) {
       if (disabled) return;
       submitAll();
       return;
@@ -383,18 +437,18 @@ export function CheckpointFloatingCard({
     submitAll();
   };
 
-  const freeformPlaceholder =
-    current?.freeformPlaceholder ??
-    (isPhaseGate
-      ? 'Describe your revision…'
-      : 'Enter brand colors as hex… e.g. #f97316 #fb923c');
+  const freeformPlaceholder = placeholderForQuestion(
+    current?.prompt ?? '',
+    isApproval,
+    current?.freeformPlaceholder
+  );
 
   const bullets = (data.bullets ?? []).map(scrub).filter(Boolean);
 
   return (
     <div className="mb-3 rounded-2xl bg-[#2F2F2F] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
       <p className="text-sm font-medium text-white/80">
-        {isPhaseGate ? scrub(data.title) : current ? current.prompt : scrub(data.title)}
+        {isApproval ? scrub(data.title) : current ? current.prompt : scrub(data.title)}
       </p>
 
       {bullets.length > 0 ? (
@@ -408,11 +462,11 @@ export function CheckpointFloatingCard({
         </ul>
       ) : null}
 
-      {isPhaseGate && current?.prompt ? (
+      {isApproval && current?.prompt ? (
         <p className="mt-2 text-sm text-white/70">{current.prompt}</p>
       ) : null}
 
-      {!isPhaseGate && current?.choices && current.choices.length > 0 ? (
+      {!isApproval && current?.choices && current.choices.length > 0 ? (
         <ChoiceList
           choices={current.choices}
           draft={draft}
@@ -423,7 +477,7 @@ export function CheckpointFloatingCard({
 
       {current?.allowFreeform ? (
         <div className="mt-3">
-          {!isPhaseGate ? (
+          {!isApproval ? (
             <p className="text-xs text-white/45">Something else</p>
           ) : null}
           <FreeformBox
@@ -437,7 +491,7 @@ export function CheckpointFloatingCard({
                 skipped: false,
               })
             }
-            onConfirmEnter={isPhaseGate ? undefined : handleFreeformConfirm}
+            onConfirmEnter={isApproval ? undefined : handleFreeformConfirm}
           />
         </div>
       ) : null}
@@ -460,7 +514,7 @@ export function CheckpointFloatingCard({
           </>
         ) : null}
 
-        {isPhaseGate ? (
+        {isApproval ? (
           <button
             type="button"
             disabled={disabled}

@@ -17,7 +17,7 @@ npm run deploy:agentcore
 ```
 
 This runs `scripts/deploy-agentcore.sh` (build → push → update → poll) then
-`scripts/verify-agentcore-deploy.sh` (ping). Requires: Docker with `buildx`, the
+`scripts/verify-agentcore-deploy.sh` (warmup then ping). Requires: Docker with `buildx`, the
 AWS CLI v2, and AWS credentials (auto-loaded from the repo-root `.env` `AWS_*`
 vars, or the default AWS chain).
 

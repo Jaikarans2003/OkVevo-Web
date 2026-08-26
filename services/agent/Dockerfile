@@ -1,6 +1,6 @@
 # AgentCore Runtime (and local Apple Silicon) require linux/arm64 — not amd64.
 # ── Stage 1: Node deps ───────────────────────────────
-FROM --platform=linux/arm64 node:20-slim AS node-deps
+FROM --platform=linux/arm64 node:22.22.3-slim AS node-deps
 WORKDIR /app
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY services/agent/package*.json ./

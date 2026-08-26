@@ -49,10 +49,11 @@ function getRuntimeArn(): string {
   return arn;
 }
 
-function ensureRuntimeSessionId(sessionId: string): string {
-  // AgentCore requires runtimeSessionId length >= 33
-  if (sessionId.length >= 33) return sessionId;
-  return `okvevo-session-${sessionId}`.padEnd(33, '0');
+/** One Firecracker microVM per user. Harness state is Firestore-keyed by chat sessionId. */
+export function runtimeSessionIdForUser(userId: string): string {
+  const id = userId.trim() || 'anonymous';
+  const base = `okvevo-user-${id}`;
+  return base.length >= 33 ? base : base.padEnd(33, '0');
 }
 
 function getClient() {
@@ -90,7 +91,7 @@ export async function invokeAgentCore(
 ): Promise<AgentCoreInvokeResult> {
   const command = new InvokeAgentRuntimeCommand({
     agentRuntimeArn: getRuntimeArn(),
-    runtimeSessionId: ensureRuntimeSessionId(input.sessionId),
+    runtimeSessionId: runtimeSessionIdForUser(input.userId),
     runtimeUserId: input.userId,
     contentType: 'application/json',
     accept: 'application/json',
@@ -141,7 +142,7 @@ export async function invokeAgentCoreStream(
 ): Promise<ReadableStream<Uint8Array>> {
   const command = new InvokeAgentRuntimeCommand({
     agentRuntimeArn: getRuntimeArn(),
-    runtimeSessionId: ensureRuntimeSessionId(input.sessionId),
+    runtimeSessionId: runtimeSessionIdForUser(input.userId),
     runtimeUserId: input.userId,
     contentType: 'application/json',
     accept: 'text/event-stream',
@@ -169,4 +170,46 @@ export async function invokeAgentCoreStream(
       controller.close();
     },
   });
+}
+
+const warmupInFlight = new Map<string, Promise<void>>();
+
+/** Fire-and-forget boot of the user's pooled microVM (no LLM turn). */
+export async function warmupAgentCore(userId: string): Promise<void> {
+  const existing = warmupInFlight.get(userId);
+  if (existing) return existing;
+  const pending = invokeWarmup(userId).finally(() => warmupInFlight.delete(userId));
+  warmupInFlight.set(userId, pending);
+  return pending;
+}
+
+async function invokeWarmup(userId: string): Promise<void> {
+  const command = new InvokeAgentRuntimeCommand({
+    agentRuntimeArn: getRuntimeArn(),
+    runtimeSessionId: runtimeSessionIdForUser(userId),
+    runtimeUserId: userId,
+    contentType: 'application/json',
+    accept: 'application/json',
+    payload: Buffer.from(
+      JSON.stringify({
+        input: { action: 'warmup', userId, sessionId: userId },
+      }),
+      'utf8'
+    ),
+  });
+  try {
+    await getClient().send(command);
+  } catch (err) {
+    const status = (err as { $metadata?: { httpStatusCode?: number } })
+      ?.$metadata?.httpStatusCode;
+    const message = err instanceof Error ? err.message : '';
+    // Deployed image predates the warmup no-op — it 400s on missing prompt.
+    if (status === 400 || message.includes('Received error (400)')) {
+      console.warn(
+        '[agentcore] warmup 400: AgentCore image has no action=warmup yet; redeploy services/agent'
+      );
+      return;
+    }
+    throw err;
+  }
 }

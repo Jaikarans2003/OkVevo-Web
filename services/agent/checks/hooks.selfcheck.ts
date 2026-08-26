@@ -1,18 +1,21 @@
 /**
  * Hook dispatcher: talking-head continue is not edu-video extract/Manim;
- * stamped job wins over session skill; missing hook throws.
+ * stamped job wins over session skill; missing hook is terminal (null).
  * Run: npx tsx checks/hooks.selfcheck.ts
  */
 import 'dotenv/config';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { lastSkillDispatch, loadSkillManifest, resolveResumeForce } from '../src/catalog/manifest';
 import { resolveJobHook } from '../src/hooks/dispatch';
 import { buildTools } from '../src/tools';
 
 const talking = loadSkillManifest('talking-head');
-const hook = talking.hooks.on_transcript_ready;
-assert(hook, 'talking-head must define on_transcript_ready');
+const hook = talking.hooks.transcript_ready;
+assert(hook, 'talking-head must define transcript_ready');
 assert.equal(hook.askPhaseKey, undefined);
+assert.equal(hook.forceToolName, undefined);
 assert.doesNotMatch(hook.continuePrompt, /extract_concepts/);
 assert.doesNotMatch(hook.continuePrompt, /generate_manim_script/);
 
@@ -35,27 +38,28 @@ assert.equal(emit.skillId, 'talking-head');
 assert.equal(emit.skillVersion, 1);
 assert.equal(emit.source, 'job-stamp');
 
-const resolved = resolveJobHook('on_transcript_ready', {
+const resolved = resolveJobHook('transcript_ready', {
   skillId: 'talking-head',
   taskId: 'fal_stt',
   requestId: 'job-a',
 });
+assert(resolved, 'talking-head transcript_ready must resolve');
 assert.equal(resolved.skillId, 'talking-head');
 assert.doesNotMatch(resolved.hook.continuePrompt, /extract_concepts/);
+assert.equal(resolved.hook.forceToolName, undefined);
 
-assert.throws(
-  () =>
-    resolveJobHook('on_transcript_ready', {
-      skillId: 'manim-video',
-      taskId: 'fal_stt',
-      requestId: 'job-b',
-    }),
-  /has no hook/
+assert.equal(
+  resolveJobHook('transcript_ready', {
+    skillId: 'manim-video',
+    taskId: 'fal_stt',
+    requestId: 'job-b',
+  }),
+  null
 );
 
 assert.throws(
   () =>
-    resolveJobHook('on_transcript_ready', {
+    resolveJobHook('transcript_ready', {
       taskId: 'fal_stt',
       requestId: 'unstamped',
     }),
@@ -63,9 +67,10 @@ assert.throws(
 );
 
 const edu = loadSkillManifest('edu-video');
-assert.equal(edu.hooks.on_transcript_ready?.askPhaseKey, 'lecture-heard');
+assert.equal(edu.hooks.transcript_ready?.askPhaseKey, 'lecture-heard');
+assert.equal(edu.hooks.transcript_ready?.forceToolName, 'extract_concepts');
 assert.match(
-  edu.hooks.on_transcript_ready!.continuePrompt,
+  edu.hooks.transcript_ready!.continuePrompt,
   /extract concepts/i
 );
 
@@ -91,5 +96,19 @@ assert.equal(
   'generate_manim_script'
 );
 assert.equal(resolveResumeForce('talking-head', 'storyboard-ready'), null);
+
+const dispatchSrc = fs.readFileSync(
+  path.join(__dirname, '../src/hooks/dispatch.ts'),
+  'utf8'
+);
+assert.doesNotMatch(dispatchSrc, /userMessage:\s*hook\.continuePrompt/);
+assert.match(dispatchSrc, /persistUser:\s*false/);
+assert.match(dispatchSrc, /extraSystem:\s*hook\.continuePrompt/);
+assert.match(dispatchSrc, /forceToolName:\s*hook\.forceToolName/);
+
+const agentSrc = fs.readFileSync(path.join(__dirname, '../src/agent.ts'), 'utf8');
+assert.match(agentSrc, /persistUser !== false/);
+assert.match(agentSrc, /params\.forceToolName \?\? null/);
+assert.match(agentSrc, /params\.extraSystem/);
 
 console.log('hooks.selfcheck: ok');

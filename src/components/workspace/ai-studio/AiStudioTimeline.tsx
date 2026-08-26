@@ -8,6 +8,7 @@ import { AgentConsumerStatus } from '@/components/workspace/ai-studio/AgentConsu
 import {
   CheckpointCard,
   isCheckpointResolved,
+  winningCheckpointIdsByMessage,
   type CheckpointCardData,
 } from '@/components/workspace/ai-studio/CheckpointCard';
 import {
@@ -35,6 +36,7 @@ interface TimelineMessagePart {
   output?: unknown;
   errorText?: string;
   toolCallId?: string;
+  data?: CheckpointCardData;
 }
 
 export interface TimelineMessage {
@@ -122,14 +124,34 @@ function isCheckpointPart(
   return part.type === 'data-checkpoint' && (part as { data?: unknown }).data != null;
 }
 
+function mergeAdjacentText(
+  parts: TimelineMessagePart[]
+): TimelineMessagePart[] {
+  const out: TimelineMessagePart[] = [];
+  for (const part of parts) {
+    const last = out[out.length - 1];
+    if (part.type === 'text' && last?.type === 'text') {
+      out[out.length - 1] = {
+        ...last,
+        text: `${last.text ?? ''}${part.text ?? ''}`,
+      };
+    } else {
+      out.push(part);
+    }
+  }
+  return out;
+}
+
 function ConsumerAssistantBody({
   parts,
   showTextCursor,
   pendingCheckpointId,
+  allowedCheckpointIds,
 }: {
   parts: TimelineMessagePart[];
   showTextCursor?: boolean;
   pendingCheckpointId?: string | null;
+  allowedCheckpointIds?: Set<string>;
 }) {
   const lastTextIndex = parts.reduce((last, part, index) => {
     if (part.type !== 'text' || !part.text?.trim()) return last;
@@ -142,6 +164,9 @@ function ConsumerAssistantBody({
       {parts.map((part, index) => {
         if (isCheckpointPart(part)) {
           const data = (part as { data: CheckpointCardData }).data;
+          if (allowedCheckpointIds && !allowedCheckpointIds.has(data.checkpointId)) {
+            return null;
+          }
           // Pending interactive UI lives in the floating card only.
           if (!isCheckpointResolved(data, pendingCheckpointId)) return null;
           return (
@@ -177,10 +202,43 @@ function ConsumerAssistantBody({
   );
 }
 
+function AssistantMedia({ message }: { message: TimelineMessage }) {
+  const time = message.createdAt ? formatMessageTime(message.createdAt) : null;
+  return (
+    <>
+      {message.imageUrl ? (
+        <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={message.imageUrl}
+            alt="Generated image"
+            className="aspect-video w-full bg-black object-contain"
+          />
+        </div>
+      ) : null}
+      {message.videoUrl ? (
+        <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
+          <video
+            src={message.videoUrl}
+            controls
+            playsInline
+            className="aspect-video w-full bg-black object-cover"
+          />
+        </div>
+      ) : null}
+      {time ? (
+        <span className="mt-1.5 block text-xs text-white/30">{time}</span>
+      ) : null}
+    </>
+  );
+}
+
 export function AiStudioTimeline({
   messages,
   streamingAssistantId,
   isPendingTurn = false,
+  isPreparingSend = false,
+  durableLive = false,
   chatStatus = 'ready',
   bottomRef,
   pendingCheckpointId,
@@ -188,6 +246,8 @@ export function AiStudioTimeline({
   messages: TimelineMessage[];
   streamingAssistantId?: string | null;
   isPendingTurn?: boolean;
+  isPreparingSend?: boolean;
+  durableLive?: boolean;
   chatStatus?: 'submitted' | 'streaming' | 'ready' | 'error';
   bottomRef?: React.RefObject<HTMLDivElement | null>;
   pendingCheckpointId?: string | null;
@@ -199,6 +259,34 @@ export function AiStudioTimeline({
     (last, message, index) => (message.role === 'assistant' ? index : last),
     -1
   );
+  const allowedByMessage = winningCheckpointIdsByMessage(messages);
+  const showLiveStatus =
+    !devTrace && (isPreparingSend || isPendingTurn || durableLive);
+  const lastAssistant =
+    lastAssistantIndex >= 0 ? messages[lastAssistantIndex] : null;
+  const pinnedLiveIdRef = useRef<string | null>(null);
+  if (!showLiveStatus) {
+    pinnedLiveIdRef.current = null;
+  } else if (streamingAssistantId) {
+    pinnedLiveIdRef.current = streamingAssistantId;
+  } else if (
+    pinnedLiveIdRef.current == null &&
+    durableLive &&
+    chatStatus === 'ready' &&
+    !isPreparingSend &&
+    lastAssistant?.role === 'assistant'
+  ) {
+    pinnedLiveIdRef.current = lastAssistant.id;
+  }
+  const liveLast =
+    showLiveStatus && pinnedLiveIdRef.current
+      ? (messages.find((m) => m.id === pinnedLiveIdRef.current) ?? null)
+      : null;
+  const liveIndex = liveLast
+    ? messages.findIndex((m) => m.id === liveLast.id)
+    : -1;
+  const visibleMessages =
+    liveIndex >= 0 ? messages.slice(0, liveIndex) : messages;
 
   const scrollToBottom = () => {
     const el = scrollRef.current;
@@ -214,16 +302,16 @@ export function AiStudioTimeline({
   };
 
   useEffect(() => {
-    if (chatStatus === 'submitted') {
+    if (chatStatus === 'submitted' || isPreparingSend) {
       stickToBottomRef.current = true;
       scrollToBottom();
     }
-  }, [chatStatus]);
+  }, [chatStatus, isPreparingSend]);
 
   useEffect(() => {
     if (!stickToBottomRef.current) return;
     scrollToBottom();
-  }, [messages, isPendingTurn, streamingAssistantId]);
+  }, [messages, isPendingTurn, isPreparingSend, streamingAssistantId, showLiveStatus]);
 
   return (
     <div
@@ -231,7 +319,7 @@ export function AiStudioTimeline({
       onScroll={updateStickFromScroll}
       className="ai-studio-timeline-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto"
     >      <div className={`${AI_STUDIO_CHAT_COLUMN} flex flex-col gap-6 pt-6 pb-4`}>
-        {messages.map((message, messageIndex) => {
+        {visibleMessages.map((message, messageIndex) => {
           const time = message.createdAt ? formatMessageTime(message.createdAt) : null;
           if (message.role === 'user') {
             const text = getUserText(message.parts);
@@ -277,65 +365,77 @@ export function AiStudioTimeline({
           const isStreaming = streamingAssistantId === message.id;
           const isLastAssistant = messageIndex === lastAssistantIndex;
           const isTurnComplete = isLastAssistant ? chatStatus === 'ready' : true;
-          const isLiveConsumerTurn =
-            !devTrace && isLastAssistant && (isStreaming || isPendingTurn);
+          const parts = mergeAdjacentText(message.parts);
+          const allowedCheckpointIds = allowedByMessage.get(message.id);
 
           return (
             <div key={message.id} className="w-full">
               <div className={`w-full space-y-3 py-1 ${AI_STUDIO_CHAT_BODY_CLASS}`}>
                 {devTrace ? (
                   <AgentActivityTrace
-                    parts={message.parts}
+                    parts={parts}
                     isStreaming={isStreaming}
                     showTextCursor={isStreaming}
                     pendingCheckpointId={pendingCheckpointId}
+                    allowedCheckpointIds={allowedCheckpointIds}
                   />
                 ) : (
                   <>
                     <AgentConsumerStatus
-                      variant={isLiveConsumerTurn ? 'live' : 'history'}
-                      parts={message.parts}
-                      isStreaming={isLiveConsumerTurn && !isTurnComplete}
+                      variant="history"
+                      parts={parts}
                       isTurnComplete={isTurnComplete}
                       messageCreatedAt={message.createdAt}
                     />
                     <ConsumerAssistantBody
-                      parts={message.parts}
+                      parts={parts}
                       showTextCursor={isStreaming}
                       pendingCheckpointId={pendingCheckpointId}
+                      allowedCheckpointIds={allowedCheckpointIds}
                     />
                   </>
                 )}
               </div>
-              {message.imageUrl ? (
-                <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={message.imageUrl}
-                    alt="Generated image"
-                    className="aspect-video w-full bg-black object-contain"
-                  />
-                </div>
-              ) : null}
-              {message.videoUrl ? (
-                <div className="mt-3 w-full max-w-xl overflow-hidden rounded-2xl ring-1 ring-white/[0.08]">
-                  <video
-                    src={message.videoUrl}
-                    controls
-                    playsInline
-                    className="aspect-video w-full bg-black object-cover"
-                  />
-                </div>
-              ) : null}
-              {time ? (
-                <span className="mt-1.5 block text-xs text-white/30">{time}</span>
-              ) : null}
+              <AssistantMedia message={message} />
             </div>
           );
         })}
-        {!devTrace && isPendingTurn && !streamingAssistantId ? (
-          <div className="w-full py-1">
-            <AgentConsumerStatus variant="live" parts={[]} isStreaming />
+        {showLiveStatus ? (
+          <div key="live-consumer-host" className="w-full py-1">
+            <AgentConsumerStatus
+              variant="live"
+              parts={liveLast ? mergeAdjacentText(liveLast.parts) : []}
+              isStreaming={chatStatus !== 'ready' || isPreparingSend || durableLive}
+              isTurnComplete={false}
+              messageCreatedAt={liveLast?.createdAt}
+            />
+          </div>
+        ) : null}
+        {liveLast && !devTrace ? (
+          <div key={liveLast.id} className="w-full">
+            <div className={`w-full space-y-3 py-1 ${AI_STUDIO_CHAT_BODY_CLASS}`}>
+              <ConsumerAssistantBody
+                parts={mergeAdjacentText(liveLast.parts)}
+                showTextCursor={streamingAssistantId === liveLast.id}
+                pendingCheckpointId={pendingCheckpointId}
+                allowedCheckpointIds={allowedByMessage.get(liveLast.id)}
+              />
+            </div>
+            <AssistantMedia message={liveLast} />
+          </div>
+        ) : null}
+        {liveLast && devTrace ? (
+          <div key={liveLast.id} className="w-full">
+            <div className={`w-full space-y-3 py-1 ${AI_STUDIO_CHAT_BODY_CLASS}`}>
+              <AgentActivityTrace
+                parts={mergeAdjacentText(liveLast.parts)}
+                isStreaming={streamingAssistantId === liveLast.id}
+                showTextCursor={streamingAssistantId === liveLast.id}
+                pendingCheckpointId={pendingCheckpointId}
+                allowedCheckpointIds={allowedByMessage.get(liveLast.id)}
+              />
+            </div>
+            <AssistantMedia message={liveLast} />
           </div>
         ) : null}
         <div ref={bottomRef} />

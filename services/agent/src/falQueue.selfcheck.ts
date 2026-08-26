@@ -160,16 +160,23 @@ function selfcheck(): void {
     'webhook must seed falSttFinalizePending before after()'
   );
 
-  // Short-circuit ordering in server.ts: recover → resume → short-circuit → agent
-  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.ts'), 'utf8');
-  const recoverAt = serverSrc.indexOf('tryRecoverFalSttFinalize');
-  const resumeAt = serverSrc.indexOf('tryResumeFalSttPending');
-  const shortAt = serverSrc.indexOf('tryShortCircuitFalSttPending');
-  assert(recoverAt > 0 && resumeAt > recoverAt, 'resume after recover');
+  // Short-circuit ordering: recover → resume → short-circuit inside runFalSttEntryGates
+  const deliverSrc = fs.readFileSync(path.join(__dirname, 'falSttDeliver.ts'), 'utf8');
+  const helperAt = deliverSrc.indexOf('export async function runFalSttEntryGates');
+  const recoverAt = deliverSrc.indexOf('await tryRecoverFalSttFinalize', helperAt);
+  const resumeAt = deliverSrc.indexOf('await tryResumeFalSttPending', helperAt);
+  const shortAt = deliverSrc.indexOf('tryShortCircuitFalSttPending', recoverAt);
+  assert(helperAt > 0, 'runFalSttEntryGates exists');
+  assert(deliverSrc.includes('hasPendingFalSttWork'), 'skip when no pending STT');
+  assert(recoverAt > helperAt && resumeAt > recoverAt, 'resume after recover');
   assert(shortAt > resumeAt, 'short-circuit after resume');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.ts'), 'utf8');
+  const gateAt = serverSrc.indexOf('runFalSttEntryGates');
+  assert(gateAt > 0, 'server uses runFalSttEntryGates');
   assert(
-    serverSrc.indexOf('runAgent', shortAt) > shortAt,
-    'runAgent after short-circuit'
+    serverSrc.indexOf('startAgentUiRun', gateAt) > gateAt,
+    'entry gates before agent run'
   );
 
   console.log('falQueue + finalize recovery selfcheck ok');

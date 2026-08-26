@@ -27,6 +27,18 @@ test('parses versioned and legacy render output keys', () => {
     ),
     { userId: 'user@example.com', sessionId: 'session-1', basename: 'edu-video_2.mp4' }
   );
+  assert.deepEqual(
+    parseOutputKey(
+      'renders/users/user%40example.com/sessions/session-1/other-skill.mp4'
+    ),
+    { userId: 'user@example.com', sessionId: 'session-1', basename: 'other-skill.mp4' }
+  );
+  assert.deepEqual(
+    parseOutputKey(
+      'renders/users/user%40example.com/sessions/session-1/other-skill_2.mp4'
+    ),
+    { userId: 'user@example.com', sessionId: 'session-1', basename: 'other-skill_2.mp4' }
+  );
   assert.throws(() => parseOutputKey('renders/other/output.mp4'));
   assert.throws(() =>
     parseOutputKey('renders/users/user%2Fadmin/sessions/session-1/final.mp4')

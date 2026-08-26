@@ -4,6 +4,12 @@ import { getBearerToken, verifySessionAccess } from '@/lib/agent/verifySessionAc
 import { ensureSession } from '@/lib/agent/session';
 import { noStoreJson } from '@/lib/agent/noStoreJson';
 import {
+  isUiSnapshotFresh,
+  reconstructUiMessage,
+  stampCheckpointChunk,
+  type UiChunk,
+} from '@/lib/agent/reconstructUiMessage';
+import {
   UPLOADED_PHOTO_PREFIX,
   UPLOADED_VIDEO_PREFIX,
   nextUploadLabel,
@@ -113,11 +119,24 @@ export async function GET(
     }
 
     const sessionRef = db.collection('sessions').doc(sessionId);
-    const snapshot = await sessionRef
+    const sessionData = access.sessionDoc.data() ?? {};
+    const activeRunId =
+      sessionData.runStatus === 'running' &&
+      typeof sessionData.activeRunId === 'string'
+        ? sessionData.activeRunId
+        : null;
+
+    const messagesQuery = sessionRef
       .collection('messages')
       .orderBy('createdAt', 'asc')
-      .limit(50)
-      .get();
+      .limit(50);
+    const runRef = activeRunId
+      ? sessionRef.collection('runs').doc(activeRunId)
+      : null;
+    const [snapshot, runSnap] = await Promise.all([
+      messagesQuery.get(),
+      runRef ? runRef.get() : Promise.resolve(null),
+    ]);
 
     const messages = snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -141,7 +160,63 @@ export async function GET(
       };
     });
 
-    return noStoreJson(messages);
+    let lastSeq: number | null = null;
+    if (activeRunId && runRef && runSnap) {
+      const runData = runSnap.data() ?? {};
+      lastSeq = typeof runData.lastSeq === 'number' ? runData.lastSeq : 0;
+      let inProgress: Awaited<ReturnType<typeof reconstructUiMessage>> = null;
+      if (isUiSnapshotFresh(runData.uiSnapshot, lastSeq)) {
+        lastSeq = runData.uiSnapshot.lastSeq;
+        inProgress = runData.uiSnapshot.message;
+      } else {
+        const eventSnap = await runRef.collection('events').orderBy('seq').get();
+        const chunks: UiChunk[] = [];
+        for (const doc of eventSnap.docs) {
+          const data = doc.data();
+          if (typeof data.seq === 'number' && data.seq > lastSeq) lastSeq = data.seq;
+          if (!data.chunk || typeof data.chunk !== 'object') continue;
+          const seq = typeof data.seq === 'number' ? data.seq : 0;
+          chunks.push(stampCheckpointChunk(seq, data.chunk as UiChunk));
+        }
+        inProgress = await reconstructUiMessage(chunks);
+      }
+      if (inProgress) {
+        const text = inProgress.parts
+          .filter(
+            (part): part is { type: 'text'; text: string } =>
+              part.type === 'text' && 'text' in part
+          )
+          .map((part) => part.text)
+          .join('');
+        const row = {
+          id: inProgress.id,
+          role: 'assistant' as const,
+          content: text,
+          parts: inProgress.parts,
+          createdAt: null as string | null,
+          videoUrl: undefined as string | undefined,
+          videoName: undefined as string | undefined,
+          imageUrl: undefined as string | undefined,
+          taggedAssets: [],
+        };
+        const runCreatedRaw = runData.createdAt;
+        const runCreatedMs =
+          runCreatedRaw instanceof Timestamp
+            ? runCreatedRaw.toMillis()
+            : typeof runCreatedRaw === 'number'
+              ? runCreatedRaw
+              : 0;
+        const last = messages[messages.length - 1];
+        const lastMs = last?.createdAt ? Date.parse(last.createdAt) : 0;
+        if (last?.role === 'assistant' && runCreatedMs > 0 && lastMs >= runCreatedMs) {
+          messages[messages.length - 1] = row;
+        } else {
+          messages.push(row);
+        }
+      }
+    }
+
+    return noStoreJson({ messages, lastSeq, activeRunId });
   } catch (error) {
     console.error('GET /api/agent/sessions/[sessionId] error:', error);
     return noStoreJson({ error: 'Failed to fetch messages' }, { status: 500 });

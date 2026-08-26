@@ -6,8 +6,9 @@ import {
   BASE_TOOLS,
   listSkillIds,
   loadSkillManifest,
+  TOOL_META,
 } from '../src/catalog/manifest';
-import { buildTools } from '../src/tools';
+import { assembleAllTools, buildTools, SAFE_TOOL_UNIVERSE } from '../src/tools';
 import { SKILLS_DIR } from '../src/skills';
 
 function assertNoDuplicates(names: string[], label: string) {
@@ -34,12 +35,38 @@ const ctx = {
   restoreAllowlistUrls: [],
 };
 
+assert.deepEqual(
+  [...SAFE_TOOL_UNIVERSE].sort(),
+  Object.keys(assembleAllTools(ctx)).sort(),
+  'SAFE_TOOL_UNIVERSE must equal assembleAllTools keys'
+);
+for (const name of SAFE_TOOL_UNIVERSE) {
+  assert(name in TOOL_META, `TOOL_META missing entry for '${name}'`);
+}
+const srcRoot = path.join(__dirname, '../src');
+assert(
+  !fs
+    .readFileSync(path.join(srcRoot, 'catalog/manifest.ts'), 'utf-8')
+    .includes('export const SAFE_TOOL_UNIVERSE'),
+  'SAFE_TOOL_UNIVERSE must not be hardcoded in catalog/manifest.ts'
+);
+const hfSrc = fs.readFileSync(
+  path.join(srcRoot, 'tools/pipeline/hyperframes.ts'),
+  'utf-8'
+);
+const thSrc = fs.readFileSync(
+  path.join(srcRoot, 'tools/pipeline/talkingHead.ts'),
+  'utf-8'
+);
+assert.doesNotMatch(hfSrc, /skillName \|\| ['"]edu-video['"]/);
+assert.doesNotMatch(thSrc, /skillName \|\| ['"]talking-head['"]/);
+
 const baseBuilt = buildTools(ctx);
 for (const name of BASE_TOOLS) {
   assert(name in baseBuilt, `BASE_TOOLS tool '${name}' not in buildTools() output`);
 }
 
-for (const skill of listSkillIds()) {
+for (const skill of listSkillIds().filter((id) => !id.startsWith('__'))) {
   const manifest = loadSkillManifest(skill);
   assertNoDuplicates(manifest.tools, `skill.json tools['${skill}']`);
   if (manifest.baseTools) {
@@ -61,7 +88,7 @@ for (const skill of listSkillIds()) {
 }
 
 const talkingHead = buildTools(ctx, 'talking-head');
-assert(!('run_command' in talkingHead), 'talking-head must not expose run_command');
+assert('run_command' in talkingHead, 'talking-head must expose run_command');
 
 const skillFolders = fs
   .readdirSync(SKILLS_DIR, { withFileTypes: true })
@@ -70,8 +97,7 @@ const skillFolders = fs
   .filter((name) => fs.existsSync(path.join(SKILLS_DIR, name, 'SKILL.md')));
 
 for (const folder of skillFolders) {
-  const jsonPath = path.join(SKILLS_DIR, folder, 'skill.json');
-  assert(fs.existsSync(jsonPath), `Skills/${folder}/SKILL.md is missing skill.json`);
+  // skill.json is the optional workflow extension; a SKILL.md-only package must still load.
   loadSkillManifest(folder);
 }
 

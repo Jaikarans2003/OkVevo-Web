@@ -45,17 +45,20 @@ export type TranscriptionProgress = {
   updatedAt?: unknown;
 };
 
-export async function readTranscriptionProgress(
-  sessionId: string
-): Promise<TranscriptionProgress | null> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const raw = snap.data()?.transcriptionProgress;
+export function parseTranscriptionProgress(raw: unknown): TranscriptionProgress | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as TranscriptionProgress;
   if (typeof p.videoUrl !== 'string' || !Array.isArray(p.completedChunkIndices)) {
     return null;
   }
   return p;
+}
+
+export async function readTranscriptionProgress(
+  sessionId: string
+): Promise<TranscriptionProgress | null> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  return parseTranscriptionProgress(snap.data()?.transcriptionProgress);
 }
 
 export async function writeTranscriptionProgress(

@@ -4,7 +4,12 @@
  */
 import assert from 'node:assert/strict';
 import { TOOL_META } from '../src/catalog/manifest';
-import { missingFieldsFromData } from '../src/confirmedFields';
+import {
+  canonicalConfirmedField,
+  inferredConfirmedField,
+  missingFieldsFromData,
+  requestedLanguageFromAnswer,
+} from '../src/confirmedFields';
 import {
   askFingerprint,
   concatenatedChoiceError,
@@ -43,7 +48,7 @@ assert.deepEqual(TOOL_META.generate_manim_script.requiresConfirmedFields, [
 ]);
 assert.deepEqual(
   TOOL_META.scaffold_talking_head_project.requiresConfirmedFields,
-  ['language', 'cardStyle']
+  ['language', 'styleSeed']
 );
 
 assert.deepEqual(
@@ -63,5 +68,41 @@ assert.ok(
     .includes('orientation'),
   'generate_manim_script blocked when orientation unset'
 );
+
+assert.deepEqual(
+  missingFieldsFromData({ confirmed: { orientation: 'vertical' } }, ['orientation']),
+  []
+);
+assert.deepEqual(
+  missingFieldsFromData({ confirmed: { styleSeed: 'minimal' } }, ['styleSeed', 'cardStyle']),
+  []
+);
+assert.deepEqual(
+  missingFieldsFromData({ talkingHeadStyle: 'editorial' }, ['styleSeed']),
+  []
+);
+assert.deepEqual(
+  missingFieldsFromData({ confirmed: { voice: 'alloy' } }, ['voice']),
+  []
+);
+assert.deepEqual(missingFieldsFromData({}, ['voice']), ['voice']);
+
+assert.equal(canonicalConfirmedField('transcription-language'), 'language');
+assert.equal(
+  inferredConfirmedField('What language should the cards be in?'),
+  'language'
+);
+assert.equal(inferredConfirmedField('Which palette should I use?'), null);
+assert.equal(requestedLanguageFromAnswer('english', 'English'), 'en');
+assert.equal(requestedLanguageFromAnswer('spanish', 'Spanish'), 'auto');
+assert.deepEqual(
+  missingFieldsFromData({ confirmed: { language: 'en' } }, ['language']),
+  []
+);
+assert.deepEqual(
+  missingFieldsFromData({ confirmed: { language: 'spanish' } }, ['language']),
+  []
+);
+assert.deepEqual(missingFieldsFromData({}, ['language']), ['language']);
 
 console.log('askMePolicy.selfcheck: ok');

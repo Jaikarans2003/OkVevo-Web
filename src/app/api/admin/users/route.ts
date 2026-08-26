@@ -1,24 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import admin from 'firebase-admin';
+import { auth } from '@/lib/firebase-admin';
 import { isAdmin, getAllUsers, logAdminAction } from '@/services/AdminService';
-
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FB_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-            const serviceAccount = JSON.parse(
-                Buffer.from(serviceAccountKey, 'base64').toString('utf-8')
-            );
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        }
-    } catch (error) {
-        console.error('Failed to initialize Firebase Admin:', error);
-    }
-}
 
 /**
  * GET /api/admin/users
@@ -41,7 +23,7 @@ export async function GET(request: NextRequest) {
         // Verify Firebase token
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(token);
+            decodedToken = await auth.verifyIdToken(token);
         } catch (error) {
             return NextResponse.json(
                 { error: 'Unauthorized - Invalid token' },

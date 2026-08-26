@@ -26,7 +26,6 @@ import {
   getSessionWorkdir,
   groupCaptionWords,
   loadSessionTranscriptWords,
-  loadSkillFile,
   normalizeSpeakerVideo,
   probeFileDuration,
   resolveBrandColors,
@@ -66,7 +65,6 @@ import {
   type RenderSnapshot,
 } from '../lib/renderSnapshot';
 import { preferSessionManimClipUrl } from '../lib/scaffoldInputDiff';
-import { RESTORE_GENERATION_MESSAGE } from '../../editTargets';
 import {
   findParentRoleDoc,
   listCarryAssetDocs,
@@ -150,6 +148,9 @@ async function assertSessionNotRendering(sessionId: string): Promise<void> {
     );
   }
 }
+
+const RESTORE_GENERATION_MESSAGE =
+  'Restored scaffold recipe from draft_video snapshot. For orientation rebuild, call scaffold_hf_project({ orientation, manim_clips: restored list verbatim, speaker_video_url from this return }) — do not call generate_manim_script or render_manim_clip again unless the user separately says a clip looks wrong. Then render_hyperframes.';
 
 function manimSafeName(conceptName: string): string {
   let safe = conceptName.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
@@ -242,7 +243,10 @@ async function runScaffoldHfProject(ctx: ToolCtx, args: ScaffoldArgs) {
   const segments = z.array(plannedSegmentSchema).parse(storedPlan.segments);
   const needsManim = segments.some((s) => s.mode === 'A');
 
-  const skillId = ctx.skillName || 'edu-video';
+  if (!ctx.skillName) {
+    throw new Error('scaffold_hf_project requires an active skill');
+  }
+  const skillId = ctx.skillName;
   const runId = newScaffoldRunId();
   const { parentRunId } = await persistScaffoldRun(ctx.sessionId, runId, skillId);
   writeScaffoldRunStamp(getSessionWorkdir(ctx.sessionId), { skillId, runId });
@@ -1027,11 +1031,6 @@ export function createHyperframesTools(ctx: ToolCtx) {
           const cliPath =
             process.env.HYPERFRAMES_CLI ??
             '/opt/hyperframes/packages/cli/dist/cli.js';
-
-          const hfCliSkill = loadSkillFile('hyperframes/hyperframes-cli/SKILL.md');
-          console.log(
-            `[render_hyperframes] HyperFrames CLI guidance loaded (${hfCliSkill.length} chars)`
-          );
 
           const lintCmd = `node "${cliPath}" lint --json`;
           const lintResult = await execCommand(lintCmd, {

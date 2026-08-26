@@ -2,9 +2,14 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
-import { pipeAgentStream, pipeStaticAssistantText, runAgent } from './agent';
+import {
+  pipeStaticAssistantText,
+  runAgent,
+  startAgentUiRun,
+} from './agent';
 import { CheckpointConflictError } from './checkpoint';
 import { SessionLimitReachedError } from './sessionTokenGate';
+import { RunInProgressError } from './runLog';
 import { auth, db } from './firebase';
 import {
   fetchHeygenRender,
@@ -20,12 +25,7 @@ import {
   recordRenderFailure,
 } from './storage';
 import { deliverEvent, parseWebhookEvent } from './deliverEvent';
-import {
-  tryRecoverFalSttFinalize,
-  tryResumeFalSttPending,
-  tryShortCircuitFalSttPending,
-} from './falSttDeliver';
-import { getSessionPipelineFields } from './checkpoint';
+import { runFalSttEntryGates } from './falSttDeliver';
 import { parseTaggedAssets } from './taggedAssets';
 import { runGroqDiagnostics } from './diagnostics/groqConnectivity';
 
@@ -170,6 +170,21 @@ app.post('/invocations', async (req, res) => {
     const input = (req.body?.input ?? req.body ?? {}) as Record<string, unknown>;
 
     // IAM-gated via invoke-agent-runtime only — no public diagnostics route.
+    if (input.action === 'warmup') {
+      res.json({
+        output: {
+          message: 'ok',
+          sessionId:
+            (typeof input.sessionId === 'string' && input.sessionId) ||
+            'warmup',
+          userId:
+            (typeof input.userId === 'string' && input.userId) || 'warmup',
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
     if (input.action === 'diagnostics.groq') {
       const result = await runGroqDiagnostics();
       res.json({
@@ -271,13 +286,11 @@ app.post('/invocations', async (req, res) => {
       accept.includes('text/plain') ||
       req.headers['x-vercel-ai-ui-message-stream'] === 'v1';
 
-    const effectivePipelineMode =
-      pipelineMode === 'auto' || pipelineMode === 'ask'
-        ? pipelineMode
-        : (await getSessionPipelineFields(sessionId)).pipelineMode;
-    await tryRecoverFalSttFinalize(sessionId, userId);
-    await tryResumeFalSttPending(sessionId, userId, effectivePipelineMode);
-    const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+    const shortCircuitMsg = await runFalSttEntryGates(
+      sessionId,
+      userId,
+      pipelineMode
+    );
     if (shortCircuitMsg) {
       if (wantsStream) {
         pipeStaticAssistantText(res, shortCircuitMsg);
@@ -290,6 +303,28 @@ app.post('/invocations', async (req, res) => {
           userId,
           timestamp: new Date().toISOString(),
         },
+      });
+      return;
+    }
+
+    if (wantsStream) {
+      await startAgentUiRun({
+        params: {
+          userMessage: prompt,
+          sessionId,
+          userId,
+          videoUrl,
+          videoName,
+          taggedAssets,
+          mediaUrls,
+          mediaNames,
+          skillId,
+          model,
+          pipelineMode,
+          checkpointAnswer,
+        },
+        origin: 'chat',
+        response: res,
       });
       return;
     }
@@ -308,12 +343,6 @@ app.post('/invocations', async (req, res) => {
       pipelineMode,
       checkpointAnswer,
     });
-
-    if (wantsStream) {
-      // Live UI message stream (same protocol as /chat) for AgentCore → Next → useChat
-      pipeAgentStream(result, res, { sessionId, userId });
-      return;
-    }
 
     const text = await result.result.text;
     res.json({
@@ -334,6 +363,10 @@ app.post('/invocations', async (req, res) => {
           sessionId: error.sessionId,
           estimatedTokens: error.estimatedTokens,
         });
+        return;
+      }
+      if (error instanceof RunInProgressError) {
+        res.status(409).json({ error: 'run_in_progress' });
         return;
       }
       const status = error instanceof CheckpointConflictError ? 409 : 500;
@@ -482,31 +515,35 @@ app.post('/chat', async (req, res) => {
       : 'ask';
   const taggedAssets = parseTaggedAssets(rawTaggedAssets);
 
-  await tryRecoverFalSttFinalize(sessionId, userId);
-  await tryResumeFalSttPending(sessionId, userId, pipelineMode);
-  const shortCircuitMsg = await tryShortCircuitFalSttPending(sessionId, userId);
+  const shortCircuitMsg = await runFalSttEntryGates(
+    sessionId,
+    userId,
+    pipelineMode
+  );
   if (shortCircuitMsg) {
     pipeStaticAssistantText(res, shortCircuitMsg);
     return;
   }
 
   try {
-    const agentRun = await runAgent({
-      userMessage,
-      sessionId,
-      userId,
-      videoUrl,
-      videoName,
-      taggedAssets,
-      mediaUrls,
-      mediaNames,
-      model,
-      skillId,
-      pipelineMode,
-      checkpointAnswer,
+    await startAgentUiRun({
+      params: {
+        userMessage,
+        sessionId,
+        userId,
+        videoUrl,
+        videoName,
+        taggedAssets,
+        mediaUrls,
+        mediaNames,
+        model,
+        skillId,
+        pipelineMode,
+        checkpointAnswer,
+      },
+      origin: 'chat',
+      response: res,
     });
-
-    pipeAgentStream(agentRun, res, { sessionId, userId });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (!res.headersSent) {
@@ -516,6 +553,10 @@ app.post('/chat', async (req, res) => {
           sessionId: error.sessionId,
           estimatedTokens: error.estimatedTokens,
         });
+        return;
+      }
+      if (error instanceof RunInProgressError) {
+        res.status(409).json({ error: 'run_in_progress' });
         return;
       }
       const status = error instanceof CheckpointConflictError ? 409 : 500;

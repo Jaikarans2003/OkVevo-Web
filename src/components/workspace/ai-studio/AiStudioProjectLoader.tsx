@@ -11,10 +11,13 @@ const LOADER_LINES = [
 ] as const;
 
 export function AiStudioProjectLoader({ loadKey }: { loadKey: string }) {
-  const line = useMemo(
-    () => LOADER_LINES[Math.floor(Math.random() * LOADER_LINES.length)],
-    [loadKey]
-  );
+  const line = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < loadKey.length; i++) {
+      hash = (hash + loadKey.charCodeAt(i)) | 0;
+    }
+    return LOADER_LINES[(hash >>> 0) % LOADER_LINES.length];
+  }, [loadKey]);
 
   return (
     <div className="flex h-full min-h-0 flex-col items-center justify-center px-6">

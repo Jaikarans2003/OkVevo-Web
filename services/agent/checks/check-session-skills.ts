@@ -1,12 +1,14 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
+import { evaluateToolCall } from '../src/permissions';
 import { buildTools } from '../src/tools';
 import {
   resolveSessionSkillState,
   skillsEngagedByToolCalls,
 } from '../src/sessionSkills';
-import { loadAgentMd, loadSkillMd, resolveSkill } from '../src/skills';
+import { loadAgentMd, loadSkillMd, loadSoulMd, resolveSkill } from '../src/skills';
 import { getCachedSystemPrompt } from '../src/systemPromptCache';
+import { loadSkillManifest, skillsIndexPrompt } from '../src/catalog/manifest';
 
 const ctx = {
   sessionId: 'check-session-skills',
@@ -56,7 +58,16 @@ assert.match(
 const talkingHeadTools = buildTools(ctx, 'talking-head');
 assert(!('extract_concepts' in talkingHeadTools));
 assert(!('generate_manim_script' in talkingHeadTools));
-assert(!('run_command' in talkingHeadTools));
+assert('run_command' in talkingHeadTools);
+assert.equal(
+  evaluateToolCall(
+    loadSkillManifest('talking-head').permissions,
+    'run_command',
+    { command: 'ls' }
+  ).verdict,
+  'deny',
+  'talking-head empty allowlist must deny commands'
+);
 assert('scaffold_talking_head_project' in talkingHeadTools);
 
 assert.deepEqual(
@@ -85,11 +96,10 @@ assert.deepEqual(
 const guidanceSession = 'check-current-guidance';
 const eduSkill = resolveSkill('edu-video', 'make this educational');
 assert.equal(eduSkill, 'edu-video');
-assert(
-  getCachedSystemPrompt(guidanceSession, eduSkill).endsWith(
-    loadSkillMd('edu-video')
-  )
-);
+const eduPrompt = getCachedSystemPrompt(guidanceSession, eduSkill);
+assert.ok(eduPrompt.startsWith(loadSoulMd()), 'active-skill prompt starts with SOUL.md');
+assert.ok(eduPrompt.includes(loadAgentMd()), 'active-skill prompt includes AGENT.md');
+assert.ok(eduPrompt.endsWith(loadSkillMd('edu-video')));
 
 const hyperframesSkill = resolveSkill('hyperframes', 'render this');
 assert.equal(hyperframesSkill, 'hyperframes');
@@ -109,9 +119,30 @@ assert(
 
 const unresolvedSkill = resolveSkill(undefined, 'change this and re-render');
 assert.equal(unresolvedSkill, null);
-assert.equal(
-  getCachedSystemPrompt(guidanceSession, unresolvedSkill),
-  loadAgentMd()
+const unresolvedPrompt = getCachedSystemPrompt(guidanceSession, unresolvedSkill);
+assert.ok(unresolvedPrompt.startsWith(loadSoulMd()), 'no-skill prompt starts with SOUL.md');
+assert.ok(unresolvedPrompt.includes(loadAgentMd()), 'no-skill prompt includes AGENT.md');
+assert.ok(
+  unresolvedPrompt.includes(skillsIndexPrompt()),
+  'no-skill prompt includes listed skills index'
+);
+assert.ok(
+  !unresolvedPrompt.includes('# Edu-Video Pipeline'),
+  'no-skill prompt must not inject SKILL.md bodies'
+);
+assert.ok(
+  !unresolvedPrompt.includes('READ THIS FIRST'),
+  'no-skill index omits internal hyperframes'
+);
+
+const modePrompt = getCachedSystemPrompt(
+  'check-mode-banner-order',
+  'edu-video',
+  'Current mode: Ask-Me — pause and ask before major decisions.'
+);
+assert.match(
+  modePrompt,
+  /SOUL\.md[\s\S]*AGENT\.md[\s\S]*Current mode: Ask-Me[\s\S]*Edu-Video Pipeline/
 );
 
 console.log('check-session-skills: OK');

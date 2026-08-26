@@ -3,33 +3,8 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { listedSkills, skillLabel } from '@/lib/agent/skillReadyMessage';
 
-const SKILLS = [
-  {
-    id: 'edu-video',
-    name: 'Edu-Video',
-    description:
-      "Turn a teacher's lecture recording into a polished LMS Ready Educational video.",
-    icon: '🎬',
-    requiresVideo: true,
-  },
-  {
-    id: 'background-generation',
-    name: 'Background',
-    description:
-      'Generate a photo or video backdrop for your scene — studio plates, stylized worlds, or short motion loops.',
-    icon: '🖼️',
-    requiresVideo: false,
-  },
-  {
-    id: 'talking-head',
-    name: 'Talking Head',
-    description:
-      'Package a talking-head clip with timed graphic cards — titles, side panels, PiP, overlays synced to the transcript.',
-    icon: '🎙️',
-    requiresVideo: true,
-  },
-] as const;
 interface SkillsPopupProps {
   isOpen: boolean;
   onClose: () => void;
@@ -60,6 +35,8 @@ export function SkillsPopup({
   if (!isOpen || typeof document === 'undefined') {
     return null;
   }
+
+  const skills = listedSkills();
 
   return createPortal(
     <div
@@ -97,37 +74,40 @@ export function SkillsPopup({
           </button>
         </div>
         <div className="max-h-[min(28rem,70vh)] overflow-y-auto custom-scrollbar p-2">
-          {SKILLS.map((skill) => (
-            <button
-              key={skill.id}
-              type="button"
-              onClick={() => {
-                onSelectSkill(skill.id, skill.name);
-                onClose();
-              }}
-              className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
-            >
-              <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-lg"
-                aria-hidden
+          {skills.map((skill) => {
+            const name = skillLabel(skill.id);
+            return (
+              <button
+                key={skill.id}
+                type="button"
+                onClick={() => {
+                  onSelectSkill(skill.id, name);
+                  onClose();
+                }}
+                className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
               >
-                {skill.icon}
-              </span>
-              <span className="min-w-0 flex-1 pt-0.5">
-                <span className="block text-sm font-medium text-white/85">
-                  {skill.name}
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-lg"
+                  aria-hidden
+                >
+                  {skill.icon ?? ''}
                 </span>
-                <span className="mt-0.5 block text-xs leading-snug text-white/45">
-                  {skill.description}
-                </span>
-                {skill.requiresVideo ? (
-                  <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                    Requires video upload
+                <span className="min-w-0 flex-1 pt-0.5">
+                  <span className="block text-sm font-medium text-white/85">
+                    {name}
                   </span>
-                ) : null}
-              </span>
-            </button>
-          ))}
+                  <span className="mt-0.5 block text-xs leading-snug text-white/45">
+                    {skill.summary || skill.description}
+                  </span>
+                  {skill.requiresUpload ? (
+                    <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                      Requires video upload
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>,

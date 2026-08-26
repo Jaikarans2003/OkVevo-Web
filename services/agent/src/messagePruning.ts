@@ -1,4 +1,5 @@
 import type { ModelMessage } from 'ai';
+import { getToolMeta } from './catalog/manifest';
 
 const KEEP_EXCHANGES = 4;
 
@@ -70,29 +71,16 @@ function parseOutputValue(output: unknown): Record<string, unknown> {
   return output as Record<string, unknown>;
 }
 
+/** Prune summary templates live in Skills/tool-meta.json (`prune.summary`). */
 function summarizeToolName(toolName: string, output: unknown): string | null {
+  const template = getToolMeta(toolName)?.prune?.summary;
+  if (!template) return null;
   const data = parseOutputValue(output);
-
-  switch (toolName) {
-    case 'transcribe_video':
-      return `[transcript: ${String(data.word_count ?? '?')} words, ${String(data.duration_seconds ?? '?')}s → ${String(data.transcript_url ?? '?')}]`;
-    case 'generate_manim_script':
-      return `[manim script generated for ${String(data.concept_name ?? 'unknown')} — truncated]`;
-    case 'render_manim_clip':
-      return `[clip rendered: ${String(data.concept_name ?? 'unknown')} → ${String(data.clip_url ?? '?')}]`;
-    case 'run_command':
-      return `[command ran — exit ${String(data.exit_code ?? '?')}]`;
-    case 'read_file':
-      return `[read file: ${String(data.path ?? '?')} — ${String(data.bytes ?? '?')} bytes]`;
-    case 'search_files': {
-      const matchCount = Array.isArray(data.matches) ? data.matches.length : 0;
-      return `[searched ${String(data.directory ?? '?')} — ${matchCount} matches]`;
-    }
-    case 'scaffold_hf_project':
-      return `[HyperFrames project scaffolded → ${String(data.composition_url ?? '?')}]`;
-    default:
-      return null;
-  }
+  return template.replace(/\{(\w+)\}/g, (_match, field: string) => {
+    const value: unknown = data[field];
+    if (Array.isArray(value)) return String(value.length);
+    return value == null ? '?' : String(value);
+  });
 }
 
 function summarizeToolMessage(message: ModelMessage): ModelMessage {

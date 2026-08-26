@@ -28,7 +28,19 @@ function main() {
   const eduManifest = JSON.parse(eduSkillJson) as {
     phases: Record<
       string,
-      { resume?: { revision?: string; approve?: string; forceToolName?: string } }
+      {
+        kind?: string;
+        question?: string;
+        choices?: { id: string; label: string }[];
+        allowFreeform?: boolean;
+        resume?: {
+          revision?: string;
+          approve?: string;
+          forceToolName?: string;
+          gateIfMissing?: { field: string; phaseKey: string };
+          injectFiles?: string[];
+        };
+      }
     >;
   };
   const conceptsResume = eduManifest.phases['concepts-extracted']?.resume;
@@ -45,11 +57,7 @@ function main() {
   assert.doesNotMatch(checkpointSource, /Required next tool/);
   assert.match(conceptsApprove, /Do not ask for a video URL/);
 
-  assert.match(
-    clarifySource,
-    /if \(ctx\.pipelineMode !== 'ask'\)/,
-    'Ask-Me guard must remain verbatim'
-  );
+  assert.match(clarifySource, /shouldPause\(ctx\.pipelineMode\)/);
   assert.match(clarifySource, /writeAskCheckpoint/);
   assert.doesNotMatch(clarifySource, /timeout_seconds/);
 
@@ -58,7 +66,9 @@ function main() {
     'utf-8'
   );
   assert.match(conceptsSource, /writeAskCheckpoint/);
-  assert.match(conceptsSource, /ctx\.pipelineMode === 'ask'/);
+  assert.match(conceptsSource, /shouldPause\(ctx\.pipelineMode\)/);
+  assert.match(conceptsSource, /resolveAutoField/);
+  assert.doesNotMatch(conceptsSource, /persistOrientation\([^)]*'horizontal'/);
   // Approve path fixture: concepts gate is phase_gate only — no orientation choices
   assert.match(conceptsSource, /phase_label:\s*'Concepts extracted'/);
   assert.match(conceptsSource, /allowFreeform:\s*true/);
@@ -71,7 +81,6 @@ function main() {
     path.join(__dirname, '../src/agent.ts'),
     'utf-8'
   );
-  assert.match(agentSource, /persistSkillId/);
   assert.match(agentSource, /pipeUIMessageStreamToResponse/);
   assert.match(agentSource, /data-checkpoint/);
   assert.match(agentSource, /Current mode: Ask-Me/);
@@ -80,35 +89,53 @@ function main() {
   assert.doesNotMatch(agentSource, /maybeWriteCheckpoint/);
   assert.doesNotMatch(agentSource, /checkpointDecl/);
 
-  // Approve path: concepts Continue writes Video orientation via writeAskCheckpoint
-  assert.match(agentSource, /isConceptsApproveResume/);
-  assert.match(agentSource, /writeAskCheckpoint/);
-  assert.match(agentSource, /phase_label:\s*'Video orientation'/);
-  assert.match(agentSource, /conceptsApproveChain/);
-
-  // Manim / prefs force keyed by phase.resume.forceToolName — not hardcoded in agent.ts
-  assert.match(agentSource, /isOrientationChoiceResume/);
-  assert.match(
-    agentSource,
-    /completedPhaseLabel !== 'Video orientation'/
-  );
+  // Phase-4 purge: agent.ts carries zero skill/phase literals. Resume mechanics
+  // are manifest-driven (lookupPhase/resolveResumeForce) or live on the hook bus.
+  assert.match(agentSource, /haltAfterFirstStep/);
   assert.match(agentSource, /resolveResumeForce/);
   assert.match(agentSource, /resumeForceToolName/);
-  assert.doesNotMatch(agentSource, /orientationResumeForce/);
-  assert.doesNotMatch(agentSource, /transcribeResumeForce/);
-  assert.doesNotMatch(
-    agentSource,
-    /toolName:\s*'generate_manim_script'/
+  assert.match(agentSource, /checkpoint\.resume force tx=ok skill=.*tool=/);
+  for (const purged of [
+    /isConceptsApproveResume/,
+    /isOrientationChoiceResume/,
+    /isPrePipelineResume/,
+    /firstConceptResumeHint/,
+    /VIDEO_ORIENTATION_CHECKPOINT/,
+    /conceptsApproveChain/,
+    /writeAskCheckpoint/,
+    /Concepts extracted/,
+    /Video orientation/,
+    /Video preferences/,
+    /orientationResumeForce/,
+    /transcribeResumeForce/,
+    /conceptsResumeForce/,
+    /toolName:\s*'generate_manim_script'/,
+  ]) {
+    assert.doesNotMatch(agentSource, purged);
+  }
+
+  // The bus's CheckpointAnswered handler runs the generic resume mechanics.
+  const handlersSource = fs.readFileSync(
+    path.join(__dirname, '../src/hooks/handlers.ts'),
+    'utf-8'
   );
-  assert.match(agentSource, /firstConceptResumeHint/);
-  assert.match(
-    agentSource,
-    /checkpoint\.resume force tx=ok skill=.*tool=/
-  );
-  assert.doesNotMatch(
-    agentSource,
-    /completedPhaseLabel !== 'Concepts extracted'[\s\S]{0,200}orientationResumeForce|conceptsResumeForce/
-  );
+  assert.match(handlersSource, /gateIfMissing/);
+  assert.match(handlersSource, /injectFiles/);
+  assert.match(handlersSource, /writeAskCheckpoint/);
+  assert.match(handlersSource, /missingConfirmedFields/);
+  assert.match(handlersSource, /persistClarificationAnswer/);
+  for (const purged of [
+    /isConceptsApproveResume/,
+    /isOrientationChoiceResume/,
+    /isPrePipelineResume/,
+    /firstConceptResumeHint/,
+    /VIDEO_ORIENTATION_CHECKPOINT/,
+    /'Concepts extracted'/,
+    /'Video orientation'/,
+    /'Video preferences'/,
+  ]) {
+    assert.doesNotMatch(handlersSource, purged);
+  }
 
   assert.equal(
     eduManifest.phases['concepts-extracted']?.resume?.forceToolName,
@@ -121,6 +148,28 @@ function main() {
   assert.equal(
     eduManifest.phases['video-orientation']?.resume?.forceToolName,
     'generate_manim_script'
+  );
+
+  // Orientation gate is manifest-declared (moved out of TS in the phase-4 purge).
+  const orientationPhase = eduManifest.phases['video-orientation'];
+  assert.equal(orientationPhase?.kind, 'selection');
+  assert.equal(
+    orientationPhase?.question,
+    'Choose video orientation to continue.'
+  );
+  assert.deepEqual(orientationPhase?.choices, [
+    { id: 'horizontal', label: 'Horizontal (16:9)' },
+    { id: 'vertical', label: 'Vertical (9:16)' },
+  ]);
+  assert.equal(orientationPhase?.allowFreeform, false);
+  assert.deepEqual(orientationPhase?.resume?.injectFiles, ['concepts.json']);
+  assert.deepEqual(
+    eduManifest.phases['concepts-extracted']?.resume?.gateIfMissing,
+    { field: 'orientation', phaseKey: 'video-orientation' }
+  );
+  assert.deepEqual(
+    eduManifest.phases['concepts-extracted']?.resume?.injectFiles,
+    ['concepts.json']
   );
 
   assert.match(conceptsRevision, /CONCEPTS REVISION RESUME — MANDATORY NEXT TOOL/);

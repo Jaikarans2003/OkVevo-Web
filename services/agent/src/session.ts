@@ -29,7 +29,11 @@ export async function ensureSession(
   sessionId: string,
   userId: string,
   title: string,
-  extras?: { videoUrl?: string; videoName?: string }
+  extras?: {
+    videoUrl?: string;
+    videoName?: string;
+    pipelineMode?: 'ask' | 'auto';
+  }
 ): Promise<void> {
   const ref = db.collection('sessions').doc(sessionId);
   const existing = await ref.get();
@@ -49,6 +53,7 @@ export async function ensureSession(
   }
   if (extras?.videoUrl) payload.videoUrl = extras.videoUrl;
   if (extras?.videoName) payload.videoName = extras.videoName;
+  if (extras?.pipelineMode) payload.pipelineMode = extras.pipelineMode;
 
   await ref.set(payload, { merge: true });
 }

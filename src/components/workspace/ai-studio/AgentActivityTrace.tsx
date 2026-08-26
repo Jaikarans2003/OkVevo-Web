@@ -211,12 +211,14 @@ export function AgentActivityTrace({
   showTextCursor = false,
   className,
   pendingCheckpointId,
+  allowedCheckpointIds,
 }: {
   parts: ActivityPart[];
   isStreaming?: boolean;
   showTextCursor?: boolean;
   className?: string;
   pendingCheckpointId?: string | null;
+  allowedCheckpointIds?: Set<string>;
 }) {
   const hasInFlightTools = parts.some(
     (part) => isToolActivityPart(part) && isPartInFlight(part)
@@ -292,6 +294,12 @@ export function AgentActivityTrace({
 
       {parts.map((part, index) => {
         if (isCheckpointPart(part)) {
+          if (
+            allowedCheckpointIds &&
+            !allowedCheckpointIds.has(part.data.checkpointId)
+          ) {
+            return null;
+          }
           if (!isCheckpointResolved(part.data, pendingCheckpointId)) return null;
           return (
             <CheckpointCard

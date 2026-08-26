@@ -19,7 +19,13 @@ import {
   type TimedConcept,
 } from '../../skills/eduVideo/planning';
 import { MIN_MODE_C_GAP_SECONDS } from '../../lib/timelinePlanning';
-import { persistOrientation, writeAskCheckpoint } from '../../checkpoint';
+import { shouldPause, resolveAutoField } from '../../autonomy';
+import { hasSkillManifest, loadSkillManifest } from '../../catalog/manifest';
+import {
+  getSessionOrientationIfSet,
+  persistOrientation,
+  writeAskCheckpoint,
+} from '../../checkpoint';
 import { getTempPath, uploadToStorage, writeAssetUrl } from '../../storage';
 import { readTranscriptionProgress } from '../lib/transcriptionProgress';
 import type { ToolCtx } from '../index';
@@ -222,7 +228,7 @@ export function createConceptsTools(ctx: ToolCtx) {
           const conceptsUrl = await uploadToStorage(conceptsPath, storagePath);
           await writeAssetUrl(ctx.userId, ctx.sessionId, 'concepts', conceptsUrl);
 
-          if (ctx.pipelineMode === 'ask') {
+          if (shouldPause(ctx.pipelineMode)) {
             const written = await writeAskCheckpoint(
               {
                 sessionId: ctx.sessionId,
@@ -231,7 +237,7 @@ export function createConceptsTools(ctx: ToolCtx) {
                 pipelineMode: ctx.pipelineMode,
               },
               {
-                kind: 'phase_gate',
+                kind: 'approval',
                 phase_label: 'Concepts extracted',
                 bullets: concepts.map((c) => `${c.concept_name}: ${c.explanation}`),
                 question:
@@ -249,13 +255,30 @@ export function createConceptsTools(ctx: ToolCtx) {
             };
           }
 
-          await persistOrientation(ctx.sessionId, 'horizontal');
-
+          const manifest =
+            ctx.skillName && hasSkillManifest(ctx.skillName)
+              ? loadSkillManifest(ctx.skillName)
+              : {};
+          const existing = await getSessionOrientationIfSet(ctx.sessionId);
+          const resolved = resolveAutoField(manifest, 'orientation', existing);
+          if (
+            'value' in resolved &&
+            (resolved.value === 'horizontal' || resolved.value === 'vertical')
+          ) {
+            await persistOrientation(ctx.sessionId, resolved.value);
+            return {
+              concepts_url: conceptsUrl,
+              concepts,
+              concept_count,
+              orientation: resolved.value,
+            };
+          }
           return {
             concepts_url: conceptsUrl,
             concepts,
             concept_count,
-            orientation: 'horizontal',
+            orientation_choices: 'choices' in resolved ? resolved.choices : [],
+            instruction: 'Pick orientation from orientation_choices. Do not pause.',
           };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);

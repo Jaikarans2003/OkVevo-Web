@@ -6,16 +6,13 @@ import type { TranscriptionProgress } from './tools/lib/transcriptionProgress';
 export function falSttDeliveryAction(
   progress: TranscriptionProgress | null,
   requestId: string | undefined,
-  pipelineMode: 'ask' | 'auto'
-): 'noop' | 'resume_only' | 'wake_only' | 'full' {
+  _pipelineMode: 'ask' | 'auto'
+): 'noop' | 'wake_only' | 'full' {
   if (
     progress?.status === 'complete' &&
     requestId &&
     progress.requestId === requestId
   ) {
-    if (progress.falSttResumePending && pipelineMode === 'auto') {
-      return 'resume_only';
-    }
     if (!progress.falSttWakeClaimed) {
       return 'wake_only';
     }
@@ -75,6 +72,25 @@ export function shouldShortCircuitFalSttEntry(
   return progress.status === 'in_progress' && Boolean(progress.requestId);
 }
 
+/**
+ * Session-doc marker for the three entry-gate recoveries. Skip all three
+ * Firestore/Storage probes when this is false (typical warm turn).
+ */
+export function hasPendingFalSttWork(
+  progress: TranscriptionProgress | null
+): boolean {
+  if (!progress) return false;
+  if (progress.falSttResumePending === true) return true;
+  if (progress.falSttFinalizePending === true) return true;
+  if (progress.status === 'in_progress' && Boolean(progress.requestId)) return true;
+  // Unwoken Fal complete — recover may still need to claim wake.
+  return (
+    progress.status === 'complete' &&
+    progress.falSttWakeClaimed !== true &&
+    Boolean(progress.requestId)
+  );
+}
+
 export function progressUpdatedAtMs(updatedAt: unknown): number | null {
   if (updatedAt == null) return null;
   if (typeof updatedAt === 'number' && Number.isFinite(updatedAt)) return updatedAt;
@@ -122,9 +138,9 @@ export function selfcheck(): void {
       }),
       'r1',
       'auto'
-    ) !== 'resume_only'
+    ) !== 'noop'
   ) {
-    throw new Error('auto pending resume should resume_only');
+    throw new Error('duplicate complete after wake claim should noop');
   }
   if (
     falSttDeliveryAction(
@@ -238,6 +254,46 @@ export function selfcheck(): void {
     throw new Error('with transcript should not short-circuit');
   }
 
+  if (hasPendingFalSttWork(null)) {
+    throw new Error('no progress is not pending');
+  }
+  if (
+    hasPendingFalSttWork(
+      complete({
+        status: 'complete',
+        requestId: 'r1',
+        falSttWakeClaimed: true,
+      })
+    )
+  ) {
+    throw new Error('woken complete is not pending');
+  }
+  if (hasPendingFalSttWork(complete({ status: 'complete', totalChunks: 3 }))) {
+    throw new Error('English complete without Fal requestId is not pending');
+  }
+  if (!hasPendingFalSttWork(complete({ falSttResumePending: true, status: 'complete' }))) {
+    throw new Error('resume pending is pending');
+  }
+  if (
+    !hasPendingFalSttWork(
+      complete({ falSttFinalizePending: true, status: 'in_progress' })
+    )
+  ) {
+    throw new Error('finalize pending is pending');
+  }
+  if (
+    !hasPendingFalSttWork(complete({ status: 'in_progress', requestId: 'r1' }))
+  ) {
+    throw new Error('in_progress Fal is pending');
+  }
+  if (
+    !hasPendingFalSttWork(
+      complete({ status: 'complete', requestId: 'r1', falSttWakeClaimed: false })
+    )
+  ) {
+    throw new Error('unwoken Fal complete is pending');
+  }
+
   // R1: Ask handoff must call shared injectCheckpointPart (not hand-build data-checkpoint).
   const deliverSrc = fs.readFileSync(path.join(__dirname, 'falSttDeliver.ts'), 'utf8');
   if (!/injectCheckpointPart\(/.test(deliverSrc)) {
@@ -247,13 +303,22 @@ export function selfcheck(): void {
     throw new Error('Ask handoff must not hand-build data-checkpoint literal');
   }
   if (/FAL_STT_CONTINUE_PROMPT/.test(deliverSrc)) {
-    throw new Error('FAL_STT_CONTINUE_PROMPT must be deleted in favor of dispatchHook');
+    throw new Error('FAL_STT_CONTINUE_PROMPT must be deleted in favor of the JobCompleted hook');
   }
-  if (!/dispatchHook\(/.test(deliverSrc)) {
-    throw new Error('falSttDeliver must dispatch on_transcript_ready from the job stamp');
+  if (/resume_only/.test(deliverSrc)) {
+    throw new Error('webhook path must not re-enter resume_only; crash retry is tryResumeFalSttPending');
+  }
+  if (!/emitJobCompleted\(\{[\s\S]*?eventName: 'transcript_ready'/.test(deliverSrc)) {
+    throw new Error('falSttDeliver must emit JobCompleted transcript_ready from the job stamp');
+  }
+  if (!/runFalSttEntryGates/.test(deliverSrc)) {
+    throw new Error('falSttDeliver must export runFalSttEntryGates');
+  }
+  if (!/hasPendingFalSttWork/.test(deliverSrc)) {
+    throw new Error('entry gates must skip when hasPendingFalSttWork is false');
   }
 
-  // R2: Lecture heard resume must steer to extract_concepts (not re-transcribe).
+  // R2: JobCompleted resume is fixture-declared (not a harness skill id).
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('dotenv').config();
@@ -262,43 +327,47 @@ export function selfcheck(): void {
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { buildResumeSystemContext } = require('./checkpoint') as typeof import('./checkpoint');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { loadSkillManifest, resolveResumeForce } =
+    require('./catalog/manifest') as typeof import('./catalog/manifest');
+  const fixtureId = '__drop-in__';
+  const fixture = loadSkillManifest(fixtureId);
+  const hook = fixture.hooks.transcript_ready;
+  if (!hook) throw new Error('drop-in fixture must declare transcript_ready');
+  if (hook.askPhaseKey !== 'heard') {
+    throw new Error('drop-in transcript_ready must ask heard');
+  }
+  if (resolveResumeForce(fixtureId, 'heard') !== 'transcribe_video') {
+    throw new Error('drop-in heard resume must force transcribe_video');
+  }
   const resume = buildResumeSystemContext({
-    id: 'cp_lecture_heard',
+    id: 'cp_drop_in_heard',
+    kind: 'approval',
     completedPhase: 'transcription',
-    completedPhaseLabel: 'Lecture heard',
-    skillId: 'edu-video',
-    phaseKey: 'lecture-heard',
-    summary: { title: 'Lecture heard', bullets: [] },
-    next: { label: 'Extract concepts', description: 'Continue' },
+    completedPhaseLabel: 'Heard',
+    skillId: fixtureId,
+    phaseKey: 'heard',
+    summary: { title: 'Heard', bullets: [] },
+    next: { label: 'Continue', description: 'Continue' },
     resume: { artifactNeeds: [], assetKeys: [] },
     answer: { type: 'approve', text: 'Continue' },
   });
-  if (!resume.includes('extract_concepts')) {
-    throw new Error('Lecture heard resume must mention extract_concepts');
+  if (!resume.includes('transcribe_video')) {
+    throw new Error('drop-in heard resume must mention transcribe_video');
   }
   if (resume.includes('Call transcribe_video again')) {
-    throw new Error('Lecture heard resume must not use language-gate re-transcribe guidance');
+    throw new Error('drop-in resume must not re-transcribe');
   }
-  if (!/Continue with extract_concepts/.test(resume)) {
-    throw new Error('Lecture heard continueLine must be Continue with extract_concepts');
+  const heard = fixture.phases.heard;
+  if (heard?.kind !== 'approval') {
+    throw new Error('drop-in heard must declare kind approval');
   }
-  const eduManifest = fs.readFileSync(
-    path.join(__dirname, '../../../Skills/edu-video/skill.json'),
-    'utf8'
-  );
-  if (!/"askPhaseKey":\s*"lecture-heard"/.test(eduManifest)) {
-    throw new Error('edu-video on_transcript_ready must ask lecture-heard');
-  }
-  const lectureHeard = JSON.parse(eduManifest).phases['lecture-heard'];
-  if (lectureHeard.kind !== 'phase_gate') {
-    throw new Error('Lecture heard must declare kind phase_gate');
-  }
-  if (Array.isArray(lectureHeard.choices)) {
-    throw new Error('Lecture heard must not use a Continue choice');
+  if (Array.isArray(heard.choices)) {
+    throw new Error('drop-in heard must not use a Continue choice');
   }
 
-  // Ordering note for callers: recover → resume → short-circuit → agent
-  // (enforced by server.ts call sites; documented here for selfcheck readers)
+  // Ordering note: recover → resume → short-circuit → agent
+  // (enforced by runFalSttEntryGates in falSttDeliver.ts)
   const entryGateOrder = [
     'tryRecoverFalSttFinalize',
     'tryResumeFalSttPending',

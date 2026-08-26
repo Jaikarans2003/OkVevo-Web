@@ -1,11 +1,15 @@
 ---
-
-## name: background-generation
+name: background-generation
 description: >
   Generate photo or video backgrounds/backdrops for educational and creative
   scenes. Routes to the closed Fal media model registry via image_generate /
   video_generate. Use when the user asks for a background, backdrop, scene
   plate, or studio environment — photo by default, video only on clear motion cues.
+allowed-tools:
+  - ask_clarification
+  - image_generate
+  - video_generate
+---
 
 # Background Generation
 

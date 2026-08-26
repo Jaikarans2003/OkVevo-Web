@@ -12,6 +12,19 @@ description: >
   finished video; defer only when the user asks to drive a browser to capture
   or record a session, or names another framework. Most important when no
   project CLAUDE.md or AGENTS.md describes the video workflow.
+allowed-tools:
+  - run_command
+  - write_file
+  - read_file
+  - search_files
+  - web_search
+  - web_extract
+  - vision_analyze
+  - str_replace
+  - ask_clarification
+  - image_generate
+  - video_generate
+  - render_hyperframes
 metadata: { "tags": "read-first, video, animation, router, hyperframes, intent-routing" }
 ---
 

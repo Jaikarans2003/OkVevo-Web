@@ -18,7 +18,10 @@ async function verifySessionAccessFromRequest(request: NextRequest, sessionId: s
   return verifySessionAccess(token, sessionId);
 }
 
-function mapPipelineState(data: Record<string, unknown>) {
+function mapPipelineState(
+  data: Record<string, unknown>,
+  lastSeq: number | null = null
+) {
   const pipelineUpdatedAtRaw = data.pipelineUpdatedAt;
   const pipelineUpdatedAt =
     pipelineUpdatedAtRaw instanceof Timestamp
@@ -34,12 +37,29 @@ function mapPipelineState(data: Record<string, unknown>) {
     pendingCheckpointId:
       typeof data.pendingCheckpointId === 'string' ? data.pendingCheckpointId : null,
     skillId: typeof data.skillId === 'string' ? data.skillId : null,
+    activeRunId: typeof data.activeRunId === 'string' ? data.activeRunId : null,
+    lastSeq,
     videoUrl: data.videoUrl as string | undefined,
     draftVideoUrl: data.draftVideoUrl as string | undefined,
     renderStatus: data.renderStatus as string | undefined,
     renderError: data.renderError as string | undefined,
     pipelineUpdatedAt,
   };
+}
+
+async function lastSeqForRun(
+  sessionId: string,
+  activeRunId: string | null
+): Promise<number | null> {
+  if (!activeRunId) return null;
+  const runSnap = await db
+    .collection('sessions')
+    .doc(sessionId)
+    .collection('runs')
+    .doc(activeRunId)
+    .get();
+  const n = runSnap.data()?.lastSeq;
+  return typeof n === 'number' ? n : 0;
 }
 
 export async function GET(
@@ -51,7 +71,12 @@ export async function GET(
     const access = await verifySessionAccessFromRequest(request, sessionId);
     if ('error' in access) return access.error;
 
-    return noStoreJson(mapPipelineState(access.sessionDoc.data()!));
+    const data = access.sessionDoc.data()!;
+    const activeRunId =
+      typeof data.activeRunId === 'string' ? data.activeRunId : null;
+    return noStoreJson(
+      mapPipelineState(data, await lastSeqForRun(sessionId, activeRunId))
+    );
   } catch (error) {
     console.error('GET /api/agent/sessions/[sessionId]/pipeline error:', error);
     return noStoreJson({ error: 'Failed to fetch pipeline state' }, { status: 500 });
@@ -84,7 +109,12 @@ export async function POST(
     );
 
     const updated = await db.collection('sessions').doc(sessionId).get();
-    return noStoreJson(mapPipelineState(updated.data()!));
+    const data = updated.data()!;
+    const activeRunId =
+      typeof data.activeRunId === 'string' ? data.activeRunId : null;
+    return noStoreJson(
+      mapPipelineState(data, await lastSeqForRun(sessionId, activeRunId))
+    );
   } catch (error) {
     console.error('POST /api/agent/sessions/[sessionId]/pipeline error:', error);
     return noStoreJson({ error: 'Failed to approve pipeline' }, { status: 500 });

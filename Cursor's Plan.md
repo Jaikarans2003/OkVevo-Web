@@ -1,282 +1,181 @@
 ---
-name: Skill-Agnostic Harness Refactor
-overview: Refactor the harness into a lightweight, skill- and tool-agnostic runtime — declarative permissions instead of hardcoded restrictions, a small lifecycle hook bus instead of inline branching, marketplace-spec skill packages (agentskills.io SKILL.md frontmatter) with skill.json as our workflow extension — so one skill per week ships by dropping a folder and rebuilding the image, with zero harness edits.
+name: Studio TTFT status lag
+overview: "The 10–13s wait is remaining studio time-to-first-token, not a status-bar bug. Real STATUS is in-band with the first stream bytes, so it cannot appear earlier than the first token. Phase 3.7: one report (studio timings + OpenRouter keep-alive + cache tokens), then Fix 1 (real prompt-cache blocks) and Fix 2 (don’t hold POST TTFB — and keep session-limit as a clean modal, including JSON-first-bytes on a 200 stream)."
 todos:
-  - id: skill-format
-    content: Adopt agentskills.io frontmatter (name/description/allowed-tools/metadata) in all 5 SKILL.md files; skill.json becomes optional workflow extension; frontmatter parser in skills.ts
+  - id: insert-phase-37
+    content: Insert Phase 3.7 into the overhaul plan after 3.6; add frontmatter todos; do not renumber Phase 4
     status: pending
-  - id: permissions
-    content: Replace baseTools-omission + commandPolicy + code denylists with declarative permissions block (allow/deny/ask, run_command matchers) enforced at one PreToolUse gate
+  - id: report-studio-split
+    content: "Same report, before any fix: studio timing table + cache tokens + OpenRouter keep-alive vs fresh TLS on the pooled VM"
     status: pending
-  - id: schema-ext
-    content: "Extend skill.json workflow schema: resumeArtifacts, generic hooks map, phase choices/gateIfMissing/injectFiles, confirmedFields declaration, requiresUpload; tool-meta prune config"
+  - id: fix-cache-blocks
+    content: "systemPromptWithCache: block-level cacheControl; log cache_read/write on timing line; update selfcheck; AgentCore redeploy"
     status: pending
-  - id: hook-bus
-    content: Generalize hooks/dispatch.ts to a small event bus (UserPromptSubmit, PreToolUse, PostToolUse, JobCompleted, RenderCompleted, CheckpointAnswered); move inline branching onto it
+  - id: fix-post-peek
+    content: "Fix 2: stop holding POST on first AgentCore byte; client fetch must treat JSON-first-bytes session_limit as today’s 413 modal (not garbled SSE). Helper + selfcheck."
     status: pending
-  - id: agent-purge
-    content: Delete all skill literals from agent.ts (concepts/orientation chain, VIDEO_ORIENTATION_CHECKPOINT, firstConceptResumeHint); generic resume mechanics
-    status: pending
-  - id: edit-targets
-    content: "editTargets.ts: generic path detection stays in harness; edu rebuild playbooks move to skill-declared editGuidance (references/edit-requests.md); inject via UserPromptSubmit hook"
-    status: pending
-  - id: checkpoint-generalize
-    content: "HITL engine: four standard interrupt kinds (approval/selection/elicitation/tool_approval) through one writer; manifest resumeArtifacts; drop CheckpointPhase enum + PHASE_NUMBERS; styleSeed replaces TalkingHeadStyle/card_style; delete dead exports"
-    status: pending
-  - id: autonomy-modes
-    content: Ask-Me/Auto-Run become one policy input to the permission/HITL engine; skills declare auto-mode defaults in skill.json; remove scattered pipelineMode checks from tools/hooks/wrappers
-    status: pending
-  - id: tool-tiers
-    content: TOOL_FACTORIES single source (derive SAFE_TOOL_UNIVERSE); manifest-driven pruning; require ctx.skillName in scaffolds (drop fallbacks); Tier-3 tool internals stay skill-owned by design
-    status: pending
-  - id: shared-tools-clean
-    content: "Decouple shared tools: transcribe_video gates via lookupPhase from manifest; Manim guard + HF sync move from filesystem.ts onto PreToolUse/PostToolUse hook matchers; owned-path denylists into permissions floor policy"
-    status: pending
-  - id: naming-infra
-    content: Slug-pattern FINAL_VIDEO_NAME_RE in agent + render-completion lambda; pipelineStatus strings replace numeric pipelinePhase
-    status: pending
-  - id: neutral-prompt
-    content: "Prompt taxonomy: new SOUL.md (Nia persona), AGENT.md rewritten to operating rules only, skills index disclosure when no skill active; systemPromptCache assembles SOUL→AGENT→mode→skill"
-    status: pending
-  - id: frontend-dynamic
-    content: Generated skills index drives skillReadyMessage + requiresUpload gate; SkillsPopup renders manifest-declared visibility flag (curation kept, moved to data)
-    status: pending
-  - id: checks
-    content: Drop-in fixture skill selfcheck + no-skill-literal grep gate + async ownership invariant + check:all; delete dead dist/ orphans
-    status: pending
-  - id: authoring-guide
-    content: "Skills/README.md: authoring guide + marketplace import workflow (developer refactor, explicit human security review distinct from check:all, structural validation, rebuild image)"
+  - id: cache-tools-if-needed
+    content: "Only if cache_read still 0 after Fix 1: last-tool cache breakpoint + OpenRouter session_id sticky routing"
     status: pending
 isProject: false
 ---
 
-# Skill-Agnostic Harness Refactor
+# Phase 3.7 — Studio STATUS and first token still 10–13s
 
-## What the full-codebase audit found
+Insert into [.cursor/plans/agent_latency_and_streaming_overhaul_b611da2c.plan.md](.cursor/plans/agent_latency_and_streaming_overhaul_b611da2c.plan.md) after Phase 3.6. Do not renumber Phase 4.
 
-Every file in `services/agent/src` (core, tools, hooks, checks), `Skills/`, the Next app, and `infrastructure/` was read. Three answers to your three questions:
+**Hard rule (same as 3.5):** one timing report from a real studio send before any UX change. No second model call for STATUS. Keep-alive findings and the Fix 1 / Fix 2 timing table are the **same report**, not a later phase.
 
-- **Is the harness coupled?** Yes, but less than it feels. Manifest loading, tool allowlists, trigger detection, the `on_transcript_ready` dispatcher, phase resume, and style seeds are already generic. The coupling residue lives in `agent.ts` (concepts→orientation→manim chain), `checkpoint.ts` (phase enums, talking-head style model, resume artifacts), the default prompt, and the frontend.
-- **Are the tools coupled?** Yes, but by design — and that stands. `extract_concepts`, the Manim tools, and both scaffolds are intentional skill-owned implementations; they keep their internal coupling. What must go is the harness-side residue around them: the parallel `SAFE_TOOL_UNIVERSE` list, the pruning whitelist in harness code, and the `ctx.skillName || 'edu-video'` fallbacks that can mislabel session state.
-- **Are the hooks coupled?** There is only ONE modeled hook (`on_transcript_ready`). The audit counted ~20 other lifecycle moments (turn start, pre-tool, post-tool, job submit, render complete/fail, checkpoint write/answer, token gate, errors) that branch inline in TS — several with skill-specific logic. `hooks/dispatch.ts` itself is clean; the problem is everything that never flows through it.
+## Why the status bar and streaming show up together
 
-## Industry research (what makes a harness good)
+This is expected, not a client race.
 
-- **Benchmarks:** harness design alone moves Terminal-Bench pass@1 ~7pp and SWE-bench up to 15pp with the model fixed (arXiv 2605.23950, 2604.25850). Ablations show the gains live in tools, middleware/hooks, and state — system-prompt prose alone regresses. Quality criteria: observability (per-component logs), executability (verify end-state, not transcripts — our selfchecks + render verification already do this), statefulness (externalized session state — we have this), strict declarative permission boundaries (we half-have this).
-- **Hooks standard (Claude Code):** ~30 lifecycle events; the load-bearing ones are `SessionStart`, `UserPromptSubmit`, `PreToolUse` (blockable, returns allow/deny/ask), `PostToolUse`, `PostToolUseFailure`, `Stop`. Declarative config with matchers; deterministic layer around the model.
-- **Skills standard (agentskills.io / Claude Code):** a skill is a folder with `SKILL.md` (YAML frontmatter: required `name`, `description`; optional `allowed-tools`, `compatibility`, `metadata`) plus optional `scripts/`, `references/`, `assets/`. Progressive disclosure: only name+description in context until triggered. `allowed-tools` accepts matchers like `Bash(git:*)`.
-- **Permissions standard:** declarative allow/deny/ask rules with tool matchers — not tool omission, not code denylists.
+- On send, the live header already mounts from `isPreparingSend` ([AiStudioTimeline.tsx](src/components/workspace/ai-studio/AiStudioTimeline.tsx)) and shows idle words (`Focusing` / `Framing` / … in [friendlyStatus.ts](src/lib/agent/friendlyStatus.ts)).
+- A real phrase only replaces that when `getLatestStatusMarker` sees a complete `[[STATUS: …]]` in reasoning or text ([parseStatusMarker.ts](src/lib/agent/parseStatusMarker.ts)).
+- AGENT.md tells the model to emit that marker as the **first line of the first reasoning block**. It is the first visible stream content. The header and the first token therefore share one clock: server TTFT.
 
-## Architectural law
-
-> The harness may know the skill protocol (schema), never a skill's behavior. Zero `if (skillId === 'edu-video')` anywhere — in the agent, in checkpoints, in tools, in the lambda, in the UI.
-
-Positioning: we are a **workflow harness on an open-ended core**. The core loop (tools + hooks + checkpoints + state) is open-ended; the workflow layer (phases, gates, forced resumes) is an optional manifest extension a skill may declare. A marketplace skill with no workflow extension runs open-ended on base tools; our five in-house skills declare workflows.
+Idle words for ~10s then STATUS + prose in the same beat is “TTFT is still 10–13s on the studio path.” It is not a 2500ms rotator hold (that only cycles idle copy). It is not smoothStream (STATUS already flushes without the 18ms word delay).
 
 ```mermaid
-flowchart TB
-  subgraph core [Open-ended core - never edited per skill]
-    loop[runAgent loop]
-    bus[Hook bus - 6 events]
-    reg[TOOL_FACTORIES registry]
-    perms[Permission gate - allow/deny/ask]
-    hitl[Checkpoint engine]
-    state[Session/job/gate skillId stamps]
-  end
-  subgraph pkg [Skill package - drop-in folder]
-    front[SKILL.md frontmatter - name, description, allowed-tools]
-    body[SKILL.md body + references/ + scripts/ + templates/]
-    ext[skill.json - optional workflow extension: phases, hooks, seeds]
-  end
-  front --> perms
-  ext --> bus
-  ext --> hitl
-  body --> loop
-  pkg --> reg
+sequenceDiagram
+  participant Click
+  participant UI as StatusBar
+  participant Next as NextApiAgent
+  participant Core as AgentCore
+  participant LLM as OpenRouter
+
+  Click->>UI: idle words plus loading video
+  Click->>Next: POST /api/agent
+  Note over Next: today: await first AgentCore byte before Response
+  Next->>Core: InvokeAgentRuntime
+  Core->>Core: openRun plus runAgent prework
+  Core->>LLM: streamText huge system plus tools
+  LLM-->>Core: first STATUS plus text
+  Core-->>Next: first SSE bytes
+  Next-->>UI: STATUS header and first token together
 ```
 
-## Problem → Mitigation catalog
+## What we already measured (do not re-bench ping)
 
-### A. Skill package format (marketplace compatibility)
+Direct AgentCore, no Next, short “ping” ([71f224b1](71f224b1-fe4f-4b90-8d13-82022f206f21)):
 
-- **Problem:** 4 of 5 SKILL.md files use pseudo-frontmatter (`## name:` after `---`) that no spec-compliant tool can parse; only `hyperframes/SKILL.md` is real YAML. A Claude Code marketplace skill would arrive with real frontmatter our loader ignores.
-- **Mitigation:** adopt the agentskills.io spec as the canonical package format. `SKILL.md` frontmatter carries `name`, `description`, optional `allowed-tools`, `metadata`. [services/agent/src/skills.ts](services/agent/src/skills.ts) gains a small frontmatter parser (gray-matter is already in the Next dependency tree, or 15 lines of manual parsing). Fix the 4 pseudo-frontmatter files.
-- **skill.json becomes the optional OkVevo workflow extension** — phases, hooks, styleSeeds, resumeArtifacts, readyMessage, triggers. A skill without it still loads: `name`/`description` from frontmatter, tools from `allowed-tools`, open-ended execution.
-- **Marketplace import is a developer workflow, not an automated pipeline (by design):** OkVevo's harness differs from Claude Code/Codex (async jobs, checkpoints, media tools), so every imported skill is adapted by a developer. The refactor's job is to make that adaptation SMALL and mechanical. Import checklist (goes in Skills/README.md):
-  1. Developer refactors the package — fix/verify frontmatter, map `allowed-tools` to our tool names, rewrite instructions that assume Claude Code tools (Bash→`run_command`, etc.), optionally add skill.json for workflow gates
-  2. **Human security review** (explicit, distinct from structural validation): read SKILL.md body and every `scripts/` file for prompt injection, data exfiltration, and destructive commands; confirm the `permissions` block is minimal (deny-by-default posture); sign off recorded in the skill's `metadata`
-  3. `npm run check:all` — structural validation only (manifest schema, tool names in universe, fixture invariants); it does NOT substitute for step 2
-  4. Rebuild agent image → skill is live
+- `prework_ms` ~200–340
+- `model_ttft_ms` ~1.0–1.6s
+- server `total_ms` ~1.2–1.9s
 
-### B. Permissions (your restrictions question)
+Studio still feels 10–13s. The leftover 8–11s is **not** that ping path. It is the browser → Next → AgentCore → skill-sized prompt path.
 
-- **Problem:** restrictions today are three unrelated mechanisms — talking-head omits `run_command` from `baseTools` (restriction by omission), `commandPolicy` prefix allowlist exists in schema but no skill sets it (dead policy), and hard denylists (`/proc/environ`, owned-edit paths) are string matches in [services/agent/src/tools/general/filesystem.ts](services/agent/src/tools/general/filesystem.ts). Verdict: the allowlist idea is industry-shaped, but the implementation is scattered and half-dead — not policy.
-- **Mitigation:** one declarative `permissions` block per skill (frontmatter `allowed-tools` and/or skill.json), industry pattern:
+Ping system prompt is SOUL + AGENT + skills index (~1k tokens) and `BASE_TOOLS` only. A studio skill turn adds e.g. [Skills/edu-video/SKILL.md](Skills/edu-video/SKILL.md) (~5.3k tokens) plus that skill’s tools. Default model is `anthropic/claude-sonnet-4-6`.
 
-```json
-"permissions": {
-  "allow": ["read_file", "write_file", "run_command(ffmpeg:*)", "run_command(npx hyperframes:*)"],
-  "deny": ["run_command"],
-  "ask": ["render_hyperframes"]
-}
+## Investigation (report first — one table)
+
+Reuse marks already in [studioPerf.ts](src/lib/agent/studioPerf.ts) / [AiStudioShell.tsx](src/components/workspace/ai-studio/AiStudioShell.tsx) / [AgentConsumerStatus.tsx](src/components/workspace/ai-studio/AgentConsumerStatus.tsx). Label `next dev` vs `next start`. n ≥ 3: one **plain chat follow-up**, one **skill follow-up** (edu-video or talking-head), one **fresh skill first send**.
+
+Per send, one row:
+
+- `click-to-video`
+- `[studio] post-agent-ttfb` (Resource Timing TTFB of POST `/api/agent`)
+- `click-to-streaming` (`useChat` status)
+- `click-to-status` (first parsed `[[STATUS:]]`)
+- CloudWatch `[agent] timing … prework_ms / model_ttft_ms / total_ms` for the same `sessionId`
+- `cache_read` / `cache_write` (or OpenRouter `cached_tokens`) on that same timing line. Today there is **no** cache-hit log — Phase 3 caching was never proven.
+- OpenRouter connection: **reused keep-alive vs fresh TCP+TLS** (see below)
+
+**How to read the row**
+
+- `post-agent-ttfb` ≈ 10s → Next is waiting on the first AgentCore byte ([handleAgentCore](src/app/api/agent/route.ts) peeks `reader.read()` **before** `return new Response`). Fix 2.
+- `model_ttft_ms` ≈ 10s and TTFB is small → prompt/tools not cached on the skill turn. Fix 1 (then 3 only if cache still 0).
+- `click-to-status` ≈ `click-to-streaming` ≈ TTFB ≈ `model_ttft` → coupling is confirmed; the number to cut is TTFT, not a separate status widget.
+- Fresh TLS every turn of tens–hundreds of ms → note it; configure pooling only if the library already supports it and the measured cost is real. It will not explain 10–13s by itself.
+
+Do not “fix” STATUS by inventing a local phrase or a preliminary model call (Phase 3.5 already rejected that).
+
+### Same report: OpenRouter HTTP keep-alive on the pooled VM
+
+Confirm whether AgentCore’s HTTP client to OpenRouter **reuses a warm connection across turns on the same pooled microVM**, or does TCP + TLS per turn.
+
+Today [agent.ts](services/agent/src/agent.ts) does `createOpenRouter({ apiKey })` with **no custom `fetch`**, no `Agent`, no keepalive config. The investigation names the actual client (Node 22 global `fetch` / undici vs `node-fetch` vs something the OpenRouter provider constructs) and whether a dispatcher/pool is already in process.
+
+Measure on two warm turns of the **same** runtime session (not a new microVM):
+
+- Turn B immediately after turn A drains
+- Turn C after a pause longer than undici’s default idle (`keepAliveTimeout` is **4s** if that is the client)
+
+Log time from `fetch` start → response headers for the OpenRouter call (a temporary wrapped `fetch` passed into `createOpenRouter`, or equivalent). Report connect/TLS vs reused (header time near 0 after a live socket).
+
+**Verdict in the report, then stop unless cheap:**
+
+- Pooling exists, just unconfigured (typical: `setGlobalDispatcher(new Agent({ keepAliveTimeout: … }))` or provider `fetch` with a dispatcher) → say so; do **not** implement until this report is in, and only then if the measured handshake is worth it.
+- No pooling support in the client we actually use → say so; do not build a custom pool in this phase.
+- Do **not** pursue `TCP_NODELAY` / socket-level tuning or local-process tricks from the Hermes CLI report. That path is a local binary talking to a provider. This product is browser → Next → AgentCore (us-east-1) → OpenRouter. Not comparable; out of scope.
+
+## Fix 1 — Make prompt cache actually hit
+
+[systemPromptWithCache](services/agent/src/systemPromptCache.ts) puts `cacheControl` on a **string** system message:
+
+```112:126:services/agent/src/systemPromptCache.ts
+export function systemPromptWithCache(
+  stable: string,
+  volatile = ''
+): SystemModelMessage | SystemModelMessage[] {
+  const cached: SystemModelMessage = {
+    role: 'system',
+    content: stable,
+    providerOptions: {
+      anthropic: { cacheControl: SYSTEM_CACHE_CONTROL },
+      openrouter: { cacheControl: SYSTEM_CACHE_CONTROL },
+    },
+  };
 ```
 
-- Enforced at exactly one place: a `PreToolUse` gate in the tool-wrapping layer of [services/agent/src/tools/index.ts](services/agent/src/tools/index.ts) (where `withConfirmedFields` already wraps). `allow` resolves tool visibility (replaces `baseTools` omission), matchers resolve `run_command` binaries (replaces `commandPolicy`), `ask` routes through the existing checkpoint engine (HITL approval — we already have the UI). Harness-global denies (`/proc/environ`, owned paths) stay as non-overridable floor policy in one `policies.ts`, not scattered strings.
+OpenRouter/AI SDK only apply Anthropic caching when `content` is a **text-block array** with `cacheControl` on the block ([issue 389](https://github.com/OpenRouterTeam/ai-sdk-provider/issues/389)). Message-level control on a string is a no-op. The current selfcheck **asserts the broken shape**.
 
-### C. Hooks (from 1 event to a small bus — not 30)
+Change to block content (`[{ type: 'text', text: stable, providerOptions: { openrouter: { cacheControl: SYSTEM_CACHE_CONTROL } } }]`). Keep volatile as a second uncached system message. Log `cache_read` / `cache_write` (or OpenRouter `cached_tokens`) on the existing `[agent] timing` line. Update [systemPromptCache.selfcheck.ts](services/agent/src/systemPromptCache.selfcheck.ts). Redeploy AgentCore — local Next cannot fix container prompt shape.
 
-- **Problem:** one hook exists; ~20 lifecycle moments branch inline. Skill behavior leaked into those branch points because there was no other place to put it.
-- **Mitigation:** generalize [services/agent/src/hooks/dispatch.ts](services/agent/src/hooks/dispatch.ts) into a bus with the six events that remove existing inline branching (YAGNI on the rest — add events when a skill needs them):
-  - `UserPromptSubmit` — style-seed detection, edit-target injection move here
-  - `PreToolUse` — permissions + confirmedFields + resume forceToolName consolidate here
-  - `PostToolUse` — skillsEngagedByToolCalls stamping, dispatch logging (adds the missing per-tool observability from `Our Harness.md` finding #2)
-  - `JobCompleted(eventName)` — generalizes `on_transcript_ready`; manifest hooks become `hooks: { "transcript_ready": {...}, "image_ready": {...} }` keyed by event, so Fal image/video completions ([services/agent/src/deliverEvent.ts](services/agent/src/deliverEvent.ts)) use the same path as STT
-  - `RenderCompleted` / `RenderFailed` — ready-message + finalize copy from manifest (`readyMessage` already exists)
-  - `CheckpointAnswered` — resume mechanics (artifact restore, resume context) flow from manifest lookup only
-- Skill handlers are declarative manifest entries (prompts, phase keys, gates) — not executable code in skill.json (GPT's constraint stands: intelligence stays in SKILL.md + model + tools).
+## Fix 2 — Do not hold the chat POST on the first AgentCore byte
 
-### D. Agent loop purge
+[handleAgentCore](src/app/api/agent/route.ts) awaits `invokeAgentCoreStream` then `reader.read()` to sniff JSON `{ error: "session_limit_reached" }` and **only then** returns either HTTP **413 JSON** or the SSE `Response`. That peek is what keeps the session-limit modal clean today. It is also what makes browser TTFB wait for the first AgentCore byte.
 
-- **Problem:** [services/agent/src/agent.ts](services/agent/src/agent.ts) hardcodes `firstConceptResumeHint` (reads concepts.json, forces `generate_manim_script`), label checks for `Concepts extracted`/`Video orientation`/`Video preferences`, `VIDEO_ORIENTATION_CHECKPOINT`, the `conceptsApproveChain`, and a "Call transcribe_video" append.
-- **Mitigation:** three generic manifest mechanics replace all of it — phase `resume.gateIfMissing: { field, phaseKey }` (write the declared follow-up gate when a confirmed field is absent), `resume.injectFiles: ["concepts.json"]` (inject file heads into resume context), and the existing `resume.approve/revision/forceToolName`. The orientation checkpoint definition (question, choices) moves into `Skills/edu-video/skill.json` (phase schema gains `choices`). agent.ts ends with zero skill/phase literals.
+The previous draft claimed “existing 413 handling already reads 413 JSON.” That is **wrong** once headers go out as 200 SSE before anyone knows it is an error. The 413 branch in the transport `fetch` ([AiStudioShell.tsx](src/components/workspace/ai-studio/AiStudioShell.tsx) ~436–453) never runs. `useChat` would ingest JSON as a UI stream. The `error.message` includes-`session_limit_reached` effect (~670) is a fallback for a thrown Error, not for a 200 body, and it does not set `estimatedTokens`. Net: garbled failure instead of the modal.
 
-### D2. Edit-target playbooks (found in final sweep)
+**Contract (must hold after Fix 2):** a session-limit hit still opens the same modal with `estimatedTokens`, and `useChat` must **not** parse the error body as SSE. HTTP 413 may still happen when Next can classify before sending; the **client must not depend on that**.
 
-- **Problem:** [services/agent/src/editTargets.ts](services/agent/src/editTargets.ts) runs at every turn start and is edu-shaped end to end: it classifies paths as manim/hf-project kinds and injects rebuild guidance that names `scaffold_hf_project`, `render_hyperframes`, and the Manim tools. A new skill's edit requests get either edu guidance or nothing.
-- **Mitigation:** split detection from direction. Detection stays generic in the harness (resolve which session files the user's message targets — path matching needs no skill knowledge). Direction comes from the skill package: manifest `editGuidance` maps declared path patterns to a reference file (edu-video already ships `references/edit-requests.md` — it becomes the source instead of TS strings). Injection runs on the `UserPromptSubmit` hook (Section C). Skills without `editGuidance` get plain detection, no playbook.
+Required client change (same Fix 2, not a follow-up):
 
-### E. Checkpoints as industry-standard HITL (interrupt → persist → resume)
+- Extract a tiny helper used by the transport `fetch` (not only `status === 413`): if the payload is `{ error: "session_limit_reached" }` — whether from a 413 response **or** from first bytes of a 200 body that start with `{` / `Content-Type: application/json` — call the same `setSessionLimitTokens` + `setSessionLimitOpen` path and return a **413 JSON Response** (or otherwise abort) so `DefaultChatTransport` never reads that body as an event stream.
+- One selfcheck on the helper (413 JSON, 200 JSON-first-bytes, SSE first bytes that happen to include `{` in a `data:` line must **not** false-trigger).
+- Keep the existing 413 path so local-proxy / current AgentCore peek still work.
 
-- **What we already have is the industry pattern, unnamed:** our checkpoints are durable interrupts — the turn halts (`haltTurn`), state persists to Firestore, and the session resumes on human answer, surviving process restarts and 15-minute AgentCore timeouts. That is exactly the LangGraph `interrupt()` + checkpointer pattern and the AI SDK / OpenAI Agents approval-flow shape. The refactor names it, unifies it, and strips the skill residue out of it.
-- **Problem 1 — skill residue in the engine:** [services/agent/src/checkpoint.ts](services/agent/src/checkpoint.ts) has `CheckpointPhase` enum + `PHASE_NUMBERS` (edu pipeline ordering), `resumeArtifactsForSkill()` branching on `'talking-head'`, `TalkingHeadStyle` + `card_style` + `persistTalkingHeadStyle`, and `TOOL_OWNED_CHOICE_IDS` containing talking-head seed IDs. Session docs carry skill-specific fields (`animationStyle`, `talkingHeadStyle`).
-- **Problem 2 — three uncoordinated interrupt sources:** gates are written by (a) the `ask_clarification` tool, (b) tools directly (`extract_concepts`, `transcribe_video`), and (c) `agent.ts` itself (`VIDEO_ORIENTATION_CHECKPOINT`) — each with its own hardcoded labels. And tool approvals don't exist at all: there is no way for a permission rule to say "ask the human before `render_hyperframes`."
-- **Mitigation — one HITL engine, four standard interrupt kinds:**
-  - `approval` (today's phase_gate: approve / revise / freeform), `selection` (single_select with choices), `elicitation` (structured input collection — the MCP elicitation concept; covers pre-pipeline preference batches), `tool_approval` (NEW: emitted by the permission engine when a rule resolves to `ask` — same card UI, answer feeds back as allow/deny)
-  - All four are written through `writeAskCheckpoint` only; tools and agent.ts never invent labels — kinds, questions, and choices come from the manifest phase or the tool's caller
-  - `resumeArtifacts` declared per skill in skill.json; harness default `['transcript','hf_project']`
-  - Delete the phase enum + numbers; `pipelineStatus` strings (`running/awaiting_checkpoint/rendering/complete/failed`) are what the UI actually needs — [src/hooks/usePipelineState.ts] and the pipeline route read status, not numbers; the lambda writes `pipelineStatus: 'complete'` already
-  - `styleSeed` (already generic in manifest) replaces `TalkingHeadStyle`/`card_style`/`talkingHeadStyle` everywhere; confirmed-field `cardStyle` renames to `styleSeed`
-  - Confirmed fields: skills declare which fields they use (skill.json `confirmedFields`), stored in one namespaced session map; `CONFIRMED_FIELD_NAMES` stops being a closed harness enum
-  - Delete dead exports: `writeAskCheckpointBatch`, `loadPendingCheckpointDisplay`, `isPrePipelineResolved`, `clearSystemPromptCache`
+Next.js side: return the SSE `Response` without awaiting a full model token. If the transform sees JSON `session_limit_reached` as the first bytes, it should still prefer rewriting to 413 when headers are not sent; once they are sent as 200, the client helper above is the safety net.
 
-### E2. Autonomy modes (Ask-Me / Auto-Run) as one policy input, and a conversational core
+Optional, only if the report shows TTFB stuck until first token: `response.flushHeaders?.()` after `writeHead` in [pipeHttpUiStream](services/agent/src/agent.ts). AgentCore redeploy for that flush; client helper does not need it.
 
-- **Industry mapping:** Ask-Me / Auto-Run are autonomy levels — the same concept as Claude Code permission modes (`default` vs `acceptEdits`/`bypassPermissions`) and OpenAI's approval settings. The concept is right; the implementation is scattered.
-- **Problem:** `pipelineMode === 'ask'` branches inline in at least four unrelated places — the `withConfirmedFields` wrapper ([services/agent/src/tools/index.ts](services/agent/src/tools/index.ts)), `transcribe_video` gate paths, `extract_concepts` (auto mode silently `persistOrientation('horizontal')` — a skill default hidden inside a tool), and hook dispatch (`askPhaseKey` only in ask mode). Each tool re-decides what autonomy means.
-- **Mitigation:** mode becomes a single input to the permission/HITL engine, evaluated in one place:
-  - In `ask` mode, rules and gates that resolve to `ask` interrupt (write a checkpoint)
-  - In `auto` mode, the same rules auto-resolve using manifest-declared defaults — skills declare `defaults: { orientation: "horizontal", language: "auto" }` in skill.json; tools stop hardcoding auto-mode fallbacks
-  - Hook dispatch, confirmed-fields, and tool gates all consult the engine instead of testing `pipelineMode` themselves — one definition of autonomy, declaratively extensible per skill
-- **Conversational core (explicit design guarantee):** with no skill active, the harness is a plain conversational agent — neutral prompt + skills index + base tools, no pipeline state, no gates. Skills add workflow on top; they never take the conversation away. `ask_clarification` remains the conversational elicitation channel inside workflows (questions render as chat, answers persist as state). This is the "open-ended core, workflow extension" law applied to UX.
+Do not ship Fix 2 without the client JSON-first-bytes case. That is the gap.
 
-### F. Tool registry + tool tiers (your "are tools coupled" question)
+## Fix 3 — Only if Fix 1 still shows cache_read = 0
 
-- **Design decision (per your call): skill-specific tools are legitimate and stay.** `extract_concepts`, the Manim tools, and both scaffolds are intentional, high-quality implementations of heavy pipeline steps. They may keep their skill coupling internally (edu template roots, storyboard shapes, Manim prompts). The agnosticism requirement lands only on the HARNESS side of the boundary.
-- **Problem (harness side only):** `SAFE_TOOL_UNIVERSE` is a hardcoded list parallel to the factory imports (adding any tool touches 3 files); `messagePruning.ts` whitelists tool names in harness code; two tools default `skillId = ctx.skillName || 'edu-video'` / `|| 'talking-head'` — a state-stamping bug, not an intentional coupling (an unresolved-skill session would mislabel its run/artifacts).
-- **Mitigation:** `TOOL_FACTORIES: Record<string, factory>` in [services/agent/src/tools/index.ts](services/agent/src/tools/index.ts) becomes the single source; `SAFE_TOOL_UNIVERSE = Object.keys(TOOL_FACTORIES)`. Pruning config moves to `tool-meta.json` (`prune.summary` per tool). Scaffold tools require `ctx.skillName` instead of falling back. Everything else inside Tier-3 tools stays as-is.
-- **Tool tiers** (documented in Skills/README.md so authors know what they can reuse):
-  - Tier 1 base (generic): fs, web, vision, clarify, image/video generate — any skill
-  - Tier 2 domain (media, skill-agnostic): `transcribe_video`, `render_hyperframes` — any skill
-  - Tier 3 skill-owned: concepts, manim, both scaffolds — owned by their skill via the manifest `tools` array (already the mechanism); other skills simply don't list them
+Do **not** start this until the report after Fix 1.
 
-### F2. Shared tools must be direction-taking, never behavior-owning
+- `cache_control` on the last tool so tool schemas join the cached prefix.
+- OpenRouter sticky `session_id` (chat `sessionId`) so follow-ups hit the same cache host.
+- Still no SKILL.md rewrite unless TTFT is still >6s after a verified cache hit.
 
-- **Problem:** shared (Tier 1/2) tools currently embed behavior that belongs to specific skills or domains, so they only "work for anything" by accident:
-  - `transcribe_video` hardcodes checkpoint labels/keys (`'Transcription language'` / `'transcription-language'`, `'Transcription paused'`) — even though `Skills/edu-video/skill.json` already declares a `transcription-language` phase the tool ignores
-  - `write_file` / `str_replace` embed a Manim `MAX_VISIBLE` guard and HyperFrames-project GCS auto-sync inside the generic filesystem tool
-  - `run_command` embeds owned-edit path denylists (`hf-project`, `manim_scripts`) as string matches
-  - `render_hyperframes` hardcodes a `Skills/hyperframes/...` path for logging
-- **Mitigation — the industry pattern (direction via declaration, not code):** a shared tool receives all skill-specific direction from three declarative sources, never from its own source code:
-  1. **Checkpoint phases from the calling skill's manifest** — `transcribe_video` resolves its gate labels/keys via `lookupPhase(ctx.skillName, ...)` exactly the way `ask_clarification` already does ([services/agent/src/tools/general/clarify.ts](services/agent/src/tools/general/clarify.ts) L72-98 is the reference implementation in our own codebase). A skill without that phase gets no gate — the tool degrades gracefully.
-  2. **File guards and post-edit actions as hook matchers** — the Manim visible-items guard and HF-project sync move out of `filesystem.ts` onto the hook bus: `PreToolUse`/`PostToolUse` handlers with path matchers (Claude Code's matcher pattern: run validator X when the edited path matches `manim_scripts/*.py`, run artifact-sync when it matches `hf-project/**`). Guard/sync declarations live with their owner: skill-owned validators in skill.json, harness-owned artifact sync in the harness hook registration. `write_file` itself knows nothing.
-  3. **Permissions matchers for path/command restrictions** — owned-edit denylists become floor policy entries in the same `permissions` engine (Section B), not string checks inside the tool.
-- **Result:** any future skill can point the same shared tools at its own phases, guards, and policies purely through its package — the definition of "works for anything."
-- **Marketplace reality check (honest ceiling):** an imported skill can orchestrate Tier 1+2 tools and its own `scripts/` via `run_command` under its `permissions` matchers — that covers most motion-graphics/coding-style skills since our stack is code-based (HyperFrames CLI, ffmpeg, Manim all shell-invocable). A skill needing a NEW first-class tool ships one TS factory + rebuild — the same intentional path your Tier-3 tools already use, and the industry norm (Claude Code: new tools come from MCP/plugins, not skill folders). Defer an MCP/plugin tool loader until a real skill needs it.
+## Out of scope
 
-### G. Naming + infrastructure
+- Image diet (warm-turn irrelevant).
+- Changing the default model.
+- Fake STATUS / extra model call.
+- Phase 3.5 item 3a (refresh-before-indicator).
+- `TCP_NODELAY` / Hermes-style local socket tuning.
+- A custom HTTP pool if the library we use already has keepalive (configure or skip; don’t reinvent).
 
-- **Problem:** `FINAL_VIDEO_NAME_RE` hardcodes `edu-video|talking-head` in [services/agent/src/finalVideoBasename.ts](services/agent/src/finalVideoBasename.ts) AND in the render-completion lambda ([infrastructure/lambdas/hyperframes-render-completion/index.js](infrastructure/lambdas/hyperframes-render-completion/index.js)) — a new skill's final MP4 would fail edit-detection there.
-- **Mitigation:** generic slug pattern `[a-z0-9-]+(_\d+)?\.mp4` in the agent-side regex (primary path). The lambda is the intentionally held-back FALLBACK to HeyGen's cloud rendering API (HeyGen is the live path today) — its regex gets the same one-line pattern sync so the fallback doesn't rot, but it is not a blocker for any phase and needs no redeploy until the fallback is next exercised. Lambda's `draftMetadataFromRenderSnapshot` keys stay — they're recipe-shaped, not skill-branching.
+## Success
 
-### H. Prompt + disclosure
+- Report table filled before landing Fix 1–2, including keep-alive vs fresh TLS and cache tokens.
+- Warm **studio** follow-up: first parsed STATUS and first visible token both **< 6s** (plan target), not 10–13s.
+- They may still land within a few hundred ms of each other — that is correct.
+- Idle words may still show for that <6s window — that is the click-gated placeholder.
+- Session-limit still opens the existing modal with token count; no garbled stream. Helper selfcheck covers 413 and JSON-first-bytes.
+- Full check suite after the code change; AgentCore redeploy for Fix 1.
 
-- **Problem:** `DEFAULT_AGENT_PROMPT` and `Skills/AGENT.md` frame the product as lecture→concepts→animations; whole SKILL.md concatenates into the system prompt; no skill can be discovered by the model beyond `triggers` substring match.
-- **Mitigation:** neutral identity prompt; when no skill is active, inject a skills index (frontmatter name+description per skill — the spec's progressive disclosure tier 1) so the model can propose the right skill. Active skill keeps full SKILL.md inject (our workflows are guided; on-demand `read_file` disclosure of `references/` already works and stays).
-
-### H2. Markdown file taxonomy + Nia's persona (SOUL.md)
-
-- **Problem:** the prompt/doc files are ad hoc — `Skills/AGENT.md` mixes identity ("You are OkVevo AI...") with operating rules (status markers), the default prompt hardcodes the edu pipeline, and there's no defined home for persona vs rules vs developer docs. Every .md file must have exactly one defined role.
-- **Mitigation — fixed taxonomy (nanobot's convention: SOUL/AGENTS split), enforced by the authoring guide:**
-  - `Skills/SOUL.md` (NEW) — WHO Nia is: persona, voice, values. Injected first in every system prompt.
-  - `Skills/AGENT.md` (rewritten) — HOW Nia operates: status markers, tool conduct, checkpoint etiquette, mode banners, never-leak-tech-names rules. No identity, no skill narrative.
-  - `Skills/README.md` (NEW) — developer contract: authoring rules, tool tiers, stamp-trio law, marketplace import + security review. Never enters the model context.
-  - `Skills/<id>/SKILL.md` — WHAT to do for one skill: frontmatter + procedure. `references/`, `templates/`, `scripts/`, and per-skill `README.md` are the skill's own supporting files.
-  - System prompt assembly order becomes: SOUL.md → AGENT.md → mode banner → active SKILL.md (or skills index) → resume/style appends.
-- **Nia's persona (draft for SOUL.md — user-facing positioning: "Nia is your personal employee, qualified in content and motion graphics"):**
-
-```markdown
-# SOUL.md — Nia
-
-You are Nia, the user's personal creative employee at OkVevo — a qualified
-motion-graphics and content producer they hired, not a chatbot.
-
-## How you carry yourself
-- Warm, direct, professional — a trusted colleague, never servile, never stiff.
-- You own outcomes. "I'll handle the render and let you know" — not
-  "the system will process your request."
-- Plain language always. The user hires you for results, not internals:
-  never mention tools, models, pipelines, file paths, or vendor names.
-- Proudly show work in progress; narrate briefly what you're doing and why
-  it gets them a better video.
-- Ask only decision-worthy questions (style, language, orientation, brand)
-  — one at a time, with a recommendation. Everything else, decide yourself
-  and mention it.
-- Treat their brand and footage with an editor's care: their colors, their
-  voice, their audience.
-- When something fails, say what happened and what you're doing about it —
-  no jargon, no blame, no dead ends.
-```
-
-- Wired in Phase H alongside the neutral-prompt work; `systemPromptCache` gains SOUL.md in its concat + mtime invalidation.
-
-### I. Frontend + delivery
-
-- **Problem:** `skillReadyMessage.ts` imports exactly 2 manifests; the upload gate hardcodes `edu-video`. The popup showing 3 of 5 skills is INTENTIONAL curation (hyperframes/manim-video are internal building blocks) — but the curation itself is hardcoded in a component instead of declared by the skills.
-- **Mitigation:** a generated `Skills/index.json` (built by the existing check scripts from frontmatter + skill.json) drives ready messages and the `requiresUpload` gate. Curation stays, but moves to data: skills declare `visibility: "listed" | "internal"` in their manifest; `SkillsPopup.tsx` renders listed skills from the index. Same curated UI today; publishing a new user-facing skill becomes a manifest flag instead of a component edit. Ship flow: drop folder → `npm run check:all` validates → rebuild agent image (Skills baked via `COPY Skills ./Skills` — that stays; it IS the drop-in mechanism) → listed skills appear in UI. Zero code edits.
-
-### J. Verification (drop-in guarantee as a permanent test)
-
-- New `checks/dropInSkill.selfcheck.ts`: a fixture skill folder (frontmatter + skill.json with hooks/phases/permissions) must load, expose exactly its allowed tools, dispatch its `JobCompleted` hook, resolve resume with forceToolName, and pass the permission gate — with zero TS changes
-- No-literal grep gate: assert no `edu-video`/`talking-head` strings in harness files (allowlist: `Skills/`, Tier-3 tool implementations, checks fixtures)
-- Keep the async-ownership invariant (job stamped skill A resumes as A after session switched to B); rewrite `falSttIdempotency` selfcheck off edu hardcoding onto the fixture
-- `check:all` script; delete orphaned `dist/chat.js`, `dist/index.js`, `dist/skills/`, `dist/pipelines/edu-video/`
-
-## Execution order
-
-1. Skill format + frontmatter parser (A) — unblocks everything downstream
-2. Manifest schema extensions + permissions block (B, parts of E)
-3. Hook bus (C) — mechanical: move existing inline code onto events, no behavior change
-4. Agent purge + edu-video manifest migration (D) — the bug you hit dies here
-5. Checkpoint/state generalization (E)
-6. Tool registry + tiers (F) and naming/infra (G)
-7. Prompt/disclosure (H) + frontend (I)
-8. Checks + dead-code deletion (J) + Skills/README.md authoring guide
-
-**Phase gate protocol (hard stops — this is the largest refactor in this engagement):**
-
-- Each phase ends with: selfchecks green → a phase report (what was deleted, what was added, which manifest fields absorbed which TS behavior, anything that surprised me) → **STOP for your diff review**. No phase starts on automated gates alone; you approve the diff before I continue.
-- Each phase is one reviewable commit-sized unit; behavior-moving edits (e.g. inline branch → hook bus) are kept mechanical and separate from schema additions within the phase, so the diff reads as moves, not rewrites.
-- Regression bar for every phase: edu-video and talking-head produce identical behavior before/after (existing session fixtures as the eval); any intentional behavior delta is called out explicitly in the phase report, never silently included.
-- Riskiest phases get extra scrutiny flags in their reports: Phase 3 (hook bus — touches the loop's control flow), Phase 4 (agent purge — the resume chain), Phase 5 (HITL engine — checkpoint compatibility with existing pending checkpoints in Firestore, which must still load and answer).
-
-## OkVevo harness rules (documented in Skills/README.md)
-
-`Skills/README.md` is a NEW file at the `Skills/` directory root — a sibling of the existing `Skills/AGENT.md` and `Skills/tool-meta.json`. It is not any skill's own README (e.g. `Skills/manim-video/README.md` stays as manim's internal doc). It lives at the Skills root because it's the cross-skill authoring/import contract: skill authors work in this folder, and it ships inside the Docker image with the packages it governs.
-
-- Stamp trio law: new turn → `session.skillId`; async completion → `job.skillId`; HITL resume → `gate.skillId`
-- Skill packages follow agentskills.io; OkVevo workflow extension via skill.json is optional and declarative-only
-- AWS AgentCore + Vercel AI SDK stack notes: Skills baked into Docker image, webhook re-entry contract, 15-min timeout survival via checkpoints
-
-## Explicitly out of scope (deferred)
-
-Model router/tiers (separate gated plan), sub-agents, MCP/plugin tool loader, sandbox rework, rate limiting, context summarizer, SDK 7 / WorkflowAgent, directory reorg into layer-named folders (optional move-only commit at the very end, if at all — that commit would also relocate skill-owned code parked in shared files: `manimClipBasename.ts` at src top level, the edu segment/GSAP HTML builders inside shared `tools/lib/utils.ts`).
+Skipped: local STATUS generator, SKILL.md cuts, image diet, socket tuning. Add SKILL.md cuts only if a verified cache hit still misses 6s.

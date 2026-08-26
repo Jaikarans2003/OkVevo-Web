@@ -11,7 +11,7 @@ import { nextManimClipBasename } from './manimClipBasename';
 import { draftMetadataFromRenderSnapshot } from './tools/lib/renderSnapshot';
 import { remuxMp4Faststart } from './tools/lib/remuxMp4Faststart';
 import { contentDispositionForStoragePath } from './storageContentDisposition';
-import { skillReadyMessage } from './catalog/manifest';
+import { emitHook } from './hooks/bus';
 
 export { nextFinalVideoBasename } from './finalVideoBasename';
 export { nextManimClipBasename } from './manimClipBasename';
@@ -383,7 +383,6 @@ export async function persistRenderJob(
     renderOutputKey: job.outputKey,
     renderStatus: 'RUNNING',
     renderCompositionUrl: job.compositionUrl,
-    pipelinePhase: 6,
     pipelineStatus: 'rendering',
     pipelineUpdatedAt: FieldValue.serverTimestamp(),
   };
@@ -463,7 +462,6 @@ export async function finalizeRenderFromLocalFile(
       renderStatus: 'SUCCEEDED',
       renderError: FieldValue.delete(),
       draftVideoUrl: videoUrl,
-      pipelinePhase: 7,
       pipelineStatus: 'complete',
       pipelineUpdatedAt: FieldValue.serverTimestamp(),
       // First success only: clear stash so a later scaffold does not attach to this draft.
@@ -472,16 +470,13 @@ export async function finalizeRenderFromLocalFile(
     { merge: true }
   );
 
-  // Surface the finished video in chat — webhook/Check Now used to only write
-  // Firestore fields, so the UI never got an assistant message with the player.
-  try {
-    const text = skillReadyMessage(skillId);
-    await saveMessage(sessionId, userId, 'assistant', text, [
-      { type: 'text', text },
-    ], { videoUrl });
-  } catch (err) {
-    console.error('[finalize] failed to post draft video chat message:', err);
-  }
+  // Ready-message chat post lives in the RenderCompleted handler (hooks/handlers.ts).
+  await emitHook('RenderCompleted', {
+    sessionId,
+    userId,
+    skillId: skillId ?? null,
+    videoUrl,
+  });
 
   return videoUrl;
 }
@@ -647,6 +642,7 @@ export async function recordRenderFailure(
     },
     { merge: true }
   );
+  await emitHook('RenderFailed', { sessionId, userId, status, error });
 }
 
 /** Create-once dedup for HeyGen webhook deliveries. Returns false if already claimed. */

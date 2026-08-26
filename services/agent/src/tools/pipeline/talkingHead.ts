@@ -22,7 +22,7 @@ import { resolveCompositionDuration } from '../lib/resolveCompositionDuration';
 import {
   formatDuration,
   getSessionOrientation,
-  getSessionTalkingHeadStyle,
+  getSessionActiveStyleSeed,
   getSessionVideoUrl,
   persistOrientation,
   persistScaffoldRun,
@@ -621,9 +621,12 @@ async function runScaffoldTalkingHead(
   const storyboard = loadStoryboard(workdir);
   const defaultLayout = storyboard.layout ?? 'split';
   const layouts = loadTalkingHeadLayouts();
-  const { style: sessionStyle } = await getSessionTalkingHeadStyle(ctx.sessionId);
+  const sessionStyle = (await getSessionActiveStyleSeed(ctx.sessionId)) ?? 'minimal';
 
-  const skillId = ctx.skillName || 'talking-head';
+  if (!ctx.skillName) {
+    throw new Error('scaffold_talking_head_project requires an active skill');
+  }
+  const skillId = ctx.skillName;
   const runId = newScaffoldRunId();
   const { parentRunId } = await persistScaffoldRun(ctx.sessionId, runId, skillId);
   writeScaffoldRunStamp(workdir, { skillId, runId });

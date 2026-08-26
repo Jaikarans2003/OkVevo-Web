@@ -1,0 +1,30 @@
+{
+  "id": "__drop-in__",
+  "version": 1,
+  "readyMessage": "Drop-in fixture is ready.",
+  "triggers": ["__drop-in__", "/__drop-in__"],
+  "visibility": "internal",
+  "requiresUpload": false,
+  "permissions": {
+    "allow": ["read_file", "run_command(echo:*)", "transcribe_video"],
+    "deny": ["run_command(curl:*)"],
+    "ask": ["write_file"]
+  },
+  "hooks": {
+    "transcript_ready": {
+      "continuePrompt": "Drop-in job finished. Continue with transcribe_video.",
+      "askPhaseKey": "heard"
+    }
+  },
+  "phases": {
+    "heard": {
+      "label": "Heard",
+      "completedPhase": "transcription",
+      "kind": "approval",
+      "resume": {
+        "approve": "\n- Transcript is durable. Continue with transcribe_video.\n- Do NOT call transcribe_video again unless the user explicitly asks to re-transcribe.",
+        "forceToolName": "transcribe_video"
+      }
+    }
+  }
+}

@@ -13,20 +13,10 @@ import {
   resolveToolPath,
   sanitizedShellEnv,
 } from '../lib/utils';
-import { assertManimMaxVisible, isManimScriptPath } from '../lib/manimGuard';
 import { pickStrReplacePair } from '../lib/strReplaceDecode';
-import {
-  isHfProjectPath,
-  oldStringNotFoundError,
-  syncHfProjectFileAfterEdit,
-} from '../lib/hfProjectSync';
-import {
-  commandTargetsOwnedEditFile,
-  OWNED_EDIT_SHELL_STDERR,
-} from '../lib/ownedEditFiles';
-import { uploadFileToStorageKeepLocal, walkDir } from '../../storage';
+import { oldStringNotFoundError } from '../lib/hfProjectSync';
+import { walkDir } from '../../storage';
 import type { ResolvedTaggedAsset } from '../../taggedAssets';
-import { getCommandPolicy } from '../../catalog/manifest';
 
 async function ensurePathArtifacts(
   ctx: {
@@ -44,30 +34,6 @@ async function ensurePathArtifacts(
   );
   if (needs.length === 0) return;
   await ensureSessionArtifacts(ctx.userId, ctx.sessionId, needs);
-}
-
-export function referencesProcEnviron(command: string): boolean {
-  return /\/proc\/[^/\s'"]+\/environ\b/.test(command);
-}
-
-/** First argv token or known binary name for command-prefix policy. */
-export function commandBinaryToken(command: string): string {
-  const trimmed = command.trim();
-  if (!trimmed) return '';
-  // Strip env assignments: FOO=bar ffmpeg ...
-  const withoutEnv = trimmed.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, '');
-  const token = withoutEnv.split(/\s+/)[0] ?? '';
-  return path.basename(token.replace(/^['"]|['"]$/g, ''));
-}
-
-export function commandAllowedBySkillPrefixes(
-  command: string,
-  prefixes: readonly string[] | undefined
-): boolean {
-  if (!prefixes) return true;
-  if (prefixes.length === 0) return false;
-  const binary = commandBinaryToken(command);
-  return prefixes.includes(binary);
 }
 
 export function createFilesystemTools(ctx: {
@@ -97,31 +63,8 @@ Returns stdout, stderr, and exit code.`,
           .describe('Max seconds to wait. Default 300. Use 600 for Manim/HyperFrames renders.'),
       }),
       execute: async ({ command, timeout_seconds }) => {
-        // ponytail: string guard blocks the known root-container escape; use a separate uid for full isolation.
-        if (referencesProcEnviron(command)) {
-          return {
-            stdout: '',
-            stderr: 'Reading process environments is not allowed.',
-            exit_code: 1,
-            success: false,
-          };
-        }
-        if (commandTargetsOwnedEditFile(command)) {
-          return {
-            stdout: '',
-            stderr: OWNED_EDIT_SHELL_STDERR,
-            exit_code: 1,
-            success: false,
-          };
-        }
-        if (!commandAllowedBySkillPrefixes(command, getCommandPolicy(ctx.skillName))) {
-          return {
-            stdout: '',
-            stderr: `Command not allowed for skill "${ctx.skillName}".`,
-            exit_code: 1,
-            success: false,
-          };
-        }
+        // Floor denies (/proc/environ, owned-edit paths) and skill permission
+        // matchers are enforced by the PreToolUse gate in tools/index.ts.
         const referenced = (ctx.taggedArtifacts ?? []).filter((artifact) =>
           command.includes(artifact.localPath)
         );
@@ -159,34 +102,13 @@ Paths are relative to the session work directory unless absolute.`,
           await ensurePathArtifacts(ctx, resolved);
         }
 
-        if (isManimScriptPath(resolved)) {
-          const maxVisibleError = assertManimMaxVisible(content);
-          if (maxVisibleError) {
-            return { error: maxVisibleError, path: resolved };
-          }
-        }
-
         fs.mkdirSync(path.dirname(resolved), { recursive: true });
         fs.writeFileSync(resolved, content, 'utf-8');
 
-        const result: {
-          path: string;
-          bytes_written: number;
-          sync_warning?: string;
-        } = {
+        return {
           path: resolved,
           bytes_written: Buffer.byteLength(content, 'utf-8'),
         };
-        if (isHfProjectPath(resolved)) {
-          const sync = await syncHfProjectFileAfterEdit(
-            ctx.userId,
-            ctx.sessionId,
-            resolved,
-            uploadFileToStorageKeepLocal
-          );
-          if (sync?.warning) result.sync_warning = sync.warning;
-        }
-        return result;
       },
     }),
 
@@ -396,33 +318,12 @@ Paths are relative to the session work directory unless absolute.`,
 
           const updated = content.replace(picked.old_string, picked.new_string);
 
-          if (isManimScriptPath(resolved)) {
-            const maxVisibleError = assertManimMaxVisible(updated);
-            if (maxVisibleError) {
-              return { error: maxVisibleError, path: resolved };
-            }
-          }
-
           fs.writeFileSync(resolved, updated, 'utf-8');
 
-          const result: {
-            path: string;
-            bytes_written: number;
-            sync_warning?: string;
-          } = {
+          return {
             path: resolved,
             bytes_written: Buffer.byteLength(updated, 'utf-8'),
           };
-          if (isHfProjectPath(resolved)) {
-            const sync = await syncHfProjectFileAfterEdit(
-              ctx.userId,
-              ctx.sessionId,
-              resolved,
-              uploadFileToStorageKeepLocal
-            );
-            if (sync?.warning) result.sync_warning = sync.warning;
-          }
-          return result;
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           return { error: message, path: resolved };

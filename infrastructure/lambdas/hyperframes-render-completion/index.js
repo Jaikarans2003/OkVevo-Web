@@ -70,7 +70,7 @@ function draftMetadataFromRenderSnapshot(snap) {
 
 export function parseOutputKey(key) {
   const match =
-    /^renders\/users\/([^/]+)\/sessions\/([^/]+)\/((?:final(?:_\d+)?|draft_video|(?:edu-video|talking-head)(?:_\d+)?)\.mp4)$/.exec(
+    /^renders\/users\/([^/]+)\/sessions\/([^/]+)\/((?:draft_video|[a-z0-9-]+(?:_\d+)?)\.mp4)$/.exec(
       key
     );
   if (!match) throw new Error('Unexpected render output key');
@@ -169,7 +169,6 @@ async function completeSuccessfulRender(userId, sessionId, s3Location, basename)
       renderStatus: 'SUCCEEDED',
       renderError: FieldValue.delete(),
       draftVideoUrl: videoUrl,
-      pipelinePhase: 7,
       pipelineStatus: 'complete',
       pipelineUpdatedAt: FieldValue.serverTimestamp(),
       // First success only: clear stash so a later scaffold does not attach to this draft.

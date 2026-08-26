@@ -1,5 +1,7 @@
 /** Ask/auto transcription language: English (Groq) or Auto-detect (Fal Scribe). */
 
+import { shouldPause } from '../../autonomy';
+
 export type TranscriptionLanguageChoice = 'en' | 'auto';
 
 export const TRANSCRIPTION_LANGUAGE_CHOICES: {
@@ -29,13 +31,13 @@ export function pinnedLanguageFromRequest(
   return undefined;
 }
 
-/** Resolve session/auto-run language: missing → auto. */
+/** Resolve session/auto-run language: missing → skill default via caller, else auto. */
 export function resolveRequestedLanguage(
   requested: string | undefined,
   pipelineMode: 'ask' | 'auto'
 ): TranscriptionLanguageChoice {
   if (requested === 'en' || requested === 'auto') return requested;
-  if (pipelineMode === 'auto') return 'auto';
+  if (!shouldPause(pipelineMode)) return 'auto';
   // Ask without persist should ask first; callers gate on missing.
   return 'auto';
 }

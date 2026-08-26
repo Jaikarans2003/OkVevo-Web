@@ -61,7 +61,11 @@ service cloud.firestore {
 
     // —— Owner-scoped (preferred) ——
     match /sessions/{sessionId} {
-      allow read, update: if request.auth != null
+      // resource == null: client onSnapshot attaches before Admin create returns
+      allow read: if request.auth != null && (
+        resource == null || resource.data.userId == request.auth.uid
+      );
+      allow update: if request.auth != null
         && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
@@ -69,6 +73,14 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if request.auth != null
           && get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid;
+      }
+      match /runs/{runId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid;
+        match /events/{eventId} {
+          allow read: if request.auth != null
+            && get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid;
+        }
       }
     }
 

@@ -17,8 +17,11 @@ import {
   getSessionPipelineFields,
   getSessionRequestedLanguage,
   loadCheckpoint,
-  writeAskCheckpoint,
+  missingConfirmedFields,
+  writeAskFromPhase,
 } from '../../checkpoint';
+import { shouldPause, resolveAutoField } from '../../autonomy';
+import { hasSkillManifest, loadSkillManifest, lookupPhase } from '../../catalog/manifest';
 import { assertTaggedUrlAllowed } from '../../taggedAssets';
 import type { ToolCtx } from '../index';
 import {
@@ -465,36 +468,48 @@ export function createTranscribeTools(ctx: ToolCtx) {
 
           // Ask-mode: language choice before extract (session field, not awaiting_user).
           const storedLanguage = await getSessionRequestedLanguage(ctx.sessionId);
-          if (ctx.pipelineMode === 'ask' && !storedLanguage) {
-            const written = await writeAskCheckpoint(
-              {
-                sessionId: ctx.sessionId,
-                userId: ctx.userId,
-                skillName: ctx.skillName,
-                pipelineMode: ctx.pipelineMode,
-              },
-              {
-                kind: 'single_select',
-                phase_label: 'Transcription language',
-                completedPhase: 'transcription',
-                phaseKey: 'transcription-language',
-                question: 'Choose language you require captions in.',
-                choices: TRANSCRIPTION_LANGUAGE_CHOICES,
-                allowFreeform: false,
-              }
-            );
-            return {
-              haltTurn: true as const,
-              checkpointId: written.checkpointId,
-              checkpointDisplay: written.checkpointDisplay,
-              transcription_language_paused: true,
-            };
+          const languageMissing = (
+            await missingConfirmedFields(ctx.sessionId, ['language'])
+          ).includes('language');
+          if (shouldPause(ctx.pipelineMode) && languageMissing) {
+            const found =
+              ctx.skillName && hasSkillManifest(ctx.skillName)
+                ? lookupPhase(ctx.skillName, { phaseKey: 'transcription-language' })
+                : null;
+            if (found) {
+              const written = await writeAskFromPhase(
+                {
+                  sessionId: ctx.sessionId,
+                  userId: ctx.userId,
+                  skillName: ctx.skillName,
+                  pipelineMode: ctx.pipelineMode,
+                },
+                found.phase,
+                found.phaseKey
+              );
+              return {
+                haltTurn: true as const,
+                checkpointId: written.checkpointId,
+                checkpointDisplay: written.checkpointDisplay,
+                transcription_language_paused: true,
+              };
+            }
           }
 
-          const requestedLanguage = resolveRequestedLanguage(
-            storedLanguage,
-            ctx.pipelineMode
+          const langManifest =
+            ctx.skillName && hasSkillManifest(ctx.skillName)
+              ? loadSkillManifest(ctx.skillName)
+              : {};
+          const langResolved = resolveAutoField(
+            langManifest,
+            'language',
+            storedLanguage
           );
+          const requestedLanguage =
+            'value' in langResolved &&
+            (langResolved.value === 'en' || langResolved.value === 'auto')
+              ? langResolved.value
+              : resolveRequestedLanguage(storedLanguage, ctx.pipelineMode);
 
           // Auto-detect → Fal Scribe v2 (webhook queue, no poll).
           if (requestedLanguage === 'auto') {
@@ -791,31 +806,31 @@ export function createTranscribeTools(ctx: ToolCtx) {
             } catch (err: unknown) {
               failReason = err instanceof Error ? err.message : String(err);
 
-              if (ctx.pipelineMode === 'ask') {
+              const pausedPhase =
+                shouldPause(ctx.pipelineMode) &&
+                ctx.skillName &&
+                hasSkillManifest(ctx.skillName)
+                  ? lookupPhase(ctx.skillName, { phaseKey: 'transcription-paused' })
+                  : null;
+              if (pausedPhase) {
                 const failedChunk = {
                   index: plan.index,
                   startOffsetSeconds: plan.startOffsetSeconds,
                   durationSeconds: plan.durationSeconds,
                   reason: failReason.slice(0, 500),
                 };
-                const written = await writeAskCheckpoint(
+                const written = await writeAskFromPhase(
                   {
                     sessionId: ctx.sessionId,
                     userId: ctx.userId,
                     skillName: ctx.skillName,
                     pipelineMode: ctx.pipelineMode,
                   },
+                  pausedPhase.phase,
+                  pausedPhase.phaseKey,
                   {
-                    kind: 'single_select',
-                    phase_label: 'Transcription paused',
                     question: `Chunk ${plan.index + 1}/${planned.length} failed (${formatDuration(plan.startOffsetSeconds)}–${formatDuration(plan.startOffsetSeconds + plan.durationSeconds)}). Retry, continue with a gap, or abort?`,
-                    context: failReason.slice(0, 300),
-                    choices: [
-                      { id: 'retry', label: 'Retry this chunk' },
-                      { id: 'continue', label: 'Continue with gap' },
-                      { id: 'abort', label: 'Abort transcription' },
-                    ],
-                    allowFreeform: false,
+                    bullets: [failReason.slice(0, 300)],
                   }
                 );
                 await writeTranscriptionProgress(ctx.sessionId, {

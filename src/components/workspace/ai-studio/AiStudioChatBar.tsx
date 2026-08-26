@@ -212,6 +212,7 @@ export function AiStudioChatBar({
   setSelectedModel,
   status,
   isPreparingSend = false,
+  durableLive = false,
   onSubmit,
   disabled = false,
   onPlusClick,
@@ -235,6 +236,7 @@ export function AiStudioChatBar({
   setSelectedModel: (value: string) => void;
   status: 'ready' | 'submitted' | 'streaming' | 'error';
   isPreparingSend?: boolean;
+  durableLive?: boolean;
   onSubmit: () => void;
   disabled?: boolean;
   onPlusClick?: () => void;
@@ -253,7 +255,7 @@ export function AiStudioChatBar({
 }) {
   const isHero = variant === 'hero';
   const sending =
-    isPreparingSend || status === 'submitted' || status === 'streaming';
+    isPreparingSend || status === 'submitted' || status === 'streaming' || durableLive;
   const [modelOpen, setModelOpen] = useState(false);
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);

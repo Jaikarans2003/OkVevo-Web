@@ -2,11 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { FieldValue } from 'firebase-admin/firestore';
 import { injectCheckpointPart } from './agent';
+import { shouldPause } from './autonomy';
 import { getSessionPipelineFields } from './checkpoint';
 import { falQueueResult, falQueueStatus } from './falQueue';
 import { clearPendingFalJob, readPendingFalJob, type PendingFalJob } from './pendingFalJob';
 import {
   falSttDeliveryAction,
+  hasPendingFalSttWork,
   progressUpdatedAtMs,
   resolveWakeClaim,
   shouldEscalateFalSttShortCircuit,
@@ -25,12 +27,13 @@ import { normalizeElevenLabsTranscript } from './tools/lib/normalizeElevenLabsTr
 import { sanitizeTranscriptWords } from './tools/lib/transcriptSanitize';
 import {
   clearTranscriptionProgress,
+  parseTranscriptionProgress,
   readTranscriptionProgress,
   writeTranscriptionProgress,
   type TranscriptionProgress,
 } from './tools/lib/transcriptionProgress';
 import { getSessionWorkdir } from './tools/lib/utils';
-import { dispatchHook } from './hooks/dispatch';
+import { emitJobCompleted } from './hooks/dispatch';
 
 const STILL_PROCESSING_TEXT =
   'Transcription still processing — results arrive automatically; I will update this thread when ready.';
@@ -92,7 +95,8 @@ async function runTranscriptHook(
 ) {
   const job = await requireStampedJob(sessionId);
   if (!continueOnly) {
-    return dispatchHook('on_transcript_ready', {
+    return emitJobCompleted({
+      eventName: 'transcript_ready',
       job,
       sessionId,
       userId,
@@ -102,7 +106,8 @@ async function runTranscriptHook(
   let lastErr: unknown;
   for (let attempt = 0; attempt < RESUME_RETRIES; attempt++) {
     try {
-      return await dispatchHook('on_transcript_ready', {
+      return await emitJobCompleted({
+        eventName: 'transcript_ready',
         job,
         sessionId,
         userId,
@@ -172,7 +177,7 @@ export async function handOffAfterFalStt(opts: {
 }): Promise<{ status: 'ask_checkpoint' | 'auto_continued' | 'auto_pending'; message: string }> {
   const { sessionId, userId, pipelineMode } = opts;
 
-  if (pipelineMode === 'ask') {
+  if (shouldPause(pipelineMode)) {
     try {
       const result = await runTranscriptHook(sessionId, userId, pipelineMode);
       if (result.status === 'ask_checkpoint') {
@@ -211,7 +216,13 @@ export async function handOffAfterFalStt(opts: {
   ]);
   await patchProgress(sessionId, { falSttResumePending: true });
   try {
-    await runTranscriptHook(sessionId, userId, pipelineMode, true);
+    const result = await runTranscriptHook(sessionId, userId, pipelineMode, true);
+    if (result.status === 'queued') {
+      return {
+        status: 'auto_pending',
+        message: `fal_stt auto continue queued for session ${sessionId}`,
+      };
+    }
     await patchProgress(sessionId, { falSttResumePending: false });
     await clearPendingFalJob(sessionId);
     return {
@@ -292,6 +303,33 @@ export async function finalizeFalSttFromPayload(opts: {
   return claimAndHandOff({ sessionId, userId, pipelineMode });
 }
 
+const resumeInFlight = new Set<string>();
+
+/**
+ * One session-doc read; skip recover/resume/short-circuit when nothing is pending.
+ * Preserves recover → resume → short-circuit order when work remains.
+ * @returns assistant text when the invoke should skip runAgent; else null.
+ */
+export async function runFalSttEntryGates(
+  sessionId: string,
+  userId: string,
+  pipelineMode?: 'ask' | 'auto'
+): Promise<string | null> {
+  const snap = await db.collection('sessions').doc(sessionId).get();
+  const data = snap.data();
+  const mode: 'ask' | 'auto' =
+    pipelineMode === 'auto' || pipelineMode === 'ask'
+      ? pipelineMode
+      : data?.pipelineMode === 'auto'
+        ? 'auto'
+        : 'ask';
+  const progress = parseTranscriptionProgress(data?.transcriptionProgress);
+  if (!hasPendingFalSttWork(progress)) return null;
+  await tryRecoverFalSttFinalize(sessionId, userId);
+  await tryResumeFalSttPending(sessionId, userId, mode);
+  return tryShortCircuitFalSttPending(sessionId, userId);
+}
+
 /** Auto-only: entry gate when falSttResumePending after a failed inline resume. */
 export async function tryResumeFalSttPending(
   sessionId: string,
@@ -301,11 +339,18 @@ export async function tryResumeFalSttPending(
   if (pipelineMode !== 'auto') return;
   const progress = await readTranscriptionProgress(sessionId);
   if (!progress?.falSttResumePending) return;
+  // ponytail: process-local in-flight; Firestore claim like wake if two agent replicas share a session.
+  if (resumeInFlight.has(sessionId)) return;
+  resumeInFlight.add(sessionId);
   try {
-    await runTranscriptHook(sessionId, userId, pipelineMode, true);
-    await patchProgress(sessionId, { falSttResumePending: false });
+    const result = await runTranscriptHook(sessionId, userId, pipelineMode, true);
+    if (result.status !== 'queued') {
+      await patchProgress(sessionId, { falSttResumePending: false });
+    }
   } catch (err) {
     console.error('[falStt] entry gate resume failed', sessionId, err);
+  } finally {
+    resumeInFlight.delete(sessionId);
   }
 }
 
@@ -531,16 +576,6 @@ export async function deliverFalStt(
       });
     }
     return `fal_stt noop for session ${sessionId}`;
-  }
-  if (action === 'resume_only') {
-    try {
-      await runTranscriptHook(sessionId, userId, pipelineMode, true);
-      await patchProgress(sessionId, { falSttResumePending: false });
-    } catch (err) {
-      console.error('[falStt] resume-only failed', sessionId, err);
-    }
-    await clearPendingFalJob(sessionId);
-    return `fal_stt resume-only for session ${sessionId}`;
   }
   if (action === 'wake_only') {
     const result = await claimAndHandOff({

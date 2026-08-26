@@ -1,6 +1,8 @@
+import { after } from 'next/server';
 import {
   invokeAgentCoreStream,
   isAgentCoreBackend,
+  warmupAgentCore,
 } from '@/lib/agent/agentcore';
 import { getBearerToken } from '@/lib/agent/verifySessionAccess';
 import {
@@ -124,47 +126,24 @@ async function handleAgentCore(
     checkpointAnswer: body.checkpointAnswer,
   });
 
-  // AgentCore often surfaces container JSON errors as a 200 body — peek first chunk.
   const reader = stream.getReader();
-  const first = await reader.read();
-  if (first.value) {
-    const preview = new TextDecoder().decode(first.value).trimStart();
-    if (preview.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(preview) as {
-          error?: string;
-          sessionId?: string;
-          estimatedTokens?: number;
-        };
-        if (parsed.error === 'session_limit_reached') {
-          await reader.cancel().catch(() => undefined);
-          return Response.json(parsed, {
-            status: 413,
-            headers: corsHeaders(req),
-          });
-        }
-      } catch {
-        // Partial / non-JSON SSE — fall through and re-stream.
-      }
-    }
-  }
-
-  const rebuilt = new ReadableStream<Uint8Array>({
+  const proxied = new ReadableStream<Uint8Array>({
     async start(controller) {
-      if (first.value) controller.enqueue(first.value);
-      if (first.done) {
-        controller.close();
-        return;
-      }
       try {
-        while (true) {
+        for (;;) {
           const { value, done } = await reader.read();
           if (done) break;
           if (value) controller.enqueue(value);
         }
         controller.close();
       } catch (err) {
-        controller.error(err);
+        // controller.error surfaces as useChat "Failed to fetch" even when
+        // soft-ask chunks already rendered. Close after logging instead.
+        console.error('[api/agent] AgentCore stream proxy failed', {
+          sessionId,
+          err,
+        });
+        controller.close();
       }
     },
     cancel() {
@@ -172,7 +151,7 @@ async function handleAgentCore(
     },
   });
 
-  return new Response(rebuilt, {
+  return new Response(proxied, {
     status: 200,
     headers: sseHeaders(req),
   });
@@ -255,7 +234,18 @@ export async function POST(req: Request) {
     }
     const rawBody = (await req.json()) as ChatRequestBody & {
       taggedAssets?: unknown;
+      action?: string;
     };
+    if (rawBody.action === 'warmup') {
+      if (isAgentCoreBackend()) {
+        after(() =>
+          warmupAgentCore(userIdOrError).catch((err) =>
+            console.warn('[agentcore] warmup failed', err)
+          )
+        );
+      }
+      return new Response(null, { status: 204, headers: corsHeaders(req) });
+    }
     const body: ChatRequestBody = {
       ...rawBody,
       taggedAssets: sanitizeTaggedAssets(rawBody.taggedAssets),

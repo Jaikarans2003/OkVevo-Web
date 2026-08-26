@@ -13,7 +13,7 @@ import {
 } from '@/components/workspace/ai-studio/AiStudioChatBar';
 import { AiStudioHeroExtras } from '@/components/workspace/ai-studio/AiStudioHeroExtras';
 import { AiStudioProjectLoader } from '@/components/workspace/ai-studio/AiStudioProjectLoader';
-import { AiStudioTimeline } from '@/components/workspace/ai-studio/AiStudioTimeline';
+import { AiStudioTimeline, type TimelineMessage } from '@/components/workspace/ai-studio/AiStudioTimeline';
 import { useAiStudioWorkspace } from '@/components/workspace/ai-studio/AiStudioWorkspaceProvider';
 import {
   AI_STUDIO_CHAT_COLUMN,
@@ -32,9 +32,18 @@ import { auth, storage } from '@/config/firebase';
 import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineState } from '@/hooks/usePipelineState';
+import { streamRunEventsFromFirestore } from '@/lib/agent/firestoreRunSse';
+import { guardSessionLimitResponse } from '@/lib/agent/sessionLimitResponse';
+import {
+  logAgentPostTtfb,
+  logStudioReconnectPath,
+  markStudio,
+  measureStudio,
+  tapUiSseDeltas,
+} from '@/lib/agent/studioPerf';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { hasAssetMention, type TaggedAsset } from '@/lib/agent/taggedAssets';
-import { skillReadyMessage } from '@/lib/agent/skillReadyMessage';
+import { skillLabel, skillReadyMessage, skillRequiresUpload } from '@/lib/agent/skillReadyMessage';
 import {
   UPLOADED_PHOTO_PREFIX,
   UPLOADED_VIDEO_PREFIX,
@@ -57,43 +66,36 @@ interface AiStudioShellProps {
   userId: string;
 }
 
-async function fetchSessionMessages(sessionId: string) {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) {
-    throw new Error('Not authenticated');
-  }
+type SessionMessageRow = {
+  id?: string;
+  role: string;
+  content: string;
+  parts?: Array<{
+    type: string;
+    text?: string;
+    toolName?: string;
+    state?: string;
+    input?: unknown;
+    output?: unknown;
+    errorText?: string;
+    toolCallId?: string;
+  }>;
+  createdAt?: string | null;
+  videoUrl?: string;
+  videoName?: string;
+  imageUrl?: string;
+  taggedAssets?: TaggedAsset[];
+};
 
-  const response = await fetch(`/api/agent/sessions/${sessionId}`, {
-    cache: 'no-store',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+type SessionSnapshot = {
+  messages: UIMessage[];
+  lastSeq: number | null;
+  activeRunId: string | null;
+};
 
-  if (!response.ok) {
-    throw new Error('Failed to load session messages');
-  }
-
-  const data = (await response.json()) as {
-    role: string;
-    content: string;
-    parts?: Array<{
-      type: string;
-      text?: string;
-      toolName?: string;
-      state?: string;
-      input?: unknown;
-      output?: unknown;
-      errorText?: string;
-      toolCallId?: string;
-    }>;
-    createdAt?: string | null;
-    videoUrl?: string;
-    videoName?: string;
-    imageUrl?: string;
-    taggedAssets?: TaggedAsset[];
-  }[];
-
-  return data.map((msg, index) => ({
-    id: `${sessionId}-${index}`,
+function mapSessionRows(sessionId: string, rows: SessionMessageRow[]): UIMessage[] {
+  return rows.map((msg, index) => ({
+    id: typeof msg.id === 'string' && msg.id ? msg.id : `${sessionId}-${index}`,
     role: msg.role as 'user' | 'assistant',
     parts:
       msg.parts && msg.parts.length > 0
@@ -109,13 +111,61 @@ async function fetchSessionMessages(sessionId: string) {
   }));
 }
 
-async function fetchSessionAssets(sessionId: string): Promise<SessionAsset[]> {
+async function fetchSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`/api/agent/sessions/${sessionId}`, {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to load session messages');
+  }
+
+  const payload = (await response.json()) as
+    | SessionMessageRow[]
+    | {
+        messages: SessionMessageRow[];
+        lastSeq?: number | null;
+        activeRunId?: string | null;
+      };
+
+  const rows = Array.isArray(payload) ? payload : payload.messages;
+  return {
+    messages: mapSessionRows(sessionId, rows ?? []),
+    lastSeq: Array.isArray(payload)
+      ? null
+      : typeof payload.lastSeq === 'number'
+        ? payload.lastSeq
+        : null,
+    activeRunId: Array.isArray(payload)
+      ? null
+      : typeof payload.activeRunId === 'string'
+        ? payload.activeRunId
+        : null,
+  };
+}
+
+async function fetchSessionMessages(sessionId: string): Promise<UIMessage[]> {
+  return (await fetchSessionSnapshot(sessionId)).messages;
+}
+
+async function fetchSessionAssets(
+  sessionId: string,
+  signal?: AbortSignal
+): Promise<SessionAsset[]> {
   const token = await auth.currentUser?.getIdToken();
   if (!token) return [];
   const response = await fetch(`/api/agent/sessions/${sessionId}/assets`, {
     cache: 'no-store',
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   });
+  if (response.status === 404) return [];
   if (!response.ok) throw new Error('Failed to load session assets');
   return (await response.json()) as SessionAsset[];
 }
@@ -253,6 +303,11 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
   const chatIdRef = useRef(chatId);
   const skipFetchRef = useRef(false);
   const loadedSessionRef = useRef<string | null>(null);
+  const streamCursorRef = useRef<number>(0);
+  const resumeKeyRef = useRef<string | null>(null);
+  const resumeBackoffRef = useRef(0);
+  const activeRunIdRef = useRef<string | null>(null);
+  const [resumeNonce, setResumeNonce] = useState(0);
   const [sessionReady, setSessionReady] = useState(false);
   const wasFirstMessageRef = useRef(false);
   const draftTaggedAssetsRef = useRef<TaggedAsset[]>([]);
@@ -308,6 +363,19 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     () =>
       new DefaultChatTransport({
         api: AGENT_API,
+        // Durable replay is a Next/Firestore route — always same-origin. Cloud Run
+        // AGENT_API_ORIGIN is only for chat POST (Hosting SSE buffering).
+        prepareReconnectToStreamRequest: ({ id, headers }) => {
+          const after = streamCursorRef.current;
+          const qs =
+            typeof after === 'number' && Number.isFinite(after)
+              ? `?after=${after}`
+              : '';
+          return {
+            api: `/api/agent/sessions/${id}/stream${qs}`,
+            headers,
+          };
+        },
         headers: async (): Promise<Record<string, string>> => {
           const token = await auth.currentUser?.getIdToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
@@ -333,48 +401,195 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           };
         },
         fetch: async (input, init) => {
-          const response = await globalThis.fetch(input, init);
-          const warn = response.headers.get('x-okvevo-session-token-warning');
-          if (warn === '1') {
-            const n = Number(response.headers.get('x-okvevo-estimated-tokens'));
-            if (Number.isFinite(n)) setSessionTokenWarning(n);
-          }
-          if (response.status === 413) {
+          const url =
+            typeof input === 'string'
+              ? input
+              : input instanceof URL
+                ? input.href
+                : input.url;
+          if (url.includes('/stream') && activeRunIdRef.current) {
             try {
-              const data = (await response.clone().json()) as {
-                error?: string;
-                estimatedTokens?: number;
-              };
-              if (data.error === 'session_limit_reached') {
-                setSessionLimitTokens(
-                  typeof data.estimatedTokens === 'number'
-                    ? data.estimatedTokens
-                    : null
-                );
-                setSessionLimitOpen(true);
-              }
-            } catch {
-              // non-JSON 413 — still open modal as best-effort
-              setSessionLimitOpen(true);
+              const afterRaw = new URL(url, 'http://local').searchParams.get('after');
+              const afterSeq = Number.parseInt(afterRaw ?? '0', 10);
+              logStudioReconnectPath('firestore');
+              return streamRunEventsFromFirestore({
+                sessionId: chatIdRef.current,
+                runId: activeRunIdRef.current,
+                afterSeq: Number.isFinite(afterSeq) ? afterSeq : 0,
+                signal: init?.signal ?? undefined,
+              });
+            } catch (err) {
+              console.error('[agent] firestore stream failed, using /stream', err);
             }
           }
-          return response;
+          const response = await globalThis.fetch(input, init);
+          const bodyText =
+            typeof init?.body === 'string' ? init.body : '';
+          const isWarmup = bodyText.includes('"action":"warmup"');
+          if (!isWarmup) {
+            logAgentPostTtfb(url);
+          }
+          const isChatPost =
+            !isWarmup &&
+            url.includes('/api/agent') &&
+            !url.includes('/sessions');
+          const guarded =
+            response.status === 413 || isChatPost
+              ? await guardSessionLimitResponse(response)
+              : { limit: null, response };
+          if (guarded.limit) {
+            setSessionLimitTokens(guarded.limit.estimatedTokens);
+            setSessionLimitOpen(true);
+            return guarded.response;
+          }
+          const live = guarded.response;
+          const warn = live.headers.get('x-okvevo-session-token-warning');
+          if (warn === '1') {
+            const n = Number(live.headers.get('x-okvevo-estimated-tokens'));
+            if (Number.isFinite(n)) setSessionTokenWarning(n);
+          }
+          if (url.includes('/stream')) {
+            logStudioReconnectPath('poll');
+            return tapUiSseDeltas(live, 'reconnect-poll');
+          }
+          if (isChatPost) {
+            return tapUiSseDeltas(live, 'live-post');
+          }
+          return live;
         },
       }),
     [chatId]
   );
 
-  const { messages, sendMessage, status, error, setMessages } = useChat({
-    transport,
-    id: chatId,
-  });
+  const { messages, sendMessage, status, error, setMessages, resumeStream, clearError, stop } =
+    useChat({
+      transport,
+      id: chatId,
+    });
   // After useChat so we can wake pipeline poll on submitted/streaming (cold idle → render).
-  const pipelineState = usePipelineState(
-    sessionReady ? activeSessionId : null,
-    status
-  );
+  const pipelineState = usePipelineState(activeSessionId, status);
   pipelineSkillIdRef.current = pipelineState?.skillId;
+  activeRunIdRef.current = pipelineState?.activeRunId ?? null;
   messagesRef.current = messages;
+
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+
+  useEffect(() => {
+    resumeKeyRef.current = null;
+    streamCursorRef.current = 0;
+    resumeBackoffRef.current = 0;
+    loadedSessionRef.current = null;
+    const stopThis = stopRef.current;
+    return () => {
+      void stopThis();
+    };
+  }, [chatId]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        void fetch('/api/agent', {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ action: 'warmup' }),
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
+    })();
+  }, [userId]);
+
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (status === 'submitted') {
+      markStudio('useChat-submitted');
+      measureStudio('click-to-submitted', 'send-click', 'useChat-submitted');
+    } else if (status === 'streaming') {
+      markStudio('useChat-streaming');
+      measureStudio('click-to-streaming', 'send-click', 'useChat-streaming');
+    }
+    if (
+      (prev === 'streaming' || prev === 'submitted') &&
+      (status === 'ready' || status === 'error')
+    ) {
+      resumeKeyRef.current = null;
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!sessionReady || !activeSessionId) return;
+    if (status === 'submitted' || status === 'streaming') return;
+    const runId = pipelineState?.activeRunId;
+    if (typeof runId !== 'string' || !runId) return;
+    const key = `${activeSessionId}:${runId}`;
+    if (resumeKeyRef.current === key) return;
+    if (status === 'error') clearError();
+    resumeKeyRef.current = key;
+    const lastSeqFallback =
+      typeof pipelineState?.lastSeq === 'number' ? pipelineState.lastSeq : 0;
+    void (async () => {
+      try {
+        markStudio('reconnect-snapshot-start');
+        const snap = await fetchSessionSnapshot(activeSessionId);
+        markStudio('reconnect-snapshot-bytes');
+        if (chatIdRef.current !== activeSessionId) return;
+        setMessages(snap.messages);
+        markStudio('reconnect-ui-painted');
+        if (snap.activeRunId !== runId) return;
+        streamCursorRef.current = snap.lastSeq ?? lastSeqFallback;
+        await resumeStream();
+        markStudio('reconnect-stream-attached');
+        measureStudio(
+          'reconnect-snapshot',
+          'reconnect-snapshot-start',
+          'reconnect-snapshot-bytes'
+        );
+        measureStudio(
+          'reconnect-paint',
+          'reconnect-snapshot-bytes',
+          'reconnect-ui-painted'
+        );
+        measureStudio(
+          'reconnect-attach',
+          'reconnect-ui-painted',
+          'reconnect-stream-attached'
+        );
+        resumeBackoffRef.current = 0;
+      } catch {
+        if (chatIdRef.current !== activeSessionId) return;
+        resumeKeyRef.current = null;
+        const delay = Math.min(1000 * 2 ** resumeBackoffRef.current, 8000);
+        resumeBackoffRef.current += 1;
+        window.setTimeout(() => setResumeNonce((n) => n + 1), delay);
+      }
+    })();
+  }, [
+    sessionReady,
+    activeSessionId,
+    pipelineState?.activeRunId,
+    status,
+    resumeStream,
+    clearError,
+    setMessages,
+    resumeNonce,
+  ]);
+
+  // Soft-ask haltTurn can leave useChat in error after a transport blip even though
+  // the checkpoint part already rendered — unlock the card without resume looping.
+  useEffect(() => {
+    if (status !== 'error') return;
+    if (!pipelineState?.pendingCheckpointId) return;
+    clearError();
+  }, [status, pipelineState?.pendingCheckpointId, clearError]);
 
   // Webhook Fal STT wake writes data-checkpoint to Firestore; useChat won't see it
   // until reload. Refetch when pipeline reports a pending id missing from local parts.
@@ -592,11 +807,53 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
 
     (async () => {
       try {
-        const loaded = await fetchSessionMessages(sessionId);
+        markStudio('session-load-start');
+        const snap = await fetchSessionSnapshot(sessionId);
+        markStudio('session-load-bytes');
         if (cancelled) return;
-        setMessages(loaded);
+        setMessages(snap.messages);
+        markStudio('session-load-painted');
+        measureStudio(
+          'session-load-snapshot',
+          'session-load-start',
+          'session-load-bytes'
+        );
+        measureStudio(
+          'session-load-paint',
+          'session-load-bytes',
+          'session-load-painted'
+        );
+        if (snap.messages.some((m) => m.role === 'user')) {
+          markStudio('reload-user-bubble');
+          measureStudio(
+            'reload-to-user-bubble',
+            'session-load-start',
+            'reload-user-bubble'
+          );
+        }
+        if (typeof snap.lastSeq === 'number') {
+          streamCursorRef.current = snap.lastSeq;
+        }
+        if (snap.activeRunId) {
+          resumeKeyRef.current = `${sessionId}:${snap.activeRunId}`;
+        }
         loadedSessionRef.current = sessionId;
         setSessionReady(true);
+        if (snap.activeRunId) {
+          try {
+            markStudio('resume-stream-start');
+            await resumeStream();
+            if (cancelled) return;
+            markStudio('resume-stream-end');
+            measureStudio(
+              'resume-stream',
+              'resume-stream-start',
+              'resume-stream-end'
+            );
+          } catch {
+            if (!cancelled) resumeKeyRef.current = null;
+          }
+        }
       } catch {
         if (cancelled) return;
         setMessages([]);
@@ -609,26 +866,40 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, status, setMessages]);
+  }, [activeSessionId, status, setMessages, resumeStream]);
 
-  const refreshAssets = useCallback(async (sessionId: string) => {
-    const assets = await fetchSessionAssets(sessionId);
-    setAvailableAssets(assets);
-  }, []);
+  const refreshAssets = useCallback(
+    async (sessionId: string, signal?: AbortSignal) => {
+      const assets = await fetchSessionAssets(sessionId, signal);
+      setAvailableAssets(assets);
+    },
+    []
+  );
 
   useEffect(() => {
-    if (!sessionReady || !activeSessionId || status !== 'ready') {
+    if (!sessionReady || !activeSessionId) {
       if (!activeSessionId) setAvailableAssets([]);
       return;
     }
-    void refreshAssets(activeSessionId).catch(() => {});
-    // ponytail: Fal webhooks land async after stream ends — poll assets until session changes.
-    // Ceiling: fixed 3s interval while session open; upgrade to Firestore onSnapshot if noisy.
-    const id = setInterval(() => {
-      void refreshAssets(activeSessionId).catch(() => {});
-    }, 3000);
-    return () => clearInterval(id);
-  }, [sessionReady, activeSessionId, status, refreshAssets]);
+    if (status === 'submitted' || status === 'streaming') return;
+
+    const sessionAc = new AbortController();
+    const timeout = window.setTimeout(() => sessionAc.abort(), 10_000);
+    void refreshAssets(activeSessionId, sessionAc.signal).catch(() => {});
+    return () => {
+      sessionAc.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [
+    sessionReady,
+    activeSessionId,
+    status,
+    refreshAssets,
+    pipelineState?.activeRunId,
+    pipelineState?.videoUrl,
+    pipelineState?.draftVideoUrl,
+    pipelineState?.renderStatus,
+  ]);
 
   // Every session video/image (incl. uploads) goes to the Deliverables rail;
   // the final draft video is shown there separately and is the only one in chat.
@@ -818,20 +1089,22 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
       status !== 'ready' ||
       isUploading ||
       submittingRef.current ||
-      isPreparingSend
+      isPreparingSend ||
+      pipelineState?.activeRunId
     ) {
       return;
     }
 
     const hasVideo =
       readyMediaUrls.length > 0 || Boolean(pipelineState?.videoUrl);
-    if (activeSkill === 'edu-video' && !hasVideo) {
-      setUploadError('Upload a teacher video before starting Edu-Video.');
+    if (activeSkill && skillRequiresUpload(activeSkill) && !hasVideo) {
+      setUploadError(`Upload a video before starting ${skillLabel(activeSkill)}.`);
       return;
     }
 
     submittingRef.current = true;
     setIsPreparingSend(true);
+    markStudio('send-click');
 
     const sentMediaUrls = [...readyMediaUrls];
     const readyAttachments = pendingAttachments.filter(
@@ -890,6 +1163,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
           : {}),
       },
     ]);
+    markStudio('optimistic-bubble');
+    measureStudio('click-to-bubble', 'send-click', 'optimistic-bubble');
 
     if (checkpointAnswer) {
       patchCheckpointAnswer(checkpointAnswer.checkpointId, checkpointAnswer);
@@ -906,7 +1181,14 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         `/workspace/ai-studio?session=${encodeURIComponent(chatId)}`
       );
       try {
+        markStudio('ensure-session-start');
         await ensureSessionDoc(chatId);
+        markStudio('ensure-session-end');
+        measureStudio(
+          'ensure-session',
+          'ensure-session-start',
+          'ensure-session-end'
+        );
       } catch (error) {
         console.error('Failed to ensure session before send:', error);
         setUploadError('Could not start session. Please try again.');
@@ -918,6 +1200,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     }
 
     try {
+      markStudio('sendMessage-called');
+      measureStudio('click-to-sendMessage', 'send-click', 'sendMessage-called');
       sendMessage(
         {
           text: messageText,
@@ -1122,7 +1406,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     return {
       id: message.id,
       role: message.role as 'user' | 'assistant',
-      parts: message.parts,
+      parts: message.parts as TimelineMessage['parts'],
       createdAt: metadata?.createdAt,
       videoUrl: metadata?.videoUrl,
       videoName: metadata?.videoName,
@@ -1148,6 +1432,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
     return null;
   }, [messages, pipelineState?.pendingCheckpointId]);
 
+  const durableLive = Boolean(pipelineState?.activeRunId);
   const chatBar = (
     <>
       <input
@@ -1170,6 +1455,7 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
         setSelectedModel={setSelectedModel}
         status={status}
         isPreparingSend={isPreparingSend}
+        durableLive={durableLive}
         onSubmit={handleSubmit}
         onPlusClick={() => fileInputRef.current?.click()}
         pendingAttachments={pendingAttachments}
@@ -1296,6 +1582,8 @@ export default function AiStudioShell({ userId }: AiStudioShellProps) {
             messages={timelineMessages}
             streamingAssistantId={streamingAssistantId}
             isPendingTurn={isPendingTurn}
+            isPreparingSend={isPreparingSend}
+            durableLive={durableLive}
             chatStatus={status}
             bottomRef={bottomRef}
             pendingCheckpointId={pipelineState?.pendingCheckpointId}

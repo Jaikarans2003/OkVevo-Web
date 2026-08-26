@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { Check, ChevronDown, Clock } from 'lucide-react';
 import {
   Collapsible,
@@ -20,6 +20,7 @@ import {
   isToolActivityPart,
 } from '@/lib/agent-tool-summaries';
 import { cn } from '@/lib/utils';
+import { markStudio, measureStudio } from '@/lib/agent/studioPerf';
 
 const IDLE_ROTATION_MS = 2500;
 const LOADING_VIDEO = '/videos/OkVevo_Loading_GIF.mp4';
@@ -56,22 +57,28 @@ function StatusToggleRow({
   showChevron,
   showVideo,
   shimmer,
+  videoRef,
+  onPlaying,
 }: {
   label: string;
   showChevron: boolean;
   showVideo: boolean;
   shimmer: boolean;
+  videoRef?: Ref<HTMLVideoElement>;
+  onPlaying?: () => void;
 }) {
   return (
     <CollapsibleTrigger className="flex min-w-0 items-center gap-2 text-left text-sm text-white/80 transition-opacity hover:opacity-90">
       {showVideo ? (
         <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl shadow-[0_3px_10px_rgba(0,0,0,0.5),0_0_14px_-3px_rgba(249,115,22,0.55)] ring-1 ring-orange-500/30">
           <video
+            ref={videoRef}
             src={LOADING_VIDEO}
             autoPlay
             loop
             muted
             playsInline
+            onPlaying={onPlaying}
             className="h-full w-full object-cover"
           />
         </div>
@@ -107,6 +114,9 @@ export function AgentConsumerStatus({
   const [idleIndex, setIdleIndex] = useState(0);
   const [liveLines, setLiveLines] = useState<StatusLine[]>([]);
   const emittedTrailCountRef = useRef(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const sawMarkerRef = useRef(false);
+  const sawDurableRef = useRef(false);
 
   const baseTimestamp = useMemo(() => {
     if (messageCreatedAt) {
@@ -200,6 +210,37 @@ export function AgentConsumerStatus({
     return () => window.clearInterval(timer);
   }, [variant, latestMarker, latestToolLabel, inFlightLabel]);
 
+  useLayoutEffect(() => {
+    if (variant !== 'live') return;
+    markStudio('loading-video-paint');
+    measureStudio('click-to-video', 'send-click', 'loading-video-paint');
+    measureStudio(
+      'reload-to-video',
+      'session-load-start',
+      'loading-video-paint'
+    );
+    console.info('[studio] loading-video-node', videoRef.current);
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== 'live' || !latestMarker || sawMarkerRef.current) return;
+    sawMarkerRef.current = true;
+    markStudio('status-marker-parsed');
+    measureStudio('click-to-status', 'send-click', 'status-marker-parsed');
+  }, [variant, latestMarker]);
+
+  useEffect(() => {
+    if (variant !== 'live' || parts.length === 0 || sawDurableRef.current) return;
+    sawDurableRef.current = true;
+    markStudio('loading-video-durable');
+    measureStudio(
+      'video-handoff',
+      'loading-video-paint',
+      'loading-video-durable'
+    );
+    console.info('[studio] loading-video-durable-node', videoRef.current);
+  }, [variant, parts.length]);
+
   if (variant === 'history' && dropdownLines.length === 0) {
     return null;
   }
@@ -216,6 +257,15 @@ export function AgentConsumerStatus({
             showChevron
             showVideo
             shimmer={headerShimmer}
+            videoRef={videoRef}
+            onPlaying={() => {
+              markStudio('loading-video-playing');
+              measureStudio(
+                'click-to-video-playing',
+                'send-click',
+                'loading-video-playing'
+              );
+            }}
           />
         </div>
       ) : (

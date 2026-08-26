@@ -1,11 +1,28 @@
 ---
-
-## name: talking-head
-
+name: talking-head
 description: >
   Package an existing talking-head / interview / podcast video with timed graphic
   overlay cards (titles, side panels, PiP, overlays) synced to the transcript.
   Use when the user asks to dress up a talking-head clip with designed cards.
+allowed-tools:
+  - run_command
+  - write_file
+  - read_file
+  - search_files
+  - web_search
+  - web_extract
+  - vision_analyze
+  - str_replace
+  - ask_clarification
+  - image_generate
+  - video_generate
+  - transcribe_video
+  - scaffold_talking_head_project
+  - render_hyperframes
+metadata:
+  editGuidance: ../shared/hyperframes-prompting-vocabulary.md
+  editTargets: references/edit-requests.md
+---
 
 # Talking-Head — Orchestration Skill
 
@@ -20,7 +37,7 @@ user answer.
 
 **Tools available:** `transcribe_video`, `write_file` / `read_file` / `search_files` /
 `str_replace`, `ask_clarification`, `scaffold_talking_head_project`, `render_hyperframes`.
-**No** `run_command`**.** No CLI, no local Whisper, no Chromium, no `videos/` directory.
+`run_command` is visible but no binaries are allowed — do not shell out. No CLI, no local Whisper, no Chromium, no `videos/` directory.
 
 ## Sequence
 
@@ -107,8 +124,7 @@ Each style ships a small default `data-anim` vocabulary. If the user needs a mot
 kind not already used by the active style, `read_file`
 `Skills/hyperframes/hyperframes-animation/rules-index.md` first, then the
 `rules/<name>.md` it names. Keep new elements inside the active style’s color/font
-tokens. Do **not** use `hyperframes-registry` or any `hyperframes add` CLI —
-`run_command` is unavailable.
+tokens. Do **not** use `hyperframes-registry` or any `hyperframes add` CLI.
 
 ## Storyboard shape
 

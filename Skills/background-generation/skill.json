@@ -9,10 +9,8 @@
     "background video",
     "studio background"
   ],
-  "tools": [],
-  "baseTools": [
-    "ask_clarification",
-    "image_generate",
-    "video_generate"
-  ]
+  "visibility": "listed",
+  "label": "Background",
+  "summary": "Generate a photo or video backdrop for your scene — studio plates, stylized worlds, or short motion loops.",
+  "icon": "🖼️"
 }

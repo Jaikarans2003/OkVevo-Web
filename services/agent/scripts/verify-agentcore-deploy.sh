@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Smoke-test the deployed AgentCore runtime with a single data-plane invoke.
-# Sends a ping and asserts a non-empty output.message. Exit non-zero on failure.
+# Smoke-test the deployed AgentCore runtime.
+# 1) action=warmup (no LLM) — fails if the image is missing the no-op.
+# 2) prompt=ping on the same session — confirms the agent still replies.
 #
 # Uses the AWS CLI (already required) rather than @aws-sdk/client-bedrock-agentcore,
 # which is a root-app dependency and NOT in services/agent/package.json.
@@ -21,22 +22,48 @@ ARN="$(node -e "process.stdout.write(require('$CONFIG').agentRuntimeArn)")"
 
 # runtimeSessionId must be >= 33 chars (AgentCore requirement).
 SESSION_ID="deploy-verify-$(date +%s)-000000000000000000"
-PAYLOAD='{"input":{"prompt":"ping","sessionId":"'"$SESSION_ID"'","userId":"deploy-verify"}}'
+WARMUP_PAYLOAD='{"input":{"action":"warmup","sessionId":"'"$SESSION_ID"'","userId":"deploy-verify"}}'
+PING_PAYLOAD='{"input":{"prompt":"ping","sessionId":"'"$SESSION_ID"'","userId":"deploy-verify"}}'
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 OUT="$TMP/response.json"
 
+invoke() {
+  local payload="$1"
+  aws bedrock-agentcore invoke-agent-runtime \
+    --region "$REGION" \
+    --agent-runtime-arn "$ARN" \
+    --runtime-session-id "$SESSION_ID" \
+    --runtime-user-id "deploy-verify" \
+    --content-type "application/json" \
+    --accept "application/json" \
+    --cli-binary-format raw-in-base64-out \
+    --payload "$payload" \
+    "$OUT" >/dev/null
+}
+
+echo "==> Invoking runtime (warmup) ..."
+invoke "$WARMUP_PAYLOAD"
+WARM="$(node -e '
+  const raw = require("fs").readFileSync(process.argv[1], "utf8");
+  let b; try { b = JSON.parse(raw); } catch { process.exit(2); }
+  const m = b.output && b.output.message;
+  if (typeof m === "string") process.stdout.write(m);
+  else process.exit(3);
+' "$OUT")" || {
+  echo "ERROR: warmup did not return output.message:" >&2
+  cat "$OUT" >&2; echo >&2
+  exit 1
+}
+if [[ "$WARM" != "ok" ]]; then
+  echo "ERROR: warmup expected output.message=ok, got: ${WARM:0:200}" >&2
+  cat "$OUT" >&2; echo >&2
+  exit 1
+fi
+echo "==> OK. Warmup replied: ok"
+
 echo "==> Invoking runtime (ping) ..."
-aws bedrock-agentcore invoke-agent-runtime \
-  --region "$REGION" \
-  --agent-runtime-arn "$ARN" \
-  --runtime-session-id "$SESSION_ID" \
-  --runtime-user-id "deploy-verify" \
-  --content-type "application/json" \
-  --accept "application/json" \
-  --cli-binary-format raw-in-base64-out \
-  --payload "$PAYLOAD" \
-  "$OUT" >/dev/null
+invoke "$PING_PAYLOAD"
 
 MSG="$(node -e '
   const raw = require("fs").readFileSync(process.argv[1], "utf8");

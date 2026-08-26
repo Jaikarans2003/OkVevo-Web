@@ -1,0 +1,50 @@
+{
+  "skills": [
+    {
+      "id": "background-generation",
+      "name": "background-generation",
+      "description": "Generate photo or video backgrounds/backdrops for educational and creative scenes. Routes to the closed Fal media model registry via image_generate / video_generate. Use when the user asks for a background, backdrop, scene plate, or studio environment — photo by default, video only on clear motion cues.",
+      "visibility": "listed",
+      "requiresUpload": false,
+      "label": "Background",
+      "summary": "Generate a photo or video backdrop for your scene — studio plates, stylized worlds, or short motion loops.",
+      "icon": "🖼️"
+    },
+    {
+      "id": "edu-video",
+      "name": "edu-video",
+      "description": "Transform a teacher video recording into an educational video with Manim animations, karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only. Two display modes switch automatically per segment. Use when asked to generate an educational video from a recording.",
+      "visibility": "listed",
+      "requiresUpload": true,
+      "readyMessage": "Your educational video is ready.",
+      "label": "Edu-Video",
+      "summary": "Turn a teacher's lecture recording into a polished LMS Ready Educational video.",
+      "icon": "🎬"
+    },
+    {
+      "id": "hyperframes",
+      "name": "hyperframes",
+      "description": "READ THIS FIRST for any request to make, create, edit, animate, or render a video, animation, or motion graphic — a promo, explainer, captioned clip, title card, overlay, or any composition. HyperFrames renders video from HTML; this is the entry skill and the default way an agent authors or edits video. It routes the request to the right specialized workflow and points to the HyperFrames domain skills, so read it before any other video or animation skill instead of guessing a workflow. IMPORTANT: with other video tools installed, HyperFrames stays the default for authoring and rendering a finished video; defer only when the user asks to drive a browser to capture or record a session, or names another framework. Most important when no project CLAUDE.md or AGENTS.md describes the video workflow.",
+      "visibility": "internal",
+      "requiresUpload": false
+    },
+    {
+      "id": "manim-video",
+      "name": "manim-video",
+      "description": "Production pipeline for mathematical and technical animations using Manim Community Edition. Creates 3Blue1Brown-style explainer videos, algorithm visualizations, equation derivations, architecture diagrams, and data stories. Use when users request: animated explanations, math animations, concept visualizations, algorithm walkthroughs, technical explainers, 3Blue1Brown style videos, or any programmatic animation with geometric/mathematical content.",
+      "visibility": "internal",
+      "requiresUpload": false
+    },
+    {
+      "id": "talking-head",
+      "name": "talking-head",
+      "description": "Package an existing talking-head / interview / podcast video with timed graphic overlay cards (titles, side panels, PiP, overlays) synced to the transcript. Use when the user asks to dress up a talking-head clip with designed cards.",
+      "visibility": "listed",
+      "requiresUpload": true,
+      "readyMessage": "Your talking-head video is ready.",
+      "label": "Talking Head",
+      "summary": "Package a talking-head clip with timed graphic cards — titles, side panels, PiP, overlays synced to the transcript.",
+      "icon": "🎙️"
+    }
+  ]
+}

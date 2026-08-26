@@ -1,12 +1,34 @@
 ---
-
-## name: edu-video
-
+name: edu-video
 description: >
   Transform a teacher video recording into an educational video with Manim animations,
   karaoke captions, and automatic speaker layout. HyperFrames is the assembly/render layer only.
   Two display modes switch automatically per segment. Use when asked to generate an educational
   video from a recording.
+allowed-tools:
+  - run_command
+  - write_file
+  - read_file
+  - search_files
+  - web_search
+  - web_extract
+  - vision_analyze
+  - str_replace
+  - ask_clarification
+  - image_generate
+  - video_generate
+  - transcribe_video
+  - extract_concepts
+  - generate_manim_script
+  - render_manim_clip
+  - plan_segments
+  - scaffold_hf_project
+  - restore_generation
+  - render_hyperframes
+metadata:
+  editGuidance: ../shared/hyperframes-prompting-vocabulary.md
+  editTargets: references/edit-requests.md
+---
 
 # Edu-Video Pipeline — Orchestration Skill
 

@@ -1,65 +1,60 @@
 import {
   streamText,
-  smoothStream,
-  stepCountIs,
+  isStepCount,
   pipeUIMessageStreamToResponse,
   createUIMessageStream,
+  JsonToSseTransformStream,
+  UI_MESSAGE_STREAM_HEADERS,
   type ModelMessage,
   type ToolSet,
   type UIMessage,
 } from 'ai';
 import type { ServerResponse } from 'node:http';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
   answerCheckpointTransaction,
-  buildResumeSystemContext,
   CheckpointConflictError,
   clearPendingCheckpoint,
   getSessionPipelineFields,
   isHaltTurnOutput,
   loadCheckpoint,
-  persistClarificationAnswer,
-  persistPrePipelineAnswers,
-  persistPipelineMode,
-  persistSkillId,
-  recordSkillsUsed,
-  writeAskCheckpoint,
-  missingConfirmedFields,
   type CheckpointAnswer,
   type CheckpointDisplayData,
   type LoadedCheckpoint,
 } from './checkpoint';
-import { detectAndApplyStyleSeed } from './skills-runtime/detectAndApplyStyleSeed';
 import { pruneToolResults } from './messagePruning';
 import { lookupPhase, resolveResumeForce } from './catalog/manifest';
 import { errorMessage } from './errorMessage';
-import { getCachedSystemPrompt } from './systemPromptCache';
-import { FINAL_VIDEO_NAME_RE } from './finalVideoBasename';
+import {
+  RunInProgressError,
+  appendCoalesced,
+  closeRun,
+  openRun,
+  type RunOrigin,
+  type UiChunk,
+} from './runLog';
+import { afterCloseRun } from './autoContinue';
+import { smoothStreamSkipStatus } from './smoothStreamSkipStatus';
+import {
+  getCachedSystemPrompt,
+  systemPromptWithCache,
+} from './systemPromptCache';
 import { buildTools } from './tools';
 import { resolveSkill } from './skills';
-import { isKnownSkill, skillsEngagedByToolCalls } from './sessionSkills';
-import {
-  ensureSessionArtifacts,
-  getSessionWorkdir,
-  resolveTaggedArtifacts,
-  sessionArtifactPresent,
-  type ArtifactNeed,
-} from './tools/lib/utils';
+import { isKnownSkill } from './sessionSkills';
+import { resolveTaggedArtifacts } from './tools/lib/utils';
 import {
   formatReferencedAssets,
   selectProcessingMedia,
   type TaggedAsset,
 } from './taggedAssets';
 import {
-  formatEditTargetsBlock,
-  resolveEditTargets,
-  shouldInjectEditTargets,
-} from './editTargets';
-import { listSessionManimClips } from './tools/lib/sessionManimClips';
-import { getAssetUrl } from './storage';
+  emitHook,
+  type CheckpointAnsweredEvent,
+  type PostToolUseEvent,
+  type UserPromptSubmitEvent,
+} from './hooks/bus';
 import {
   ensureSession,
   loadMessages,
@@ -77,9 +72,18 @@ export {
   estimateMessageTokens,
   gateSessionTokens,
 } from './sessionTokenGate';
+export { RunInProgressError } from './runLog';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
+  // ponytail: log header time only; undici already pools (keepAliveTimeout 4s).
+  fetch: (input, init) => {
+    const t0 = Date.now();
+    return fetch(input, init).then((res) => {
+      console.info(`[agent] openrouter-headers ms=${Date.now() - t0}`);
+      return res;
+    });
+  },
 });
 
 export type RunAgentParams = {
@@ -95,6 +99,9 @@ export type RunAgentParams = {
   skillId?: string;
   pipelineMode?: 'ask' | 'auto';
   checkpointAnswer?: CheckpointAnswer;
+  persistUser?: boolean;
+  extraSystem?: string;
+  forceToolName?: string;
 };
 
 function stepsHitHaltTurn(steps: { toolResults?: { output?: unknown }[] }[]): boolean {
@@ -104,80 +111,31 @@ function stepsHitHaltTurn(steps: { toolResults?: { output?: unknown }[] }[]): bo
   );
 }
 
-/** First concept fields for forced generate_manim_script after Video orientation. */
-function firstConceptResumeHint(sessionId: string): string {
-  const conceptsPath = path.join(getSessionWorkdir(sessionId), 'concepts.json');
-  if (!fs.existsSync(conceptsPath)) return '';
-  try {
-    const parsed = JSON.parse(fs.readFileSync(conceptsPath, 'utf-8')) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) return '';
-    const first = parsed[0] as {
-      concept_name?: string;
-      explanation?: string;
-      start_seconds?: number;
-      end_seconds?: number;
-    };
-    if (!first.concept_name || !first.explanation) return '';
-    const start = typeof first.start_seconds === 'number' ? first.start_seconds : 0;
-    const end = typeof first.end_seconds === 'number' ? first.end_seconds : start;
-    const window_seconds = Math.max(1, end - start);
-    return `
-First concept to animate now:
-- concept_name: ${first.concept_name}
-- explanation: ${first.explanation}
-- window_seconds: ${window_seconds}
-Call generate_manim_script with these fields.`.trim();
-  } catch {
-    return '';
-  }
-}
-
-function isConceptsApproveResume(checkpoint: LoadedCheckpoint): boolean {
-  return (
-    checkpoint.completedPhaseLabel === 'Concepts extracted' &&
-    checkpoint.answer?.type === 'approve'
-  );
-}
-
-function isOrientationChoiceResume(checkpoint: LoadedCheckpoint): boolean {
-  if (checkpoint.completedPhaseLabel !== 'Video orientation') return false;
-  const type = checkpoint.answer?.type;
-  return type === 'approve' || type === 'choice';
-}
-
-function isPrePipelineResume(checkpoint: LoadedCheckpoint): boolean {
-  return (
-    checkpoint.completedPhaseLabel === 'Video preferences' ||
-    checkpoint.completedPhase === 'pre_pipeline'
-  );
-}
-
-const VIDEO_ORIENTATION_CHECKPOINT = {
-  kind: 'single_select' as const,
-  phase_label: 'Video orientation',
-  question: 'Choose video orientation to continue.',
-  choices: [
-    { id: 'horizontal', label: 'Horizontal (16:9)' },
-    { id: 'vertical', label: 'Vertical (9:16)' },
-  ],
-  allowFreeform: false as boolean,
-};
-
 export async function runAgent(params: RunAgentParams) {
+  const t0 = Date.now();
   const pipelineMode = params.pipelineMode ?? 'ask';
   const title = params.userMessage.trim().slice(0, 80) || 'Untitled Chat';
-  await ensureSession(params.sessionId, params.userId, title, {
+  const taggedAssets = params.taggedAssets ?? [];
+
+  const sessionFieldsP = getSessionPipelineFields(params.sessionId);
+  const historyP = loadMessages(params.sessionId, params.userId);
+  const taggedP = resolveTaggedArtifacts(
+    params.userId,
+    params.sessionId,
+    taggedAssets
+  );
+  const sessionWriteP = ensureSession(params.sessionId, params.userId, title, {
     videoUrl: params.videoUrl,
     videoName: params.videoName,
+    pipelineMode,
   });
-  await persistPipelineMode(params.sessionId, pipelineMode);
 
-  const sessionFields = await getSessionPipelineFields(params.sessionId);
+  const sessionFields = await sessionFieldsP;
   const effectiveMode = pipelineMode ?? sessionFields.pipelineMode;
 
   let resumeCheckpoint: LoadedCheckpoint | null = null;
   let resumeSystemAppend = '';
-  let conceptsApproveChain = false;
+  let haltAfterFirstStep = false;
   let capturedCheckpointDisplay: CheckpointDisplayData | null = null;
 
   const isCancelMessage = /^(cancel|start over|new video)/i.test(params.userMessage.trim());
@@ -215,85 +173,32 @@ export async function runAgent(params: RunAgentParams) {
             ? { answers: params.checkpointAnswer.answers }
             : {}),
         };
-        await ensureSessionArtifacts(
-          params.userId,
-          params.sessionId,
-          resumeCheckpoint.resume.artifactNeeds
-        );
-        resumeSystemAppend = buildResumeSystemContext(resumeCheckpoint);
-
-        if (isPrePipelineResume(resumeCheckpoint)) {
-          const answers =
-            resumeCheckpoint.answer?.answers ??
-            (resumeCheckpoint.answer?.choiceId
-              ? {
-                  [resumeCheckpoint.resume.questions?.[0]?.id ?? '0']: {
-                    type: resumeCheckpoint.answer.type,
-                    choiceId: resumeCheckpoint.answer.choiceId,
-                    text: resumeCheckpoint.answer.text,
-                  },
-                }
-              : {});
-          await persistPrePipelineAnswers(
-            params.sessionId,
-            answers,
-            resumeCheckpoint.resume.questions ?? []
-          );
-          resumeSystemAppend = `${resumeSystemAppend}\n\n- Preferences saved. Call transcribe_video with the session video URL next.`;
-        } else if (isConceptsApproveResume(resumeCheckpoint)) {
-          // Orientation already on session → skip second gate; force via phase.resume.forceToolName.
-          const orientationMissing = await missingConfirmedFields(
-            params.sessionId,
-            ['orientation']
-          );
-          if (orientationMissing.length === 0) {
-            const hint = firstConceptResumeHint(params.sessionId);
-            if (hint) {
-              resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
-            }
-          } else {
-            const written = await writeAskCheckpoint(
-              {
-                sessionId: params.sessionId,
-                userId: params.userId,
-                skillName:
-                  resumeCheckpoint.skillId ??
-                  params.skillId ??
-                  sessionFields.skillId ??
-                  '',
-                pipelineMode: effectiveMode,
-              },
-              { ...VIDEO_ORIENTATION_CHECKPOINT, phaseKey: 'video-orientation' }
-            );
-            capturedCheckpointDisplay = written.checkpointDisplay;
-            conceptsApproveChain = true;
-          }
-        } else if (resumeCheckpoint.answer) {
-          const choices =
-            resumeCheckpoint.resume.questions?.[0]?.choices ??
-            resumeCheckpoint.resume.question?.choices;
-          await persistClarificationAnswer(
-            params.sessionId,
-            choices,
-            resumeCheckpoint.answer
-          );
-          if (isOrientationChoiceResume(resumeCheckpoint)) {
-            const hint = firstConceptResumeHint(params.sessionId);
-            if (hint) {
-              resumeSystemAppend = `${resumeSystemAppend}\n\n${hint}`;
-            }
-          }
+        const answered: CheckpointAnsweredEvent = {
+          sessionId: params.sessionId,
+          userId: params.userId,
+          pipelineMode: effectiveMode,
+          checkpoint: resumeCheckpoint,
+          skillIdParam: params.skillId,
+          sessionSkillId: sessionFields.skillId,
+          systemAppends: [],
+        };
+        await emitHook('CheckpointAnswered', answered);
+        if (answered.systemAppends.length > 0) {
+          resumeSystemAppend = answered.systemAppends.join('\n\n');
         }
+        if (answered.checkpointDisplay) {
+          capturedCheckpointDisplay = answered.checkpointDisplay;
+        }
+        haltAfterFirstStep = answered.haltAfterFirstStep === true;
       }
     }
   }
 
-  const history = await loadMessages(params.sessionId, params.userId);
-  const taggedArtifacts = await resolveTaggedArtifacts(
-    params.userId,
-    params.sessionId,
-    params.taggedAssets ?? []
-  );
+  const [history, taggedArtifacts] = await Promise.all([
+    historyP,
+    taggedP,
+    sessionWriteP,
+  ]);
 
   const mediaUrls =
     params.mediaUrls && params.mediaUrls.length > 0
@@ -304,7 +209,7 @@ export async function runAgent(params: RunAgentParams) {
   const mediaNames = params.mediaNames ?? [];
   // When the user tagged assets, only those URLs are processing media — not untagged uploads/history.
   const processing = selectProcessingMedia(
-    params.taggedAssets ?? [],
+    taggedAssets,
     mediaUrls,
     mediaNames
   );
@@ -322,7 +227,7 @@ export async function runAgent(params: RunAgentParams) {
     userContent +=
       '\n\nIf compositing: prefer a .webm / transparent cutout as cutout_url and an image or opaque .mp4 as background_url.';
   }
-  if ((params.taggedAssets ?? []).length > 0) {
+  if (taggedAssets.length > 0) {
     userContent +=
       '\n\nOnly use Referenced assets; do not use other session media or history URLs unless listed.';
   }
@@ -331,61 +236,24 @@ export async function runAgent(params: RunAgentParams) {
     userContent += `\n\n${referencedAssets}`;
   }
 
-  // FIX 0 / 0b: pre-resolve edit targets + inject fresh file bodies before tools run.
-  {
-    const workdir = getSessionWorkdir(params.sessionId);
-    let hasHfProject = sessionArtifactPresent(workdir, 'hf_project');
-    if (!hasHfProject) {
-      try {
-        hasHfProject = !!(await getAssetUrl(
-          params.userId,
-          params.sessionId,
-          'hf_project'
-        ));
-      } catch {
-        hasHfProject = false;
-      }
-    }
-    const editTargets = resolveEditTargets({
-      sessionId: params.sessionId,
-      userMessage: params.userMessage,
-      taggedArtifacts,
-      workdir,
-      hasHfProject,
-    });
-    if (shouldInjectEditTargets(editTargets)) {
-      const needs: ArtifactNeed[] = [];
-      if (
-        editTargets.files.some((f) =>
-          f.path.startsWith(editTargets.projectDir + path.sep)
-        ) ||
-        taggedArtifacts.some((a) =>
-          FINAL_VIDEO_NAME_RE.test(path.basename(a.localPath))
-        ) ||
-        editTargets.orientationRebuild ||
-        editTargets.restoreGeneration
-      ) {
-        needs.push('hf_project');
-      }
-      if (
-        editTargets.files.some((f) =>
-          f.path.includes(`${path.sep}manim_scripts${path.sep}`)
-        )
-      ) {
-        needs.push('manim_scripts');
-      }
-      if (needs.length > 0) {
-        await ensureSessionArtifacts(params.userId, params.sessionId, needs);
-      }
-      const sessionManimClips = editTargets.orientationRebuild
-        ? await listSessionManimClips(params.userId, params.sessionId)
-        : undefined;
-      const block = formatEditTargetsBlock(editTargets, undefined, {
-        sessionManimClips,
-      });
-      if (block) userContent += `\n\n${block}`;
-    }
-  }
+  const resolvedSkill =
+    (resumeCheckpoint?.skillId ? resumeCheckpoint.skillId : null) ??
+    resolveSkill(params.skillId, params.userMessage) ??
+    (isKnownSkill(sessionFields.skillId) ? sessionFields.skillId : null);
+
+  // Turn-start hooks: edit-target injection (userContent) + style-seed
+  // detection (systemAppends) live in hooks/handlers.ts.
+  const promptEvent: UserPromptSubmitEvent = {
+    sessionId: params.sessionId,
+    userId: params.userId,
+    userMessage: params.userMessage,
+    skillId: resolvedSkill,
+    taggedArtifacts,
+    userContent,
+    systemAppends: [],
+  };
+  await emitHook('UserPromptSubmit', promptEvent);
+  userContent = promptEvent.userContent;
 
   const saveExtras: {
     videoUrl?: string;
@@ -396,8 +264,8 @@ export async function runAgent(params: RunAgentParams) {
     saveExtras.videoUrl = params.videoUrl;
     saveExtras.videoName = params.videoName;
   }
-  if ((params.taggedAssets ?? []).length > 0) {
-    saveExtras.taggedAssets = params.taggedAssets;
+  if (taggedAssets.length > 0) {
+    saveExtras.taggedAssets = taggedAssets;
   }
 
   // Prune + estimate before save so hard-limit turns never persist the new user message.
@@ -411,29 +279,38 @@ export async function runAgent(params: RunAgentParams) {
   );
 
   // Persist display text only; media/edit-target injection stays on userContent for streamText.
-  await saveMessage(
-    params.sessionId,
-    params.userId,
-    'user',
-    params.userMessage,
-    undefined,
-    Object.keys(saveExtras).length > 0 ? saveExtras : undefined
-  );
-
-  const resolvedSkill =
-    (resumeCheckpoint?.skillId ? resumeCheckpoint.skillId : null) ??
-    resolveSkill(params.skillId, params.userMessage) ??
-    (isKnownSkill(sessionFields.skillId) ? sessionFields.skillId : null);
+  // persistUser:false keeps the trailing user turn in-memory (never Firestore/UI).
+  // Fire-and-forget: do not block streamText on the user-message write.
+  if (params.persistUser !== false) {
+    void saveMessage(
+      params.sessionId,
+      params.userId,
+      'user',
+      params.userMessage,
+      undefined,
+      Object.keys(saveExtras).length > 0 ? saveExtras : undefined
+    ).catch((err) => {
+      console.error('[agent] failed to persist user message:', err);
+    });
+  }
 
   const modeBanner =
     effectiveMode === 'ask'
       ? 'Current mode: Ask-Me — pause and ask before major decisions.'
       : 'Current mode: Auto-Run — proceed autonomously without asking permission.';
 
-  let systemPrompt = `${modeBanner}\n\n${getCachedSystemPrompt(params.sessionId, resolvedSkill)}`;
-  if (resumeSystemAppend) {
-    systemPrompt = `${systemPrompt}\n\n${resumeSystemAppend}`;
-  }
+  const stableSystem = getCachedSystemPrompt(
+    params.sessionId,
+    resolvedSkill,
+    modeBanner
+  );
+  const volatileSystem = [
+    resumeSystemAppend,
+    params.extraSystem,
+    ...promptEvent.systemAppends,
+  ]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join('\n\n');
 
   const modelId = params.model ?? 'anthropic/claude-sonnet-4-6';
 
@@ -452,10 +329,11 @@ export async function runAgent(params: RunAgentParams) {
     resumeCheckpoint ? 'gate-stamp' : 'new-turn'
   );
 
-  let resumeForceToolName: string | null = null;
+  let resumeForceToolName: string | null = params.forceToolName ?? null;
   if (
+    !resumeForceToolName &&
     resumeCheckpoint &&
-    !conceptsApproveChain &&
+    !haltAfterFirstStep &&
     resolvedSkill &&
     resumeCheckpoint.answer?.type !== 'revision' &&
     resumeCheckpoint.answer?.type !== 'freeform'
@@ -467,52 +345,40 @@ export async function runAgent(params: RunAgentParams) {
         completedPhase: resumeCheckpoint.completedPhase,
       })?.phaseKey;
     resumeForceToolName = resolveResumeForce(resolvedSkill, phaseKey);
-    if (resumeForceToolName && !(resumeForceToolName in tools)) {
-      console.error('[agent] resume force failed: tool missing from registry', {
-        sessionId: params.sessionId,
-        resolvedSkill,
-        resumeForceToolName,
-        toolNames: Object.keys(tools),
-      });
-      throw new Error(
-        `Checkpoint resume cannot proceed: ${resumeForceToolName} not in tool registry (skillId?)`
-      );
-    }
-    if (resumeForceToolName) {
-      console.log(
-        `[agent] checkpoint.resume force tx=ok skill=${resolvedSkill} tool=${resumeForceToolName} appendChars=${resumeSystemAppend.length}`
-      );
-    }
   }
-
-  if (resolvedSkill) {
-    const styleAppend = await detectAndApplyStyleSeed(
-      params.sessionId,
+  if (resumeForceToolName && !(resumeForceToolName in tools)) {
+    console.error('[agent] resume force failed: tool missing from registry', {
+      sessionId: params.sessionId,
       resolvedSkill,
-      params.userMessage
+      resumeForceToolName,
+      toolNames: Object.keys(tools),
+    });
+    throw new Error(
+      `Checkpoint resume cannot proceed: ${resumeForceToolName} not in tool registry (skillId?)`
     );
-    if (styleAppend) {
-      systemPrompt = `${systemPrompt}\n\n${styleAppend}`;
-    }
+  }
+  if (resumeForceToolName) {
+    console.log(
+      `[agent] checkpoint.resume force tx=ok skill=${resolvedSkill} tool=${resumeForceToolName} appendChars=${resumeSystemAppend.length}`
+    );
   }
 
+  const tPre = Date.now();
   const result = streamText({
     model: openrouter(modelId),
-    system: systemPrompt,
+    instructions: systemPromptWithCache(stableSystem, volatileSystem),
     messages,
     tools: tools as ToolSet,
-    experimental_transform: smoothStream({
-      chunking: 'word',
-      delayInMs: 18,
-    }),
+    // ponytail: transform is STATUS/word pacer on text-delta; StreamTextTransform wants TextStreamPart. Typed wrapper if we split this file from Next.
+    experimental_transform: smoothStreamSkipStatus() as never,
     stopWhen: ({ steps }) => {
-      if (conceptsApproveChain && steps.length >= 1) return true;
+      if (haltAfterFirstStep && steps.length >= 1) return true;
       if (stepsHitHaltTurn(steps)) return true;
-      return stepCountIs(50)({ steps });
+      return isStepCount(50)({ steps });
     },
     prepareStep: ({ stepNumber, messages: stepMessages }) => {
       const base = { messages: pruneToolResults(stepMessages) };
-      if (conceptsApproveChain) {
+      if (haltAfterFirstStep) {
         return { ...base, activeTools: [] as string[] };
       }
       if (resumeForceToolName && stepNumber === 0) {
@@ -527,34 +393,30 @@ export async function runAgent(params: RunAgentParams) {
       }
       return base;
     },
-    onStepFinish: async ({ toolCalls, toolResults }) => {
-      const engagedSkills = skillsEngagedByToolCalls(
-        resolvedSkill,
-        (toolCalls ?? []).map((call) => call.toolName)
+    onFinish: ({ usage }) => {
+      const read = usage.inputTokenDetails?.cacheReadTokens ?? 0;
+      const write = usage.inputTokenDetails?.cacheWriteTokens ?? 0;
+      console.info(
+        `[agent] timing session=${params.sessionId} cache_read=${read} cache_write=${write}`
       );
-      if (engagedSkills.length > 0) {
-        await recordSkillsUsed(params.sessionId, engagedSkills);
-        await persistSkillId(params.sessionId, engagedSkills.at(-1)!);
-      }
-      for (const call of toolCalls ?? []) {
-        console.log(
-          `[agent] tool.call ${call.toolName}`,
-          JSON.stringify({ input: call.input })
-        );
-      }
-      for (const tr of toolResults ?? []) {
-        const output =
-          typeof tr.output === 'string'
-            ? tr.output.slice(0, 300)
-            : JSON.stringify(tr.output)?.slice(0, 300);
-        console.log(
-          `[agent] tool.result ${tr.toolName}`,
-          JSON.stringify({ ok: true, outputPreview: output })
-        );
-
-        if (isHaltTurnOutput(tr.output) && tr.output.checkpointDisplay) {
-          capturedCheckpointDisplay = tr.output.checkpointDisplay;
-        }
+    },
+    onStepEnd: async ({ toolCalls, toolResults }) => {
+      const postTool: PostToolUseEvent = {
+        sessionId: params.sessionId,
+        userId: params.userId,
+        skillId: resolvedSkill,
+        toolCalls: (toolCalls ?? []).map((call) => ({
+          toolName: call.toolName,
+          input: call.input,
+        })),
+        toolResults: (toolResults ?? []).map((tr) => ({
+          toolName: tr.toolName,
+          output: tr.output,
+        })),
+      };
+      await emitHook('PostToolUse', postTool);
+      if (postTool.checkpointDisplay) {
+        capturedCheckpointDisplay = postTool.checkpointDisplay;
       }
     },
   });
@@ -563,6 +425,7 @@ export async function runAgent(params: RunAgentParams) {
     result,
     getCheckpointDisplay: () => capturedCheckpointDisplay,
     sessionTokenWarning,
+    timing: { t0, tPre },
   };
 }
 
@@ -578,11 +441,27 @@ export function injectCheckpointPart(
   display: CheckpointDisplayData | null
 ): StoredMessagePart[] {
   if (!display) return parts;
+  const seq = typeof display.seq === 'number' ? display.seq : 0;
   const checkpointPart: StoredMessagePart = {
     type: 'data-checkpoint',
+    id: display.checkpointId,
     data: display,
   };
-  if (parts.some((p) => p.type === 'data-checkpoint')) return parts;
+  const idx = parts.findIndex((part) => {
+    if (part.type !== 'data-checkpoint') return false;
+    if (part.id === display.checkpointId) return true;
+    const data = part.data as { checkpointId?: unknown } | undefined;
+    return data?.checkpointId === display.checkpointId;
+  });
+  if (idx >= 0) {
+    const existing = parts[idx]!;
+    const existingSeq = (existing.data as { seq?: unknown } | undefined)?.seq;
+    const stored = typeof existingSeq === 'number' ? existingSeq : 0;
+    if (seq <= stored) return parts;
+    const next = parts.slice();
+    next[idx] = checkpointPart;
+    return next;
+  }
   return [...parts, checkpointPart];
 }
 
@@ -602,24 +481,82 @@ export function pipeStaticAssistantText(
   pipeUIMessageStreamToResponse({ response, stream });
 }
 
-export function pipeAgentStream(
-  agentRun: Awaited<ReturnType<typeof runAgent>>,
+/** Drain the HTTP tee branch even if the client is gone so persist is not backpressured. */
+async function pipeHttpUiStream(
   response: ServerResponse,
+  stream: ReadableStream<unknown>
+): Promise<void> {
+  const bytes = stream
+    .pipeThrough(new JsonToSseTransformStream())
+    .pipeThrough(new TextEncoderStream());
+  const reader = bytes.getReader();
+  let httpAlive = true;
+  const markDead = () => {
+    httpAlive = false;
+  };
+  response.once('close', markDead);
+  try {
+    if (!response.headersSent) {
+      response.writeHead(200, UI_MESSAGE_STREAM_HEADERS);
+    }
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!httpAlive || response.writableEnded || !response.writable) continue;
+      try {
+        const canContinue = response.write(value);
+        if (!canContinue && httpAlive) {
+          await new Promise<void>((resolve) => {
+            const finish = () => {
+              response.off('drain', finish);
+              response.off('close', onClose);
+              resolve();
+            };
+            const onClose = () => {
+              markDead();
+              finish();
+            };
+            response.once('drain', finish);
+            response.once('close', onClose);
+          });
+        }
+      } catch (err) {
+        console.error('[agent] UI HTTP pipe failed; log continues', err);
+        httpAlive = false;
+      }
+    }
+  } catch (err) {
+    console.error('[agent] UI HTTP pipe failed; log continues', err);
+    try {
+      for (;;) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+    } catch {
+      // stream already closed
+    }
+  } finally {
+    response.off('close', markDead);
+    if (!response.writableEnded) {
+      try {
+        response.end();
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+function buildLiveUiStream(
+  agentRun: Awaited<ReturnType<typeof runAgent>>,
   params: { sessionId: string; userId: string }
 ) {
-  const { result, getCheckpointDisplay, sessionTokenWarning } = agentRun;
-
-  if (sessionTokenWarning) {
-    response.setHeader('x-okvevo-session-token-warning', '1');
-    response.setHeader(
-      'x-okvevo-estimated-tokens',
-      String(sessionTokenWarning.estimatedTokens)
-    );
-  }
+  const { result, getCheckpointDisplay, sessionTokenWarning, timing } = agentRun;
+  let firstChunk = true;
 
   const uiStream = result.toUIMessageStream({
     onError: (error) => errorMessage(error),
-    onFinish: async ({ responseMessage }) => {
+    onEnd: async ({ responseMessage }) => {
       const text = getTextFromParts(responseMessage.parts);
       const checkpointDisplay = getCheckpointDisplay();
       const parts = injectCheckpointPart(
@@ -645,7 +582,8 @@ export function pipeAgentStream(
     },
   });
 
-  const withLiveParts = uiStream.pipeThrough(
+  const flushedCheckpointIds = new Set<string>();
+  return uiStream.pipeThrough(
     new TransformStream({
       start(controller) {
         if (sessionTokenWarning) {
@@ -656,16 +594,164 @@ export function pipeAgentStream(
         }
       },
       transform(chunk, controller) {
+        // start/start-step fire before any model tokens — wait for visible content.
+        if (
+          firstChunk &&
+          chunk &&
+          typeof chunk === 'object' &&
+          (chunk as { type?: string }).type &&
+          /^(text-delta|text-start|reasoning-delta|tool-input-start|tool-call)$/.test(
+            (chunk as { type: string }).type
+          )
+        ) {
+          firstChunk = false;
+          const now = Date.now();
+          console.info(
+            `[agent] timing session=${params.sessionId} prework_ms=${timing.tPre - timing.t0} model_ttft_ms=${now - timing.tPre} total_ms=${now - timing.t0}`
+          );
+        }
         controller.enqueue(chunk);
+        if (
+          chunk &&
+          typeof chunk === 'object' &&
+          (chunk as { type?: string }).type === 'data-checkpoint'
+        ) {
+          const id = (chunk as { id?: string }).id;
+          if (id) flushedCheckpointIds.add(id);
+        }
       },
       flush(controller) {
+        if (firstChunk) {
+          console.info(
+            `[agent] timing session=${params.sessionId} prework_ms=${timing.tPre - timing.t0} model_ttft_ms=none total_ms=${Date.now() - timing.t0}`
+          );
+        }
         const display = getCheckpointDisplay();
-        if (display) {
-          controller.enqueue({ type: 'data-checkpoint', data: display });
+        if (display && !flushedCheckpointIds.has(display.checkpointId)) {
+          controller.enqueue({
+            type: 'data-checkpoint',
+            id: display.checkpointId,
+            data: display,
+          });
         }
       },
     })
   );
+}
 
-  pipeUIMessageStreamToResponse({ response, stream: withLiveParts });
+/**
+ * Always persist UI chunks to the run log. HTTP is optional: client disconnect
+ * must not abort streamText (no request AbortSignal; isolate pipe failures).
+ */
+export async function consumeAgentUiStream(opts: {
+  agentRun: Awaited<ReturnType<typeof runAgent>>;
+  sessionId: string;
+  userId: string;
+  origin: RunOrigin;
+  response?: ServerResponse;
+  runId?: string;
+}): Promise<void> {
+  const runId = opts.runId ?? (await openRun(opts.sessionId, opts.origin));
+  if (!runId) {
+    throw new RunInProgressError(opts.sessionId);
+  }
+
+  if (opts.response && opts.agentRun.sessionTokenWarning) {
+    opts.response.setHeader('x-okvevo-session-token-warning', '1');
+    opts.response.setHeader(
+      'x-okvevo-estimated-tokens',
+      String(opts.agentRun.sessionTokenWarning.estimatedTokens)
+    );
+  }
+
+  const live = buildLiveUiStream(opts.agentRun, {
+    sessionId: opts.sessionId,
+    userId: opts.userId,
+  });
+
+  let closeStatus: 'complete' | 'error' = 'complete';
+  const persistLog = async (stream: ReadableStream<UiChunk>) => {
+    let haltTurn = false;
+    try {
+      haltTurn = await appendCoalesced(opts.sessionId, runId, stream);
+    } catch (err) {
+      closeStatus = 'error';
+      throw err;
+    } finally {
+      const pending = await closeRun(opts.sessionId, runId, closeStatus);
+      void afterCloseRun({
+        sessionId: opts.sessionId,
+        userId: opts.userId,
+        haltTurn,
+        closeStatus,
+        pending,
+        startAgentUiRun,
+      });
+    }
+  };
+
+  if (!opts.response) {
+    await persistLog(live as unknown as ReadableStream<UiChunk>);
+    return;
+  }
+
+  const [httpBranch, logBranch] = live.tee();
+  const httpDone = pipeHttpUiStream(opts.response, httpBranch);
+  try {
+    await persistLog(logBranch as unknown as ReadableStream<UiChunk>);
+  } finally {
+    await httpDone;
+  }
+}
+
+export async function pipeAgentStream(
+  agentRun: Awaited<ReturnType<typeof runAgent>>,
+  response: ServerResponse,
+  params: { sessionId: string; userId: string }
+) {
+  await consumeAgentUiStream({
+    agentRun,
+    sessionId: params.sessionId,
+    userId: params.userId,
+    origin: 'chat',
+    response,
+  });
+}
+
+/** Lock the session run before streamText so a second caller 409s without a duplicate model call. */
+export async function startAgentUiRun(opts: {
+  params: RunAgentParams;
+  origin: RunOrigin;
+  response?: ServerResponse;
+}): Promise<void> {
+  const runId = await openRun(opts.params.sessionId, opts.origin);
+  if (!runId) {
+    throw new RunInProgressError(opts.params.sessionId);
+  }
+  let handedOff = false;
+  try {
+    const agentRun = await runAgent(opts.params);
+    handedOff = true;
+    await consumeAgentUiStream({
+      agentRun,
+      sessionId: opts.params.sessionId,
+      userId: opts.params.userId,
+      origin: opts.origin,
+      response: opts.response,
+      runId,
+    });
+  } catch (err) {
+    if (!handedOff) {
+      const pending = await closeRun(opts.params.sessionId, runId, 'error');
+      void afterCloseRun({
+        sessionId: opts.params.sessionId,
+        userId: opts.params.userId,
+        haltTurn: false,
+        closeStatus: 'error',
+        pending,
+        startAgentUiRun,
+      });
+    }
+    throw err;
+  }
 }

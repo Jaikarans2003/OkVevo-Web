@@ -12,6 +12,6 @@ export function nextFinalVideoBasename(
   return `${prefix}_${n}.mp4`;
 }
 
-/** Legacy finals plus per-skill labels: talking-head.mp4 / talking-head_2.mp4. */
+/** Legacy finals plus per-skill labels: {skillId}.mp4 / {skillId}_2.mp4. */
 export const FINAL_VIDEO_NAME_RE =
-  /^(?:final(?:_\d+)?|draft_video|(?:edu-video|talking-head)(?:_\d+)?)\.mp4$/i;
+  /^(?:draft_video|[a-z0-9-]+(?:_\d+)?)\.mp4$/i;

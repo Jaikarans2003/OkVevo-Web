@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { shouldPause } from '../../autonomy';
 import { writeAskCheckpoint } from '../../checkpoint';
 import { hasSkillManifest, lookupPhase } from '../../catalog/manifest';
 import type { ToolCtx } from '../index';
@@ -9,7 +10,7 @@ export function createClarifyTools(ctx: ToolCtx) {
   return {
     ask_clarification: tool({
       description:
-        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, returns formatted text for you to relay. One concern per call — never combine unrelated topics in one choice set. Always declare kind (single_select | phase_gate) and allowFreeform.',
+        'Ask the user a clarifying question when required information is missing or ambiguous. In Ask-Me mode, pauses the pipeline until the user answers. In Auto-Run mode, does not pause — apply skill.json defaults or pick only from declared choices. One concern per call — never combine unrelated topics in one choice set. Always declare kind (single_select | phase_gate) and allowFreeform.',
       inputSchema: z.object({
         kind: z
           .enum(['single_select', 'phase_gate'])
@@ -53,9 +54,13 @@ export function createClarifyTools(ctx: ToolCtx) {
           };
         }
 
-        if (ctx.pipelineMode !== 'ask') {
+        if (!shouldPause(ctx.pipelineMode)) {
           seen.add(fp);
-          return context ? `${context}\n\n${question}` : question;
+          return {
+            proceed: true,
+            instruction:
+              "Do not pause or ask the user. Apply this skill's skill.json defaults; if a field has no default, pick only from its declared choices (phases[].choices or styleSeeds).",
+          };
         }
 
         if (kind === 'single_select' && !choices?.length) {

@@ -49,11 +49,11 @@ run_local() {
     exit 1
   fi
   echo "==> Local Groq diagnostics (key length=${#GROQ_API_KEY}, prefix=${GROQ_API_KEY:0:4})"
-  ( cd "$AGENT_DIR" && TS_NODE_TRANSPILE_ONLY=true npx ts-node scripts/run-groq-diagnostics.ts )
+  ( cd "$AGENT_DIR" && npx tsx scripts/run-groq-diagnostics.ts )
 }
 
 run_selfcheck() {
-  ( cd "$AGENT_DIR" && TS_NODE_TRANSPILE_ONLY=true npx ts-node scripts/run-groq-diagnostics.ts --selfcheck )
+  ( cd "$AGENT_DIR" && npx tsx scripts/run-groq-diagnostics.ts --selfcheck )
 }
 
 run_runtime() {

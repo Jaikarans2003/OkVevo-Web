@@ -12,12 +12,13 @@ import { createTranscribeTools } from './pipeline/transcribe';
 import {
   BASE_TOOLS,
   emitSkillDispatch,
-  getToolMeta,
   loadSkillManifest,
   newTraceId,
   type SkillDispatchSource,
+  type SkillManifest,
 } from '../catalog/manifest';
-import { missingConfirmedFields } from '../checkpoint';
+import { parseToolMatcher } from '../permissions';
+import { emitPreToolUse } from '../hooks/bus';
 import type { ResolvedTaggedAsset } from '../taggedAssets';
 
 export { getSessionWorkdir, execCommand } from './lib/utils';
@@ -41,12 +42,18 @@ export type ToolCtx = {
   askFingerprints?: Set<string>;
 };
 
-export function buildTools(
-  ctx: ToolCtx,
-  skillId?: string | null,
-  source: SkillDispatchSource = 'new-turn'
-) {
-  const all = {
+const PROBE_CTX: ToolCtx = {
+  sessionId: '',
+  userId: '',
+  pipelineMode: 'auto',
+  skillName: '',
+  taggedArtifacts: [],
+  restoreAllowlistUrls: [],
+};
+
+/** Single factory: every registered tool. Adding a tool means adding it here. */
+export function assembleAllTools(ctx: ToolCtx) {
+  return {
     ...createFilesystemTools(ctx),
     ...createWebTools(ctx),
     ...createVisionTools(ctx),
@@ -59,11 +66,31 @@ export function buildTools(
     ...createImageGenerateTools(ctx),
     ...createVideoGenerateTools(ctx),
   };
+}
+
+export const SAFE_TOOL_UNIVERSE: readonly string[] = Object.freeze(
+  Object.keys(assembleAllTools(PROBE_CTX))
+);
+
+export function buildTools(
+  ctx: ToolCtx,
+  skillId?: string | null,
+  source: SkillDispatchSource = 'new-turn'
+) {
+  const all = assembleAllTools(ctx);
 
   const manifest = skillId ? loadSkillManifest(skillId) : null;
   const baseNames = manifest?.baseTools ?? BASE_TOOLS;
   const names = new Set<string>(baseNames);
   for (const name of manifest?.tools ?? []) names.add(name);
+  // permissions.deny on a bare tool name removes visibility entirely;
+  // argument matchers are enforced at execute time by the gate below.
+  for (const rule of manifest?.permissions?.deny ?? []) {
+    const matcher = parseToolMatcher(rule);
+    if (matcher.commandExact === undefined && matcher.commandPrefix === undefined) {
+      names.delete(matcher.tool);
+    }
+  }
 
   emitSkillDispatch({
     traceId: newTraceId(),
@@ -78,33 +105,29 @@ export function buildTools(
       .filter((name) => name in all)
       .map((name) => [
         name,
-        withConfirmedFields(name, all[name as keyof typeof all], ctx),
+        withPreToolUse(name, all[name as keyof typeof all], ctx, manifest),
       ])
   );
 }
 
-/** Ask-Me: block execute when tool-meta lists unset session fields. */
-function withConfirmedFields<T extends { execute?: (...args: never[]) => unknown }>(
+/**
+ * The single PreToolUse gate: every tool execute flows through the hook bus;
+ * handlers (permissions, confirmedFields — hooks/handlers.ts) may return a
+ * block output instead of executing.
+ */
+function withPreToolUse<T extends { execute?: (...args: never[]) => unknown }>(
   name: string,
   t: T,
-  ctx: ToolCtx
+  ctx: ToolCtx,
+  manifest: SkillManifest | null
 ): T {
-  const required = getToolMeta(name)?.requiresConfirmedFields;
   const execute = t.execute;
-  if (!required?.length || !execute) return t;
+  if (!execute) return t;
   return {
     ...t,
-    // ponytail: wrap in place; ceiling is one extra session read per gated tool call
     execute: async (...args: Parameters<typeof execute>) => {
-      if (ctx.pipelineMode === 'ask') {
-        const missing = await missingConfirmedFields(ctx.sessionId, required);
-        if (missing.length > 0) {
-          return {
-            error: `Missing confirmed fields for ${name}: ${missing.join(', ')}. Call ask_clarification once per field before retrying.`,
-            missingFields: missing,
-          };
-        }
-      }
+      const gate = await emitPreToolUse({ toolName: name, args: args[0], ctx, manifest });
+      if (gate.blocked) return gate.output;
       return execute(...args);
     },
   };

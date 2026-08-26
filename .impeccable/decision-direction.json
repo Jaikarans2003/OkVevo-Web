@@ -1,0 +1,140 @@
+{
+  "title": "Nia's landing world",
+  "question": "Nia is the face. OkVevo is quiet. Scroll tells the story, not stacked sections. Palette and Ubuntu are locked. Pick the world that carries them.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Lantern Lecture",
+      "kicker": "THE ROLL",
+      "lineage": "Victorian magic-lantern lecture, charcoal hall, one flame",
+      "thesis": "Nia is the plate on the lantern. Scroll changes the plate, never the room.",
+      "palette": ["#242220", "#2b2b2b", "#e3dcd6", "#ff6d1f", "#e8c4b0"],
+      "materials": ["projected figure", "lantern flame", "ghost plates", "peach glass edge"],
+      "viewport": "Dark hall. Huge Ubuntu You talk. on the left. Nia projected on the right as a lantern plate. Orange pill Work with Nia under the line. Nav is a thin sand-hairline bar.",
+      "risk": "Reads costume-heritage if a serif or cream sneaks in. Ubuntu and Ember Noir are the bind.",
+      "raised": [
+        { "from": "toyism plate", "raise": "Talk, plan, and deliver are one shared symbol set, three plates of the same lantern." },
+        { "from": "rebel menu", "raise": "The arriving plate snaps the last one to the edge. No polite fade between beats." },
+        { "from": "moon-shadow bazaar", "raise": "Nia's silhouette stays attached while the projected lesson trades." },
+        { "from": "seven-segment", "raise": "Unlit beats stay as ghost type. Absence is drawn, not deleted." }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "Lesson Reel",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "16mm classroom filmstrip, one continuous reel",
+      "thesis": "The page is one film. Nia stays pinned. Frames advance as you scroll.",
+      "palette": ["#242220", "#2b2b2b", "#e3dcd6", "#ff6d1f", "#e8c4b0"],
+      "materials": ["film gate", "pinned portrait", "frame advance", "warm grain"],
+      "viewport": "Centered Nia cutout in a film gate. Headline You talk. Nia makes the lesson. sits above her. CTA under. Side type changes as frames click forward.",
+      "risk": "This is the Wispr-shaped page the brief named, and the direction most AI landings want.",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-neon",
+      "label": "Ignited Word",
+      "verdict": "competitive",
+      "lineage": "Hand-bent neon circuit, one continuous glass stroke",
+      "thesis": "You talk. is one glass tube. The orange discharge is Nia arriving.",
+      "palette": ["#242220", "#ff6d1f", "#c45418", "#e3dcd6", "#e8c4b0"],
+      "materials": ["glass tube", "molten discharge", "dark room", "electrode ends"],
+      "viewport": "Black field. One continuous Ubuntu script You talk. drawn as orange neon. Nia's face appears inside the bend. Work with Nia is a small sand ghost under the transformer.",
+      "case": "Holds the dark-room identification of a single ignited word. Loses on showing a lesson being made.",
+      "risk": "A neon sign can hide the teaching assistant behind a logo trick.",
+      "comp": ".impeccable/mocks/decision/challenger-neon.webp",
+      "hero": "https://impeccable.style/worlds/cards/magnetism-electricity-plasma-hand-bent-neon-circuit-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/magnetism-electricity-plasma-hand-bent-neon-circuit.webp"
+    },
+    {
+      "id": "challenger-specimen",
+      "label": "Live Specimen",
+      "verdict": "competitive",
+      "lineage": "Variable-font specimen, one letter morphing under the hand",
+      "thesis": "Lecture thickens into lesson. The word is the product.",
+      "palette": ["#242220", "#e3dcd6", "#ff6d1f", "#2b2b2b"],
+      "materials": ["optical size", "axis slider as scroll", "baseline grid", "Nia as the specimen face"],
+      "viewport": "One giant Ubuntu word filling the fold. Scroll interpolates lecture into lesson. Nia's portrait is the counterform inside the letters. CTA is a small orange tick on the axis.",
+      "case": "Holds product clarity: talk becoming a lesson is a continuous morph. Loses the person Nia as the face.",
+      "risk": "A type demo can forget the teaching assistant.",
+      "comp": ".impeccable/mocks/decision/challenger-specimen.webp",
+      "hero": "https://impeccable.style/worlds/cards/variable-font-specimen-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/variable-font-specimen.webp"
+    },
+    {
+      "id": "challenger-toyism",
+      "label": "Signed Plate",
+      "verdict": "declined",
+      "lineage": "Toyism collective plate, shared symbols, invented signatures",
+      "thesis": "Every beat is a signed plate from the same symbol kit.",
+      "palette": ["#242220", "#ff6d1f", "#e3dcd6", "#2c5a55"],
+      "materials": ["hard edges", "shared symbols", "corner mark"],
+      "viewport": "Flat charcoal plate. Hard-edged Nia. Hovering talk/plan/deliver symbols. A small Nia mark in the corner.",
+      "case": "Educators do not identify with a painter collective. Clarity of talk-to-lesson is weaker than a lantern plate.",
+      "kept": "One shared symbol set reused as three plates.",
+      "risk": "Reads as illustration-as-brand, not a teaching assistant.",
+      "hero": "https://impeccable.style/worlds/cards/design-canon-toyism-signed-collective-plate-hero.webp"
+    },
+    {
+      "id": "challenger-rebel",
+      "label": "Torn Splash",
+      "verdict": "declined",
+      "lineage": "Rebel stylish-menu collage, smash cuts",
+      "thesis": "Each beat is a torn splash that slams the last one offstage.",
+      "palette": ["#242220", "#ff6d1f", "#e3dcd6"],
+      "materials": ["torn paper", "shear type", "smash cut"],
+      "viewport": "Full-frame orange splash. Sheared Ubuntu You talk. Nia as a torn cutout. CTA punched from a starburst.",
+      "case": "Identification fails for a calm teaching assistant. Smash energy hides the mechanism.",
+      "kept": "Arriving beat snaps the previous one to the edge.",
+      "risk": "Poster violence against a quiet product.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-rebel-menu-interface-hero.webp"
+    },
+    {
+      "id": "challenger-bazaar",
+      "label": "Shadow Trade",
+      "verdict": "declined",
+      "lineage": "Moon-shadow bazaar, stories attached to silhouettes",
+      "thesis": "Each lesson is a shadow you can trade, with its story still pinned to it.",
+      "palette": ["#242220", "#e3dcd6", "#ff6d1f", "#6b4a35"],
+      "materials": ["layered shadow", "ticket of origin", "moon edge"],
+      "viewport": "A lane of lesson-shadows. Nia's silhouette tagged with a small origin ticket. CTA is the trade.",
+      "case": "A bazaar of shadows is not how an educator starts a lesson.",
+      "kept": "Nia's silhouette stays attached while the projection trades.",
+      "risk": "Surreal commerce over a teaching job.",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-moon-shadow-bazaar-hero.webp"
+    },
+    {
+      "id": "challenger-segment",
+      "label": "Ghost Cells",
+      "verdict": "declined",
+      "lineage": "Seven-segment clocks, unlit cells designed too",
+      "thesis": "Talk, plan, deliver light as segments. Unlit beats stay drawn.",
+      "palette": ["#242220", "#ff6d1f", "#c45418", "#33312e"],
+      "materials": ["segment mask", "ghost cells", "instant swap"],
+      "viewport": "Four giant orange segment-words. Unlit plates as faint chrome ghosts. Nia is the colon between them.",
+      "case": "Alarm-clock identification is wrong for Nia. Instant swaps fight a lecture's pace.",
+      "kept": "Unlit beats remain as ghost type.",
+      "risk": "Instrument novelty over a person.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-seven-segment-alarm-clock-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "Centered hero, sticky product, three beats, pricing, FAQ. Played straight on Ember Noir.",
+    "palette": ["#242220", "#2b2b2b", "#e3dcd6", "#ff6d1f"],
+    "materials": ["product portrait", "glass nav", "plan cards"],
+    "viewport": "Meet Nia. You talk. Nia makes the lesson. Cutout under the headline. Work with Nia visible. Then stacked proof.",
+    "risk": "Indistinguishable from every other AI product page, on purpose.",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

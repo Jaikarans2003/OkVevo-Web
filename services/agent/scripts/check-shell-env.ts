@@ -1,9 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
-import {
-  commandAllowedBySkillPrefixes,
-  referencesProcEnviron,
-} from '../src/tools/general/filesystem';
+import { referencesProcEnviron } from '../src/policies';
+import { evaluateToolCall } from '../src/permissions';
 import { commandTargetsOwnedEditFile } from '../src/tools/lib/ownedEditFiles';
 import { execCommand, sanitizedShellEnv } from '../src/tools/lib/utils';
 
@@ -24,16 +22,52 @@ async function main() {
   // Owned HTML rewrite denied
   assert(commandTargetsOwnedEditFile('sed -i s/a/b/ hf-project/index.html'));
 
+  // run_command allow-matchers gate binaries (replaces commandPolicy prefixes)
+  const ffmpegOnly = { allow: ['run_command(ffmpeg:*)'] };
   assert.equal(
-    commandAllowedBySkillPrefixes('python -c "print(1)"', ['ffmpeg']),
-    false
+    evaluateToolCall(ffmpegOnly, 'run_command', { command: 'python -c "print(1)"' }).verdict,
+    'deny'
   );
   assert.equal(
-    commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', ['ffmpeg']),
-    true
+    evaluateToolCall(ffmpegOnly, 'run_command', { command: 'ffmpeg -y -i in.mp4 out.mp4' }).verdict,
+    'allow'
   );
-  assert.equal(commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', undefined), true);
-  assert.equal(commandAllowedBySkillPrefixes('ffmpeg -y -i in.mp4 out.mp4', []), false);
+  assert.equal(
+    evaluateToolCall(undefined, 'run_command', { command: 'ffmpeg -y -i in.mp4 out.mp4' }).verdict,
+    'allow'
+  );
+  // Floor denies fire regardless of skill permissions
+  assert.equal(
+    evaluateToolCall(ffmpegOnly, 'run_command', { command: 'cat /proc/1/environ' }).verdict,
+    'deny'
+  );
+  assert.equal(
+    evaluateToolCall(undefined, 'run_command', { command: 'sed -i s/a/b/ hf-project/index.html' }).verdict,
+    'deny'
+  );
+
+  // Credential-file floor (non-overridable, including path tools)
+  const catAllowed = { allow: ['run_command(cat:*)'] };
+  assert.equal(
+    evaluateToolCall(catAllowed, 'run_command', { command: 'cat .env' }).verdict,
+    'deny'
+  );
+  assert.equal(
+    evaluateToolCall(undefined, 'run_command', { command: 'cat ~/.ssh/id_rsa' }).verdict,
+    'deny'
+  );
+  assert.equal(
+    evaluateToolCall(undefined, 'read_file', { path: 'gcp-service-account.json' }).verdict,
+    'deny'
+  );
+  assert.equal(
+    evaluateToolCall(undefined, 'write_file', { path: 'google-credentials.json' }).verdict,
+    'deny'
+  );
+  assert.equal(
+    evaluateToolCall(undefined, 'read_file', { path: 'src/agent.ts' }).verdict,
+    'allow'
+  );
 
   const result = await execCommand('env', { env });
   assert(result.success, result.stderr);

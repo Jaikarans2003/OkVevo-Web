@@ -1,36 +1,45 @@
 /**
  * How to add a checkpoint:
- * - kind: 'single_select' (numbered choices) | 'phase_gate' (Continue only)
- * - allowFreeform: required boolean — orthogonal; textbox when true on either kind
+ * - kind: approval | selection | elicitation | tool_approval
+ *   (legacy aliases: phase_gate → approval, single_select → selection)
+ * - allowFreeform: required boolean — orthogonal; textbox when true
  * - Content (prompt, labels, freeform meaning) is always caller-supplied
  * - Never infer kind from choices.length — declare kind + allowFreeform explicitly
- * - single_select requires non-empty choices; phase_gate forbids choices
+ * - selection requires non-empty choices; approval forbids choices
  */
 import crypto from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase';
 import { isKnownSkill, resolveSessionSkillState } from './sessionSkills';
-import { hasSkillManifest, lookupPhase } from './catalog/manifest';
+import {
+  hasSkillManifest,
+  listSkillIds,
+  loadSkillManifest,
+  lookupPhase,
+} from './catalog/manifest';
 import type {
   BrandColors,
   SessionArtifactNeed,
   VideoOrientation,
 } from './tools/lib/utils';
 import { DEFAULT_BRAND_COLORS, parseBrandColorsFromText } from './tools/lib/utils';
-import { missingFieldsFromData } from './confirmedFields';
+import {
+  canonicalConfirmedField,
+  inferredConfirmedField,
+  missingFieldsFromData,
+  requestedLanguageFromAnswer,
+} from './confirmedFields';
 
 export type { VideoOrientation };
 
-export type CheckpointPhase =
-  | 'transcription'
-  | 'concepts'
-  | 'manim_complete'
-  | 'segment_planning'
-  | 'scaffold'
-  | 'pre_render'
-  | 'pre_pipeline';
+export type CheckpointKind =
+  | 'approval'
+  | 'selection'
+  | 'elicitation'
+  | 'tool_approval';
 
-export type CheckpointKind = 'single_select' | 'phase_gate';
+/** Writer + model-facing aliases for in-flight docs and ask_clarification. */
+export type CheckpointKindInput = CheckpointKind | 'phase_gate' | 'single_select' | 'question';
 
 export type CheckpointAnswerType = 'approve' | 'choice' | 'revision' | 'freeform' | 'skip';
 
@@ -65,6 +74,8 @@ export type CheckpointDisplayData = {
   checkpointId: string;
   kind: CheckpointKind;
   status: 'pending' | 'answered';
+  /** Run-log seq; higher wins when upserting duplicate ids. */
+  seq?: number;
   title: string;
   bullets: string[];
   nextLabel: string;
@@ -79,26 +90,17 @@ export type CheckpointDisplayData = {
 
 /** Map choice-id sets onto session pref fields for persist (not a block list). */
 export type PipelineDecisionKey =
-  | 'transcription_language'
+  | 'language'
   | 'orientation'
-  | 'brand_colors'
-  | 'animation_style'
-  | 'card_style';
+  | 'brandColors'
+  | 'animationStyle'
+  | 'styleSeed';
 
-const TOOL_OWNED_CHOICE_IDS: Record<PipelineDecisionKey, Set<string>> = {
-  transcription_language: new Set(['en', 'auto']),
+const TOOL_OWNED_CHOICE_IDS: Record<Exclude<PipelineDecisionKey, 'styleSeed'>, Set<string>> = {
+  language: new Set(['en', 'auto']),
   orientation: new Set(['horizontal', 'vertical']),
-  brand_colors: new Set(['default', 'from_video']),
-  animation_style: new Set(['minimal', 'moderate', 'detailed']),
-  card_style: new Set([
-    'academic',
-    'editorial',
-    'minimal',
-    'corporate',
-    'technical',
-    'whiteboard',
-    'social',
-  ]),
+  brandColors: new Set(['default', 'from_video']),
+  animationStyle: new Set(['minimal', 'moderate', 'detailed']),
 };
 
 export function matchToolOwnedDecision(
@@ -107,19 +109,18 @@ export function matchToolOwnedDecision(
   if (!choices?.length) return null;
   const ids = new Set(choices.map((c) => c.id));
   for (const [key, owned] of Object.entries(TOOL_OWNED_CHOICE_IDS) as [
-    PipelineDecisionKey,
+    Exclude<PipelineDecisionKey, 'styleSeed'>,
     Set<string>,
   ][]) {
     if ([...owned].every((id) => ids.has(id)) && ids.size <= owned.size + 1) {
       return key;
     }
   }
-  // Orientation pair alone
   if (ids.has('horizontal') && ids.has('vertical') && ids.size <= 2) {
     return 'orientation';
   }
   if (ids.has('en') && ids.has('auto') && ids.size <= 2) {
-    return 'transcription_language';
+    return 'language';
   }
   if (
     ids.has('minimal') &&
@@ -127,64 +128,42 @@ export function matchToolOwnedDecision(
     ids.has('detailed') &&
     ids.size <= 3
   ) {
-    return 'animation_style';
+    return 'animationStyle';
   }
+  if (matchesStyleSeedIds(ids)) return 'styleSeed';
   return null;
+}
+
+function matchesStyleSeedIds(ids: Set<string>): boolean {
+  for (const skillId of listSkillIds()) {
+    const seeds = loadSkillManifest(skillId).styleSeeds;
+    if (!seeds?.length) continue;
+    const owned = new Set([...seeds, 'custom']);
+    if ([...ids].every((id) => owned.has(id)) && ids.size <= owned.size) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export type AnimationStyle = 'minimal' | 'moderate' | 'detailed';
 
-export type TalkingHeadStyle =
-  | 'academic'
-  | 'editorial'
-  | 'minimal'
-  | 'corporate'
-  | 'technical'
-  | 'whiteboard'
-  | 'social'
-  | 'custom';
+const DEFAULT_RESUME_ARTIFACTS: SessionArtifactNeed[] = ['transcript', 'hf_project'];
 
-const TALKING_HEAD_STYLE_SET = new Set<string>([
-  'academic',
-  'editorial',
-  'minimal',
-  'corporate',
-  'technical',
-  'whiteboard',
-  'social',
-  'custom',
-]);
-
-const PHASE_NUMBERS: Record<string, number> = {
-  transcription: 2,
-  concepts: 3,
-  manim_complete: 4,
-  segment_planning: 5,
-  scaffold: 5,
-  pre_render: 6,
-  pre_pipeline: 1,
-};
-
-const RESUME_ARTIFACT_NEEDS: SessionArtifactNeed[] = [
-  'transcript',
-  'concepts',
-  'manim_scripts',
-  'hf_project',
-];
-
-function resumeArtifactsForSkill(skillName: string): {
+export function resolveResumeArtifacts(skillName: string): {
   artifactNeeds: SessionArtifactNeed[];
   assetKeys: string[];
 } {
-  if (skillName === 'talking-head') {
-    return {
-      artifactNeeds: ['transcript', 'hf_project'],
-      assetKeys: ['transcript', 'composition', 'hf_project'],
-    };
-  }
+  const declared =
+    skillName && hasSkillManifest(skillName)
+      ? loadSkillManifest(skillName).resumeArtifacts
+      : undefined;
+  const artifactNeeds = (declared?.length
+    ? declared
+    : DEFAULT_RESUME_ARTIFACTS) as SessionArtifactNeed[];
   return {
-    artifactNeeds: RESUME_ARTIFACT_NEEDS,
-    assetKeys: ['transcript', 'concepts', 'manim_scripts', 'composition', 'hf_project'],
+    artifactNeeds,
+    assetKeys: [...artifactNeeds, 'composition'],
   };
 }
 
@@ -216,23 +195,43 @@ type WriteCheckpointInput = {
 
 function assertKindShape(
   kind: CheckpointKind,
-  choices: CheckpointChoice[] | undefined
+  choices: CheckpointChoice[] | undefined,
+  questions?: CheckpointQuestion[]
 ): void {
-  if (kind === 'single_select') {
+  if (kind === 'selection') {
     if (!choices?.length) {
-      throw new Error('single_select requires non-empty choices');
+      throw new Error('selection requires non-empty choices');
+    }
+    return;
+  }
+  if (kind === 'elicitation') {
+    if (!questions?.length) {
+      throw new Error('elicitation requires questions');
+    }
+    for (const q of questions) {
+      assertKindShape(normalizeCheckpointKind(q.kind), q.choices);
+    }
+    return;
+  }
+  if (kind === 'tool_approval') {
+    if (choices && choices.length === 0) {
+      throw new Error('tool_approval choices must be non-empty when provided');
     }
     return;
   }
   if (choices?.length) {
-    throw new Error('phase_gate forbids choices');
+    throw new Error('approval forbids choices');
   }
 }
 
-/** Map legacy stored 'question' → single_select for in-flight docs. */
+/** Map legacy stored kinds onto the four interrupt kinds for in-flight docs. */
 export function normalizeCheckpointKind(raw: unknown): CheckpointKind {
-  if (raw === 'phase_gate') return 'phase_gate';
-  return 'single_select';
+  if (raw === 'single_select' || raw === 'selection' || raw === 'question') {
+    return 'selection';
+  }
+  if (raw === 'elicitation') return 'elicitation';
+  if (raw === 'tool_approval') return 'tool_approval';
+  return 'approval';
 }
 
 type WriteAskBase = {
@@ -241,15 +240,26 @@ type WriteAskBase = {
   bullets?: string[];
   allowFreeform: boolean;
   phase_label?: string;
-  /** Override default phase (single_select→concepts, phase_gate→clarification). */
-  completedPhase?: CheckpointPhase | string;
+  completedPhase?: string;
   freeformPlaceholder?: string;
   phaseKey?: string;
+  questions?: CheckpointQuestion[];
 };
 
-export type WriteAskCheckpointInput =
-  | (WriteAskBase & { kind: 'single_select'; choices: CheckpointChoice[] })
-  | (WriteAskBase & { kind: 'phase_gate'; choices?: undefined });
+export type WriteAskCheckpointInput = WriteAskBase & {
+  kind: CheckpointKindInput;
+  choices?: CheckpointChoice[];
+};
+
+/** Hint for the freeform box — follows the question, never a global brand-color default. */
+export function defaultFreeformPlaceholder(prompt: string): string {
+  if (/\b(color|hex|palette|brand)\b/i.test(prompt)) {
+    return 'Enter brand colors as hex… e.g. #f97316 #fb923c';
+  }
+  if (/\blanguage\b/i.test(prompt)) return 'Type a language…';
+  if (/\b(style|seed|look)\b/i.test(prompt)) return 'Describe a style…';
+  return 'Type your answer…';
+}
 
 export function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -305,7 +315,6 @@ async function writeCheckpointDoc(
   const checkpointId = crypto.randomUUID();
   const sessionRef = db.collection('sessions').doc(ctx.sessionId);
   const cpRef = sessionRef.collection('checkpoints').doc(checkpointId);
-  const pipelinePhase = PHASE_NUMBERS[input.completedPhase] ?? 0;
 
   await supersedePendingCheckpoints(ctx.sessionId);
 
@@ -329,13 +338,12 @@ async function writeCheckpointDoc(
     {
       pendingCheckpointId: checkpointId,
       pipelineStatus: 'awaiting_checkpoint',
-      pipelinePhase,
       pipelineUpdatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
 
-  // Prefs / soft-ask halt never reaches onStepFinish tool persistence — stamp here.
+  // Prefs / soft-ask halt never reaches onStepEnd tool persistence — stamp here.
   if (isKnownSkill(ctx.skillName)) {
     await persistSkillId(ctx.sessionId, ctx.skillName);
     await recordSkillsUsed(ctx.sessionId, [ctx.skillName]);
@@ -351,14 +359,25 @@ export async function writeAskCheckpoint(
   ctx: CheckpointCtx,
   input: WriteAskCheckpointInput
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
-  assertKindShape(input.kind, input.choices);
+  const kind = input.questions?.length
+    ? 'elicitation'
+    : normalizeCheckpointKind(input.kind);
+  assertKindShape(kind, input.choices, input.questions);
+
+  const firstQuestion = input.questions?.[0];
+  const artifacts =
+    kind === 'elicitation' ? { artifactNeeds: [], assetKeys: [] } : resolveResumeArtifacts(ctx.skillName);
+  const promptText = firstQuestion?.prompt ?? input.question;
+  const allowFreeform = firstQuestion?.allowFreeform ?? input.allowFreeform;
+  const freeformPlaceholder =
+    input.freeformPlaceholder ??
+    firstQuestion?.freeformPlaceholder ??
+    (allowFreeform ? defaultFreeformPlaceholder(promptText) : undefined);
 
   const written = await writeCheckpointDoc(ctx, {
-    kind: input.kind,
+    kind,
     phaseKey: input.phaseKey,
-    completedPhase:
-      input.completedPhase ??
-      (input.kind === 'phase_gate' ? 'clarification' : 'concepts'),
+    completedPhase: input.completedPhase ?? input.phaseKey ?? 'clarification',
     completedPhaseLabel: input.phase_label ?? 'Clarification',
     summary: {
       title: input.phase_label ?? 'Need your input',
@@ -369,15 +388,25 @@ export async function writeAskCheckpoint(
       description: 'Answer or approve to continue the pipeline.',
     },
     resume: {
-      ...resumeArtifactsForSkill(ctx.skillName),
+      ...artifacts,
       question: {
-        prompt: input.question,
-        ...(input.choices ? { choices: input.choices } : {}),
-        allowFreeform: input.allowFreeform,
-        ...(input.freeformPlaceholder
-          ? { freeformPlaceholder: input.freeformPlaceholder }
+        prompt: firstQuestion?.prompt ?? input.question,
+        ...(input.choices || firstQuestion?.choices
+          ? { choices: input.choices ?? firstQuestion?.choices }
           : {}),
+        allowFreeform,
+        ...(freeformPlaceholder ? { freeformPlaceholder } : {}),
       },
+      ...(input.questions?.length
+        ? {
+            questions: input.questions.map((q) => ({
+              ...q,
+              ...(q.allowFreeform && !q.freeformPlaceholder
+                ? { freeformPlaceholder: defaultFreeformPlaceholder(q.prompt) }
+                : {}),
+            })),
+          }
+        : {}),
     },
   });
 
@@ -388,57 +417,33 @@ export async function writeAskCheckpoint(
   };
 }
 
-/** One checkpoint doc with multiple paginated questions. */
-export async function writeAskCheckpointBatch(
+/** Write a gate from a manifest phase (kind/choices/question come from the phase). */
+export async function writeAskFromPhase(
   ctx: CheckpointCtx,
-  input: {
-    phase_label: string;
-    questions: CheckpointQuestion[];
-    bullets?: string[];
-    completedPhase?: CheckpointPhase | string;
-    phaseKey?: string;
-  }
+  phase: {
+    label: string;
+    completedPhase?: string;
+    question?: string;
+    kind?: string;
+    choices?: CheckpointChoice[];
+    allowFreeform?: boolean;
+  },
+  phaseKey: string,
+  overrides?: { question?: string; bullets?: string[]; allowFreeform?: boolean }
 ): Promise<{ haltTurn: true; checkpointId: string; checkpointDisplay: CheckpointDisplayData }> {
-  if (input.questions.length === 0) {
-    throw new Error('writeAskCheckpointBatch requires at least one question');
-  }
-  for (const q of input.questions) {
-    assertKindShape(q.kind, q.choices);
-  }
-  const first = input.questions[0]!;
-  const written = await writeCheckpointDoc(ctx, {
-    kind: first.kind,
-    phaseKey: input.phaseKey,
-    completedPhase: input.completedPhase ?? 'pre_pipeline',
-    completedPhaseLabel: input.phase_label,
-    summary: {
-      title: input.phase_label,
-      bullets: input.bullets ?? [],
-    },
-    next: {
-      label: 'Continue',
-      description: 'Answer each question to continue.',
-    },
-    resume: {
-      artifactNeeds: [],
-      assetKeys: [],
-      question: {
-        prompt: first.prompt,
-        choices: first.choices,
-        allowFreeform: first.allowFreeform,
-        ...(first.freeformPlaceholder
-          ? { freeformPlaceholder: first.freeformPlaceholder }
-          : {}),
-      },
-      questions: input.questions,
-    },
+  const kind = normalizeCheckpointKind(phase.kind);
+  return writeAskCheckpoint(ctx, {
+    kind,
+    question: overrides?.question ?? phase.question ?? phase.label,
+    phase_label: phase.label,
+    completedPhase: phase.completedPhase,
+    phaseKey,
+    allowFreeform: overrides?.allowFreeform ?? phase.allowFreeform ?? false,
+    ...(overrides?.bullets ? { bullets: overrides.bullets } : {}),
+    ...(kind === 'selection' || kind === 'tool_approval'
+      ? { choices: phase.choices ?? [] }
+      : {}),
   });
-
-  return {
-    haltTurn: true,
-    checkpointId: written.id,
-    checkpointDisplay: written.display,
-  };
 }
 
 export async function answerCheckpointTransaction(
@@ -483,6 +488,7 @@ export async function answerCheckpointTransaction(
 
 export type LoadedCheckpoint = {
   id: string;
+  kind: CheckpointKind;
   completedPhase: string;
   completedPhaseLabel: string;
   skillId?: string;
@@ -524,6 +530,7 @@ export async function loadCheckpoint(
   const data = snap.data()!;
   return {
     id: snap.id,
+    kind: normalizeCheckpointKind(data.kind),
     completedPhase: String(data.completedPhase ?? ''),
     completedPhaseLabel: String(data.completedPhaseLabel ?? ''),
     ...(typeof data.skillId === 'string' && data.skillId
@@ -536,49 +543,6 @@ export async function loadCheckpoint(
     next: data.next as LoadedCheckpoint['next'],
     resume: data.resume as LoadedCheckpoint['resume'],
     answer: data.answer as LoadedCheckpoint['answer'],
-  };
-}
-
-export async function loadPendingCheckpointDisplay(
-  sessionId: string
-): Promise<CheckpointDisplayData | null> {
-  const sessionSnap = await db.collection('sessions').doc(sessionId).get();
-  const pendingId = sessionSnap.data()?.pendingCheckpointId;
-  if (typeof pendingId !== 'string') return null;
-
-  const snap = await db
-    .collection('sessions')
-    .doc(sessionId)
-    .collection('checkpoints')
-    .doc(pendingId)
-    .get();
-  if (!snap.exists) return null;
-  const data = snap.data()!;
-  const summary = data.summary as { title: string; bullets: string[] };
-  const next = data.next as { label: string; description: string };
-  const resume = data.resume as {
-    question?: {
-      prompt: string;
-      choices?: CheckpointChoice[];
-      allowFreeform: boolean;
-    };
-    questions?: CheckpointQuestion[];
-  };
-
-  const first = resume.questions?.[0] ?? resume.question;
-
-  return {
-    checkpointId: pendingId,
-    kind: normalizeCheckpointKind(data.kind),
-    status: 'pending',
-    title: summary.title,
-    bullets: summary.bullets.filter(Boolean),
-    nextLabel: next.label,
-    nextDescription: next.description,
-    question: first?.prompt,
-    choices: first?.choices,
-    allowFreeform: first?.allowFreeform ?? false,
-    ...(resume.questions?.length ? { questions: resume.questions } : {}),
   };
 }
 
@@ -614,7 +578,7 @@ export function parentRunIdFromSession(
   skillId: string
 ): string | null {
   if (typeof existing?.scaffoldRunId !== 'string' || !existing.scaffoldRunId) return null;
-  // ponytail: skill mismatch → no parent so talking-head never children an edu run
+  // ponytail: skill mismatch → no parent so a later skill never children an earlier run
   if (existing.scaffoldSkillId !== skillId) return null;
   return existing.scaffoldRunId;
 }
@@ -656,30 +620,69 @@ export async function persistPipelineMode(
   await db.collection('sessions').doc(sessionId).set({ pipelineMode }, { merge: true });
 }
 
+async function patchSession(
+  sessionId: string,
+  fields: Record<string, unknown>
+): Promise<void> {
+  await db.collection('sessions').doc(sessionId).set(fields, { merge: true });
+}
+
+function confirmedOf(data: Record<string, unknown> | undefined, field: string): unknown {
+  const map = data?.confirmed;
+  if (map && typeof map === 'object' && !Array.isArray(map)) {
+    return (map as Record<string, unknown>)[field];
+  }
+  return undefined;
+}
+
+/** Write `session.confirmed.<field>` plus optional top-level aliases for in-flight readers. */
+async function persistConfirmed(
+  sessionId: string,
+  field: string,
+  value: unknown,
+  topLevel?: Record<string, unknown>
+): Promise<void> {
+  await patchSession(sessionId, {
+    [`confirmed.${field}`]: value,
+    ...topLevel,
+  });
+}
+
 export async function persistOrientation(
   sessionId: string,
   orientation: VideoOrientation
 ): Promise<void> {
-  await db.collection('sessions').doc(sessionId).set({ orientation }, { merge: true });
+  await persistConfirmed(sessionId, 'orientation', orientation, { orientation });
+}
+
+export async function getSessionOrientationIfSet(
+  sessionId: string
+): Promise<VideoOrientation | undefined> {
+  const data = (await db.collection('sessions').doc(sessionId).get()).data();
+  const fromMap = confirmedOf(data, 'orientation');
+  if (fromMap === 'vertical' || fromMap === 'horizontal') return fromMap;
+  if (data?.orientation === 'vertical' || data?.orientation === 'horizontal') {
+    return data.orientation;
+  }
+  return undefined;
 }
 
 export async function getSessionOrientation(sessionId: string): Promise<VideoOrientation> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  return snap.data()?.orientation === 'vertical' ? 'vertical' : 'horizontal';
+  return (await getSessionOrientationIfSet(sessionId)) ?? 'horizontal';
 }
 
 export async function persistBrandColors(
   sessionId: string,
   brandColors: BrandColors
 ): Promise<void> {
-  await db.collection('sessions').doc(sessionId).set({ brandColors }, { merge: true });
+  await persistConfirmed(sessionId, 'brandColors', brandColors, { brandColors });
 }
 
 export async function getSessionBrandColors(
   sessionId: string
 ): Promise<BrandColors | undefined> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const raw = snap.data()?.brandColors;
+  const data = (await db.collection('sessions').doc(sessionId).get()).data();
+  const raw = confirmedOf(data, 'brandColors') ?? data?.brandColors;
   if (!raw || typeof raw !== 'object') return undefined;
   const c = raw as BrandColors;
   if (
@@ -696,48 +699,47 @@ export async function persistAnimationStyle(
   sessionId: string,
   animationStyle: AnimationStyle
 ): Promise<void> {
-  await db.collection('sessions').doc(sessionId).set({ animationStyle }, { merge: true });
+  await persistConfirmed(sessionId, 'animationStyle', animationStyle, { animationStyle });
 }
 
 export async function getSessionAnimationStyle(
   sessionId: string
 ): Promise<AnimationStyle> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const raw = snap.data()?.animationStyle;
+  const data = (await db.collection('sessions').doc(sessionId).get()).data();
+  const raw = confirmedOf(data, 'animationStyle') ?? data?.animationStyle;
   if (raw === 'minimal' || raw === 'moderate' || raw === 'detailed') return raw;
   return 'moderate';
 }
 
-export async function persistTalkingHeadStyle(
+export async function persistStyleSeed(
   sessionId: string,
-  talkingHeadStyle: TalkingHeadStyle,
-  talkingHeadStyleBrief?: string
+  seed: string,
+  brief?: string
 ): Promise<void> {
   const patch: Record<string, unknown> = {
-    talkingHeadStyle,
-    activeStyleSeed: talkingHeadStyle,
+    'confirmed.styleSeed': seed,
+    activeStyleSeed: seed,
   };
-  if (typeof talkingHeadStyleBrief === 'string' && talkingHeadStyleBrief.trim()) {
-    patch.talkingHeadStyleBrief = talkingHeadStyleBrief.trim();
+  if (typeof brief === 'string' && brief.trim()) {
+    patch['confirmed.styleSeedBrief'] = brief.trim();
+    patch.styleSeedBrief = brief.trim();
   }
-  await db.collection('sessions').doc(sessionId).set(patch, { merge: true });
+  await patchSession(sessionId, patch);
 }
 
 export async function persistActiveStyleSeed(
   sessionId: string,
   seed: string
 ): Promise<void> {
-  await db
-    .collection('sessions')
-    .doc(sessionId)
-    .set({ activeStyleSeed: seed }, { merge: true });
+  await persistStyleSeed(sessionId, seed);
 }
 
 export async function getSessionActiveStyleSeed(
   sessionId: string
 ): Promise<string | null> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const data = snap.data();
+  const data = (await db.collection('sessions').doc(sessionId).get()).data();
+  const fromMap = confirmedOf(data, 'styleSeed');
+  if (typeof fromMap === 'string' && fromMap.trim()) return fromMap.trim();
   if (typeof data?.activeStyleSeed === 'string' && data.activeStyleSeed.trim()) {
     return data.activeStyleSeed.trim();
   }
@@ -747,37 +749,10 @@ export async function getSessionActiveStyleSeed(
   return null;
 }
 
-export async function getSessionTalkingHeadStyle(sessionId: string): Promise<{
-  style: TalkingHeadStyle;
-  brief?: string;
-}> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const data = snap.data();
-  const raw = data?.activeStyleSeed ?? data?.talkingHeadStyle;
-  const style = TALKING_HEAD_STYLE_SET.has(raw) ? (raw as TalkingHeadStyle) : 'minimal';
-  const brief =
-    typeof data?.talkingHeadStyleBrief === 'string' && data.talkingHeadStyleBrief.trim()
-      ? data.talkingHeadStyleBrief.trim()
-      : undefined;
-  return { style, brief };
-}
-
 export async function getSessionVideoUrl(sessionId: string): Promise<string | null> {
   const snap = await db.collection('sessions').doc(sessionId).get();
   const url = snap.data()?.videoUrl;
   return typeof url === 'string' && url ? url : null;
-}
-
-export async function markPrePipelineResolved(sessionId: string): Promise<void> {
-  await db
-    .collection('sessions')
-    .doc(sessionId)
-    .set({ prePipelineResolved: true }, { merge: true });
-}
-
-export async function isPrePipelineResolved(sessionId: string): Promise<boolean> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  return snap.data()?.prePipelineResolved === true;
 }
 
 /** Ask/auto transcription routing: English (Groq) or Auto-detect (Fal Scribe). */
@@ -787,22 +762,72 @@ export async function persistRequestedLanguage(
   sessionId: string,
   requestedLanguage: RequestedLanguage
 ): Promise<void> {
-  await db
-    .collection('sessions')
-    .doc(sessionId)
-    .set({ requestedLanguage }, { merge: true });
+  await persistConfirmed(sessionId, 'language', requestedLanguage, { requestedLanguage });
 }
 
 export async function getSessionRequestedLanguage(
   sessionId: string
 ): Promise<RequestedLanguage | undefined> {
-  const snap = await db.collection('sessions').doc(sessionId).get();
-  const raw = snap.data()?.requestedLanguage;
+  const data = (await db.collection('sessions').doc(sessionId).get()).data();
+  const raw = confirmedOf(data, 'language') ?? data?.requestedLanguage;
   if (raw === 'en' || raw === 'auto') return raw;
   return undefined;
 }
 
-/** Apply batch pre-pipeline answers onto session fields. */
+async function persistFieldAnswer(
+  sessionId: string,
+  field: string,
+  answer: { type: CheckpointAnswerType; choiceId?: string; text: string },
+  skipDefault?: { choiceId?: string; value?: unknown }
+): Promise<void> {
+  const choiceId = answer.choiceId;
+  if (field === 'language') {
+    await persistRequestedLanguage(
+      sessionId,
+      requestedLanguageFromAnswer(choiceId, answer.text)
+    );
+    return;
+  }
+  if (field === 'orientation') {
+    await persistOrientation(
+      sessionId,
+      choiceId === 'vertical' ? 'vertical' : 'horizontal'
+    );
+    return;
+  }
+  if (field === 'brandColors') {
+    if (answer.type === 'freeform') {
+      const parsed = parseBrandColorsFromText(answer.text);
+      await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
+    } else if (choiceId === 'from_video') {
+      const colors = (skipDefault?.value as BrandColors | undefined) ?? DEFAULT_BRAND_COLORS;
+      await persistBrandColors(sessionId, colors);
+    } else {
+      await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
+    }
+    return;
+  }
+  if (field === 'animationStyle') {
+    const style =
+      choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
+    await persistAnimationStyle(sessionId, style);
+    return;
+  }
+  if (field === 'styleSeed') {
+    if (answer.type === 'freeform') {
+      await persistStyleSeed(sessionId, 'custom', answer.text);
+    } else {
+      await persistStyleSeed(sessionId, choiceId && choiceId !== 'custom' ? choiceId : 'minimal');
+    }
+    return;
+  }
+  const value =
+    choiceId ??
+    (answer.type === 'freeform' || answer.type === 'revision' ? answer.text : undefined);
+  if (value !== undefined) await persistConfirmed(sessionId, field, value);
+}
+
+/** Apply batch elicitation answers onto session confirmed fields. */
 export async function persistPrePipelineAnswers(
   sessionId: string,
   answers: Record<
@@ -817,89 +842,38 @@ export async function persistPrePipelineAnswers(
     if (ans?.type === 'skip' || (!choiceId && ans?.type !== 'freeform')) {
       choiceId = q.skipDefault?.choiceId;
     }
-    if (q.id === 'transcription_language') {
-      await persistRequestedLanguage(sessionId, choiceId === 'en' ? 'en' : 'auto');
-    } else if (q.id === 'orientation') {
-      await persistOrientation(
-        sessionId,
-        choiceId === 'vertical' ? 'vertical' : 'horizontal'
-      );
-    } else if (q.id === 'brand_colors') {
-      if (ans?.type === 'freeform') {
-        const parsed = parseBrandColorsFromText(ans.text);
-        await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
-      } else if (choiceId === 'from_video') {
-        const colors =
-          (q.skipDefault?.value as BrandColors | undefined) ?? DEFAULT_BRAND_COLORS;
-        await persistBrandColors(sessionId, colors);
-      } else {
-        await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
-      }
-    } else if (q.id === 'animation_style') {
-      const style =
-        choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
-      await persistAnimationStyle(sessionId, style);
-    } else if (q.id === 'card_style') {
-      if (ans?.type === 'freeform') {
-        await persistTalkingHeadStyle(sessionId, 'custom', ans.text);
-      } else {
-        const style =
-          choiceId && TALKING_HEAD_STYLE_SET.has(choiceId) && choiceId !== 'custom'
-            ? (choiceId as TalkingHeadStyle)
-            : 'minimal';
-        await persistTalkingHeadStyle(sessionId, style);
-      }
-    }
+    const field =
+      canonicalConfirmedField(q.id) ??
+      matchToolOwnedDecision(q.choices) ??
+      inferredConfirmedField(q.prompt) ??
+      q.id;
+    await persistFieldAnswer(
+      sessionId,
+      field,
+      {
+        type: ans?.type ?? 'choice',
+        choiceId,
+        text: ans?.text ?? '',
+      },
+      q.skipDefault
+    );
   }
-  await markPrePipelineResolved(sessionId);
 }
 
-/** Persist a single-select/freeform clarification onto session fields (overwrites). */
+/** Persist a selection/freeform clarification onto session fields (overwrites). */
 export async function persistClarificationAnswer(
   sessionId: string,
   choices: CheckpointChoice[] | undefined,
-  answer: { type: CheckpointAnswerType; choiceId?: string; text: string }
+  answer: { type: CheckpointAnswerType; choiceId?: string; text: string },
+  opts?: { phaseKey?: string; questionId?: string; prompt?: string }
 ): Promise<void> {
-  const field = matchToolOwnedDecision(choices);
-  const choiceId = answer.choiceId;
-  if (field === 'transcription_language') {
-    await persistRequestedLanguage(sessionId, choiceId === 'en' ? 'en' : 'auto');
-    return;
-  }
-  if (field === 'orientation') {
-    await persistOrientation(
-      sessionId,
-      choiceId === 'vertical' ? 'vertical' : 'horizontal'
-    );
-    return;
-  }
-  if (field === 'brand_colors') {
-    if (answer.type === 'freeform') {
-      const parsed = parseBrandColorsFromText(answer.text);
-      await persistBrandColors(sessionId, parsed ?? DEFAULT_BRAND_COLORS);
-    } else if (choiceId === 'from_video') {
-      await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
-    } else {
-      await persistBrandColors(sessionId, DEFAULT_BRAND_COLORS);
-    }
-    return;
-  }
-  if (field === 'animation_style') {
-    const style =
-      choiceId === 'minimal' || choiceId === 'detailed' ? choiceId : 'moderate';
-    await persistAnimationStyle(sessionId, style);
-    return;
-  }
-  if (field === 'card_style') {
-    if (answer.type === 'freeform') {
-      await persistTalkingHeadStyle(sessionId, 'custom', answer.text);
-    } else {
-      const style =
-        choiceId && TALKING_HEAD_STYLE_SET.has(choiceId) && choiceId !== 'custom'
-          ? (choiceId as TalkingHeadStyle)
-          : 'minimal';
-      await persistTalkingHeadStyle(sessionId, style);
-    }
+  const field =
+    canonicalConfirmedField(opts?.questionId) ??
+    canonicalConfirmedField(opts?.phaseKey) ??
+    matchToolOwnedDecision(choices) ??
+    inferredConfirmedField(opts?.prompt);
+  if (field) {
+    await persistFieldAnswer(sessionId, field, answer);
     return;
   }
   if (answer.type === 'freeform') {
@@ -949,7 +923,7 @@ function applyResumePlaceholders(
   const choiceId = checkpoint.answer?.choiceId;
   const orientationLine =
     choiceId === 'horizontal' || choiceId === 'vertical'
-      ? `\n- Orientation chosen: ${choiceId}. Session already stores it — generate_manim_script / render_manim_clip / scaffold_hf_project read it when the arg is omitted.`
+      ? `\n- Orientation chosen: ${choiceId}. Session already stores it.`
       : '';
   return text.replaceAll('{orientationLine}', orientationLine);
 }
