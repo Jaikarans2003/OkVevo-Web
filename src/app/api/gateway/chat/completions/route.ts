@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { env } from '@/config/env';
 import { auth, db } from '@/lib/firebase-admin';
 import { settleCompletedChat } from '@/lib/gateway/debit';
 import {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       headers: {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://www.okvevo.com',
+        'HTTP-Referer': env.siteUrl,
         'X-Title': 'Nia',
       },
       body: rawBody,

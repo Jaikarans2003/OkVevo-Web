@@ -6,13 +6,12 @@ import { RAZORPAY_CONFIG } from '@/config/razorpay';
 
 export const runtime = 'nodejs';
 
-const razorpay = new Razorpay({
-    key_id: RAZORPAY_CONFIG.keyId,
-    key_secret: RAZORPAY_CONFIG.keySecret,
-});
-
 export async function POST(request: NextRequest) {
     try {
+        const razorpay = new Razorpay({
+            key_id: RAZORPAY_CONFIG.keyId,
+            key_secret: RAZORPAY_CONFIG.keySecret,
+        });
         const body = await request.json();
         const { userId, subscriptionId } = body;
 

@@ -1,61 +1,23 @@
 {
-  "hosting": {
-    "source": ".",
+  "apphosting": {
+    "backendId": "okvevo-web",
+    "rootDir": "/",
     "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          {
-            "key": "Access-Control-Allow-Origin",
-            "value": "*"
-          },
-          {
-            "key": "Access-Control-Allow-Methods",
-            "value": "GET, POST, PUT, DELETE, OPTIONS"
-          },
-          {
-            "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, Authorization"
-          }
-        ]
-      },
-      {
-        "source": "/api/**",
-        "headers": [
-          {
-            "key": "Access-Control-Allow-Origin",
-            "value": "*"
-          },
-          {
-            "key": "Access-Control-Allow-Methods",
-            "value": "GET, POST, PUT, DELETE, OPTIONS"
-          },
-          {
-            "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, Authorization, X-Requested-With"
-          },
-          {
-            "key": "Access-Control-Max-Age",
-            "value": "3600"
-          },
-          {
-            "key": "Cache-Control",
-            "value": "no-store"
-          }
-        ]
-      }
-    ],
-    "frameworksBackend": {
-      "region": "us-central1",
-      "memory": "1GiB",
-      "timeoutSeconds": 800,
-      "concurrency": 20
-    }
+      "node_modules",
+      ".git",
+      ".firebase",
+      ".next",
+      ".venv",
+      "graphify-out",
+      ".env",
+      ".env.local",
+      ".env.dev",
+      ".env.*.local",
+      "public/Nia",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "logs"
+    ]
   },
   "storage": {
     "rules": "storage.rules"

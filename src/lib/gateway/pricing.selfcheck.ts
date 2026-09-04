@@ -76,4 +76,8 @@ assert.doesNotMatch(creditsSrc, /PLACEHOLDER_CREDITS_PER_USD/);
 assert.doesNotMatch(creditsSrc, /credits-per-dollar|credits per dollar|USD ratio|usd ratio/i);
 assert.doesNotMatch(creditsSrc, /MARGIN\s*=/);
 
+const pricingSrc = fs.readFileSync(path.join(dir, 'pricing.ts'), 'utf8');
+assert.match(pricingSrc, /env\.siteUrl/);
+assert.doesNotMatch(pricingSrc, /www\.okvevo\.com/);
+
 console.log('pricing.selfcheck: ok');

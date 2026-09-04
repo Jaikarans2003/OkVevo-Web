@@ -3,6 +3,8 @@
  * (that file is the opaque integer ledger and must stay FX-free).
  */
 
+import { env } from '@/config/env';
+
 export const MARGIN = 2.0;
 // ponytail: placeholder until Razorpay tiers land (Phase 3.5). Replace then.
 export const PLACEHOLDER_CREDITS_PER_USD = 1000;
@@ -55,7 +57,7 @@ function splitAuthorSlug(model: string): { author: string; slug: string } | null
 function orHeaders(): HeadersInit {
   const key = process.env.OPENROUTER_API_KEY?.trim();
   const headers: Record<string, string> = {
-    'HTTP-Referer': 'https://www.okvevo.com',
+    'HTTP-Referer': env.siteUrl,
     'X-Title': 'Nia',
   };
   if (key) headers.Authorization = `Bearer ${key}`;

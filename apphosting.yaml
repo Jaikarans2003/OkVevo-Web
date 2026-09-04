@@ -1,0 +1,147 @@
+# Settings for Backend okvevo-web (okvevo-testing).
+# Public values only. Secrets are Secret Manager names — never commit values.
+# SITE_URL / ALLOWED_ORIGINS: chicken-and-egg until the first backend exists.
+# Expected origin: https://okvevo-web--okvevo-testing.us-central1.hosted.app
+# Confirm with `firebase apphosting:backends:get okvevo-web --project okvevo-testing`
+# and edit these two vars if the real URL differs. See hermes-agent/ENVIRONMENT.md.
+
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  concurrency: 20
+  minInstances: 0
+
+env:
+  - variable: OKVEVO_ENV
+    value: staging
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: ALLOWED_ORIGINS
+    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app,http://localhost:3000,http://127.0.0.1:3000
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: AGENT_URL
+    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: AWS_REGION
+    value: us-central1
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAPUH1rNbUu7Bxiul10rTx0mFH2XaH0N3Y
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: okvevo-testing.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: okvevo-testing
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: okvevo-testing.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "233504218443"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:233504218443:web:b6f0948f3c1c4d8af8dcce
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+    value: https://okvevo-testing-default-rtdb.firebaseio.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
+    value: rzp_test_SZSMKrV0nE71Ge
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_HOBBY_PLAN_ID
+    value: plan_SZRg3JzcOiFCiG
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_PRO_PLAN_ID
+    value: plan_SWkxpwywTG5eSF
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_HOBBY_ANNUAL_PLAN_ID
+    value: plan_SX5ZlCJXlu0US7
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_PRO_ANNUAL_PLAN_ID
+    value: plan_SX5YenijxgtRD1
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: ADMIN_EMAILS
+    value: admin@okvevo.com
+    availability:
+      - RUNTIME
+
+  - variable: OPENROUTER_API_KEY
+    secret: OPENROUTER_API_KEY
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+    secret: FIREBASE_SERVICE_ACCOUNT_KEY
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_KEY_ID
+    secret: RAZORPAY_KEY_ID
+    availability:
+      - RUNTIME
+
+  - variable: RAZORPAY_KEY_SECRET
+    secret: RAZORPAY_KEY_SECRET
+    availability:
+      - RUNTIME
+
+  - variable: RAZORPAY_WEBHOOK_SECRET
+    secret: RAZORPAY_WEBHOOK_SECRET
+    availability:
+      - RUNTIME

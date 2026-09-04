@@ -16,7 +16,7 @@
     "check:fal-webhook": "node --experimental-strip-types scripts/check-fal-webhook.ts",
     "check:all": "node scripts/check-all.mjs",
     "export": "next build --webpack",
-    "deploy": "npm run export && firebase deploy --only hosting --project testing"
+    "deploy": "firebase deploy --only apphosting --project testing"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-agentcore": "^3.1089.0",
