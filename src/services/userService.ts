@@ -33,6 +33,8 @@ export interface UserProfile {
     proOrganisationName?: string;
     isPro?: boolean;
     proPromptShown?: boolean;
+    plan?: string | null;
+    creditBalance?: number;
 }
 
 export interface Organisation {
@@ -73,6 +75,8 @@ export async function createUserProfile(uid: string, email: string): Promise<voi
             uid,
             email,
             onboardingComplete: false,
+            creditBalance: 0,
+            plan: null,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });

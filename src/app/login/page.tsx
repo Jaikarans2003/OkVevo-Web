@@ -1,7 +1,13 @@
-import AuthForm from '../../components/AuthForm';
-import NoiseOverlay from '../../components/NoiseOverlay';
+import AuthForm from '@/components/shared/AuthForm';
+import NoiseOverlay from '@/components/shared/NoiseOverlay';
 
-export default function LoginPage() {
+export default async function LoginPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ redirect?: string; state?: string }>;
+}) {
+    const { redirect, state } = await searchParams;
+
     return (
         <main className="min-h-screen w-full flex items-center justify-center p-4 bg-black relative overflow-hidden">
             <NoiseOverlay />
@@ -14,7 +20,7 @@ export default function LoginPage() {
 
             {/* Content */}
             <div className="relative z-10 w-full flex justify-center">
-                <AuthForm />
+                <AuthForm desktopRedirect={redirect} desktopState={state} />
             </div>
         </main>
     );

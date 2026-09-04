@@ -1,7 +1,0 @@
-# Unused when build context is the monorepo root (compose + AgentCore deploy).
-# Kept only for accidental `docker build` from this directory — do NOT ignore dist;
-# the image COPYs prebuilt services/agent/dist into the runtime image.
-node_modules
-.env
-*.md
-!AGENT.md

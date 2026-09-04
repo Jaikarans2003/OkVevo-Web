@@ -59,5 +59,20 @@ assert.equal(
   'Please run next.',
   'strips backtick-only snake_case tool names'
 );
+assert.equal(
+  cleanNarrativeText('Cards are ready.</mm:think>\nOn it.'),
+  'Cards are ready.\nOn it.',
+  'strips live orphan </mm:think>'
+);
+assert.equal(
+  cleanNarrativeText('Before.<mm:think>hidden</mm:think>After.'),
+  'Before.After.',
+  'strips mm:think blocks'
+);
+assert.equal(
+  cleanNarrativeText('Before.<think>hidden</think>After.'),
+  'Before.After.',
+  'strips think blocks'
+);
 
 console.log('cleanNarrativeText.selfcheck: ok');

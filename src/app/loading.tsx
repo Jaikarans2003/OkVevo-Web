@@ -1,4 +1,4 @@
-import LoadingScreen from '@/components/LoadingScreen';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 export default function RootLoading() {
   return <LoadingScreen />;

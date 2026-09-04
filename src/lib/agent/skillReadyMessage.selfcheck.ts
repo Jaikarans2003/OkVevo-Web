@@ -28,12 +28,15 @@ const listed = skills.filter((entry) => entry.visibility === 'listed');
 
 assert.deepEqual(
   listed.map((entry) => entry.id).sort(),
-  ['background-generation', 'edu-video', 'talking-head']
+  ['background-generation', 'edu-video', 'faceless-explainer', 'talking-head']
 );
 assert.equal(byId['edu-video']?.label, 'Edu-Video');
 assert.equal(byId['edu-video']?.requiresUpload, true);
 assert.equal(byId['talking-head']?.requiresUpload, true);
 assert.equal(byId['background-generation']?.requiresUpload, false);
+assert.equal(byId['faceless-explainer']?.requiresUpload, false);
+assert.equal(byId['faceless-explainer']?.label, 'Faceless Explainer');
 assert.equal(byId['hyperframes']?.visibility, 'internal');
 assert.equal(byId['edu-video']?.readyMessage, 'Your educational video is ready.');
 assert.equal(byId['talking-head']?.readyMessage, 'Your talking-head video is ready.');
+assert.equal(byId['faceless-explainer']?.readyMessage, 'Your explainer video is ready.');

@@ -25,9 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@agent/*": [
-        "./services/agent/src/*"
       ]
     }
   },
@@ -36,13 +33,11 @@
     "next.config.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "services/agent/src/smoothStreamSkipStatus.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "infrastructure",
     "src/**/*.selfcheck.ts"
   ]
 }

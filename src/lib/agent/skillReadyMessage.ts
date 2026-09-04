@@ -1,4 +1,4 @@
-import indexJson from '../../../Skills/index.json';
+import indexJson from './skills-index.json';
 
 export type SkillIndexEntry = {
   id: string;

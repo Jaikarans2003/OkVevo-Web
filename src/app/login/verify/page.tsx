@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, XCircle, ArrowRight, Mail } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import NoiseOverlay from '@/components/NoiseOverlay';
+import NoiseOverlay from '@/components/shared/NoiseOverlay';
 
 type VerificationState = 'loading' | 'success' | 'error';
 
@@ -78,7 +78,7 @@ function VerifyEmailContent() {
     };
 
     const handleContinue = () => {
-        router.push('/workspace');
+        router.push('/billing');
     };
 
     return (

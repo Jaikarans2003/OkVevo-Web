@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import PublicLayout from '@/components/layouts/PublicLayout';
-import Demo from '@/components/ook/Demo';
+import PublicLayout from '@/components/shared/layouts/PublicLayout';
+import Demo from '@/components/landing-page/Demo';
 
 export const metadata: Metadata = {
     title: 'OKVEVO Demo - AI Video Generator in Action | Create Reels Without Camera',

@@ -28,7 +28,7 @@ const streamSrc = fs.readFileSync(
   'utf8'
 );
 const loadingSrc = fs.readFileSync(
-  path.join(root, 'src/components/LoadingScreen.tsx'),
+  path.join(root, 'src/components/shared/LoadingScreen.tsx'),
   'utf8'
 );
 const projectLoaderSrc = fs.readFileSync(

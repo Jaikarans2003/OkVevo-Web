@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashNavbar from '@/components/workspace/WorkspaceNavbar';
-import Footer from '@/components/ook/Footer';
+import Navbar from '@/components/landing-page/Navbar';
+import Footer from '@/components/landing-page/Footer';
 import { motion } from 'framer-motion';
 import { ChevronRight, Scale, Shield, Landmark, BookOpen, AlertTriangle, FileText, Database, Lock, Cpu, Image as ImageIcon, Sparkles, ShoppingBag, Copyright, CreditCard, RefreshCw, Code } from 'lucide-react';
 
@@ -621,7 +621,7 @@ export default function LegalPage() {
                 <div className="absolute inset-0 bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_0%,black_100%)] opacity-80" />
             </div>
 
-            <DashNavbar />
+            <Navbar />
 
             <main className="relative z-10 pt-44 pb-32 px-6 md:px-12 flex flex-col lg:flex-row gap-12 max-w-[1440px] mx-auto w-full">
                 {/* Left Sidebar - Navigation */}

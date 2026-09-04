@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { auth } from '@/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import PublicLayout from '@/components/layouts/PublicLayout';
-import Pricing from '@/components/ook/Pricing';
+import PublicLayout from '@/components/shared/layouts/PublicLayout';
+import Pricing from '@/components/landing-page/Pricing';
 
 export default function PricingPage() {
     const [user, setUser] = useState<any>(null);

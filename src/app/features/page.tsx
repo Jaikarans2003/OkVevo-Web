@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import PublicLayout from '@/components/layouts/PublicLayout';
-import HowItWorks from '@/components/ook/Features';
-import FeaturesGrid from '@/components/ook/FeaturesGrid';
+import PublicLayout from '@/components/shared/layouts/PublicLayout';
+import HowItWorks from '@/components/landing-page/Features';
+import FeaturesGrid from '@/components/landing-page/FeaturesGrid';
 
 export const metadata: Metadata = {
     title: 'OKVEVO Features - Best AI Video Generator for Instagram & YouTube | Faceless Content',

@@ -80,9 +80,9 @@ export const metadata: Metadata = {
     },
 };
 
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { AppLoadingGate } from "@/components/AppLoadingGate";
-import StructuredData from "@/components/StructuredData";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import { AppLoadingGate } from "@/components/shared/AppLoadingGate";
+import StructuredData from "@/components/shared/StructuredData";
 
 export default function RootLayout({
     children,

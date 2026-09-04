@@ -11,7 +11,7 @@ import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../ser
 import { ArrowLeft, ArrowRight, Loader2, Check, AlertCircle, Edit3, Activity, Phone, LogOut, User as UserIcon, Mail, Crown, Building2, Users, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import LoadingScreen from '@/components/LoadingScreen';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -46,17 +46,19 @@ export default function ProfilePage() {
                     setProfile(profileData);
                     setSubscription(subData);
                     
-                    // Check if user is an affiliate by email
-                    const affiliatesRef = collection(db, 'affiliates');
-                    const affiliateQuery = query(affiliatesRef, where('email', '==', currentUser.email));
-                    const affiliateSnapshot = await getDocs(affiliateQuery);
-                    
-                    if (!affiliateSnapshot.empty) {
-                        const affiliateDoc = affiliateSnapshot.docs[0];
-                        setAffiliateData({
-                            id: affiliateDoc.id,
-                            ...affiliateDoc.data()
-                        });
+                    try {
+                        const affiliatesRef = collection(db, 'affiliates');
+                        const affiliateQuery = query(affiliatesRef, where('email', '==', currentUser.email));
+                        const affiliateSnapshot = await getDocs(affiliateQuery);
+                        if (!affiliateSnapshot.empty) {
+                            const affiliateDoc = affiliateSnapshot.docs[0];
+                            setAffiliateData({
+                                id: affiliateDoc.id,
+                                ...affiliateDoc.data()
+                            });
+                        }
+                    } catch {
+                        // affiliates is client-denied; leftover query may be empty
                     }
                     setFormData({
                         email: profileData?.email || currentUser.email || '',

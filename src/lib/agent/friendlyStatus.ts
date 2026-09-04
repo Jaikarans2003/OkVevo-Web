@@ -1,4 +1,4 @@
-import toolMetaJson from '../../../Skills/tool-meta.json';
+import toolMetaJson from './tool-meta.json';
 
 export const IDLE_STATUS_WORDS = [
   'Focusing',

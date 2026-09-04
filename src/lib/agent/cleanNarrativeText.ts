@@ -16,6 +16,10 @@ const SNAKE_CASE_BLOCK_RE =
 const SNAKE_CASE_ORPHAN_TAG_RE =
   /<\/?[a-z][a-z0-9]*(?:_[a-z0-9]+)+(?:\s[^>]*)?>/gi;
 const BACKTICK_SNAKE_TOOL_RE = /`[a-z][a-z0-9]*(?:_[a-z0-9]+)+`/g;
+const MM_THINK_BLOCK_RE = /<mm:think\b[^>]*>[\s\S]*?<\/mm:think>/gi;
+const THINK_BLOCK_RE = /<think\b[^>]*>[\s\S]*?<\/think>/gi;
+const MM_THINK_ORPHAN_RE = /<\/?mm:think\b[^>]*>/gi;
+const THINK_ORPHAN_RE = /<\/?think\b[^>]*>/gi;
 
 function tidyWhitespace(text: string): string {
   return text
@@ -29,6 +33,10 @@ function tidyWhitespace(text: string): string {
 export function stripFakeToolMarkup(text: string): string {
   return tidyWhitespace(
     text
+      .replace(MM_THINK_BLOCK_RE, '')
+      .replace(THINK_BLOCK_RE, '')
+      .replace(MM_THINK_ORPHAN_RE, '')
+      .replace(THINK_ORPHAN_RE, '')
       .replace(FAKE_TOOL_CALL_BLOCK_RE, '')
       .replace(SNAKE_CASE_BLOCK_RE, '')
       .replace(SNAKE_CASE_ORPHAN_TAG_RE, '')

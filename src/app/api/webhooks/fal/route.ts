@@ -44,17 +44,25 @@ function extractMediaUrl(payload: unknown): string | undefined {
   ) {
     return (p.video as { url: string }).url;
   }
+  if (
+    p.audio &&
+    typeof p.audio === 'object' &&
+    typeof (p.audio as { url?: unknown }).url === 'string'
+  ) {
+    return (p.audio as { url: string }).url;
+  }
   return undefined;
 }
 
-async function uploadFalSttPayload(
+async function uploadFalPayload(
   userId: string,
   sessionId: string,
+  taskId: string,
   requestId: string,
   payload: unknown
 ): Promise<string> {
   const bucket = getAdminBucket();
-  const storagePath = `users/${userId}/sessions/${sessionId}/fal_stt_${requestId}.json`;
+  const storagePath = `users/${userId}/sessions/${sessionId}/${taskId}_${requestId}.json`;
   const file = bucket.file(storagePath);
   await file.save(JSON.stringify(payload), {
     resumable: false,
@@ -166,17 +174,23 @@ export async function POST(req: NextRequest) {
   const mediaUrl = status === 'completed' ? extractMediaUrl(event.payload) : undefined;
   let payloadUrl: string | undefined;
 
-  // fal_stt completed: upload BEFORE dedup so upload failure can be retried by Fal.
-  if (status === 'completed' && taskId === 'fal_stt') {
+  // fal_stt / fal_tts completed: upload BEFORE dedup so upload failure can be retried by Fal.
+  if (status === 'completed' && (taskId === 'fal_stt' || taskId === 'fal_tts')) {
     if (event.payload == null) {
-      console.error('[fal webhook] fal_stt completed missing payload', sessionId, requestId);
-      return NextResponse.json({ error: 'missing stt payload' }, { status: 500 });
+      console.error('[fal webhook] completed missing payload', sessionId, taskId, requestId);
+      return NextResponse.json({ error: 'missing payload' }, { status: 500 });
     }
     try {
-      payloadUrl = await uploadFalSttPayload(userId, sessionId, requestId, event.payload);
+      payloadUrl = await uploadFalPayload(
+        userId,
+        sessionId,
+        taskId,
+        requestId,
+        event.payload
+      );
     } catch (e) {
-      console.error('[fal webhook] STT payload upload failed', sessionId, e);
-      return NextResponse.json({ error: 'stt payload upload failed' }, { status: 500 });
+      console.error('[fal webhook] payload upload failed', sessionId, taskId, e);
+      return NextResponse.json({ error: 'payload upload failed' }, { status: 500 });
     }
   }
 

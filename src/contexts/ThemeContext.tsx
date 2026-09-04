@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import LoadingScreen from '@/components/LoadingScreen';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type ResolvedTheme = 'light' | 'dark';

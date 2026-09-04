@@ -13,7 +13,7 @@ import { logStudioDelta } from '@/lib/agent/studioPerf';
 import {
   createReconnectPacer,
   mergeConsecutiveDeltas,
-} from '@agent/smoothStreamSkipStatus';
+} from '@/lib/agent/smoothStreamSkipStatus';
 
 const STREAM_HEADERS = {
   'content-type': 'text/event-stream',

@@ -9,11 +9,11 @@ import Link from 'next/link';
 import { ArrowRight, ArrowLeft, Play, Sparkles, Zap, Eye, Target, ArrowUpRight, Clapperboard, MonitorPlay } from 'lucide-react';
 import Image from 'next/image';
 
-import NoiseOverlay from '../../components/NoiseOverlay';
-import Navbar from '../../components/ook/Navbar';
-import Footer from '../../components/ook/Footer';
-import Breadcrumb from '../../components/Breadcrumb';
-import JsonLd from '../../components/JsonLd';
+import NoiseOverlay from '@/components/shared/NoiseOverlay';
+import Navbar from '@/components/landing-page/Navbar';
+import Footer from '@/components/landing-page/Footer';
+import Breadcrumb from '@/components/shared/Breadcrumb';
+import JsonLd from '@/components/shared/JsonLd';
 
 const Counter = ({ value, label }: { value: string, label: string }) => {
     const ref = useRef(null);
@@ -147,19 +147,19 @@ export default function AboutPage() {
     id: "01",
     title: "INSTANT AI VIDEO CREATION",
     desc: "Turn source media into polished videos with AI-assisted editing, captions, and custom visuals.",
-    href: "/workspace/ai-studio"
+    href: "/nia"
   },
   {
     id: "02",
     title: "CUSTOM HYPERFRAMES",
     desc: "Build deterministic animated compositions that combine narration, media, captions, and brand visuals.",
-    href: "/workspace/ai-studio"
+    href: "/nia"
   },
   {
     id: "03",
     title: "FULL CREATIVE CONTROL",
     desc: "Customize every video with branding, logos, captions, and overlays. Maintain consistency across all your social media and marketing content.",
-    href: "/workspace/ai-studio"
+    href: "/nia"
   },
   {
     id: "04",
@@ -178,7 +178,7 @@ export default function AboutPage() {
                 "description": "OkVevo is an AI video creation platform for editing source media, generating custom visuals, adding captions, and producing polished videos."
             }} />
             <NoiseOverlay />
-            <Navbar user={user} onJoinClick={handleJoinClick} />
+            <Navbar />
             <main className="pt-36">
                 <div className="max-w-[1400px] mx-auto px-6 mb-4 relative z-50">
                     <button
