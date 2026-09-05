@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { auth } from '@/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -63,13 +64,17 @@ const faqItems = [
 
 export default function LandingPage() {
     const [user, setUser] = useState<any>(null);
+    const router = useRouter();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
+            if (currentUser) {
+                router.replace('/billing');
+            }
         });
         return () => unsubscribe();
-    }, []);
+    }, [router]);
 
     return (
         <div className="min-h-screen bg-bg-main">

@@ -7,6 +7,11 @@ import {
   isAllowlistedDesktopRedirect,
   isUsableDesktopState,
 } from './desktop-redirect';
+import { tokensFromCustomTokenResponse } from './desktop-token-response';
+import type { CustomTokenSignInBody } from './desktop-token-response';
+
+export { tokensFromCustomTokenResponse } from './desktop-token-response';
+export type { CustomTokenSignInBody } from './desktop-token-response';
 
 const COLLECTION = 'desktopAuthCodes';
 const TTL_MS = 60_000;
@@ -60,7 +65,10 @@ export type DesktopTokenBundle = {
   email: string | null;
 };
 
-async function signInWithCustomToken(customToken: string): Promise<{
+async function signInWithCustomToken(
+  customToken: string,
+  uid: string
+): Promise<{
   idToken: string;
   refreshToken: string;
   expiresIn: number;
@@ -79,22 +87,17 @@ async function signInWithCustomToken(customToken: string): Promise<{
       body: JSON.stringify({ token: customToken, returnSecureToken: true }),
     }
   );
-  const body = (await res.json()) as {
-    idToken?: string;
-    refreshToken?: string;
-    expiresIn?: string;
-    localId?: string;
-    error?: { message?: string };
-  };
-  if (!res.ok || !body.idToken || !body.refreshToken || !body.localId) {
+  const body = (await res.json()) as CustomTokenSignInBody;
+  const tokens = res.ok ? tokensFromCustomTokenResponse(body, uid) : null;
+  if (!tokens) {
+    console.error(
+      'signInWithCustomToken failed',
+      res.status,
+      body.error?.message || 'missing_tokens'
+    );
     throw new DesktopAuthError(502, 'token_exchange_failed');
   }
-  return {
-    idToken: body.idToken,
-    refreshToken: body.refreshToken,
-    expiresIn: Number(body.expiresIn) || 3600,
-    uid: body.localId,
-  };
+  return tokens;
 }
 
 export async function exchangeDesktopAuthCode(
@@ -134,7 +137,7 @@ export async function exchangeDesktopAuthCode(
   });
 
   const customToken = await auth.createCustomToken(uid);
-  const tokens = await signInWithCustomToken(customToken);
+  const tokens = await signInWithCustomToken(customToken, uid);
   let email: string | null = null;
   try {
     email = (await auth.getUser(uid)).email ?? null;

@@ -69,13 +69,22 @@ export default function AuthForm({
     };
 
     useEffect(() => {
-        if (!isDesktopRoundTrip) return;
+        if (isDesktopRoundTrip) {
+            return onAuthStateChanged(auth, (user) => {
+                if (user) void bounceToDesktop(user);
+            });
+        }
+        // First callback is the restored Firebase session. Later sign-ins on this
+        // form still go through handleSubmit / Google (onboarding maze).
+        let initial = true;
         return onAuthStateChanged(auth, (user) => {
-            if (user) void bounceToDesktop(user);
+            if (!initial) return;
+            initial = false;
+            if (user) router.replace('/billing');
         });
         // bounceToDesktop closes over the allowlisted redirect + state for this mount.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDesktopRoundTrip, desktopRedirect, desktopState]);
+    }, [isDesktopRoundTrip, desktopRedirect, desktopState, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
