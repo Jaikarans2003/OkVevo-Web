@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { env } from '@/config/env';
-import { auth, db } from '@/lib/firebase-admin';
-import { settleCompletedChat } from '@/lib/gateway/debit';
+import { auth } from '@/lib/firebase-admin';
+import { gatewayIdToken } from '@/lib/gateway/auth';
+import {
+  InsufficientCreditsError,
+  releaseCredits,
+  reserveCredits,
+  settleCompletedChat,
+} from '@/lib/gateway/debit';
+import { creditsFromTokens, lookupModelRates } from '@/lib/gateway/pricing';
 import {
   absorbJsonBody,
   feedSseBytes,
@@ -15,13 +22,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
 
 const OPENROUTER_CHAT = 'https://openrouter.ai/api/v1/chat/completions';
-
-function bearerToken(request: NextRequest): string | null {
-  const header = request.headers.get('authorization') || '';
-  if (!header.toLowerCase().startsWith('bearer ')) return null;
-  const token = header.slice(7).trim();
-  return token || null;
-}
+const PROMPT_PAD_TOKENS = 4096;
+const DEFAULT_MAX_TOKENS = 4096;
+const MAX_TOKENS_CLAMP = 8192;
 
 function openaiError(status: number, message: string, type: string, code: string) {
   return NextResponse.json({ error: { message, type, code } }, { status });
@@ -38,14 +41,29 @@ function wantsStream(body: unknown): boolean {
   return Boolean((body as { stream?: unknown }).stream);
 }
 
-async function creditBalance(uid: string): Promise<number> {
-  const snap = await db.collection('users').doc(uid).get();
-  const n = snap.data()?.creditBalance;
-  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : 0;
+function completionBudget(body: unknown): number {
+  if (!body || typeof body !== 'object') return DEFAULT_MAX_TOKENS;
+  const o = body as { max_tokens?: unknown; max_completion_tokens?: unknown };
+  const n = Number(o.max_tokens ?? o.max_completion_tokens);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_MAX_TOKENS;
+  return Math.min(Math.floor(n), MAX_TOKENS_CLAMP);
+}
+
+export function estimateChatCredits(opts: {
+  promptPerToken: number;
+  completionPerToken: number;
+  maxTokens: number;
+}): number {
+  return creditsFromTokens({
+    promptTokens: PROMPT_PAD_TOKENS,
+    completionTokens: opts.maxTokens,
+    promptPerToken: opts.promptPerToken,
+    completionPerToken: opts.completionPerToken,
+  }).credits;
 }
 
 export async function POST(request: NextRequest) {
-  const idToken = bearerToken(request);
+  const idToken = gatewayIdToken(request);
   if (!idToken) {
     return openaiError(401, 'invalid_token', 'invalid_request_error', 'invalid_api_key');
   }
@@ -61,16 +79,6 @@ export async function POST(request: NextRequest) {
   if (!key) {
     console.error('gateway: OPENROUTER_API_KEY missing');
     return openaiError(500, 'OPENROUTER_API_KEY missing', 'server_error', 'internal_error');
-  }
-
-  const balance = await creditBalance(uid);
-  if (balance <= 0) {
-    return openaiError(
-      402,
-      'insufficient credits',
-      'insufficient_quota',
-      'insufficient_quota'
-    );
   }
 
   let rawBody: string;
@@ -89,6 +97,44 @@ export async function POST(request: NextRequest) {
 
   const model = modelFromBody(parsed);
   const stream = wantsStream(parsed);
+  const rates = model ? await lookupModelRates(model) : null;
+  if (!rates) {
+    return openaiError(
+      402,
+      'insufficient credits',
+      'insufficient_quota',
+      'insufficient_quota'
+    );
+  }
+
+  const estimated = estimateChatCredits({
+    promptPerToken: rates.promptPerToken,
+    completionPerToken: rates.completionPerToken,
+    maxTokens: completionBudget(parsed),
+  });
+  const requestId = crypto.randomUUID();
+
+  if (estimated > 0) {
+    try {
+      await reserveCredits({
+        uid,
+        requestId,
+        provider: 'openrouter',
+        estimatedCredits: estimated,
+        extra: { model },
+      });
+    } catch (err) {
+      if (err instanceof InsufficientCreditsError) {
+        return openaiError(
+          402,
+          'insufficient credits',
+          'insufficient_quota',
+          'insufficient_quota'
+        );
+      }
+      throw err;
+    }
+  }
 
   let upstream: Response;
   try {
@@ -105,6 +151,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error('gateway: openrouter fetch failed', err);
+    if (estimated > 0) await releaseCredits(requestId);
     return openaiError(502, 'upstream unavailable', 'server_error', 'internal_error');
   }
 
@@ -112,7 +159,15 @@ export async function POST(request: NextRequest) {
     const text = await upstream.text();
     const scan: UsageScan = {};
     absorbJsonBody(scan, text);
-    await settleCompletedChat({ uid, model, scan });
+    if (estimated > 0) {
+      await settleCompletedChat({
+        uid,
+        requestId,
+        model,
+        scan,
+        upstreamOk: upstream.ok,
+      });
+    }
     return new Response(text, {
       status: upstream.status,
       headers: {
@@ -126,6 +181,7 @@ export async function POST(request: NextRequest) {
   const carry = { text: '' };
   const decoder = new TextDecoder();
   const reader = upstream.body.getReader();
+  const upstreamOk = upstream.ok;
 
   const out = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -139,10 +195,14 @@ export async function POST(request: NextRequest) {
           }
         }
         finishSse(scan, carry);
-        await settleCompletedChat({ uid, model, scan });
+        if (estimated > 0) {
+          await settleCompletedChat({ uid, requestId, model, scan, upstreamOk });
+        }
       } catch (err) {
         console.error('gateway: stream read failed', err);
-        await settleCompletedChat({ uid, model, scan });
+        if (estimated > 0) {
+          await settleCompletedChat({ uid, requestId, model, scan, upstreamOk });
+        }
       } finally {
         try {
           controller.close();

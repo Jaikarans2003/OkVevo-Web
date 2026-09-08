@@ -239,9 +239,9 @@ export default function BillingPage() {
                                     const isDebit = transaction.type === 'debit';
                                     const Icon = isDebit ? TrendingDown : TrendingUp;
                                     const colorClass = isDebit ? 'text-red-400' : 'text-green-400';
-                                    const label = transaction.model
-                                        ? `${transaction.type} · ${transaction.model}`
-                                        : transaction.type;
+                                    const label = [transaction.type, transaction.provider, transaction.model]
+                                        .filter(Boolean)
+                                        .join(' · ');
 
                                     return (
                                         <div

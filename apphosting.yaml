@@ -125,6 +125,16 @@ env:
       - BUILD
       - RUNTIME
 
+  - variable: FAL_KEY
+    secret: FAL_KEY
+    availability:
+      - RUNTIME
+
+  - variable: TAVILY_API_KEY
+    secret: TAVILY_API_KEY
+    availability:
+      - RUNTIME
+
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
     secret: FIREBASE_SERVICE_ACCOUNT_KEY
     availability:

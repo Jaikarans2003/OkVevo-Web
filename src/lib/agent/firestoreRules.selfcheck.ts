@@ -48,6 +48,11 @@ assert.match(
 assert.match(rules, /match \/desktopAuthCodes\/\{id\}/, 'Phase 2 codes: no client access');
 assert.match(
   rules,
+  /match \/gatewayJobs\/\{id\}[\s\S]*?allow write: if false/,
+  'gatewayJobs: no client access'
+);
+assert.match(
+  rules,
   /match \/razorpaySubscriptions\/\{id\}[\s\S]*?allow write: if false/,
   'razorpaySubscriptions: no client write'
 );

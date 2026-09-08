@@ -26,6 +26,18 @@ export function creditsFromTokens(opts: {
   const rawUsd =
     opts.promptTokens * opts.promptPerToken +
     opts.completionTokens * opts.completionPerToken;
+  return creditsFromUsd(rawUsd);
+}
+
+/** Fal / Tavily: ceil(rawUsd × MARGIN × 1000). Chat keeps creditsFromTokens. */
+export function creditsFromUsd(rawUsd: number): {
+  rawUsd: number;
+  costUsd: number;
+  credits: number;
+} {
+  if (!Number.isFinite(rawUsd) || rawUsd <= 0) {
+    return { rawUsd: 0, costUsd: 0, credits: 0 };
+  }
   const costUsd = rawUsd * MARGIN;
   const credits = Math.ceil(costUsd * PLACEHOLDER_CREDITS_PER_USD);
   return { rawUsd, costUsd, credits };

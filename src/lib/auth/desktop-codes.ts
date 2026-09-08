@@ -63,7 +63,20 @@ export type DesktopTokenBundle = {
   expiresIn: number;
   uid: string;
   email: string | null;
+  displayName: string | null;
 };
+
+async function profileForUid(uid: string): Promise<{ email: string | null; displayName: string | null }> {
+  try {
+    const user = await auth.getUser(uid);
+    return {
+      email: user.email ?? null,
+      displayName: user.displayName?.trim() || null,
+    };
+  } catch {
+    return { email: null, displayName: null };
+  }
+}
 
 async function signInWithCustomToken(
   customToken: string,
@@ -138,13 +151,8 @@ export async function exchangeDesktopAuthCode(
 
   const customToken = await auth.createCustomToken(uid);
   const tokens = await signInWithCustomToken(customToken, uid);
-  let email: string | null = null;
-  try {
-    email = (await auth.getUser(uid)).email ?? null;
-  } catch {
-    email = null;
-  }
-  return { ...tokens, email };
+  const profile = await profileForUid(uid);
+  return { ...tokens, ...profile };
 }
 
 export async function refreshDesktopAuthTokens(
@@ -179,18 +187,13 @@ export async function refreshDesktopAuthTokens(
     throw new DesktopAuthError(400, 'invalid_grant');
   }
 
-  let email: string | null = null;
-  try {
-    email = (await auth.getUser(body.user_id)).email ?? null;
-  } catch {
-    email = null;
-  }
+  const profile = await profileForUid(body.user_id);
 
   return {
     idToken: body.access_token,
     refreshToken: body.refresh_token || refreshToken,
     expiresIn: Number(body.expires_in) || 3600,
     uid: body.user_id,
-    email,
+    ...profile,
   };
 }

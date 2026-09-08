@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   clampDebitAmount,
   creditsFromTokens,
+  creditsFromUsd,
   MARGIN,
   PLACEHOLDER_CREDITS_PER_USD,
 } from './pricing.ts';
@@ -55,6 +56,21 @@ const free = creditsFromTokens({
   completionPerToken: 0,
 });
 assert.equal(free.credits, 0);
+
+const fromUsd = creditsFromUsd(0.006);
+assert.equal(fromUsd.rawUsd, 0.006);
+assert.equal(fromUsd.costUsd, 0.012);
+assert.equal(fromUsd.credits, Math.ceil(0.006 * 2.0 * 1000));
+assert.equal(creditsFromUsd(0).credits, 0);
+assert.equal(creditsFromUsd(-1).credits, 0);
+
+const chatPad = creditsFromTokens({
+  promptTokens: 4096,
+  completionTokens: 4096,
+  promptPerToken: 1e-6,
+  completionPerToken: 2e-6,
+});
+assert.equal(chatPad.credits, Math.ceil((4096 * 1e-6 + 4096 * 2e-6) * 2.0 * 1000));
 
 assert.equal(clampDebitAmount(12, 5), 5);
 assert.equal(clampDebitAmount(12, 20), 12);
