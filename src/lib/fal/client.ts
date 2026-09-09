@@ -1,4 +1,5 @@
 import { env } from '@/config/env';
+import { parseEndpointPricing, type PricingRow } from '@/lib/fal/pricingParse';
 
 export function falServerKey(): string {
   return (process.env.FAL_KEY || process.env.FAL_API_KEY || '').trim();
@@ -10,8 +11,6 @@ function falHeaders(key: string): HeadersInit {
     'Content-Type': 'application/json',
   };
 }
-
-type PricingRow = { unit: string; unitPrice: number };
 
 const CACHE_TTL_MS = 60_000;
 const pricingCache = new Map<string, { at: number; row: PricingRow }>();
@@ -29,17 +28,14 @@ export async function getEndpointPricing(endpoint: string): Promise<PricingRow |
   try {
     const res = await fetch(url, { headers: falHeaders(key), cache: 'no-store' });
     if (!res.ok) return null;
-    const body = (await res.json()) as Record<string, unknown>;
-    const nested =
-      body.data && typeof body.data === 'object'
-        ? (body.data as Record<string, unknown>)
-        : body.pricing && typeof body.pricing === 'object'
-          ? (body.pricing as Record<string, unknown>)
-          : body;
-    const unit = String(nested.unit ?? body.unit ?? '').trim();
-    const unitPrice = Number(nested.unit_price ?? body.unit_price);
-    if (!unit || !Number.isFinite(unitPrice) || unitPrice < 0) return null;
-    const row = { unit, unitPrice };
+    const body: unknown = await res.json();
+    const row = parseEndpointPricing(body, id);
+    if (!row) {
+      const keys =
+        body && typeof body === 'object' ? Object.keys(body as object).join(',') : typeof body;
+      console.error('fal pricing parse failed', id, keys);
+      return null;
+    }
     pricingCache.set(id, { at: now, row });
     return row;
   } catch {

@@ -8,6 +8,7 @@ import {
   applyReserve,
   type GatewayProvider,
   type JobRecord,
+  omitUndefined,
 } from '@/lib/gateway/reserve';
 import { tokenCounts, type UsageScan } from '@/lib/gateway/sse';
 
@@ -191,7 +192,7 @@ export async function reconcileCredits(opts: {
     if (result.debitAmount <= 0) return;
 
     const amount = clampDebitAmount(result.debitAmount, result.debitAmount);
-    tx.set(txnRef, {
+    tx.set(txnRef, omitUndefined({
       uid: job.uid,
       type: 'debit',
       amount,
@@ -203,7 +204,7 @@ export async function reconcileCredits(opts: {
       priceUsd: opts.priceUsd,
       requestId,
       createdAt: FieldValue.serverTimestamp(),
-    });
+    }));
   });
 }
 

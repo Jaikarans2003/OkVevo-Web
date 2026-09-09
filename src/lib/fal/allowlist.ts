@@ -1,4 +1,13 @@
-/** Meterable Fal endpoints for OkVevo proxy. Exact ids only. */
+/**
+ * Meterable Fal endpoints for OkVevo proxy. Exact ids only.
+ *
+ * Relationship to media-catalog.json: every catalog row with shipped:true
+ * must be present here (mediaCatalog.selfcheck.ts enforces). This set is a
+ * superset — code-default models that are not in Karan's catalog (Klein,
+ * Pixverse, Veo, LTX 2.3, Kling v3 4K, …) stay meterable for as long as the
+ * tools ship them as defaults. SeedVR upscale is metered here but is an
+ * upscale= pass, not a catalog generate mode.
+ */
 
 export const METERABLE_ENDPOINTS = new Set<string>([
   'fal-ai/nano-banana-pro',

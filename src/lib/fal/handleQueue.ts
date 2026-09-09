@@ -12,6 +12,12 @@ import {
   submitFalQueue,
 } from '@/lib/fal/client';
 import { parseFalQueuePath } from '@/lib/fal/queuePath';
+import { applyFalSafetyOff } from '@/lib/fal/safety';
+import {
+  FAILED_STATUS_HTTP,
+  RELEASED_STATUS,
+  SETTLED_STATUS_BODY,
+} from '@/lib/fal/statusContract';
 import { adjustedUsd, QuantityError, quantity } from '@/lib/fal/quantity';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
@@ -206,7 +212,7 @@ async function handleSubmit(
   }
 
   try {
-    const submitted = await submitFalQueue(endpoint, args);
+    const submitted = await submitFalQueue(endpoint, applyFalSafetyOff(endpoint, args));
     await rebindGatewayJob(holdId, submitted.request_id);
     await patchGatewayJob(submitted.request_id, {
       falStatusUrl: submitted.status_url,
@@ -226,16 +232,21 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
   if (!job || job.uid !== uid) return jsonError(404, 'unknown Fal job');
 
   if (job.status === 'released') {
-    return NextResponse.json({ status: 'ERROR', error: 'cancelled' });
+    // See statusContract.ts: cancelled is HTTP 499, never a status JSON.
+    return jsonError(RELEASED_STATUS.http, RELEASED_STATUS.message);
   }
 
   if (job.status === 'settled' && job.payload !== undefined) {
-    return NextResponse.json({ status: 'COMPLETED' });
+    return NextResponse.json(SETTLED_STATUS_BODY);
   }
 
   const url = job.falStatusUrl;
   if (!url) return jsonError(502, 'missing Fal status url');
   const { status, json } = await falQueueGet(url);
+  if (status >= 500) {
+    console.error('fal status upstream', status, falStatusOf(json));
+    return jsonError(502, 'Fal status unavailable');
+  }
   const falStatus = falStatusOf(json);
   if (falStatus === 'COMPLETED' && job.status === 'reserved') {
     let payload: unknown = job.payload;
@@ -252,6 +263,12 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
   }
   if (falStatus === 'FAILED' || falStatus === 'ERROR') {
     await settleFalJob({ requestId, ok: false });
+    if (status >= 200 && status < 300) {
+      // FAILED/ERROR is not a status fal_client._parse_status accepts — never
+      // proxy it with a 2xx or the SDK poller dies on ValueError. Surface it
+      // as an HTTP error so the tool gets a clean raise (statusContract.ts).
+      return jsonError(FAILED_STATUS_HTTP, `Fal job ${falStatus.toLowerCase()}`);
+    }
   }
   return NextResponse.json(json, { status });
 }
@@ -303,26 +320,32 @@ export async function handleFalQueue(
     return jsonError(400, err instanceof Error ? err.message : 'bad path');
   }
 
-  if (parsed.kind === 'submit') {
-    if (request.method !== 'POST') return jsonError(405, 'method not allowed');
-    let body: unknown = {};
-    try {
-      const text = await request.text();
-      body = text ? JSON.parse(text) : {};
-    } catch {
-      return jsonError(400, 'invalid json');
+  try {
+    if (parsed.kind === 'submit') {
+      if (request.method !== 'POST') return jsonError(405, 'method not allowed');
+      let body: unknown = {};
+      try {
+        const text = await request.text();
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        return jsonError(400, 'invalid json');
+      }
+      return await handleSubmit(uid, parsed.endpoint, body);
     }
-    return handleSubmit(uid, parsed.endpoint, body);
-  }
 
-  if (parsed.kind === 'status' && request.method === 'GET') {
-    return handleStatus(uid, parsed.requestId);
+    if (parsed.kind === 'status' && request.method === 'GET') {
+      return await handleStatus(uid, parsed.requestId);
+    }
+    if (parsed.kind === 'response' && request.method === 'GET') {
+      return await handleResponse(uid, parsed.requestId);
+    }
+    if (parsed.kind === 'cancel' && (request.method === 'PUT' || request.method === 'POST')) {
+      return await handleCancel(uid, parsed.requestId);
+    }
+    return jsonError(405, 'method not allowed');
+  } catch (err) {
+    console.error('fal queue failed', parsed.kind, err);
+    const msg = err instanceof Error ? err.message : 'Fal queue failed';
+    return jsonError(502, msg);
   }
-  if (parsed.kind === 'response' && request.method === 'GET') {
-    return handleResponse(uid, parsed.requestId);
-  }
-  if (parsed.kind === 'cancel' && (request.method === 'PUT' || request.method === 'POST')) {
-    return handleCancel(uid, parsed.requestId);
-  }
-  return jsonError(405, 'method not allowed');
 }

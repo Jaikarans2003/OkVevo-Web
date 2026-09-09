@@ -95,3 +95,12 @@ export function applyRelease(
     status: 'released',
   };
 }
+
+/** Firestore documents cannot contain undefined. */
+export function omitUndefined(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}

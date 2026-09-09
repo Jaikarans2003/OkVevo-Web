@@ -7,7 +7,7 @@ export async function proxyTavily(
   body: Record<string, unknown>
 ): Promise<{ status: number; json: unknown; text: string }> {
   const key = tavilyServerKey();
-  const payload = { ...body, include_usage: true };
+  const payload: Record<string, unknown> = { ...body, include_usage: true };
   delete payload.api_key;
   const res = await fetch(`https://api.tavily.com/${action}`, {
     method: 'POST',

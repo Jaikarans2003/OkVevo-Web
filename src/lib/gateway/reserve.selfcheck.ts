@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 
-import { applyReconcile, applyRelease, applyReserve, type JobRecord } from './reserve.ts';
+import { applyReconcile, applyRelease, applyReserve, omitUndefined, type JobRecord } from './reserve.ts';
 
 const uid = 'u1';
 
@@ -56,5 +56,19 @@ assert.equal(applyRelease(10, already).skipped, true);
 
 const zero = applyReserve(5, undefined, 0, uid, 'tavily');
 assert.equal(zero.ok, true);
+
+const falTxn = omitUndefined({
+  uid,
+  type: 'debit',
+  amount: 12,
+  provider: 'fal',
+  model: 'fal-ai/flux-2/klein/9b',
+  promptTokens: undefined,
+  completionTokens: undefined,
+  costUsd: 0.012,
+});
+assert.equal('promptTokens' in falTxn, false);
+assert.equal('completionTokens' in falTxn, false);
+assert.ok(Object.values(falTxn).every((v) => v !== undefined));
 
 console.log('reserve.selfcheck: ok');

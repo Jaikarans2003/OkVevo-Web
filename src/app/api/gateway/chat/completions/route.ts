@@ -49,7 +49,7 @@ function completionBudget(body: unknown): number {
   return Math.min(Math.floor(n), MAX_TOKENS_CLAMP);
 }
 
-export function estimateChatCredits(opts: {
+function estimateChatCredits(opts: {
   promptPerToken: number;
   completionPerToken: number;
   maxTokens: number;
