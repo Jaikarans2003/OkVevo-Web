@@ -1,6 +1,6 @@
 /**
- * Razorpay Configuration
- * Manages Razorpay credentials and subscription plan configurations
+ * Razorpay plan map — Starter / Pro / Max USD (test plan IDs).
+ * Display math only; Razorpay Plans already hold the real charge.
  */
 
 import { env } from '@/config/env';
@@ -10,129 +10,160 @@ export const RAZORPAY_CONFIG = {
     keySecret: env.razorpay.keySecret,
 };
 
-export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
+/** Credits granted per USD on Add Credits and plan face rate. */
+export const PLACEHOLDER_CREDITS_PER_USD = 1000;
 
-/**
- * Razorpay Subscription Plan IDs
- * These must be created in the Razorpay Dashboard first
- * Format: plan_XXXXXXXXXXXXX
- */
+export const ANNUAL_DISCOUNT_PCT = 0.15;
+
+export type PlanType = 'starter' | 'pro' | 'max' | 'enterprise';
+
+export type BillingPeriod = 'monthly' | 'annual';
+
+export type SelfServePlanType = Exclude<PlanType, 'enterprise'>;
+
+export function annualChargeUsd(monthlyUsd: number): number {
+    return monthlyUsd * 12 * (1 - ANNUAL_DISCOUNT_PCT);
+}
+
+/** Shown on yearly toggle as "$X/mo". */
+export function displayedYearlyMonthlyUsd(monthlyUsd: number): number {
+    return annualChargeUsd(monthlyUsd) / 12;
+}
+
 export const RAZORPAY_PLAN_IDS = {
     starter: {
-        monthly: env.razorpay.plans.starterMonthly,
-        annual: env.razorpay.plans.starterAnnual,
-    },
-    hobby: {
-        monthly: env.razorpay.plans.hobbyMonthly,
-        annual: env.razorpay.plans.hobbyAnnual,
+        monthly: env.razorpay.plans.starterMonthly || 'plan_TaipNKtfGxZyaz',
+        annual: env.razorpay.plans.starterAnnual || 'plan_TairsxzPq1SX8O',
     },
     pro: {
-        monthly: env.razorpay.plans.proMonthly,
-        annual: env.razorpay.plans.proAnnual,
+        monthly: env.razorpay.plans.proMonthly || 'plan_TaitO9Jvbh8hKW',
+        annual: env.razorpay.plans.proAnnual || 'plan_TaiuIVserGuy8r',
+    },
+    max: {
+        monthly: env.razorpay.plans.maxMonthly || 'plan_TaivVyzrryqHze',
+        annual: env.razorpay.plans.maxAnnual || 'plan_TaiwVITElxquWo',
     },
 };
 
-/**
- * Subscription Plan Details
- */
-export const SUBSCRIPTION_PLANS = {
+type PlanDef = {
+    name: string;
+    monthlyPriceUsd: number;
+    creditsIncluded: number;
+};
+
+export const SUBSCRIPTION_PLANS: Record<SelfServePlanType, PlanDef> & {
+    enterprise: { name: string; monthlyPriceUsd: number; creditsIncluded: number };
+} = {
     starter: {
         name: 'Starter',
-        monthly: {
-            price: 149900, // ₹1,499 in paise
-            currency: 'INR',
-            period: 'monthly',
-            interval: 1,
-        },
-        annual: {
-            price: 127415, // ₹1,274.15 in paise
-            currency: 'INR',
-            period: 'annual',
-            interval: 12,
-        },
-        credits: 1400, // 10 videos or 10 min generation
-    },
-    hobby: {
-        name: 'Hobby',
-        monthly: {
-            price: 599900, // ₹5,999 in paise
-            currency: 'INR',
-            period: 'monthly',
-            interval: 1,
-        },
-        annual: {
-            price: 509900, // ₹5,099 in paise (annual monthly equivalent)
-            currency: 'INR',
-            period: 'annual',
-            interval: 12,
-        },
-        credits: 10000, // Initial credits for hobby plan (50 videos or 30 min generation)
+        monthlyPriceUsd: 20,
+        creditsIncluded: 20 * PLACEHOLDER_CREDITS_PER_USD,
     },
     pro: {
         name: 'Pro',
-        monthly: {
-            price: 1799900, // ₹17,999 in paise
-            currency: 'INR',
-            period: 'monthly',
-            interval: 1,
-        },
-        annual: {
-            price: 1529900, // ₹15,299 in paise (annual monthly equivalent)
-            currency: 'INR',
-            period: 'annual',
-            interval: 12,
-        },
-        credits: 36000, // Initial credits for pro plan (180 videos or 105 min generation)
+        monthlyPriceUsd: 60,
+        creditsIncluded: 60 * PLACEHOLDER_CREDITS_PER_USD,
+    },
+    max: {
+        name: 'Max',
+        monthlyPriceUsd: 100,
+        creditsIncluded: 100 * PLACEHOLDER_CREDITS_PER_USD,
     },
     enterprise: {
         name: 'Enterprise',
-        price: 0,
-        currency: 'INR',
-        period: 'custom',
-        interval: 1,
-        credits: 0,
-    }
+        monthlyPriceUsd: 0,
+        creditsIncluded: 0,
+    },
 };
 
-/**
- * Get plan details by plan type
- */
+/** plan_id → tier metadata (creditsIncluded is always the monthly grant). */
+export type PlanIdMeta = {
+    name: SelfServePlanType;
+    planName: string;
+    creditsIncluded: number;
+    billingCycle: 'monthly' | 'yearly';
+    monthlyPriceUsd: number;
+};
+
+function buildPlanIdLookup(): Map<string, PlanIdMeta> {
+    const map = new Map<string, PlanIdMeta>();
+    for (const name of ['starter', 'pro', 'max'] as SelfServePlanType[]) {
+        const def = SUBSCRIPTION_PLANS[name];
+        const ids = RAZORPAY_PLAN_IDS[name];
+        map.set(ids.monthly, {
+            name,
+            planName: def.name,
+            creditsIncluded: def.creditsIncluded,
+            billingCycle: 'monthly',
+            monthlyPriceUsd: def.monthlyPriceUsd,
+        });
+        map.set(ids.annual, {
+            name,
+            planName: def.name,
+            creditsIncluded: def.creditsIncluded,
+            billingCycle: 'yearly',
+            monthlyPriceUsd: def.monthlyPriceUsd,
+        });
+    }
+    return map;
+}
+
+const PLAN_ID_LOOKUP = buildPlanIdLookup();
+
+export function lookupPlanById(planId: string): PlanIdMeta | null {
+    if (!planId) return null;
+    return PLAN_ID_LOOKUP.get(planId) ?? null;
+}
+
 export function getPlanDetails(planType: PlanType) {
     return SUBSCRIPTION_PLANS[planType];
 }
 
-/**
- * Get Razorpay plan ID by plan type and billing period
- */
-export function getRazorpayPlanId(planType: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly'): string {
-    if (planType === 'starter') return RAZORPAY_PLAN_IDS.starter[billingPeriod];
-    if (planType === 'hobby') return RAZORPAY_PLAN_IDS.hobby[billingPeriod];
-    if (planType === 'pro') return RAZORPAY_PLAN_IDS.pro[billingPeriod];
-    throw new Error(`No Razorpay plan ID configured for ${planType}`);
+export function getRazorpayPlanId(
+    planType: SelfServePlanType,
+    billingPeriod: BillingPeriod = 'monthly'
+): string {
+    return RAZORPAY_PLAN_IDS[planType][billingPeriod];
 }
 
-/**
- * Get plan details by plan type and billing period
- */
-export function getPlanDetailsByPeriod(planType: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly') {
+export function getPlanDetailsByPeriod(
+    planType: PlanType,
+    billingPeriod: BillingPeriod = 'monthly'
+) {
     const plan = SUBSCRIPTION_PLANS[planType];
-    
-    // Enterprise plan doesn't have monthly/annual variants
     if (planType === 'enterprise') {
-        const enterprisePlan = plan as typeof SUBSCRIPTION_PLANS.enterprise;
         return {
-            name: enterprisePlan.name,
-            price: enterprisePlan.price,
-            currency: enterprisePlan.currency,
-            period: enterprisePlan.period,
-            interval: enterprisePlan.interval,
-            credits: enterprisePlan.credits,
+            name: plan.name,
+            priceUsd: 0,
+            currency: 'USD',
+            period: 'custom' as const,
+            credits: plan.creditsIncluded,
+            creditsIncluded: plan.creditsIncluded,
         };
     }
-    
+    const monthly = plan.monthlyPriceUsd;
+    if (billingPeriod === 'annual') {
+        return {
+            name: plan.name,
+            priceUsd: annualChargeUsd(monthly),
+            displayedMonthlyUsd: displayedYearlyMonthlyUsd(monthly),
+            currency: 'USD',
+            period: 'annual' as const,
+            credits: plan.creditsIncluded,
+            creditsIncluded: plan.creditsIncluded,
+        };
+    }
     return {
         name: plan.name,
-        ...(plan as any)[billingPeriod],
-        credits: plan.credits,
+        priceUsd: monthly,
+        displayedMonthlyUsd: monthly,
+        currency: 'USD',
+        period: 'monthly' as const,
+        credits: plan.creditsIncluded,
+        creditsIncluded: plan.creditsIncluded,
     };
+}
+
+export function isSelfServePlanType(v: string): v is SelfServePlanType {
+    return v === 'starter' || v === 'pro' || v === 'max';
 }

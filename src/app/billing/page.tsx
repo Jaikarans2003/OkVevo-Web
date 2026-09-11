@@ -28,21 +28,29 @@ import {
     getStatusLabel,
     type SubscriptionWithPlanDetails,
 } from '@/services/SubscriptionService';
-import { getCreditHistory, getUserCredits, type CreditTransaction } from '@/services/CreditsService';
+import {
+    getCreditHistory,
+    subscribeUserBilling,
+    type BillingSnapshot,
+    type CreditTransaction,
+} from '@/services/CreditsService';
 import NoiseOverlay from '@/components/shared/NoiseOverlay';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 
 export default function BillingPage() {
     const router = useRouter();
-    const { userProfile, loading: authLoading, isAuthenticated } = useAuth();
+    const { user, userProfile, loading: authLoading, isAuthenticated } = useAuth();
     const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
-    const [creditBalance, setCreditBalance] = useState(0);
+    const [billing, setBilling] = useState<BillingSnapshot | null>(null);
     const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
+    const [topUpAmount, setTopUpAmount] = useState(10);
+    const [topUpLoading, setTopUpLoading] = useState(false);
+    const [topUpError, setTopUpError] = useState<string | null>(null);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -51,33 +59,87 @@ export default function BillingPage() {
         }
     }, [authLoading, isAuthenticated, router]);
 
-    // Load subscription data and credit history
+    // Live billing snapshot + subscription + credit history
     useEffect(() => {
-        const loadData = async () => {
-            if (!userProfile) return;
-            setLoading(true);
-            setError(null);
+        if (!userProfile) return;
+
+        setLoading(true);
+        setError(null);
+
+        const unsubBilling = subscribeUserBilling(
+            userProfile.uid,
+            (snap) => {
+                setBilling(snap);
+                setLoading(false);
+            },
+            () => setError('Failed to load billing details. Please try again.')
+        );
+
+        const loadExtras = async () => {
             try {
-                const [sub, history, balance] = await Promise.all([
+                const [sub, history] = await Promise.all([
                     getUserSubscription(userProfile.uid),
                     getCreditHistory(userProfile.uid, 10),
-                    getUserCredits(userProfile.uid),
                 ]);
                 setSubscription(sub);
                 setCreditHistory(history);
-                setCreditBalance(balance);
             } catch (err) {
                 console.error('Failed to load data:', err);
                 setError('Failed to load billing details. Please try again.');
-            } finally {
-                setLoading(false);
             }
         };
 
-        if (userProfile) {
-            loadData();
-        }
+        loadExtras();
+
+        return () => unsubBilling();
     }, [userProfile]);
+
+    const cancelAtPeriodEnd =
+        billing?.cancelAtPeriodEnd === true || subscription?.cancelAtCycleEnd === true;
+
+    const renewalDate = billing?.currentPeriodEnd ?? subscription?.nextBillingDate ?? null;
+
+    const handleAddCredits = async () => {
+        if (!user) return;
+
+        const amount = Math.round(topUpAmount);
+        if (amount < 5 || amount > 100) {
+            setTopUpError('Amount must be between $5 and $100');
+            return;
+        }
+
+        setTopUpLoading(true);
+        setTopUpError(null);
+
+        try {
+            const idToken = await user.getIdToken();
+            const response = await fetch('/api/razorpay/create-payment-link', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ amountUsd: amount }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create payment link');
+            }
+
+            if (data.shortUrl) {
+                window.open(data.shortUrl, '_blank');
+            } else {
+                throw new Error('No payment link returned');
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to start checkout';
+            setTopUpError(message);
+        } finally {
+            setTopUpLoading(false);
+        }
+    };
 
     if (authLoading || loading) {
         return <LoadingScreen loadKey="billing" />;
@@ -213,12 +275,71 @@ export default function BillingPage() {
                                     <div className="p-3 bg-[#FF4D00]/20 rounded-full">
                                         <Zap className="w-6 h-6 text-[#FF4D00] fill-[#FF4D00]" />
                                     </div>
-                                    <h3 className="text-2xl font-black text-white">Credits Balance</h3>
+                                    <h3 className="text-2xl font-black text-white">Credits</h3>
                                 </div>
                             </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                    <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Plan</p>
+                                    <p className="text-2xl font-black text-white">{billing?.planName || 'None'}</p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                    <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Renews</p>
+                                    <p className="text-lg font-bold text-white">{formatDate(renewalDate)}</p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                    <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Period Remaining</p>
+                                    <p className="text-4xl font-black text-white">
+                                        {Math.round((billing?.remainingPct ?? 0) * 100)}%
+                                    </p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                                    <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Additional Credits</p>
+                                    <p className="text-4xl font-black text-white">{(billing?.additional ?? 0).toLocaleString()}</p>
+                                </div>
+                            </div>
+
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                                <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-2">Current Balance</p>
-                                <p className="text-4xl font-black text-white">{creditBalance.toLocaleString()}</p>
+                                <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-4">Add Credits</p>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1">
+                                        <label htmlFor="topUpAmount" className="sr-only">Amount in USD</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 font-bold">$</span>
+                                            <input
+                                                id="topUpAmount"
+                                                type="number"
+                                                min={5}
+                                                max={100}
+                                                step={1}
+                                                value={topUpAmount}
+                                                onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                                                className="w-full pl-8 pr-4 py-3 bg-black/40 border border-white/10 rounded-xl text-white font-bold focus:outline-none focus:border-[#FF4D00]/50"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-white/40 mt-2">$5 – $100 USD</p>
+                                    </div>
+                                    <button
+                                        onClick={handleAddCredits}
+                                        disabled={topUpLoading}
+                                        className="px-8 py-3 bg-[#FF4D00] hover:bg-[#e64600] rounded-xl text-white font-black uppercase tracking-widest text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {topUpLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Opening…
+                                            </>
+                                        ) : (
+                                            'Buy Credits'
+                                        )}
+                                    </button>
+                                </div>
+                                {topUpError && (
+                                    <p className="text-red-400 text-sm mt-3 flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4" />
+                                        {topUpError}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </motion.div>
@@ -290,7 +411,7 @@ export default function BillingPage() {
                                 </div>
                                 <h2 className="text-4xl font-black tracking-tight mb-4 text-white">No Active Subscription</h2>
                                 <p className="text-white/50 mb-10 text-lg max-w-lg mx-auto">
-                                    You are currently on the free hobby tier. Explore our plans to unlock premium tools and generations.
+                                    You don&apos;t have an active plan yet. Explore our plans to unlock Nia credits and premium access.
                                 </p>
                                 <Link
                                     href="/#pricing"
@@ -380,7 +501,7 @@ export default function BillingPage() {
                             )}
 
                             {/* Cancellation Scheduled Banner */}
-                            {subscription.cancelAtCycleEnd && subscription.status === 'active' && !subscription.being_replaced_by && (
+                            {cancelAtPeriodEnd && subscription.status === 'active' && !subscription.being_replaced_by && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -394,7 +515,8 @@ export default function BillingPage() {
                                         <div className="flex-1">
                                             <h3 className="text-xl font-black text-orange-400 mb-2">Subscription Cancellation Scheduled</h3>
                                             <p className="text-white/80 mb-3">
-                                                Your subscription will end on <span className="font-bold text-white">{formatDate(subscription.willCancelAt)}</span>.
+                                                Won&apos;t renew — access until{' '}
+                                                <span className="font-bold text-white">{formatDate(renewalDate ?? subscription.willCancelAt)}</span>.
                                             </p>
                                             <div className="space-y-1.5 text-sm text-white/70">
                                                 <p className="flex items-center gap-2">
@@ -567,7 +689,13 @@ export default function BillingPage() {
                                     Change Plan
                                 </Link>
                                 
-                                {subscription.status === 'active' && !subscription.cancelAtCycleEnd && (
+                                {subscription.status === 'active' && cancelAtPeriodEnd && (
+                                    <p className="px-8 py-4 bg-orange-500/10 border border-orange-500/30 rounded-full text-sm font-bold text-orange-300">
+                                        Won&apos;t renew — access until {formatDate(renewalDate ?? subscription.nextBillingDate)}
+                                    </p>
+                                )}
+
+                                {subscription.status === 'active' && !cancelAtPeriodEnd && (
                                     <button
                                         onClick={() => setShowCancelModal(true)}
                                         className="px-8 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-full text-xs font-black uppercase tracking-widest transition-colors shadow-xl text-red-400 hover:text-red-300"

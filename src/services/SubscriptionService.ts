@@ -1,34 +1,42 @@
 import { db } from '../config/firebase';
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 
-export type PlanType = 'starter' | 'hobby' | 'pro' | 'enterprise';
+export type PlanType = 'starter' | 'pro' | 'max' | 'hobby' | 'enterprise';
 
 export const SUBSCRIPTION_PLANS = {
     starter: {
         name: 'Starter',
-        price: 149900,
-        currency: 'INR',
+        price: 2000, // display cents USD; legacy INR amounts retired
+        currency: 'USD',
         period: 'monthly',
         interval: 1
     },
+    // Legacy key kept for old Firestore docs until migrated
     hobby: {
         name: 'Hobby',
-        price: 599900,
-        currency: 'INR',
+        price: 6000,
+        currency: 'USD',
         period: 'monthly',
         interval: 1
     },
     pro: {
         name: 'Pro',
-        price: 1799900,
-        currency: 'INR',
+        price: 6000,
+        currency: 'USD',
+        period: 'monthly',
+        interval: 1
+    },
+    max: {
+        name: 'Max',
+        price: 10000,
+        currency: 'USD',
         period: 'monthly',
         interval: 1
     },
     enterprise: {
         name: 'Enterprise',
         price: 0,
-        currency: 'INR',
+        currency: 'USD',
         period: 'custom',
         interval: 1
     }
@@ -242,7 +250,7 @@ export function getStatusLabel(status: string): string {
 /**
  * Get active subscription with billing period from razorpaySubscriptions collection
  */
-export async function getActiveSubscription(userId: string): Promise<{ planType: 'hobby' | 'pro'; billingCycle: 'monthly' | 'annual'; status: string } | null> {
+export async function getActiveSubscription(userId: string): Promise<{ planType: 'starter' | 'pro' | 'max' | 'hobby'; billingCycle: 'monthly' | 'annual'; status: string } | null> {
     if (!userId) return null;
 
     try {
@@ -263,9 +271,12 @@ export async function getActiveSubscription(userId: string): Promise<{ planType:
         }
 
         const data = snapshot.docs[0].data();
+        const raw = data.planType || 'starter';
+        const planType =
+            raw === 'pro' || raw === 'max' || raw === 'hobby' || raw === 'starter' ? raw : 'starter';
         
         return {
-            planType: data.planType || 'hobby',
+            planType,
             billingCycle: data.billingPeriod || 'monthly',
             status: data.status || 'active'
         };

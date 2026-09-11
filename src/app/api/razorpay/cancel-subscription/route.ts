@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
 
         await batch.commit();
 
+        await db.collection('users').doc(userId).set({ cancelAtPeriodEnd: true }, { merge: true });
+
         return NextResponse.json({
             success: true,
             message: 'Subscription scheduled for cancellation at end of billing cycle',

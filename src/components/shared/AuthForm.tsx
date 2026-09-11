@@ -134,13 +134,13 @@ export default function AuthForm({
                 return;
             }
 
-            // Check if user should see pro-prompt (hobby monthly plan only)
+            // Check if user should see pro-prompt (starter monthly plan only)
             if (!userProfile.proPromptShown && userProfile.userType === 'single') {
                 // Check subscription plan
                 const { getActiveSubscription } = await import('@/services/SubscriptionService');
                 const subscription = await getActiveSubscription(userCredential.user.uid);
                 
-                if (subscription && subscription.planType === 'hobby' && subscription.billingCycle === 'monthly') {
+                if (subscription && subscription.planType === 'starter' && subscription.billingCycle === 'monthly') {
                     router.push('/pro-prompt');
                     return;
                 }
@@ -201,13 +201,13 @@ export default function AuthForm({
                 return;
             }
 
-            // Check if user should see pro-prompt (hobby monthly plan only)
+            // Check if user should see pro-prompt (starter monthly plan only)
             if (!userProfile.proPromptShown && userProfile.userType === 'single') {
                 // Check subscription plan
                 const { getActiveSubscription } = await import('@/services/SubscriptionService');
                 const subscription = await getActiveSubscription(result.user.uid);
                 
-                if (subscription && subscription.planType === 'hobby' && subscription.billingCycle === 'monthly') {
+                if (subscription && subscription.planType === 'starter' && subscription.billingCycle === 'monthly') {
                     router.push('/pro-prompt');
                     return;
                 }

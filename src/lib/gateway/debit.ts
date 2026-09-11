@@ -6,15 +6,36 @@ import {
   applyReconcile,
   applyRelease,
   applyReserve,
+  type BucketBalances,
   type GatewayProvider,
   type JobRecord,
   omitUndefined,
 } from '@/lib/gateway/reserve';
 import { tokenCounts, type UsageScan } from '@/lib/gateway/sse';
 
-function readBalance(data: { creditBalance?: unknown } | undefined): number {
-  const n = data?.creditBalance;
+function readInt(n: unknown): number {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 0;
+}
+
+/**
+ * Read two buckets. One-time migrate: legacy creditBalance → topUpBalance
+ * when both new buckets are absent/zero and creditBalance > 0.
+ */
+export function readBalances(data: FirebaseFirestore.DocumentData | undefined): BucketBalances {
+  if (!data) return { allocationBalance: 0, topUpBalance: 0 };
+  const allocation = readInt(data.allocationBalance);
+  let topUp = readInt(data.topUpBalance);
+  const legacy = readInt(data.creditBalance);
+  // Migrate only when new fields were never seeded (both 0) and legacy remains.
+  if (allocation === 0 && topUp === 0 && legacy > 0 && data.topUpBalance === undefined) {
+    topUp = legacy;
+  }
+  return { allocationBalance: allocation, topUpBalance: topUp };
+}
+
+function readPlanStatus(data: FirebaseFirestore.DocumentData | undefined): string | null {
+  const s = data?.planStatus;
+  return typeof s === 'string' ? s : null;
 }
 
 function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecord | undefined {
@@ -29,7 +50,18 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
   if (typeof estimated !== 'number' || !Number.isInteger(estimated) || estimated < 0) {
     return undefined;
   }
-  return { uid, provider, estimatedCredits: estimated, status };
+  const heldAllocation = readInt(data.heldAllocation);
+  const heldTopUp = readInt(data.heldTopUp);
+  // Legacy jobs without hold split: treat entire hold as allocation
+  const hasSplit = data.heldAllocation !== undefined || data.heldTopUp !== undefined;
+  return {
+    uid,
+    provider,
+    estimatedCredits: estimated,
+    status,
+    heldAllocation: hasSplit ? heldAllocation : estimated,
+    heldTopUp: hasSplit ? heldTopUp : 0,
+  };
 }
 
 export class InsufficientCreditsError extends Error {
@@ -45,6 +77,8 @@ export type GatewayJobFields = {
   provider: GatewayProvider;
   estimatedCredits: number;
   status: JobRecord['status'];
+  heldAllocation?: number;
+  heldTopUp?: number;
   endpoint?: string;
   unit?: string;
   unitPrice?: number;
@@ -57,8 +91,8 @@ export type GatewayJobFields = {
 };
 
 /**
- * Decrement balance and write gatewayJobs/{requestId} as reserved.
- * No creditTransactions row yet.
+ * Decrement buckets (FIFO) and write gatewayJobs/{requestId} as reserved.
+ * Spend gate: planStatus must be 'active'.
  *
  * ponytail: reserved jobs stay held until webhook/poll/release. Stuck if Fal
  * never completes. Upgrade: TTL sweeper that releases expired reserved jobs.
@@ -79,8 +113,12 @@ export async function reserveCredits(opts: {
   await db.runTransaction(async (tx) => {
     const jobSnap = await tx.get(jobRef);
     const userSnap = await tx.get(userRef);
+    const data = userSnap.data();
+    if (readPlanStatus(data) !== 'active') {
+      throw new InsufficientCreditsError();
+    }
     const result = applyReserve(
-      readBalance(userSnap.data()),
+      readBalances(data),
       jobFromSnap(jobSnap.data()),
       estimatedCredits,
       uid,
@@ -90,11 +128,20 @@ export async function reserveCredits(opts: {
       if (result.reason === 'duplicate') return;
       throw new InsufficientCreditsError();
     }
-    tx.set(userRef, { creditBalance: result.balance }, { merge: true });
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
     tx.set(jobRef, {
       uid,
       provider,
       estimatedCredits: result.job.estimatedCredits,
+      heldAllocation: result.job.heldAllocation,
+      heldTopUp: result.job.heldTopUp,
       status: 'reserved',
       createdAt: FieldValue.serverTimestamp(),
       ...(extra ?? {}),
@@ -184,31 +231,69 @@ export async function reconcileCredits(opts: {
 
     const userRef = db.collection('users').doc(job.uid);
     const userSnap = await tx.get(userRef);
-    const result = applyReconcile(readBalance(userSnap.data()), job, actualCredits);
+    const data = userSnap.data();
+    if (readPlanStatus(data) !== 'active') {
+      // Still settle the hold split back if plan lapsed mid-flight — release path preferred.
+      // Plan: reconcile requires active; release unused instead.
+      const released = applyRelease(readBalances(data), job);
+      if (!released.skipped) {
+        tx.set(
+          userRef,
+          {
+            allocationBalance: released.balances.allocationBalance,
+            topUpBalance: released.balances.topUpBalance,
+          },
+          { merge: true }
+        );
+        tx.set(jobRef, { status: 'released' }, { merge: true });
+      }
+      return;
+    }
+
+    const result = applyReconcile(readBalances(data), job, actualCredits);
     if (result.skipped) return;
 
-    tx.set(userRef, { creditBalance: result.balance }, { merge: true });
-    tx.set(jobRef, { status: 'settled', actualCredits: result.debitAmount }, { merge: true });
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
+    tx.set(
+      jobRef,
+      {
+        status: 'settled',
+        actualCredits: result.debitAmount,
+        heldAllocation: result.heldAllocation,
+        heldTopUp: result.heldTopUp,
+      },
+      { merge: true }
+    );
     if (result.debitAmount <= 0) return;
 
     const amount = clampDebitAmount(result.debitAmount, result.debitAmount);
-    tx.set(txnRef, omitUndefined({
-      uid: job.uid,
-      type: 'debit',
-      amount,
-      provider,
-      model: opts.model,
-      promptTokens: opts.promptTokens,
-      completionTokens: opts.completionTokens,
-      costUsd: opts.costUsd,
-      priceUsd: opts.priceUsd,
-      requestId,
-      createdAt: FieldValue.serverTimestamp(),
-    }));
+    tx.set(
+      txnRef,
+      omitUndefined({
+        uid: job.uid,
+        type: 'debit',
+        amount,
+        provider,
+        model: opts.model,
+        promptTokens: opts.promptTokens,
+        completionTokens: opts.completionTokens,
+        costUsd: opts.costUsd,
+        priceUsd: opts.priceUsd,
+        requestId,
+        createdAt: FieldValue.serverTimestamp(),
+      })
+    );
   });
 }
 
-/** Restore estimated to balance; no debit. Idempotent. Fal does not bill failures. */
+/** Restore held split to buckets; no debit. Idempotent. Fal does not bill failures. */
 export async function releaseCredits(requestId: string): Promise<void> {
   if (!requestId) return;
   const jobRef = db.collection('gatewayJobs').doc(requestId);
@@ -219,43 +304,92 @@ export async function releaseCredits(requestId: string): Promise<void> {
     if (!job) return;
     const userRef = db.collection('users').doc(job.uid);
     const userSnap = await tx.get(userRef);
-    const result = applyRelease(readBalance(userSnap.data()), job);
+    const result = applyRelease(readBalances(userSnap.data()), job);
     if (result.skipped) return;
-    tx.set(userRef, { creditBalance: result.balance }, { merge: true });
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
     tx.set(jobRef, { status: 'released' }, { merge: true });
   });
 }
 
+export type GrantBucket = 'allocation' | 'topUp';
+
+/**
+ * allocation grants SET; topUp grants ADD.
+ * Idempotent when requestId is provided (creditTransactions/{requestId}).
+ */
 export async function grantCredits(opts: {
   uid: string;
   amount: number;
   reason: string;
-}): Promise<{ balanceBefore: number; balanceAfter: number; requestId: string }> {
-  const { uid, reason } = opts;
+  bucket: GrantBucket;
+  requestId?: string;
+  /** Extra user-doc fields to merge (plan metadata, nextAllocationDate, etc.). */
+  userPatch?: Record<string, unknown>;
+}): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
+  const { uid, reason, bucket, userPatch } = opts;
   const amount = opts.amount;
   if (!uid) throw new Error('uid required');
-  if (!Number.isInteger(amount) || amount <= 0) {
-    throw new Error('amount must be a positive integer');
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('amount must be a non-negative integer');
+  }
+  if (bucket === 'topUp' && amount <= 0) {
+    throw new Error('topUp amount must be a positive integer');
   }
 
-  const requestId = `grant-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+  const requestId =
+    opts.requestId ??
+    `grant-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
   const userRef = db.collection('users').doc(uid);
   const txnRef = db.collection('creditTransactions').doc(requestId);
 
   return db.runTransaction(async (tx) => {
+    const txnSnap = await tx.get(txnRef);
+    if (txnSnap.exists) {
+      const userSnap = await tx.get(userRef);
+      const b = readBalances(userSnap.data());
+      return { ...b, requestId };
+    }
+
     const userSnap = await tx.get(userRef);
-    const balanceBefore = readBalance(userSnap.data());
-    const balanceAfter = balanceBefore + amount;
-    tx.set(userRef, { creditBalance: balanceAfter }, { merge: true });
-    tx.set(txnRef, {
-      uid,
-      type: 'grant',
-      amount,
-      requestId,
-      reason,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return { balanceBefore, balanceAfter, requestId };
+    const current = readBalances(userSnap.data());
+    const next: BucketBalances =
+      bucket === 'allocation'
+        ? { allocationBalance: amount, topUpBalance: current.topUpBalance }
+        : {
+            allocationBalance: current.allocationBalance,
+            topUpBalance: current.topUpBalance + amount,
+          };
+
+    tx.set(
+      userRef,
+      {
+        allocationBalance: next.allocationBalance,
+        topUpBalance: next.topUpBalance,
+        ...(userPatch ?? {}),
+      },
+      { merge: true }
+    );
+
+    if (amount > 0) {
+      tx.set(txnRef, {
+        uid,
+        type: 'grant',
+        amount,
+        bucket,
+        requestId,
+        reason,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    return { ...next, requestId };
   });
 }
 

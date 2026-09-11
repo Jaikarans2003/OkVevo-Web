@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
-import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
+import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, isSelfServePlanType, type SelfServePlanType } from '@/config/razorpay';
 
 export const runtime = 'nodejs';
 
@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate plan type
-        if (!['starter', 'hobby', 'pro'].includes(newPlanType)) {
+        if (!isSelfServePlanType(newPlanType)) {
             return NextResponse.json(
-                { error: 'Invalid plan type. Must be starter, hobby, or pro' },
+                { error: 'Invalid plan type. Must be starter, pro, or max' },
                 { status: 400 }
             );
         }
@@ -81,8 +81,14 @@ export async function POST(request: NextRequest) {
             key_secret: RAZORPAY_CONFIG.keySecret,
         });
 
-        const planDetails = getPlanDetailsByPeriod(newPlanType as PlanType, newBillingPeriod as 'monthly' | 'annual');
-        const razorpayPlanId = getRazorpayPlanId(newPlanType as PlanType, newBillingPeriod as 'monthly' | 'annual');
+        const planDetails = getPlanDetailsByPeriod(
+            newPlanType as SelfServePlanType,
+            newBillingPeriod as 'monthly' | 'annual'
+        );
+        const razorpayPlanId = getRazorpayPlanId(
+            newPlanType as SelfServePlanType,
+            newBillingPeriod as 'monthly' | 'annual'
+        );
 
         console.log(`🔄 UPI Upgrade: Creating new ${newPlanType} subscription for user ${userId}`);
         console.log(`   Old subscription: ${oldSubscriptionId} will be cancelled after new one activates`);
@@ -118,13 +124,13 @@ export async function POST(request: NextRequest) {
             newSubscriptionId: newSubscription.id,
             oldSubscriptionId: oldSubscriptionId,
             planId: razorpayPlanId,
-            amount: planDetails.price,
+            amount: planDetails.priceUsd,
             currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
             shortUrl: newSubscription.short_url,
             newPlanDetails: {
                 name: planDetails.name,
-                price: planDetails.price,
+                price: planDetails.priceUsd,
                 period: planDetails.period,
             },
         });

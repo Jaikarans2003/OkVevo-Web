@@ -3,7 +3,16 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { RAZORPAY_CONFIG, getPlanDetails, type PlanType } from '@/config/razorpay';
+import {
+    RAZORPAY_CONFIG,
+    PLACEHOLDER_CREDITS_PER_USD,
+    SUBSCRIPTION_PLANS,
+    getPlanDetails,
+    isSelfServePlanType,
+    lookupPlanById,
+} from '@/config/razorpay';
+import { initialAllocationGrant, refreshAllocationIfDue } from '@/lib/billing/allocation';
+import { grantCredits } from '@/lib/gateway/debit';
 
 export const runtime = 'nodejs';
 
@@ -69,6 +78,51 @@ async function syncSubscriptionToFirestore(
     batch.set(userRef, data, { merge: true });
     
     await batch.commit();
+}
+
+async function patchUserBilling(uid: string, data: Record<string, unknown>): Promise<void> {
+    await db.collection('users').doc(uid).set(data, { merge: true });
+}
+
+function unixToTimestamp(unix: number | undefined | null): Timestamp | null {
+    if (typeof unix !== 'number' || !Number.isFinite(unix)) return null;
+    return Timestamp.fromMillis(unix * 1000);
+}
+
+type ResolvedPlanMeta = {
+    plan: string;
+    planName: string;
+    creditsIncluded: number;
+    billingCycle: 'monthly' | 'yearly';
+};
+
+function resolvePlanMeta(subscription: {
+    plan_id?: string;
+    notes?: Record<string, string | undefined>;
+}): ResolvedPlanMeta | null {
+    if (subscription.plan_id) {
+        const byId = lookupPlanById(subscription.plan_id);
+        if (byId) {
+            return {
+                plan: byId.name,
+                planName: byId.planName,
+                creditsIncluded: byId.creditsIncluded,
+                billingCycle: byId.billingCycle,
+            };
+        }
+    }
+    const planType = subscription.notes?.planType;
+    if (planType && isSelfServePlanType(planType)) {
+        const def = SUBSCRIPTION_PLANS[planType];
+        const billingPeriod = subscription.notes?.billingPeriod;
+        return {
+            plan: planType,
+            planName: def.name,
+            creditsIncluded: def.creditsIncluded,
+            billingCycle: billingPeriod === 'annual' ? 'yearly' : 'monthly',
+        };
+    }
+    return null;
 }
 
 /**
@@ -200,17 +254,12 @@ export async function POST(request: NextRequest) {
                 const existingData = existingDoc?.data();
                 const currentStatus = existingData?.status;
 
-                const planDetails = getPlanDetails(planType as PlanType);
+                const planMeta = resolvePlanMeta(subscription);
                 const notes = subscription.notes || {};
                 
                 console.log(`📝 Subscription notes:`, JSON.stringify(notes));
 
-                // SOURCE OF TRUTH: invoice.paid is the single source of truth for credits.
-                // It stamps invoicePaidAt when it runs. If that sentinel is present,
-                // invoice.paid already ran — do NOT overwrite credits.
-                // If absent, invoice.paid hasn't run yet — seed credits as a fallback
-                // so the user is never left with 0. When invoice.paid eventually arrives,
-                // it will unconditionally overwrite everything.
+                // Legacy subscription-doc credits (Pro-Team / old UI). Two-bucket grants go via grantCredits.
                 const invoicePaidAlready = !!existingData?.invoicePaidAt;
 
                 const updates: any = {
@@ -219,9 +268,9 @@ export async function POST(request: NextRequest) {
                     subscriptionId: subscription.id,
                     activatedAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
-                    ...(!invoicePaidAlready && {
-                        credits: planDetails.credits,
-                        initialCredits: planDetails.credits,
+                    ...(!invoicePaidAlready && planMeta && {
+                        credits: planMeta.creditsIncluded,
+                        initialCredits: planMeta.creditsIncluded,
                         creditsUsed: 0,
                         lastPaymentId: payment?.id || null,
                         lastPaymentAmount: payment?.amount || 0,
@@ -251,6 +300,35 @@ export async function POST(request: NextRequest) {
                 await syncSubscriptionToFirestore(subscription.id, userId, updates);
 
                 console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
+
+                // Two-bucket: SET allocation immediately (also recovery from paused/halted → active).
+                if (planMeta) {
+                    const currentStart = subscription.current_start
+                        ? new Date(subscription.current_start * 1000)
+                        : new Date();
+                    const initial = initialAllocationGrant(planMeta.creditsIncluded, currentStart);
+                    const periodEnd = unixToTimestamp(subscription.current_end);
+
+                    await grantCredits({
+                        uid: userId,
+                        amount: planMeta.creditsIncluded,
+                        reason: 'subscription.activated',
+                        bucket: 'allocation',
+                        // Include current_start so paused/halted → activated recovery can SET again.
+                        requestId: `sub_activated_${subscription.id}_${subscription.current_start || '0'}`,
+                        userPatch: {
+                            planStatus: 'active',
+                            plan: planMeta.plan,
+                            planName: planMeta.planName,
+                            billingCycle: planMeta.billingCycle,
+                            creditsIncluded: planMeta.creditsIncluded,
+                            razorpaySubscriptionId: subscription.id,
+                            cancelAtPeriodEnd: false,
+                            nextAllocationDate: initial.nextAllocationDate,
+                            ...(periodEnd && { currentPeriodEnd: periodEnd }),
+                        },
+                    });
+                }
 
                 // Handle UPI upgrade flow - cancel old subscription after new one is confirmed
                 if (notes.replacing_subscription_id && notes.upgrade_flow === 'true') {
@@ -431,6 +509,39 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 500 });
                 }
 
+                const planMeta = resolvePlanMeta(subscription);
+                const periodEnd = unixToTimestamp(subscription.current_end);
+                const userDoc = await db.collection('users').doc(userId).get();
+                const userData = userDoc.data() || {};
+
+                const statusPatch: Record<string, unknown> = {};
+                if (userData.planStatus !== 'active') statusPatch.planStatus = 'active';
+                if (periodEnd) statusPatch.currentPeriodEnd = periodEnd;
+                if (Object.keys(statusPatch).length > 0) {
+                    await patchUserBilling(userId, statusPatch);
+                }
+
+                const refreshPatch = refreshAllocationIfDue({
+                    planStatus: 'active',
+                    creditsIncluded: userData.creditsIncluded ?? planMeta?.creditsIncluded,
+                    allocationBalance: userData.allocationBalance,
+                    nextAllocationDate: userData.nextAllocationDate,
+                });
+                if (refreshPatch) {
+                    await grantCredits({
+                        uid: userId,
+                        amount: refreshPatch.allocationBalance,
+                        reason: 'subscription.charged',
+                        bucket: 'allocation',
+                        requestId: `sub_charged_${subscription.id}_${cycleNumber}`,
+                        userPatch: {
+                            nextAllocationDate: refreshPatch.nextAllocationDate,
+                            planStatus: 'active',
+                            ...(periodEnd && { currentPeriodEnd: periodEnd }),
+                        },
+                    });
+                }
+
                 // No affiliate commission — renewals are full price, no discount
                 break;
             }
@@ -473,6 +584,8 @@ export async function POST(request: NextRequest) {
                     updatedAt: FieldValue.serverTimestamp(),
                 });
 
+                await patchUserBilling(userId, { planStatus: 'halted' });
+
                 console.log(`🛑 Subscription halted: ${subscription.id}`);
                 break;
             }
@@ -490,6 +603,11 @@ export async function POST(request: NextRequest) {
                     status: 'cancelled',
                     cancelledAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
+                });
+
+                await patchUserBilling(userId, {
+                    planStatus: 'cancelled',
+                    cancelAtPeriodEnd: false,
                 });
 
                 console.log(`✅ Subscription cancelled: ${subscription.id}`);
@@ -510,6 +628,8 @@ export async function POST(request: NextRequest) {
                     pausedAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
                 });
+
+                await patchUserBilling(userId, { planStatus: 'paused' });
 
                 console.log(`⏸️ Subscription paused: ${subscription.id}`);
                 break;
@@ -589,16 +709,19 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: true });
                 }
 
-                const planDetails = getPlanDetails(planType as PlanType);
+                const planDetails = isSelfServePlanType(planType)
+                    ? getPlanDetails(planType)
+                    : null;
+                const legacyCredits = planDetails?.creditsIncluded ?? 0;
 
                 // Track payment method from payment entity (reliable source)
                 const paymentMethod = payment?.method; // 'card', 'upi', 'netbanking', 'emandate'
 
-                // SOURCE OF TRUTH — invoice.paid unconditionally owns credits.
-                // Stamps invoicePaidAt so all other events know not to overwrite after this.
+                // Legacy subscription-doc credits only — do NOT grant allocationBalance,
+                // topUpBalance, or creditBalance here (two-bucket grants are webhook/cron only).
                 const updates: any = {
-                    credits: planDetails.credits,
-                    initialCredits: planDetails.credits,
+                    credits: legacyCredits,
+                    initialCredits: legacyCredits,
                     creditsUsed: 0,
                     invoicePaidAt: FieldValue.serverTimestamp(),
                     lastPaymentId: payment?.id,
@@ -631,13 +754,13 @@ export async function POST(request: NextRequest) {
                         userData?.proOrganisationRole === 'admin'
                     ) {
                         await db.collection('proOrganisations').doc(userData.proOrganisationId).update({
-                            credits: planDetails.credits,
-                            initialCredits: planDetails.credits,
+                            credits: legacyCredits,
+                            initialCredits: legacyCredits,
                             creditsUsed: 0,
                             lastRenewalAt: FieldValue.serverTimestamp(),
                             updatedAt: FieldValue.serverTimestamp(),
                         });
-                        console.log(`🔄 Pro Team pool reset: ${userData.proOrganisationId} → ${planDetails.credits} credits`);
+                        console.log(`🔄 Pro Team pool reset: ${userData.proOrganisationId} → ${legacyCredits} credits`);
                     }
                 } catch (proErr) {
                     console.error('❌ Failed to reset Pro Team pool on renewal:', proErr);
@@ -718,6 +841,28 @@ export async function POST(request: NextRequest) {
                 const payment = payload.payment.entity;
                 const orderId = payment.order_id;
                 const paymentId = payment.id;
+                const payNotes = payment.notes || {};
+
+                // Nia add-credits via Payment Link (no order_id).
+                if (payNotes.purpose === 'nia_add_credits' && payNotes.uid) {
+                    const amountUsd = payNotes.amountUsd
+                        ? Number(payNotes.amountUsd)
+                        : payment.amount / 100;
+                    const credits = Math.round(amountUsd * PLACEHOLDER_CREDITS_PER_USD);
+                    if (Number.isFinite(credits) && credits > 0) {
+                        await grantCredits({
+                            uid: payNotes.uid,
+                            amount: credits,
+                            reason: 'nia_add_credits',
+                            bucket: 'topUp',
+                            requestId: `rp_${paymentId}`,
+                        });
+                        console.log(`✅ Top-up credits granted: ${payNotes.uid} +${credits}`);
+                    }
+                    if (!orderId) {
+                        return NextResponse.json({ success: true });
+                    }
+                }
 
                 if (!orderId) {
                     console.log('⚠️ Payment without order_id, skipping');

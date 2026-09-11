@@ -43,16 +43,31 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isUser(userId);
       allow create: if isUser(userId)
-        && request.resource.data.creditBalance == 0
+        && request.resource.data.allocationBalance == 0
+        && request.resource.data.topUpBalance == 0
+        && request.resource.data.creditsIncluded == 0
         && request.resource.data.plan == null
+        && request.resource.data.planStatus == null
         && !('razorpayCustomerId' in request.resource.data)
-        && !('razorpaySubscriptionId' in request.resource.data);
+        && !('razorpaySubscriptionId' in request.resource.data)
+        && !('nextAllocationDate' in request.resource.data)
+        && !('currentPeriodEnd' in request.resource.data)
+        && !('cancelAtPeriodEnd' in request.resource.data);
       allow update: if isUser(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'creditBalance',
+          'allocationBalance',
+          'topUpBalance',
+          'creditsIncluded',
           'plan',
+          'planName',
+          'planStatus',
+          'billingCycle',
           'razorpayCustomerId',
-          'razorpaySubscriptionId'
+          'razorpaySubscriptionId',
+          'nextAllocationDate',
+          'currentPeriodEnd',
+          'cancelAtPeriodEnd'
         ]);
 
       match /subscriptions/{id} {

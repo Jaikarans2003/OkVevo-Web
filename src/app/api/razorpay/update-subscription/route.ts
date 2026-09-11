@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { RAZORPAY_CONFIG, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
+import { RAZORPAY_CONFIG, getRazorpayPlanId, isSelfServePlanType, type SelfServePlanType } from '@/config/razorpay';
 
 export const runtime = 'nodejs';
 
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate plan type
-        if (!['starter', 'hobby', 'pro'].includes(newPlanType)) {
+        if (!isSelfServePlanType(newPlanType)) {
             return NextResponse.json(
-                { error: 'Invalid plan type. Must be starter, hobby, or pro' },
+                { error: 'Invalid plan type. Must be starter, pro, or max' },
                 { status: 400 }
             );
         }
@@ -94,7 +94,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Get new Razorpay plan ID
-        const newPlanId = getRazorpayPlanId(newPlanType as PlanType, newBillingPeriod as 'monthly' | 'annual');
+        const newPlanId = getRazorpayPlanId(
+            newPlanType as SelfServePlanType,
+            newBillingPeriod as 'monthly' | 'annual'
+        );
 
         console.log(`📝 Updating subscription ${subscriptionId} to plan ${newPlanType} (${newPlanId})`);
 

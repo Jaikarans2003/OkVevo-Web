@@ -198,18 +198,25 @@ export const env = {
       get starterAnnual() {
         return (process.env.RAZORPAY_STARTER_ANNUAL_PLAN_ID ?? '').trim();
       },
-      get hobbyMonthly() {
-        return (process.env.RAZORPAY_HOBBY_PLAN_ID ?? '').trim();
-      },
-      get hobbyAnnual() {
-        return (process.env.RAZORPAY_HOBBY_ANNUAL_PLAN_ID ?? '').trim();
-      },
       get proMonthly() {
         return (process.env.RAZORPAY_PRO_PLAN_ID ?? '').trim();
       },
       get proAnnual() {
         return (process.env.RAZORPAY_PRO_ANNUAL_PLAN_ID ?? '').trim();
       },
+      get maxMonthly() {
+        return (process.env.RAZORPAY_MAX_PLAN_ID ?? process.env.RAZORPAY_HOBBY_PLAN_ID ?? '').trim();
+      },
+      get maxAnnual() {
+        return (
+          process.env.RAZORPAY_MAX_ANNUAL_PLAN_ID ??
+          process.env.RAZORPAY_HOBBY_ANNUAL_PLAN_ID ??
+          ''
+        ).trim();
+      },
     },
+  },
+  get cronSecret() {
+    return (process.env.CRON_SECRET ?? '').trim();
   },
 };

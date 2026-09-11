@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
-import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, type PlanType } from '@/config/razorpay';
+import {
+    RAZORPAY_CONFIG,
+    getPlanDetailsByPeriod,
+    getRazorpayPlanId,
+    isSelfServePlanType,
+    type BillingPeriod,
+    type SelfServePlanType,
+} from '@/config/razorpay';
 
 /**
  * Create Razorpay Subscription
@@ -26,9 +33,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (planType !== 'starter' && planType !== 'hobby' && planType !== 'pro') {
+        if (!isSelfServePlanType(planType)) {
             return NextResponse.json(
-                { success: false, error: 'Invalid plan type. Must be "starter", "hobby" or "pro"' },
+                { success: false, error: 'Invalid plan type. Must be "starter", "pro", or "max"' },
                 { status: 400 }
             );
         }
@@ -46,8 +53,14 @@ export async function POST(request: NextRequest) {
             key_secret: RAZORPAY_CONFIG.keySecret,
         });
 
-        const planDetails = getPlanDetailsByPeriod(planType as PlanType, billingPeriod as 'monthly' | 'annual');
-        const razorpayPlanId = getRazorpayPlanId(planType as PlanType, billingPeriod as 'monthly' | 'annual');
+        const planDetails = getPlanDetailsByPeriod(
+            planType as SelfServePlanType,
+            billingPeriod as BillingPeriod
+        );
+        const razorpayPlanId = getRazorpayPlanId(
+            planType as SelfServePlanType,
+            billingPeriod as BillingPeriod
+        );
 
         // Check for existing active subscriptions (auto-detect upgrade/downgrade flow)
         let existingSubscription = null;
@@ -123,7 +136,7 @@ export async function POST(request: NextRequest) {
             success: true,
             subscriptionId: subscription.id,
             planId: razorpayPlanId,
-            amount: planDetails.price,
+            amount: planDetails.priceUsd,
             currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
             shortUrl: subscription.short_url,

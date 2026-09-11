@@ -34,7 +34,15 @@ export interface UserProfile {
     isPro?: boolean;
     proPromptShown?: boolean;
     plan?: string | null;
+    planName?: string | null;
+    planStatus?: string | null;
+    billingCycle?: 'monthly' | 'yearly' | null;
+    creditsIncluded?: number;
+    allocationBalance?: number;
+    topUpBalance?: number;
+    /** @deprecated migrate → topUpBalance */
     creditBalance?: number;
+    cancelAtPeriodEnd?: boolean;
 }
 
 export interface Organisation {
@@ -75,8 +83,11 @@ export async function createUserProfile(uid: string, email: string): Promise<voi
             uid,
             email,
             onboardingComplete: false,
-            creditBalance: 0,
+            allocationBalance: 0,
+            topUpBalance: 0,
+            creditsIncluded: 0,
             plan: null,
+            planStatus: null,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });

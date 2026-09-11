@@ -1,60 +1,106 @@
 /**
- * Reserve-then-reconcile: two parallel estimates against a balance that
- * covers one request — only the first is admitted.
+ * Two-bucket FIFO reserve/reconcile + month clamp.
  * Run: npx tsx src/lib/gateway/reserve.selfcheck.ts
  */
 import assert from 'node:assert/strict';
 
-import { applyReconcile, applyRelease, applyReserve, omitUndefined, type JobRecord } from './reserve.ts';
+import {
+  applyReconcile,
+  applyRelease,
+  applyReserve,
+  omitUndefined,
+  type JobRecord,
+} from './reserve.ts';
+import {
+  addOneMonthClamped,
+  refreshAllocationIfDue,
+} from '../billing/allocation.ts';
+import { Timestamp } from 'firebase-admin/firestore';
 
 const uid = 'u1';
 
-const first = applyReserve(100, undefined, 80, uid, 'openrouter');
-assert.equal(first.ok, true);
-if (!first.ok) throw new Error('unreachable');
-assert.equal(first.balance, 20);
+// Plan: alloc 100, topUp 50, spend 120 → 0 + 30
+const fifo = applyReserve(
+  { allocationBalance: 100, topUpBalance: 50 },
+  undefined,
+  120,
+  uid,
+  'openrouter'
+);
+assert.equal(fifo.ok, true);
+if (!fifo.ok) throw new Error('unreachable');
+assert.equal(fifo.balances.allocationBalance, 0);
+assert.equal(fifo.balances.topUpBalance, 30);
+assert.equal(fifo.job.heldAllocation, 100);
+assert.equal(fifo.job.heldTopUp, 20);
 
-const second = applyReserve(first.balance, undefined, 80, uid, 'openrouter');
-assert.equal(second.ok, false);
-if (second.ok) throw new Error('unreachable');
-assert.equal(second.reason, 'insufficient');
+const short = applyReserve(
+  { allocationBalance: 10, topUpBalance: 5 },
+  undefined,
+  20,
+  uid,
+  'openrouter'
+);
+assert.equal(short.ok, false);
 
-const dup = applyReserve(100, first.job, 80, uid, 'openrouter');
+const dup = applyReserve(
+  { allocationBalance: 100, topUpBalance: 50 },
+  fifo.job,
+  10,
+  uid,
+  'openrouter'
+);
 assert.equal(dup.ok, false);
 
 const jobs = new Map<string, JobRecord>();
-let balance = 50;
-const a = applyReserve(balance, jobs.get('a'), 40, uid, 'fal');
+let balances = { allocationBalance: 50, topUpBalance: 0 };
+const a = applyReserve(balances, jobs.get('a'), 40, uid, 'fal');
 assert.equal(a.ok, true);
 if (!a.ok) throw new Error('unreachable');
-balance = a.balance;
+balances = a.balances;
 jobs.set('a', a.job);
-const b = applyReserve(balance, jobs.get('b'), 40, uid, 'fal');
+const b = applyReserve(balances, jobs.get('b'), 40, uid, 'fal');
 assert.equal(b.ok, false);
 
-const settled = applyReconcile(balance, a.job, 10);
+const settled = applyReconcile(balances, a.job, 10);
 assert.equal(settled.skipped, false);
 if (settled.skipped) throw new Error('unreachable');
 assert.equal(settled.debitAmount, 10);
-// start 50, reserve 40 → balance 10. actual 10: 10 + 40 - 10 = 40.
-assert.equal(settled.balance, 40);
+// start 50, reserve 40 → alloc 10. actual 10: restore → 50, re-hold 10 → 40.
+assert.equal(settled.balances.allocationBalance, 40);
+assert.equal(settled.balances.topUpBalance, 0);
 
-const over = applyReconcile(10, a.job, 55);
+const over = applyReconcile(
+  { allocationBalance: 0, topUpBalance: 10 },
+  { ...a.job, heldAllocation: 40, heldTopUp: 0 },
+  55
+);
 assert.equal(over.skipped, false);
 if (over.skipped) throw new Error('unreachable');
-assert.equal(over.balance, 0); // clamp, never negative
-assert.equal(over.debitAmount, 55);
+assert.equal(over.balances.allocationBalance, 0);
+assert.equal(over.balances.topUpBalance, 0);
+assert.equal(over.debitAmount, 55); // ledger billed; balances clamped
 
-const released = applyRelease(10, a.job);
+const released = applyRelease(
+  { allocationBalance: 0, topUpBalance: 30 },
+  fifo.job
+);
 assert.equal(released.skipped, false);
 if (released.skipped) throw new Error('unreachable');
-assert.equal(released.balance, 50);
+assert.equal(released.balances.allocationBalance, 100);
+assert.equal(released.balances.topUpBalance, 50);
 
 const already = { ...a.job, status: 'settled' as const };
-assert.equal(applyReconcile(10, already, 5).skipped, true);
-assert.equal(applyRelease(10, already).skipped, true);
+assert.equal(applyReconcile(balances, already, 5).skipped, true);
+assert.equal(applyRelease(balances, already).skipped, true);
 
-const zero = applyReserve(5, undefined, 0, uid, 'tavily');
+const zero = applyReserve(
+  { allocationBalance: 5, topUpBalance: 0 },
+  undefined,
+  0,
+  uid,
+  'tavily'
+);
 assert.equal(zero.ok, true);
 
 const falTxn = omitUndefined({
@@ -70,5 +116,49 @@ const falTxn = omitUndefined({
 assert.equal('promptTokens' in falTxn, false);
 assert.equal('completionTokens' in falTxn, false);
 assert.ok(Object.values(falTxn).every((v) => v !== undefined));
+
+// addOneMonthClamped: Jan 31 → Feb 28 (non-leap)
+const jan31 = new Date(Date.UTC(2025, 0, 31, 12, 0, 0));
+const feb = addOneMonthClamped(jan31);
+assert.equal(feb.getUTCFullYear(), 2025);
+assert.equal(feb.getUTCMonth(), 1);
+assert.equal(feb.getUTCDate(), 28);
+
+const jan31Leap = new Date(Date.UTC(2024, 0, 31));
+const febLeap = addOneMonthClamped(jan31Leap);
+assert.equal(febLeap.getUTCDate(), 29);
+
+// due-gate: not due → null (no double SET)
+const notDue = refreshAllocationIfDue(
+  {
+    planStatus: 'active',
+    creditsIncluded: 20000,
+    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() + 86400000)),
+  },
+  new Date()
+);
+assert.equal(notDue, null);
+
+const due = refreshAllocationIfDue(
+  {
+    planStatus: 'active',
+    creditsIncluded: 20000,
+    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+  },
+  new Date()
+);
+assert.ok(due);
+assert.equal(due!.allocationBalance, 20000);
+assert.ok(due!.nextAllocationDate.toDate().getTime() > Date.now());
+
+const inactive = refreshAllocationIfDue(
+  {
+    planStatus: 'halted',
+    creditsIncluded: 20000,
+    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+  },
+  new Date()
+);
+assert.equal(inactive, null);
 
 console.log('reserve.selfcheck: ok');

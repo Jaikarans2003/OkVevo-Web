@@ -14,9 +14,10 @@ type CouponValidationResponse = {
 };
 
 interface RazorpayCheckoutProps {
-    planType: 'starter' | 'hobby' | 'pro';
+    planType: 'starter' | 'pro' | 'max';
     billingPeriod?: 'monthly' | 'annual';
     couponData?: CouponValidationResponse | null;
+    highlighted?: boolean;
     onSuccess?: (subscriptionId: string) => void;
     onError?: (error: string) => void;
 }
@@ -27,7 +28,7 @@ declare global {
     }
 }
 
-const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, onSuccess, onError }: RazorpayCheckoutProps) => {
+const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, highlighted, onSuccess, onError }: RazorpayCheckoutProps) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -124,7 +125,7 @@ const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, onS
             onClick={handlePayment}
             disabled={loading || !scriptLoaded}
             className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-300 uppercase tracking-widest ${
-                planType === 'pro'
+                highlighted
                     ? 'bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50 transform hover:scale-[1.05]'
                     : 'bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444]'
             } ${loading || !scriptLoaded ? 'opacity-50 cursor-not-allowed' : ''}`}
