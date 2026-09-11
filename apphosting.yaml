@@ -90,26 +90,38 @@ env:
       - BUILD
       - RUNTIME
 
-  - variable: RAZORPAY_HOBBY_PLAN_ID
-    value: plan_SZRg3JzcOiFCiG
+  - variable: RAZORPAY_STARTER_PLAN_ID
+    value: plan_TaipNKtfGxZyaz
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_STARTER_ANNUAL_PLAN_ID
+    value: plan_TairsxzPq1SX8O
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_PLAN_ID
-    value: plan_SWkxpwywTG5eSF
-    availability:
-      - BUILD
-      - RUNTIME
-
-  - variable: RAZORPAY_HOBBY_ANNUAL_PLAN_ID
-    value: plan_SX5ZlCJXlu0US7
+    value: plan_TaitO9Jvbh8hKW
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_ANNUAL_PLAN_ID
-    value: plan_SX5YenijxgtRD1
+    value: plan_TaiuIVserGuy8r
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_MAX_PLAN_ID
+    value: plan_TaivVyzrryqHze
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_MAX_ANNUAL_PLAN_ID
+    value: plan_TaiwVITElxquWo
     availability:
       - BUILD
       - RUNTIME
@@ -153,5 +165,10 @@ env:
 
   - variable: RAZORPAY_WEBHOOK_SECRET
     secret: RAZORPAY_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
     availability:
       - RUNTIME

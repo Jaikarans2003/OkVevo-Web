@@ -47,6 +47,7 @@ services/agent/.env
 .env.development.local
 .env.test.local
 .env.production.local
+.ops-billing-secrets.env
 
 # Example templates are safe to commit
 !.env.example
