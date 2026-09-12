@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export interface UserProfile {
@@ -40,6 +40,7 @@ export interface UserProfile {
     creditsIncluded?: number;
     allocationBalance?: number;
     topUpBalance?: number;
+    topUpPurchasedTotal?: number;
     /** @deprecated migrate → topUpBalance */
     creditBalance?: number;
     cancelAtPeriodEnd?: boolean;
@@ -85,6 +86,7 @@ export async function createUserProfile(uid: string, email: string): Promise<voi
             onboardingComplete: false,
             allocationBalance: 0,
             topUpBalance: 0,
+            topUpPurchasedTotal: 0,
             creditsIncluded: 0,
             plan: null,
             planStatus: null,
@@ -299,15 +301,13 @@ export async function createProOrganisation(
     const proOrgId = `pro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const proOrgRef = doc(db, 'proOrganisations', proOrgId);
 
-    // Seed shared credits pool from admin's active subscription
     let initialCredits = 0;
     try {
-        const subsRef = collection(db, 'users', organisationData.adminUid, 'subscriptions');
-        const subsQ = query(subsRef, where('status', 'in', ['active', 'authenticated']), limit(1));
-        const subsSnap = await getDocs(subsQ);
-        if (!subsSnap.empty) {
-            initialCredits = subsSnap.docs[0].data().credits ?? 0;
-        }
+        const adminSnap = await getDoc(doc(db, 'users', organisationData.adminUid));
+        const adminData = adminSnap.data();
+        const allocation = typeof adminData?.allocationBalance === 'number' ? adminData.allocationBalance : 0;
+        const topUp = typeof adminData?.topUpBalance === 'number' ? adminData.topUpBalance : 0;
+        initialCredits = allocation + topUp;
     } catch (_) {}
 
     await setDoc(proOrgRef, {

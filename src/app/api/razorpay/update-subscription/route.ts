@@ -2,31 +2,59 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { RAZORPAY_CONFIG, getRazorpayPlanId, isSelfServePlanType, type SelfServePlanType } from '@/config/razorpay';
+import {
+    RAZORPAY_CONFIG,
+    getRazorpayPlanId,
+    isSelfServePlanType,
+    parseBillingCurrency,
+    type BillingPeriod,
+    type SelfServePlanType,
+} from '@/config/razorpay';
+import { uidFromIdToken } from '@/lib/gateway/auth';
+import {
+    isUpiLikePaymentMethod,
+    isUpiSubscriptionUpdateError,
+    isUpdatablePlanStatus,
+    loadUserBillingSoT,
+    normalizePaymentMethod,
+    razorpayErrorDescription,
+} from '@/lib/billing/userSoT';
+import { isSamePlan, scheduleChangeAt } from '@/lib/billing/planChange';
 
 export const runtime = 'nodejs';
 
 /**
- * Update Subscription API (Card/Netbanking only)
- * Schedules plan change at end of current billing cycle
+ * Razorpay Update Subscription (card/netbanking).
+ * Upgrade → schedule_change_at: now (prorate immediately).
+ * Downgrade → cycle_end (no charge now).
+ * Never send start_at / remaining_count — billing date must not reset.
+ * UPI/eMandate: upgrade returns flow upi_upgrade_required; downgrade is local-only.
  */
 export async function POST(request: NextRequest) {
-    try {
-        const razorpay = new Razorpay({
-            key_id: RAZORPAY_CONFIG.keyId,
-            key_secret: RAZORPAY_CONFIG.keySecret,
-        });
-        const body = await request.json();
-        const { userId, subscriptionId, newPlanType, newBillingPeriod = 'monthly' } = body;
+    const user = await uidFromIdToken(request);
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-        if (!userId || !subscriptionId || !newPlanType) {
+    try {
+        let body: { newPlanType?: unknown; newBillingPeriod?: unknown };
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+        }
+
+        const newPlanType = body.newPlanType;
+        const newBillingPeriod: BillingPeriod =
+            body.newBillingPeriod === 'annual' ? 'annual' : 'monthly';
+
+        if (!newPlanType || typeof newPlanType !== 'string') {
             return NextResponse.json(
-                { error: 'Missing required fields: userId, subscriptionId, newPlanType' },
+                { error: 'Missing required field: newPlanType' },
                 { status: 400 }
             );
         }
 
-        // Validate plan type
         if (!isSelfServePlanType(newPlanType)) {
             return NextResponse.json(
                 { error: 'Invalid plan type. Must be starter, pro, or max' },
@@ -34,139 +62,217 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Fetch subscription from Firestore
-        const subscriptionDoc = await db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .doc(subscriptionId)
-            .get();
+        const billing = await loadUserBillingSoT(user.uid);
+        const subscriptionId = billing.razorpaySubscriptionId;
 
-        if (!subscriptionDoc.exists) {
+        if (!subscriptionId) {
             return NextResponse.json(
                 { error: 'Subscription not found' },
                 { status: 404 }
             );
         }
 
-        const subscriptionData = subscriptionDoc.data();
-
-        // Validate subscription status
-        if (subscriptionData?.status !== 'active' && subscriptionData?.status !== 'authenticated') {
+        if (!isUpdatablePlanStatus(billing.planStatus)) {
             return NextResponse.json(
                 { error: 'Subscription must be active or authenticated to update' },
                 { status: 400 }
             );
         }
 
-        // Check payment method - UPI/eMandate cannot be updated
-        const paymentMethod = subscriptionData?.payment_method;
-        if (paymentMethod === 'upi' || paymentMethod === 'emandate') {
-            return NextResponse.json(
-                {
-                    error: 'UPI and eMandate subscriptions cannot be updated directly',
-                    flow: 'upi_upgrade_required',
-                    message: 'Please use the UPI upgrade flow to change your plan',
-                },
-                { status: 400 }
-            );
-        }
-
-        // Check if already has scheduled changes
-        if (subscriptionData?.has_scheduled_changes) {
+        if (billing.hasScheduledChanges) {
             return NextResponse.json(
                 {
                     error: 'Subscription already has a pending plan change',
                     message: 'Please cancel the existing scheduled change first',
-                    scheduled_plan_type: subscriptionData.scheduled_plan_type,
-                    change_scheduled_at: subscriptionData.change_scheduled_at,
+                    scheduled_plan_type: billing.scheduledPlanType,
                 },
                 { status: 400 }
             );
         }
 
-        // Check if trying to change to same plan
-        if (subscriptionData?.planType === newPlanType) {
+        if (isSamePlan(billing.plan, billing.billingCycle, newPlanType, newBillingPeriod)) {
             return NextResponse.json(
                 { error: 'You are already on this plan' },
                 { status: 400 }
             );
         }
 
-        // Get new Razorpay plan ID
-        const newPlanId = getRazorpayPlanId(
-            newPlanType as SelfServePlanType,
-            newBillingPeriod as 'monthly' | 'annual'
-        );
-
-        console.log(`📝 Updating subscription ${subscriptionId} to plan ${newPlanType} (${newPlanId})`);
-
-        // Call Razorpay update API
-        const updatedSubscription = await razorpay.subscriptions.update(subscriptionId, {
-            plan_id: newPlanId,
-            schedule_change_at: 'cycle_end',
-            customer_notify: 1,
-        });
-
-        // Calculate when change will take effect (next billing date)
-        const changeScheduledAt = subscriptionData.nextBillingDate 
-            ? Timestamp.fromDate(new Date(subscriptionData.nextBillingDate))
-            : Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-
-        // Update Firestore with scheduled change
-        const updateData = {
-            has_scheduled_changes: true,
-            change_scheduled_at: changeScheduledAt,
-            scheduled_plan_id: newPlanId,
-            scheduled_plan_type: newPlanType,
-            updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        // Atomic update to both collections
-        const batch = db.batch();
-
-        const topLevelRef = db.collection('razorpaySubscriptions').doc(subscriptionId);
-        const userRef = db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .doc(subscriptionId);
-
-        batch.update(topLevelRef, updateData);
-        batch.update(userRef, updateData);
-
-        await batch.commit();
-
-        console.log(`✅ Subscription update scheduled for ${changeScheduledAt.toDate().toISOString()}`);
-
-        return NextResponse.json({
-            success: true,
-            flow: 'update',
-            message: `Plan change scheduled for end of billing cycle`,
-            scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+        const when = scheduleChangeAt(
+            billing.plan,
+            billing.billingCycle,
             newPlanType,
-            currentPlanType: subscriptionData.planType,
-            subscription: {
-                id: subscriptionId,
-                has_scheduled_changes: true,
-                scheduled_plan_type: newPlanType,
-            },
+            newBillingPeriod
+        );
+        const currency = parseBillingCurrency(billing.currency, 'USD');
+        const newPlanId = getRazorpayPlanId(newPlanType as SelfServePlanType, newBillingPeriod, currency);
+
+        const razorpay = new Razorpay({
+            key_id: RAZORPAY_CONFIG.keyId,
+            key_secret: RAZORPAY_CONFIG.keySecret,
         });
 
-    } catch (error: any) {
-        console.error('❌ Subscription update error:', error);
-
-        // Handle Razorpay specific errors
-        if (error.statusCode === 400) {
-            return NextResponse.json(
-                { error: error.error?.description || 'Invalid request to Razorpay' },
-                { status: 400 }
-            );
+        let paymentMethod = billing.paymentMethod;
+        if (!paymentMethod) {
+            try {
+                const fetched = await razorpay.subscriptions.fetch(subscriptionId);
+                paymentMethod = normalizePaymentMethod(
+                    (fetched as { payment_method?: unknown }).payment_method
+                );
+                if (paymentMethod) {
+                    await db.collection('users').doc(user.uid).set(
+                        { paymentMethod, updatedAt: FieldValue.serverTimestamp() },
+                        { merge: true }
+                    );
+                }
+            } catch (fetchErr) {
+                console.warn('subscription fetch for paymentMethod failed', fetchErr);
+            }
         }
 
+        if (isUpiLikePaymentMethod(paymentMethod)) {
+            if (when === 'now') {
+                return NextResponse.json(
+                    {
+                        error: 'UPI and eMandate subscriptions cannot be updated directly',
+                        flow: 'upi_upgrade_required',
+                        message: 'Please use the UPI upgrade flow to change your plan',
+                    },
+                    { status: 400 }
+                );
+            }
+            return persistUpiDowngrade(user.uid, billing.currentPeriodEnd, newPlanId, newPlanType, billing.plan);
+        }
+
+        try {
+            const updated = await razorpay.subscriptions.update(subscriptionId, {
+                plan_id: newPlanId,
+                schedule_change_at: when,
+                customer_notify: 1,
+            });
+
+            if (when === 'cycle_end') {
+                const changeScheduledAt =
+                    typeof updated.change_scheduled_at === 'number'
+                        ? Timestamp.fromMillis(updated.change_scheduled_at * 1000)
+                        : billing.currentPeriodEnd
+                          ?? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+
+                await db.collection('users').doc(user.uid).set(
+                    {
+                        hasScheduledChanges: true,
+                        scheduledChangeAt: changeScheduledAt,
+                        scheduledPlanId: newPlanId,
+                        scheduledPlanType: newPlanType,
+                        updatedAt: FieldValue.serverTimestamp(),
+                    },
+                    { merge: true }
+                );
+
+                return NextResponse.json({
+                    success: true,
+                    flow: 'update',
+                    scheduleChangeAt: when,
+                    message: 'Plan change scheduled for end of billing cycle',
+                    scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+                    newPlanType,
+                    currentPlanType: billing.plan,
+                    subscription: {
+                        id: subscriptionId,
+                        has_scheduled_changes: true,
+                        scheduled_plan_type: newPlanType,
+                    },
+                });
+            }
+
+            return NextResponse.json({
+                success: true,
+                flow: 'update',
+                scheduleChangeAt: when,
+                message: 'Plan upgraded. The difference is charged now; your billing date is unchanged.',
+                newPlanType,
+                currentPlanType: billing.plan,
+                subscription: {
+                    id: subscriptionId,
+                    has_scheduled_changes: false,
+                },
+            });
+        } catch (updateErr: unknown) {
+            if (isUpiSubscriptionUpdateError(updateErr)) {
+                if (when === 'cycle_end') {
+                    return persistUpiDowngrade(
+                        user.uid,
+                        billing.currentPeriodEnd,
+                        newPlanId,
+                        newPlanType,
+                        billing.plan
+                    );
+                }
+                return NextResponse.json(
+                    {
+                        error: 'UPI and eMandate subscriptions cannot be updated directly',
+                        flow: 'upi_upgrade_required',
+                        message: 'Please use the UPI upgrade flow to change your plan',
+                    },
+                    { status: 400 }
+                );
+            }
+            const description = razorpayErrorDescription(updateErr);
+            const statusCode =
+                typeof updateErr === 'object' &&
+                updateErr &&
+                'statusCode' in updateErr &&
+                (updateErr as { statusCode?: number }).statusCode === 400
+                    ? 400
+                    : 500;
+            return NextResponse.json(
+                {
+                    error:
+                        statusCode === 400
+                            ? description
+                            : 'Failed to update subscription. Please try again.',
+                },
+                { status: statusCode }
+            );
+        }
+    } catch (error: unknown) {
+        console.error('❌ Subscription update error:', error);
         return NextResponse.json(
             { error: 'Failed to update subscription. Please try again.' },
             { status: 500 }
         );
     }
+}
+
+async function persistUpiDowngrade(
+    uid: string,
+    currentPeriodEnd: Timestamp | null,
+    newPlanId: string,
+    newPlanType: string,
+    currentPlanType: string | null
+) {
+    const changeScheduledAt =
+        currentPeriodEnd ?? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    await db.collection('users').doc(uid).set(
+        {
+            hasScheduledChanges: true,
+            scheduledChangeAt: changeScheduledAt,
+            scheduledPlanId: newPlanId,
+            scheduledPlanType: newPlanType,
+            updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+    );
+    return NextResponse.json({
+        success: true,
+        flow: 'update',
+        scheduleChangeAt: 'cycle_end',
+        message: 'Plan change scheduled for end of billing cycle',
+        scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+        newPlanType,
+        currentPlanType: currentPlanType,
+        subscription: {
+            has_scheduled_changes: true,
+            scheduled_plan_type: newPlanType,
+        },
+    });
 }

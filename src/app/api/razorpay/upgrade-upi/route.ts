@@ -1,28 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
-import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, isSelfServePlanType, type SelfServePlanType } from '@/config/razorpay';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, isSelfServePlanType, parseBillingCurrency, type SelfServePlanType } from '@/config/razorpay';
+import { uidFromIdToken } from '@/lib/gateway/auth';
+import { isUpiLikePaymentMethod, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { isSamePlan, scheduleChangeAt } from '@/lib/billing/planChange';
 
 export const runtime = 'nodejs';
 
 /**
  * UPI Upgrade Flow API
- * Creates new subscription FIRST, then cancels old one after activation
- * This prevents users from losing subscription if payment fails
+ * Creates new subscription FIRST, then cancels old one after activation.
+ * uid + current sub id come from users/{uid}, not the body.
+ * Downgrades are local-only (no new sub, no charge now).
  */
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { userId, oldSubscriptionId, newPlanType, newBillingPeriod = 'monthly', userEmail, userName } = body;
+    const user = await uidFromIdToken(request);
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-        if (!userId || !oldSubscriptionId || !newPlanType) {
+    try {
+        let body: { newPlanType?: unknown; newBillingPeriod?: unknown };
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+        }
+        const newPlanType = body.newPlanType;
+        const newBillingPeriod = body.newBillingPeriod === 'annual' ? 'annual' : 'monthly';
+        const userId = user.uid;
+
+        if (!newPlanType || typeof newPlanType !== 'string') {
             return NextResponse.json(
-                { error: 'Missing required fields: userId, oldSubscriptionId, newPlanType' },
+                { error: 'Missing required field: newPlanType' },
                 { status: 400 }
             );
         }
 
-        // Validate plan type
         if (!isSelfServePlanType(newPlanType)) {
             return NextResponse.json(
                 { error: 'Invalid plan type. Must be starter, pro, or max' },
@@ -30,34 +46,25 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Fetch old subscription from Firestore
-        const oldSubDoc = await db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .doc(oldSubscriptionId)
-            .get();
+        const billing = await loadUserBillingSoT(userId);
+        const oldSubscriptionId = billing.razorpaySubscriptionId;
 
-        if (!oldSubDoc.exists) {
+        if (!oldSubscriptionId) {
             return NextResponse.json(
                 { error: 'Old subscription not found' },
                 { status: 404 }
             );
         }
 
-        const oldSubData = oldSubDoc.data();
-
-        // Validate old subscription status
-        if (oldSubData?.status !== 'active') {
+        if (billing.planStatus !== 'active') {
             return NextResponse.json(
                 { error: 'Old subscription must be active to upgrade' },
                 { status: 400 }
             );
         }
 
-        // Verify payment method is UPI or eMandate
-        const paymentMethod = oldSubData?.payment_method;
-        if (paymentMethod !== 'upi' && paymentMethod !== 'emandate') {
+        const paymentMethod = billing.paymentMethod;
+        if (paymentMethod && !isUpiLikePaymentMethod(paymentMethod)) {
             return NextResponse.json(
                 {
                     error: 'This endpoint is only for UPI/eMandate subscriptions',
@@ -67,15 +74,51 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if trying to change to same plan
-        if (oldSubData?.planType === newPlanType) {
+        if (isSamePlan(billing.plan, billing.billingCycle, newPlanType, newBillingPeriod)) {
             return NextResponse.json(
                 { error: 'You are already on this plan' },
                 { status: 400 }
             );
         }
 
-        // Initialize Razorpay instance
+        const when = scheduleChangeAt(
+            billing.plan,
+            billing.billingCycle,
+            newPlanType,
+            newBillingPeriod
+        );
+        const planCurrency = parseBillingCurrency(billing.currency, 'USD');
+        const razorpayPlanId = getRazorpayPlanId(
+            newPlanType as SelfServePlanType,
+            newBillingPeriod,
+            planCurrency
+        );
+
+        if (when === 'cycle_end') {
+            const changeScheduledAt =
+                billing.currentPeriodEnd ??
+                Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+            await db.collection('users').doc(userId).set(
+                {
+                    hasScheduledChanges: true,
+                    scheduledChangeAt: changeScheduledAt,
+                    scheduledPlanId: razorpayPlanId,
+                    scheduledPlanType: newPlanType,
+                    updatedAt: FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+            );
+            return NextResponse.json({
+                success: true,
+                flow: 'update',
+                scheduleChangeAt: 'cycle_end',
+                message: 'Plan change scheduled for end of billing cycle',
+                scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+                newPlanType,
+                currentPlanType: billing.plan,
+            });
+        }
+
         const razorpay = new Razorpay({
             key_id: RAZORPAY_CONFIG.keyId,
             key_secret: RAZORPAY_CONFIG.keySecret,
@@ -83,18 +126,10 @@ export async function POST(request: NextRequest) {
 
         const planDetails = getPlanDetailsByPeriod(
             newPlanType as SelfServePlanType,
-            newBillingPeriod as 'monthly' | 'annual'
-        );
-        const razorpayPlanId = getRazorpayPlanId(
-            newPlanType as SelfServePlanType,
-            newBillingPeriod as 'monthly' | 'annual'
+            newBillingPeriod,
+            planCurrency
         );
 
-        console.log(`🔄 UPI Upgrade: Creating new ${newPlanType} subscription for user ${userId}`);
-        console.log(`   Old subscription: ${oldSubscriptionId} will be cancelled after new one activates`);
-
-        // CRITICAL: Create NEW subscription FIRST
-        // Old subscription will be cancelled ONLY after this one is activated (in webhook)
         const newSubscription = await razorpay.subscriptions.create({
             plan_id: razorpayPlanId,
             total_count: newBillingPeriod === 'annual' ? 1 : 12,
@@ -104,17 +139,13 @@ export async function POST(request: NextRequest) {
                 userId,
                 planType: newPlanType,
                 billingPeriod: newBillingPeriod,
-                userEmail: userEmail || '',
-                userName: userName || '',
-                // CRITICAL: Mark this as upgrade flow
+                currency: planCurrency,
+                userEmail: user.email || '',
+                userName: user.name || '',
                 replacing_subscription_id: oldSubscriptionId,
                 upgrade_flow: 'true',
             },
         });
-
-        console.log(`✅ New subscription created: ${newSubscription.id}`);
-        console.log(`   User must complete UPI authorization`);
-        console.log(`   Old subscription ${oldSubscriptionId} will auto-cancel after activation`);
 
         return NextResponse.json({
             success: true,
@@ -122,24 +153,24 @@ export async function POST(request: NextRequest) {
             message: 'New subscription created. Please complete UPI authorization.',
             requiresNewAuth: true,
             newSubscriptionId: newSubscription.id,
-            oldSubscriptionId: oldSubscriptionId,
+            oldSubscriptionId,
             planId: razorpayPlanId,
-            amount: planDetails.priceUsd,
+            amount: planDetails.price,
             currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
             shortUrl: newSubscription.short_url,
             newPlanDetails: {
                 name: planDetails.name,
-                price: planDetails.priceUsd,
+                price: planDetails.price,
                 period: planDetails.period,
             },
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('❌ UPI upgrade error:', error);
         return NextResponse.json(
             {
-                error: error.message || 'Failed to create upgrade subscription',
+                error: razorpayErrorDescription(error) || 'Failed to create upgrade subscription',
             },
             { status: 500 }
         );

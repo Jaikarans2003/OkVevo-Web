@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import type { BillingCurrency } from '@/config/razorpay';
 
 type CouponValidationResponse = {
     valid: boolean;
@@ -16,6 +17,7 @@ type CouponValidationResponse = {
 interface RazorpayCheckoutProps {
     planType: 'starter' | 'pro' | 'max';
     billingPeriod?: 'monthly' | 'annual';
+    currency?: BillingCurrency;
     couponData?: CouponValidationResponse | null;
     highlighted?: boolean;
     onSuccess?: (subscriptionId: string) => void;
@@ -28,7 +30,7 @@ declare global {
     }
 }
 
-const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, highlighted, onSuccess, onError }: RazorpayCheckoutProps) => {
+const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', currency = 'USD', couponData, highlighted, onSuccess, onError }: RazorpayCheckoutProps) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -61,17 +63,17 @@ const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', couponData, hig
 
         try {
             // Create subscription
+            const idToken = await user.getIdToken();
             const response = await fetch('/api/razorpay/create-subscription', {
                 method: 'POST',
                 headers: {
+                    Authorization: `Bearer ${idToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     planType,
                     billingPeriod,
-                    userId: user.uid,
-                    userEmail: user.email,
-                    userName: user.displayName || 'User',
+                    currency,
                     couponCode: couponData?.valid ? couponData : undefined,
                 }),
             });

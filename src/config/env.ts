@@ -214,6 +214,24 @@ export const env = {
           ''
         ).trim();
       },
+      get starterMonthlyInr() {
+        return (process.env.RAZORPAY_INR_STARTER_PLAN_ID ?? '').trim();
+      },
+      get starterAnnualInr() {
+        return (process.env.RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID ?? '').trim();
+      },
+      get proMonthlyInr() {
+        return (process.env.RAZORPAY_INR_PRO_PLAN_ID ?? '').trim();
+      },
+      get proAnnualInr() {
+        return (process.env.RAZORPAY_INR_PRO_ANNUAL_PLAN_ID ?? '').trim();
+      },
+      get maxMonthlyInr() {
+        return (process.env.RAZORPAY_INR_MAX_PLAN_ID ?? '').trim();
+      },
+      get maxAnnualInr() {
+        return (process.env.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID ?? '').trim();
+      },
     },
   },
   get cronSecret() {

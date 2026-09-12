@@ -10,8 +10,24 @@ import {
     getPlanDetails,
     isSelfServePlanType,
     lookupPlanById,
+    parseBillingCurrency,
+    type BillingCurrency,
 } from '@/config/razorpay';
 import { initialAllocationGrant, refreshAllocationIfDue } from '@/lib/billing/allocation';
+import {
+    allocationCreditDelta,
+    creditsIncludedForCharge,
+    hasScheduledPlanChange,
+    proratedCreditGrant,
+    subscriptionUpdatedRequestId,
+} from '@/lib/billing/planChange';
+import {
+    logStaleSubscriptionEvent,
+    normalizePaymentMethod,
+    shouldApplySubscriptionEvent,
+    userBillingFromData,
+    type SubscriptionEventKind,
+} from '@/lib/billing/userSoT';
 import { grantCredits } from '@/lib/gateway/debit';
 
 export const runtime = 'nodejs';
@@ -84,6 +100,37 @@ async function patchUserBilling(uid: string, data: Record<string, unknown>): Pro
     await db.collection('users').doc(uid).set(data, { merge: true });
 }
 
+async function loadWebhookUser(uid: string) {
+    const snap = await db.collection('users').doc(uid).get();
+    const data = snap.data() || {};
+    return { data, billing: userBillingFromData(uid, data) };
+}
+
+function pointerDecision(
+    uid: string,
+    eventSubId: string,
+    event: SubscriptionEventKind,
+    billing: ReturnType<typeof userBillingFromData>,
+    notes?: { upgrade_flow?: string; replacing_subscription_id?: string }
+) {
+    const decision = shouldApplySubscriptionEvent({
+        eventSubId,
+        currentSubId: billing.razorpaySubscriptionId,
+        event,
+        notes,
+        currentPlanStatus: billing.planStatus,
+    });
+    if (!decision.apply) {
+        logStaleSubscriptionEvent({
+            uid,
+            event,
+            eventSubId,
+            currentSubId: billing.razorpaySubscriptionId,
+        });
+    }
+    return decision;
+}
+
 function unixToTimestamp(unix: number | undefined | null): Timestamp | null {
     if (typeof unix !== 'number' || !Number.isFinite(unix)) return null;
     return Timestamp.fromMillis(unix * 1000);
@@ -94,6 +141,7 @@ type ResolvedPlanMeta = {
     planName: string;
     creditsIncluded: number;
     billingCycle: 'monthly' | 'yearly';
+    currency: BillingCurrency;
 };
 
 function resolvePlanMeta(subscription: {
@@ -108,6 +156,7 @@ function resolvePlanMeta(subscription: {
                 planName: byId.planName,
                 creditsIncluded: byId.creditsIncluded,
                 billingCycle: byId.billingCycle,
+                currency: byId.currency,
             };
         }
     }
@@ -120,6 +169,7 @@ function resolvePlanMeta(subscription: {
             planName: def.name,
             creditsIncluded: def.creditsIncluded,
             billingCycle: billingPeriod === 'annual' ? 'yearly' : 'monthly',
+            currency: parseBillingCurrency(subscription.notes?.currency, 'USD'),
         };
     }
     return null;
@@ -301,19 +351,33 @@ export async function POST(request: NextRequest) {
 
                 console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
 
-                // Two-bucket: SET allocation immediately (also recovery from paused/halted → active).
-                if (planMeta) {
+                const webhookUser = await loadWebhookUser(userId);
+                const activatedDecision = pointerDecision(
+                    userId,
+                    subscription.id,
+                    'activated',
+                    webhookUser.billing,
+                    notes
+                );
+                const instrument = normalizePaymentMethod(payment?.method);
+
+                // First-time / current-id recovery SET. UPI upgrade replacement ADD full new grant.
+                if (activatedDecision.apply && planMeta) {
                     const currentStart = subscription.current_start
                         ? new Date(subscription.current_start * 1000)
                         : new Date();
                     const initial = initialAllocationGrant(planMeta.creditsIncluded, currentStart);
                     const periodEnd = unixToTimestamp(subscription.current_end);
+                    const addFullGrant =
+                        activatedDecision.reason === 'replacement' &&
+                        !hasScheduledPlanChange(webhookUser.data.hasScheduledChanges);
 
                     await grantCredits({
                         uid: userId,
                         amount: planMeta.creditsIncluded,
                         reason: 'subscription.activated',
                         bucket: 'allocation',
+                        mode: addFullGrant ? 'add' : 'set',
                         // Include current_start so paused/halted → activated recovery can SET again.
                         requestId: `sub_activated_${subscription.id}_${subscription.current_start || '0'}`,
                         userPatch: {
@@ -322,16 +386,26 @@ export async function POST(request: NextRequest) {
                             planName: planMeta.planName,
                             billingCycle: planMeta.billingCycle,
                             creditsIncluded: planMeta.creditsIncluded,
+                            currency: planMeta.currency,
                             razorpaySubscriptionId: subscription.id,
                             cancelAtPeriodEnd: false,
+                            hasScheduledChanges: false,
+                            scheduledChangeAt: FieldValue.delete(),
+                            scheduledPlanId: FieldValue.delete(),
+                            scheduledPlanType: FieldValue.delete(),
                             nextAllocationDate: initial.nextAllocationDate,
                             ...(periodEnd && { currentPeriodEnd: periodEnd }),
+                            ...(instrument && { paymentMethod: instrument }),
                         },
                     });
                 }
 
-                // Handle UPI upgrade flow - cancel old subscription after new one is confirmed
-                if (notes.replacing_subscription_id && notes.upgrade_flow === 'true') {
+                // Cancel old UPI sub at cycle_end only after the replacement is applied.
+                if (
+                    activatedDecision.apply &&
+                    notes.replacing_subscription_id &&
+                    notes.upgrade_flow === 'true'
+                ) {
                     const oldSubId = notes.replacing_subscription_id;
                     
                     console.log(`🔄 UPI Upgrade Flow: New subscription ${subscription.id} activated, cancelling old ${oldSubId}`);
@@ -511,19 +585,33 @@ export async function POST(request: NextRequest) {
 
                 const planMeta = resolvePlanMeta(subscription);
                 const periodEnd = unixToTimestamp(subscription.current_end);
-                const userDoc = await db.collection('users').doc(userId).get();
-                const userData = userDoc.data() || {};
+                const webhookUser = await loadWebhookUser(userId);
+                const chargedDecision = pointerDecision(
+                    userId,
+                    subscription.id,
+                    'charged',
+                    webhookUser.billing,
+                    notes
+                );
+                if (!chargedDecision.apply) break;
+
+                const userData = webhookUser.data;
+                const instrument = normalizePaymentMethod(payment?.method);
 
                 const statusPatch: Record<string, unknown> = {};
                 if (userData.planStatus !== 'active') statusPatch.planStatus = 'active';
                 if (periodEnd) statusPatch.currentPeriodEnd = periodEnd;
+                if (instrument) statusPatch.paymentMethod = instrument;
                 if (Object.keys(statusPatch).length > 0) {
                     await patchUserBilling(userId, statusPatch);
                 }
 
                 const refreshPatch = refreshAllocationIfDue({
                     planStatus: 'active',
-                    creditsIncluded: userData.creditsIncluded ?? planMeta?.creditsIncluded,
+                    creditsIncluded: creditsIncludedForCharge(
+                        planMeta?.creditsIncluded,
+                        userData.creditsIncluded
+                    ),
                     allocationBalance: userData.allocationBalance,
                     nextAllocationDate: userData.nextAllocationDate,
                 });
@@ -538,11 +626,99 @@ export async function POST(request: NextRequest) {
                             nextAllocationDate: refreshPatch.nextAllocationDate,
                             planStatus: 'active',
                             ...(periodEnd && { currentPeriodEnd: periodEnd }),
+                            ...(instrument && { paymentMethod: instrument }),
                         },
                     });
                 }
 
                 // No affiliate commission — renewals are full price, no discount
+                break;
+            }
+
+            case 'subscription.updated': {
+                const subscription = payload.subscription.entity;
+                const notes = subscription.notes || {};
+                const userId = notes.userId;
+
+                if (!userId) {
+                    console.error('❌ Missing userId');
+                    return NextResponse.json({ success: false }, { status: 400 });
+                }
+
+                const webhookUser = await loadWebhookUser(userId);
+                const updatedDecision = pointerDecision(
+                    userId,
+                    subscription.id,
+                    'updated',
+                    webhookUser.billing,
+                    notes
+                );
+                if (!updatedDecision.apply) break;
+
+                if (hasScheduledPlanChange(subscription.has_scheduled_changes)) {
+                    const scheduledAt = unixToTimestamp(subscription.change_scheduled_at);
+                    await patchUserBilling(userId, {
+                        hasScheduledChanges: true,
+                        ...(scheduledAt && { scheduledChangeAt: scheduledAt }),
+                        updatedAt: FieldValue.serverTimestamp(),
+                    });
+                    console.log(`📅 Plan change scheduled: ${subscription.id}`);
+                    break;
+                }
+
+                const planMeta = resolvePlanMeta(subscription);
+                if (!planMeta) {
+                    console.error(`❌ subscription.updated: unknown plan_id ${subscription.plan_id}`);
+                    break;
+                }
+
+                const userData = webhookUser.data;
+                const delta = allocationCreditDelta(
+                    userData.creditsIncluded,
+                    planMeta.creditsIncluded
+                );
+                const nowUnix =
+                    typeof event.created_at === 'number'
+                        ? event.created_at
+                        : Math.floor(Date.now() / 1000);
+                const grant = proratedCreditGrant(
+                    delta,
+                    (subscription.current_end ?? 0) - nowUnix,
+                    (subscription.current_end ?? 0) - (subscription.current_start ?? 0)
+                );
+                const periodEnd = unixToTimestamp(subscription.current_end);
+                const requestId = subscriptionUpdatedRequestId(
+                    subscription.id,
+                    subscription.updated_at,
+                    event.created_at
+                );
+
+                await grantCredits({
+                    uid: userId,
+                    amount: grant,
+                    reason: 'subscription.updated',
+                    bucket: 'allocation',
+                    mode: 'add',
+                    requestId,
+                    userPatch: {
+                        plan: planMeta.plan,
+                        planName: planMeta.planName,
+                        creditsIncluded: planMeta.creditsIncluded,
+                        billingCycle: planMeta.billingCycle,
+                        currency: planMeta.currency,
+                        planStatus: 'active',
+                        razorpaySubscriptionId: subscription.id,
+                        hasScheduledChanges: false,
+                        scheduledChangeAt: FieldValue.delete(),
+                        scheduledPlanId: FieldValue.delete(),
+                        scheduledPlanType: FieldValue.delete(),
+                        ...(periodEnd && { currentPeriodEnd: periodEnd }),
+                    },
+                });
+
+                console.log(
+                    `✅ Subscription updated: ${subscription.id} plan=${planMeta.plan} delta=+${grant}`
+                );
                 break;
             }
 
@@ -584,7 +760,10 @@ export async function POST(request: NextRequest) {
                     updatedAt: FieldValue.serverTimestamp(),
                 });
 
-                await patchUserBilling(userId, { planStatus: 'halted' });
+                const haltedUser = await loadWebhookUser(userId);
+                if (pointerDecision(userId, subscription.id, 'halted', haltedUser.billing, subscription.notes).apply) {
+                    await patchUserBilling(userId, { planStatus: 'halted' });
+                }
 
                 console.log(`🛑 Subscription halted: ${subscription.id}`);
                 break;
@@ -605,10 +784,13 @@ export async function POST(request: NextRequest) {
                     updatedAt: FieldValue.serverTimestamp(),
                 });
 
-                await patchUserBilling(userId, {
-                    planStatus: 'cancelled',
-                    cancelAtPeriodEnd: false,
-                });
+                const cancelledUser = await loadWebhookUser(userId);
+                if (pointerDecision(userId, subscription.id, 'cancelled', cancelledUser.billing, subscription.notes).apply) {
+                    await patchUserBilling(userId, {
+                        planStatus: 'cancelled',
+                        cancelAtPeriodEnd: false,
+                    });
+                }
 
                 console.log(`✅ Subscription cancelled: ${subscription.id}`);
                 break;
@@ -629,7 +811,10 @@ export async function POST(request: NextRequest) {
                     updatedAt: FieldValue.serverTimestamp(),
                 });
 
-                await patchUserBilling(userId, { planStatus: 'paused' });
+                const pausedUser = await loadWebhookUser(userId);
+                if (pointerDecision(userId, subscription.id, 'paused', pausedUser.billing, subscription.notes).apply) {
+                    await patchUserBilling(userId, { planStatus: 'paused' });
+                }
 
                 console.log(`⏸️ Subscription paused: ${subscription.id}`);
                 break;
@@ -745,6 +930,18 @@ export async function POST(request: NextRequest) {
 
                 await syncSubscriptionToFirestore(subscriptionId, userId, updates);
 
+                const invoiceUser = await loadWebhookUser(userId);
+                const instrument = normalizePaymentMethod(paymentMethod);
+                if (
+                    instrument &&
+                    invoiceUser.billing.razorpaySubscriptionId === subscriptionId
+                ) {
+                    await patchUserBilling(userId, {
+                        paymentMethod: instrument,
+                        updatedAt: FieldValue.serverTimestamp(),
+                    });
+                }
+
                 // If this user is a Pro Team admin, reset the shared credits pool too
                 try {
                     const userDoc = await db.collection('users').doc(userId).get();
@@ -842,6 +1039,24 @@ export async function POST(request: NextRequest) {
                 const orderId = payment.order_id;
                 const paymentId = payment.id;
                 const payNotes = payment.notes || {};
+                const capturedMethod = normalizePaymentMethod(payment.method);
+                const capturedSubId =
+                    typeof payment.subscription_id === 'string' ? payment.subscription_id : null;
+                const capturedUid =
+                    typeof payNotes.userId === 'string' && payNotes.userId
+                        ? payNotes.userId
+                        : typeof payNotes.uid === 'string' && payNotes.uid
+                          ? payNotes.uid
+                          : null;
+                if (capturedUid && capturedSubId && capturedMethod) {
+                    const capturedUser = await loadWebhookUser(capturedUid);
+                    if (capturedUser.billing.razorpaySubscriptionId === capturedSubId) {
+                        await patchUserBilling(capturedUid, {
+                            paymentMethod: capturedMethod,
+                            updatedAt: FieldValue.serverTimestamp(),
+                        });
+                    }
+                }
 
                 // Nia add-credits via Payment Link (no order_id).
                 if (payNotes.purpose === 'nia_add_credits' && payNotes.uid) {

@@ -126,6 +126,42 @@ env:
       - BUILD
       - RUNTIME
 
+  - variable: RAZORPAY_INR_STARTER_PLAN_ID
+    value: plan_TapXDOpk6VF1qo
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID
+    value: plan_TapYqxTWzFYaxl
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_INR_PRO_PLAN_ID
+    value: plan_TapZn30VKBc68V
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_INR_PRO_ANNUAL_PLAN_ID
+    value: plan_Tapas8COpIuqsJ
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_INR_MAX_PLAN_ID
+    value: plan_TapbeJ6GchzbX5
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: RAZORPAY_INR_MAX_ANNUAL_PLAN_ID
+    value: plan_TapckEOs5LT87W
+    availability:
+      - BUILD
+      - RUNTIME
+
   - variable: ADMIN_EMAILS
     value: admin@okvevo.com
     availability:

@@ -1,5 +1,5 @@
 import { db } from '../config/firebase';
-import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 
 export type PlanType = 'starter' | 'pro' | 'max' | 'hobby' | 'enterprise';
 
@@ -101,90 +101,52 @@ export interface SubscriptionWithPlanDetails extends SubscriptionData {
     nextBillingDate?: Date;
 }
 
-/**
- * Fetch user's subscription from Firestore
- * Queries from users/{userId}/subscriptions subcollection
- */
+function toDate(v: unknown): Date | undefined {
+    if (!v) return undefined;
+    if (v instanceof Date) return v;
+    if (typeof v === 'object' && v !== null && 'toDate' in v && typeof (v as { toDate: () => Date }).toDate === 'function') {
+        return (v as { toDate: () => Date }).toDate();
+    }
+    return undefined;
+}
+
+const LIVE_PLAN_STATUSES = new Set(['active', 'paused', 'authenticated', 'pending']);
+
+/** users/{uid} is the only SoT — never the subscriptions subcollection. */
 export async function getUserSubscription(userId: string): Promise<SubscriptionWithPlanDetails | null> {
     if (!userId) return null;
 
-    if (process.env.NEXT_PUBLIC_BYPASS_SUBSCRIPTION === 'false') {
+    try {
+        const snap = await getDoc(doc(db, 'users', userId));
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        const subscriptionId = typeof data.razorpaySubscriptionId === 'string' ? data.razorpaySubscriptionId : '';
+        const planStatus = typeof data.planStatus === 'string' ? data.planStatus : '';
+        if (!subscriptionId || !LIVE_PLAN_STATUSES.has(planStatus)) return null;
+
+        const rawPlan = typeof data.plan === 'string' ? data.plan : 'starter';
+        const planType = (rawPlan in SUBSCRIPTION_PLANS ? rawPlan : 'starter') as PlanType;
+        const planDetails = SUBSCRIPTION_PLANS[planType];
+        const period = data.billingCycle === 'yearly' ? 'annual' : 'monthly';
+
         return {
             userId,
-            planType: 'pro',
-            subscriptionId: 'mock-sub-id',
-            status: 'active',
-            credits: 9999,
-            initialCredits: 9999,
-            creditsUsed: 0,
+            planType,
+            subscriptionId,
+            status: planStatus as SubscriptionData['status'],
+            cancelAtCycleEnd: data.cancelAtPeriodEnd === true,
+            has_scheduled_changes: data.hasScheduledChanges === true,
+            scheduled_plan_type: data.scheduledPlanType,
+            change_scheduled_at: data.scheduledChangeAt,
+            payment_method: data.paymentMethod || data.payment_method,
             planDetails: {
-                name: 'Pro (Mock)',
-                price: 0,
-                currency: 'INR',
-                period: 'monthly',
-                interval: 1,
-            },
-            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        };
-    }
-
-    try {
-        // Query the user's active or completed (annual) subscription
-        const subscriptionsRef = collection(db, 'users', userId, 'subscriptions');
-        const q = query(
-            subscriptionsRef,
-            where('status', 'in', ['active', 'completed']),
-            limit(1)
-        );
-
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            return null;
-        }
-
-        const data = snapshot.docs[0].data() as SubscriptionData;
-
-        // If completed, only valid if expiresAt is in the future (annual plans)
-        if (data.status === 'completed') {
-            if (!data.expiresAt) return null;
-            const expiry = data.expiresAt instanceof Date ? data.expiresAt : (data.expiresAt as any).toDate();
-            if (expiry < new Date()) return null;
-        }
-        
-        // Validate plan type exists in SUBSCRIPTION_PLANS
-        const planDetails = SUBSCRIPTION_PLANS[data.planType];
-        if (!planDetails) {
-            console.error(`Unknown plan type: ${data.planType}`);
-            return null;
-        }
-
-        // Calculate next billing date (approximate - 1 month from last payment or creation)
-        let nextBillingDate: Date | undefined;
-        if (data.lastPaymentDate) {
-            nextBillingDate = new Date(data.lastPaymentDate.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        } else if (data.activatedAt) {
-            nextBillingDate = new Date(data.activatedAt.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        } else if (data.createdAt) {
-            nextBillingDate = new Date(data.createdAt.toDate());
-            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        }
-
-        return {
-            ...data,
-            planDetails: {
-                name: planDetails.name,
+                name: typeof data.planName === 'string' ? data.planName : planDetails.name,
                 price: planDetails.price,
                 currency: planDetails.currency,
-                period: planDetails.period,
-                interval: planDetails.interval,
+                period,
+                interval: 1,
             },
-            nextBillingDate,
-            credits: data.credits || 0,
-            initialCredits: data.initialCredits || 0,
-            creditsUsed: data.creditsUsed || 0,
+            nextBillingDate: toDate(data.currentPeriodEnd),
         };
     } catch (error) {
         console.error('Failed to fetch subscription:', error);
@@ -248,37 +210,23 @@ export function getStatusLabel(status: string): string {
 }
 
 /**
- * Get active subscription with billing period from razorpaySubscriptions collection
+ * Get active subscription from users/{uid} (plan + billingCycle).
  */
 export async function getActiveSubscription(userId: string): Promise<{ planType: 'starter' | 'pro' | 'max' | 'hobby'; billingCycle: 'monthly' | 'annual'; status: string } | null> {
     if (!userId) return null;
 
     try {
-        // Query razorpaySubscriptions collection for active subscription
-        const subscriptionsRef = collection(db, 'razorpaySubscriptions');
-        const q = query(
-            subscriptionsRef,
-            where('userId', '==', userId),
-            where('status', '==', 'active'),
-            orderBy('updatedAt', 'desc'),
-            limit(1)
-        );
-
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            return null;
-        }
-
-        const data = snapshot.docs[0].data();
-        const raw = data.planType || 'starter';
+        const snap = await getDoc(doc(db, 'users', userId));
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        if (data.planStatus !== 'active') return null;
+        const raw = data.plan || 'starter';
         const planType =
             raw === 'pro' || raw === 'max' || raw === 'hobby' || raw === 'starter' ? raw : 'starter';
-        
         return {
             planType,
-            billingCycle: data.billingPeriod || 'monthly',
-            status: data.status || 'active'
+            billingCycle: data.billingCycle === 'yearly' ? 'annual' : 'monthly',
+            status: data.planStatus,
         };
     } catch (error) {
         console.error('Failed to fetch active subscription:', error);

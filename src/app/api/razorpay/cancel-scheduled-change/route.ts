@@ -3,84 +3,60 @@ import Razorpay from 'razorpay';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
+import { uidFromIdToken } from '@/lib/gateway/auth';
+import { isUpiLikePaymentMethod, isUpiSubscriptionUpdateError, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
 
 export const runtime = 'nodejs';
 
 /**
- * Cancel Scheduled Change API
- * Cancels a pending plan change that was scheduled for end of cycle
+ * Cancel a pending plan change scheduled for end of cycle.
  */
 export async function POST(request: NextRequest) {
+    const user = await uidFromIdToken(request);
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
-        const razorpay = new Razorpay({
-            key_id: RAZORPAY_CONFIG.keyId,
-            key_secret: RAZORPAY_CONFIG.keySecret,
-        });
-        const body = await request.json();
-        const { userId, subscriptionId } = body;
+        const billing = await loadUserBillingSoT(user.uid);
+        const subscriptionId = billing.razorpaySubscriptionId;
 
-        if (!userId || !subscriptionId) {
-            return NextResponse.json(
-                { error: 'Missing required fields: userId and subscriptionId' },
-                { status: 400 }
-            );
-        }
-
-        // Fetch subscription from Firestore
-        const subscriptionDoc = await db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .doc(subscriptionId)
-            .get();
-
-        if (!subscriptionDoc.exists) {
+        if (!subscriptionId) {
             return NextResponse.json(
                 { error: 'Subscription not found' },
                 { status: 404 }
             );
         }
 
-        const subscriptionData = subscriptionDoc.data();
-
-        // Verify subscription has scheduled changes
-        if (!subscriptionData?.has_scheduled_changes) {
+        if (!billing.hasScheduledChanges) {
             return NextResponse.json(
                 { error: 'No scheduled changes to cancel' },
                 { status: 400 }
             );
         }
 
-        console.log(`🚫 Cancelling scheduled change for subscription ${subscriptionId}`);
+        if (!isUpiLikePaymentMethod(billing.paymentMethod)) {
+            const razorpay = new Razorpay({
+                key_id: RAZORPAY_CONFIG.keyId,
+                key_secret: RAZORPAY_CONFIG.keySecret,
+            });
+            try {
+                await razorpay.subscriptions.cancelScheduledChanges(subscriptionId);
+            } catch (error: unknown) {
+                if (!isUpiSubscriptionUpdateError(error)) throw error;
+            }
+        }
 
-        // Call Razorpay to cancel scheduled changes
-        await razorpay.subscriptions.cancelScheduledChanges(subscriptionId);
-
-        // Update Firestore to remove scheduled change metadata
-        const updateData = {
-            has_scheduled_changes: false,
-            change_scheduled_at: FieldValue.delete(),
-            scheduled_plan_id: FieldValue.delete(),
-            scheduled_plan_type: FieldValue.delete(),
-            updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        // Atomic update to both collections
-        const batch = db.batch();
-
-        const topLevelRef = db.collection('razorpaySubscriptions').doc(subscriptionId);
-        const userRef = db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .doc(subscriptionId);
-
-        batch.update(topLevelRef, updateData);
-        batch.update(userRef, updateData);
-
-        await batch.commit();
-
-        console.log(`✅ Scheduled change cancelled for subscription ${subscriptionId}`);
+        await db.collection('users').doc(user.uid).set(
+            {
+                hasScheduledChanges: false,
+                scheduledChangeAt: FieldValue.delete(),
+                scheduledPlanId: FieldValue.delete(),
+                scheduledPlanType: FieldValue.delete(),
+                updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
 
         return NextResponse.json({
             success: true,
@@ -96,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         if (error.statusCode === 400) {
             return NextResponse.json(
-                { error: error.error?.description || 'Invalid request to Razorpay' },
+                { error: razorpayErrorDescription(error) },
                 { status: 400 }
             );
         }

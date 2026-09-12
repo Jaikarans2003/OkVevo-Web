@@ -53,6 +53,23 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
+FX_URI="https://okvevo-web--okvevo-testing.us-central1.hosted.app/api/cron/fx-drift"
+if gcloud scheduler jobs describe nia-fx-drift --project=okvevo-testing --location=us-central1 >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fx-drift"
+  gcloud scheduler jobs update http nia-fx-drift \
+    --project=okvevo-testing --location=us-central1 \
+    --schedule="0 9 * * 1" --time-zone="Etc/UTC" \
+    --uri="$FX_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fx-drift"
+  gcloud scheduler jobs create http nia-fx-drift \
+    --project=okvevo-testing --location=us-central1 \
+    --schedule="0 9 * * 1" --time-zone="Etc/UTC" \
+    --uri="$FX_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
 echo "==> Wait for users planStatus + nextAllocationDate composite index READY"
 for i in $(seq 1 90); do
   STATE=$(gcloud firestore indexes composite list --project=okvevo-testing --format=json 2>/dev/null | python3 -c '

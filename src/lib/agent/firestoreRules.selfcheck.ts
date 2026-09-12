@@ -37,13 +37,89 @@ assert.match(
 );
 
 assert.match(rules, /creditBalance/, 'creditBalance locked in users rules');
+assert.match(rules, /topUpPurchasedTotal/, 'topUpPurchasedTotal locked');
+assert.match(
+  rules,
+  /topUpPurchasedTotal == 0/,
+  'create may only seed topUpPurchasedTotal 0'
+);
 assert.match(rules, /razorpayCustomerId/, 'razorpayCustomerId locked');
 assert.match(rules, /razorpaySubscriptionId/, 'razorpaySubscriptionId locked');
+assert.match(
+  rules,
+  /!\('currency' in request\.resource\.data\)/,
+  'create may not set currency'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'currency'/,
+  'update cannot change currency'
+);
+assert.match(
+  rules,
+  /!\('paymentMethod' in request\.resource\.data\)/,
+  'create may not set paymentMethod'
+);
+assert.match(
+  rules,
+  /!\('hasScheduledChanges' in request\.resource\.data\)/,
+  'create may not set hasScheduledChanges'
+);
+assert.match(
+  rules,
+  /!\('scheduledPlanType' in request\.resource\.data\)/,
+  'create may not set scheduledPlanType'
+);
+assert.match(
+  rules,
+  /!\('scheduledPlanId' in request\.resource\.data\)/,
+  'create may not set scheduledPlanId'
+);
+assert.match(
+  rules,
+  /!\('scheduledChangeAt' in request\.resource\.data\)/,
+  'create may not set scheduledChangeAt'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'paymentMethod'/,
+  'update cannot change paymentMethod'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'hasScheduledChanges'/,
+  'update cannot change hasScheduledChanges'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'scheduledPlanType'/,
+  'update cannot change scheduledPlanType'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'scheduledPlanId'/,
+  'update cannot change scheduledPlanId'
+);
+assert.match(
+  rules,
+  /affectedKeys\(\)\.hasAny\([\s\S]*'scheduledChangeAt'/,
+  'update cannot change scheduledChangeAt'
+);
+assert.match(
+  rules,
+  /match \/opsAlerts\/\{id\}[\s\S]*?allow read, write: if false/,
+  'opsAlerts: no client access'
+);
 assert.match(rules, /affectedKeys\(\)/, 'update cannot change credit fields');
 assert.match(
   rules,
-  /request\.resource\.data\.creditBalance == 0/,
-  'create may only seed creditBalance 0'
+  /request\.resource\.data\.allocationBalance == 0/,
+  'create may only seed allocationBalance 0'
+);
+assert.match(
+  rules,
+  /request\.resource\.data\.topUpBalance == 0/,
+  'create may only seed topUpBalance 0'
 );
 assert.match(rules, /match \/desktopAuthCodes\/\{id\}/, 'Phase 2 codes: no client access');
 assert.match(

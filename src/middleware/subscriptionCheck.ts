@@ -28,75 +28,25 @@ export async function checkSubscription(userId: string): Promise<{
     }
 
     try {
-        // Query user's active subscriptions
-        const subscriptionsSnapshot = await db
-            .collection('users')
-            .doc(userId)
-            .collection('subscriptions')
-            .where('status', 'in', ['active', 'pending', 'authenticated'])
-            .limit(1)
-            .get();
-
-        if (subscriptionsSnapshot.empty) {
-            // Try to find any subscription (even halted/cancelled) to provide better error message
-            const anySubSnapshot = await db
-                .collection('users')
-                .doc(userId)
-                .collection('subscriptions')
-                .limit(1)
-                .get();
-
-            if (anySubSnapshot.empty) {
-                return { allowed: false, reason: 'No subscription found. Please subscribe to a plan.' };
-            }
-
-            const subData = anySubSnapshot.docs[0].data();
-            return { 
-                allowed: false, 
-                reason: `Subscription is ${subData.status}. Please renew your subscription.` 
-            };
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (!userDoc.exists) {
+            return { allowed: false, reason: 'No subscription found. Please subscribe to a plan.' };
         }
 
-        const subscriptionData = subscriptionsSnapshot.docs[0].data();
-        const status = subscriptionData.status;
+        const userData = userDoc.data();
+        const status = userData?.planStatus as string | undefined;
 
-        // Active subscription - allow
+        if (!status) {
+            return { allowed: false, reason: 'No subscription found. Please subscribe to a plan.' };
+        }
+
         if (status === 'active') {
-            return { allowed: true, subscription: subscriptionData };
+            return { allowed: true, subscription: userData };
         }
 
-        // Pending or authenticated - check grace period
-        if (status === 'pending' || status === 'authenticated') {
-            const gracePeriodEndsAt = subscriptionData.gracePeriodEndsAt;
-
-            if (gracePeriodEndsAt) {
-                const now = new Date();
-                const gracePeriodEnd = gracePeriodEndsAt.toDate();
-
-                if (now < gracePeriodEnd) {
-                    // Within grace period - allow
-                    return { 
-                        allowed: true, 
-                        subscription: subscriptionData,
-                        reason: 'Grace period active'
-                    };
-                } else {
-                    // Grace period expired
-                    return { 
-                        allowed: false, 
-                        reason: 'Payment failed and grace period expired. Please update payment method.' 
-                    };
-                }
-            }
-
-            // No grace period set but status is pending/authenticated - allow for now
-            return { allowed: true, subscription: subscriptionData };
-        }
-
-        // Any other status - deny
-        return { 
-            allowed: false, 
-            reason: `Subscription is ${status}. Please contact support.` 
+        return {
+            allowed: false,
+            reason: `Subscription is ${status}. Please renew your subscription.`,
         };
 
     } catch (error) {

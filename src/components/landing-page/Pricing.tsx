@@ -9,10 +9,12 @@ import ContactUsModal from '@/components/shared/ContactUsModal';
 import {
     SUBSCRIPTION_PLANS,
     ANNUAL_DISCOUNT_PCT,
-    annualChargeUsd,
-    displayedYearlyMonthlyUsd,
+    formatPlanPrice,
+    getPlanDetailsByPeriod,
+    type BillingCurrency,
     type SelfServePlanType,
 } from '@/config/razorpay';
+import { readCurrencyCookie, writeCurrencyCookie } from '@/lib/billing/currency';
 
 type CouponValidationResponse = {
     valid: boolean;
@@ -39,18 +41,14 @@ const PLAN_ICONS: Record<SelfServePlanType, typeof Sparkles> = {
     max: Crown,
 };
 
-function formatUsd(amount: number): string {
-    return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
-}
-
-function couponAmountCents(planType: SelfServePlanType, isAnnual: boolean): number {
-    const monthly = SUBSCRIPTION_PLANS[planType].monthlyPriceUsd;
-    const priceUsd = isAnnual ? annualChargeUsd(monthly) : monthly;
-    return Math.round(priceUsd * 100);
+function couponAmountMinor(planType: SelfServePlanType, isAnnual: boolean, currency: BillingCurrency): number {
+    const details = getPlanDetailsByPeriod(planType, isAnnual ? 'annual' : 'monthly', currency);
+    return Math.round(details.price * 100);
 }
 
 const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
+    const [currency, setCurrency] = useState<BillingCurrency | null>(null);
     const [mounted, setMounted] = useState(false);
     const [contactOpen, setContactOpen] = useState(false);
     const router = useRouter();
@@ -62,7 +60,30 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
 
     useEffect(() => {
         setMounted(true);
+        const cookie = readCurrencyCookie();
+        if (cookie) {
+            setCurrency(cookie);
+            return;
+        }
+        let cancelled = false;
+        fetch('/api/geo/detect')
+            .then((r) => r.json())
+            .then((data: { currency?: unknown }) => {
+                if (cancelled) return;
+                setCurrency(data.currency === 'INR' ? 'INR' : 'USD');
+            })
+            .catch(() => {
+                if (!cancelled) setCurrency('USD');
+            });
+        return () => {
+            cancelled = true;
+        };
     }, []);
+
+    const selectCurrency = (next: BillingCurrency) => {
+        writeCurrencyCookie(next);
+        setCurrency(next);
+    };
 
     const handlePlanClick = (planName: string) => {
         if (!user) {
@@ -81,7 +102,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
         setCouponError('');
 
         try {
-            const totalAmount = couponAmountCents(planType, isAnnual);
+            const totalAmount = couponAmountMinor(planType, isAnnual, currency ?? 'USD');
 
             const response = await fetch('/api/coupons/validate', {
                 method: 'POST',
@@ -119,12 +140,20 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
     };
 
     const SHOW_PAID_PLANS = true;
+    const savePct = currency
+        ? Math.round(
+              (1 -
+                  getPlanDetailsByPeriod('starter', 'annual', currency).displayedMonthly /
+                      getPlanDetailsByPeriod('starter', 'monthly', currency).price) *
+                  100
+          )
+        : Math.round(ANNUAL_DISCOUNT_PCT * 100);
 
-    const paidPlans = PAID_PLAN_TYPES.map((planType) => {
+    const paidPlans = currency
+        ? PAID_PLAN_TYPES.map((planType) => {
         const def = SUBSCRIPTION_PLANS[planType];
-        const monthlyUsd = def.monthlyPriceUsd;
-        const yearlyMonthlyUsd = displayedYearlyMonthlyUsd(monthlyUsd);
-        const yearlyTotalUsd = annualChargeUsd(monthlyUsd);
+        const monthly = getPlanDetailsByPeriod(planType, 'monthly', currency);
+        const annual = getPlanDetailsByPeriod(planType, 'annual', currency);
         const creditsLabel = `${(def.creditsIncluded / 1000).toLocaleString()}k`;
 
         const featuresByPlan: Record<SelfServePlanType, string[]> = {
@@ -160,9 +189,9 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
             planType,
             name: def.name,
             icon: PLAN_ICONS[planType],
-            monthlyDisplay: formatUsd(monthlyUsd),
-            annualDisplay: formatUsd(yearlyMonthlyUsd),
-            yearlyTotalDisplay: formatUsd(yearlyTotalUsd),
+            monthlyDisplay: formatPlanPrice(monthly.price, currency),
+            annualDisplay: formatPlanPrice(annual.displayedMonthly, currency),
+            yearlyTotalDisplay: formatPlanPrice(annual.price, currency),
             description:
                 planType === 'starter'
                     ? 'For individuals getting started with Nia'
@@ -174,7 +203,8 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
             highlighted: planType === 'pro',
             cta: 'Get Plan',
         };
-    });
+    })
+        : [];
 
     const plans = [
         ...(SHOW_PAID_PLANS ? paidPlans : []),
@@ -202,7 +232,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
 
     return (
         <>
-            <section id="pricing" data-section-theme="dark" className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
+            <section id="pricing" data-section-theme="dark" data-currency={currency ?? ''} className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-48 md:h-64 bg-gradient-to-b from-black via-black/80 to-transparent z-10 pointer-events-none" />
                 <div className="absolute bottom-0 inset-x-0 h-32 md:h-48 bg-gradient-to-t from-black via-black/80 to-transparent z-10 pointer-events-none" />
 
@@ -318,9 +348,35 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                             : 'bg-transparent border border-[#444] text-[#555] line-through'
                                     }`}
                                 >
-                                    Save {Math.round(ANNUAL_DISCOUNT_PCT * 100)}%
+                                    Save {savePct}%
                                 </span>
                             </div>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                            className="flex items-center justify-center gap-2 mt-4"
+                            role="group"
+                            aria-label="Checkout currency"
+                        >
+                            {(['USD', 'INR'] as const).map((c) => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => selectCurrency(c)}
+                                    aria-pressed={currency === c}
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border transition-colors ${
+                                        currency === c
+                                            ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
+                                            : 'bg-transparent border-[#444] text-[#888] hover:border-[#666] hover:text-white'
+                                    }`}
+                                >
+                                    {c === 'INR' ? '₹ INR' : '$ USD'}
+                                </button>
+                            ))}
                         </motion.div>
                     </div>
 
@@ -413,7 +469,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                                     <p className="text-green-400 text-sm font-semibold">{appliedCoupon.message}</p>
                                                                     {appliedCoupon.discountAmount > 0 && (
                                                                         <p className="text-green-400/80 text-xs mt-0.5">
-                                                                            Discount: ${appliedCoupon.discountAmount / 100}
+                                                                            Discount: {formatPlanPrice(appliedCoupon.discountAmount / 100, currency ?? 'USD')}
                                                                         </p>
                                                                     )}
                                                                 </div>
@@ -430,10 +486,11 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                             )}
 
                                             <div className="w-full mb-4 relative z-10">
-                                                {user ? (
+                                                {user && currency ? (
                                                     <RazorpayCheckout
                                                         planType={planType}
                                                         billingPeriod={isAnnual ? 'annual' : 'monthly'}
+                                                        currency={currency}
                                                         couponData={appliedCoupon}
                                                         highlighted={plan.highlighted}
                                                         onSuccess={(subscriptionId) => {
@@ -450,13 +507,14 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                 ) : (
                                                     <button
                                                         onClick={() => handlePlanClick(plan.name)}
+                                                        disabled={!!user && !currency}
                                                         className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-300 uppercase tracking-widest ${
                                                             plan.highlighted
                                                                 ? 'bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50'
                                                                 : 'bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444]'
-                                                        }`}
+                                                        } ${user && !currency ? 'opacity-50 cursor-wait' : ''}`}
                                                     >
-                                                        {plan.cta}
+                                                        {user && !currency ? 'Loading...' : plan.cta}
                                                     </button>
                                                 )}
                                             </div>

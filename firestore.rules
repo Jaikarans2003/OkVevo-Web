@@ -48,26 +48,41 @@ service cloud.firestore {
         && request.resource.data.creditsIncluded == 0
         && request.resource.data.plan == null
         && request.resource.data.planStatus == null
+        && (!('topUpPurchasedTotal' in request.resource.data)
+            || request.resource.data.topUpPurchasedTotal == 0)
         && !('razorpayCustomerId' in request.resource.data)
         && !('razorpaySubscriptionId' in request.resource.data)
         && !('nextAllocationDate' in request.resource.data)
         && !('currentPeriodEnd' in request.resource.data)
-        && !('cancelAtPeriodEnd' in request.resource.data);
+        && !('cancelAtPeriodEnd' in request.resource.data)
+        && !('currency' in request.resource.data)
+        && !('paymentMethod' in request.resource.data)
+        && !('hasScheduledChanges' in request.resource.data)
+        && !('scheduledPlanType' in request.resource.data)
+        && !('scheduledPlanId' in request.resource.data)
+        && !('scheduledChangeAt' in request.resource.data);
       allow update: if isUser(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'creditBalance',
           'allocationBalance',
           'topUpBalance',
+          'topUpPurchasedTotal',
           'creditsIncluded',
           'plan',
           'planName',
           'planStatus',
           'billingCycle',
+          'currency',
           'razorpayCustomerId',
           'razorpaySubscriptionId',
           'nextAllocationDate',
           'currentPeriodEnd',
-          'cancelAtPeriodEnd'
+          'cancelAtPeriodEnd',
+          'paymentMethod',
+          'hasScheduledChanges',
+          'scheduledPlanType',
+          'scheduledPlanId',
+          'scheduledChangeAt'
         ]);
 
       match /subscriptions/{id} {
@@ -96,6 +111,10 @@ service cloud.firestore {
     match /razorpaySubscriptions/{id} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow write: if false;
+    }
+
+    match /opsAlerts/{id} {
+      allow read, write: if false;
     }
   }
 }

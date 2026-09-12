@@ -1,34 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { db } from '@/lib/firebase-admin';
 import {
     RAZORPAY_CONFIG,
     getPlanDetailsByPeriod,
     getRazorpayPlanId,
+    isBillingCurrency,
     isSelfServePlanType,
+    parseBillingCurrency,
+    type BillingCurrency,
     type BillingPeriod,
     type SelfServePlanType,
 } from '@/config/razorpay';
+import { uidFromIdToken } from '@/lib/gateway/auth';
+import { loadUserBillingSoT } from '@/lib/billing/userSoT';
 
 /**
  * Create Razorpay Subscription
  * POST /api/razorpay/create-subscription
- * 
- * Flow:
- * 1. Validate user and plan type
- * 2. Check for existing active subscriptions (auto-detect upgrade flow)
- * 3. Create Razorpay subscription
- * 4. Return subscription ID and checkout URL
+ *
+ * uid comes from the verified ID token — never from the body.
  */
 export async function POST(request: NextRequest) {
+    const user = await uidFromIdToken(request);
+    if (!user) {
+        return NextResponse.json(
+            { success: false, error: 'Unauthorized' },
+            { status: 401 }
+        );
+    }
+
     try {
         const body = await request.json();
-        const { planType, userId, userEmail, userName, billingPeriod = 'monthly', couponCode } = body;
+        const { planType, billingPeriod = 'monthly', couponCode, currency: currencyRaw } = body;
+        const userId = user.uid;
+        const userEmail = user.email;
+        const userName = user.name;
 
-        // Validate inputs
-        if (!planType || !userId) {
+        if (!planType) {
             return NextResponse.json(
-                { success: false, error: 'Missing required fields: planType, userId' },
+                { success: false, error: 'Missing required field: planType' },
                 { status: 400 }
             );
         }
@@ -47,7 +57,31 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Initialize Razorpay instance
+        if (currencyRaw != null && !isBillingCurrency(currencyRaw)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid currency. Must be "INR" or "USD"' },
+                { status: 400 }
+            );
+        }
+
+        const billing = await loadUserBillingSoT(userId);
+        const requestedCurrency: BillingCurrency = parseBillingCurrency(currencyRaw, 'USD');
+        const liveSub =
+            !!billing.razorpaySubscriptionId &&
+            (billing.planStatus === 'active' || billing.planStatus === 'authenticated');
+        const currency: BillingCurrency = liveSub
+            ? (billing.currency ?? 'USD')
+            : requestedCurrency;
+        if (liveSub && currency !== requestedCurrency) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Plan changes must stay in the same currency as the existing subscription',
+                },
+                { status: 400 }
+            );
+        }
+
         const razorpay = new Razorpay({
             key_id: RAZORPAY_CONFIG.keyId,
             key_secret: RAZORPAY_CONFIG.keySecret,
@@ -55,57 +89,31 @@ export async function POST(request: NextRequest) {
 
         const planDetails = getPlanDetailsByPeriod(
             planType as SelfServePlanType,
-            billingPeriod as BillingPeriod
+            billingPeriod as BillingPeriod,
+            currency
         );
         const razorpayPlanId = getRazorpayPlanId(
             planType as SelfServePlanType,
-            billingPeriod as BillingPeriod
+            billingPeriod as BillingPeriod,
+            currency
         );
 
-        // Check for existing active subscriptions (auto-detect upgrade/downgrade flow)
-        let existingSubscription = null;
+        let existingSubscriptionId: string | null = null;
         let isUpgradeFlow = false;
-        
-        try {
-            const subscriptionsSnapshot = await db
-                .collection('users')
-                .doc(userId)
-                .collection('subscriptions')
-                .where('status', '==', 'active')
-                .limit(1)
-                .get();
-            
-            if (!subscriptionsSnapshot.empty) {
-                existingSubscription = subscriptionsSnapshot.docs[0].data();
-                const existingSubId = existingSubscription.subscriptionId;
-                
-                // Check if user is changing plans (upgrade/downgrade)
-                if (existingSubscription.planType !== planType) {
-                    isUpgradeFlow = true;
-                    console.log(`🔄 Upgrade/Downgrade detected: ${existingSubscription.planType} → ${planType}`);
-                    console.log(`   Existing subscription: ${existingSubId}`);
-                    console.log(`   This will be marked as upgrade flow`);
-                }
+
+        if (billing.razorpaySubscriptionId && billing.planStatus === 'active') {
+            existingSubscriptionId = billing.razorpaySubscriptionId;
+            if (billing.plan && billing.plan !== planType) {
+                isUpgradeFlow = true;
             }
-        } catch (error) {
-            console.error('⚠️ Error checking existing subscriptions:', error);
-            // Continue with subscription creation even if check fails
         }
 
-        console.log(`📦 Creating ${billingPeriod} subscription for user ${userId}, plan: ${planType}`);
-
-        // Apply Razorpay Offer for affiliate referral codes on monthly plans
         const affiliateOfferId = process.env.RAZORPAY_AFFILIATE_OFFER_ID || '';
         const shouldApplyOffer = couponCode?.valid && couponCode.type === 'affiliate' && couponCode.discountAmount > 0 && affiliateOfferId;
 
-        if (shouldApplyOffer) {
-            console.log(`💰 Applying Razorpay Offer: ${affiliateOfferId} (₹${couponCode.discountAmount / 100} off first month)`);
-        }
-
-        // Create subscription
         const subscription = await razorpay.subscriptions.create({
             plan_id: razorpayPlanId,
-            total_count: billingPeriod === 'annual' ? 1 : 12, // 1 year for annual, 12 months for monthly
+            total_count: billingPeriod === 'annual' ? 1 : 12,
             quantity: 1,
             customer_notify: 1,
             ...(shouldApplyOffer && { offer_id: affiliateOfferId }),
@@ -113,11 +121,11 @@ export async function POST(request: NextRequest) {
                 userId,
                 planType,
                 billingPeriod,
+                currency,
                 userEmail: userEmail || '',
                 userName: userName || '',
-                // CRITICAL: Mark as upgrade flow if existing subscription detected
-                ...(isUpgradeFlow && existingSubscription && {
-                    replacing_subscription_id: existingSubscription.subscriptionId,
+                ...(isUpgradeFlow && existingSubscriptionId && {
+                    replacing_subscription_id: existingSubscriptionId,
                     upgrade_flow: 'true',
                 }),
                 ...(couponCode?.valid && {
@@ -130,13 +138,11 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        console.log(`✅ Subscription created: ${subscription.id}`);
-
         return NextResponse.json({
             success: true,
             subscriptionId: subscription.id,
             planId: razorpayPlanId,
-            amount: planDetails.priceUsd,
+            amount: planDetails.price,
             currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
             shortUrl: subscription.short_url,

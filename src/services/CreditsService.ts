@@ -19,6 +19,7 @@ import {
     type Unsubscribe,
 } from 'firebase/firestore';
 import {
+    additionalRemainingPct,
     remainingPct,
     type CreditTransaction,
     type UserCredits,
@@ -31,17 +32,23 @@ export type BillingSnapshot = {
     planName: string | null;
     planStatus: string | null;
     billingCycle: string | null;
+    currency: 'USD' | 'INR' | null;
     creditsIncluded: number;
     allocationBalance: number;
     topUpBalance: number;
-    /** Period remaining as 0..1 — never show raw allocation. */
+    topUpPurchasedTotal: number;
+    /** Plan remaining, floored 0–100 — never show raw allocation. */
     remainingPct: number;
-    /** Additional = current purchased wallet. */
-    additional: number;
+    /** Additional remaining, floored 0–100 — never show raw topUpBalance. */
+    additionalPct: number;
     currentPeriodEnd: Date | null;
     nextAllocationDate: Date | null;
     cancelAtPeriodEnd: boolean;
     razorpaySubscriptionId: string | null;
+    hasScheduledChanges: boolean;
+    scheduledPlanType: string | null;
+    scheduledChangeAt: Date | null;
+    paymentMethod: string | null;
 };
 
 function readInt(n: unknown): number {
@@ -64,15 +71,21 @@ export function billingSnapshotFromUserData(data: Record<string, unknown> | unde
             planName: null,
             planStatus: null,
             billingCycle: null,
+            currency: null,
             creditsIncluded: 0,
             allocationBalance: 0,
             topUpBalance: 0,
+            topUpPurchasedTotal: 0,
             remainingPct: 0,
-            additional: 0,
+            additionalPct: 0,
             currentPeriodEnd: null,
             nextAllocationDate: null,
             cancelAtPeriodEnd: false,
             razorpaySubscriptionId: null,
+            hasScheduledChanges: false,
+            scheduledPlanType: null,
+            scheduledChangeAt: null,
+            paymentMethod: null,
         };
     }
     const allocationBalance = readInt(data.allocationBalance);
@@ -82,21 +95,28 @@ export function billingSnapshotFromUserData(data: Record<string, unknown> | unde
         topUpBalance = legacy;
     }
     const creditsIncluded = readInt(data.creditsIncluded);
+    const topUpPurchasedTotal = readInt(data.topUpPurchasedTotal);
     return {
         plan: typeof data.plan === 'string' ? data.plan : null,
         planName: typeof data.planName === 'string' ? data.planName : null,
         planStatus: typeof data.planStatus === 'string' ? data.planStatus : null,
         billingCycle: typeof data.billingCycle === 'string' ? data.billingCycle : null,
+        currency: data.currency === 'INR' || data.currency === 'USD' ? data.currency : null,
         creditsIncluded,
         allocationBalance,
         topUpBalance,
+        topUpPurchasedTotal,
         remainingPct: remainingPct(creditsIncluded, allocationBalance),
-        additional: topUpBalance,
+        additionalPct: additionalRemainingPct(topUpBalance, topUpPurchasedTotal),
         currentPeriodEnd: toDate(data.currentPeriodEnd),
         nextAllocationDate: toDate(data.nextAllocationDate),
         cancelAtPeriodEnd: data.cancelAtPeriodEnd === true,
         razorpaySubscriptionId:
             typeof data.razorpaySubscriptionId === 'string' ? data.razorpaySubscriptionId : null,
+        hasScheduledChanges: data.hasScheduledChanges === true,
+        scheduledPlanType: typeof data.scheduledPlanType === 'string' ? data.scheduledPlanType : null,
+        scheduledChangeAt: toDate(data.scheduledChangeAt),
+        paymentMethod: typeof data.paymentMethod === 'string' ? data.paymentMethod : null,
     };
 }
 

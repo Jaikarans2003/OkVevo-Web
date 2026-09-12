@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { db } from '@/lib/firebase-admin';
+import { nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, lookupModelRates } from '@/lib/gateway/pricing';
 import {
   applyReconcile,
@@ -321,7 +322,7 @@ export async function releaseCredits(requestId: string): Promise<void> {
 export type GrantBucket = 'allocation' | 'topUp';
 
 /**
- * allocation grants SET; topUp grants ADD.
+ * allocation grants SET (default) or ADD (`mode: 'add'`); topUp grants ADD.
  * Idempotent when requestId is provided (creditTransactions/{requestId}).
  */
 export async function grantCredits(opts: {
@@ -332,8 +333,11 @@ export async function grantCredits(opts: {
   requestId?: string;
   /** Extra user-doc fields to merge (plan metadata, nextAllocationDate, etc.). */
   userPatch?: Record<string, unknown>;
+  /** allocation only. `set` (default) replaces the bucket; `add` is an upgrade delta. */
+  mode?: 'set' | 'add';
 }): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
   const { uid, reason, bucket, userPatch } = opts;
+  const mode = opts.mode ?? 'set';
   const amount = opts.amount;
   if (!uid) throw new Error('uid required');
   if (!Number.isInteger(amount) || amount < 0) {
@@ -341,6 +345,9 @@ export async function grantCredits(opts: {
   }
   if (bucket === 'topUp' && amount <= 0) {
     throw new Error('topUp amount must be a positive integer');
+  }
+  if (mode === 'add' && bucket !== 'allocation') {
+    throw new Error('mode add is allocation-only');
   }
 
   const requestId =
@@ -358,10 +365,15 @@ export async function grantCredits(opts: {
     }
 
     const userSnap = await tx.get(userRef);
-    const current = readBalances(userSnap.data());
+    const userData = userSnap.data();
+    const current = readBalances(userData);
     const next: BucketBalances =
       bucket === 'allocation'
-        ? { allocationBalance: amount, topUpBalance: current.topUpBalance }
+        ? {
+            allocationBalance:
+              mode === 'add' ? current.allocationBalance + amount : amount,
+            topUpBalance: current.topUpBalance,
+          }
         : {
             allocationBalance: current.allocationBalance,
             topUpBalance: current.topUpBalance + amount,
@@ -372,12 +384,21 @@ export async function grantCredits(opts: {
       {
         allocationBalance: next.allocationBalance,
         topUpBalance: next.topUpBalance,
+        ...(bucket === 'topUp'
+          ? {
+              topUpPurchasedTotal: nextTopUpPurchasedTotal(
+                readInt(userData?.topUpPurchasedTotal),
+                amount,
+                next.topUpBalance
+              ),
+            }
+          : {}),
         ...(userPatch ?? {}),
       },
       { merge: true }
     );
 
-    if (amount > 0) {
+    if (amount > 0 || mode === 'add') {
       tx.set(txnRef, {
         uid,
         type: 'grant',
@@ -385,6 +406,7 @@ export async function grantCredits(opts: {
         bucket,
         requestId,
         reason,
+        mode,
         createdAt: FieldValue.serverTimestamp(),
       });
     }
