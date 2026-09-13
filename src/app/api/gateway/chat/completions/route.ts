@@ -5,6 +5,7 @@ import { auth } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InsufficientCreditsError,
+  PlanNotActiveError,
   releaseCredits,
   reserveCredits,
   settleCompletedChat,
@@ -124,6 +125,9 @@ export async function POST(request: NextRequest) {
         extra: { model },
       });
     } catch (err) {
+      if (err instanceof PlanNotActiveError) {
+        return openaiError(403, 'plan not active', 'plan_not_active', 'plan_not_active');
+      }
       if (err instanceof InsufficientCreditsError) {
         return openaiError(
           402,

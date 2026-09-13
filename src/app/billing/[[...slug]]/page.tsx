@@ -31,6 +31,7 @@ import {
     type BillingPeriod,
     type SelfServePlanType,
 } from '@/config/razorpay';
+import { formatPctLabel } from '@/types/credits';
 import { changeSubscriptionPlan } from '@/lib/billing/changeSubscription';
 import {
     isLivePlanStatus,
@@ -53,12 +54,13 @@ function formatDate(date: Date | null, currency: BillingCurrency): string {
 }
 
 function UsageBar({ label, pct }: { label: string; pct: number }) {
-    const clamped = Math.max(0, Math.min(100, Number.isInteger(pct) ? pct : 0));
+    const clamped = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+    const shown = formatPctLabel(clamped);
     return (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-black uppercase tracking-widest text-white/50">{label}</p>
-                <p className="text-2xl font-black text-white">{clamped}%</p>
+                <p className="text-2xl font-black text-white">{shown}</p>
             </div>
             <div
                 role="progressbar"

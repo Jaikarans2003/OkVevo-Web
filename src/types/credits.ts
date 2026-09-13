@@ -52,6 +52,8 @@ export interface UserCredits {
     topUpBalance: number;
     /** Lifetime top-up grants. Additional remaining % denominator. Admin-only. */
     topUpPurchasedTotal?: number;
+    /** Credits granted this billing cycle (SET replaces, ADD grows). Plan remaining % denominator. Admin-only. */
+    allocationGrantedTotal?: number;
     /** Due-date gate for charged + daily cron. */
     nextAllocationDate?: Timestamp | null;
     currentPeriodEnd?: Timestamp | null;
@@ -64,16 +66,40 @@ export interface UserCredits {
     createdAt: Timestamp;
 }
 
-/** 0–100 integer. Floor, never round — 19931/20000 is 99%, not 100%. */
+/** 0–100, two-decimal floor. Never round up — 19931/20000 is 99.65, not 99.66 or 100. */
 export function flooredPct(remaining: number, total: number): number {
     if (!Number.isInteger(total) || total <= 0) return 0;
     if (!Number.isInteger(remaining) || remaining < 0) return 0;
-    return Math.min(100, Math.floor((remaining / total) * 100));
+    return Math.min(100, Math.floor((remaining / total) * 10000) / 100);
 }
 
-/** Plan remaining for UI — floored 0–100, never a raw allocationBalance. */
-export function remainingPct(creditsIncluded: number, allocationBalance: number): number {
-    return flooredPct(allocationBalance, creditsIncluded);
+/** Trim trailing zeros from a 0–100 pct: 87.5%, 99.86%, 50%, 100%. */
+export function formatPctLabel(pct: number): string {
+    if (!Number.isFinite(pct)) return '0%';
+    const hundredths = Math.round(Math.min(100, Math.max(0, pct)) * 100);
+    const whole = Math.floor(hundredths / 100);
+    const frac = hundredths % 100;
+    if (frac === 0) return `${whole}%`;
+    if (frac % 10 === 0) return `${whole}.${frac / 10}%`;
+    return `${whole}.${String(frac).padStart(2, '0')}%`;
+}
+
+/**
+ * Plan remaining for UI. Denom is this-cycle grant total; fallback creditsIncluded
+ * when the field is 0/missing. Never leftover-as-base (that forces 100% after ADD).
+ */
+export function remainingPct(
+    creditsIncluded: number,
+    allocationBalance: number,
+    allocationGrantedTotal?: number
+): number {
+    const granted =
+        typeof allocationGrantedTotal === 'number' &&
+        Number.isInteger(allocationGrantedTotal) &&
+        allocationGrantedTotal > 0
+            ? allocationGrantedTotal
+            : creditsIncluded;
+    return flooredPct(allocationBalance, granted);
 }
 
 /** Additional remaining. Denominator is max(purchasedTotal, leftover) so unseeded leftover never exceeds 100%. */
@@ -82,6 +108,43 @@ export function additionalRemainingPct(topUpBalance: number, topUpPurchasedTotal
         Number.isInteger(topUpPurchasedTotal) && topUpPurchasedTotal >= 0 ? topUpPurchasedTotal : 0;
     const leftover = Number.isInteger(topUpBalance) && topUpBalance >= 0 ? topUpBalance : 0;
     return flooredPct(leftover, Math.max(purchased, leftover));
+}
+
+/**
+ * SET replaces the cycle tank with the grant; ADD grows it.
+ * nextAllocationBalance is only a floor so leftover cannot exceed the bar.
+ */
+export function nextAllocationGrantedTotal(
+    mode: 'set' | 'add',
+    oldGranted: number,
+    grantAmount: number,
+    nextAllocationBalance: number
+): number {
+    const grant = Number.isInteger(grantAmount) && grantAmount >= 0 ? grantAmount : 0;
+    const nextBal =
+        Number.isInteger(nextAllocationBalance) && nextAllocationBalance >= 0
+            ? nextAllocationBalance
+            : 0;
+    if (mode === 'set') return grant;
+    const current = Number.isInteger(oldGranted) && oldGranted >= 0 ? oldGranted : 0;
+    return Math.max(current + grant, nextBal);
+}
+
+/** Replay one allocation grant: missing mode is SET. Debits are not grants. */
+export function replayAllocationGrant(tank: number, amount: number, mode: unknown): number {
+    const grant = Number.isInteger(amount) && amount >= 0 ? amount : 0;
+    if (mode === 'add') {
+        const current = Number.isInteger(tank) && tank >= 0 ? tank : 0;
+        return current + grant;
+    }
+    return grant;
+}
+
+/** One-time backfill: never decrease an existing field. Do not max with leftover. */
+export function seedAllocationGrantedTotal(currentGranted: number, ledgerTank: number): number {
+    const current = Number.isInteger(currentGranted) && currentGranted >= 0 ? currentGranted : 0;
+    const tank = Number.isInteger(ledgerTank) && ledgerTank >= 0 ? ledgerTank : 0;
+    return Math.max(current, tank);
 }
 
 /** topUp grant: ADD to the lifetime denominator, and self-heal leftover that predates the field. */

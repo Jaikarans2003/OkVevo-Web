@@ -78,6 +78,8 @@ assert.doesNotMatch(
   /Math\.round\(\(billing\?\.remainingPct/,
   'billing must floor remaining %, not round'
 );
+assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
+assert.match(billingPage, /formatPctLabel/, 'UsageBar labels with formatPctLabel');
 assert.match(
   billingPage,
   /\/api\/razorpay\/cancel-subscription/,

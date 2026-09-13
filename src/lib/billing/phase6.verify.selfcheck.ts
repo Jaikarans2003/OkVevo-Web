@@ -15,6 +15,8 @@ import {
 import {
   additionalRemainingPct,
   flooredPct,
+  formatPctLabel,
+  nextAllocationGrantedTotal,
   remainingPct,
 } from '../../types/credits.ts';
 import {
@@ -42,7 +44,28 @@ assert.equal(proratedCreditGrant(40_000, 1, 2), 20_000);
 const leftoverOnStarter = 19_931;
 const afterUpgradeAdd = leftoverOnStarter + allocationCreditDelta(20_000, 60_000);
 assert.equal(afterUpgradeAdd, 59_931);
-assert.equal(flooredPct(afterUpgradeAdd, 60_000), 99);
+assert.equal(flooredPct(afterUpgradeAdd, 60_000), 99.88);
+
+const leftoverHalf = 10_000;
+const cardGrant = proratedCreditGrant(40_000, 1, 2);
+assert.equal(cardGrant, 20_000);
+assert.notEqual(cardGrant, 60_000);
+const cardBal = leftoverHalf + cardGrant;
+const cardTank = nextAllocationGrantedTotal('add', 20_000, cardGrant, cardBal);
+assert.equal(cardTank, 40_000);
+assert.equal(cardBal, 30_000);
+assert.equal(remainingPct(60_000, cardBal, cardTank), 75);
+assert.notEqual(remainingPct(60_000, cardBal, cardTank), 87.5);
+
+const upiGrant = 60_000;
+const upiBal = leftoverHalf + upiGrant;
+const upiTank = nextAllocationGrantedTotal('add', 20_000, upiGrant, upiBal);
+assert.equal(upiTank, 80_000);
+assert.equal(upiBal, 70_000);
+assert.equal(remainingPct(60_000, upiBal, upiTank), 87.5);
+
+assert.equal(nextAllocationGrantedTotal('set', 80_000, 20_000, 20_000), 20_000);
+assert.equal(remainingPct(20_000, 20_000, 20_000), 100);
 
 const webhook = src('app/api/razorpay/webhook/route.ts');
 assert.match(webhook, /case 'subscription\.updated'/);
@@ -58,23 +81,30 @@ assert.match(debit, /mode === 'add' \? current\.allocationBalance \+ amount : am
 assert.match(debit, /Spend gate: planStatus must be 'active'/);
 assert.match(debit, /readPlanStatus\(data\) !== 'active'/);
 
-// --- % floor (19931/20000 is 99, never 100) ---
-assert.equal(flooredPct(19_931, 20_000), 99);
+// --- % floor (19931/20000 is 99.65, never 100) ---
+assert.equal(flooredPct(19_931, 20_000), 99.65);
 assert.equal(Math.round((19_931 / 20_000) * 100), 100);
-assert.equal(remainingPct(20_000, 19_931), 99);
+assert.equal(remainingPct(20_000, 19_931), 99.65);
 assert.equal(additionalRemainingPct(2_500, 5_000), 50);
 assert.equal(flooredPct(1, 20_000), 0);
+assert.equal(remainingPct(60_000, 59_999, 60_000), 99.99);
+assert.equal(formatPctLabel(87.5), '87.5%');
+assert.equal(formatPctLabel(50), '50%');
 
 const billingPage = src('app/billing/[[...slug]]/page.tsx');
 assert.match(billingPage, /Plan remaining/);
 assert.match(billingPage, /Additional remaining/);
-assert.match(billingPage, /\{clamped\}%/);
+assert.match(billingPage, /formatPctLabel\(clamped\)/);
+assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /allocationBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /topUpBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
 
 const creditsService = src('services/CreditsService.ts');
-assert.match(creditsService, /remainingPct: remainingPct\(creditsIncluded, allocationBalance\)/);
+assert.match(
+  creditsService,
+  /remainingPct: remainingPct\(creditsIncluded, allocationBalance, allocationGrantedTotal\)/
+);
 assert.match(creditsService, /additionalPct: additionalRemainingPct\(topUpBalance, topUpPurchasedTotal\)/);
 assert.match(creditsService, /onSnapshot/);
 

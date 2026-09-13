@@ -50,6 +50,8 @@ service cloud.firestore {
         && request.resource.data.planStatus == null
         && (!('topUpPurchasedTotal' in request.resource.data)
             || request.resource.data.topUpPurchasedTotal == 0)
+        && (!('allocationGrantedTotal' in request.resource.data)
+            || request.resource.data.allocationGrantedTotal == 0)
         && !('razorpayCustomerId' in request.resource.data)
         && !('razorpaySubscriptionId' in request.resource.data)
         && !('nextAllocationDate' in request.resource.data)
@@ -67,6 +69,7 @@ service cloud.firestore {
           'allocationBalance',
           'topUpBalance',
           'topUpPurchasedTotal',
+          'allocationGrantedTotal',
           'creditsIncluded',
           'plan',
           'planName',

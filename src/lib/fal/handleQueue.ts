@@ -22,6 +22,7 @@ import { adjustedUsd, QuantityError, quantity } from '@/lib/fal/quantity';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InsufficientCreditsError,
+  PlanNotActiveError,
   patchGatewayJob,
   readGatewayJob,
   rebindGatewayJob,
@@ -205,6 +206,9 @@ async function handleSubmit(
       },
     });
   } catch (err) {
+    if (err instanceof PlanNotActiveError) {
+      return jsonError(403, 'plan not active');
+    }
     if (err instanceof InsufficientCreditsError) {
       return jsonError(402, 'insufficient credits');
     }

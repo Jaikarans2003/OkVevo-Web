@@ -41,6 +41,7 @@ export interface UserProfile {
     allocationBalance?: number;
     topUpBalance?: number;
     topUpPurchasedTotal?: number;
+    allocationGrantedTotal?: number;
     /** @deprecated migrate → topUpBalance */
     creditBalance?: number;
     cancelAtPeriodEnd?: boolean;
@@ -87,6 +88,7 @@ export async function createUserProfile(uid: string, email: string): Promise<voi
             allocationBalance: 0,
             topUpBalance: 0,
             topUpPurchasedTotal: 0,
+            allocationGrantedTotal: 0,
             creditsIncluded: 0,
             plan: null,
             planStatus: null,

@@ -43,6 +43,12 @@ assert.match(
   /topUpPurchasedTotal == 0/,
   'create may only seed topUpPurchasedTotal 0'
 );
+assert.match(rules, /allocationGrantedTotal/, 'allocationGrantedTotal locked');
+assert.match(
+  rules,
+  /allocationGrantedTotal == 0/,
+  'create may only seed allocationGrantedTotal 0'
+);
 assert.match(rules, /razorpayCustomerId/, 'razorpayCustomerId locked');
 assert.match(rules, /razorpaySubscriptionId/, 'razorpaySubscriptionId locked');
 assert.match(

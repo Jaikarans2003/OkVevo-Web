@@ -4,6 +4,7 @@ import { auth } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InsufficientCreditsError,
+  PlanNotActiveError,
   reconcileCredits,
   releaseCredits,
   reserveCredits,
@@ -66,6 +67,9 @@ export async function handleTavily(
       extra: { action, tavilyCredits: tavilyEst },
     });
   } catch (err) {
+    if (err instanceof PlanNotActiveError) {
+      return jsonError(403, 'plan not active');
+    }
     if (err instanceof InsufficientCreditsError) {
       return jsonError(402, 'insufficient credits');
     }

@@ -37,7 +37,7 @@ export type BillingSnapshot = {
     allocationBalance: number;
     topUpBalance: number;
     topUpPurchasedTotal: number;
-    /** Plan remaining, floored 0–100 — never show raw allocation. */
+    /** Plan remaining, two-decimal floor 0–100 — never show raw allocation. */
     remainingPct: number;
     /** Additional remaining, floored 0–100 — never show raw topUpBalance. */
     additionalPct: number;
@@ -96,6 +96,7 @@ export function billingSnapshotFromUserData(data: Record<string, unknown> | unde
     }
     const creditsIncluded = readInt(data.creditsIncluded);
     const topUpPurchasedTotal = readInt(data.topUpPurchasedTotal);
+    const allocationGrantedTotal = readInt(data.allocationGrantedTotal);
     return {
         plan: typeof data.plan === 'string' ? data.plan : null,
         planName: typeof data.planName === 'string' ? data.planName : null,
@@ -106,7 +107,7 @@ export function billingSnapshotFromUserData(data: Record<string, unknown> | unde
         allocationBalance,
         topUpBalance,
         topUpPurchasedTotal,
-        remainingPct: remainingPct(creditsIncluded, allocationBalance),
+        remainingPct: remainingPct(creditsIncluded, allocationBalance, allocationGrantedTotal),
         additionalPct: additionalRemainingPct(topUpBalance, topUpPurchasedTotal),
         currentPeriodEnd: toDate(data.currentPeriodEnd),
         nextAllocationDate: toDate(data.nextAllocationDate),

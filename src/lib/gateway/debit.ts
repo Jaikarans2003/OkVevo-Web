@@ -1,7 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { db } from '@/lib/firebase-admin';
-import { nextTopUpPurchasedTotal } from '@/types/credits';
+import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, lookupModelRates } from '@/lib/gateway/pricing';
 import {
   applyReconcile,
@@ -73,6 +73,14 @@ export class InsufficientCreditsError extends Error {
   }
 }
 
+export class PlanNotActiveError extends Error {
+  readonly code = 'plan_not_active' as const;
+  constructor() {
+    super('plan not active');
+    this.name = 'PlanNotActiveError';
+  }
+}
+
 export type GatewayJobFields = {
   uid: string;
   provider: GatewayProvider;
@@ -116,7 +124,7 @@ export async function reserveCredits(opts: {
     const userSnap = await tx.get(userRef);
     const data = userSnap.data();
     if (readPlanStatus(data) !== 'active') {
-      throw new InsufficientCreditsError();
+      throw new PlanNotActiveError();
     }
     const result = applyReserve(
       readBalances(data),
@@ -392,7 +400,15 @@ export async function grantCredits(opts: {
                 next.topUpBalance
               ),
             }
-          : {}),
+          : {
+              // Spend must not touch this field — missing stays on creditsIncluded until seed/next grant.
+              allocationGrantedTotal: nextAllocationGrantedTotal(
+                mode,
+                readInt(userData?.allocationGrantedTotal),
+                amount,
+                next.allocationBalance
+              ),
+            }),
         ...(userPatch ?? {}),
       },
       { merge: true }
