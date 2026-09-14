@@ -5,11 +5,9 @@ import { Apple, Monitor } from 'lucide-react';
 import NoiseOverlay from '@/components/shared/NoiseOverlay';
 import Navbar from '@/components/landing-page/Navbar';
 import Footer from '@/components/landing-page/Footer';
+import { niaDownloadUrls } from '@/lib/nia-downloads';
 
-// TODO: real installer URL — replace when releases.okvevo.com artifacts are published
-const MAC_DOWNLOAD_URL = 'https://releases.okvevo.com/placeholder/Nia-mac.dmg';
-// TODO: real installer URL — replace when releases.okvevo.com artifacts are published
-const WINDOWS_DOWNLOAD_URL = 'https://releases.okvevo.com/placeholder/Nia-windows.exe';
+const { mac: MAC_DOWNLOAD_URL, win: WINDOWS_DOWNLOAD_URL } = niaDownloadUrls();
 
 export default function NiaDownloadPage() {
   return (
@@ -35,10 +33,6 @@ export default function NiaDownloadPage() {
             <Apple className="h-10 w-10 text-white/80 group-hover:text-accent-orange" strokeWidth={1.5} />
             <span className="text-xl font-bold">Mac</span>
             <span className="text-sm text-white/40">Download .dmg</span>
-            {/* TODO: real installer URL */}
-            <span className="mt-2 text-[10px] uppercase tracking-widest text-amber-500/80">
-              Placeholder link
-            </span>
           </a>
 
           <a
@@ -48,10 +42,6 @@ export default function NiaDownloadPage() {
             <Monitor className="h-10 w-10 text-white/80 group-hover:text-accent-orange" strokeWidth={1.5} />
             <span className="text-xl font-bold">Windows</span>
             <span className="text-sm text-white/40">Download installer</span>
-            {/* TODO: real installer URL */}
-            <span className="mt-2 text-[10px] uppercase tracking-widest text-amber-500/80">
-              Placeholder link
-            </span>
           </a>
         </div>
 

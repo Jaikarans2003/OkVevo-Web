@@ -97,6 +97,7 @@ run(
 
 // 3. Root env / fal webhook
 run('check:env', 'npm', ['run', 'check:env'], { cwd: ROOT });
+run('check:apphosting', 'npm', ['run', 'check:apphosting'], { cwd: ROOT });
 run('check:fal-webhook', 'npm', ['run', 'check:fal-webhook'], { cwd: ROOT });
 
 // 4. Unwired agent scripts/check-*

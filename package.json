@@ -13,6 +13,8 @@
     "start": "next start",
     "lint": "next lint",
     "check:env": "node --experimental-strip-types src/config/env.selfcheck.ts",
+    "check:apphosting": "node scripts/render-apphosting.selfcheck.mjs && node scripts/render-apphosting.mjs --env staging --check",
+    "check:nia-downloads": "node --experimental-strip-types src/lib/nia-downloads.selfcheck.ts",
     "check:fal-webhook": "node --experimental-strip-types scripts/check-fal-webhook.ts",
     "check:all": "node scripts/check-all.mjs",
     "export": "next build --webpack",

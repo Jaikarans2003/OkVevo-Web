@@ -1,9 +1,13 @@
-# Staging App Hosting config for backend okvevo-web (Firebase project okvevo-testing).
+# Production App Hosting config for backend okvevo-web (Firebase project okvevo-prod).
 # Public values only. Secrets are Secret Manager names — never commit values.
 # CI copies this file to apphosting.yaml before `firebase deploy` (see .github/workflows/deploy.yml).
-# Expected origin: https://okvevo-web--okvevo-testing.us-central1.hosted.app
-# Confirm with `firebase apphosting:backends:get okvevo-web --project okvevo-testing`.
-# See hermes-agent/ENVIRONMENT.md and docs/CI-CD.md.
+#
+# CHANGE_ME values are fail-closed: render-apphosting.mjs refuses to deploy until
+# GitHub Environment variables (or this file) supply live Firebase web keys and
+# Razorpay live plan ids. Do not ship test keys to production.
+#
+# Custom domain: https://www.okvevo.com on the production App Hosting backend.
+# See docs/CI-CD.md.
 
 runConfig:
   cpu: 1
@@ -13,31 +17,31 @@ runConfig:
 
 env:
   - variable: OKVEVO_ENV
-    value: staging
+    value: production
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_SITE_URL
-    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app
+    value: https://www.okvevo.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_NIA_RELEASES_BASE
-    value: https://releases.okvevo.com/staging
+    value: https://releases.okvevo.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: ALLOWED_ORIGINS
-    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app,http://localhost:3000,http://127.0.0.1:3000
+    value: https://www.okvevo.com,https://okvevo.com,http://localhost:3000,http://127.0.0.1:3000
     availability:
       - BUILD
       - RUNTIME
 
   - variable: AGENT_URL
-    value: https://okvevo-web--okvevo-testing.us-central1.hosted.app
+    value: https://www.okvevo.com
     availability:
       - BUILD
       - RUNTIME
@@ -49,121 +53,121 @@ env:
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: AIzaSyAPUH1rNbUu7Bxiul10rTx0mFH2XaH0N3Y
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: okvevo-testing.firebaseapp.com
+    value: okvevo-prod.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: okvevo-testing
+    value: okvevo-prod
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: okvevo-testing.firebasestorage.app
+    value: okvevo-prod.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "233504218443"
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: 1:233504218443:web:b6f0948f3c1c4d8af8dcce
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
-    value: https://okvevo-testing-default-rtdb.firebaseio.com
+    value: https://okvevo-prod-default-rtdb.firebaseio.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
-    value: rzp_test_SZSMKrV0nE71Ge
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_STARTER_PLAN_ID
-    value: plan_TaipNKtfGxZyaz
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_STARTER_ANNUAL_PLAN_ID
-    value: plan_TairsxzPq1SX8O
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_PLAN_ID
-    value: plan_TaitO9Jvbh8hKW
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_ANNUAL_PLAN_ID
-    value: plan_TaiuIVserGuy8r
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_MAX_PLAN_ID
-    value: plan_TaivVyzrryqHze
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_MAX_ANNUAL_PLAN_ID
-    value: plan_TaiwVITElxquWo
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_STARTER_PLAN_ID
-    value: plan_TapXDOpk6VF1qo
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID
-    value: plan_TapYqxTWzFYaxl
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_PRO_PLAN_ID
-    value: plan_TapZn30VKBc68V
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_PRO_ANNUAL_PLAN_ID
-    value: plan_Tapas8COpIuqsJ
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_MAX_PLAN_ID
-    value: plan_TapbeJ6GchzbX5
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_MAX_ANNUAL_PLAN_ID
-    value: plan_TapckEOs5LT87W
+    value: CHANGE_ME
     availability:
       - BUILD
       - RUNTIME

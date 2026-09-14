@@ -181,6 +181,9 @@ export const env = {
   get demoVideoUrl() {
     return (process.env.NEXT_PUBLIC_DEMO_VIDEO_URL ?? '').trim();
   },
+  get niaReleasesBase() {
+    return (process.env.NEXT_PUBLIC_NIA_RELEASES_BASE ?? '').trim().replace(/\/$/, '');
+  },
   razorpay: {
     get keyId() {
       return (process.env.RAZORPAY_KEY_ID ?? '').trim();
