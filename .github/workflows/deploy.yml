@@ -6,7 +6,7 @@
 #   production → text2video-16cbf, required-reviewer approval on the Environment
 #
 # Secret (per Environment): FIREBASE_SERVICE_ACCOUNT  (JSON)
-# Production Environment vars: overlay CHANGE_ME keys in apphosting.production.yaml
+# Production Environment vars: optional overlay of public keys in apphosting.production.yaml
 #
 # `environment:` must be the string literal `staging` / `production`. A dynamic
 # `${{ github.ref_name }}` environment can leave Environment secrets empty;

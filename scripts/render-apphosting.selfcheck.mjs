@@ -35,10 +35,23 @@ assert.match(staging, /OKVEVO_ENV/)
 assert.match(staging, /okvevo-testing/)
 assert.doesNotMatch(staging, new RegExp(`value: ${PLACEHOLDER}`))
 
+const production = renderApphosting({ envName: 'production', env: {}, root: ROOT })
+assert.match(production, /variable: OKVEVO_ENV[\s\S]*?value: production/)
+assert.match(production, /text2video-16cbf/)
+assert.match(production, /www\.okvevo\.com/)
+assert.doesNotMatch(production, new RegExp(`value: ${PLACEHOLDER}`))
+assert.match(production, /secret: RAZORPAY_KEY_SECRET/)
+
+const blocked = fs.mkdtempSync(path.join(os.tmpdir(), 'apphosting-blocked-'))
+fs.writeFileSync(
+  path.join(blocked, 'apphosting.production.yaml'),
+  `env:\n  - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID\n    value: ${PLACEHOLDER}\n`
+)
 assert.throws(
-  () => renderApphosting({ envName: 'production', env: {}, root: ROOT }),
+  () => renderApphosting({ envName: 'production', env: {}, root: blocked }),
   /CHANGE_ME/
 )
+fs.rmSync(blocked, { recursive: true, force: true })
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'apphosting-render-'))
 for (const name of ['apphosting.staging.yaml', 'apphosting.production.yaml']) {

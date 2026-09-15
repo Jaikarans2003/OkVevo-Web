@@ -21,7 +21,7 @@ Repo: [Jaikarans2003/OkVevo-Web](https://github.com/Jaikarans2003/OkVevo-Web). T
 2. **New environment** → name exactly `production`.
 3. On `production`: **Required reviewers** → add Karan (`Jaikarans2003`). Wait timer 0. Do not skip this — it is the customer-portal ship gate.
 4. Each environment → **Environment secrets** → `FIREBASE_SERVICE_ACCOUNT` = the Firebase CI service-account JSON for that project (testing SA on staging, `text2video-16cbf` SA on production).
-5. Public Firebase web keys for production live in `apphosting.production.yaml`. Remaining `CHANGE_ME` there are **live Razorpay** `NEXT_PUBLIC_RAZORPAY_KEY_ID` + the 12 `RAZORPAY_*_PLAN_ID` keys. You can paste those into that file (preferred) or set them as GitHub Environment **variables** on `production` (same names).
+5. Public Firebase web keys, live Razorpay key id, and plan IDs live in `apphosting.production.yaml`. GitHub Environment **variables** on `production` still overlay the same `variable:` names if set. `CHANGE_ME` / empty public values fail the production render (see `scripts/render-apphosting.mjs`).
 
 Create these Environments **before** the first push to `production`. If Actions references a missing Environment, GitHub creates an unprotected one.
 
