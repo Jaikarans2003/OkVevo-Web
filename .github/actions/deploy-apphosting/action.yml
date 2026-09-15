@@ -2,7 +2,8 @@
 #   - checkout first (local composite)
 #   - set job `environment:` to a string literal (`staging` / `production`)
 #   - pass FIREBASE_SERVICE_ACCOUNT via env (Environment secret JSON)
-#   - set FIREBASE_PROJECT and APPHOSTING_ENV on the job
+#   - set FIREBASE_PROJECT, APPHOSTING_ENV, and any apphosting overlay vars
+#     on the job (`vars` / `secrets` contexts do not work in composites)
 name: Deploy App Hosting
 description: Install, render apphosting.yaml, ADC from FIREBASE_SERVICE_ACCOUNT, firebase deploy
 
@@ -26,33 +27,10 @@ runs:
         npm run check:apphosting
         npm run check:nia-downloads
 
+    # Overlay values come from the caller job env (`vars` is not available
+    # inside composite actions). Empty keys leave apphosting.*.yaml defaults.
     - name: Render apphosting.yaml
       shell: bash
-      env:
-        NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-        NEXT_PUBLIC_NIA_RELEASES_BASE: ${{ vars.NEXT_PUBLIC_NIA_RELEASES_BASE }}
-        ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
-        AGENT_URL: ${{ vars.AGENT_URL }}
-        NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
-        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-        NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
-        NEXT_PUBLIC_FIREBASE_DATABASE_URL: ${{ vars.NEXT_PUBLIC_FIREBASE_DATABASE_URL }}
-        NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
-        RAZORPAY_STARTER_PLAN_ID: ${{ vars.RAZORPAY_STARTER_PLAN_ID }}
-        RAZORPAY_STARTER_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_STARTER_ANNUAL_PLAN_ID }}
-        RAZORPAY_PRO_PLAN_ID: ${{ vars.RAZORPAY_PRO_PLAN_ID }}
-        RAZORPAY_PRO_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_PRO_ANNUAL_PLAN_ID }}
-        RAZORPAY_MAX_PLAN_ID: ${{ vars.RAZORPAY_MAX_PLAN_ID }}
-        RAZORPAY_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_MAX_ANNUAL_PLAN_ID }}
-        RAZORPAY_INR_STARTER_PLAN_ID: ${{ vars.RAZORPAY_INR_STARTER_PLAN_ID }}
-        RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID }}
-        RAZORPAY_INR_PRO_PLAN_ID: ${{ vars.RAZORPAY_INR_PRO_PLAN_ID }}
-        RAZORPAY_INR_PRO_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_PRO_ANNUAL_PLAN_ID }}
-        RAZORPAY_INR_MAX_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_PLAN_ID }}
-        RAZORPAY_INR_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID }}
       run: node scripts/render-apphosting.mjs --env "$APPHOSTING_ENV"
 
     # Do not use google-github-actions/auth `with: credentials_json`. An empty
