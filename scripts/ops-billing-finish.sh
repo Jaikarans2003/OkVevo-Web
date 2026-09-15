@@ -3,7 +3,7 @@
 # Usage (from OkVevo-Web/):
 #   ./scripts/ops-billing-finish.sh
 #   ./scripts/ops-billing-finish.sh --project okvevo-testing --origin https://okvevo-web--okvevo-testing.us-central1.hosted.app
-#   ./scripts/ops-billing-finish.sh --project okvevo-prod --origin https://www.okvevo.com
+#   ./scripts/ops-billing-finish.sh --project text2video-16cbf --origin https://www.okvevo.com
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECRETS="$ROOT/.ops-billing-secrets.env"

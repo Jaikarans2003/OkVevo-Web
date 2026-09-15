@@ -2,6 +2,6 @@
   "projects": {
     "default": "okvevo-testing",
     "testing": "okvevo-testing",
-    "prod": "okvevo-prod"
+    "prod": "text2video-16cbf"
   }
 }

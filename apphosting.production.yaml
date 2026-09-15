@@ -1,11 +1,9 @@
-# Production App Hosting config for backend okvevo-web (Firebase project okvevo-prod).
+# Production App Hosting config for backend okvevo-web (Firebase project text2video-16cbf).
 # Public values only. Secrets are Secret Manager names — never commit values.
 # CI copies this file to apphosting.yaml before `firebase deploy` (see .github/workflows/deploy.yml).
 #
-# CHANGE_ME values are fail-closed: render-apphosting.mjs refuses to deploy until
-# GitHub Environment variables (or this file) supply live Firebase web keys and
-# Razorpay live plan ids. Do not ship test keys to production.
-#
+# Live Razorpay publishable key + plan IDs are set. Secrets stay in Secret Manager
+# (see docs/CI-CD.md). Do not commit Key Secret / webhook secret here.
 # Custom domain: https://www.okvevo.com on the production App Hosting backend.
 # See docs/CI-CD.md.
 
@@ -53,121 +51,121 @@ env:
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: CHANGE_ME
+    value: AIzaSyBbRzOFPTYcY3ZhdqM8UVB2b1WPXzFwtlc
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: okvevo-prod.firebaseapp.com
+    value: text2video-16cbf.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: okvevo-prod
+    value: text2video-16cbf
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: okvevo-prod.firebasestorage.app
+    value: text2video-16cbf.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: CHANGE_ME
+    value: "219350062580"
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: CHANGE_ME
+    value: 1:219350062580:web:0b9fbc8cedd2afac0695a1
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
-    value: https://okvevo-prod-default-rtdb.firebaseio.com
+    value: https://text2video-16cbf-default-rtdb.firebaseio.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
-    value: CHANGE_ME
+    value: rzp_live_TcNXrlKUcYdVAt
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_STARTER_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNHaSRbmhxof0
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_STARTER_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNIsBnuX4rUkV
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNJsO5KTOBiUV
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_PRO_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNKUgmKGpcLS3
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_MAX_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNLXAokEaLRRB
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_MAX_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNM6Me8iq9JZz
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_STARTER_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNO1tPTXMsb2i
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNOfjCVr0r4TS
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_PRO_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNPQieRTk4fSx
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_PRO_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNPzvdKMf16Ym
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_MAX_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNQRS3atrVduK
     availability:
       - BUILD
       - RUNTIME
 
   - variable: RAZORPAY_INR_MAX_ANNUAL_PLAN_ID
-    value: CHANGE_ME
+    value: plan_TcNRG6ucMfh2yN
     availability:
       - BUILD
       - RUNTIME

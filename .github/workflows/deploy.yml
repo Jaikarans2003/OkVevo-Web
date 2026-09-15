@@ -3,7 +3,7 @@
 # Do not enable Firebase's GitHub App Hosting auto-rollout — it would fight
 # this workflow. Environments (this repo stays public):
 #   staging    → okvevo-testing, auto on push
-#   production → okvevo-prod, required-reviewer approval on the Environment
+#   production → text2video-16cbf, required-reviewer approval on the Environment
 #
 # Secret (per Environment): FIREBASE_SERVICE_ACCOUNT  (JSON)
 # Production Environment vars: overlay CHANGE_ME keys in apphosting.production.yaml
@@ -80,7 +80,7 @@ jobs:
     timeout-minutes: 30
     environment: production
     env:
-      FIREBASE_PROJECT: okvevo-prod
+      FIREBASE_PROJECT: text2video-16cbf
       APPHOSTING_ENV: production
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
