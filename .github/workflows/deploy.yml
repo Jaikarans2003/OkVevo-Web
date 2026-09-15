@@ -7,6 +7,10 @@
 #
 # Secret (per Environment): FIREBASE_SERVICE_ACCOUNT  (JSON)
 # Production Environment vars: overlay CHANGE_ME keys in apphosting.production.yaml
+#
+# `environment:` must be the string literal `staging` / `production`. A dynamic
+# `${{ github.ref_name }}` environment can leave Environment secrets empty;
+# google-github-actions/auth then reports the WIF vs credentials_json error.
 
 name: Deploy App Hosting
 
@@ -23,70 +27,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy ${{ github.ref_name }}
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/production'
+  deploy-staging:
+    name: Deploy staging
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ github.ref_name }}
+    environment: staging
     env:
-      FIREBASE_PROJECT: ${{ github.ref_name == 'production' && 'okvevo-prod' || 'okvevo-testing' }}
-      APPHOSTING_ENV: ${{ github.ref_name }}
+      FIREBASE_PROJECT: okvevo-testing
+      APPHOSTING_ENV: staging
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Self-checks
-        run: |
-          npm run check:env
-          npm run check:apphosting
-          npm run check:nia-downloads
-
-      - name: Render apphosting.yaml
+      - uses: ./.github/actions/deploy-apphosting
         env:
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_NIA_RELEASES_BASE: ${{ vars.NEXT_PUBLIC_NIA_RELEASES_BASE }}
-          ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
-          AGENT_URL: ${{ vars.AGENT_URL }}
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
-          NEXT_PUBLIC_FIREBASE_DATABASE_URL: ${{ vars.NEXT_PUBLIC_FIREBASE_DATABASE_URL }}
-          NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
-          RAZORPAY_STARTER_PLAN_ID: ${{ vars.RAZORPAY_STARTER_PLAN_ID }}
-          RAZORPAY_STARTER_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_STARTER_ANNUAL_PLAN_ID }}
-          RAZORPAY_PRO_PLAN_ID: ${{ vars.RAZORPAY_PRO_PLAN_ID }}
-          RAZORPAY_PRO_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_PRO_ANNUAL_PLAN_ID }}
-          RAZORPAY_MAX_PLAN_ID: ${{ vars.RAZORPAY_MAX_PLAN_ID }}
-          RAZORPAY_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_MAX_ANNUAL_PLAN_ID }}
-          RAZORPAY_INR_STARTER_PLAN_ID: ${{ vars.RAZORPAY_INR_STARTER_PLAN_ID }}
-          RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_STARTER_ANNUAL_PLAN_ID }}
-          RAZORPAY_INR_PRO_PLAN_ID: ${{ vars.RAZORPAY_INR_PRO_PLAN_ID }}
-          RAZORPAY_INR_PRO_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_PRO_ANNUAL_PLAN_ID }}
-          RAZORPAY_INR_MAX_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_PLAN_ID }}
-          RAZORPAY_INR_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID }}
-        run: node scripts/render-apphosting.mjs --env "$APPHOSTING_ENV"
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT: ${{ env.FIREBASE_PROJECT }}
+          APPHOSTING_ENV: ${{ env.APPHOSTING_ENV }}
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+  deploy-production:
+    name: Deploy production
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      FIREBASE_PROJECT: okvevo-prod
+      APPHOSTING_ENV: production
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Deploy App Hosting + rules
-        run: |
-          set -euo pipefail
-          npx firebase deploy \
-            --only apphosting,firestore:rules,firestore:indexes,storage \
-            --project "$FIREBASE_PROJECT" \
-            --force \
-            --non-interactive
+      - uses: ./.github/actions/deploy-apphosting
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT: ${{ env.FIREBASE_PROJECT }}
+          APPHOSTING_ENV: ${{ env.APPHOSTING_ENV }}
