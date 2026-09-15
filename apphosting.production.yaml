@@ -57,7 +57,7 @@ env:
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: text2video-16cbf.firebaseapp.com
+    value: auth.okvevo.com
     availability:
       - BUILD
       - RUNTIME
