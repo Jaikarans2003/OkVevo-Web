@@ -40,7 +40,7 @@ Settings → Rules → Rulesets → **New branch ruleset**:
 
 Do **not** add GitHub Environments on OkVevo-Nia.
 
-IAM for the CI service account (each Firebase project): Firebase App Hosting Admin, Cloud Run Admin, Service Account User, Firebase Rules Admin, Storage Admin, Artifact Registry Writer (Cloud Build’s runtime).
+IAM for the CI service account (each Firebase project): Service Usage Consumer, Firebase App Hosting Admin, Cloud Run Admin, Service Account User, Firebase Rules Admin, Storage Admin, Artifact Registry Writer (Cloud Build’s runtime). Without Service Usage Consumer, `firebase deploy` dies with 403 on `serviceusage.googleapis.com` while checking Storage.
 
 ## Workflow
 
