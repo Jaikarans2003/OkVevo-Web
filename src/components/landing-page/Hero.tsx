@@ -63,8 +63,8 @@ const Hero = () => {
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                     className="text-5xl md:text-8xl font-bold tracking-tight text-white mb-6 leading-[1.05]"
                 >
-                    Turn your lecture<br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">into a visual lesson.</span>
+                    Nia - Your AI<br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Chief Of Staff.</span>
                 </motion.h1>
 
                 {/* Subtitle */}
