@@ -71,4 +71,4 @@ Requires `.ops-billing-secrets.env` on the machine that runs it (never commit). 
 
 ## Download buttons
 
-`/nia` uses `NEXT_PUBLIC_NIA_RELEASES_BASE` (staging yaml → `/staging`, production → bucket root) plus the stable names `Nia-mac-arm64.dmg` / `Nia-win-x64.exe`. Those objects are written only by OkVevo-Nia `desktop-promote.yml`.
+`/nia` uses `NEXT_PUBLIC_NIA_RELEASES_BASE` (staging yaml → `/staging`, production → bucket root) plus the stable names `Nia-mac-arm64.dmg` / `Nia-win-x64.exe`. Staging sync writes those under the `staging/` prefix on every pack; production root stable names are written by OkVevo-Nia `desktop-promote.yml`.
