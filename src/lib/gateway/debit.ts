@@ -2,7 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { db } from '@/lib/firebase-admin';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
-import { clampDebitAmount, creditsFromTokens, lookupModelRates } from '@/lib/gateway/pricing';
+import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
 import {
   applyReconcile,
   applyRelease,
@@ -450,28 +450,55 @@ export async function settleCompletedChat(opts: {
       await releaseCredits(requestId);
       return;
     }
-    const rates = await lookupModelRates(model);
-    if (!rates) {
-      console.error('gateway: release reserve, no prices for', model);
-      await releaseCredits(requestId);
+
+    const billModel = settleBillModel(model, scan.model);
+    const rates = billModel ? await lookupModelRates(billModel) : null;
+    if (billModel && hasPositiveRates(rates)) {
+      const billed = creditsFromTokens({
+        promptTokens,
+        completionTokens,
+        promptPerToken: rates.promptPerToken,
+        completionPerToken: rates.completionPerToken,
+      });
+      await reconcileCredits({
+        requestId,
+        actualCredits: billed.credits,
+        provider: 'openrouter',
+        model: billModel,
+        promptTokens,
+        completionTokens,
+        costUsd: billed.costUsd,
+        priceUsd: billed.rawUsd,
+      });
       return;
     }
-    const billed = creditsFromTokens({
-      promptTokens,
-      completionTokens,
-      promptPerToken: rates.promptPerToken,
-      completionPerToken: rates.completionPerToken,
-    });
-    await reconcileCredits({
-      requestId,
-      actualCredits: billed.credits,
-      provider: 'openrouter',
-      model,
-      promptTokens,
-      completionTokens,
-      costUsd: billed.costUsd,
-      priceUsd: billed.rawUsd,
-    });
+
+    // Completed Auto/router turn with no concrete priced model: keep the reserve
+    // (do not release). Normal models without rates still release as before.
+    if (isRouterAliasModel(model)) {
+      const job = await readGatewayJob(requestId);
+      const reserved = job?.estimatedCredits ?? 0;
+      if (reserved > 0) {
+        console.error(
+          'gateway: debit reserve for router settle; no prices for',
+          billModel ?? model,
+          'response.model=',
+          scan.model
+        );
+        await reconcileCredits({
+          requestId,
+          actualCredits: reserved,
+          provider: 'openrouter',
+          model: billModel ?? model,
+          promptTokens,
+          completionTokens,
+        });
+        return;
+      }
+    }
+
+    console.error('gateway: release reserve, no prices for', billModel ?? model);
+    await releaseCredits(requestId);
   } catch (err) {
     console.error('gateway: reconcile failed', err);
   }

@@ -12,9 +12,54 @@ export const PLACEHOLDER_CREDITS_PER_USD = 1000;
 const MODELS_URL = 'https://openrouter.ai/api/v1/models';
 const CACHE_TTL_MS = 60_000;
 
-type Rates = { promptPerToken: number; completionPerToken: number };
+/** OpenRouter router slugs — catalog price is $0; bill the routed model instead. */
+export const ROUTER_ALIAS_MODELS = new Set([
+  'openrouter/auto',
+  'openrouter/auto-beta',
+  'openrouter/pareto-code',
+]);
+
+/** Ceiling when allow-list rates are unavailable (catalog down / empty plugins). */
+export const ROUTER_RESERVE_FALLBACK_MODEL = 'anthropic/claude-opus-5';
+
+export type Rates = { promptPerToken: number; completionPerToken: number };
+
+// ponytail: last-resort if even opus-5 lookup fails. Ceiling, not a price quote.
+const HARD_RESERVE_RATES: Rates = {
+  promptPerToken: 15e-6,
+  completionPerToken: 75e-6,
+};
 
 let cache: { at: number; byId: Map<string, Rates> } | null = null;
+
+export function isRouterAliasModel(model: string): boolean {
+  return ROUTER_ALIAS_MODELS.has(model.trim());
+}
+
+/** Positive per-token rates — catalog 0/0 is not billable. */
+export function hasPositiveRates(rates: Rates | null | undefined): rates is Rates {
+  return (
+    !!rates &&
+    Number.isFinite(rates.promptPerToken) &&
+    Number.isFinite(rates.completionPerToken) &&
+    (rates.promptPerToken > 0 || rates.completionPerToken > 0)
+  );
+}
+
+/**
+ * Concrete model to price a completed turn. Prefer response.model when it is
+ * not a router alias; else the request model when that is concrete.
+ */
+export function settleBillModel(
+  requestModel: string,
+  responseModel: string | undefined
+): string | null {
+  const scan = responseModel?.trim() ?? '';
+  if (scan && !isRouterAliasModel(scan)) return scan;
+  const req = requestModel.trim();
+  if (req && !isRouterAliasModel(req)) return req;
+  return null;
+}
 
 export function creditsFromTokens(opts: {
   promptTokens: number;
@@ -128,4 +173,46 @@ export async function lookupModelRates(model: string): Promise<Rates | null> {
   const all = await fetchAllModels();
   cache = { at: Date.now(), byId: all };
   return all.get(id) ?? null;
+}
+
+/**
+ * Component-wise max prompt/completion rates among models (skip aliases + 0/0).
+ * Always returns positive rates — falls back to opus-5, then a hard ceiling.
+ */
+export async function lookupMaxRatesAmongModels(
+  modelIds: string[]
+): Promise<Rates> {
+  let maxPrompt = 0;
+  let maxCompletion = 0;
+  for (const raw of modelIds) {
+    const id = raw.trim();
+    if (!id || isRouterAliasModel(id)) continue;
+    const rates = await lookupModelRates(id);
+    if (!hasPositiveRates(rates)) continue;
+    maxPrompt = Math.max(maxPrompt, rates.promptPerToken);
+    maxCompletion = Math.max(maxCompletion, rates.completionPerToken);
+  }
+  if (maxPrompt > 0 || maxCompletion > 0) {
+    return { promptPerToken: maxPrompt, completionPerToken: maxCompletion };
+  }
+  const fallback = await lookupModelRates(ROUTER_RESERVE_FALLBACK_MODEL);
+  if (hasPositiveRates(fallback)) return fallback;
+  return HARD_RESERVE_RATES;
+}
+
+/**
+ * Rates used to reserve a chat hold.
+ * Router aliases: never catalog 0/0 — max(allowed_models) or opus-5 ceiling.
+ * Normal models: catalog rates as-is (including free 0/0).
+ */
+export async function resolveChatReserveRates(opts: {
+  model: string;
+  allowedModels: string[];
+}): Promise<Rates | null> {
+  const id = opts.model.trim();
+  if (!id) return null;
+  if (isRouterAliasModel(id)) {
+    return lookupMaxRatesAmongModels(opts.allowedModels);
+  }
+  return lookupModelRates(id);
 }

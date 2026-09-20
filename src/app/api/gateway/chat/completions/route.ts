@@ -10,7 +10,12 @@ import {
   reserveCredits,
   settleCompletedChat,
 } from '@/lib/gateway/debit';
-import { creditsFromTokens, lookupModelRates } from '@/lib/gateway/pricing';
+import {
+  creditsFromTokens,
+  hasPositiveRates,
+  isRouterAliasModel,
+  resolveChatReserveRates,
+} from '@/lib/gateway/pricing';
 import {
   absorbJsonBody,
   feedSseBytes,
@@ -48,6 +53,23 @@ function completionBudget(body: unknown): number {
   const n = Number(o.max_tokens ?? o.max_completion_tokens);
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_MAX_TOKENS;
   return Math.min(Math.floor(n), MAX_TOKENS_CLAMP);
+}
+
+/** Collect plugins[].allowed_models from an OpenRouter chat body. */
+function allowedModelsFromBody(body: unknown): string[] {
+  if (!body || typeof body !== 'object') return [];
+  const plugins = (body as { plugins?: unknown }).plugins;
+  if (!Array.isArray(plugins)) return [];
+  const out: string[] = [];
+  for (const plugin of plugins) {
+    if (!plugin || typeof plugin !== 'object') continue;
+    const allowed = (plugin as { allowed_models?: unknown }).allowed_models;
+    if (!Array.isArray(allowed)) continue;
+    for (const id of allowed) {
+      if (typeof id === 'string' && id.trim()) out.push(id.trim());
+    }
+  }
+  return out;
 }
 
 function estimateChatCredits(opts: {
@@ -98,8 +120,18 @@ export async function POST(request: NextRequest) {
 
   const model = modelFromBody(parsed);
   const stream = wantsStream(parsed);
-  const rates = model ? await lookupModelRates(model) : null;
-  if (!rates) {
+  const routerAlias = isRouterAliasModel(model);
+  const rates = model
+    ? await resolveChatReserveRates({
+        model,
+        allowedModels: allowedModelsFromBody(parsed),
+      })
+    : null;
+
+  // Normal models: missing rates → 402. Free catalog 0/0 still passes (estimated
+  // stays 0). Router aliases always get a positive ceiling from
+  // resolveChatReserveRates — never the estimated === 0 free path.
+  if (!rates || (routerAlias && !hasPositiveRates(rates))) {
     return openaiError(
       402,
       'insufficient credits',
@@ -115,7 +147,19 @@ export async function POST(request: NextRequest) {
   });
   const requestId = crypto.randomUUID();
 
-  if (estimated > 0) {
+  // Router aliases must always reserve (positive ceiling rates). Free catalog
+  // models still skip when estimated === 0.
+  const mustMeter = routerAlias || estimated > 0;
+  if (mustMeter) {
+    if (estimated <= 0) {
+      // Defensive: alias path should never produce 0 with hasPositiveRates.
+      return openaiError(
+        402,
+        'insufficient credits',
+        'insufficient_quota',
+        'insufficient_quota'
+      );
+    }
     try {
       await reserveCredits({
         uid,
@@ -155,7 +199,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error('gateway: openrouter fetch failed', err);
-    if (estimated > 0) await releaseCredits(requestId);
+    if (mustMeter) await releaseCredits(requestId);
     return openaiError(502, 'upstream unavailable', 'server_error', 'internal_error');
   }
 
@@ -163,7 +207,7 @@ export async function POST(request: NextRequest) {
     const text = await upstream.text();
     const scan: UsageScan = {};
     absorbJsonBody(scan, text);
-    if (estimated > 0) {
+    if (mustMeter) {
       await settleCompletedChat({
         uid,
         requestId,
@@ -199,12 +243,12 @@ export async function POST(request: NextRequest) {
           }
         }
         finishSse(scan, carry);
-        if (estimated > 0) {
+        if (mustMeter) {
           await settleCompletedChat({ uid, requestId, model, scan, upstreamOk });
         }
       } catch (err) {
         console.error('gateway: stream read failed', err);
-        if (estimated > 0) {
+        if (mustMeter) {
           await settleCompletedChat({ uid, requestId, model, scan, upstreamOk });
         }
       } finally {
