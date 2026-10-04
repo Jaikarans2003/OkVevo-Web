@@ -1,94 +1,67 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ArrowRight } from 'lucide-react';
-import ContactUsModal from '@/components/shared/ContactUsModal';
+import { Minus, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 export type FaqItem = { question: string; answer: string }
 
 export default function Faq({ items }: { items: FaqItem[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [contactOpen, setContactOpen] = useState(false);
+    const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: items.map(item => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer }
-    }))
-  }
+    const schema = {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: items.map((item) => ({
+            '@type': 'Question',
+            name: item.question,
+            acceptedAnswer: { '@type': 'Answer', text: item.answer },
+        })),
+    };
 
-  return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-      <div className="w-full bg-black text-white">
-        <section aria-label="Frequently asked questions" className="w-full max-w-6xl mx-auto py-24 px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16">
-            {/* Left Column — Heading */}
-            <div className="text-left">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-4 block">FAQS</span>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight mb-6">
-                Any Questions?<br />We've got you.
-              </h2>
-              <p className="text-white/50 leading-relaxed mb-8 max-w-sm text-sm">
-                Everything you need to know about our AI content generation platform. Can't find what you're looking for? Reach out to our support team.
-              </p>
-              <button
-                onClick={() => setContactOpen(true)}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-orange-500 hover:text-orange-400 transition-colors group"
-              >
-                Got Queries?
-                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-              <ContactUsModal
-                isOpen={contactOpen}
-                onClose={() => setContactOpen(false)}
-                defaultCategory="generalQuery"
-              />
-            </div>
-
-            {/* Right Column — Accordion */}
-            <div className="space-y-0">
-              {items.map((item, i) => {
-                  const isOpen = openIndex === i;
-                  return (
-                      <div key={i} className="border-b border-white/10">
-                          <button
-                              onClick={() => setOpenIndex(isOpen ? null : i)}
-                              className="w-full flex items-center justify-between py-5 text-left group"
-                          >
-                              <h3 className="text-base font-semibold tracking-tight group-hover:text-orange-500 transition-colors pr-4">
-                                  {item.question}
-                              </h3>
-                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 text-white/40 group-hover:text-orange-500 transition-colors">
-                                  {isOpen ? <Minus size={16} /> : <Plus size={16} />}
-                              </div>
-                          </button>
-                          <AnimatePresence>
-                              {isOpen && (
-                                  <motion.div
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: "auto", opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      transition={{ duration: 0.3 }}
-                                      className="overflow-hidden"
-                                  >
-                                      <p className="text-white/50 leading-relaxed pb-5 text-sm">
-                                          {item.answer}
-                                      </p>
-                                  </motion.div>
-                              )}
-                          </AnimatePresence>
-                      </div>
-                  );
-              })}
-            </div>
-          </div>
-        </section>
-      </div>
-    </>
-  )
+    return (
+        <>
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+            <section id="faq" aria-label="Frequently asked questions" className="mx-auto grid w-full max-w-[1120px] gap-12 px-6 py-24 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-16 md:px-8">
+                <div className="md:sticky md:top-28 md:self-start">
+                    <h2 className="nia-display nia-h2">FAQ</h2>
+                    <p className="mt-4 max-w-sm text-[1.0625rem] leading-relaxed text-[var(--muted)]">
+                        She’s a full personal agent. Accounting is her profession, not her limit.
+                    </p>
+                    <div className="mt-8 flex flex-col gap-3 text-sm">
+                        <a className="inline-flex w-fit rounded-full border border-[var(--line)] px-4 py-2 hover:border-[#2A2A2A]" href="mailto:info@azonovatechnologies.com">
+                            Email us
+                        </a>
+                        <Link className="inline-flex w-fit rounded-full border border-[var(--line)] px-4 py-2 hover:border-[#2A2A2A]" href="/login">
+                            Sign in
+                        </Link>
+                    </div>
+                </div>
+                <div>
+                    {items.map((item, i) => {
+                        const isOpen = openIndex === i;
+                        return (
+                            <div key={item.question} className="border-b border-[var(--line)]">
+                                <button
+                                    type="button"
+                                    onClick={() => setOpenIndex(isOpen ? null : i)}
+                                    className="flex w-full items-start gap-4 py-5 text-left"
+                                    aria-expanded={isOpen}
+                                >
+                                    <span className="mt-0.5 w-8 shrink-0 text-sm tabular-nums text-[var(--muted)]">
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                    <h3 className="flex-1 text-[17px] font-medium">{item.question}</h3>
+                                    <span className="text-[var(--muted)]">{isOpen ? <Minus size={16} /> : <Plus size={16} />}</span>
+                                </button>
+                                {isOpen ? (
+                                    <p className="pb-5 pl-12 text-[17px] leading-relaxed text-[var(--muted)]">{item.answer}</p>
+                                ) : null}
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
+        </>
+    );
 }

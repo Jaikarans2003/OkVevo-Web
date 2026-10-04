@@ -1,208 +1,147 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
-import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Download, Layers, Menu, Sparkles, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 
-interface NavbarProps {
-    theme?: 'light' | 'dark';
-}
+const LOGO = '/OKVEVO%20Logos%20WithOut%20BackGrounds/Orange.svg';
 
-const Navbar = ({ theme = 'dark' }: NavbarProps) => {
-    const [isScrolled, setIsScrolled] = useState(() => typeof window !== 'undefined' ? window.scrollY > 50 : false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const PRODUCT: { name: string; blurb: string; href: string; Icon: LucideIcon }[] = [
+    { name: 'How it works', blurb: 'Ask, let her work, and watch her remember.', href: '/#how', Icon: Sparkles },
+    { name: 'Why Nia', blurb: 'A generalist you can help, a professional you can trust.', href: '/#why', Icon: Layers },
+    { name: 'Download', blurb: 'Nia for Mac and Windows.', href: '/nia', Icon: Download },
+];
+
+const LINKS = [
+    { name: 'Pricing', href: '/#pricing' },
+    { name: 'FAQ', href: '/#faq' },
+];
+
+const NAV_ITEM =
+    'inline-flex h-10 items-center rounded-full px-3 text-sm text-[#2A2A2A]/80 transition-colors hover:bg-white/70 hover:text-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6F20]';
+
+export default function Navbar() {
+    const [open, setOpen] = useState(false);
+    const [product, setProduct] = useState(false);
+    const menu = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 50);
-        };
-
-        window.addEventListener('scroll', handleScroll);
+        if (!product) return;
+        const close = (event: KeyboardEvent) => event.key === 'Escape' && setProduct(false);
+        const away = (event: PointerEvent) => !menu.current?.contains(event.target as Node) && setProduct(false);
+        window.addEventListener('keydown', close);
+        window.addEventListener('pointerdown', away);
         return () => {
-            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('keydown', close);
+            window.removeEventListener('pointerdown', away);
         };
-    }, []);
-
-    const textColor = theme === 'light' ? 'text-[#111111]' : 'text-white';
-    const textColorDim = theme === 'light' ? 'text-[#111111]/70' : 'text-white/70';
-    const containerClasses = theme === 'light' 
-        ? 'flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out bg-white/40 shadow-[0_4px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl border border-black/5 hover:bg-white/60 group/nav'
-        : 'flex items-center justify-between w-full px-10 py-5 rounded-full transition-all duration-250 ease-in-out glass-navbar backdrop-blur-xl bg-gradient-to-r from-[#FF6600]/10 via-transparent to-[#FF6600]/10 hover:shadow-[0_0_30px_rgba(255,102,0,0.15)] group/nav';
-
-    const navLinks = [
-        { name: 'Demo', href: '/#demo' },
-        { name: 'Features', href: '/#features' },
-        { name: 'Pricing', href: '/#pricing' },
-    ];
-
-    const hireBtnClass = `px-8 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${
-        isScrolled 
-        ? 'bg-accent-orange text-white hover:bg-[#111111] hover:text-white' 
-        : theme === 'light'
-            ? 'border border-[#111111]/20 text-[#111111] hover:bg-[#111111] hover:text-white'
-            : `bg-text-main/10 text-white border border-text-main/20 hover:bg-white hover:text-black`
-    }`;
-
-    const signInBtnClass = `px-6 py-3 rounded-full text-xs tracking-[0.1em] uppercase transition-all cursor-pointer ${
-        theme === 'light'
-            ? 'text-[#111111]/70 hover:text-[#111111]'
-            : 'text-white/70 hover:text-white'
-    }`;
+    }, [product]);
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-[100] transition-[padding] duration-500 ease-in-out ${isScrolled ? 'py-4' : 'py-10'}`}>
-            <div className="centering-container flex-row items-center justify-between !py-0">
-                <div className={containerClasses}>
-                    <Link href="/" className={`text-2xl font-black tracking-[-0.05em] flex items-center gap-2 group transition-all duration-250 ease-in-out font-museo-moderno ${textColor} hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>
-                        <Image 
-                            src={theme === 'light' ? "/OKVEVO Logos WithOut BackGrounds/Black.svg" : "/OKVEVO Logos WithOut BackGrounds/Orange.svg"}
-                            alt="OKVEVO Logo" 
-                            width={40} 
-                            height={40} 
-                            className="w-12 h-12 object-contain"
-                            priority
-                            fetchPriority="high"
-                        />
+        <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center px-4 pt-4">
+            <a
+                href="#main"
+                className="sr-only focus:not-sr-only focus:pointer-events-auto focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-full focus:bg-[#2A2A2A] focus:px-4 focus:py-2 focus:text-sm focus:text-[#F4F2EE]"
+            >
+                Skip to content
+            </a>
+            <div className="pointer-events-auto relative w-full max-w-[760px]">
+                <div className="flex items-center justify-between gap-2 rounded-full border border-white/70 bg-[#F4F2EE]/60 px-2.5 py-2 shadow-[0_12px_40px_rgba(42,42,42,0.08),inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-2xl backdrop-saturate-150">
+                    <Link href="/" aria-label="OkVevo home" className="inline-flex shrink-0 items-center px-1.5">
+                        <img src={LOGO} alt="" className="h-12 w-12" />
                     </Link>
 
-                    {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-12">
-                        {navLinks.map((link) => (
+                    <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+                        <div
+                            ref={menu}
+                            className="relative"
+                            onMouseEnter={() => setProduct(true)}
+                            onMouseLeave={() => setProduct(false)}
+                        >
+                            <button
+                                type="button"
+                                className={`${NAV_ITEM} gap-1`}
+                                aria-expanded={product}
+                                aria-controls="nav-product"
+                                onClick={() => setProduct((value) => !value)}
+                            >
+                                Product
+                                <ChevronDown size={14} strokeWidth={1.75} className={`transition-transform duration-200 ${product ? 'rotate-180' : ''}`} />
+                            </button>
+                            <div
+                                id="nav-product"
+                                data-state={product ? 'open' : 'closed'}
+                                className="absolute left-1/2 top-[calc(100%+0.75rem)] w-[21rem] origin-top -translate-x-1/2 rounded-[1.75rem] border border-white/80 bg-[#F4F2EE]/90 p-2 shadow-[0_20px_50px_rgba(42,42,42,0.12)] backdrop-blur-2xl transition-[opacity,transform,visibility] duration-200 ease-out before:absolute before:-top-4 before:left-0 before:h-4 before:w-full before:content-[''] data-[state=closed]:invisible data-[state=closed]:-translate-y-1 data-[state=closed]:scale-95 data-[state=closed]:opacity-0"
+                            >
+                                {PRODUCT.map(({ name, blurb, href, Icon }) => (
+                                    <Link
+                                        key={href}
+                                        href={href}
+                                        className="flex items-start gap-3 rounded-3xl p-3 transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF6F20]"
+                                        onClick={() => setProduct(false)}
+                                    >
+                                        <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#FF6F20]/12 text-[#FF6F20]">
+                                            <Icon size={17} strokeWidth={1.75} aria-hidden />
+                                        </span>
+                                        <span>
+                                            <span className="block text-sm font-medium text-[#2A2A2A]">{name}</span>
+                                            <span className="mt-0.5 block text-[0.8125rem] leading-snug text-[#2A2A2A]/60">{blurb}</span>
+                                        </span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                        {LINKS.map((link) => (
+                            <Link key={link.name} href={link.href} className={NAV_ITEM}>
+                                {link.name}
+                            </Link>
+                        ))}
+                    </nav>
+
+                    <div className="flex items-center gap-1">
+                        <Link
+                            href="/#pricing"
+                            className="hidden h-10 items-center rounded-full bg-[#FF6F20] px-4 text-sm font-medium text-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2A2A2A] md:inline-flex"
+                        >
+                            Get Nia
+                        </Link>
+                        <button
+                            type="button"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#2A2A2A] md:hidden"
+                            aria-expanded={open}
+                            aria-label={open ? 'Close menu' : 'Open menu'}
+                            onClick={() => setOpen((value) => !value)}
+                        >
+                            {open ? <X size={18} strokeWidth={1.5} /> : <Menu size={18} strokeWidth={1.5} />}
+                        </button>
+                    </div>
+                </div>
+
+                {open ? (
+                    <nav
+                        className="mt-2 rounded-3xl border border-white/80 bg-[#F4F2EE]/90 p-3 shadow-[0_16px_40px_rgba(42,42,42,0.1)] backdrop-blur-2xl md:hidden"
+                        aria-label="Mobile"
+                    >
+                        {[...PRODUCT, ...LINKS].map((link) => (
                             <Link
-                                key={link.name}
+                                key={link.href}
                                 href={link.href}
-                                className={`text-xs tracking-[0.2em] uppercase transition-colors duration-500 ${isScrolled ? `${textColor} hover:text-accent-orange` : `${textColorDim} hover:${textColor}`}`}
+                                className="block rounded-2xl px-3 py-3 text-base text-[#2A2A2A]"
+                                onClick={() => setOpen(false)}
                             >
                                 {link.name}
                             </Link>
                         ))}
-                        <div className="flex items-center gap-4">
-                            <Link href="/login" className={signInBtnClass}>
-                                Sign In
-                            </Link>
-                            <Link href="/nia" className={hireBtnClass}>
-                                Hire Nia
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Mobile Toggle */}
-                    <button
-                        className={`md:hidden p-2 transition-colors duration-500 ${textColor}`}
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    >
-                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
-                </div>
-            </div>
-
-            {/* Mobile Menu */}
-            <AnimatePresence>
-                {isMobileMenuOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[150] md:hidden"
-                    >
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-3xl" onClick={() => setIsMobileMenuOpen(false)} />
-                        
-                        <motion.div
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute inset-y-0 right-0 w-full max-w-[400px] bg-[#0A0A0A]/95 backdrop-blur-md border-l border-white/5 flex flex-col p-10 pt-32 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+                        <Link
+                            href="/#pricing"
+                            onClick={() => setOpen(false)}
+                            className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#FF6F20] text-sm font-medium text-[#2A2A2A]"
                         >
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-orange/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
-                            
-                            <motion.div 
-                                className="flex flex-col gap-10"
-                                initial="closed"
-                                animate="open"
-                                variants={{
-                                    open: {
-                                        transition: { staggerChildren: 0.1, delayChildren: 0.2 }
-                                    },
-                                    closed: {
-                                        transition: { staggerChildren: 0.05, staggerDirection: -1 }
-                                    }
-                                }}
-                            >
-                                {navLinks.map((link, idx) => (
-                                    <motion.div
-                                        key={link.name}
-                                        variants={{
-                                            open: { opacity: 1, x: 0 },
-                                            closed: { opacity: 0, x: 20 }
-                                        }}
-                                    >
-                                        <Link
-                                            href={link.href}
-                                            className="group flex items-end gap-4"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            <span className="text-[10px] font-black text-accent-orange/40 mb-2 font-mono group-hover:text-accent-orange transition-colors">
-                                                0{idx + 1}
-                                            </span>
-                                            <span className="text-5xl md:text-6xl font-black text-white/50 group-hover:text-white transition-all duration-500 tracking-tighter">
-                                                {link.name}
-                                            </span>
-                                        </Link>
-                                    </motion.div>
-                                ))}
-
-                                <motion.div
-                                    variants={{
-                                        open: { opacity: 1, y: 0 },
-                                        closed: { opacity: 0, y: 20 }
-                                    }}
-                                    className="pt-10 border-t border-white/5 mt-10 flex flex-col gap-4"
-                                >
-                                    <Link
-                                        href="/nia"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className="w-full py-6 rounded-2xl bg-gradient-to-r from-accent-orange to-[#FF8000] text-white font-black uppercase tracking-[0.2em] text-[13px] hover:scale-[1.02] transition-transform active:scale-95 shadow-[0_20px_40px_rgba(255,102,0,0.3)] flex items-center justify-center gap-3"
-                                    >
-                                        Hire Nia
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                                    </Link>
-                                    <Link
-                                        href="/login"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className="w-full py-4 rounded-2xl border border-white/10 text-white/70 font-bold uppercase tracking-[0.2em] text-[12px] text-center hover:text-white hover:border-white/30 transition-colors"
-                                    >
-                                        Sign In
-                                    </Link>
-                                </motion.div>
-                            </motion.div>
-
-                            <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.8 }}
-                                className="mt-auto flex flex-col gap-4"
-                            >
-                                <div className="flex justify-between items-center text-[9px] font-bold text-white/10 uppercase tracking-[0.4em] py-6 border-t border-white/5">
-                                    <span>© 2026 OKVEVO</span>
-                                    <span>V2.4.0</span>
-                                </div>
-                            </motion.div>
-
-                            <button
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="absolute top-10 right-10 p-4 rounded-full bg-white/5 text-white/40 hover:text-white transition-all hover:bg-white/10 border border-white/5"
-                            >
-                                <X size={20} />
-                            </button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </nav>
+                            Get Nia
+                        </Link>
+                    </nav>
+                ) : null}
+            </div>
+        </header>
     );
-};
-
-export default Navbar;
+}

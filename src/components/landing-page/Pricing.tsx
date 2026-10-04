@@ -49,7 +49,6 @@ function couponAmountMinor(planType: SelfServePlanType, isAnnual: boolean, curre
 const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
     const [currency, setCurrency] = useState<BillingCurrency | null>(null);
-    const [mounted, setMounted] = useState(false);
     const [contactOpen, setContactOpen] = useState(false);
     const router = useRouter();
 
@@ -59,7 +58,6 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
     const [couponError, setCouponError] = useState('');
 
     useEffect(() => {
-        setMounted(true);
         const cookie = readCurrencyCookie();
         if (cookie) {
             setCurrency(cookie);
@@ -232,151 +230,78 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
 
     return (
         <>
-            <section id="pricing" data-section-theme="dark" data-currency={currency ?? ''} className="relative py-24 bg-black font-sans selection:bg-orange-500/30 overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-48 md:h-64 bg-gradient-to-b from-black via-black/80 to-transparent z-10 pointer-events-none" />
-                <div className="absolute bottom-0 inset-x-0 h-32 md:h-48 bg-gradient-to-t from-black via-black/80 to-transparent z-10 pointer-events-none" />
-
-                <div className="absolute inset-0 z-0 pointer-events-none mt-32">
-                    <div className="absolute top-[20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-3xl transform-gpu" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-orange-700/10 blur-3xl transform-gpu" />
-
-                    <svg className="absolute inset-0 w-full h-full opacity-40" preserveAspectRatio="xMidYMid slice">
-                        <defs>
-                            <radialGradient id="price-mesh-1" cx="20%" cy="60%" r="50%">
-                                <stop offset="0%" stopColor="#FF6600" stopOpacity="0.5" />
-                                <stop offset="100%" stopColor="transparent" />
-                            </radialGradient>
-                            <radialGradient id="price-mesh-2" cx="80%" cy="80%" r="50%">
-                                <stop offset="0%" stopColor="#FF4500" stopOpacity="0.35" />
-                                <stop offset="100%" stopColor="transparent" />
-                            </radialGradient>
-                            <radialGradient id="price-mesh-3" cx="50%" cy="70%" r="60%">
-                                <stop offset="0%" stopColor="#FF8C00" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="transparent" />
-                            </radialGradient>
-                            <pattern id="pricing-grid" width="80" height="80" patternUnits="userSpaceOnUse">
-                                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="white" strokeOpacity="0.05" strokeWidth="0.5" />
-                                <circle cx="0" cy="0" r="1.5" fill="white" fillOpacity="0.1" />
-                            </pattern>
-                        </defs>
-                        <rect width="100%" height="100%" fill="url(#price-mesh-1)" />
-                        <rect width="100%" height="100%" fill="url(#price-mesh-2)" />
-                        <rect width="100%" height="100%" fill="url(#price-mesh-3)" />
-                        <rect width="100%" height="100%" fill="url(#pricing-grid)" />
-                    </svg>
-
-                    {mounted &&
-                        [...Array(10)].map((_, i) => (
-                            <motion.div
-                                key={i}
-                                className="absolute w-[2px] h-[2px] bg-orange-400 rounded-full blur-[1px]"
-                                initial={{
-                                    x: Math.random() * 100 + '%',
-                                    y: Math.random() * 100 + '%',
-                                    opacity: 0,
-                                    scale: 0,
-                                }}
-                                animate={{
-                                    y: [null, '-30%'],
-                                    opacity: [0, 0.8, 0],
-                                    scale: [0, 1.5, 0],
-                                    x: [null, (Math.random() - 0.5) * 60 + 'px'],
-                                }}
-                                transition={{
-                                    duration: Math.random() * 15 + 10,
-                                    repeat: Infinity,
-                                    delay: Math.random() * 5,
-                                    ease: 'easeInOut',
-                                }}
-                            />
-                        ))}
-                </div>
-
-                <div className="max-w-[1500px] mx-auto px-6 relative z-10">
-                    <div className="text-center mb-6">
+            <section id="pricing" data-section-theme="light" data-currency={currency ?? ''} className="relative scroll-mt-24 overflow-hidden bg-[#f6f1ec] py-28 font-sans text-[#2b2b2b] selection:bg-[#ff6d1f] selection:text-[#2b2b2b] md:py-36">
+                <div className="relative z-10 mx-auto max-w-[1120px] px-6">
+                    <div className="mb-16 text-center">
                         <motion.h2
-                            initial={{ opacity: 0, y: 30 }}
+                            initial={{ opacity: 0, y: 24 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-5xl md:text-[80px] font-bold mb-2 text-white tracking-tight leading-none"
+                            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                            className="nia-display mx-auto max-w-[12ch] text-5xl leading-[1.02] tracking-tight text-[#2b2b2b] md:text-7xl"
                         >
                             Pricing
                         </motion.h2>
                         <motion.p
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 16 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-[#a1a1aa] text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed"
+                            transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                            className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[#2b2b2b]/70"
                         >
-                            Choose your Creative Power <span className="text-orange-500 text-xs md:text-sm"></span>
+                            Choose a plan for Nia.
                         </motion.p>
 
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                            className="flex items-center justify-center gap-3 mt-4"
+                            transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                            className="mt-8 flex flex-wrap items-center justify-center gap-3"
                         >
-                            <span className={`text-xs font-semibold transition-colors ${!isAnnual ? 'text-white' : 'text-[#666]'}`}>
-                                Monthly
-                            </span>
                             <div
-                                className={`relative w-12 h-6 rounded-full cursor-pointer transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] ${
-                                    isAnnual
-                                        ? 'bg-gradient-to-r from-orange-400 to-orange-500'
-                                        : 'bg-gradient-to-r from-gray-600 to-gray-500'
-                                }`}
-                                onClick={() => setIsAnnual(!isAnnual)}
+                                role="group"
+                                aria-label="Billing period"
+                                className="inline-flex rounded-full border border-[#2b2b2b]/10 bg-white p-1 shadow-[0_8px_24px_rgba(43,43,43,0.05)]"
                             >
-                                <div
-                                    className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
-                                        isAnnual ? 'translate-x-7' : 'translate-x-1'
-                                    }`}
-                                ></div>
+                                {([false, true] as const).map((annual) => (
+                                    <button
+                                        key={annual ? 'annual' : 'monthly'}
+                                        type="button"
+                                        aria-pressed={isAnnual === annual}
+                                        onClick={() => setIsAnnual(annual)}
+                                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff6d1f] ${
+                                            isAnnual === annual ? 'bg-[#2b2b2b] text-white' : 'text-[#2b2b2b]/60 hover:text-[#2b2b2b]'
+                                        }`}
+                                    >
+                                        {annual ? 'Annual' : 'Monthly'}
+                                        {annual ? (
+                                            <span className="whitespace-nowrap rounded-full bg-[#c9962e] px-2 py-0.5 text-xs text-[#2b2b2b]">
+                                                Save {savePct}%
+                                            </span>
+                                        ) : null}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="flex items-center gap-1.5 w-[110px]">
-                                <span className={`text-xs font-semibold transition-colors ${isAnnual ? 'text-white' : 'text-[#666]'}`}>
-                                    Annual
-                                </span>
-                                <span
-                                    className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-300 ${
-                                        isAnnual
-                                            ? 'bg-orange-500/20 border border-orange-500/40 text-orange-400'
-                                            : 'bg-transparent border border-[#444] text-[#555] line-through'
-                                    }`}
-                                >
-                                    Save {savePct}%
-                                </span>
+                            <div
+                                role="group"
+                                aria-label="Checkout currency"
+                                className="inline-flex rounded-full border border-[#2b2b2b]/10 bg-white p-1 shadow-[0_8px_24px_rgba(43,43,43,0.05)]"
+                            >
+                                {(['USD', 'INR'] as const).map((c) => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => selectCurrency(c)}
+                                        aria-pressed={currency === c}
+                                        className={`rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff6d1f] ${
+                                            currency === c ? 'bg-[#ff6d1f] text-[#2b2b2b]' : 'text-[#2b2b2b]/60 hover:text-[#2b2b2b]'
+                                        }`}
+                                    >
+                                        {c === 'INR' ? '₹ INR' : '$ USD'}
+                                    </button>
+                                ))}
                             </div>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 12 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                            className="flex items-center justify-center gap-2 mt-4"
-                            role="group"
-                            aria-label="Checkout currency"
-                        >
-                            {(['USD', 'INR'] as const).map((c) => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => selectCurrency(c)}
-                                    aria-pressed={currency === c}
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border transition-colors ${
-                                        currency === c
-                                            ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
-                                            : 'bg-transparent border-[#444] text-[#888] hover:border-[#666] hover:text-white'
-                                    }`}
-                                >
-                                    {c === 'INR' ? '₹ INR' : '$ USD'}
-                                </button>
-                            ))}
                         </motion.div>
                     </div>
 
@@ -397,28 +322,33 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                             whileInView={{ opacity: 1, y: 0 }}
                                             viewport={{ once: true }}
                                             transition={{ duration: 0.6, delay: index * 0.1 }}
-                                            className={`relative h-full rounded-2xl p-5 flex flex-col transition-all duration-500 group transform-gpu backdrop-blur-xl ${
+                                            className={`group relative flex h-full flex-col rounded-[1.75rem] p-6 shadow-[0_16px_50px_rgba(43,43,43,0.06)] transition-colors duration-300 ${
                                                 plan.highlighted
-                                                    ? 'bg-[#120a05]/40 border border-orange-500/40 shadow-[0_0_50px_rgba(255,107,0,0.15)] ring-1 ring-orange-500/20'
-                                                    : 'bg-[#0a0a0a]/40 border border-[#1f1f1f] hover:border-[#333] hover:shadow-2xl hover:shadow-white/5'
+                                                    ? 'bg-white ring-2 ring-[#ff6d1f] lg:-translate-y-3'
+                                                    : 'bg-white'
                                             }`}
                                         >
                                             {plan.highlighted && (
-                                                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent rounded-2xl pointer-events-none" />
+                                                <>
+                                                    <div className="absolute inset-0 border border-orange-500/20 rounded-2xl pointer-events-none" />
+                                                    <span className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#ff6d1f] px-3 py-1 text-xs font-medium text-[#2b2b2b]">
+                                                        Most popular
+                                                    </span>
+                                                </>
                                             )}
 
                                             <div className="mb-3 relative z-10">
-                                                <h3 className="text-xl font-bold text-white mb-1 group-hover:text-orange-400 transition-colors uppercase tracking-tight">
+                                                <h3 className="mb-1 text-xl font-medium text-[#2b2b2b]">
                                                     {plan.name}
                                                 </h3>
                                                 <p className="text-[#888] text-xs leading-relaxed">{plan.description}</p>
                                             </div>
 
-                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-[#333] to-transparent mb-4 relative z-10"></div>
+                                            <div className="h-px w-full bg-[#2b2b2b]/10 mb-4 relative z-10"></div>
 
                                             <div className="mb-4 relative z-10">
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-white tracking-tighter">
+                                                    <span className="text-4xl font-medium tracking-tight text-[#2b2b2b]">
                                                         {isAnnual ? plan.annualDisplay : plan.monthlyDisplay}
                                                     </span>
                                                     <span className="text-[#888] text-sm font-medium tracking-tight uppercase">
@@ -444,7 +374,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                                         value={couponCode}
                                                                         onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                                                                         placeholder="Coupon / Affiliate Code"
-                                                                        className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50 transition-colors"
+                                                                        className="w-full rounded-lg border border-[#2b2b2b]/15 bg-[#f6f1ec] py-2.5 pl-10 pr-4 text-sm text-[#2b2b2b] placeholder:text-[#2b2b2b]/40 transition-colors focus:border-[#ff6d1f] focus:outline-none"
                                                                         disabled={couponLoading}
                                                                     />
                                                                 </div>
@@ -460,22 +390,22 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                                     )}
                                                                 </button>
                                                             </div>
-                                                            {couponError && <p className="text-red-400 text-xs">{couponError}</p>}
+                                                            {couponError && <p className="rounded-lg bg-[#a8422f] px-3 py-2 text-xs text-white">{couponError}</p>}
                                                         </div>
                                                     ) : (
-                                                        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                                                        <div className="rounded-lg bg-[#2c5a55] p-3">
                                                             <div className="flex items-center justify-between">
                                                                 <div>
-                                                                    <p className="text-green-400 text-sm font-semibold">{appliedCoupon.message}</p>
+                                                                    <p className="text-sm text-white">{appliedCoupon.message}</p>
                                                                     {appliedCoupon.discountAmount > 0 && (
-                                                                        <p className="text-green-400/80 text-xs mt-0.5">
+                                                                        <p className="mt-0.5 text-xs text-white/80">
                                                                             Discount: {formatPlanPrice(appliedCoupon.discountAmount / 100, currency ?? 'USD')}
                                                                         </p>
                                                                     )}
                                                                 </div>
                                                                 <button
                                                                     onClick={handleRemoveCoupon}
-                                                                    className="text-red-400 hover:text-red-300 text-xs font-semibold"
+                                                                    className="text-xs text-white underline-offset-4 hover:underline"
                                                                 >
                                                                     Remove
                                                                 </button>
@@ -508,11 +438,11 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                     <button
                                                         onClick={() => handlePlanClick(plan.name)}
                                                         disabled={!!user && !currency}
-                                                        className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-300 uppercase tracking-widest ${
+                                                        className={`w-full rounded-full py-3 text-sm font-medium text-[#2b2b2b] transition-transform duration-150 active:scale-[0.98] ${
                                                             plan.highlighted
-                                                                ? 'bg-gradient-to-r from-[#ff6b00] to-[#ff4500] text-white hover:opacity-90 shadow-[0_0_30px_rgba(255,107,0,0.4)] border border-orange-500/50'
-                                                                : 'bg-[#151515] text-white hover:bg-[#222] border border-[#2a2a2a] hover:border-[#444]'
-                                                        } ${user && !currency ? 'opacity-50 cursor-wait' : ''}`}
+                                                                ? 'bg-[#ff6d1f]'
+                                                                : 'bg-[#c9962e]'
+                                                        } ${user && !currency ? 'cursor-wait opacity-50' : ''}`}
                                                     >
                                                         {user && !currency ? 'Loading...' : plan.cta}
                                                     </button>
@@ -535,11 +465,11 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                     <div key={i} className="flex items-start gap-4 group/item">
                                                         <div className="mt-1 flex-shrink-0 transition-transform group-hover/item:rotate-12">
                                                             <Check
-                                                                className={`w-4 h-4 ${plan.highlighted ? 'text-orange-500' : 'text-white/80'}`}
+                                                                className={`h-4 w-4 ${plan.highlighted ? 'text-[#ff6d1f]' : 'text-[#2b2b2b]'}`}
                                                                 strokeWidth={3}
                                                             />
                                                         </div>
-                                                        <span className="text-[15px] leading-snug group-hover/item:text-white transition-colors text-[#a1a1aa]">
+                                                        <span className="text-[15px] leading-snug text-[#2b2b2b]/80">
                                                             {feature}
                                                         </span>
                                                     </div>
@@ -570,21 +500,21 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                         whileInView={{ opacity: 1, y: 0 }}
                                         viewport={{ once: true }}
                                         transition={{ duration: 0.6, delay: 0.3 }}
-                                        className="relative rounded-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 transition-all duration-500 group transform-gpu backdrop-blur-xl bg-[#0a0a0a]/40 border border-[#1f1f1f] hover:border-[#333] hover:shadow-2xl hover:shadow-white/5"
+                                        className="relative flex flex-col gap-8 rounded-[1.75rem] bg-white p-8 shadow-[0_16px_50px_rgba(43,43,43,0.06)] md:flex-row md:items-center"
                                     >
                                         <div className="md:w-1/3 relative z-10">
-                                            <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-orange-400 transition-colors uppercase tracking-tight">
+                                            <h3 className="mb-2 text-3xl font-medium tracking-tight text-[#2b2b2b]">
                                                 {plan.name}
                                             </h3>
                                             <p className="text-[#888] text-sm leading-relaxed mb-4">{plan.description}</p>
                                         </div>
 
-                                        <div className="hidden md:block w-px h-32 bg-gradient-to-b from-transparent via-[#333] to-transparent"></div>
+                                        <div className="hidden md:block w-px h-32 bg-[#2b2b2b]/10"></div>
 
                                         <div className="md:flex-1 relative z-10">
                                             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 {plan.features.map((feature, i) => (
-                                                    <li key={i} className="flex items-start gap-3 text-[#ccc] text-sm group/item">
+                                                    <li key={i} className="flex items-start gap-3 text-sm text-[#2b2b2b]/80">
                                                         <svg
                                                             className="w-5 h-5 text-orange-500 shrink-0 mt-0.5"
                                                             fill="currentColor"
@@ -596,7 +526,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                                 clipRule="evenodd"
                                                             />
                                                         </svg>
-                                                        <span className="leading-relaxed group-hover/item:text-white transition-colors">
+                                                        <span className="leading-relaxed">
                                                             {feature}
                                                         </span>
                                                     </li>
@@ -607,7 +537,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                         <div className="md:w-48 relative z-10">
                                             <button
                                                 onClick={() => setContactOpen(true)}
-                                                className="w-full py-4 px-6 rounded-lg font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-orange-500/50 hover:scale-[1.02] active:scale-[0.98]"
+                                                className="w-full rounded-full bg-[#ff6d1f] px-6 py-4 text-sm font-medium text-[#2b2b2b] transition-transform duration-150 active:scale-[0.98]"
                                             >
                                                 Contact Sales
                                             </button>

@@ -1,170 +1,86 @@
-'use client';
-
-import { ArrowUp, X, Mail, Phone, Twitter, Instagram, Linkedin } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Instagram, Linkedin } from 'lucide-react';
 
-const Footer = () => {
-    const [showContact, setShowContact] = useState(false);
+const COLUMNS = [
+    {
+        label: 'Product',
+        links: [
+            { name: 'How it works', href: '/#how' },
+            { name: 'Why Nia', href: '/#why' },
+            { name: 'Pricing', href: '/pricing' },
+            { name: 'FAQ', href: '/#faq' },
+        ],
+    },
+    {
+        label: 'Legal',
+        links: [
+            { name: 'Privacy', href: '/legal#privacy-policy' },
+            { name: 'Terms', href: '/legal#terms-of-use' },
+        ],
+    },
+    {
+        label: 'Account',
+        links: [{ name: 'Sign in', href: '/login' }],
+    },
+];
 
-    const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
+function XMark() {
     return (
-        <footer data-section-theme="light" className="bg-black overflow-hidden">
-            <div className="bg-accent-orange rounded-t-[80px] md:rounded-t-[120px] pt-10 pb-8 px-10 md:px-32 overflow-hidden relative shadow-2xl transition-all duration-700">
-                {/* Decorative Pattern / Glow */}
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10" />
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden>
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+    );
+}
 
-                <div className="container relative z-10 flex flex-col pt-10">
-                    <div className="flex flex-col md:flex-row justify-between w-full gap-24 mb-12">
-                        <div className="max-w-sm">
-                            <a href="/" className="-mt-10 text-4xl font-black tracking-tighter text-white  block transition-transform hover:scale-105 origin-left font-museo-moderno">
-                                <Image 
-                                    src="/OKVEVO Logos WithOut BackGrounds/White.svg" 
-                                    alt="OKVEVO Logo" 
-                                    width={92} 
-                                    height={92} 
-                                    className="w-[92px] h-[92px] object-contain"
-                                />
-                                {/* OKVEVO<span className="text-text-main">.</span> */}
-                            </a>
-                            <p className="text-xl text-white font-medium leading-relaxed">
-                                Zero Camera, Infinite Vision.<br />
-                                
-                            </p>
-                            <p className="text-xl text-white/50 font-small leading-relaxed mb-8">
-                                Designing the future of cinematic storytelling through the lens of artificial intelligence.
-                            </p>
+const SOCIAL = [
+    { name: 'Instagram', href: 'https://instagram.com/okvevo', icon: <Instagram size={17} strokeWidth={1.75} aria-hidden /> },
+    { name: 'LinkedIn', href: 'https://linkedin.com/company/okvevo', icon: <Linkedin size={17} strokeWidth={1.75} aria-hidden /> },
+    { name: 'X', href: 'https://x.com/OKVEVO_AI', icon: <XMark /> },
+];
 
-                            <div className="flex gap-6">
-                                <a href="https://x.com/OKVEVO_AI" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="Twitter">
-                                    <Twitter size={20} strokeWidth={2.5} />
-                                </a>
-                                <a href="https://www.instagram.com/ok.vevo?igsh=MWE2dDBveTI0eGZpbw%3D%3D" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="Instagram">
-                                    <Instagram size={20} strokeWidth={2.5} />
-                                </a>
-                                <a href="https://www.linkedin.com/company/okvevo/posts/?feedView=all" className="text-white hover:text-text-main transition-all hover:scale-110" aria-label="LinkedIn">
-                                    <Linkedin size={20} strokeWidth={2.5} />
-                                </a>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-16 md:gap-32">
-                            <div>
-                                <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Platform</h4>
-                                <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
-                                    <li><a href="#features" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Features</a></li>
-                                    <li><a href="#showcase" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Process</a></li>
-                                    <li><a href="/location" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">OKVEVO X MASIV</a></li>
-                                    <li><a href="/blogs" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Blog</a></li>
-                                </ul>
-                            </div>
-
-                            <div>
-                                <h4 className="text-[14px] font-black tracking-[0.3em] uppercase text-text-main/60 mb-8">Company</h4>
-                                <ul className="space-y-4 text-sm font-black uppercase tracking-wider text-white">
-                                {/* <li><Link href="/about" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">About</Link></li> */}
-                                <li><button onClick={(e) => { e.preventDefault(); setShowContact(true); }} className="hover:text-text-main transition-all hover:translate-x-1 inline-block uppercase text-left">Contact</button></li>
-                                <li><Link href="/legal" className="hover:text-text-main transition-all hover:translate-x-1 inline-block">Legal</Link></li>
-                                </ul>
-                            </div>
-
-                            <div className="hidden lg:block">
-                                <button
-                                    onClick={scrollToTop}
-                                    className="w-20 h-20 rounded-full bg-white text-accent-orange flex items-center justify-center hover:bg-text-main hover:text-white transition-all duration-500 group shadow-lg"
-                                >
-                                    <ArrowUp size={32} className="group-hover:-translate-y-2 transition-transform duration-500" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="w-full flex justify-center -mt-16 leading-none select-none pointer-events-none">
-                        <div className="text-[15vw] lg:text-[13vw] font-black leading-[0.75] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white/30 to-transparent uppercase relative z-0">
-                            OKVEVO
-                        </div>
-                    </div>
-
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full pt-4 md:pt-6 border-t border-white/20 gap-8 mt-2">
-                        <p className="text-[11px] font-black tracking-[0.3em] uppercase text-white/60">
-                            © 2026 OKVEVO. All rights reserved.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Contact Modal */}
-            <AnimatePresence>
-                {showContact && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setShowContact(false)}
-                        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-[#111] border border-white/10 p-8 md:p-12 rounded-[2rem] max-w-lg w-full relative shadow-2xl overflow-hidden m-auto"
+export default function Footer() {
+    return (
+        <footer className="bg-[#F4F2EE] px-6 pb-10 pt-16 text-center text-[#2A2A2A]">
+            <Link href="/" aria-label="OkVevo home" className="inline-flex">
+                <img src="/OKVEVO%20Logos%20WithOut%20BackGrounds/Orange.svg" alt="" className="mx-auto h-14 w-14" />
+            </Link>
+            <ul className="mt-6 flex items-center justify-center gap-3">
+                {SOCIAL.map((item) => (
+                    <li key={item.href}>
+                        <a
+                            href={item.href}
+                            aria-label={item.name}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#2A2A2A]/15 text-[#2A2A2A]/80 transition-colors hover:border-[#FF6F20] hover:bg-white hover:text-[#FF6F20] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6F20]"
+                            target="_blank"
+                            rel="noreferrer"
                         >
-                            {/* Decorative background */}
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent-orange via-white to-accent-orange opacity-50" />
-                            
-                            <button 
-                                onClick={() => setShowContact(false)}
-                                className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5 text-white/70 hover:text-white" />
-                            </button>
-
-                            <h3 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">Get in Touch</h3>
-                            <p className="text-white/50 text-sm font-medium mb-10">We'd love to hear from you. Reach out to discuss your next cinematic project.</p>
-
-                            <div className="flex flex-col gap-6">
-                                {/* Email Action */}
-                                <a 
-                                    href="mailto:hello@okvevo.com"
-                                    className="flex items-center gap-5 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
-                                >
-                                    <div className="w-12 h-12 rounded-full bg-accent-orange/10 flex items-center justify-center group-hover:bg-accent-orange/20 transition-colors">
-                                        <Mail className="w-5 h-5 text-accent-orange" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-1">Email Us</p>
-                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">info@okvevo.com</p>
-                                    </div>
-                                </a>
-
-                                {/* WhatsApp Action */}
-                                <a
-                                    href="https://wa.me/917204273604"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-5 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
-                                >
-                                    <div className="w-12 h-12 rounded-full bg-accent-orange/10 flex items-center justify-center group-hover:bg-accent-orange/20 transition-colors">
-                                        <Phone className="w-5 h-5 text-accent-orange" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black tracking-widest uppercase text-white/40 mb-1">Located at </p>
-                                        <p className="text-lg font-bold text-white group-hover:text-accent-orange transition-colors">Bengaluru, Karnataka</p>
-                                    </div>
-                                </a>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            {item.icon}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+            <div className="mx-auto mt-10 flex max-w-[720px] flex-col justify-center gap-8 sm:flex-row sm:gap-16">
+                {COLUMNS.map((column) => (
+                    <div key={column.label}>
+                        <p className="text-xs font-medium tracking-[0.06em] text-[#8A857D] uppercase">{column.label}</p>
+                        <ul className="mt-3 space-y-2">
+                            {column.links.map((link) => (
+                                <li key={link.href}>
+                                    <Link href={link.href} className="text-sm text-[#2A2A2A]/80 transition-colors hover:text-[#FF6F20]">
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+            <div className="mx-auto mt-12 max-w-[720px] border-t border-[#2A2A2A]/10 pt-6">
+                <p className="text-sm text-[#8A857D]">OkVevo by Azonova Technologies Pvt Ltd · Bengaluru</p>
+                <a className="mt-1 inline-block text-sm underline underline-offset-4" href="mailto:info@azonovatechnologies.com">
+                    info@azonovatechnologies.com
+                </a>
+            </div>
         </footer>
     );
-};
-
-export default Footer;
+}
