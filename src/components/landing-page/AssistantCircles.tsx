@@ -33,7 +33,7 @@ export default function AssistantCircles() {
     }, [])
 
     return (
-        <section className="assistant-split bg-[var(--bg)]" aria-label="First, she’s a great assistant">
+        <section className="assistant-split" aria-label="First, she’s a great assistant">
             <div className="assistant-copy">
                 <h2 className="nia-display nia-h2">First, she’s a great assistant.</h2>
                 <p className="mt-5 max-w-[28rem] text-[1.0625rem] leading-normal">

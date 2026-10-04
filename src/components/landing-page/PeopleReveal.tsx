@@ -186,7 +186,7 @@ export default function PeopleReveal() {
             const fade = phase === 'grow' ? 0 : phase === 'fade' ? fadeT : 1
             const grid = root.querySelector<HTMLElement>('.people-reveal-grid')
             if (grid) grid.style.visibility = grown >= 1 || phase !== 'grow' ? 'hidden' : ''
-            root.style.backgroundColor = grown >= 1 || phase !== 'grow' ? 'transparent' : ''
+            root.style.backgroundColor = grown >= 1 || phase !== 'grow' ? '#ff6d1f' : ''
             const landX = heroBox.left + (landBox.left - heroBox.left) * travel
             const landY = heroBox.top + (landBox.top - heroBox.top) * travel + (ease > 0 ? 0 : dip)
             const centerX = (vw - landBox.width) / 2
@@ -227,7 +227,7 @@ export default function PeopleReveal() {
     }, [])
 
     return (
-        <section ref={rootRef} className="people-reveal bg-[var(--bg)]" aria-label="Nobody is just one thing">
+        <section ref={rootRef} className="people-reveal" aria-label="Nobody is just one thing">
             <div className="people-reveal-grid">
                 <div className="tile-stage" aria-label="Professions">
                     <div className="tile-grid">

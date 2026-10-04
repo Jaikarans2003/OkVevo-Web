@@ -175,6 +175,10 @@
   height: 100dvh;
   padding-top: 4rem;
   overflow: hidden;
+  position: relative;
+  z-index: 2;
+  border-bottom-left-radius: 3rem;
+  border-bottom-right-radius: 3rem;
 }
 
 .nia-story .nia-scene {
@@ -409,7 +413,13 @@
   transform: translateX(-50%);
 }
 
-.people-reveal { position: relative; height: 190vh; }
+.people-reveal {
+  position: relative;
+  height: 190vh;
+  margin-top: -3rem;
+  padding-top: 3rem;
+  background: #2c5a55;
+}
 
 .people-reveal-grid {
   position: sticky;
@@ -467,6 +477,7 @@ html[data-bear="fall"] .people-aside-face svg { visibility: hidden; }
   height: 100%;
   padding: 3rem 4rem 3rem 1.5rem;
   text-align: right;
+  color: #f4f2ee;
 }
 
 .people-aside h2 { max-width: 11em; }
@@ -479,6 +490,12 @@ html[data-bear="fall"] .people-aside-face svg { visibility: hidden; }
   gap: 2rem;
   min-height: 100dvh;
   padding: 4.5rem 3rem 4.5rem 4rem;
+  background: #ff6d1f;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  border-bottom-left-radius: 3rem;
+  border-bottom-right-radius: 3rem;
 }
 
 .assistant-copy { text-align: left; }
@@ -507,7 +524,7 @@ html[data-bear="fall"] .people-aside-face svg { visibility: hidden; }
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 1px dashed rgba(42, 42, 42, 0.28);
+  border: 1px dashed #f4f2ee;
 }
 
 .circle-orb,
@@ -526,8 +543,9 @@ html[data-bear="fall"] .people-aside-face svg { visibility: hidden; }
   width: max-content;
   max-width: 11.5rem;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: #fff;
+  border: 0;
+  background: #2c5a55;
+  color: #f4f2ee;
   padding: 0.5rem 0.75rem;
   text-align: center;
   font-size: 0.8125rem;
@@ -545,9 +563,15 @@ html[data-bear="fall"] .people-aside-face svg { visibility: hidden; }
   pointer-events: none;
 }
 
+.circles-face circle { fill: #f4f2ee; }
+
 @keyframes circle-spin { to { transform: rotate(360deg); } }
 
-.accountant-parallax { padding: 5.5rem 1.5rem 6rem; text-align: center; }
+.accountant-parallax {
+  margin-top: -3rem;
+  padding: 8.5rem 1.5rem 6rem;
+  text-align: center;
+}
 
 .dump-center {
   display: flex;
