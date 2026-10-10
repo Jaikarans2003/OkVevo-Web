@@ -39,6 +39,7 @@ import {
   MAX_JOB_CREDITS,
   rateCardEntry,
   resolveRateCard,
+  submitPriceGate,
   settleFromSnapshot,
   type PriceSnapshot,
 } from '@/lib/fal/rateCard';
@@ -274,10 +275,12 @@ async function handleSubmit(
   if (estimated > MAX_JOB_CREDITS) {
     return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
   }
-  if (approved != null && estimated > approved) {
+  // Pure approval gate, before any reserve: a refusal here can leave no hold.
+  const gate = submitPriceGate(estimated, approved, runId);
+  if (gate === 'price_exceeded') {
     return jsonError(409, 'price is higher than the approved estimate; confirm again');
   }
-  if (runId && approved == null) {
+  if (gate === 'approved_required') {
     return jsonError(400, 'run_id submit requires approved_credits from the quote');
   }
   let holdId = crypto.randomUUID();

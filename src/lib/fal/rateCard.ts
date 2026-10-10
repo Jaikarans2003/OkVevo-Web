@@ -25,9 +25,32 @@ export const H3_SQUARE_IMAGE_TOKENS = 1024;
 
 export const SPEECH_MAX_CHARS = 5000;
 export const MUSIC_MAX_SECONDS = 300;
-export const GPT_IMAGE_MAX_REFS = 16;
+/**
+ * Launch cap for gpt-image-2 edit references. Input-image token cost is
+ * unmeasured ($8/1M is on the Fal page; tokens per image are not), so the
+ * card prices generation only. To lift: run the billing-events smoke with
+ * 1 vs 4 references, price the measured input tokens into this card, then
+ * raise the cap here and in provider_adapters.py (_portal_endpoint).
+ */
+export const GPT_IMAGE_MAX_REFS = 4;
 
 export type PriceSource = 'card' | 'hybrid' | 'live';
+
+export type SubmitPriceGate = 'ok' | 'price_exceeded' | 'approved_required';
+/**
+ * Pure approval gate for submit, evaluated BEFORE any reserve so a refusal
+ * can never leave a hold. `approved` is the credit estimate the user confirmed
+ * at prepare time; the gateway stops when the fresh reserve would exceed it.
+ */
+export function submitPriceGate(
+  estimated: number,
+  approved: number | null,
+  runId: string,
+): SubmitPriceGate {
+  if (approved != null && estimated > approved) return 'price_exceeded';
+  if (runId && approved == null) return 'approved_required';
+  return 'ok';
+}
 
 export type PriceSnapshot = {
   endpoint: string;

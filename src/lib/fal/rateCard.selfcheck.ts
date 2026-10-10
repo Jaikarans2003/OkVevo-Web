@@ -15,6 +15,7 @@ import {
   resolveRateCard,
   seedanceKTokens,
   settleFromSnapshot,
+  submitPriceGate,
 } from './rateCard.ts';
 import { canonicalBodyHash, decideIdempotency, memorySubmit } from './idempotency.ts';
 import { holdIsDue, settleOnce, sweepAction } from './holdSweep.ts';
@@ -283,5 +284,14 @@ const limited = await sendTelegram(
 );
 assert.equal(limited, 'sent');
 assert.equal(slept, 30_000);
+
+// submitPriceGate truth table — a refusal is decided from inputs only, so it
+// runs before any reserve and can never leave a hold.
+assert.equal(submitPriceGate(500, 400, 'run-1'), 'price_exceeded');
+assert.equal(submitPriceGate(400, 400, 'run-1'), 'ok');
+assert.equal(submitPriceGate(300, 400, 'run-1'), 'ok');
+assert.equal(submitPriceGate(500, null, 'run-1'), 'approved_required');
+assert.equal(submitPriceGate(500, null, ''), 'ok');
+assert.equal(submitPriceGate(500, 500, ''), 'ok');
 
 console.log('rateCard.selfcheck: ok');
