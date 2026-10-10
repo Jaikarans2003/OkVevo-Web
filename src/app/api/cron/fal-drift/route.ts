@@ -19,7 +19,7 @@ import { env } from '@/config/env';
 import { db } from '@/lib/firebase-admin';
 import { falQueueGet, getEndpointPricing } from '@/lib/fal/client';
 import { settleFalJob } from '@/lib/fal/handleQueue';
-import { holdIsDue, sweepAction } from '@/lib/fal/holdSweep';
+import { holdIsDue, reservedHoldAbandoned, sweepAction } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
 import { releaseCredits } from '@/lib/gateway/debit';
 import { alertDocId, sendOpsAlert, utcDay } from '@/lib/ops/alert';
@@ -124,6 +124,27 @@ export async function POST(request: NextRequest) {
       'hold-unknown',
       doc.id,
       `submitted hold ${doc.id} Fal status unknown; not resubmitted`,
+      nowMs
+    );
+  }
+
+  // A `reserved` hold (never submitted to Fal, no request id) past the
+  // abandoned threshold gets ONE HIGH alert per UTC day. NEVER auto-release
+  // and NEVER resubmit: only a human can tell Fal did not run the job, via
+  // billing-events, then scripts/drama-release-hold.ts releases through the
+  // same compare-and-set. See docs/fal-alerts-telegram.md.
+  const reserved = await db.collection('gatewayJobs').where('status', '==', 'reserved').get();
+  for (const doc of reserved.docs) {
+    const data = doc.data();
+    const created = data.createdAt?.toMillis?.() ?? nowMs;
+    if (!reservedHoldAbandoned(created, nowMs, data.falRequestId)) continue;
+    sweep.alerted += 1;
+    await alertOnce(
+      'HIGH',
+      'hold-reserved-no-fal-id',
+      doc.id,
+      `reserved hold ${doc.id} older than 30m has no Fal request id; not released, not resubmitted. ` +
+        'Check Fal billing-events for its window, then scripts/drama-release-hold.ts',
       nowMs
     );
   }

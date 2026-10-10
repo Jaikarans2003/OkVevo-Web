@@ -28,6 +28,28 @@ The margin report is a separate ops script. It is not part of this cron.
 Each successful daily run writes `opsAlerts/falDrift-heartbeat`.
 An external uptime check on a missing heartbeat is not built. That is the dead-man's switch to add later.
 
+## Alert conditions
+
+| Condition | Meaning | What to do |
+|---|---|---|
+| `price-drift` | Live Fal unit price moved vs the rate card | Follow "Card update" below |
+| `hold-unknown` | A `submitted` hold's Fal status cannot be read | Check Fal status by hand; the hold is kept, never resubmitted |
+| `hold-reserved-no-fal-id` | A `reserved` hold is older than 30 minutes (assumption) with no Fal request id — submit never confirmed | See below |
+
+### `hold-reserved-no-fal-id` runbook
+
+Never auto-released, never resubmitted. One HIGH alert per hold per UTC day.
+
+1. Open Fal dashboard → Billing → billing-events for the hold's `createdAt`
+   window widened by ±15 minutes. (`scripts/drama-reconcile.ts` documents the
+   equivalent GET /v1/models/usage call.)
+2. Confirm no Fal request ran for the hold: the `gatewayJobs` doc has no
+   `falRequestId`, and no untracked request id for that endpoint appears in
+   the window. If a request DID run, wait for the sweep to settle instead.
+3. Release through the same compare-and-set everything else uses:
+   `npx tsx scripts/drama-release-hold.ts --hold <id> --checked-billing`
+   (dry-run first, then `--apply`).
+
 ## Card update
 
 1. Edit `src/lib/fal/rateCard.ts`.

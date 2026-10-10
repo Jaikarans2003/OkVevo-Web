@@ -18,7 +18,13 @@ import {
   submitPriceGate,
 } from './rateCard.ts';
 import { canonicalBodyHash, decideIdempotency, memorySubmit } from './idempotency.ts';
-import { holdIsDue, settleOnce, sweepAction } from './holdSweep.ts';
+import {
+  holdIsDue,
+  RESERVED_ABANDONED_AFTER_MS,
+  reservedHoldAbandoned,
+  settleOnce,
+  sweepAction,
+} from './holdSweep.ts';
 import { sendOpsAlert } from '@/lib/ops/alert';
 import { sendTelegram } from '@/lib/ops/telegram';
 
@@ -219,6 +225,12 @@ assert.equal(sweepAction('IN_PROGRESS'), 'leave');
 assert.equal(sweepAction('COMPLETED'), 'settle');
 assert.equal(sweepAction('weird'), 'alert');
 assert.equal(holdIsDue(0, 6 * 60 * 60 * 1000), true);
+// reservedHoldAbandoned: 30-minute assumption, alert only when no Fal id.
+assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS, undefined), true);
+assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS - 1, undefined), false);
+assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS * 10, 'req-1'), false);
+assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS * 10, ''), true);
+assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS * 10, null), true);
 
 const race = {
   settled: false,

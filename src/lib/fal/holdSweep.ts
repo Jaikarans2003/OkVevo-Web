@@ -24,6 +24,23 @@ export function holdIsDue(createdAtMs: number, nowMs: number): boolean {
   return nowMs - createdAtMs >= SUBMITTED_HOLD_MAX_MS;
 }
 
+/**
+ * Assumption: a `reserved` hold (submit never confirmed, no Fal request id)
+ * is abandoned after 30 minutes — the submit path takes seconds. Alert only;
+ * a human releases via scripts/drama-release-hold.ts after checking
+ * billing-events. Never auto-release, never resubmit.
+ */
+export const RESERVED_ABANDONED_AFTER_MS = 30 * 60 * 1000;
+
+export function reservedHoldAbandoned(
+  createdAtMs: number,
+  nowMs: number,
+  falRequestId: unknown
+): boolean {
+  if (typeof falRequestId === 'string' && falRequestId) return false;
+  return nowMs - createdAtMs >= RESERVED_ABANDONED_AFTER_MS;
+}
+
 export type SweepJob = {
   balances: BucketBalances;
   job: JobRecord;
