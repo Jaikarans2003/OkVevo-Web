@@ -31,8 +31,10 @@ import {
   SETTLED_STATUS_BODY,
 } from '@/lib/fal/statusContract';
 import { adjustedUsd, quantity, QuantityError } from '@/lib/fal/quantity';
+import { pickMediaArgs } from '@/lib/fal/mediaInputs';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
+  DailySpendLimitError,
   InsufficientCreditsError,
   PlanNotActiveError,
   claimFalSubmit,
@@ -43,7 +45,6 @@ import {
   rebindGatewayJob,
   reconcileCredits,
   releaseCredits,
-  reserveCredits,
   reserveFalRun,
 } from '@/lib/gateway/debit';
 import { omitUndefined } from '@/lib/gateway/reserve';
@@ -227,7 +228,7 @@ export async function settleFalJob(opts: {
       snapshot: job.priceSnapshot as PriceSnapshot | undefined,
     });
     actual = Math.min(creditsFromUsd(rawUsd).credits, job.estimatedCredits);
-    if (creditsFromUsd(rawUsd).credits > job.estimatedCredits && rateCardEntry(endpoint)) {
+    if (creditsFromUsd(rawUsd).credits > job.estimatedCredits) {
       // Formula landed above the reserve: the user is never charged more
       // than approved — OkVevo absorbs the difference and flags it.
       const day = utcDay(Date.now());
@@ -253,26 +254,14 @@ export async function settleFalJob(opts: {
       costUsd: creditsFromUsd(rawUsd).costUsd,
       priceUsd: rawUsd,
     });
-    if (rateCardEntry(endpoint)) {
-      // Circuit-breaker ledger (raw Fal USD, not the margined notional) and
-      // the output-media index that lets later jobs reuse Fal URLs.
-      const day = utcDay(Date.now());
-      await db.doc(`spendDaily/${day}`).set(
-        {
-          falUsd: FieldValue.increment(rawUsd),
-          creditsCharged: FieldValue.increment(actual),
-          jobs: FieldValue.increment(1),
-        },
-        { merge: true }
-      );
-      await patchGatewayJob(opts.requestId, {
-        settledAt: FieldValue.serverTimestamp(),
-        settledCredits: actual,
-        settledFalUsd: rawUsd,
-      });
-      if (opts.payload !== undefined) {
-        await indexPayloadMedia(endpoint, opts.payload, args, job.uid, opts.requestId);
-      }
+    await closeFalSpendHold(job, rawUsd, actual);
+    await patchGatewayJob(opts.requestId, {
+      settledAt: FieldValue.serverTimestamp(),
+      settledCredits: actual,
+      settledFalUsd: rawUsd,
+    });
+    if (rateCardEntry(endpoint) && opts.payload !== undefined) {
+      await indexPayloadMedia(endpoint, opts.payload, args, job.uid, opts.requestId);
     }
   } catch (err) {
     if (err instanceof QuantityError) {
@@ -283,6 +272,7 @@ export async function settleFalJob(opts: {
         provider: 'fal',
         model: endpoint,
       });
+      await closeFalSpendHold(job, 0, actual);
     } else {
       throw err;
     }
@@ -357,6 +347,24 @@ async function dramaKillSwitchDisabled(nowMs: number): Promise<boolean> {
   return killCache.disabled;
 }
 
+async function closeFalSpendHold(
+  job: { reservedFalUsd?: number; spendDay?: string },
+  settledRawUsd: number,
+  actualCredits: number
+): Promise<void> {
+  const reserved = Number(job.reservedFalUsd ?? 0);
+  const day = job.spendDay || utcDay(Date.now());
+  await db.doc(`spendDaily/${day}`).set(
+    omitUndefined({
+      falUsd: FieldValue.increment(settledRawUsd),
+      falUsdHeld: reserved > 0 ? FieldValue.increment(-reserved) : undefined,
+      creditsCharged: FieldValue.increment(actualCredits),
+      jobs: FieldValue.increment(1),
+    }),
+    { merge: true }
+  );
+}
+
 async function handleSubmit(
   uid: string,
   endpoint: string,
@@ -376,34 +384,10 @@ async function handleSubmit(
   const args = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
 
   const nowMs = Date.now();
-  if (card) {
-    // Kill switch: one Firestore flag turns drama submits off, no deploy.
-    if (await dramaKillSwitchDisabled(nowMs)) {
-      return jsonError(503, 'drama generation is temporarily disabled');
-    }
-    // Daily spend circuit breaker: 80% HIGH alert, 100% refuse new submits.
-    const day = utcDay(nowMs);
-    const spendSnap = await db.doc(`spendDaily/${day}`).get();
-    const spendUsd = Number(spendSnap.data()?.falUsd ?? 0);
-    const limitUsd = dailySpendLimitFromEnv(process.env);
-    const decision = breakerDecision(spendUsd, limitUsd);
-    if (decision !== 'ok') {
-      await sendOpsAlert(
-        {
-          severity: 'HIGH',
-          condition: decision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
-          id: day,
-          text:
-            decision === 'stop'
-              ? `daily drama Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
-              : `daily drama Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
-        },
-        { nowMs, store: firestoreAlertStore(db) }
-      );
-      if (decision === 'stop') {
-        return jsonError(429, 'daily drama spend limit reached — new jobs resume next UTC day');
-      }
-    }
+  const day = utcDay(nowMs);
+  const limitUsd = dailySpendLimitFromEnv(process.env);
+  if (await dramaKillSwitchDisabled(nowMs)) {
+    return jsonError(503, 'generation is temporarily disabled');
   }
 
   if (card && SINGULAR_MEDIA_KEYS.some((key) => args[key] != null)) {
@@ -446,6 +430,7 @@ async function handleSubmit(
   }
 
   const submitArgs = pickSubmitArgs(falBody);
+  const mediaArgs = pickMediaArgs(falBody);
   const runId = typeof args.run_id === 'string' ? args.run_id.trim() : '';
   const approved =
     typeof args.approved_credits === 'number' ? args.approved_credits : null;
@@ -479,6 +464,34 @@ async function handleSubmit(
     return jsonError(400, msg);
   }
   const estimated = creditsFromUsd(rawUsd).credits;
+  if (!(rawUsd > 0) || estimated <= 0) {
+    return jsonError(400, 'unpriced Fal request — estimate is not a positive price');
+  }
+  // Warn from settled + in-flight holds + this job. Stop is re-checked
+  // inside the reserve transaction so two concurrent submits cannot both pass.
+  const spendSnap = await db.doc(`spendDaily/${day}`).get();
+  const spendUsd =
+    Number(spendSnap.data()?.falUsd ?? 0) +
+    Number(spendSnap.data()?.falUsdHeld ?? 0) +
+    rawUsd;
+  const warnDecision = breakerDecision(spendUsd, limitUsd);
+  if (warnDecision !== 'ok') {
+    await sendOpsAlert(
+      {
+        severity: 'HIGH',
+        condition: warnDecision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
+        id: day,
+        text:
+          warnDecision === 'stop'
+            ? `daily Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
+            : `daily Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
+      },
+      { nowMs, store: firestoreAlertStore(db) }
+    );
+    if (warnDecision === 'stop') {
+      return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
+    }
+  }
   if (estimated > MAX_JOB_CREDITS) {
     return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
   }
@@ -488,10 +501,9 @@ async function handleSubmit(
     return jsonError(409, 'price is higher than the approved estimate; confirm again');
   }
   if (gate === 'approved_required') {
-    return jsonError(400, 'run_id submit requires approved_credits from the quote');
+    return jsonError(400, 'run_id and approved_credits are required for every metered submit');
   }
-  let holdId = crypto.randomUUID();
-  const bodyHash = canonicalBodyHash({ endpoint, submitArgs, runId });
+  const bodyHash = canonicalBodyHash({ endpoint, submitArgs, mediaArgs, runId });
   const extra = omitUndefined({
     endpoint,
     unit: snapshot?.unit ?? pricing?.unit,
@@ -499,40 +511,34 @@ async function handleSubmit(
     submitArgs,
     media,
     priceSnapshot: snapshot,
+    reservedFalUsd: rawUsd,
+    spendDay: day,
+    spendLimitUsd: limitUsd,
     character: typeof args.character === 'string' ? args.character.trim().slice(0, 80) : undefined,
     project: typeof args.project === 'string' ? args.project.trim().slice(0, 80) : undefined,
     consentAt:
       args.voice_clone_consent === true ? new Date(nowMs).toISOString() : undefined,
     sampleSha256: (await sampleSha256FromAudioUrl(args.audio_url, uid)) ?? undefined,
   });
+  let holdId: string;
   try {
-    if (runId) {
-      const reserved = await reserveFalRun({
-        uid,
-        runId,
-        bodyHash,
-        estimatedCredits: estimated,
-        extra,
-      });
-      if (reserved.kind === 'replay' && reserved.falRequestId) {
-        return NextResponse.json(proxyUrls(endpoint, reserved.falRequestId));
-      }
-      if (reserved.kind === 'unknown') {
-        return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
-      }
-      holdId = reserved.holdId;
-      const claimed = await claimFalSubmit(uid, runId);
-      if (!claimed) {
-        return jsonError(202, 'Fal submit already in progress for this run');
-      }
-    } else {
-      await reserveCredits({
-        uid,
-        requestId: holdId,
-        provider: 'fal',
-        estimatedCredits: estimated,
-        extra,
-      });
+    const reserved = await reserveFalRun({
+      uid,
+      runId,
+      bodyHash,
+      estimatedCredits: estimated,
+      extra,
+    });
+    if (reserved.kind === 'replay' && reserved.falRequestId) {
+      return NextResponse.json(proxyUrls(endpoint, reserved.falRequestId));
+    }
+    if (reserved.kind === 'unknown') {
+      return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
+    }
+    holdId = reserved.holdId;
+    const claimed = await claimFalSubmit(uid, runId);
+    if (!claimed) {
+      return jsonError(202, 'Fal submit already in progress for this run');
     }
   } catch (err) {
     if (err instanceof PlanNotActiveError) {
@@ -544,11 +550,17 @@ async function handleSubmit(
     if (err instanceof IdempotencyConflictError) {
       return jsonError(409, 'idempotency conflict');
     }
+    if (err instanceof DailySpendLimitError) {
+      return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
+    }
     throw err;
   }
 
   try {
-    const submitted = await submitFalQueue(endpoint, applyFalSafetyOff(endpoint, falBody));
+    const submitted = await submitFalQueue(
+      endpoint,
+      applyFalSafetyOff(endpoint, { ...submitArgs, ...mediaArgs })
+    );
     await rebindGatewayJob(holdId, submitted.request_id);
     await patchGatewayJob(submitted.request_id, {
       status: 'submitted',

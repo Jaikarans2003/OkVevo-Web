@@ -19,7 +19,16 @@ export type BillingEvent = {
 };
 
 export function pickEvent(events: BillingEvent[], requestId: string): BillingEvent | null {
-  return events.find((e) => e.request_id === requestId && typeof e.cost_total === 'number') ?? null;
+  // cost_total 0 is not a final bill — treating it as captured would lock
+  // the charge at 0 and ignore a later real event.
+  return (
+    events.find(
+      (e) =>
+        e.request_id === requestId &&
+        typeof e.cost_total === 'number' &&
+        e.cost_total > 0
+    ) ?? null
+  );
 }
 
 /** final credits = min(creditsFromUsd(cost_total), reserve). Never above reserve. */

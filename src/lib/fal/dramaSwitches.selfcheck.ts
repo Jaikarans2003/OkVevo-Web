@@ -25,8 +25,9 @@ assert.equal(breakerDecision(limit * BREAKER_WARN_RATIO, limit), 'warn');
 assert.equal(breakerDecision(limit - 0.01, limit), 'warn');
 assert.equal(breakerDecision(limit, limit), 'stop');
 assert.equal(breakerDecision(limit * 2, limit), 'stop');
-assert.equal(breakerDecision(500, 0), 'ok'); // misconfigured limit never blocks
+assert.equal(breakerDecision(500, 0), 'stop'); // explicit 0 is a hard stop
 assert.equal(breakerDecision(-1, limit), 'ok');
+assert.equal(dailySpendLimitFromEnv({ DRAMA_DAILY_SPEND_LIMIT_USD: '0' } as NodeJS.ProcessEnv), 0);
 
 assert.equal(dailySpendLimitFromEnv({} as NodeJS.ProcessEnv), DEFAULT_DAILY_SPEND_LIMIT_USD);
 assert.equal(

@@ -4,30 +4,16 @@
  * for generation. Firestore via ADC on the capture service account.
  */
 import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 
 import { captureCharge, captureLagMs, pickEvent, type BillingEvent } from '../src/lib/fal/capture';
+import { captureCreditsOn } from '../src/lib/gateway/captureCredits';
 import { sendOpsAlert, type AlertStore } from '../src/lib/ops/alert';
-import { applyCapture, type JobRecord } from '../src/lib/gateway/reserve';
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
 }
 const db = getFirestore();
-
-function jobFromData(data: Record<string, unknown>): JobRecord | null {
-  if (data.status !== 'settled' || data.provider !== 'fal') return null;
-  return {
-    uid: String(data.uid || ''),
-    provider: 'fal',
-    estimatedCredits: Number(data.estimatedCredits || 0),
-    status: 'settled',
-    heldAllocation: Number(data.heldAllocation || 0),
-    heldTopUp: Number(data.heldTopUp || 0),
-    settledCredits: typeof data.settledCredits === 'number' ? data.settledCredits : undefined,
-    captured: data.captured === true,
-  };
-}
 
 function alertStore(): AlertStore {
   return {
@@ -54,67 +40,18 @@ async function fetchEvents(requestId: string, startIso: string): Promise<{ statu
   return { status: 200, events: json.items ?? json.data ?? [] };
 }
 
-async function captureOne(docId: string, job: JobRecord, falUsd: number, falCredits: number) {
-  const jobRef = db.collection('gatewayJobs').doc(docId);
-  const txnRef = db.collection('creditTransactions').doc(`${docId}:capture`);
-  let out = { skipped: true, refund: 0, overReserve: false };
-  await db.runTransaction(async (tx) => {
-    if ((await tx.get(txnRef)).exists) return;
-    const userRef = db.collection('users').doc(job.uid);
-    const userSnap = await tx.get(userRef);
-    const data = userSnap.data() || {};
-    const result = applyCapture(
-      {
-        allocationBalance: Number(data.allocationBalance || 0),
-        topUpBalance: Number(data.topUpBalance || 0),
-      },
-      job,
-      falCredits
-    );
-    if (result.skipped) return;
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(
-      jobRef,
-      {
-        captured: true,
-        capturedAt: FieldValue.serverTimestamp(),
-        capturedFalUsd: falUsd,
-        settledCredits: result.settledCredits,
-        actualCredits: result.settledCredits,
-        heldAllocation: result.heldAllocation,
-        heldTopUp: result.heldTopUp,
-      },
-      { merge: true }
-    );
-    tx.set(txnRef, {
-      uid: job.uid,
-      type: 'refund',
-      amount: result.refund,
-      provider: 'fal',
-      requestId: docId,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    out = { skipped: false, refund: result.refund, overReserve: result.overReserve };
-  });
-  return out;
-}
-
 async function main() {
-  const snap = await db.collection('gatewayJobs').where('provider', '==', 'fal').where('status', '==', 'settled').limit(80).get();
+  const snap = await db
+    .collection('gatewayJobs')
+    .where('provider', '==', 'fal')
+    .where('status', '==', 'settled')
+    .where('captured', '==', false)
+    .limit(80)
+    .get();
   let captured = 0;
   let pending = 0;
   for (const doc of snap.docs) {
     const data = doc.data();
-    if (data.captured === true) continue;
-    const job = jobFromData(data as Record<string, unknown>);
-    if (!job || !job.uid) continue;
     const requestId = String(data.falRequestId || doc.id);
     const created = data.createdAt?.toMillis?.() ?? Date.now() - 86400000;
     const { status, events } = await fetchEvents(requestId, new Date(created - 15 * 60 * 1000).toISOString());
@@ -123,12 +60,17 @@ async function main() {
       process.exit(2);
     }
     const ev = pickEvent(events, requestId);
-    if (!ev || ev.cost_total == null) {
+    if (!ev || ev.cost_total == null || !(ev.cost_total > 0)) {
       pending += 1;
       continue;
     }
-    const charge = captureCharge(ev.cost_total, job.estimatedCredits);
-    const result = await captureOne(doc.id, job, ev.cost_total, charge.falCredits);
+    const reserve = Number(data.estimatedCredits || 0);
+    const charge = captureCharge(ev.cost_total, reserve);
+    const result = await captureCreditsOn(db, {
+      requestId: doc.id,
+      falUsd: ev.cost_total,
+      falCredits: charge.falCredits,
+    });
     if (result.overReserve) {
       await sendOpsAlert(
         {

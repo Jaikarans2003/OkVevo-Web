@@ -27,6 +27,14 @@ export const MEDIA_ARG_KEYS: Record<string, 'image' | 'image[]' | 'audio' | 'vid
   reference_audio_urls: 'audio[]',
 };
 
+export function pickMediaArgs(body: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(MEDIA_ARG_KEYS)) {
+    if (k in body) out[k] = body[k];
+  }
+  return out;
+}
+
 export type MediaRef = { kind: 'upload'; id: string } | { kind: 'fal'; url: string };
 
 /** Returns the ref, or an error string. */

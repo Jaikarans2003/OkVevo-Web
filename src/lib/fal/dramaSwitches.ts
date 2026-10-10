@@ -22,6 +22,9 @@ export function killSwitchDisabled(doc: unknown): boolean {
 export type BreakerDecision = 'ok' | 'warn' | 'stop';
 
 export function breakerDecision(spendUsd: number, limitUsd: number): BreakerDecision {
+  // Explicit 0 is a hard stop (ops set the limit to zero). Missing / NaN /
+  // negative stay "ok" so a misconfigured env cannot halt the gateway.
+  if (limitUsd === 0) return 'stop';
   if (!(limitUsd > 0) || !(spendUsd >= 0)) return 'ok';
   if (spendUsd >= limitUsd) return 'stop';
   if (spendUsd >= limitUsd * BREAKER_WARN_RATIO) return 'warn';
@@ -30,5 +33,6 @@ export function breakerDecision(spendUsd: number, limitUsd: number): BreakerDeci
 
 export function dailySpendLimitFromEnv(env: NodeJS.ProcessEnv): number {
   const n = Number(env.DRAMA_DAILY_SPEND_LIMIT_USD);
+  if (n === 0) return 0;
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_SPEND_LIMIT_USD;
 }

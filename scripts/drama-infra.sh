@@ -351,14 +351,25 @@ capture_step() {
       --member="serviceAccount:$CAPTURE_SA" \
       --role="roles/secretmanager.secretAccessor"
     local members
-    members="$(gcloud secrets get-iam-policy FAL_BILLING_KEY --project="$PROJECT" \
-      --format='value(bindings.members)' 2>/dev/null || true)"
-    if echo "$members" | grep -Eiq 'apphosting|firebase-adminsdk|compute@developer'; then
-      echo "STOP: FAL_BILLING_KEY is granted to an App Hosting / default SA" >&2
-      log "STOP FAL_BILLING_KEY over-granted"
+    local expect="serviceAccount:$CAPTURE_SA"
+    local got
+    got="$(gcloud secrets get-iam-policy FAL_BILLING_KEY --project="$PROJECT" --format=json \
+      | python3 -c '
+import json, sys
+policy = json.load(sys.stdin)
+accessors = set()
+for binding in policy.get("bindings") or []:
+    if binding.get("role") == "roles/secretmanager.secretAccessor":
+        accessors.update(binding.get("members") or [])
+print("\n".join(sorted(accessors)))
+')"
+    if [[ "$got" != "$expect" ]]; then
+      echo "STOP: FAL_BILLING_KEY accessors must be exactly $expect" >&2
+      echo "got: ${got:-<none>}" >&2
+      log "STOP FAL_BILLING_KEY accessors are not exactly $CAPTURE_SA"
       exit 1
     fi
-    log "FAL_BILLING_KEY accessor: $CAPTURE_SA only (checked)"
+    log "FAL_BILLING_KEY accessor: $CAPTURE_SA only (exact)"
   fi
 
   # --source wants a Dockerfile in the context root. Stage only the capture
@@ -375,6 +386,7 @@ capture_step() {
     mkdir -p "$ctx/src/lib/fal" "$ctx/src/lib/gateway" "$ctx/src/lib/ops" "$ctx/scripts"
     cp "$ROOT/src/lib/fal/capture.ts" "$ctx/src/lib/fal/"
     cp "$ROOT/src/lib/gateway/reserve.ts" "$ctx/src/lib/gateway/"
+    cp "$ROOT/src/lib/gateway/captureCredits.ts" "$ctx/src/lib/gateway/"
     cp "$ROOT/src/lib/ops/alert.ts" "$ctx/src/lib/ops/"
     cp "$ROOT/scripts/fal-capture-job.ts" "$ctx/scripts/"
     gcloud run jobs deploy "$CAPTURE_JOB" \

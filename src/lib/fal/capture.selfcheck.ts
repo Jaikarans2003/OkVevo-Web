@@ -3,6 +3,8 @@
  * Run: npx tsx src/lib/fal/capture.selfcheck.ts
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { applyCapture, applyReconcile, applyReserve } from '@/lib/gateway/reserve';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
@@ -16,6 +18,14 @@ const ev = pickEvent(
   'abc'
 );
 assert.equal(ev?.cost_total, 0.4);
+assert.equal(pickEvent([{ request_id: 'abc', cost_total: 0 }], 'abc'), null);
+assert.equal(pickEvent([{ request_id: 'abc', cost_total: -1 }], 'abc'), null);
+
+const jobSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'fal-capture-job.ts'), 'utf8');
+assert.ok(jobSrc.includes("where('captured', '==', false)"), 'capture job must query uncaptured rows');
+assert.ok(jobSrc.includes('captureCreditsOn'), 'capture job must re-read the job via captureCreditsOn');
+const infraSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'drama-infra.sh'), 'utf8');
+assert.ok(infraSrc.includes('must be exactly'), 'billing-key IAM must require an exact accessor set');
 
 assert.equal(falCreditsFromUsd(0.4), creditsFromUsd(0.4).credits);
 assert.equal(falCreditsFromUsd(0), 0);

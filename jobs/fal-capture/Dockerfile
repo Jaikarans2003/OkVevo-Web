@@ -7,6 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY src/lib/fal/capture.ts src/lib/fal/capture.ts
 COPY src/lib/gateway/reserve.ts src/lib/gateway/reserve.ts
+COPY src/lib/gateway/captureCredits.ts src/lib/gateway/captureCredits.ts
 COPY src/lib/ops/alert.ts src/lib/ops/alert.ts
 COPY scripts/fal-capture-job.ts scripts/fal-capture-job.ts
 RUN npx --yes esbuild scripts/fal-capture-job.ts \

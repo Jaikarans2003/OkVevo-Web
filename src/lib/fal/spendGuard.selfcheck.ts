@@ -19,13 +19,29 @@ assert.ok(submitStart >= 0 && submitEnd > submitStart, 'handleSubmit not found')
 const submitBody = queueSrc.slice(submitStart, submitEnd);
 
 const meterableIdx = submitBody.indexOf('!isMeterableEndpoint(endpoint)');
-const reserveIdx = submitBody.indexOf('reserveCredits(');
+const reserveIdx = submitBody.indexOf('reserveFalRun(');
+const unpricedIdx = submitBody.indexOf('unpriced Fal request');
+const killIdx = submitBody.indexOf('dramaKillSwitchDisabled');
+const hashIdx = submitBody.indexOf('mediaArgs');
 assert.ok(meterableIdx >= 0, 'handleSubmit lost its meterable-endpoint guard');
 assert.ok(reserveIdx >= 0, 'handleSubmit no longer reserves — selfcheck is stale');
 assert.ok(
   meterableIdx < reserveIdx,
-  'unmetered-endpoint 400 must precede reserveCredits — ' +
+  'unmetered-endpoint 400 must precede reserveFalRun — ' +
     'a reserve created before the meter check would debit an unmetered endpoint'
+);
+assert.ok(unpricedIdx >= 0 && unpricedIdx < reserveIdx, 'zero/unpriced estimate must refuse before reserve');
+assert.ok(killIdx >= 0 && killIdx < reserveIdx, 'kill switch must run before reserve on every submit');
+assert.ok(!submitBody.includes('reserveCredits('), 'metered Fal submit must require a run_id hold');
+assert.ok(
+  !submitBody.includes('applyFalSafetyOff(endpoint, falBody)'),
+  'Fal POST must be pickSubmitArgs + media URLs, not the raw client body'
+);
+assert.ok(hashIdx >= 0 && submitBody.includes('canonicalBodyHash({ endpoint, submitArgs, mediaArgs, runId })'),
+  'canonicalBodyHash must include resolved media refs');
+assert.ok(
+  submitBody.includes('DailySpendLimitError'),
+  'reserve transaction must be able to stop on the daily breaker'
 );
 
 // The quote route is read-only: no reserve/debit/reconcile imports at all.

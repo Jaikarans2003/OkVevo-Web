@@ -3,11 +3,12 @@ import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 
+import { breakerDecision } from '@/lib/fal/dramaSwitches';
 import { db } from '@/lib/firebase-admin';
+import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
 import {
-  applyCapture,
   applyReconcile,
   applyRelease,
   applyReserve,
@@ -95,6 +96,58 @@ export class PlanNotActiveError extends Error {
   }
 }
 
+export class DailySpendLimitError extends Error {
+  constructor() {
+    super('daily spend limit');
+    this.name = 'DailySpendLimitError';
+  }
+}
+
+type SpendHoldRead = {
+  spendRef: FirebaseFirestore.DocumentReference;
+  spendSnap: FirebaseFirestore.DocumentSnapshot;
+  reservedFalUsd: number;
+  limitUsd: number;
+};
+
+/** Read spendDaily before any write in the same reserve transaction. */
+async function readSpendForHold(
+  tx: FirebaseFirestore.Transaction,
+  extra: Record<string, unknown> | undefined
+): Promise<SpendHoldRead | null> {
+  const reservedFalUsd = Number(extra?.reservedFalUsd ?? 0);
+  const spendDay = typeof extra?.spendDay === 'string' ? extra.spendDay : '';
+  const limitUsd = Number(extra?.spendLimitUsd ?? 0);
+  if (!(reservedFalUsd > 0) || !spendDay) return null;
+  const spendRef = db.collection('spendDaily').doc(spendDay);
+  const spendSnap = await tx.get(spendRef);
+  return { spendRef, spendSnap, reservedFalUsd, limitUsd };
+}
+
+function applySpendHold(tx: FirebaseFirestore.Transaction, spend: SpendHoldRead | null): void {
+  if (!spend) return;
+  const data = spend.spendSnap.data() || {};
+  const used = Number(data.falUsd ?? 0) + Number(data.falUsdHeld ?? 0);
+  if (breakerDecision(used + spend.reservedFalUsd, spend.limitUsd) === 'stop') {
+    throw new DailySpendLimitError();
+  }
+  tx.set(spend.spendRef, { falUsdHeld: FieldValue.increment(spend.reservedFalUsd) }, { merge: true });
+}
+
+function releaseSpendHold(
+  tx: FirebaseFirestore.Transaction,
+  data: FirebaseFirestore.DocumentData | undefined
+): void {
+  const reservedFalUsd = Number(data?.reservedFalUsd ?? 0);
+  const spendDay = typeof data?.spendDay === 'string' ? data.spendDay : '';
+  if (!(reservedFalUsd > 0) || !spendDay) return;
+  tx.set(
+    db.collection('spendDaily').doc(spendDay),
+    { falUsdHeld: FieldValue.increment(-reservedFalUsd) },
+    { merge: true }
+  );
+}
+
 export type GatewayJobFields = {
   uid: string;
   provider: GatewayProvider;
@@ -129,6 +182,8 @@ export type GatewayJobFields = {
     fetchedAt: string;
     rawUsd: number;
   };
+  reservedFalUsd?: number;
+  spendDay?: string;
 };
 
 /**
@@ -152,6 +207,7 @@ export async function reserveCredits(opts: {
   const jobRef = db.collection('gatewayJobs').doc(requestId);
 
   await db.runTransaction(async (tx) => {
+    const spend = await readSpendForHold(tx, extra);
     const jobSnap = await tx.get(jobRef);
     const userSnap = await tx.get(userRef);
     const data = userSnap.data();
@@ -169,6 +225,7 @@ export async function reserveCredits(opts: {
       if (result.reason === 'duplicate') return;
       throw new InsufficientCreditsError();
     }
+    applySpendHold(tx, spend);
     tx.set(
       userRef,
       {
@@ -218,6 +275,7 @@ export async function reserveFalRun(opts: {
 }> {
   const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
   return db.runTransaction(async (tx) => {
+    const spend = await readSpendForHold(tx, opts.extra);
     const idemSnap = await tx.get(idemRef);
     const existing = idemSnap.exists ? (idemSnap.data() as IdemRow) : undefined;
     const decision = decideIdempotency(existing, opts.bodyHash);
@@ -247,6 +305,7 @@ export async function reserveFalRun(opts: {
       if (result.reason === 'duplicate') throw new IdempotencyConflictError();
       throw new InsufficientCreditsError();
     }
+    applySpendHold(tx, spend);
     tx.set(
       userRef,
       {
@@ -348,6 +407,8 @@ export async function readGatewayJob(
       data.media && typeof data.media === 'object'
         ? (data.media as GatewayJobFields['media'])
         : undefined,
+    reservedFalUsd: typeof data.reservedFalUsd === 'number' ? data.reservedFalUsd : undefined,
+    spendDay: typeof data.spendDay === 'string' ? data.spendDay : undefined,
   };
 }
 
@@ -427,6 +488,7 @@ export async function reconcileCredits(opts: {
       jobRef,
       {
         status: 'settled',
+        captured: false,
         actualCredits: result.debitAmount,
         heldAllocation: result.heldAllocation,
         heldTopUp: result.heldTopUp,
@@ -465,64 +527,7 @@ export async function captureCredits(opts: {
   falUsd: number;
   falCredits: number;
 }): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
-  const { requestId, falUsd, falCredits } = opts;
-  if (!requestId) return { skipped: true, refund: 0, overReserve: false };
-
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
-  const txnRef = db.collection('creditTransactions').doc(`${requestId}:capture`);
-  let out = { skipped: true, refund: 0, overReserve: false };
-
-  await db.runTransaction(async (tx) => {
-    const txnSnap = await tx.get(txnRef);
-    if (txnSnap.exists) {
-      out = { skipped: true, refund: 0, overReserve: false };
-      return;
-    }
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
-    if (!job) return;
-    const userRef = db.collection('users').doc(job.uid);
-    const userSnap = await tx.get(userRef);
-    const result = applyCapture(readBalances(userSnap.data()), job, falCredits);
-    if (result.skipped) {
-      out = { skipped: true, refund: 0, overReserve: false };
-      return;
-    }
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(
-      jobRef,
-      {
-        captured: true,
-        capturedAt: FieldValue.serverTimestamp(),
-        capturedFalUsd: falUsd,
-        settledCredits: result.settledCredits,
-        actualCredits: result.settledCredits,
-        heldAllocation: result.heldAllocation,
-        heldTopUp: result.heldTopUp,
-      },
-      { merge: true }
-    );
-    tx.set(
-      txnRef,
-      omitUndefined({
-        uid: job.uid,
-        type: 'refund',
-        amount: result.refund,
-        provider: 'fal',
-        requestId,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
-    out = { skipped: false, refund: result.refund, overReserve: result.overReserve };
-  });
-  return out;
+  return captureCreditsOn(db, opts);
 }
 
 /** Restore held split to buckets; no debit. Idempotent. Fal does not bill failures. */
@@ -538,6 +543,7 @@ export async function releaseCredits(requestId: string): Promise<void> {
     const userSnap = await tx.get(userRef);
     const result = applyRelease(readBalances(userSnap.data()), job);
     if (result.skipped) return;
+    releaseSpendHold(tx, jobSnap.data());
     tx.set(
       userRef,
       {

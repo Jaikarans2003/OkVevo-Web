@@ -8,11 +8,17 @@ import assert from 'node:assert/strict';
 import {
   classifyMediaValue,
   payloadMediaEntries,
+  pickMediaArgs,
   validateAndBuildMedia,
   type MediaEntry,
 } from '@/lib/fal/mediaInputs';
 
 const UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+assert.deepEqual(
+  pickMediaArgs({ prompt: 'x', image_urls: [`drama-upload://${UUID}`], run_id: 'r' }),
+  { image_urls: [`drama-upload://${UUID}`] }
+);
 
 // Classification.
 assert.deepEqual(classifyMediaValue(`drama-upload://${UUID}`), { kind: 'upload', id: UUID });

@@ -87,7 +87,8 @@ async function estimateCost(
     if (!res.ok) return null;
     const body = (await res.json()) as { total_cost?: unknown };
     const n = Number(body.total_cost);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    // 0 is unpriced, not free — a real Fal price is always positive.
+    return Number.isFinite(n) && n > 0 ? n : null;
   } catch {
     return null;
   }
