@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { FieldValue } from 'firebase-admin/firestore';
+import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 
 import { db } from '@/lib/firebase-admin';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
@@ -45,7 +48,15 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
   const provider = data.provider;
   const estimated = data.estimatedCredits;
   const uid = data.uid;
-  if (status !== 'reserved' && status !== 'settled' && status !== 'released') return undefined;
+  if (
+    status !== 'reserved' &&
+    status !== 'submitted' &&
+    status !== 'unknown' &&
+    status !== 'settled' &&
+    status !== 'released'
+  ) {
+    return undefined;
+  }
   if (provider !== 'openrouter' && provider !== 'fal' && provider !== 'tavily') return undefined;
   if (typeof uid !== 'string' || !uid) return undefined;
   if (typeof estimated !== 'number' || !Number.isInteger(estimated) || estimated < 0) {
@@ -97,6 +108,14 @@ export type GatewayJobFields = {
   falCancelUrl?: string;
   holdId?: string;
   payload?: unknown;
+  priceSnapshot?: {
+    endpoint: string;
+    unit: string;
+    unitPrice: number;
+    source: string;
+    fetchedAt: string;
+    rawUsd: number;
+  };
 };
 
 /**
@@ -158,6 +177,113 @@ export async function reserveCredits(opts: {
   });
 }
 
+export class IdempotencyConflictError extends Error {
+  constructor() {
+    super('idempotency conflict');
+    this.name = 'IdempotencyConflictError';
+  }
+}
+
+function falRunDocId(uid: string, runId: string): string {
+  return createHash('sha256').update(`${uid}\0${runId}`).digest('hex');
+}
+
+/**
+ * Check the run key, create the hold, and record the row in one transaction.
+ * Replay and conflict do not reserve again.
+ */
+export async function reserveFalRun(opts: {
+  uid: string;
+  runId: string;
+  bodyHash: string;
+  estimatedCredits: number;
+  extra?: Record<string, unknown>;
+}): Promise<{
+  kind: 'created' | 'continue' | 'replay' | 'unknown';
+  holdId: string;
+  falRequestId?: string;
+}> {
+  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
+  return db.runTransaction(async (tx) => {
+    const idemSnap = await tx.get(idemRef);
+    const existing = idemSnap.exists ? (idemSnap.data() as IdemRow) : undefined;
+    const decision = decideIdempotency(existing, opts.bodyHash);
+    if (decision.action === 'conflict') throw new IdempotencyConflictError();
+    if (decision.action !== 'create') {
+      return {
+        kind: decision.action === 'continue' ? 'continue' : decision.action,
+        holdId: decision.row.holdId,
+        falRequestId: decision.row.falRequestId,
+      };
+    }
+    const holdId = crypto.randomUUID();
+    const userRef = db.collection('users').doc(opts.uid);
+    const jobRef = db.collection('gatewayJobs').doc(holdId);
+    const jobSnap = await tx.get(jobRef);
+    const userSnap = await tx.get(userRef);
+    const data = userSnap.data();
+    if (readPlanStatus(data) !== 'active') throw new PlanNotActiveError();
+    const result = applyReserve(
+      readBalances(data),
+      jobFromSnap(jobSnap.data()),
+      opts.estimatedCredits,
+      opts.uid,
+      'fal'
+    );
+    if (!result.ok) {
+      if (result.reason === 'duplicate') throw new IdempotencyConflictError();
+      throw new InsufficientCreditsError();
+    }
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
+    tx.set(jobRef, {
+      uid: opts.uid,
+      provider: 'fal',
+      estimatedCredits: result.job.estimatedCredits,
+      heldAllocation: result.job.heldAllocation,
+      heldTopUp: result.job.heldTopUp,
+      status: 'reserved',
+      createdAt: FieldValue.serverTimestamp(),
+      ...(opts.extra ?? {}),
+    });
+    tx.set(idemRef, {
+      uid: opts.uid,
+      runId: opts.runId,
+      bodyHash: opts.bodyHash,
+      phase: 'reserved',
+      submitStarted: false,
+      holdId,
+    });
+    return { kind: 'created' as const, holdId };
+  });
+}
+
+/** Compare-and-set so two retries do not both call Fal. */
+export async function claimFalSubmit(uid: string, runId: string): Promise<boolean> {
+  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(idemRef);
+    const row = snap.data();
+    if (!row || row.submitStarted === true) return false;
+    tx.set(idemRef, { submitStarted: true }, { merge: true });
+    return true;
+  });
+}
+
+export async function markFalRun(
+  uid: string,
+  runId: string,
+  patch: { phase: 'submitted' | 'unknown' | 'released'; falRequestId?: string }
+): Promise<void> {
+  await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).set(patch, { merge: true });
+}
+
 /** Move a reserved hold to Fal's request_id so webhook lookup is gatewayJobs/{falId}. */
 export async function rebindGatewayJob(fromId: string, toId: string): Promise<void> {
   if (!fromId || !toId || fromId === toId) return;
@@ -200,7 +326,13 @@ export async function readGatewayJob(
     falCancelUrl: typeof data.falCancelUrl === 'string' ? data.falCancelUrl : undefined,
     holdId: typeof data.holdId === 'string' ? data.holdId : undefined,
     payload: data.payload,
+    priceSnapshot: isPriceSnapshot(data.priceSnapshot) ? data.priceSnapshot : undefined,
   };
+}
+
+function isPriceSnapshot(value: unknown): value is GatewayJobFields['priceSnapshot'] {
+  const rec = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+  return !!rec && typeof rec.endpoint === 'string' && typeof rec.rawUsd === 'number';
 }
 
 export async function patchGatewayJob(

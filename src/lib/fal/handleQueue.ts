@@ -18,19 +18,31 @@ import {
   RELEASED_STATUS,
   SETTLED_STATUS_BODY,
 } from '@/lib/fal/statusContract';
-import { adjustedUsd, QuantityError, quantity } from '@/lib/fal/quantity';
+import { adjustedUsd, quantity } from '@/lib/fal/quantity';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InsufficientCreditsError,
   PlanNotActiveError,
+  claimFalSubmit,
+  IdempotencyConflictError,
+  markFalRun,
   patchGatewayJob,
   readGatewayJob,
   rebindGatewayJob,
   reconcileCredits,
   releaseCredits,
   reserveCredits,
+  reserveFalRun,
 } from '@/lib/gateway/debit';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
+import {
+  MAX_JOB_CREDITS,
+  rateCardEntry,
+  resolveRateCard,
+  settleFromSnapshot,
+  type PriceSnapshot,
+} from '@/lib/fal/rateCard';
+import { canonicalBodyHash } from '@/lib/fal/idempotency';
 
 const SUBMIT_KEYS = [
   'duration',
@@ -43,7 +55,14 @@ const SUBMIT_KEYS = [
   'height',
   'enable_web_search',
   'web_search',
+  'quality',
+  'text',
+  'lyrics',
+  'reference_image_count',
+  'size',
 ] as const;
+
+const PHASE2_INPUTS = ['video_url', 'video_urls', 'audio_url', 'audio_urls'] as const;
 
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: { message } }, { status });
@@ -85,7 +104,36 @@ export async function meterRawUsd(opts: {
   args: Record<string, unknown>;
   payload?: unknown;
   metrics?: unknown;
+  nowMs?: number;
+  /** Settle passes the stored snapshot and must not re-fetch. */
+  snapshot?: PriceSnapshot;
 }): Promise<number> {
+  if (opts.snapshot) {
+    return settleFromSnapshot({
+      snapshot: opts.snapshot,
+      args: opts.args,
+      payload: opts.payload,
+      nowMs: opts.nowMs ?? Date.parse(opts.snapshot.fetchedAt),
+    });
+  }
+  if (rateCardEntry(opts.endpoint)) {
+    const nowMs = opts.nowMs ?? Date.now();
+    const live = isCardOnly(opts.endpoint)
+      ? null
+      : opts.unitPrice > 0
+        ? opts.unitPrice
+        : null;
+    const resolved = resolveRateCard({
+      endpoint: opts.endpoint,
+      args: opts.args,
+      payload: opts.payload,
+      liveUnitPrice: live,
+      liveFetchedAtMs: live != null ? nowMs : null,
+      nowMs,
+    });
+    if (resolved.alert) console.error(resolved.alert);
+    return resolved.rawUsd;
+  }
   const qty = quantity({
     unit: opts.unit,
     endpoint: opts.endpoint,
@@ -103,6 +151,10 @@ export async function meterRawUsd(opts: {
   });
 }
 
+function isCardOnly(endpoint: string): boolean {
+  return rateCardEntry(endpoint)?.source === 'card';
+}
+
 export async function settleFalJob(opts: {
   requestId: string;
   ok: boolean;
@@ -110,7 +162,7 @@ export async function settleFalJob(opts: {
   metrics?: unknown;
 }): Promise<void> {
   const job = await readGatewayJob(opts.requestId);
-  if (!job || job.status !== 'reserved') return;
+  if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) return;
   if (!opts.ok) {
     await releaseCredits(opts.requestId);
     return;
@@ -128,8 +180,9 @@ export async function settleFalJob(opts: {
       args,
       payload: opts.payload,
       metrics: opts.metrics,
+      snapshot: job.priceSnapshot,
     });
-    actual = creditsFromUsd(rawUsd).credits;
+    actual = Math.min(creditsFromUsd(rawUsd).credits, job.estimatedCredits);
     await reconcileCredits({
       requestId: opts.requestId,
       actualCredits: actual,
@@ -172,45 +225,108 @@ async function handleSubmit(
   if (!falServerKey()) {
     return jsonError(500, 'FAL_KEY missing');
   }
-  const pricing = await getEndpointPricing(endpoint);
-  if (!pricing) {
+  const card = rateCardEntry(endpoint);
+  const pricing = card?.source === 'card' ? null : await getEndpointPricing(endpoint);
+  if (!card && !pricing) {
     return jsonError(502, 'Fal pricing unavailable');
   }
   const args = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  const submitArgs = pickSubmitArgs(body);
-  let rawUsd: number;
-  try {
-    rawUsd = await meterRawUsd({
-      endpoint,
-      unit: pricing.unit,
-      unitPrice: pricing.unitPrice,
-      args: submitArgs,
-    });
-  } catch (err) {
-    const msg = err instanceof QuantityError ? err.message : 'cannot meter this request';
-    return jsonError(400, msg);
+  if (rateCardEntry(endpoint) && PHASE2_INPUTS.some((key) => args[key] != null)) {
+    return jsonError(400, 'Phase 1 does not accept video or audio inputs');
   }
-  const estimated = creditsFromUsd(rawUsd).credits;
-  const holdId = crypto.randomUUID();
+  if (endpoint === 'fal-ai/minimax/speech-02-hd' && args.audio_url != null) {
+    return jsonError(400, 'Phase 1 speech does not accept reference audio');
+  }
+  const submitArgs = pickSubmitArgs(body);
+  const runId = typeof args.run_id === 'string' ? args.run_id.trim() : '';
+  const approved =
+    typeof args.approved_credits === 'number' ? args.approved_credits : null;
+  let rawUsd: number;
+  let snapshot: PriceSnapshot | undefined;
   try {
-    await reserveCredits({
-      uid,
-      requestId: holdId,
-      provider: 'fal',
-      estimatedCredits: estimated,
-      extra: {
+    if (rateCardEntry(endpoint)) {
+      const nowMs = Date.now();
+      const live = isCardOnly(endpoint) ? null : pricing?.unitPrice ?? null;
+      const resolved = resolveRateCard({
+        endpoint,
+        args: submitArgs,
+        liveUnitPrice: live,
+        liveFetchedAtMs: live != null ? nowMs : null,
+        nowMs,
+      });
+      if (resolved.alert) console.error(resolved.alert);
+      rawUsd = resolved.rawUsd;
+      snapshot = resolved.snapshot;
+    } else {
+      if (!pricing) return jsonError(502, 'Fal pricing unavailable');
+      rawUsd = await meterRawUsd({
         endpoint,
         unit: pricing.unit,
         unitPrice: pricing.unitPrice,
-        submitArgs,
-      },
-    });
+        args: submitArgs,
+      });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'cannot meter this request';
+    return jsonError(400, msg);
+  }
+  const estimated = creditsFromUsd(rawUsd).credits;
+  if (estimated > MAX_JOB_CREDITS) {
+    return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
+  }
+  if (approved != null && estimated > approved) {
+    return jsonError(409, 'price is higher than the approved estimate; confirm again');
+  }
+  if (runId && approved == null) {
+    return jsonError(400, 'run_id submit requires approved_credits from the quote');
+  }
+  let holdId = crypto.randomUUID();
+  const bodyHash = canonicalBodyHash({ endpoint, submitArgs, runId });
+  const extra = {
+    endpoint,
+    unit: snapshot?.unit ?? pricing?.unit,
+    unitPrice: snapshot?.unitPrice ?? pricing?.unitPrice,
+    submitArgs,
+    priceSnapshot: snapshot,
+  };
+  try {
+    if (runId) {
+      const reserved = await reserveFalRun({
+        uid,
+        runId,
+        bodyHash,
+        estimatedCredits: estimated,
+        extra,
+      });
+      if (reserved.kind === 'replay' && reserved.falRequestId) {
+        return NextResponse.json(proxyUrls(endpoint, reserved.falRequestId));
+      }
+      if (reserved.kind === 'unknown') {
+        return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
+      }
+      holdId = reserved.holdId;
+      const claimed = await claimFalSubmit(uid, runId);
+      if (!claimed) {
+        return jsonError(202, 'Fal submit already in progress for this run');
+      }
+    } else {
+      await reserveCredits({
+        uid,
+        requestId: holdId,
+        provider: 'fal',
+        estimatedCredits: estimated,
+        extra,
+      });
+    }
   } catch (err) {
     if (err instanceof PlanNotActiveError) {
       return jsonError(403, 'plan not active');
     }
     if (err instanceof InsufficientCreditsError) {
       return jsonError(402, 'insufficient credits');
+    }
+    if (err instanceof IdempotencyConflictError) {
+      return jsonError(409, 'idempotency conflict');
     }
     throw err;
   }
@@ -219,15 +335,29 @@ async function handleSubmit(
     const submitted = await submitFalQueue(endpoint, applyFalSafetyOff(endpoint, args));
     await rebindGatewayJob(holdId, submitted.request_id);
     await patchGatewayJob(submitted.request_id, {
+      status: 'submitted',
       falStatusUrl: submitted.status_url,
       falResponseUrl: submitted.response_url,
       falCancelUrl: submitted.cancel_url,
+      priceSnapshot: snapshot,
     });
+    if (runId) {
+      await markFalRun(uid, runId, { phase: 'submitted', falRequestId: submitted.request_id });
+    }
     return NextResponse.json(proxyUrls(endpoint, submitted.request_id));
   } catch (err) {
     console.error('fal submit failed', err);
-    await releaseCredits(holdId);
-    return jsonError(502, 'Fal submit failed');
+    const msg = err instanceof Error ? err.message : '';
+    const http = /^fal submit (\d+)/.exec(msg);
+    const code = http ? Number(http[1]) : 0;
+    if (code >= 400 && code < 500) {
+      await releaseCredits(holdId);
+      if (runId) await markFalRun(uid, runId, { phase: 'released' });
+      return jsonError(502, 'Fal submit failed');
+    }
+    await patchGatewayJob(holdId, { status: 'unknown' });
+    if (runId) await markFalRun(uid, runId, { phase: 'unknown' });
+    return jsonError(502, 'Fal submit outcome unknown; hold kept, not resubmitted');
   }
 }
 
@@ -252,7 +382,7 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
     return jsonError(502, 'Fal status unavailable');
   }
   const falStatus = falStatusOf(json);
-  if (falStatus === 'COMPLETED' && job.status === 'reserved') {
+  if (falStatus === 'COMPLETED' && (job.status === 'reserved' || job.status === 'submitted')) {
     let payload: unknown = job.payload;
     if (job.falResponseUrl) {
       const got = await falQueueGet(job.falResponseUrl);

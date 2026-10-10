@@ -6,7 +6,8 @@
 
 export type GatewayProvider = 'openrouter' | 'fal' | 'tavily';
 
-export type JobStatus = 'reserved' | 'settled' | 'released';
+/** submitted = Fal accepted, hold still open. unknown = no Fal id; hold stays. */
+export type JobStatus = 'reserved' | 'submitted' | 'unknown' | 'settled' | 'released';
 
 export type BucketBalances = {
   allocationBalance: number;
@@ -103,7 +104,7 @@ export function applyReconcile(
   job: JobRecord | undefined,
   actual: number
 ): ReconcileResult {
-  if (!job || job.status !== 'reserved') {
+  if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) {
     return { ok: true, skipped: true };
   }
   const billed = Number.isInteger(actual) && actual > 0 ? actual : 0;
@@ -141,7 +142,7 @@ export function applyRelease(
   balances: BucketBalances,
   job: JobRecord | undefined
 ): ReleaseResult {
-  if (!job || job.status !== 'reserved') {
+  if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) {
     return { ok: true, skipped: true };
   }
   return {

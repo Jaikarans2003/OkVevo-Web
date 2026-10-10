@@ -12,7 +12,9 @@ function falHeaders(key: string): HeadersInit {
   };
 }
 
-const CACHE_TTL_MS = 60_000;
+/** Fresh for the charge path. Older rows stay as last-known-good for one hour. */
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const LAST_KNOWN_GOOD_MS = 60 * 60 * 1000;
 const pricingCache = new Map<string, { at: number; row: PricingRow }>();
 
 export async function getEndpointPricing(endpoint: string): Promise<PricingRow | null> {
@@ -23,23 +25,25 @@ export async function getEndpointPricing(endpoint: string): Promise<PricingRow |
   if (hit && now - hit.at < CACHE_TTL_MS) return hit.row;
 
   const key = falServerKey();
-  if (!key) return null;
+  const stale =
+    hit && now - hit.at <= LAST_KNOWN_GOOD_MS ? hit.row : null;
+  if (!key) return stale;
   const url = `https://api.fal.ai/v1/models/pricing?endpoint_id=${encodeURIComponent(id)}`;
   try {
     const res = await fetch(url, { headers: falHeaders(key), cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) return stale;
     const body: unknown = await res.json();
     const row = parseEndpointPricing(body, id);
     if (!row) {
       const keys =
         body && typeof body === 'object' ? Object.keys(body as object).join(',') : typeof body;
       console.error('fal pricing parse failed', id, keys);
-      return null;
+      return stale;
     }
     pricingCache.set(id, { at: now, row });
     return row;
   } catch {
-    return null;
+    return stale;
   }
 }
 
