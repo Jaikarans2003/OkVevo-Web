@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/lib/firebase-admin';
+import { randomUUID } from 'node:crypto';
+
 import { isMeterableEndpoint } from '@/lib/fal/allowlist';
 import { getEndpointPricing } from '@/lib/fal/client';
 import { meterRawUsd } from '@/lib/fal/handleQueue';
-import { QuantityError } from '@/lib/fal/quantity';
+import { QUOTE_TTL_MS, rateCardEntry } from '@/lib/fal/rateCard';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 
@@ -47,26 +49,31 @@ export async function POST(request: NextRequest) {
       ? (body.args as Record<string, unknown>)
       : {};
 
-  const pricing = await getEndpointPricing(endpoint);
-  if (!pricing) return jsonError(502, 'Fal pricing unavailable');
+  const card = rateCardEntry(endpoint);
+  const pricing = card?.source === 'card' ? null : await getEndpointPricing(endpoint);
+  if (!card && !pricing) return jsonError(502, 'Fal pricing unavailable');
 
   let rawUsd: number;
   try {
     rawUsd = await meterRawUsd({
       endpoint,
-      unit: pricing.unit,
-      unitPrice: pricing.unitPrice,
+      unit: pricing?.unit ?? card?.unit ?? '',
+      unitPrice: pricing?.unitPrice ?? 0,
       args,
     });
   } catch (err) {
-    const msg = err instanceof QuantityError ? err.message : 'cannot meter this request';
+    const msg = err instanceof Error ? err.message : 'cannot meter this request';
     return jsonError(400, msg);
   }
 
   const { credits } = creditsFromUsd(rawUsd);
+  const expiresAt = new Date(Date.now() + QUOTE_TTL_MS).toISOString();
   return NextResponse.json({
     credits,
-    unit: pricing.unit,
-    unitPrice: pricing.unitPrice,
+    unit: pricing?.unit ?? card?.unit ?? '',
+    unitPrice: pricing?.unitPrice ?? null,
+    snapshotId: randomUUID(),
+    expiresAt,
+    estimate: true,
   });
 }
