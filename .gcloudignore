@@ -1,4 +1,4 @@
-# Capture-job image context is OkVevo-Web/. Never send secrets or junk.
+# Cloud Build upload for the capture job. Never ship env or keys.
 .git
 .firebase
 .next
@@ -10,8 +10,8 @@ node_modules
 **/*.pem
 graphify-out
 .venv
+Refference
+Reference
 .cursor
 .downloads
 .verification
-Refference
-Reference

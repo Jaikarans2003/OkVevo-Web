@@ -119,5 +119,32 @@ service cloud.firestore {
     match /opsAlerts/{id} {
       allow read, write: if false;
     }
+
+    // Drama parity collections: Admin SDK only. The admin dashboard reads
+    // through server API routes that verify the admin custom claim.
+    match /dramaUploads/{id} {
+      allow read, write: if false;
+    }
+    match /dramaUploadRates/{id} {
+      allow read, write: if false;
+    }
+    match /falMediaIndex/{id} {
+      allow read, write: if false;
+    }
+    match /spendDaily/{id} {
+      allow read, write: if false;
+    }
+    match /opsConfig/{id} {
+      allow read, write: if false;
+    }
+    match /opsAdminAudit/{id} {
+      allow read, write: if false;
+    }
+    match /adminRollups/{id} {
+      allow read, write: if false;
+    }
+    match /clonedVoices/{id} {
+      allow read, write: if false;
+    }
   }
 }
