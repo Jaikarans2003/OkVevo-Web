@@ -108,6 +108,25 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
+# Daily price drift + abandoned submitted holds. Margin stays an ops script
+# (scripts/fal-margin-report.ts) so FAL_BILLING_KEY is not on this server.
+FAL_URI="${ORIGIN}/api/cron/fal-drift"
+if gcloud scheduler jobs describe nia-fal-drift --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-drift"
+  gcloud scheduler jobs update http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fal-drift"
+  gcloud scheduler jobs create http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
 echo "==> Wait for users planStatus + nextAllocationDate composite index READY"
 for i in $(seq 1 90); do
   STATE=$(gcloud firestore indexes composite list --project="$PROJECT" --format=json 2>/dev/null | python3 -c '
