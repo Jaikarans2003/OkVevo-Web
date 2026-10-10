@@ -68,6 +68,17 @@ printf '%s' "$RAZORPAY_WEBHOOK_SECRET" | firebase apphosting:secrets:set RAZORPA
 echo "==> Grant App Hosting backend access to secrets (idempotent)"
 firebase apphosting:secrets:grantaccess CRON_SECRET,RAZORPAY_WEBHOOK_SECRET --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
 
+# Telegram ops alerts (fal-drift HIGH alerts). Optional: without these the
+# alert path skips cleanly, but a live Fal gateway should not run blind.
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+  echo "==> Secret Manager: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"
+  printf '%s' "$TELEGRAM_BOT_TOKEN" | firebase apphosting:secrets:set TELEGRAM_BOT_TOKEN --project "$PROJECT" --data-file - --force --non-interactive
+  printf '%s' "$TELEGRAM_CHAT_ID" | firebase apphosting:secrets:set TELEGRAM_CHAT_ID --project "$PROJECT" --data-file - --force --non-interactive
+  firebase apphosting:secrets:grantaccess TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
+else
+  echo "WARNING: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not in $SECRETS — ops alerts will skip"
+fi
+
 echo "==> Local-source App Hosting deploy (backend has no connected GitHub repo)"
 firebase deploy --only apphosting --project "$PROJECT" --force --non-interactive
 

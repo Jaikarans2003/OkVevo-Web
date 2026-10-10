@@ -214,3 +214,13 @@ env:
     secret: CRON_SECRET
     availability:
       - RUNTIME
+
+  - variable: TELEGRAM_BOT_TOKEN
+    secret: TELEGRAM_BOT_TOKEN
+    availability:
+      - RUNTIME
+
+  - variable: TELEGRAM_CHAT_ID
+    secret: TELEGRAM_CHAT_ID
+    availability:
+      - RUNTIME
