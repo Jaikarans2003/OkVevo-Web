@@ -1,0 +1,72 @@
+{
+  "overrides": [
+    {
+      "id": "lightricks/ltx-2.5/text-to-video/pro",
+      "unit": "seconds",
+      "billing_basis": "output",
+      "rates_by_resolution": {
+        "720p": 0.12,
+        "1080p": 0.17
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    },
+    {
+      "id": "lightricks/ltx-2.5/image-to-video/pro",
+      "unit": "seconds",
+      "billing_basis": "output",
+      "rates_by_resolution": {
+        "720p": 0.12,
+        "1080p": 0.17
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    },
+    {
+      "id": "lightricks/ltx-2.5/text-to-video/fast",
+      "unit": "seconds",
+      "billing_basis": "output",
+      "rates_by_resolution": {
+        "720p": 0.09,
+        "1080p": 0.13,
+        "1440p": 0.19,
+        "2160p": 0.3
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    },
+    {
+      "id": "lightricks/ltx-2.5/image-to-video/fast",
+      "unit": "seconds",
+      "billing_basis": "output",
+      "rates_by_resolution": {
+        "720p": 0.09,
+        "1080p": 0.13,
+        "1440p": 0.19,
+        "2160p": 0.3
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    },
+    {
+      "id": "lightricks/ltx-2.5/audio-to-video/pro",
+      "unit": "seconds",
+      "billing_basis": "input_audio",
+      "rates_by_resolution": {
+        "1080p": 0.17
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    },
+    {
+      "id": "lightricks/ltx-2.5/audio-to-video/fast",
+      "unit": "seconds",
+      "billing_basis": "input_audio",
+      "rates_by_resolution": {
+        "1080p": 0.13
+      },
+      "source": "Fal model page, supplied by Karan",
+      "as_of": "2026-10-10"
+    }
+  ]
+}

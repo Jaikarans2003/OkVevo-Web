@@ -1,0 +1,17 @@
+# Cloud Build upload for the capture job. Never ship env or keys.
+.git
+.firebase
+.next
+node_modules
+**/.env
+**/.env.*
+.ops-billing-secrets.env
+**/*firebase-adminsdk*.json
+**/*.pem
+graphify-out
+.venv
+Refference
+Reference
+.cursor
+.downloads
+.verification

@@ -1,0 +1,58 @@
+# PR gate for staging. Does not deploy.
+# deploy.yml stays the only App Hosting workflow (push to staging/production).
+
+name: PR checks
+
+on:
+  pull_request:
+    branches: [staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  drama-selfchecks:
+    name: Drama selfchecks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --no-save tsx
+
+      - name: Run drama selfchecks
+        run: |
+          set -euo pipefail
+          for f in src/lib/fal/*.selfcheck.ts \
+                   src/lib/admin/rollup.selfcheck.ts \
+                   src/lib/ops/alert.selfcheck.ts; do
+            echo "==> $f"
+            npx tsx "$f"
+          done
+          npm run check:fal-webhook
+
+  check-all:
+    name: check:all
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --no-save tsx
+      - run: npm run check:all

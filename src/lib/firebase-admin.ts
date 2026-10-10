@@ -37,23 +37,18 @@ export function getAdminBucket() {
 }
 
 export async function verifyAdminToken(token: string): Promise<boolean> {
+  return (await readAdminSession(token)) === 'admin';
+}
+
+/** Admin custom claim only. Email lists are not admin. Expired tokens are invalid. */
+export async function readAdminSession(
+  token: string
+): Promise<'admin' | 'user' | 'invalid'> {
   try {
     const decodedToken = await auth.verifyIdToken(token);
-    
-    // Check if user has admin claim or is in admin list
-    if (decodedToken.admin === true) {
-      return true;
-    }
-
-    // Alternatively, check against admin emails list
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-    if (decodedToken.email && adminEmails.includes(decodedToken.email)) {
-      return true;
-    }
-
-    return false;
+    return decodedToken.admin === true ? 'admin' : 'user';
   } catch (error) {
     console.error('Token verification error:', error);
-    return false;
+    return 'invalid';
   }
 }

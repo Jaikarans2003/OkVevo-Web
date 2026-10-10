@@ -59,7 +59,14 @@ function walk(dir, pred, out = []) {
 }
 
 // 1. Agent package.json check-* (skip alias check-skill-checkpoints)
-const agentPkg = JSON.parse(fs.readFileSync(path.join(AGENT, 'package.json'), 'utf8'));
+const agentPkgPath = path.join(AGENT, 'package.json');
+const agentPresent = fs.existsSync(agentPkgPath);
+if (!agentPresent) {
+  record('services/agent', 'skip', 'services/agent not in this repo');
+}
+const agentPkg = agentPresent
+  ? JSON.parse(fs.readFileSync(agentPkgPath, 'utf8'))
+  : { scripts: {} };
 const agentChecks = Object.keys(agentPkg.scripts)
   .filter((k) => k.startsWith('check-') && k !== 'check-skill-checkpoints')
   .sort();
@@ -88,12 +95,14 @@ for (const file of srcSelfchecks) {
 }
 
 // Inline selfcheck in falSttIdempotency.ts (not a *.selfcheck.ts filename)
-run(
-  'src/falSttIdempotency.ts',
-  'npx',
-  ['tsx', 'src/falSttIdempotency.ts'],
-  { cwd: AGENT }
-);
+if (agentPresent) {
+  run(
+    'src/falSttIdempotency.ts',
+    'npx',
+    ['tsx', 'src/falSttIdempotency.ts'],
+    { cwd: AGENT }
+  );
+}
 
 // 3. Root env / fal webhook
 run('check:env', 'npm', ['run', 'check:env'], { cwd: ROOT });

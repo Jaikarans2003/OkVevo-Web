@@ -68,6 +68,9 @@ printf '%s' "$RAZORPAY_WEBHOOK_SECRET" | firebase apphosting:secrets:set RAZORPA
 echo "==> Grant App Hosting backend access to secrets (idempotent)"
 firebase apphosting:secrets:grantaccess CRON_SECRET,RAZORPAY_WEBHOOK_SECRET --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
 
+# Ops alerts: HIGH conditions write an opsAlerts record (admin dashboard
+# banner) plus a structured log line. No chat integration to provision.
+
 echo "==> Local-source App Hosting deploy (backend has no connected GitHub repo)"
 firebase deploy --only apphosting --project "$PROJECT" --force --non-interactive
 
@@ -105,6 +108,26 @@ else
     --project="$PROJECT" --location="$LOCATION" \
     --schedule="0 9 * * 1" --time-zone="Etc/UTC" \
     --uri="$FX_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
+# Daily price drift + abandoned submitted holds + admin rollup. Margin is
+# estimated from the rate card (deterministic mode, ADR-001): the Fal key has
+# no billing read access, so there is no FAL_BILLING_KEY anywhere.
+FAL_URI="${ORIGIN}/api/cron/fal-drift"
+if gcloud scheduler jobs describe nia-fal-drift --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-drift"
+  gcloud scheduler jobs update http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fal-drift"
+  gcloud scheduler jobs create http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 

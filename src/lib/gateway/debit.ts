@@ -1,6 +1,11 @@
-import { FieldValue } from 'firebase-admin/firestore';
+import { createHash } from 'node:crypto';
 
+import { FieldValue } from 'firebase-admin/firestore';
+import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
+
+import { breakerDecision } from '@/lib/fal/dramaSwitches';
 import { db } from '@/lib/firebase-admin';
+import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
 import {
@@ -45,7 +50,15 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
   const provider = data.provider;
   const estimated = data.estimatedCredits;
   const uid = data.uid;
-  if (status !== 'reserved' && status !== 'settled' && status !== 'released') return undefined;
+  if (
+    status !== 'reserved' &&
+    status !== 'submitted' &&
+    status !== 'unknown' &&
+    status !== 'settled' &&
+    status !== 'released'
+  ) {
+    return undefined;
+  }
   if (provider !== 'openrouter' && provider !== 'fal' && provider !== 'tavily') return undefined;
   if (typeof uid !== 'string' || !uid) return undefined;
   if (typeof estimated !== 'number' || !Number.isInteger(estimated) || estimated < 0) {
@@ -62,6 +75,8 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
     status,
     heldAllocation: hasSplit ? heldAllocation : estimated,
     heldTopUp: hasSplit ? heldTopUp : 0,
+    settledCredits: typeof data.settledCredits === 'number' ? data.settledCredits : undefined,
+    captured: data.captured === true,
   };
 }
 
@@ -81,6 +96,58 @@ export class PlanNotActiveError extends Error {
   }
 }
 
+export class DailySpendLimitError extends Error {
+  constructor() {
+    super('daily spend limit');
+    this.name = 'DailySpendLimitError';
+  }
+}
+
+type SpendHoldRead = {
+  spendRef: FirebaseFirestore.DocumentReference;
+  spendSnap: FirebaseFirestore.DocumentSnapshot;
+  reservedFalUsd: number;
+  limitUsd: number;
+};
+
+/** Read spendDaily before any write in the same reserve transaction. */
+async function readSpendForHold(
+  tx: FirebaseFirestore.Transaction,
+  extra: Record<string, unknown> | undefined
+): Promise<SpendHoldRead | null> {
+  const reservedFalUsd = Number(extra?.reservedFalUsd ?? 0);
+  const spendDay = typeof extra?.spendDay === 'string' ? extra.spendDay : '';
+  const limitUsd = Number(extra?.spendLimitUsd ?? 0);
+  if (!(reservedFalUsd > 0) || !spendDay) return null;
+  const spendRef = db.collection('spendDaily').doc(spendDay);
+  const spendSnap = await tx.get(spendRef);
+  return { spendRef, spendSnap, reservedFalUsd, limitUsd };
+}
+
+function applySpendHold(tx: FirebaseFirestore.Transaction, spend: SpendHoldRead | null): void {
+  if (!spend) return;
+  const data = spend.spendSnap.data() || {};
+  const used = Number(data.falUsd ?? 0) + Number(data.falUsdHeld ?? 0);
+  if (breakerDecision(used + spend.reservedFalUsd, spend.limitUsd) === 'stop') {
+    throw new DailySpendLimitError();
+  }
+  tx.set(spend.spendRef, { falUsdHeld: FieldValue.increment(spend.reservedFalUsd) }, { merge: true });
+}
+
+function releaseSpendHold(
+  tx: FirebaseFirestore.Transaction,
+  data: FirebaseFirestore.DocumentData | undefined
+): void {
+  const reservedFalUsd = Number(data?.reservedFalUsd ?? 0);
+  const spendDay = typeof data?.spendDay === 'string' ? data.spendDay : '';
+  if (!(reservedFalUsd > 0) || !spendDay) return;
+  tx.set(
+    db.collection('spendDaily').doc(spendDay),
+    { falUsdHeld: FieldValue.increment(-reservedFalUsd) },
+    { merge: true }
+  );
+}
+
 export type GatewayJobFields = {
   uid: string;
   provider: GatewayProvider;
@@ -97,6 +164,26 @@ export type GatewayJobFields = {
   falCancelUrl?: string;
   holdId?: string;
   payload?: unknown;
+  character?: string;
+  project?: string;
+  consentAt?: string;
+  sampleSha256?: string;
+  /** Server-measured reference media recorded at submit (drama rate-card jobs). */
+  media?: {
+    videos: { seconds: number }[];
+    audios: { seconds: number }[];
+    images: { width: number; height: number }[];
+  };
+  priceSnapshot?: {
+    endpoint: string;
+    unit: string;
+    unitPrice: number;
+    source: string;
+    fetchedAt: string;
+    rawUsd: number;
+  };
+  reservedFalUsd?: number;
+  spendDay?: string;
 };
 
 /**
@@ -120,6 +207,7 @@ export async function reserveCredits(opts: {
   const jobRef = db.collection('gatewayJobs').doc(requestId);
 
   await db.runTransaction(async (tx) => {
+    const spend = await readSpendForHold(tx, extra);
     const jobSnap = await tx.get(jobRef);
     const userSnap = await tx.get(userRef);
     const data = userSnap.data();
@@ -137,6 +225,7 @@ export async function reserveCredits(opts: {
       if (result.reason === 'duplicate') return;
       throw new InsufficientCreditsError();
     }
+    applySpendHold(tx, spend);
     tx.set(
       userRef,
       {
@@ -156,6 +245,115 @@ export async function reserveCredits(opts: {
       ...(extra ?? {}),
     });
   });
+}
+
+export class IdempotencyConflictError extends Error {
+  constructor() {
+    super('idempotency conflict');
+    this.name = 'IdempotencyConflictError';
+  }
+}
+
+function falRunDocId(uid: string, runId: string): string {
+  return createHash('sha256').update(`${uid}\0${runId}`).digest('hex');
+}
+
+/**
+ * Check the run key, create the hold, and record the row in one transaction.
+ * Replay and conflict do not reserve again.
+ */
+export async function reserveFalRun(opts: {
+  uid: string;
+  runId: string;
+  bodyHash: string;
+  estimatedCredits: number;
+  extra?: Record<string, unknown>;
+}): Promise<{
+  kind: 'created' | 'continue' | 'replay' | 'unknown';
+  holdId: string;
+  falRequestId?: string;
+}> {
+  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
+  return db.runTransaction(async (tx) => {
+    const spend = await readSpendForHold(tx, opts.extra);
+    const idemSnap = await tx.get(idemRef);
+    const existing = idemSnap.exists ? (idemSnap.data() as IdemRow) : undefined;
+    const decision = decideIdempotency(existing, opts.bodyHash);
+    if (decision.action === 'conflict') throw new IdempotencyConflictError();
+    if (decision.action !== 'create') {
+      return {
+        kind: decision.action === 'continue' ? 'continue' : decision.action,
+        holdId: decision.row.holdId,
+        falRequestId: decision.row.falRequestId,
+      };
+    }
+    const holdId = crypto.randomUUID();
+    const userRef = db.collection('users').doc(opts.uid);
+    const jobRef = db.collection('gatewayJobs').doc(holdId);
+    const jobSnap = await tx.get(jobRef);
+    const userSnap = await tx.get(userRef);
+    const data = userSnap.data();
+    if (readPlanStatus(data) !== 'active') throw new PlanNotActiveError();
+    const result = applyReserve(
+      readBalances(data),
+      jobFromSnap(jobSnap.data()),
+      opts.estimatedCredits,
+      opts.uid,
+      'fal'
+    );
+    if (!result.ok) {
+      if (result.reason === 'duplicate') throw new IdempotencyConflictError();
+      throw new InsufficientCreditsError();
+    }
+    applySpendHold(tx, spend);
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
+    tx.set(jobRef, {
+      uid: opts.uid,
+      provider: 'fal',
+      estimatedCredits: result.job.estimatedCredits,
+      heldAllocation: result.job.heldAllocation,
+      heldTopUp: result.job.heldTopUp,
+      status: 'reserved',
+      createdAt: FieldValue.serverTimestamp(),
+      ...(opts.extra ?? {}),
+    });
+    tx.set(idemRef, {
+      uid: opts.uid,
+      runId: opts.runId,
+      bodyHash: opts.bodyHash,
+      phase: 'reserved',
+      submitStarted: false,
+      holdId,
+    });
+    return { kind: 'created' as const, holdId };
+  });
+}
+
+/** Compare-and-set so two retries do not both call Fal. */
+export async function claimFalSubmit(uid: string, runId: string): Promise<boolean> {
+  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(idemRef);
+    const row = snap.data();
+    if (!row || row.submitStarted === true) return false;
+    tx.set(idemRef, { submitStarted: true }, { merge: true });
+    return true;
+  });
+}
+
+export async function markFalRun(
+  uid: string,
+  runId: string,
+  patch: { phase: 'submitted' | 'unknown' | 'released'; falRequestId?: string }
+): Promise<void> {
+  await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).set(patch, { merge: true });
 }
 
 /** Move a reserved hold to Fal's request_id so webhook lookup is gatewayJobs/{falId}. */
@@ -200,7 +398,23 @@ export async function readGatewayJob(
     falCancelUrl: typeof data.falCancelUrl === 'string' ? data.falCancelUrl : undefined,
     holdId: typeof data.holdId === 'string' ? data.holdId : undefined,
     payload: data.payload,
+    character: typeof data.character === 'string' ? data.character : undefined,
+    project: typeof data.project === 'string' ? data.project : undefined,
+    consentAt: typeof data.consentAt === 'string' ? data.consentAt : undefined,
+    sampleSha256: typeof data.sampleSha256 === 'string' ? data.sampleSha256 : undefined,
+    priceSnapshot: isPriceSnapshot(data.priceSnapshot) ? data.priceSnapshot : undefined,
+    media:
+      data.media && typeof data.media === 'object'
+        ? (data.media as GatewayJobFields['media'])
+        : undefined,
+    reservedFalUsd: typeof data.reservedFalUsd === 'number' ? data.reservedFalUsd : undefined,
+    spendDay: typeof data.spendDay === 'string' ? data.spendDay : undefined,
   };
+}
+
+function isPriceSnapshot(value: unknown): value is GatewayJobFields['priceSnapshot'] {
+  const rec = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+  return !!rec && typeof rec.endpoint === 'string' && typeof rec.rawUsd === 'number';
 }
 
 export async function patchGatewayJob(
@@ -274,6 +488,7 @@ export async function reconcileCredits(opts: {
       jobRef,
       {
         status: 'settled',
+        captured: false,
         actualCredits: result.debitAmount,
         heldAllocation: result.heldAllocation,
         heldTopUp: result.heldTopUp,
@@ -302,6 +517,19 @@ export async function reconcileCredits(opts: {
   });
 }
 
+/**
+ * Capture pass: Fal billing-events cost_total → min(credits, reserve).
+ * Refunds via the same wallet CAS as collect. Idempotent on captured=true
+ * and creditTransactions/{requestId}:capture.
+ */
+export async function captureCredits(opts: {
+  requestId: string;
+  falUsd: number;
+  falCredits: number;
+}): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
+  return captureCreditsOn(db, opts);
+}
+
 /** Restore held split to buckets; no debit. Idempotent. Fal does not bill failures. */
 export async function releaseCredits(requestId: string): Promise<void> {
   if (!requestId) return;
@@ -315,6 +543,7 @@ export async function releaseCredits(requestId: string): Promise<void> {
     const userSnap = await tx.get(userRef);
     const result = applyRelease(readBalances(userSnap.data()), job);
     if (result.skipped) return;
+    releaseSpendHold(tx, jobSnap.data());
     tx.set(
       userRef,
       {

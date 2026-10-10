@@ -2,6 +2,14 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Drama reference uploads: deny ALL client access. Only server-signed
+    // V4 URLs (PUT create, GET for Fal) and the Admin SDK touch this prefix.
+    // Signed URLs bypass security rules by design, so this deny does not
+    // break the upload flow — it blocks the client SDK only.
+    match /drama-inputs/{uid}/{file} {
+      allow read, write: if false;
+    }
+
     match /users/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

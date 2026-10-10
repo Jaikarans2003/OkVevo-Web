@@ -180,6 +180,12 @@ export function quantity(input: QuantityInput): number {
     return megapixels(width, height) * n;
   }
 
+  if (unit === '1000 characters' || unit === 'characters') {
+    const text = typeof args.text === 'string' ? args.text : '';
+    if (!text) throw new QuantityError('characters unit needs text');
+    return text.length / 1000;
+  }
+
   if (unit === '1000 tokens') {
     const { width, height } = videoDims(args, input.payload);
     const duration = outputDurationSeconds(args, input.payload);
