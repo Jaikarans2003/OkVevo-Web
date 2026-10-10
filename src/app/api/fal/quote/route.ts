@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { isMeterableEndpoint } from '@/lib/fal/allowlist';
 import { getEndpointPricing } from '@/lib/fal/client';
 import { meterRawUsd } from '@/lib/fal/handleQueue';
+import { MediaResolveError, resolveMediaArgs } from '@/lib/fal/mediaResolve';
 import { QUOTE_TTL_MS, rateCardEntry } from '@/lib/fal/rateCard';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
@@ -26,8 +27,9 @@ function jsonError(status: number, message: string) {
 export async function POST(request: NextRequest) {
   const token = gatewayIdToken(request);
   if (!token) return jsonError(401, 'invalid_token');
+  let uid: string;
   try {
-    await auth.verifyIdToken(token);
+    uid = (await auth.verifyIdToken(token)).uid;
   } catch {
     return jsonError(401, 'invalid_token');
   }
@@ -53,6 +55,17 @@ export async function POST(request: NextRequest) {
   const pricing = card?.source === 'card' ? null : await getEndpointPricing(endpoint);
   if (!card && !pricing) return jsonError(502, 'Fal pricing unavailable');
 
+  // Same media resolution as submit, so the approved number matches the hold.
+  let media;
+  if (card) {
+    try {
+      media = (await resolveMediaArgs(endpoint, args, uid)).media;
+    } catch (err) {
+      if (err instanceof MediaResolveError) return jsonError(400, err.message);
+      throw err;
+    }
+  }
+
   let rawUsd: number;
   try {
     rawUsd = await meterRawUsd({
@@ -60,6 +73,7 @@ export async function POST(request: NextRequest) {
       unit: pricing?.unit ?? card?.unit ?? '',
       unitPrice: pricing?.unitPrice ?? 0,
       args,
+      media,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'cannot meter this request';

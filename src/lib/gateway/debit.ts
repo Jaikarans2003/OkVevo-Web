@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase-admin';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
 import {
+  applyCapture,
   applyReconcile,
   applyRelease,
   applyReserve,
@@ -73,6 +74,8 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
     status,
     heldAllocation: hasSplit ? heldAllocation : estimated,
     heldTopUp: hasSplit ? heldTopUp : 0,
+    settledCredits: typeof data.settledCredits === 'number' ? data.settledCredits : undefined,
+    captured: data.captured === true,
   };
 }
 
@@ -108,6 +111,16 @@ export type GatewayJobFields = {
   falCancelUrl?: string;
   holdId?: string;
   payload?: unknown;
+  character?: string;
+  project?: string;
+  consentAt?: string;
+  sampleSha256?: string;
+  /** Server-measured reference media recorded at submit (drama rate-card jobs). */
+  media?: {
+    videos: { seconds: number }[];
+    audios: { seconds: number }[];
+    images: { width: number; height: number }[];
+  };
   priceSnapshot?: {
     endpoint: string;
     unit: string;
@@ -326,7 +339,15 @@ export async function readGatewayJob(
     falCancelUrl: typeof data.falCancelUrl === 'string' ? data.falCancelUrl : undefined,
     holdId: typeof data.holdId === 'string' ? data.holdId : undefined,
     payload: data.payload,
+    character: typeof data.character === 'string' ? data.character : undefined,
+    project: typeof data.project === 'string' ? data.project : undefined,
+    consentAt: typeof data.consentAt === 'string' ? data.consentAt : undefined,
+    sampleSha256: typeof data.sampleSha256 === 'string' ? data.sampleSha256 : undefined,
     priceSnapshot: isPriceSnapshot(data.priceSnapshot) ? data.priceSnapshot : undefined,
+    media:
+      data.media && typeof data.media === 'object'
+        ? (data.media as GatewayJobFields['media'])
+        : undefined,
   };
 }
 
@@ -432,6 +453,76 @@ export async function reconcileCredits(opts: {
       })
     );
   });
+}
+
+/**
+ * Capture pass: Fal billing-events cost_total → min(credits, reserve).
+ * Refunds via the same wallet CAS as collect. Idempotent on captured=true
+ * and creditTransactions/{requestId}:capture.
+ */
+export async function captureCredits(opts: {
+  requestId: string;
+  falUsd: number;
+  falCredits: number;
+}): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
+  const { requestId, falUsd, falCredits } = opts;
+  if (!requestId) return { skipped: true, refund: 0, overReserve: false };
+
+  const jobRef = db.collection('gatewayJobs').doc(requestId);
+  const txnRef = db.collection('creditTransactions').doc(`${requestId}:capture`);
+  let out = { skipped: true, refund: 0, overReserve: false };
+
+  await db.runTransaction(async (tx) => {
+    const txnSnap = await tx.get(txnRef);
+    if (txnSnap.exists) {
+      out = { skipped: true, refund: 0, overReserve: false };
+      return;
+    }
+    const jobSnap = await tx.get(jobRef);
+    const job = jobFromSnap(jobSnap.data());
+    if (!job) return;
+    const userRef = db.collection('users').doc(job.uid);
+    const userSnap = await tx.get(userRef);
+    const result = applyCapture(readBalances(userSnap.data()), job, falCredits);
+    if (result.skipped) {
+      out = { skipped: true, refund: 0, overReserve: false };
+      return;
+    }
+    tx.set(
+      userRef,
+      {
+        allocationBalance: result.balances.allocationBalance,
+        topUpBalance: result.balances.topUpBalance,
+      },
+      { merge: true }
+    );
+    tx.set(
+      jobRef,
+      {
+        captured: true,
+        capturedAt: FieldValue.serverTimestamp(),
+        capturedFalUsd: falUsd,
+        settledCredits: result.settledCredits,
+        actualCredits: result.settledCredits,
+        heldAllocation: result.heldAllocation,
+        heldTopUp: result.heldTopUp,
+      },
+      { merge: true }
+    );
+    tx.set(
+      txnRef,
+      omitUndefined({
+        uid: job.uid,
+        type: 'refund',
+        amount: result.refund,
+        provider: 'fal',
+        requestId,
+        createdAt: FieldValue.serverTimestamp(),
+      })
+    );
+    out = { skipped: false, refund: result.refund, overReserve: result.overReserve };
+  });
+  return out;
 }
 
 /** Restore held split to buckets; no debit. Idempotent. Fal does not bill failures. */

@@ -76,6 +76,7 @@ export const METERABLE_ENDPOINTS = new Set<string>([
   'openai/gpt-image-2/edit',
   'minimax/music-3',
   'fal-ai/minimax/speech-02-hd',
+  'fal-ai/minimax/voice-clone',
 ]);
 
 export function isMeterableEndpoint(endpoint: string): boolean {

@@ -2,10 +2,11 @@
  * Release ONE abandoned `reserved` Fal hold — manual, after a human check.
  *
  * The check (do it FIRST; it is the only evidence the credits were not spent):
- *   1. Fal dashboard → Billing → billing-events for the hold's createdAt
- *      window, widened by ±15 minutes for clock skew. (Or GET
- *      https://api.fal.ai/v1/models/usage with the platform key — see
- *      scripts/drama-reconcile.ts for the exact call.)
+ *   1. Fal dashboard → usage page for the hold's createdAt window, widened
+ *      by ±15 minutes for clock skew. (The usage/billing-events APIs return
+ *      403 for our generation-only key — deterministic mode, ADR-001 — so the
+ *      dashboard is the source. scripts/drama-reconcile.ts can diff a
+ *      dashboard CSV export against the ledger row.)
  *   2. Confirm no Fal request ran for this hold: the gatewayJobs doc has no
  *      falRequestId, and no untracked request id for the endpoint appears in
  *      that window. If a request DID run, do not release — the hold must

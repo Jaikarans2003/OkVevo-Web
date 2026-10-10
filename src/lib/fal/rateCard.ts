@@ -3,6 +3,13 @@
  * CARD ids never read a live price. HYBRID/LIVE read one unit price,
  * then bounds and the card. Plain h3 and seedance-2.0-mini are absent
  * on purpose — they stay on the legacy live meter.
+ *
+ * DETERMINISTIC MODE (probe 2026-10-10: the existing Fal key gets 403 on
+ * /v1/models/usage, /v1/models/billing-events and /v1/account/billing; the
+ * pricing and estimate APIs return 200). Every quantity below is a published
+ * Fal formula over server-measured inputs, rounded UP, with its source cited
+ * inline. Reserve is the upper bound; settle = min(formula, reserve).
+ * See docs/adr/ADR-001-drama-full-parity.md.
  */
 
 export const MAX_JOB_CREDITS = 70_000;
@@ -14,25 +21,44 @@ export const PRICE_BOUNDS = { low: 0.2, high: 3 } as const;
 /** H3 Max text/image promo. Assumption: ends 2026-10-15T00:00:00Z. Reference has no promo. */
 export const H3_PROMO_ENDS_AT = '2026-10-15T00:00:00.000Z';
 
+/**
+ * H3 Max reference surcharge. Source: fal.ai/models/minimax/h3-max/reference-to-video
+ * — one shared 4,096-token allowance across ALL reference inputs, then
+ * $0.02 per 1k tokens. Image tokens by aspect: 1:1=1024, 4:3|3:4=1376,
+ * 16:9|9:16=1824, up to 5:2|2:5=2560. Video tokens at 24fps (16:9/9:16
+ * source): 48f/2s=4,680 (480p) or 12,096 (768p+); 120f/5s=12,480 or 32,256;
+ * 240f/10s=26,130 or 67,536; 360f/15s=39,780 or 102,816. Counted frames are
+ * capped by the requested output duration. Audio ≈ 80 tokens/second.
+ */
 export const H3_REF_FREE_TOKENS = 4096;
 export const H3_REF_USD_PER_1K = 0.02;
-/**
- * ponytail: pricing API has no per-image token count. 1024 tokens per square
- * ref makes 5s 768p reference + 5 refs = $0.42048 at the regular (no-promo)
- * 768p rate. Upgrade: replace with billing-events quantity.
- */
-export const H3_SQUARE_IMAGE_TOKENS = 1024;
+/** Aspect buckets → tokens. Unknown/wider than 5:2 rounds up to 2560 (conservative). */
+export const H3_IMAGE_TOKENS = { square: 1024, classic: 1376, wide: 1824, xwide: 2560 } as const;
+/** [frames, tokens480p, tokens768pPlus] steps, 24fps source. Next step up when between. */
+export const H3_VIDEO_STEPS: ReadonlyArray<readonly [number, number, number]> = [
+  [48, 4680, 12096],
+  [120, 12480, 32256],
+  [240, 26130, 67536],
+  [360, 39780, 102816],
+];
+export const H3_AUDIO_TOKENS_PER_SECOND = 80;
 
 export const SPEECH_MAX_CHARS = 5000;
 export const MUSIC_MAX_SECONDS = 300;
+/** gpt-image-2 edit schema max (OpenAPI maxItems on image_urls). */
+export const GPT_IMAGE_MAX_REFS = 16;
 /**
- * Launch cap for gpt-image-2 edit references. Input-image token cost is
- * unmeasured ($8/1M is on the Fal page; tokens per image are not), so the
- * card prices generation only. To lift: run the billing-events smoke with
- * 1 vs 4 references, price the measured input tokens into this card, then
- * raise the cap here and in provider_adapters.py (_portal_endpoint).
+ * Upper bound per EXTRA input image on gpt-image-2 edit, after the first
+ * (the edit table already includes one input image). Source: edit-page table
+ * deltas vs text-to-image are $0.008–$0.012 per included input image at high
+ * fidelity (e.g. 1024x1024 high: 0.219 vs 0.211; 3840x2160 high: 0.413 vs
+ * 0.401); $8/1M input-image tokens. Bound = 1.33× the largest observed delta.
+ * Inputs are normalized ≤2048px before upload, so the bound holds at any
+ * accepted size.
  */
-export const GPT_IMAGE_MAX_REFS = 4;
+export const GPT_EDIT_EXTRA_REF_USD = 0.016;
+/** Text input $5/1M tokens (edit page). Bound: ceil(chars/2) tokens. */
+export const GPT_TEXT_USD_PER_TOKEN = 5 / 1_000_000;
 
 export type PriceSource = 'card' | 'hybrid' | 'live';
 
@@ -82,6 +108,20 @@ const GPT_IMAGE_USD: Record<string, Partial<Record<'low' | 'medium' | 'high', nu
   '3840x2160': { high: 0.401 },
 };
 
+/**
+ * gpt-image-2 EDIT table, INCLUDING ONE input image.
+ * Source: fal.ai/models/openai/gpt-image-2/edit (all six sizes, low/medium/high).
+ * Extra reference images add GPT_EDIT_EXTRA_REF_USD each.
+ */
+const GPT_IMAGE_EDIT_USD: Record<string, Partial<Record<'low' | 'medium' | 'high', number>>> = {
+  '1024x768': { low: 0.011, medium: 0.043, high: 0.151 },
+  '1024x1024': { low: 0.015, medium: 0.061, high: 0.219 },
+  '1024x1536': { low: 0.018, medium: 0.054, high: 0.178 },
+  '1920x1080': { low: 0.017, medium: 0.053, high: 0.158 },
+  '2560x1440': { low: 0.019, medium: 0.068, high: 0.234 },
+  '3840x2160': { low: 0.024, medium: 0.113, high: 0.413 },
+};
+
 const SEEDANCE_20 = [
   'bytedance/seedance-2.0/text-to-video',
   'bytedance/seedance-2.0/image-to-video',
@@ -115,6 +155,7 @@ export const RATE_CARD_IDS = [
   'openai/gpt-image-2/edit',
   'minimax/music-3',
   'fal-ai/minimax/speech-02-hd',
+  'fal-ai/minimax/voice-clone',
 ] as const;
 
 const CARD_BASE: Record<string, { source: PriceSource; unit: string; base: number }> = {};
@@ -126,6 +167,11 @@ CARD_BASE['openai/gpt-image-2'] = { source: 'card', unit: 'units', base: 0.211 }
 CARD_BASE['openai/gpt-image-2/edit'] = { source: 'card', unit: 'units', base: 0.211 };
 CARD_BASE['minimax/music-3'] = { source: 'live', unit: 'seconds', base: 0.002 };
 CARD_BASE['fal-ai/minimax/speech-02-hd'] = { source: 'live', unit: '1000 characters', base: 0.1 };
+/** Source: fal.ai/models/fal-ai/minimax/voice-clone/llms.txt 2026-10-10. */
+CARD_BASE['fal-ai/minimax/voice-clone'] = { source: 'card', unit: 'clone', base: 1.5 };
+export const VOICE_CLONE_USD = 1.5;
+export const VOICE_CLONE_PREVIEW_USD_PER_1K = 0.3;
+export const VOICE_CLONE_MIN_SECONDS = 10;
 
 export function rateCardEntry(endpoint: string) {
   return CARD_BASE[endpoint.trim()] ?? null;
@@ -205,25 +251,116 @@ export function h3SecondPrice(resolution: string, nowMs: number, reference: bool
   return tier.regular;
 }
 
-export function h3RefSurchargeUsd(squareRefs: number): number {
-  if (!Number.isInteger(squareRefs) || squareRefs < 0) {
-    throw new RateCardError('reference image count is invalid');
-  }
-  const tokens = squareRefs * H3_SQUARE_IMAGE_TOKENS;
-  const billable = Math.max(0, tokens - H3_REF_FREE_TOKENS);
-  return (billable / 1000) * H3_REF_USD_PER_1K;
+/**
+ * Server-measured reference inputs (from dramaUploads / falMediaIndex rows —
+ * never client claims). Empty by default so text-only paths are unchanged.
+ */
+export type MediaContext = {
+  videos: { seconds: number }[];
+  audios: { seconds: number }[];
+  images: { width: number; height: number }[];
+};
+
+export const EMPTY_MEDIA: MediaContext = { videos: [], audios: [], images: [] };
+
+export function mediaVideoSeconds(media: MediaContext): number {
+  return media.videos.reduce((sum, v) => sum + v.seconds, 0);
 }
 
-function squareRefCount(args: Record<string, unknown>): number {
-  const n = Number(args.reference_image_count ?? 0);
-  if (!Number.isFinite(n) || n < 0) throw new RateCardError('reference image count is invalid');
-  return Math.floor(n);
+function h3ImageTokens(image: { width: number; height: number }): number {
+  const { width: w, height: h } = image;
+  if (!(w > 0) || !(h > 0)) return H3_IMAGE_TOKENS.xwide; // unknown dims: top bucket
+  const r = w / h;
+  if (r >= 2.05 || r <= 0.42) return H3_IMAGE_TOKENS.xwide; // up to 5:2 / 2:5
+  if (r >= 1.55 || r <= 0.645) return H3_IMAGE_TOKENS.wide; // 16:9 / 9:16
+  if (r >= 1.2 || r <= 0.84) return H3_IMAGE_TOKENS.classic; // 4:3 / 3:4
+  return H3_IMAGE_TOKENS.square;
+}
+
+/**
+ * Per-clip video tokens from the published 24fps step table, next step up
+ * when between steps. Counted frames are capped by the requested output
+ * duration (Fal: "the number of reference-video frames counted is limited by
+ * the requested output duration"), so inputs at least as long as the output
+ * always land on a real table step. Assumption: ≤24fps sources — a 60fps
+ * clip shorter than the requested output can under-count; the estimate-API
+ * drift check is the tripwire. Written per docs/adr/ADR-001.
+ */
+function h3VideoTokens(seconds: number, resolution: string, outputSeconds: number): number {
+  const countedSeconds = Math.min(seconds, outputSeconds);
+  const frames = Math.ceil(countedSeconds * 24);
+  const sd = resolution === '480p';
+  for (const [stepFrames, tokensSd, tokensHd] of H3_VIDEO_STEPS) {
+    if (frames <= stepFrames) return sd ? tokensSd : tokensHd;
+  }
+  // Above 360 counted frames: extrapolate the last interval's per-frame slope
+  // (only reachable when the requested output exceeds 15s, which h3 rejects).
+  const slope = sd
+    ? (39780 - 26130) / 120
+    : (102816 - 67536) / 120;
+  return Math.ceil((sd ? 39780 : 102816) + (frames - 360) * slope);
+}
+
+function h3AudioTokens(seconds: number): number {
+  return Math.ceil(seconds) * H3_AUDIO_TOKENS_PER_SECOND;
+}
+
+export function h3RefSurchargeUsd(
+  media: MediaContext,
+  resolution: string,
+  outputSeconds: number
+): number {
+  const tokens =
+    media.images.reduce((sum, img) => sum + h3ImageTokens(img), 0) +
+    media.videos.reduce((sum, v) => sum + h3VideoTokens(v.seconds, resolution, outputSeconds), 0) +
+    media.audios.reduce((sum, a) => sum + h3AudioTokens(a.seconds), 0);
+  const billable = Math.max(0, tokens - H3_REF_FREE_TOKENS);
+  return (billable / 1000) * H3_REF_USD_PER_1K;
 }
 
 function seedanceRatio(endpoint: string, resolution: string): number {
   if (endpoint.includes('seedance-2.0/') && resolution === '4k') return 0.008 / 0.014;
   if (endpoint.includes('seedance-2.5/') && resolution === '1080p') return 0.0234 / 0.0214;
   return 1;
+}
+
+/**
+ * Requested output seconds for a seedance submit, validated against the
+ * schema enum BEFORE any hold. 'auto' is refused: an unbounded duration
+ * cannot be priced deterministically (the one exception is task=editing,
+ * where Fal forces auto — handled by seedanceRefSeconds).
+ */
+function seedanceRequestedSeconds(args: Record<string, unknown>, endpoint: string): number {
+  const raw = args.duration;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  const max = endpoint.includes('seedance-2.0/') ? 15 : 30;
+  if (!Number.isInteger(n) || n < 4 || n > max) {
+    throw new RateCardError(`seedance duration must be an integer 4..${max}`);
+  }
+  return n;
+}
+
+/**
+ * Seedance reference-to-video billed seconds = input video seconds + output
+ * seconds. Source: fal.ai/models/bytedance/seedance-2.5/reference-to-video —
+ * "Token count = (output height × output width × (input video duration +
+ * output video duration) × 24) / 1024", billed on the REQUESTED output
+ * duration, whole price ×0.6 when video inputs are present (image and audio
+ * references stay free). task=editing forces duration=auto upstream, so its
+ * output basis is the input length (an edit cannot outlast its source).
+ */
+function seedanceRefSeconds(
+  args: Record<string, unknown>,
+  endpoint: string,
+  media: MediaContext
+): { outputSeconds: number; inputSeconds: number } {
+  const inputSeconds = mediaVideoSeconds(media);
+  const task = typeof args.task === 'string' ? args.task : 'reference';
+  if (task === 'editing') {
+    if (!(inputSeconds > 0)) throw new RateCardError('seedance editing requires a video input');
+    return { outputSeconds: inputSeconds, inputSeconds };
+  }
+  return { outputSeconds: seedanceRequestedSeconds(args, endpoint), inputSeconds };
 }
 
 function imageSizeKey(args: Record<string, unknown>): string {
@@ -263,6 +400,8 @@ export type ResolveInput = {
   endpoint: string;
   args: Record<string, unknown>;
   payload?: unknown;
+  /** Server-measured reference inputs. Defaults to none. */
+  media?: MediaContext;
   /** Live unit price. Ignored for source=card. */
   liveUnitPrice?: number | null;
   liveFetchedAtMs?: number | null;
@@ -312,22 +451,48 @@ export function resolveRateCard(input: ResolveInput): ResolveResult {
   let source: PriceSnapshot['source'] = card.source;
   let alert: string | undefined;
 
+  const media = input.media ?? EMPTY_MEDIA;
+
   if (card.source === 'hybrid') {
     const picked = useLive();
     unitPrice = picked.price;
     source = picked.source;
     alert = picked.alert;
     const px = videoPx(args);
-    const seconds = secondsOrThrow(args, input.payload);
     const ratio = seedanceRatio(endpoint, normalizeResolution(args.resolution) ?? '720p');
-    rawUsd = seedanceKTokens(px.width, px.height, seconds) * unitPrice * ratio;
+    if (endpoint.endsWith('/reference-to-video')) {
+      const { outputSeconds, inputSeconds } = seedanceRefSeconds(args, endpoint, media);
+      const videoDiscount = inputSeconds > 0 ? 0.6 : 1;
+      rawUsd =
+        seedanceKTokens(px.width, px.height, outputSeconds + inputSeconds) *
+        unitPrice *
+        ratio *
+        videoDiscount;
+    } else {
+      // t2v / i2v: image inputs are free; settle uses the actual output
+      // duration when Fal reports it, else the requested one.
+      const requested = seedanceRequestedSeconds(args, endpoint);
+      const actual = asRecord(asRecord(input.payload)?.video)?.duration;
+      const seconds =
+        typeof actual === 'number' && Number.isFinite(actual) && actual > 0
+          ? Math.min(actual, requested)
+          : requested;
+      rawUsd = seedanceKTokens(px.width, px.height, seconds) * unitPrice * ratio;
+    }
   } else if (endpoint.startsWith('minimax/h3-max/')) {
     const res = resolutionOrThrow(args);
-    const seconds = secondsOrThrow(args, input.payload);
     const reference = endpoint.endsWith('/reference-to-video');
     unitPrice = h3SecondPrice(res, input.nowMs, reference);
-    rawUsd = unitPrice * seconds;
-    if (reference || squareRefCount(args) > 0) rawUsd += h3RefSurchargeUsd(squareRefCount(args));
+    if (reference) {
+      // Reference bills on the REQUESTED duration (published), so args only.
+      const seconds = secondsOrThrow(args);
+      if (seconds > 15) throw new RateCardError('h3-max duration must be 15s or less');
+      rawUsd = unitPrice * seconds + h3RefSurchargeUsd(media, res, seconds);
+    } else {
+      const seconds = secondsOrThrow(args, input.payload);
+      if (seconds > 15) throw new RateCardError('h3-max duration must be 15s or less');
+      rawUsd = unitPrice * seconds;
+    }
     source = 'card';
   } else if (endpoint.startsWith('alibaba/wan-3.0-prime/')) {
     const res = resolutionOrThrow(args);
@@ -338,18 +503,28 @@ export function resolveRateCard(input: ResolveInput): ResolveResult {
     rawUsd = per * seconds;
     source = 'card';
   } else if (endpoint === 'openai/gpt-image-2' || endpoint === 'openai/gpt-image-2/edit') {
+    const edit = endpoint.endsWith('/edit');
     const key = imageSizeKey(args);
     const quality = imageQuality(args);
-    const cell = GPT_IMAGE_USD[key]?.[quality];
+    const table = edit ? GPT_IMAGE_EDIT_USD : GPT_IMAGE_USD;
+    const cell = table[key]?.[quality];
     if (cell == null) throw new RateCardError(`gpt-image-2 has no price for ${key} ${quality}`);
     const images = Math.max(1, Math.floor(Number(args.num_images) || 1));
-    const refs = squareRefCount(args);
-    if (endpoint.endsWith('/edit') && refs > GPT_IMAGE_MAX_REFS) {
-      throw new RateCardError(`gpt-image-2 edit accepts at most ${GPT_IMAGE_MAX_REFS} reference images`);
-    }
     unitPrice = cell;
-    // Input-image token count is unverified ($8/1M is on the Fal page; tokens per image are not).
     rawUsd = cell * images;
+    if (edit) {
+      const refs = media.images.length;
+      if (refs < 1) throw new RateCardError('gpt-image-2 edit requires at least one reference image');
+      if (refs > GPT_IMAGE_MAX_REFS) {
+        throw new RateCardError(
+          `gpt-image-2 edit accepts at most ${GPT_IMAGE_MAX_REFS} reference images`
+        );
+      }
+      // First input image is inside the table cell; extras add the bound.
+      rawUsd += Math.max(0, refs - 1) * GPT_EDIT_EXTRA_REF_USD;
+      const prompt = typeof args.prompt === 'string' ? args.prompt : '';
+      rawUsd += Math.ceil(prompt.length / 2) * GPT_TEXT_USD_PER_TOKEN;
+    }
     source = 'card';
   } else if (endpoint === 'minimax/music-3') {
     const picked = useLive();
@@ -359,6 +534,11 @@ export function resolveRateCard(input: ResolveInput): ResolveResult {
     const requested = args.duration == null ? MUSIC_MAX_SECONDS : secondsOrThrow(args, input.payload);
     const seconds = Math.min(MUSIC_MAX_SECONDS, requested);
     rawUsd = unitPrice * seconds;
+  } else if (endpoint === 'fal-ai/minimax/voice-clone') {
+    const preview = typeof args.text === 'string' ? args.text : '';
+    rawUsd = VOICE_CLONE_USD + (preview.length / 1000) * VOICE_CLONE_PREVIEW_USD_PER_1K;
+    unitPrice = VOICE_CLONE_USD;
+    source = 'card';
   } else if (endpoint === 'fal-ai/minimax/speech-02-hd') {
     const text = typeof args.text === 'string' ? args.text : '';
     if (!text.trim()) throw new RateCardError('speech text is required');
@@ -395,12 +575,15 @@ export function settleFromSnapshot(opts: {
   snapshot: PriceSnapshot;
   args: Record<string, unknown>;
   payload?: unknown;
+  /** The same server-measured media recorded at submit time. */
+  media?: MediaContext;
   nowMs: number;
 }): number {
   const again = resolveRateCard({
     endpoint: opts.snapshot.endpoint,
     args: opts.args,
     payload: opts.payload,
+    media: opts.media,
     liveUnitPrice: opts.snapshot.unitPrice,
     liveFetchedAtMs: Date.parse(opts.snapshot.fetchedAt),
     nowMs: opts.nowMs,

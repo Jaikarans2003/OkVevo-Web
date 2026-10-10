@@ -26,7 +26,6 @@ import {
   sweepAction,
 } from './holdSweep.ts';
 import { sendOpsAlert } from '@/lib/ops/alert';
-import { sendTelegram } from '@/lib/ops/telegram';
 
 const nowPromo = Date.parse('2026-10-10T00:00:00Z');
 const nowRegular = Date.parse(H3_PROMO_ENDS_AT);
@@ -45,10 +44,132 @@ assert.equal(creditsFromUsd(seedance.rawUsd).credits, Math.ceil(seedance.rawUsd 
 
 const h3 = resolveRateCard({
   endpoint: 'minimax/h3-max/reference-to-video',
-  args: { resolution: '768p', duration: 5, reference_image_count: 5 },
+  args: { resolution: '768p', duration: 5 },
+  media: { videos: [], audios: [], images: Array.from({ length: 5 }, () => ({ width: 1024, height: 1024 })) },
   nowMs: nowRegular,
 });
 assert.ok(Math.abs(h3.rawUsd - 0.42048) < 1e-9);
+
+// Deterministic vectors (sources cited in rateCard.ts).
+// Seedance 2.5 reference worked example from the Fal page: 10s video input +
+// 8s requested output at 720p → 388,800 tokens; ×0.0214/1k ×0.6 video-input
+// multiplier ≈ $4.99.
+const sdRef = resolveRateCard({
+  endpoint: 'bytedance/seedance-2.5/reference-to-video',
+  args: { resolution: '720p', duration: 8 },
+  media: { videos: [{ seconds: 10 }], audios: [], images: [] },
+  liveUnitPrice: 0.0214,
+  liveFetchedAtMs: nowPromo,
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(sdRef.rawUsd - seedanceKTokens(1280, 720, 18) * 0.0214 * 0.6) < 1e-9);
+assert.ok(Math.abs(sdRef.rawUsd - 4.992192) < 1e-6);
+
+// Same request without a video input: no ×0.6 multiplier, image refs free.
+const sdRefImgs = resolveRateCard({
+  endpoint: 'bytedance/seedance-2.5/reference-to-video',
+  args: { resolution: '720p', duration: 8 },
+  media: { videos: [], audios: [], images: [{ width: 1024, height: 1024 }] },
+  liveUnitPrice: 0.0214,
+  liveFetchedAtMs: nowPromo,
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(sdRefImgs.rawUsd - seedanceKTokens(1280, 720, 8) * 0.0214) < 1e-9);
+
+// task=editing: duration auto → billed basis is the input length (12s total).
+const sdEdit = resolveRateCard({
+  endpoint: 'bytedance/seedance-2.5/reference-to-video',
+  args: { resolution: '720p', duration: 'auto', task: 'editing', aspect_ratio: 'auto' },
+  media: { videos: [{ seconds: 6 }], audios: [], images: [] },
+  liveUnitPrice: 0.0214,
+  liveFetchedAtMs: nowPromo,
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(sdEdit.rawUsd - seedanceKTokens(1280, 720, 12) * 0.0214 * 0.6) < 1e-9);
+
+// Out-of-schema durations fail before any hold. 2.0 caps at 15; auto refused.
+assert.throws(
+  () =>
+    resolveRateCard({
+      endpoint: 'bytedance/seedance-2.0/reference-to-video',
+      args: { resolution: '720p', duration: 20 },
+      media: { videos: [{ seconds: 5 }], audios: [], images: [] },
+      nowMs: nowPromo,
+    }),
+  /4\.\.15/
+);
+assert.throws(
+  () =>
+    resolveRateCard({
+      endpoint: 'bytedance/seedance-2.5/text-to-video',
+      args: { resolution: '720p', duration: 'auto' },
+      nowMs: nowPromo,
+    }),
+  /duration/
+);
+
+// H3 step table: 5s 768p + 5s 24fps video → 120 frames → 32,256 tokens;
+// 32,256 − 4,096 allowance = 28,160 billable × $0.02/1k.
+const h3Vid = resolveRateCard({
+  endpoint: 'minimax/h3-max/reference-to-video',
+  args: { resolution: '768p', duration: 5 },
+  media: { videos: [{ seconds: 5 }], audios: [], images: [] },
+  nowMs: nowRegular,
+});
+assert.ok(Math.abs(h3Vid.rawUsd - (0.4 + (28160 / 1000) * 0.02)) < 1e-9);
+
+// H3 between steps rounds up: 3s video = 72 frames → 120-frame step.
+const h3Between = resolveRateCard({
+  endpoint: 'minimax/h3-max/reference-to-video',
+  args: { resolution: '480p', duration: 5 },
+  media: { videos: [{ seconds: 3 }], audios: [], images: [] },
+  nowMs: nowRegular,
+});
+assert.ok(Math.abs(h3Between.rawUsd - (0.25 + ((12480 - 4096) / 1000) * 0.02)) < 1e-9);
+
+// H3 audio tokens round up per second: 3.2s → 4 × 80 = 320 tokens (inside allowance).
+const h3Audio = resolveRateCard({
+  endpoint: 'minimax/h3-max/reference-to-video',
+  args: { resolution: '768p', duration: 5 },
+  media: { videos: [], audios: [{ seconds: 3.2 }], images: [] },
+  nowMs: nowRegular,
+});
+assert.equal(h3Audio.rawUsd, 0.4);
+
+// GPT edit: table cell includes ONE input image; 16 refs is the schema max.
+const gptEdit = resolveRateCard({
+  endpoint: 'openai/gpt-image-2/edit',
+  args: { image_size: '1024x1024', quality: 'high', prompt: 'a'.repeat(100) },
+  media: { videos: [], audios: [], images: [{ width: 1024, height: 1024 }] },
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(gptEdit.rawUsd - (0.219 + 50 * (5 / 1e6))) < 1e-9);
+const gptEdit16 = resolveRateCard({
+  endpoint: 'openai/gpt-image-2/edit',
+  args: { image_size: '1024x1024', quality: 'high', prompt: 'x' },
+  media: { videos: [], audios: [], images: Array.from({ length: 16 }, () => ({ width: 1024, height: 1024 })) },
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(gptEdit16.rawUsd - (0.219 + 15 * 0.016 + 5 / 1e6)) < 1e-9);
+assert.throws(
+  () =>
+    resolveRateCard({
+      endpoint: 'openai/gpt-image-2/edit',
+      args: { image_size: '1024x1024', quality: 'high', prompt: 'x' },
+      media: { videos: [], audios: [], images: Array.from({ length: 17 }, () => ({ width: 1, height: 1 })) },
+      nowMs: nowPromo,
+    }),
+  /at most 16/
+);
+assert.throws(
+  () =>
+    resolveRateCard({
+      endpoint: 'openai/gpt-image-2/edit',
+      args: { image_size: '1024x1024', quality: 'high', prompt: 'x' },
+      nowMs: nowPromo,
+    }),
+  /at least one reference image/
+);
 
 const image = resolveRateCard({
   endpoint: 'openai/gpt-image-2',
@@ -65,6 +186,14 @@ const speech = resolveRateCard({
   nowMs: nowPromo,
 });
 assert.equal(speech.rawUsd, 0.1);
+
+const clonePreview = 'This is a short preview of the cloned voice.';
+const clone = resolveRateCard({
+  endpoint: 'fal-ai/minimax/voice-clone',
+  args: { text: clonePreview },
+  nowMs: nowPromo,
+});
+assert.ok(Math.abs(clone.rawUsd - (1.5 + (clonePreview.length / 1000) * 0.3)) < 1e-9);
 
 const music = resolveRateCard({
   endpoint: 'minimax/music-3',
@@ -250,52 +379,24 @@ assert.equal(race.job.status, 'settled');
 const skipped = applyReconcile(race.balances, race.job, 80);
 assert.equal(skipped.skipped, true);
 
-const alerts: string[] = [];
-const mem = new Map();
-const env = { TELEGRAM_BOT_TOKEN: 'token', TELEGRAM_CHAT_ID: 'chat' };
-let telegramCalls = 0;
-const fetchImpl = async (url: string) => {
-  assert.ok(!String(url).includes('token') || String(url).includes('api.telegram.org'));
-  telegramCalls += 1;
-  alerts.push(String(url));
-  return new Response('{}', { status: 200 });
-};
+// Alert contract (full coverage in src/lib/ops/alert.selfcheck.ts): HIGH
+// dedupes per (condition, id, UTC day); every send leaves an opsAlerts record
+// and one structured log line.
+const mem = new Map<string, import('@/lib/ops/alert').AlertRecord>();
+const logLines: string[] = [];
+const alertStore = { has: (k: string) => mem.has(k), set: (k: string, r: never) => void mem.set(k, r) };
 const high = await sendOpsAlert(
   { severity: 'HIGH', condition: 'price-drift', id: 'music', text: 'card below live' },
-  { nowMs: nowPromo, env, store: mem, fetchImpl: fetchImpl as typeof fetch }
+  { nowMs: nowPromo, store: alertStore, log: (l) => logLines.push(l) }
 );
 const again = await sendOpsAlert(
   { severity: 'HIGH', condition: 'price-drift', id: 'music', text: 'card below live' },
-  { nowMs: nowPromo, env, store: mem, fetchImpl: fetchImpl as typeof fetch }
+  { nowMs: nowPromo, store: alertStore, log: (l) => logLines.push(l) }
 );
 assert.equal(high, 'sent');
 assert.equal(again, 'deduped');
-assert.equal(telegramCalls, 1);
-
-const missing = await sendOpsAlert(
-  { severity: 'INFO', condition: 'heartbeat', id: 'day', text: 'heartbeat' },
-  { nowMs: nowPromo, env: {}, store: new Map(), fetchImpl: fetchImpl as typeof fetch }
-);
-assert.equal(missing, 'skipped');
-
-let slept = 0;
-let tries = 0;
-const limited = await sendTelegram(
-  'x'.repeat(5000),
-  env,
-  async () => {
-    tries += 1;
-    if (tries === 1) {
-      return new Response(JSON.stringify({ parameters: { retry_after: 90 } }), { status: 429 });
-    }
-    return new Response('{}', { status: 200 });
-  },
-  async (ms) => {
-    slept = ms;
-  }
-);
-assert.equal(limited, 'sent');
-assert.equal(slept, 30_000);
+assert.equal(logLines.length, 1);
+assert.equal(JSON.parse(logLines[0]).severity, 'HIGH');
 
 // submitPriceGate truth table — a refusal is decided from inputs only, so it
 // runs before any reserve and can never leave a hold.

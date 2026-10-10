@@ -52,6 +52,26 @@ export async function estimateUnitPriceCost(
   endpoint: string,
   unitQuantity: number
 ): Promise<number | null> {
+  return estimateCost(endpoint, 'unit_price', { unit_quantity: unitQuantity });
+}
+
+/**
+ * POST /models/pricing/estimate historical_api_price: what Fal actually
+ * charged for the last callQuantity calls of endpoint, total. Null on failure.
+ * The deterministic-billing drift tripwire (ADR-001).
+ */
+export async function estimateHistoricalCost(
+  endpoint: string,
+  callQuantity: number
+): Promise<number | null> {
+  return estimateCost(endpoint, 'historical_api_price', { call_quantity: callQuantity });
+}
+
+async function estimateCost(
+  endpoint: string,
+  estimateType: 'unit_price' | 'historical_api_price',
+  quantity: Record<string, number>
+): Promise<number | null> {
   const key = falServerKey();
   if (!key) return null;
   try {
@@ -60,8 +80,8 @@ export async function estimateUnitPriceCost(
       headers: falHeaders(key),
       cache: 'no-store',
       body: JSON.stringify({
-        estimate_type: 'unit_price',
-        endpoints: { [endpoint]: { unit_quantity: unitQuantity } },
+        estimate_type: estimateType,
+        endpoints: { [endpoint]: quantity },
       }),
     });
     if (!res.ok) return null;

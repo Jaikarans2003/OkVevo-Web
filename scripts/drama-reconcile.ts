@@ -1,12 +1,11 @@
 /**
  * Compare one ledger row with Fal usage. Does not call Fal.
  *
- * Live source, when smoke is approved: GET https://api.fal.ai/v1/models/usage
- * Authorization: Key <platform key> (same header as getEndpointPricing).
- * The key needs permissions billing:usage:read, auth:keys:read, account:users:read
- * (presets BILLING or FULL). Docs: https://docs.fal.ai/platform-apis/v1/models/usage
- * A missing job can be supplied as a dashboard CSV with columns
- * request_id,quantity,cost.
+ * Source: the Fal dashboard usage page (https://fal.ai/dashboard/usage),
+ * exported as a CSV with columns request_id,quantity,cost. The usage API
+ * (GET https://api.fal.ai/v1/models/usage) returns 403 for our
+ * generation-only key — deterministic billing mode, see
+ * docs/adr/ADR-001-drama-full-parity.md.
  */
 import { readFileSync } from 'node:fs';
 

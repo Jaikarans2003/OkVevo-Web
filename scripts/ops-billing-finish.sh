@@ -68,16 +68,8 @@ printf '%s' "$RAZORPAY_WEBHOOK_SECRET" | firebase apphosting:secrets:set RAZORPA
 echo "==> Grant App Hosting backend access to secrets (idempotent)"
 firebase apphosting:secrets:grantaccess CRON_SECRET,RAZORPAY_WEBHOOK_SECRET --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
 
-# Telegram ops alerts (fal-drift HIGH alerts). Optional: without these the
-# alert path skips cleanly, but a live Fal gateway should not run blind.
-if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
-  echo "==> Secret Manager: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"
-  printf '%s' "$TELEGRAM_BOT_TOKEN" | firebase apphosting:secrets:set TELEGRAM_BOT_TOKEN --project "$PROJECT" --data-file - --force --non-interactive
-  printf '%s' "$TELEGRAM_CHAT_ID" | firebase apphosting:secrets:set TELEGRAM_CHAT_ID --project "$PROJECT" --data-file - --force --non-interactive
-  firebase apphosting:secrets:grantaccess TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
-else
-  echo "WARNING: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not in $SECRETS — ops alerts will skip"
-fi
+# Ops alerts: HIGH conditions write an opsAlerts record (admin dashboard
+# banner) plus a structured log line. No chat integration to provision.
 
 echo "==> Local-source App Hosting deploy (backend has no connected GitHub repo)"
 firebase deploy --only apphosting --project "$PROJECT" --force --non-interactive
@@ -119,8 +111,9 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
-# Daily price drift + abandoned submitted holds. Margin stays an ops script
-# (scripts/fal-margin-report.ts) so FAL_BILLING_KEY is not on this server.
+# Daily price drift + abandoned submitted holds + admin rollup. Margin is
+# estimated from the rate card (deterministic mode, ADR-001): the Fal key has
+# no billing read access, so there is no FAL_BILLING_KEY anywhere.
 FAL_URI="${ORIGIN}/api/cron/fal-drift"
 if gcloud scheduler jobs describe nia-fal-drift --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
   echo "==> Update scheduler job nia-fal-drift"

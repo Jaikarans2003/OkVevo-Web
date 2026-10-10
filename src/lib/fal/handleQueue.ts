@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { FieldValue } from 'firebase-admin/firestore';
+
 import { env } from '@/config/env';
-import { auth } from '@/lib/firebase-admin';
+import { auth, db } from '@/lib/firebase-admin';
 import { isMeterableEndpoint } from '@/lib/fal/allowlist';
 import {
   estimateUnitPriceCost,
@@ -11,6 +13,16 @@ import {
   getEndpointPricing,
   submitFalQueue,
 } from '@/lib/fal/client';
+import {
+  breakerDecision,
+  dailySpendLimitFromEnv,
+  killSwitchDisabled,
+} from '@/lib/fal/dramaSwitches';
+import {
+  indexPayloadMedia,
+  MediaResolveError,
+  resolveMediaArgs,
+} from '@/lib/fal/mediaResolve';
 import { parseFalQueuePath } from '@/lib/fal/queuePath';
 import { applyFalSafetyOff } from '@/lib/fal/safety';
 import {
@@ -18,7 +30,7 @@ import {
   RELEASED_STATUS,
   SETTLED_STATUS_BODY,
 } from '@/lib/fal/statusContract';
-import { adjustedUsd, quantity } from '@/lib/fal/quantity';
+import { adjustedUsd, quantity, QuantityError } from '@/lib/fal/quantity';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InsufficientCreditsError,
@@ -34,6 +46,7 @@ import {
   reserveCredits,
   reserveFalRun,
 } from '@/lib/gateway/debit';
+import { omitUndefined } from '@/lib/gateway/reserve';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 import {
   MAX_JOB_CREDITS,
@@ -41,9 +54,23 @@ import {
   resolveRateCard,
   submitPriceGate,
   settleFromSnapshot,
+  type MediaContext,
   type PriceSnapshot,
 } from '@/lib/fal/rateCard';
 import { canonicalBodyHash } from '@/lib/fal/idempotency';
+import { sendOpsAlert, utcDay } from '@/lib/ops/alert';
+import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
+import {
+  SPEECH_ENDPOINT,
+  VOICE_CLONE_ENDPOINT,
+  extractCustomVoiceId,
+  isPresetVoice,
+  markVoiceUsedInTts,
+  readClonedVoice,
+  recordClonedVoice,
+  sampleSha256FromAudioUrl,
+  speechVoiceOwnershipDenied,
+} from '@/lib/fal/voiceOwnership';
 
 const SUBMIT_KEYS = [
   'duration',
@@ -59,11 +86,22 @@ const SUBMIT_KEYS = [
   'quality',
   'text',
   'lyrics',
-  'reference_image_count',
   'size',
+  'task',
+  'aspect_ratio',
+  'prompt',
+  // speech-02-hd voice selection (harmless absent on other endpoints).
+  'voice_id',
+  'language_boost',
+  'audio_url',
+  'model',
 ] as const;
 
-const PHASE2_INPUTS = ['video_url', 'video_urls', 'audio_url', 'audio_urls'] as const;
+/**
+ * Singular media keys no wired endpoint accepts (schemas use the *_urls
+ * arrays or named slots). Rejected before any hold with the right shape named.
+ */
+const SINGULAR_MEDIA_KEYS = ['video_url'] as const;
 
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: { message } }, { status });
@@ -106,6 +144,8 @@ export async function meterRawUsd(opts: {
   payload?: unknown;
   metrics?: unknown;
   nowMs?: number;
+  /** Server-measured reference media (drama rate-card jobs). */
+  media?: MediaContext;
   /** Settle passes the stored snapshot and must not re-fetch. */
   snapshot?: PriceSnapshot;
 }): Promise<number> {
@@ -114,6 +154,7 @@ export async function meterRawUsd(opts: {
       snapshot: opts.snapshot,
       args: opts.args,
       payload: opts.payload,
+      media: opts.media,
       nowMs: opts.nowMs ?? Date.parse(opts.snapshot.fetchedAt),
     });
   }
@@ -128,6 +169,7 @@ export async function meterRawUsd(opts: {
       endpoint: opts.endpoint,
       args: opts.args,
       payload: opts.payload,
+      media: opts.media,
       liveUnitPrice: live,
       liveFetchedAtMs: live != null ? nowMs : null,
       nowMs,
@@ -181,9 +223,28 @@ export async function settleFalJob(opts: {
       args,
       payload: opts.payload,
       metrics: opts.metrics,
-      snapshot: job.priceSnapshot,
+      media: job.media,
+      snapshot: job.priceSnapshot as PriceSnapshot | undefined,
     });
     actual = Math.min(creditsFromUsd(rawUsd).credits, job.estimatedCredits);
+    if (creditsFromUsd(rawUsd).credits > job.estimatedCredits && rateCardEntry(endpoint)) {
+      // Formula landed above the reserve: the user is never charged more
+      // than approved — OkVevo absorbs the difference and flags it.
+      const day = utcDay(Date.now());
+      await sendOpsAlert(
+        {
+          severity: 'HIGH',
+          condition: 'fal-over-reserve',
+          id: opts.requestId,
+          text: `settle formula ${creditsFromUsd(rawUsd).credits} credits exceeds reserve ${job.estimatedCredits} on ${endpoint}; absorbed`,
+        },
+        { nowMs: Date.now(), store: firestoreAlertStore(db) }
+      );
+      await db.doc(`spendDaily/${day}`).set(
+        { overReserveEvents: FieldValue.increment(1) },
+        { merge: true }
+      );
+    }
     await reconcileCredits({
       requestId: opts.requestId,
       actualCredits: actual,
@@ -192,6 +253,27 @@ export async function settleFalJob(opts: {
       costUsd: creditsFromUsd(rawUsd).costUsd,
       priceUsd: rawUsd,
     });
+    if (rateCardEntry(endpoint)) {
+      // Circuit-breaker ledger (raw Fal USD, not the margined notional) and
+      // the output-media index that lets later jobs reuse Fal URLs.
+      const day = utcDay(Date.now());
+      await db.doc(`spendDaily/${day}`).set(
+        {
+          falUsd: FieldValue.increment(rawUsd),
+          creditsCharged: FieldValue.increment(actual),
+          jobs: FieldValue.increment(1),
+        },
+        { merge: true }
+      );
+      await patchGatewayJob(opts.requestId, {
+        settledAt: FieldValue.serverTimestamp(),
+        settledCredits: actual,
+        settledFalUsd: rawUsd,
+      });
+      if (opts.payload !== undefined) {
+        await indexPayloadMedia(endpoint, opts.payload, args, job.uid, opts.requestId);
+      }
+    }
   } catch (err) {
     if (err instanceof QuantityError) {
       console.error('fal settle quantity failed, keeping estimate', err);
@@ -205,14 +287,74 @@ export async function settleFalJob(opts: {
       throw err;
     }
   }
+  try {
+    await persistVoiceOwnership(job.uid, endpoint, args, opts.payload, job);
+  } catch (err) {
+    console.error('fal voice ownership persist failed', err);
+    await sendOpsAlert(
+      {
+        severity: 'HIGH',
+        condition: 'voice-record-failed',
+        id: opts.requestId,
+        text: `settled ${endpoint} but clonedVoices write failed`,
+      },
+      { nowMs: Date.now(), store: firestoreAlertStore(db) }
+    );
+  }
   if (opts.payload !== undefined) {
     await patchGatewayJob(opts.requestId, { payload: opts.payload });
+  }
+}
+
+async function persistVoiceOwnership(
+  uid: string,
+  endpoint: string,
+  args: Record<string, unknown>,
+  payload: unknown,
+  job: {
+    character?: string;
+    project?: string;
+    consentAt?: string;
+    sampleSha256?: string;
+  }
+): Promise<void> {
+  if (endpoint === VOICE_CLONE_ENDPOINT) {
+    const customVoiceId = extractCustomVoiceId(payload);
+    if (!customVoiceId) return;
+    const recorded = await recordClonedVoice({
+      uid,
+      custom_voice_id: customVoiceId,
+      character: job.character ?? '',
+      project: job.project ?? '',
+      cloned_at: new Date().toISOString(),
+      used_in_tts_at: null,
+      consent_at: job.consentAt ?? null,
+      sample_sha256: job.sampleSha256 ?? null,
+    });
+    if (recorded === 'tombstoned') {
+      throw new Error('custom_voice_id is tombstoned and cannot be registered again');
+    }
+    return;
+  }
+  if (endpoint === SPEECH_ENDPOINT) {
+    const voiceId = typeof args.voice_id === 'string' ? args.voice_id.trim() : '';
+    if (!voiceId || isPresetVoice(voiceId)) return;
+    await markVoiceUsedInTts(voiceId, uid, new Date().toISOString());
   }
 }
 
 function falStatusOf(json: unknown): string {
   const rec = json && typeof json === 'object' ? (json as Record<string, unknown>) : {};
   return String(rec.status ?? '').toUpperCase();
+}
+
+/** Kill-switch doc cache — a toggle takes effect within a minute, no deploy. */
+let killCache = { atMs: 0, disabled: false };
+async function dramaKillSwitchDisabled(nowMs: number): Promise<boolean> {
+  if (nowMs - killCache.atMs < 60_000) return killCache.disabled;
+  const snap = await db.doc('opsConfig/drama').get();
+  killCache = { atMs: nowMs, disabled: killSwitchDisabled(snap.data()) };
+  return killCache.disabled;
 }
 
 async function handleSubmit(
@@ -232,13 +374,78 @@ async function handleSubmit(
     return jsonError(502, 'Fal pricing unavailable');
   }
   const args = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  if (rateCardEntry(endpoint) && PHASE2_INPUTS.some((key) => args[key] != null)) {
-    return jsonError(400, 'Phase 1 does not accept video or audio inputs');
+
+  const nowMs = Date.now();
+  if (card) {
+    // Kill switch: one Firestore flag turns drama submits off, no deploy.
+    if (await dramaKillSwitchDisabled(nowMs)) {
+      return jsonError(503, 'drama generation is temporarily disabled');
+    }
+    // Daily spend circuit breaker: 80% HIGH alert, 100% refuse new submits.
+    const day = utcDay(nowMs);
+    const spendSnap = await db.doc(`spendDaily/${day}`).get();
+    const spendUsd = Number(spendSnap.data()?.falUsd ?? 0);
+    const limitUsd = dailySpendLimitFromEnv(process.env);
+    const decision = breakerDecision(spendUsd, limitUsd);
+    if (decision !== 'ok') {
+      await sendOpsAlert(
+        {
+          severity: 'HIGH',
+          condition: decision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
+          id: day,
+          text:
+            decision === 'stop'
+              ? `daily drama Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
+              : `daily drama Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
+        },
+        { nowMs, store: firestoreAlertStore(db) }
+      );
+      if (decision === 'stop') {
+        return jsonError(429, 'daily drama spend limit reached — new jobs resume next UTC day');
+      }
+    }
   }
-  if (endpoint === 'fal-ai/minimax/speech-02-hd' && args.audio_url != null) {
-    return jsonError(400, 'Phase 1 speech does not accept reference audio');
+
+  if (card && SINGULAR_MEDIA_KEYS.some((key) => args[key] != null)) {
+    return jsonError(400, 'use the *_urls array media keys on a reference-to-video endpoint');
   }
-  const submitArgs = pickSubmitArgs(body);
+  if (card && args.audio_url != null && endpoint !== VOICE_CLONE_ENDPOINT) {
+    return jsonError(
+      400,
+      endpoint === SPEECH_ENDPOINT
+        ? 'clone the voice first with fal-ai/minimax/voice-clone, then pass custom_voice_id as voice_id'
+        : 'audio_url is only valid on fal-ai/minimax/voice-clone'
+    );
+  }
+
+  // Custom voice_id is a capability on OkVevo's Fal account. Refuse before
+  // any hold when the requesting uid does not own the clone record.
+  if (endpoint === SPEECH_ENDPOINT) {
+    const voiceId = typeof args.voice_id === 'string' ? args.voice_id.trim() : '';
+    if (voiceId && !isPresetVoice(voiceId)) {
+      const owned = await readClonedVoice(voiceId);
+      if (speechVoiceOwnershipDenied({ voiceId, uid, record: owned })) {
+        return jsonError(403, 'custom voice_id is not owned by this account');
+      }
+    }
+  }
+
+  // Media references (drama-upload:// / Fal output URLs) resolve to Fal-
+  // fetchable URLs + the measured MediaContext BEFORE any hold.
+  let falBody = args;
+  let media: MediaContext | undefined;
+  if (card) {
+    try {
+      const resolved = await resolveMediaArgs(endpoint, args, uid);
+      falBody = resolved.falArgs;
+      media = resolved.media;
+    } catch (err) {
+      if (err instanceof MediaResolveError) return jsonError(400, err.message);
+      throw err;
+    }
+  }
+
+  const submitArgs = pickSubmitArgs(falBody);
   const runId = typeof args.run_id === 'string' ? args.run_id.trim() : '';
   const approved =
     typeof args.approved_credits === 'number' ? args.approved_credits : null;
@@ -246,11 +453,11 @@ async function handleSubmit(
   let snapshot: PriceSnapshot | undefined;
   try {
     if (rateCardEntry(endpoint)) {
-      const nowMs = Date.now();
       const live = isCardOnly(endpoint) ? null : pricing?.unitPrice ?? null;
       const resolved = resolveRateCard({
         endpoint,
         args: submitArgs,
+        media,
         liveUnitPrice: live,
         liveFetchedAtMs: live != null ? nowMs : null,
         nowMs,
@@ -285,13 +492,19 @@ async function handleSubmit(
   }
   let holdId = crypto.randomUUID();
   const bodyHash = canonicalBodyHash({ endpoint, submitArgs, runId });
-  const extra = {
+  const extra = omitUndefined({
     endpoint,
     unit: snapshot?.unit ?? pricing?.unit,
     unitPrice: snapshot?.unitPrice ?? pricing?.unitPrice,
     submitArgs,
+    media,
     priceSnapshot: snapshot,
-  };
+    character: typeof args.character === 'string' ? args.character.trim().slice(0, 80) : undefined,
+    project: typeof args.project === 'string' ? args.project.trim().slice(0, 80) : undefined,
+    consentAt:
+      args.voice_clone_consent === true ? new Date(nowMs).toISOString() : undefined,
+    sampleSha256: (await sampleSha256FromAudioUrl(args.audio_url, uid)) ?? undefined,
+  });
   try {
     if (runId) {
       const reserved = await reserveFalRun({
@@ -335,7 +548,7 @@ async function handleSubmit(
   }
 
   try {
-    const submitted = await submitFalQueue(endpoint, applyFalSafetyOff(endpoint, args));
+    const submitted = await submitFalQueue(endpoint, applyFalSafetyOff(endpoint, falBody));
     await rebindGatewayJob(holdId, submitted.request_id);
     await patchGatewayJob(submitted.request_id, {
       status: 'submitted',
