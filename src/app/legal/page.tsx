@@ -1,5 +1,9 @@
 'use client';
 
+{/* LEGAL REVIEW REQUIRED (2026-10-10): the fal.ai generation-provider
+    disclosure added to the Terms of Use (section 8) and Privacy Policy
+    (section 7) is product-drafted text pending counsel review. */}
+
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/landing-page/Navbar';
 import Footer from '@/components/landing-page/Footer';
@@ -95,6 +99,10 @@ Users agree that:
 * AI systems must not be used for unlawful or harmful purposes
 * AI outputs must be independently verified when used commercially or publicly
 Separate policies may govern responsible AI usage for specific platforms.
+
+### 8.1 Generation Providers
+When you generate video, images, music or voice, your prompts and any files you upload are sent to our AI provider, fal.ai, to create the result. Uploaded files are stored for up to 7 days, then deleted. Only upload images, voices or likenesses you have the right to use.
+If you clone a voice, we keep its voice ID linked to your account until you delete it. Deleted voice IDs are kept as deleted so they cannot be registered or used by anyone again. Fal.ai / MiniMax does not offer a delete-voice API, so deleting the link on your OkVevo account does not delete the provider copy. Unused provider clones are deleted automatically after 7 days; a clone used in speech may persist on the provider.
 
 ## 9. Third-Party Services
 Azonova services may integrate or link to third-party platforms, tools, or services.
@@ -244,6 +252,10 @@ Azonova does not sell personal information. Information may be shared with:
 * **Service Providers**: Trusted third parties for hosting, analytics, payment processing, infrastructure.
 * **Business Partners**: When necessary for platform services or projects.
 * **Legal Authorities**: When required by law, regulatory authorities, court orders, or agencies.
+
+### 7.1 AI Generation Providers
+When you generate video, images, music or voice, your prompts and any files you upload are sent to our AI provider, fal.ai, to create the result. Uploaded files are stored for up to 7 days, then deleted. Only upload images, voices or likenesses you have the right to use.
+If you clone a voice, we keep its voice ID linked to your account until you delete it. Deleted voice IDs are kept as deleted so they cannot be registered or used by anyone again. Fal.ai / MiniMax does not offer a delete-voice API, so deleting the link on your OkVevo account does not delete the provider copy. Unused provider clones are deleted automatically after 7 days; a clone used in speech may persist on the provider.
 
 ## 8. Data Security
 Azonova implements safeguards including:
@@ -608,26 +620,26 @@ export default function LegalPage() {
     }, []);
 
     return (
-        <div className="bg-black min-h-screen text-white font-ubuntu flex flex-col relative overflow-x-hidden">
+        <div className="bg-[#f6f1ec] min-h-screen text-[#2b2b2b] font-ubuntu flex flex-col relative overflow-x-hidden">
             {/* Grid Background */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div 
                     className="absolute inset-0 opacity-[0.20]" 
                     style={{ 
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M 40 0 L 0 0 0 40' fill='none' stroke='white' stroke-width='1'/%3E%3C/svg%3E")`,
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M 40 0 L 0 0 0 40' fill='none' stroke='%232b2b2b' stroke-width='1'/%3E%3C/svg%3E")`,
                         backgroundSize: '40px 40px'
                     }} 
                 />
-                <div className="absolute inset-0 bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_0%,black_100%)] opacity-80" />
+                <div className="absolute inset-0 bg-[#f6f1ec] [mask-image:radial-gradient(ellipse_at_center,transparent_0%,black_100%)] opacity-80" />
             </div>
 
             <Navbar />
 
-            <main className="relative z-10 pt-44 pb-32 px-6 md:px-12 flex flex-col lg:flex-row gap-12 max-w-[1440px] mx-auto w-full">
+            <main id="main" className="relative z-10 pt-28 pb-32 px-6 md:px-12 flex flex-col lg:flex-row gap-12 max-w-[1440px] mx-auto w-full">
                 {/* Left Sidebar - Navigation */}
                 <aside className="lg:w-80 flex-shrink-0">
-                    <div className="sticky top-44 bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-6 max-h-[70vh] overflow-y-auto no-scrollbar">
-                        <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-white/40 mb-8 ml-4">Legal & Policy</h2>
+                    <div className="sticky top-28 bg-white/80 backdrop-blur-xl border border-[#2b2b2b]/10 rounded-[32px] p-6 max-h-[70vh] overflow-y-auto no-scrollbar">
+                        <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-[#2b2b2b]/40 mb-8 ml-4">Legal & Policy</h2>
                         <nav className="flex flex-col gap-2">
                             {policies.map((policy) => (
                                 <button
@@ -638,11 +650,11 @@ export default function LegalPage() {
                                     }}
                                     className={`flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 text-left group ${
                                         activePolicy === policy.id 
-                                            ? 'bg-accent-orange text-white shadow-[0_10px_30px_rgba(251,74,46,0.3)]' 
-                                            : 'hover:bg-white/5 text-white/60 hover:text-white'
+                                            ? 'bg-accent-orange text-[#2b2b2b] shadow-[0_10px_30px_rgba(255,109,31,0.25)]' 
+                                            : 'hover:bg-[#2b2b2b]/5 text-[#2b2b2b]/60 hover:text-[#2b2b2b]'
                                     }`}
                                 >
-                                    <span className={`transition-colors duration-300 ${activePolicy === policy.id ? 'text-white' : 'text-white/40 group-hover:text-white'}`}>
+                                    <span className={`transition-colors duration-300 ${activePolicy === policy.id ? 'text-[#2b2b2b]' : 'text-[#2b2b2b]/40 group-hover:text-[#2b2b2b]'}`}>
                                         {policy.icon}
                                     </span>
                                     <span className="text-[13px] font-bold tracking-tight leading-tight">{policy.title}</span>
@@ -653,21 +665,21 @@ export default function LegalPage() {
                 </aside>
 
                 {/* Right Content Area */}
-                <div className="flex-1 bg-[#111111]/40 backdrop-blur-sm border border-white/5 rounded-[48px] p-8 md:p-16 min-h-[80vh]">
-                    <div className="max-w-3xl mx-auto prose prose-invert prose-orange">
+                <div className="flex-1 bg-white/70 backdrop-blur-sm border border-[#2b2b2b]/10 rounded-[48px] p-8 md:p-16 min-h-[80vh]">
+                    <div className="max-w-3xl mx-auto prose prose-neutral">
                         {/* Custom markdown-like rendering for the simple bolded parts */}
                         {policies.find(p => p.id === activePolicy)?.content.split('\n').map((line, index) => {
                             if (line.startsWith('# ')) {
-                                return <h1 key={index} className="text-4xl md:text-5xl font-black mb-8 tracking-tighter text-white">{line.replace('# ', '')}</h1>;
+                                return <h1 key={index} className="text-4xl md:text-5xl font-black mb-8 tracking-tighter text-[#2b2b2b]">{line.replace('# ', '')}</h1>;
                             }
                             if (line.startsWith('## ')) {
                                 return <h2 key={index} className="text-xl md:text-2xl font-black mt-12 mb-6 tracking-tight text-accent-orange">{line.replace('## ', '')}</h2>;
                             }
                             if (line.startsWith('### ')) {
-                                return <h3 key={index} className="text-lg font-black mt-8 mb-4 text-white">{line.replace('### ', '')}</h3>;
+                                return <h3 key={index} className="text-lg font-black mt-8 mb-4 text-[#2b2b2b]">{line.replace('### ', '')}</h3>;
                             }
                             if (line.startsWith('* ')) {
-                                return <li key={index} className="ml-6 text-white/70 mb-2 list-none flex gap-3">
+                                return <li key={index} className="ml-6 text-[#2b2b2b]/70 mb-2 list-none flex gap-3">
                                     <span className="text-accent-orange">•</span>
                                     <span>{line.replace('* ', '')}</span>
                                 </li>;
@@ -677,8 +689,8 @@ export default function LegalPage() {
                             // Handling bold text within lines
                             const parts = line.split('**');
                             return (
-                                <p key={index} className="text-[15px] leading-relaxed text-white/80 mb-4">
-                                    {parts.map((part, i) => i % 2 === 1 ? <strong key={part + i} className="text-white font-bold">{part}</strong> : part)}
+                                <p key={index} className="text-[15px] leading-relaxed text-[#2b2b2b]/80 mb-4">
+                                    {parts.map((part, i) => i % 2 === 1 ? <strong key={part + i} className="text-[#2b2b2b] font-bold">{part}</strong> : part)}
                                 </p>
                             );
                         })}
