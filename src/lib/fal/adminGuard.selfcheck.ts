@@ -7,8 +7,8 @@
  *      state.
  *   3. The dashboard API reads rollups (adminRollups), never raw gatewayJobs
  *      scans.
- *   4. The admin page is a client component that treats API 404 as
- *      not-found and has exactly one write control (the kill switch).
+ *   4. /admin/drama is a server page: claim check in a server layout; email
+ *      lists are not admin.
  * Run: npx tsx src/lib/fal/adminGuard.selfcheck.ts
  */
 import assert from 'node:assert/strict';
@@ -25,6 +25,8 @@ const killRoute = readFileSync(
   'utf8'
 );
 const adminPage = readFileSync(path.join(root, 'app', 'admin', 'drama', 'page.tsx'), 'utf8');
+const adminLayout = readFileSync(path.join(root, 'app', 'admin', 'drama', 'layout.tsx'), 'utf8');
+const firebaseAdmin = readFileSync(path.join(root, 'lib', 'firebase-admin.ts'), 'utf8');
 
 for (const [name, src] of [
   ['admin/drama route', adminRoute],
@@ -61,12 +63,20 @@ assert.ok(
   'admin route must not scan gatewayJobs — read the pre-aggregated rollup'
 );
 
-// Page: 404 handling + single write control.
-assert.ok(adminPage.includes("res.status === 404"), 'admin page must render 404 on API 404');
+assert.ok(!adminPage.includes("'use client'"), 'admin page must be a server component');
+assert.ok(adminPage.includes('notFound()'), 'admin page must 404 on the server');
+assert.ok(adminLayout.includes('notFound()'), 'admin layout must 404 on the server');
 assert.ok(
-  (adminPage.match(/fetch\('/g) ?? []).every((_, i, arr) => arr.length === 2),
-  'admin page should only call the two admin API routes'
+  adminLayout.includes('readAdminSession') || adminLayout.includes('verifyAdminToken'),
+  'admin layout must check the admin claim'
 );
-assert.ok(adminPage.includes('kill-switch'), 'admin page lost the kill switch control');
+assert.ok(
+  !firebaseAdmin.includes('ADMIN_EMAILS'),
+  'verifyAdminToken must not treat ADMIN_EMAILS as admin'
+);
+assert.ok(
+  firebaseAdmin.includes("decodedToken.admin === true"),
+  'admin is the custom claim only'
+);
 
 console.log('adminGuard.selfcheck: ok');
