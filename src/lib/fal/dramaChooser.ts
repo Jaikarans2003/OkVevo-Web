@@ -318,7 +318,7 @@ export function choose(cards: DramaCard[], prices: Record<string, Price>, shot: 
     rejections.push(...pass.rejections);
     if (pass.quote) return { choice: withNotice(pass.quote, tierNotice), rejections };
     if (pass.capBlocked) return { choice: null, rejections };
-    const next = TIER_UP[tier];
+    const next: Tier | null = TIER_UP[tier];
     if (!next) break;
     tierNotice = `no ${tier} model fits this shot; using ${next}`;
     tier = next;
