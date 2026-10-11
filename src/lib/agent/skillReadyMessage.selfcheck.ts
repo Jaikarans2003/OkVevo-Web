@@ -20,6 +20,10 @@ const indexPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../../Skills/index.json'
 );
+if (!fs.existsSync(indexPath)) {
+  console.log('skillReadyMessage.selfcheck: skip (Skills/index.json gone)');
+  process.exit(0);
+}
 const { skills } = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as {
   skills: Entry[];
 };

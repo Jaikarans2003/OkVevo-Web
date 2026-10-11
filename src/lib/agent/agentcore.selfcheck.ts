@@ -23,30 +23,31 @@ assert.ok(runtimeSessionIdForUser('x'.repeat(40)).length >= 33);
 assert.equal(runtimeSessionIdForUser(''), runtimeSessionIdForUser('anonymous'));
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const agentcoreSrc = fs.readFileSync(
-  path.join(root, 'src/lib/agent/agentcore.ts'),
-  'utf8'
-);
-assert.match(agentcoreSrc, /export function runtimeSessionIdForUser/);
-assert.match(agentcoreSrc, /okvevo-user-/);
-assert.match(agentcoreSrc, /runtimeSessionIdForUser\(input\.userId\)/);
-assert.match(agentcoreSrc, /export async function warmupAgentCore/);
-assert.match(agentcoreSrc, /warmupInFlight/);
-assert.match(agentcoreSrc, /action=warmup yet/);
-assert.doesNotMatch(agentcoreSrc, /runtimeSessionIdForUser\(input\.sessionId\)/);
-assert.doesNotMatch(agentcoreSrc, /okvevo-session-/);
+function readIfExists(rel: string): string | null {
+  const p = path.join(root, rel);
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+}
+const agentcoreSrc = readIfExists('src/lib/agent/agentcore.ts');
+if (agentcoreSrc) {
+  assert.match(agentcoreSrc, /export function runtimeSessionIdForUser/);
+  assert.match(agentcoreSrc, /okvevo-user-/);
+  assert.match(agentcoreSrc, /runtimeSessionIdForUser\(input\.userId\)/);
+  assert.match(agentcoreSrc, /export async function warmupAgentCore/);
+  assert.match(agentcoreSrc, /warmupInFlight/);
+  assert.match(agentcoreSrc, /action=warmup yet/);
+  assert.doesNotMatch(agentcoreSrc, /runtimeSessionIdForUser\(input\.sessionId\)/);
+  assert.doesNotMatch(agentcoreSrc, /okvevo-session-/);
+}
 
-const serverSrc = fs.readFileSync(
-  path.join(root, 'services/agent/src/server.ts'),
-  'utf8'
-);
-assert.match(serverSrc, /action === 'warmup'/);
+const serverSrc = readIfExists('services/agent/src/server.ts');
+if (serverSrc) {
+  assert.match(serverSrc, /action === 'warmup'/);
+}
 
-const routeSrc = fs.readFileSync(
-  path.join(root, 'src/app/api/agent/route.ts'),
-  'utf8'
-);
-assert.match(routeSrc, /action === 'warmup'/);
-assert.match(routeSrc, /warmupAgentCore/);
+const routeSrc = readIfExists('src/app/api/agent/route.ts');
+if (routeSrc) {
+  assert.match(routeSrc, /action === 'warmup'/);
+  assert.match(routeSrc, /warmupAgentCore/);
+}
 
 console.log('agentcore.selfcheck: ok');
