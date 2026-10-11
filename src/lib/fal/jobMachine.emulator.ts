@@ -17,8 +17,14 @@ process.env.FAL_KEY ??= 'emulator-test-key';
 const { db } = await import('@/lib/firebase-admin');
 const { parseQueue } = await import('@/lib/fal/falQueue');
 const { falRejectedMessage } = await import('@/lib/fal/jobMachine');
-const { alertDailySpend, handleCancel, handleResponse, sweepStuckDispatching, sweepSubmittedJob } =
-  await import('@/lib/fal/handleQueue');
+const {
+  alertDailySpend,
+  dispatchQueuedUsers,
+  handleCancel,
+  handleResponse,
+  sweepStuckDispatching,
+  sweepSubmittedJob,
+} = await import('@/lib/fal/handleQueue');
 const { RESERVED_ABANDONED_AFTER_MS } = await import('@/lib/fal/holdSweep');
 const {
   applyAmbiguous,
@@ -450,6 +456,20 @@ async function sweepStuckDispatchingToUnknown() {
   assert.equal((await readGatewayJob(unclaimed.holdId))?.status, 'dispatching');
 }
 
+/** The every-minute dispatcher recovers a claimed submit stuck in dispatching after the threshold. */
+async function minuteDispatcherRecoversStuck() {
+  const uid = await user();
+  const h = await hold(uid);
+  assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
+  assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'claimed');
+  await dispatchQueuedUsers(Date.now());
+  assert.equal((await readGatewayJob(h.holdId))?.status, 'dispatching');
+  const run = await dispatchQueuedUsers(Date.now() + RESERVED_ABANDONED_AFTER_MS + 60_000);
+  assert.ok(run.recovered >= 1);
+  assert.equal((await readGatewayJob(h.holdId))?.status, 'unknown');
+  assert.equal(await balance(uid), 900);
+}
+
 /** Sweep: a job Fal confirms cancelled is released in full and never charged. */
 async function sweepNeverChargesCancelled() {
   for (const body of [{ status: 'CANCELLED' }, { status: 'COMPLETED', error_type: 'client_cancelled' }]) {
@@ -486,6 +506,7 @@ async function main() {
   await spendReadNeverBlocks();
   await sweepStuckDispatchingToUnknown();
   await sweepNeverChargesCancelled();
+  await minuteDispatcherRecoversStuck();
   console.log('jobMachine.emulator: ok');
 }
 

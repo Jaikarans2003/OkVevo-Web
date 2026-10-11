@@ -566,14 +566,21 @@ export async function dispatchQueued(uid: string): Promise<void> {
   }
 }
 
-export async function dispatchQueuedUsers(): Promise<number> {
+export async function dispatchQueuedUsers(
+  nowMs = Date.now()
+): Promise<{ users: number; recovered: number }> {
+  let recovered = 0;
+  const dispatching = await db.collection('gatewayJobs').where('status', '==', 'dispatching').get();
+  for (const doc of dispatching.docs) {
+    if (await sweepStuckDispatching(doc.id, nowMs)) recovered += 1;
+  }
   const [waiting, pending] = await Promise.all([
     db.collection('falQueue').where('queuedCount', '>', 0).get(),
     db.collection('falQueue').where('needsSubmit', '==', true).get(),
   ]);
   const uids = new Set([...waiting.docs, ...pending.docs].map((doc) => doc.id));
   for (const uid of uids) await dispatchQueued(uid);
-  return uids.size;
+  return { users: uids.size, recovered };
 }
 
 /** Alert only; never throws. Balance, MAX_JOB_CREDITS, and idempotency gate the submit. */
