@@ -662,6 +662,9 @@ async function handleSubmit(
       );
     }
     const outcome = await submitReservedHold(uid, runId, holdId, false, true);
+    if (!outcome.ok && outcome.message === 'Fal submit failed') {
+      return jsonError(502, 'Fal submit failed');
+    }
     if (!outcome.ok) return jsonError(outcome.status, outcome.message);
     const slot = await slotView(uid, holdId);
     return NextResponse.json(
