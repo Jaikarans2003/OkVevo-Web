@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { readAdminSession } from '@/lib/firebase-admin';
+import { createAdminSessionCookie, readAdminSession } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 
 export const runtime = 'nodejs';
@@ -15,13 +15,14 @@ export async function POST(request: NextRequest) {
   const token = gatewayIdToken(request);
   if (!token) return notFound();
   if ((await readAdminSession(token)) !== 'admin') return notFound();
+  const sessionCookie = await createAdminSessionCookie(token);
   const store = await cookies();
-  store.set('__session', token, {
+  store.set('__session', sessionCookie, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60,
+    secure: true,
+    sameSite: 'strict',
+    path: '/admin',
+    maxAge: 3600,
   });
   return NextResponse.json({ ok: true });
 }

@@ -22,7 +22,9 @@ const meterableIdx = submitBody.indexOf('!isMeterableEndpoint(endpoint)');
 const reserveIdx = submitBody.indexOf('reserveFalRun(');
 const unpricedIdx = submitBody.indexOf('unpriced Fal request');
 const killIdx = submitBody.indexOf('dramaKillSwitchDisabled');
-const hashIdx = submitBody.indexOf('mediaArgs');
+const peekIdx = submitBody.indexOf('peekFalRun');
+const breakerIdx = submitBody.indexOf('breakerDecision');
+const capIdx = submitBody.indexOf('MAX_JOB_CREDITS');
 assert.ok(meterableIdx >= 0, 'handleSubmit lost its meterable-endpoint guard');
 assert.ok(reserveIdx >= 0, 'handleSubmit no longer reserves — selfcheck is stale');
 assert.ok(
@@ -37,8 +39,20 @@ assert.ok(
   !submitBody.includes('applyFalSafetyOff(endpoint, falBody)'),
   'Fal POST must be pickSubmitArgs + media URLs, not the raw client body'
 );
-assert.ok(hashIdx >= 0 && submitBody.includes('canonicalBodyHash({ endpoint, submitArgs, mediaArgs, runId })'),
-  'canonicalBodyHash must include resolved media refs');
+assert.ok(
+  submitBody.includes('pickMediaArgs(args)') &&
+    submitBody.includes('canonicalBodyHash({') &&
+    submitBody.includes('mediaArgs: hashMediaArgs'),
+  'canonicalBodyHash must use client media refs (drama-upload://), not signed URLs'
+);
+assert.ok(
+  peekIdx >= 0 && peekIdx < breakerIdx && peekIdx < capIdx,
+  'idempotency replay must run before the breaker and MAX_JOB_CREDITS'
+);
+assert.ok(
+  submitBody.includes('submitPriceGate(estimated, approved, runId, !!card)'),
+  'approved_credits is required only for rate-card (drama-skill) jobs'
+);
 assert.ok(
   submitBody.includes('DailySpendLimitError'),
   'reserve transaction must be able to stop on the daily breaker'

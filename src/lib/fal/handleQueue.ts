@@ -41,6 +41,7 @@ import {
   IdempotencyConflictError,
   markFalRun,
   patchGatewayJob,
+  peekFalRun,
   readGatewayJob,
   rebindGatewayJob,
   reconcileCredits,
@@ -254,7 +255,6 @@ export async function settleFalJob(opts: {
       costUsd: creditsFromUsd(rawUsd).costUsd,
       priceUsd: rawUsd,
     });
-    await closeFalSpendHold(job, rawUsd, actual);
     await patchGatewayJob(opts.requestId, {
       settledAt: FieldValue.serverTimestamp(),
       settledCredits: actual,
@@ -272,7 +272,6 @@ export async function settleFalJob(opts: {
         provider: 'fal',
         model: endpoint,
       });
-      await closeFalSpendHold(job, 0, actual);
     } else {
       throw err;
     }
@@ -347,24 +346,6 @@ async function dramaKillSwitchDisabled(nowMs: number): Promise<boolean> {
   return killCache.disabled;
 }
 
-async function closeFalSpendHold(
-  job: { reservedFalUsd?: number; spendDay?: string },
-  settledRawUsd: number,
-  actualCredits: number
-): Promise<void> {
-  const reserved = Number(job.reservedFalUsd ?? 0);
-  const day = job.spendDay || utcDay(Date.now());
-  await db.doc(`spendDaily/${day}`).set(
-    omitUndefined({
-      falUsd: FieldValue.increment(settledRawUsd),
-      falUsdHeld: reserved > 0 ? FieldValue.increment(-reserved) : undefined,
-      creditsCharged: FieldValue.increment(actualCredits),
-      jobs: FieldValue.increment(1),
-    }),
-    { merge: true }
-  );
-}
-
 async function handleSubmit(
   uid: string,
   endpoint: string,
@@ -386,9 +367,6 @@ async function handleSubmit(
   const nowMs = Date.now();
   const day = utcDay(nowMs);
   const limitUsd = dailySpendLimitFromEnv(process.env);
-  if (await dramaKillSwitchDisabled(nowMs)) {
-    return jsonError(503, 'generation is temporarily disabled');
-  }
 
   if (card && SINGULAR_MEDIA_KEYS.some((key) => args[key] != null)) {
     return jsonError(400, 'use the *_urls array media keys on a reference-to-video endpoint');
@@ -430,81 +408,112 @@ async function handleSubmit(
   }
 
   const submitArgs = pickSubmitArgs(falBody);
-  const mediaArgs = pickMediaArgs(falBody);
+  const hashMediaArgs = pickMediaArgs(args);
+  const resolvedMediaArgs = pickMediaArgs(falBody);
   const runId = typeof args.run_id === 'string' ? args.run_id.trim() : '';
   const approved =
     typeof args.approved_credits === 'number' ? args.approved_credits : null;
-  let rawUsd: number;
+  if (!runId) {
+    return jsonError(400, 'run_id is required for every metered submit');
+  }
+  // Hash the client media refs (drama-upload://), never the resolved signed URL.
+  const bodyHash = canonicalBodyHash({
+    endpoint,
+    submitArgs,
+    mediaArgs: hashMediaArgs,
+    runId,
+  });
+  const peeked = await peekFalRun(uid, runId, bodyHash);
+  if (peeked.action === 'conflict') {
+    return jsonError(409, 'idempotency conflict');
+  }
+  if (peeked.action === 'replay' && peeked.falRequestId) {
+    return NextResponse.json(proxyUrls(endpoint, peeked.falRequestId));
+  }
+  if (peeked.action === 'replay' || peeked.action === 'unknown') {
+    return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
+  }
+  const skipLimits = peeked.action === 'continue';
+
+  if (await dramaKillSwitchDisabled(nowMs)) {
+    return jsonError(503, 'generation is temporarily disabled');
+  }
+
+  let rawUsd = 0;
   let snapshot: PriceSnapshot | undefined;
-  try {
-    if (rateCardEntry(endpoint)) {
-      const live = isCardOnly(endpoint) ? null : pricing?.unitPrice ?? null;
-      const resolved = resolveRateCard({
-        endpoint,
-        args: submitArgs,
-        media,
-        liveUnitPrice: live,
-        liveFetchedAtMs: live != null ? nowMs : null,
-        nowMs,
-      });
-      if (resolved.alert) console.error(resolved.alert);
-      rawUsd = resolved.rawUsd;
-      snapshot = resolved.snapshot;
-    } else {
-      if (!pricing) return jsonError(502, 'Fal pricing unavailable');
-      rawUsd = await meterRawUsd({
-        endpoint,
-        unit: pricing.unit,
-        unitPrice: pricing.unitPrice,
-        args: submitArgs,
-      });
+  let estimated = 0;
+  if (!skipLimits) {
+    try {
+      if (rateCardEntry(endpoint)) {
+        const live = isCardOnly(endpoint) ? null : pricing?.unitPrice ?? null;
+        const resolved = resolveRateCard({
+          endpoint,
+          args: submitArgs,
+          media,
+          liveUnitPrice: live,
+          liveFetchedAtMs: live != null ? nowMs : null,
+          nowMs,
+        });
+        if (resolved.alert) console.error(resolved.alert);
+        rawUsd = resolved.rawUsd;
+        snapshot = resolved.snapshot;
+      } else {
+        if (!pricing) return jsonError(502, 'Fal pricing unavailable');
+        rawUsd = await meterRawUsd({
+          endpoint,
+          unit: pricing.unit,
+          unitPrice: pricing.unitPrice,
+          args: submitArgs,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'cannot meter this request';
+      return jsonError(400, msg);
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'cannot meter this request';
-    return jsonError(400, msg);
-  }
-  const estimated = creditsFromUsd(rawUsd).credits;
-  if (!(rawUsd > 0) || estimated <= 0) {
-    return jsonError(400, 'unpriced Fal request — estimate is not a positive price');
-  }
-  // Warn from settled + in-flight holds + this job. Stop is re-checked
-  // inside the reserve transaction so two concurrent submits cannot both pass.
-  const spendSnap = await db.doc(`spendDaily/${day}`).get();
-  const spendUsd =
-    Number(spendSnap.data()?.falUsd ?? 0) +
-    Number(spendSnap.data()?.falUsdHeld ?? 0) +
-    rawUsd;
-  const warnDecision = breakerDecision(spendUsd, limitUsd);
-  if (warnDecision !== 'ok') {
-    await sendOpsAlert(
-      {
-        severity: 'HIGH',
-        condition: warnDecision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
-        id: day,
-        text:
-          warnDecision === 'stop'
-            ? `daily Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
-            : `daily Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
-      },
-      { nowMs, store: firestoreAlertStore(db) }
-    );
-    if (warnDecision === 'stop') {
-      return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
+    estimated = creditsFromUsd(rawUsd).credits;
+    if (!(rawUsd > 0) || estimated <= 0) {
+      return jsonError(400, 'unpriced Fal request — estimate is not a positive price');
+    }
+    // Warn from settled + in-flight holds + this job. Stop is re-checked
+    // inside the reserve transaction so two concurrent submits cannot both pass.
+    const spendSnap = await db.doc(`spendDaily/${day}`).get();
+    const spendUsd =
+      Number(spendSnap.data()?.falUsd ?? 0) +
+      Number(spendSnap.data()?.falUsdHeld ?? 0) +
+      rawUsd;
+    const warnDecision = breakerDecision(spendUsd, limitUsd);
+    if (warnDecision !== 'ok') {
+      await sendOpsAlert(
+        {
+          severity: 'HIGH',
+          condition: warnDecision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
+          id: day,
+          text:
+            warnDecision === 'stop'
+              ? `daily Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
+              : `daily Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
+        },
+        { nowMs, store: firestoreAlertStore(db) }
+      );
+      if (warnDecision === 'stop') {
+        return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
+      }
+    }
+    if (estimated > MAX_JOB_CREDITS) {
+      return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
+    }
+    // approved_credits is required only for drama-skill (rate-card) jobs.
+    const gate = submitPriceGate(estimated, approved, runId, !!card);
+    if (gate === 'price_exceeded') {
+      return jsonError(409, 'price is higher than the approved estimate; confirm again');
+    }
+    if (gate === 'approved_required') {
+      return jsonError(400, 'approved_credits is required for drama-skill jobs');
     }
   }
-  if (estimated > MAX_JOB_CREDITS) {
-    return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
-  }
-  // Pure approval gate, before any reserve: a refusal here can leave no hold.
-  const gate = submitPriceGate(estimated, approved, runId);
-  if (gate === 'price_exceeded') {
-    return jsonError(409, 'price is higher than the approved estimate; confirm again');
-  }
-  if (gate === 'approved_required') {
-    return jsonError(400, 'run_id and approved_credits are required for every metered submit');
-  }
-  const bodyHash = canonicalBodyHash({ endpoint, submitArgs, mediaArgs, runId });
-  const extra = omitUndefined({
+  const extra = skipLimits
+    ? undefined
+    : omitUndefined({
     endpoint,
     unit: snapshot?.unit ?? pricing?.unit,
     unitPrice: snapshot?.unitPrice ?? pricing?.unitPrice,
@@ -559,7 +568,7 @@ async function handleSubmit(
   try {
     const submitted = await submitFalQueue(
       endpoint,
-      applyFalSafetyOff(endpoint, { ...submitArgs, ...mediaArgs })
+      applyFalSafetyOff(endpoint, { ...submitArgs, ...resolvedMediaArgs })
     );
     await rebindGatewayJob(holdId, submitted.request_id);
     await patchGatewayJob(submitted.request_id, {

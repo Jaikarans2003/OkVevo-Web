@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 
-import { breakerDecision } from '@/lib/fal/dramaSwitches';
+import { applySpendClose, applySpendRelease, breakerDecision } from '@/lib/fal/dramaSwitches';
 import { db } from '@/lib/firebase-admin';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
@@ -134,16 +134,29 @@ function applySpendHold(tx: FirebaseFirestore.Transaction, spend: SpendHoldRead 
   tx.set(spend.spendRef, { falUsdHeld: FieldValue.increment(spend.reservedFalUsd) }, { merge: true });
 }
 
-function releaseSpendHold(
+type SpendReleaseRead = {
+  spendRef: FirebaseFirestore.DocumentReference;
+  spendSnap: FirebaseFirestore.DocumentSnapshot;
+  reservedFalUsd: number;
+};
+
+async function readSpendForRelease(
   tx: FirebaseFirestore.Transaction,
   data: FirebaseFirestore.DocumentData | undefined
-): void {
+): Promise<SpendReleaseRead | null> {
   const reservedFalUsd = Number(data?.reservedFalUsd ?? 0);
   const spendDay = typeof data?.spendDay === 'string' ? data.spendDay : '';
-  if (!(reservedFalUsd > 0) || !spendDay) return;
+  if (!(reservedFalUsd > 0) || !spendDay) return null;
+  const spendRef = db.collection('spendDaily').doc(spendDay);
+  const spendSnap = await tx.get(spendRef);
+  return { spendRef, spendSnap, reservedFalUsd };
+}
+
+function writeSpendRelease(tx: FirebaseFirestore.Transaction, spend: SpendReleaseRead | null): void {
+  if (!spend) return;
   tx.set(
-    db.collection('spendDaily').doc(spendDay),
-    { falUsdHeld: FieldValue.increment(-reservedFalUsd) },
+    spend.spendRef,
+    applySpendRelease(spend.spendSnap.data(), spend.reservedFalUsd),
     { merge: true }
   );
 }
@@ -256,6 +269,29 @@ export class IdempotencyConflictError extends Error {
 
 function falRunDocId(uid: string, runId: string): string {
   return createHash('sha256').update(`${uid}\0${runId}`).digest('hex');
+}
+
+/** Read-only idempotency check. Never creates a hold. */
+export async function peekFalRun(
+  uid: string,
+  runId: string,
+  bodyHash: string
+): Promise<{
+  action: 'create' | 'continue' | 'replay' | 'unknown' | 'conflict';
+  holdId?: string;
+  falRequestId?: string;
+}> {
+  const snap = await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).get();
+  const existing = snap.exists ? (snap.data() as IdemRow) : undefined;
+  const decision = decideIdempotency(existing, bodyHash);
+  if (decision.action === 'conflict' || decision.action === 'create') {
+    return { action: decision.action };
+  }
+  return {
+    action: decision.action,
+    holdId: decision.row.holdId,
+    falRequestId: decision.row.falRequestId,
+  };
 }
 
 /**
@@ -451,6 +487,11 @@ export async function reconcileCredits(opts: {
     const jobSnap = await tx.get(jobRef);
     const job = jobFromSnap(jobSnap.data());
     if (!job) return;
+    const jobData = jobSnap.data();
+    const spendDay = typeof jobData?.spendDay === 'string' ? jobData.spendDay : '';
+    const reservedFalUsd = Number(jobData?.reservedFalUsd ?? 0);
+    const spendRef = spendDay ? db.collection('spendDaily').doc(spendDay) : null;
+    const spendSnap = spendRef ? await tx.get(spendRef) : null;
 
     const userRef = db.collection('users').doc(job.uid);
     const userSnap = await tx.get(userRef);
@@ -460,6 +501,13 @@ export async function reconcileCredits(opts: {
       // Plan: reconcile requires active; release unused instead.
       const released = applyRelease(readBalances(data), job);
       if (!released.skipped) {
+        if (spendRef && spendSnap) {
+          tx.set(
+            spendRef,
+            applySpendRelease(spendSnap.data(), reservedFalUsd),
+            { merge: true }
+          );
+        }
         tx.set(
           userRef,
           {
@@ -495,6 +543,17 @@ export async function reconcileCredits(opts: {
       },
       { merge: true }
     );
+    if (spendRef && spendSnap) {
+      tx.set(
+        spendRef,
+        applySpendClose(spendSnap.data(), {
+          reservedFalUsd,
+          settledRawUsd: opts.priceUsd ?? 0,
+          actualCredits: result.debitAmount,
+        }),
+        { merge: true }
+      );
+    }
     if (result.debitAmount <= 0) return;
 
     const amount = clampDebitAmount(result.debitAmount, result.debitAmount);
@@ -541,9 +600,10 @@ export async function releaseCredits(requestId: string): Promise<void> {
     if (!job) return;
     const userRef = db.collection('users').doc(job.uid);
     const userSnap = await tx.get(userRef);
+    const spend = await readSpendForRelease(tx, jobSnap.data());
     const result = applyRelease(readBalances(userSnap.data()), job);
     if (result.skipped) return;
-    releaseSpendHold(tx, jobSnap.data());
+    writeSpendRelease(tx, spend);
     tx.set(
       userRef,
       {

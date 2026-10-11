@@ -72,9 +72,11 @@ export function submitPriceGate(
   estimated: number,
   approved: number | null,
   runId: string,
+  requireApproved = true,
 ): SubmitPriceGate {
-  if (!runId || approved == null) return 'approved_required';
-  if (estimated > approved) return 'price_exceeded';
+  if (!runId) return 'approved_required';
+  if (requireApproved && approved == null) return 'approved_required';
+  if (approved != null && estimated > approved) return 'price_exceeded';
   return 'ok';
 }
 

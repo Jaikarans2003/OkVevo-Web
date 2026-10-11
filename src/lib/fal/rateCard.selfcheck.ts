@@ -406,5 +406,8 @@ assert.equal(submitPriceGate(300, 400, 'run-1'), 'ok');
 assert.equal(submitPriceGate(500, null, 'run-1'), 'approved_required');
 assert.equal(submitPriceGate(500, null, ''), 'approved_required');
 assert.equal(submitPriceGate(500, 500, ''), 'approved_required');
+assert.equal(submitPriceGate(500, null, 'run-1', false), 'ok');
+assert.equal(submitPriceGate(500, 400, 'run-1', false), 'price_exceeded');
+assert.equal(submitPriceGate(500, null, '', false), 'approved_required');
 
 console.log('rateCard.selfcheck: ok');

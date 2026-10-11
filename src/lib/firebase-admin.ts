@@ -52,3 +52,23 @@ export async function readAdminSession(
     return 'invalid';
   }
 }
+
+const ADMIN_SESSION_MS = 60 * 60 * 1000;
+
+export async function createAdminSessionCookie(idToken: string): Promise<string> {
+  return auth.createSessionCookie(idToken, { expiresIn: ADMIN_SESSION_MS });
+}
+
+/** Session cookie with revocation check. Admin custom claim only. */
+export async function readAdminSessionCookie(
+  cookie: string
+): Promise<'admin' | 'user' | 'invalid'> {
+  if (!cookie) return 'invalid';
+  try {
+    const decoded = await auth.verifySessionCookie(cookie, true);
+    return decoded.admin === true ? 'admin' : 'user';
+  } catch (error) {
+    console.error('Session cookie verification error:', error);
+    return 'invalid';
+  }
+}

@@ -27,6 +27,10 @@ const killRoute = readFileSync(
 const adminPage = readFileSync(path.join(root, 'app', 'admin', 'drama', 'page.tsx'), 'utf8');
 const adminLayout = readFileSync(path.join(root, 'app', 'admin', 'drama', 'layout.tsx'), 'utf8');
 const firebaseAdmin = readFileSync(path.join(root, 'lib', 'firebase-admin.ts'), 'utf8');
+const sessionRoute = readFileSync(
+  path.join(root, 'app', 'api', 'admin', 'session', 'route.ts'),
+  'utf8'
+);
 
 for (const [name, src] of [
   ['admin/drama route', adminRoute],
@@ -66,9 +70,14 @@ assert.ok(
 assert.ok(!adminPage.includes("'use client'"), 'admin page must be a server component');
 assert.ok(adminPage.includes('notFound()'), 'admin page must 404 on the server');
 assert.ok(adminLayout.includes('notFound()'), 'admin layout must 404 on the server');
+assert.ok(!adminPage.includes('SignInIsland'), 'no-cookie /admin/drama must 404, not render sign-in');
 assert.ok(
-  adminLayout.includes('readAdminSession') || adminLayout.includes('verifyAdminToken'),
-  'admin layout must check the admin claim'
+  adminLayout.includes('readAdminSessionCookie') && adminPage.includes('readAdminSessionCookie'),
+  'admin page/layout must verify the session cookie'
+);
+assert.ok(
+  adminLayout.includes('if (!token) notFound()') && adminPage.includes('if (!token) notFound()'),
+  'missing session cookie must 404'
 );
 assert.ok(
   !firebaseAdmin.includes('ADMIN_EMAILS'),
@@ -78,5 +87,16 @@ assert.ok(
   firebaseAdmin.includes("decodedToken.admin === true"),
   'admin is the custom claim only'
 );
+assert.ok(firebaseAdmin.includes('createSessionCookie'), 'admin session uses createSessionCookie');
+assert.ok(
+  firebaseAdmin.includes('verifySessionCookie(cookie, true)'),
+  'session cookie must check revocation'
+);
+assert.ok(sessionRoute.includes("path: '/admin'"), 'session cookie path is /admin');
+assert.ok(sessionRoute.includes("sameSite: 'strict'"), 'session cookie is SameSite=Strict');
+assert.ok(sessionRoute.includes('httpOnly: true'), 'session cookie is httpOnly');
+assert.ok(sessionRoute.includes('secure: true'), 'session cookie is Secure');
+assert.ok(sessionRoute.includes('createAdminSessionCookie'), 'session route mints a session cookie');
+assert.ok(!sessionRoute.includes('store.set(\'__session\', token'), 'must not store the raw ID token');
 
 console.log('adminGuard.selfcheck: ok');
