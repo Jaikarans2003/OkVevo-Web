@@ -1,5 +1,7 @@
 /**
- * Release ONE abandoned `reserved` Fal hold — manual, after a human check.
+ * Release ONE Fal hold that is `unknown`, unsent `dispatching`, or legacy
+ * `reserved` — manual, after a human check. This is the only
+ * `unknown -> released` path.
  *
  * The check (do it FIRST; it is the only evidence the credits were not spent):
  *   1. Fal dashboard → usage page for the hold's createdAt window, widened
@@ -70,8 +72,9 @@ async function main() {
   };
   console.log(JSON.stringify(summary, null, 2));
 
-  if (summary.status !== 'reserved') {
-    console.error(`refusing: status is ${summary.status}, not reserved — leave it to the sweep/webhook`);
+  const allowed = ['reserved', 'unknown', 'dispatching'];
+  if (!allowed.includes(String(summary.status))) {
+    console.error(`refusing: status is ${summary.status}, not ${allowed.join('/')} — leave it to the sweep/webhook`);
     process.exit(1);
   }
   if (summary.falRequestId) {
@@ -84,7 +87,18 @@ async function main() {
   }
 
   const { releaseCredits } = await import('../src/lib/gateway/debit.ts');
-  await releaseCredits(holdId);
+  const { handoffSlot } = await import('../src/lib/fal/dispatch.ts');
+  // `unsent` re-checks inside the transaction that the Fal submit was never claimed.
+  const released = await releaseCredits(holdId, {
+    from: ['reserved', 'unknown', 'dispatching'],
+    patch: { releaseReason: 'operator_release' },
+    unsent: true,
+  });
+  if (!released) {
+    console.error(`refusing: ${holdId} changed state or its Fal submit was already sent`);
+    process.exit(1);
+  }
+  if (typeof data.uid === 'string' && data.uid) await handoffSlot(data.uid, holdId);
   console.log(`released ${holdId}: ${summary.estimatedCredits} credits returned to the user`);
 }
 

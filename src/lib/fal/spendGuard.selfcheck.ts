@@ -50,7 +50,8 @@ assert.ok(
   peekIdx >= 0 && peekIdx < capIdx && peekIdx < reserveIdx,
   'idempotency replay must run before MAX_JOB_CREDITS and reserve'
 );
-assert.ok(submitBody.includes("condition: 'daily-spend'"), 'daily spend is an alert, not a refusal');
+assert.ok(submitBody.includes('await alertDailySpend('), 'daily spend is an alert, not a refusal');
+assert.ok(queueSrc.includes("condition: 'daily-spend'"), 'daily spend alert condition missing');
 assert.ok(submitBody.includes("placement === 'queued'"), 'a submit over the slot limit is accepted as queued');
 assert.ok(
   submitBody.includes('submitPriceGate(estimated, approved, runId, !!card)'),

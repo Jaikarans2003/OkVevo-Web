@@ -356,7 +356,7 @@ export async function reserveFalRun(opts: {
         running: admitted.state.running,
         queued: admitted.state.queued,
         queuedCount: admitted.state.queued.length,
-        needsSubmit: queueSnap.data()?.needsSubmit === true,
+        needsSubmit: admitted.placement === 'running' || queueSnap.data()?.needsSubmit === true,
       },
       { merge: true }
     );
@@ -392,18 +392,24 @@ export async function reserveFalRun(opts: {
 
 /**
  * Compare-and-set so two retries do not both call Fal.
- * Refuses anything that is not `dispatching`.
+ * Refuses anything that is not `dispatching`, and a job cancelled before send.
  */
-export async function claimFalSubmit(uid: string, runId: string, holdId: string): Promise<boolean> {
+export async function claimFalSubmit(
+  uid: string,
+  runId: string,
+  holdId: string
+): Promise<'claimed' | 'cancelled' | 'busy'> {
   const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
   const jobRef = db.collection('gatewayJobs').doc(holdId);
   return db.runTransaction(async (tx) => {
-    const [snap, jobSnap] = await Promise.all([tx.get(idemRef), tx.get(jobRef)]);
-    if (jobSnap.data()?.status !== 'dispatching') return false;
+    const snap = await tx.get(idemRef);
+    const jobSnap = await tx.get(jobRef);
+    if (jobSnap.data()?.status !== 'dispatching') return 'busy';
     const row = snap.data();
-    if (!row || row.submitStarted === true) return false;
+    if (!row || row.submitStarted === true) return 'busy';
+    if (jobSnap.data()?.cancelRequested === true) return 'cancelled';
     tx.set(idemRef, { submitStarted: true, phase: 'dispatching' }, { merge: true });
-    return true;
+    return 'claimed';
   });
 }
 
@@ -721,7 +727,12 @@ const DEFAULT_RELEASE_FROM: readonly JobStatus[] = ['reserved', 'submitted', 'qu
  */
 export async function releaseCredits(
   requestId: string,
-  opts?: { from?: readonly JobStatus[]; patch?: Record<string, unknown> }
+  opts?: {
+    from?: readonly JobStatus[];
+    patch?: Record<string, unknown>;
+    /** A `dispatching` job is released only if the Fal submit was never claimed. */
+    unsent?: boolean;
+  }
 ): Promise<boolean> {
   if (!requestId) return false;
   const from = opts?.from ?? DEFAULT_RELEASE_FROM;
@@ -732,6 +743,14 @@ export async function releaseCredits(
     const job = jobFromSnap(jobSnap.data());
     if (!job || !from.includes(job.status)) return false;
     if (job.provider === 'fal' && !canTransition(job.status, 'released')) return false;
+    let unsentIdem: FirebaseFirestore.DocumentReference | null = null;
+    if (opts?.unsent && job.status === 'dispatching') {
+      const runId = String(jobSnap.data()?.runId ?? '');
+      if (!runId) return false;
+      const idemSnap = await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(job.uid, runId)));
+      if (idemSnap.data()?.submitStarted === true) return false;
+      unsentIdem = idemSnap.ref;
+    }
     const userRef = db.collection('users').doc(job.uid);
     const userSnap = await tx.get(userRef);
     const spend = await loadSpendRelease(tx, jobSnap.data());
@@ -747,6 +766,7 @@ export async function releaseCredits(
       { merge: true }
     );
     tx.set(jobRef, { status: 'released', ...(opts?.patch ?? {}) }, { merge: true });
+    if (unsentIdem) tx.set(unsentIdem, { phase: 'released', submitStarted: true }, { merge: true });
     return true;
   });
 }

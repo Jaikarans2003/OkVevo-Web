@@ -10,6 +10,8 @@ import {
   decideDefiniteRejection,
   FAL_NOT_ACCEPTED_MESSAGE,
   falNotAcceptedAlert,
+  falOutcome,
+  falRejectedMessage,
   MAX_SUBMIT_ATTEMPTS,
   MAX_SUBMIT_WINDOW_MS,
   nextSubmitDelayMs,
@@ -28,13 +30,24 @@ assert.equal(canTransition('released', 'submitted'), false);
 assert.equal(canTransition('released', 'settled'), false);
 assert.equal(canTransition('released', 'dispatching'), false);
 assert.equal(canTransition('unknown', 'submitted'), false);
+assert.equal(canTransition('unknown', 'released'), true);
+assert.equal(canTransition('unknown', 'queued'), false);
+assert.equal(canTransition('unknown', 'settled'), false);
 assert.equal(canTransition('settled', 'released'), false);
 assert.equal(canTransition('queued', 'submitted'), false);
 assert.equal(canTransition('queued', 'settled'), false);
 
-assert.equal(classifySubmitResult({ threw: false, httpStatus: 429, hasRequestId: false }), 'definite');
-assert.equal(classifySubmitResult({ threw: false, httpStatus: 400, hasRequestId: false }), 'definite');
-assert.equal(classifySubmitResult({ threw: false, httpStatus: 503, hasRequestId: false }), 'definite');
+assert.equal(classifySubmitResult({ threw: false, httpStatus: 429 }), 'retry');
+assert.equal(classifySubmitResult({ threw: false, httpStatus: 503, hasRetryAfter: true }), 'retry');
+assert.equal(classifySubmitResult({ threw: false, httpStatus: 503 }), 'ambiguous');
+for (const s of [500, 502, 504]) {
+  assert.equal(classifySubmitResult({ threw: false, httpStatus: s, hasRetryAfter: true }), 'ambiguous');
+}
+assert.equal(classifySubmitResult({ threw: false, httpStatus: 408 }), 'ambiguous');
+for (const s of [400, 401, 403, 422]) {
+  assert.equal(classifySubmitResult({ threw: false, httpStatus: s, hasRetryAfter: true }), 'reject');
+}
+assert.match(falRejectedMessage(422), /HTTP 422.*credits were returned/);
 assert.equal(classifySubmitResult({ threw: true }), 'ambiguous');
 assert.equal(classifySubmitResult({ threw: false, httpStatus: undefined }), 'ambiguous');
 assert.equal(
@@ -85,6 +98,15 @@ const timed = decideDefiniteRejection({
   rand: 0.2,
 });
 assert.equal(timed.action, 'giveUp');
+
+assert.equal(falOutcome({ status: 'IN_PROGRESS' }), 'pending');
+assert.equal(falOutcome({ status: 'IN_QUEUE' }), 'pending');
+assert.equal(falOutcome({ status: 'COMPLETED' }), 'success');
+assert.equal(falOutcome({ status: 'COMPLETED', error_type: 'client_cancelled' }), 'failed');
+assert.equal(falOutcome({ status: 'COMPLETED', error: 'boom' }), 'failed');
+assert.equal(falOutcome({ status: 'CANCELLED' }), 'failed');
+assert.equal(falOutcome({ status: 'CANCELLATION_REQUESTED' }), 'pending');
+assert.equal(falOutcome(null), 'pending');
 
 const alert = falNotAcceptedAlert('minimax/music-3', 429);
 assert.match(alert, /did not accept/);

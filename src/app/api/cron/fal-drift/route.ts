@@ -227,6 +227,17 @@ export async function POST(request: NextRequest) {
     };
   });
   const unknownHolds = await db.collection('gatewayJobs').where('status', '==', 'unknown').get();
+  for (const doc of unknownHolds.docs) {
+    sweep.alerted += 1;
+    await alertOnce(
+      'HIGH',
+      'hold-unknown',
+      doc.id,
+      `hold ${doc.id} is unknown (Fal submit outcome not known); credits held, not resubmitted. ` +
+        'Check the Fal usage page for its window, then scripts/drama-release-hold.ts',
+      nowMs
+    );
+  }
 
   // Historical drift tripwire (deterministic mode, ADR-001): Fal's estimate
   // API (historical_api_price) vs our rate-card average per call over the

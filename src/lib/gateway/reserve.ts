@@ -162,6 +162,7 @@ const RELEASABLE: ReadonlySet<JobStatus> = new Set([
   'queued',
   'dispatching',
   'submitted',
+  'unknown',
 ]);
 
 export function applyRelease(

@@ -51,6 +51,8 @@ import { pickMediaArgs } from '@/lib/fal/mediaInputs';
 import { clientRequestHash, pickSubmitArgs } from '@/lib/fal/idempotency';
 import {
   falNotAcceptedAlert,
+  falOutcome,
+  falRejectedMessage,
   FAL_NOT_ACCEPTED_MESSAGE,
   PLAN_INACTIVE_MESSAGE,
 } from '@/lib/fal/jobMachine';
@@ -385,6 +387,19 @@ async function alertFal(condition: string, id: string, text: string) {
   }
 }
 
+/** Fal's 202 only means "cancel requested". Release once Fal reports a terminal failure. */
+async function cancelAtFal(holdId: string, cancelUrl: string, statusUrl: string): Promise<boolean> {
+  await falQueueCancel(cancelUrl);
+  if (!statusUrl) return false;
+  const { json } = await falQueueGet(statusUrl);
+  if (falOutcome(json) !== 'failed') return false;
+  await settleFalJob({ requestId: holdId, ok: false });
+  return (await readGatewayJob(holdId))?.status === 'released';
+}
+
+const UNKNOWN_RELEASE_HINT =
+  'Check the Fal dashboard usage page for its window, then scripts/drama-release-hold.ts.';
+
 async function submitReservedHold(
   uid: string,
   runId: string,
@@ -402,7 +417,19 @@ async function submitReservedHold(
     return { ok: false, status: 202, message: 'Fal submit already in progress for this run' };
   }
   const claimed = await claimFalSubmit(uid, runId, holdId);
-  if (!claimed) return { ok: false, status: 202, message: 'Fal submit already in progress for this run' };
+  if (claimed === 'cancelled') {
+    const released = await releaseCredits(holdId, {
+      from: ['dispatching'],
+      patch: { releaseReason: 'cancelled' },
+    });
+    if (released) {
+      await markFalRun(uid, runId, { phase: 'released' });
+      if (follow) await finishSlot(uid, holdId);
+      else await handoffSlot(uid, holdId);
+    }
+    return { ok: false, status: 499, message: 'cancelled' };
+  }
+  if (claimed !== 'claimed') return { ok: false, status: 202, message: 'Fal submit already in progress for this run' };
   const job = await readGatewayJob(holdId);
   const endpoint = job?.endpoint || '';
   const falBody = job?.falBody;
@@ -440,13 +467,7 @@ async function submitReservedHold(
       return { ok: false, status: 499, message: 'cancelled' };
     }
     if (committed.cancelRequested && submitted.cancel_url) {
-      const code = await falQueueCancel(submitted.cancel_url);
-      if (code >= 200 && code < 300) {
-        const released = await releaseCredits(holdId, {
-          from: ['submitted'],
-          patch: { releaseReason: 'cancelled' },
-        });
-        if (released && follow) await finishSlot(uid, holdId);
+      if (await cancelAtFal(holdId, submitted.cancel_url, submitted.status_url)) {
         return { ok: false, status: 499, message: 'cancelled' };
       }
     }
@@ -454,7 +475,7 @@ async function submitReservedHold(
   } catch (err) {
     console.error('fal submit failed', err);
     const failure = classifyFalSubmitError(err);
-    if (failure.kind === 'definite') {
+    if (failure.kind === 'retry' || failure.kind === 'reject') {
       await alertFal(failure.status === 429 ? 'fal-429' : 'fal-not-accepted', holdId, falNotAcceptedAlert(endpoint, failure.status));
       const outcome = await applyDefiniteRejection({
         uid,
@@ -463,6 +484,7 @@ async function submitReservedHold(
         nowMs: Date.now(),
         retryAfterMs: failure.retryAfterMs,
         rand: Math.random(),
+        rejectMessage: failure.kind === 'reject' ? falRejectedMessage(failure.status) : undefined,
       });
       if (outcome.action === 'requeue') {
         return { ok: true, requestId: holdId, queued: true };
@@ -475,12 +497,17 @@ async function submitReservedHold(
         message: outcome.message || FAL_NOT_ACCEPTED_MESSAGE,
       };
     }
-    await applyAmbiguous(uid, runId, holdId);
+    const ambiguous = await applyAmbiguous(uid, runId, holdId);
     await alertFal(
       'fal-submit-unknown',
       holdId,
-      `Fal submit to ${endpoint} timed out or the connection dropped after send. Hold kept, not resubmitted.`
+      `Fal submit to ${endpoint} returned ${failure.status || 'no response'} after send. ` +
+        `Hold kept, not resubmitted. ${UNKNOWN_RELEASE_HINT}`
     );
+    if (ambiguous.ok && follow) {
+      await submitPromoted(uid, ambiguous.promoted);
+      await dispatchQueued(uid);
+    }
     return { ok: false, status: 502, message: 'Fal submit outcome unknown; hold kept, not resubmitted' };
   }
 }
@@ -504,6 +531,32 @@ export async function dispatchQueuedUsers(): Promise<number> {
   const uids = new Set([...waiting.docs, ...pending.docs].map((doc) => doc.id));
   for (const uid of uids) await dispatchQueued(uid);
   return uids.size;
+}
+
+/** Alert only; never throws. Balance, MAX_JOB_CREDITS, and idempotency gate the submit. */
+export async function alertDailySpend(
+  day: string,
+  rawUsd: number,
+  alertUsd: number,
+  nowMs: number
+): Promise<void> {
+  try {
+    const spendSnap = await db.doc(`spendDaily/${day}`).get();
+    const spendUsd =
+      Number(spendSnap.data()?.falUsd ?? 0) + Number(spendSnap.data()?.falUsdHeld ?? 0) + rawUsd;
+    if (!spendAlertCrossed(spendUsd, alertUsd)) return;
+    await sendOpsAlert(
+      {
+        severity: 'HIGH',
+        condition: 'daily-spend',
+        id: day,
+        text: `daily Fal spend $${spendUsd.toFixed(2)} passed the $${alertUsd} alert. Submits are not blocked.`,
+      },
+      { nowMs, store: firestoreAlertStore(db) }
+    );
+  } catch (err) {
+    console.error('spend alert failed', err);
+  }
 }
 
 async function handleSubmit(
@@ -644,25 +697,7 @@ async function handleSubmit(
     if (!(rawUsd > 0) || estimated <= 0) {
       return jsonError(400, 'unpriced Fal request — estimate is not a positive price');
     }
-    // Alert only. The balance check, MAX_JOB_CREDITS, and idempotency still gate the submit.
-    const spendSnap = await db.doc(`spendDaily/${day}`).get();
-    const spendUsd =
-      Number(spendSnap.data()?.falUsd ?? 0) + Number(spendSnap.data()?.falUsdHeld ?? 0) + rawUsd;
-    if (spendAlertCrossed(spendUsd, alertUsd)) {
-      try {
-        await sendOpsAlert(
-          {
-            severity: 'HIGH',
-            condition: 'daily-spend',
-            id: day,
-            text: `daily Fal spend $${spendUsd.toFixed(2)} passed the $${alertUsd} alert. Submits are not blocked.`,
-          },
-          { nowMs, store: firestoreAlertStore(db) }
-        );
-      } catch (err) {
-        console.error('spend alert write failed', err);
-      }
-    }
+    await alertDailySpend(day, rawUsd, alertUsd, nowMs);
     if (estimated > MAX_JOB_CREDITS) {
       return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
     }
@@ -813,7 +848,8 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
     return jsonError(502, 'Fal status unavailable');
   }
   const falStatus = falStatusOf(json);
-  if (falStatus === 'COMPLETED' && job.status === 'submitted') {
+  const outcome = falOutcome(json);
+  if (outcome === 'success' && job.status === 'submitted') {
     let payload: unknown = job.payload;
     if (job.falResponseUrl) {
       const got = await falQueueGet(job.falResponseUrl);
@@ -826,7 +862,7 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
       metrics: asRecord(json)?.metrics,
     });
   }
-  if (falStatus === 'FAILED' || falStatus === 'ERROR') {
+  if (outcome === 'failed') {
     await settleFalJob({ requestId, ok: false });
     if (status >= 200 && status < 300) {
       // FAILED/ERROR is not a status fal_client._parse_status accepts — never
@@ -852,9 +888,12 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-async function handleResponse(uid: string, requestId: string): Promise<Response> {
+export async function handleResponse(uid: string, requestId: string): Promise<Response> {
   const job = await readGatewayJob(requestId);
   if (!job || job.uid !== uid) return jsonError(404, 'unknown Fal job');
+  if (job.status === 'released') {
+    return jsonError(410, job.clientMessage || 'job released; credits returned');
+  }
   if (job.payload !== undefined) {
     return NextResponse.json(job.payload);
   }
@@ -866,7 +905,7 @@ async function handleResponse(uid: string, requestId: string): Promise<Response>
   return NextResponse.json(json, { status });
 }
 
-async function handleCancel(uid: string, requestId: string): Promise<Response> {
+export async function handleCancel(uid: string, requestId: string): Promise<Response> {
   const job = await readGatewayJob(requestId);
   if (!job || job.uid !== uid) return jsonError(404, 'unknown Fal job');
   const result = await cancelFalJob(uid, job.id);
@@ -879,16 +918,8 @@ async function handleCancel(uid: string, requestId: string): Promise<Response> {
     return NextResponse.json({ ok: true, state: 'running' });
   }
   if (result.kind === 'cancel_remote') {
-    const status = await falQueueCancel(result.cancelUrl);
-    if (status >= 200 && status < 300) {
-      const released = await releaseCredits(job.id, {
-        from: ['submitted'],
-        patch: { releaseReason: 'cancelled' },
-      });
-      if (released) await finishSlot(job.uid, job.holdId || job.id);
-      return NextResponse.json({ ok: true, state: 'done' });
-    }
-    return NextResponse.json({ ok: true, state: 'running' });
+    const done = await cancelAtFal(job.id, result.cancelUrl, result.statusUrl);
+    return NextResponse.json({ ok: true, state: done ? 'done' : 'running' });
   }
   if (job.status === 'released') return jsonError(RELEASED_STATUS.http, RELEASED_STATUS.message);
   return NextResponse.json({ ok: true, state: 'done' });

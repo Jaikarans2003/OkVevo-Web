@@ -12,9 +12,12 @@ process.env.OKVEVO_ENV ??= 'local';
 process.env.GCLOUD_PROJECT ??= 'demo-okvevo';
 process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ??= 'demo-okvevo';
 process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??= 'demo.appspot.com';
+process.env.FAL_KEY ??= 'emulator-test-key';
 
 const { db } = await import('@/lib/firebase-admin');
 const { parseQueue } = await import('@/lib/fal/falQueue');
+const { falRejectedMessage } = await import('@/lib/fal/jobMachine');
+const { alertDailySpend, handleCancel, handleResponse } = await import('@/lib/fal/handleQueue');
 const {
   applyAmbiguous,
   applyDefiniteRejection,
@@ -22,9 +25,17 @@ const {
   claimQueuedToDispatching,
   handoffSlot,
   releaseInactiveQueued,
+  takeNextQueued,
 } = await import('@/lib/fal/dispatch');
-const { commitFalSubmitted, readGatewayJob, reconcileCredits, releaseCredits, reserveFalRun, transitionGatewayJob } =
-  await import('@/lib/gateway/debit');
+const {
+  claimFalSubmit,
+  commitFalSubmitted,
+  readGatewayJob,
+  reconcileCredits,
+  releaseCredits,
+  reserveFalRun,
+  transitionGatewayJob,
+} = await import('@/lib/gateway/debit');
 
 let seq = 0;
 
@@ -46,6 +57,7 @@ async function hold(uid: string, credits = 100) {
     runId,
     bodyHash: `hash-${runId}`,
     estimatedCredits: credits,
+    extra: { runId },
   });
   assert.equal(reserved.kind, 'created');
   return { runId, holdId: reserved.holdId, placement: reserved.placement };
@@ -56,17 +68,33 @@ async function balance(uid: string): Promise<number> {
   return Number(snap.data()?.allocationBalance ?? -1);
 }
 
+/**
+ * The emulator reports a contended transactional read as INVALID_ARGUMENT
+ * "Transaction is invalid or closed"; production returns ABORTED, which
+ * runTransaction retries. Nothing committed, so rerun the same way.
+ */
+async function contended<T>(fn: () => Promise<T>): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const details = String((err as { details?: unknown }).details ?? '');
+      if (i >= 5 || !details.includes('invalid or closed')) throw err;
+    }
+  }
+}
+
 async function raceCancelAndDispatch() {
   const uid = await user();
   const { runId, holdId } = await hold(uid);
   let falCalls = 0;
   await Promise.all([
-    cancelFalJob(uid, holdId),
+    contended(() => cancelFalJob(uid, holdId)),
     (async () => {
-      const claimed = await claimQueuedToDispatching(uid, runId, holdId);
+      const claimed = await contended(() => claimQueuedToDispatching(uid, runId, holdId));
       if (!claimed) return;
       falCalls += 1;
-      const stored = await commitFalSubmitted({
+      const stored = await contended(() => commitFalSubmitted({
         holdId,
         uid,
         runId,
@@ -74,15 +102,15 @@ async function raceCancelAndDispatch() {
         falStatusUrl: 'https://queue.fal.run/status',
         falResponseUrl: 'https://queue.fal.run/response',
         falCancelUrl: 'https://queue.fal.run/cancel',
-      });
+      }));
       if (!stored.ok) return;
-      await reconcileCredits({
+      await contended(() => reconcileCredits({
         requestId: holdId,
         actualCredits: 100,
         provider: 'fal',
         model: 'minimax/music-3',
         priceUsd: 0.1,
-      });
+      }));
     })(),
   ]);
   const job = await readGatewayJob(holdId);
@@ -156,8 +184,7 @@ async function definiteAndAmbiguous() {
   const uid = await user();
   const first = await hold(uid);
   assert.equal(await claimQueuedToDispatching(uid, first.runId, first.holdId), true);
-  const { claimFalSubmit } = await import('@/lib/gateway/debit');
-  assert.equal(await claimFalSubmit(uid, first.runId, first.holdId), true);
+  assert.equal(await claimFalSubmit(uid, first.runId, first.holdId), 'claimed');
   const requeued = await applyDefiniteRejection({
     uid,
     runId: first.runId,
@@ -173,7 +200,7 @@ async function definiteAndAmbiguous() {
   const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
   assert.equal(queue.queued[0], first.holdId);
   assert.equal(queue.running.includes(first.holdId), false);
-  assert.equal(await claimFalSubmit(uid, first.runId, first.holdId), false);
+  assert.equal(await claimFalSubmit(uid, first.runId, first.holdId), 'busy');
 
   await db.collection('gatewayJobs').doc(first.holdId).set({ submitAttempts: 5 }, { merge: true });
   assert.equal(await claimQueuedToDispatching(uid, first.runId, first.holdId), true);
@@ -191,7 +218,7 @@ async function definiteAndAmbiguous() {
 
   const second = await hold(uid);
   assert.equal(await claimQueuedToDispatching(uid, second.runId, second.holdId), true);
-  assert.equal(await applyAmbiguous(uid, second.runId, second.holdId), true);
+  assert.equal((await applyAmbiguous(uid, second.runId, second.holdId)).ok, true);
   const unknown = await readGatewayJob(second.holdId);
   assert.equal(unknown?.status, 'unknown');
   assert.equal(await balance(uid), 900);
@@ -200,9 +227,135 @@ async function definiteAndAmbiguous() {
     false
   );
   assert.equal((await readGatewayJob(second.holdId))?.status, 'unknown');
-  const released = await releaseCredits(second.holdId, { from: ['unknown', 'dispatching', 'submitted'] });
-  assert.equal(released, false);
+  assert.equal(await releaseCredits(second.holdId), false, 'sweep default must not release unknown');
   assert.equal(await balance(uid), 900);
+  assert.equal(await releaseCredits(second.holdId, { from: ['unknown'], unsent: true }), true);
+  assert.equal(await balance(uid), 1000);
+}
+
+/** 1: unknown frees the slot and hands it to the next waiter; the hold stays until an operator releases. */
+async function unknownHandsOffSlot() {
+  const uid = await user();
+  const a = await hold(uid);
+  const b = await hold(uid);
+  const c = await hold(uid);
+  assert.equal(c.placement, 'queued');
+  assert.equal(await claimQueuedToDispatching(uid, a.runId, a.holdId), true);
+  assert.equal(await claimFalSubmit(uid, a.runId, a.holdId), 'claimed');
+  const res = await applyAmbiguous(uid, a.runId, a.holdId);
+  assert.equal(res.ok, true);
+  assert.deepEqual(res.promoted, { holdId: c.holdId, runId: c.runId });
+  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  assert.deepEqual(queue.running, [b.holdId, c.holdId]);
+  assert.deepEqual(queue.queued, []);
+  assert.equal((await readGatewayJob(c.holdId))?.status, 'dispatching');
+  assert.equal(await balance(uid), 700);
+
+  const sent = await hold(uid);
+  const unsent = await hold(uid);
+  await db.collection('falQueue').doc(uid).set({ running: [sent.holdId, unsent.holdId], queued: [] }, { merge: true });
+  for (const h of [sent, unsent]) {
+    await db.collection('gatewayJobs').doc(h.holdId).set({ status: 'queued' }, { merge: true });
+    assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
+  }
+  assert.equal(await claimFalSubmit(uid, sent.runId, sent.holdId), 'claimed');
+  assert.equal(await releaseCredits(sent.holdId, { from: ['dispatching'], unsent: true }), false);
+  assert.equal(await releaseCredits(unsent.holdId, { from: ['dispatching'], unsent: true }), true);
+  assert.equal(await claimFalSubmit(uid, unsent.runId, unsent.holdId), 'busy');
+}
+
+/** 2: a non-retryable 4xx releases in full at once with its message. */
+async function rejectReleasesAtOnce() {
+  const uid = await user();
+  const h = await hold(uid);
+  assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
+  assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'claimed');
+  const out = await applyDefiniteRejection({
+    uid,
+    runId: h.runId,
+    holdId: h.holdId,
+    nowMs: Date.now(),
+    retryAfterMs: null,
+    rand: 0,
+    rejectMessage: falRejectedMessage(422),
+  });
+  assert.equal(out.action, 'giveUp');
+  const job = await readGatewayJob(h.holdId);
+  assert.equal(job?.status, 'released');
+  assert.equal(job?.clientMessage, falRejectedMessage(422));
+  assert.equal(await balance(uid), 1000);
+}
+
+/** 3: cancel during dispatch stops the submit claim; cancel after submit waits for Fal to confirm. */
+async function cancelPaths() {
+  const uid = await user();
+  const h = await hold(uid);
+  assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
+  assert.equal((await cancelFalJob(uid, h.holdId)).kind, 'await_request');
+  assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'cancelled');
+
+  const s = await hold(uid);
+  assert.equal(await claimQueuedToDispatching(uid, s.runId, s.holdId), true);
+  assert.equal(await claimFalSubmit(uid, s.runId, s.holdId), 'claimed');
+  await commitFalSubmitted({
+    holdId: s.holdId,
+    uid,
+    runId: s.runId,
+    falRequestId: `fal-${s.holdId}`,
+    falStatusUrl: 'https://queue.fal.run/x/requests/1/status',
+    falResponseUrl: 'https://queue.fal.run/x/requests/1',
+    falCancelUrl: 'https://queue.fal.run/x/requests/1/cancel',
+  });
+  let falStatus: Record<string, unknown> = { status: 'IN_PROGRESS' };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    if (init?.method === 'PUT') return Response.json({ status: 'CANCELLATION_REQUESTED' }, { status: 202 });
+    if (String(url).endsWith('/status')) return Response.json(falStatus);
+    throw new Error(`unexpected fetch ${url}`);
+  }) as typeof fetch;
+  try {
+    const pending = await (await handleCancel(uid, s.holdId)).json();
+    assert.equal(pending.state, 'running', '202 alone must not release');
+    assert.equal((await readGatewayJob(s.holdId))?.status, 'submitted');
+    falStatus = { status: 'COMPLETED', error_type: 'client_cancelled' };
+    const done = await (await handleCancel(uid, s.holdId)).json();
+    assert.equal(done.state, 'done');
+    assert.equal((await readGatewayJob(s.holdId))?.status, 'released');
+
+    globalThis.fetch = (async () => {
+      throw new Error('released job must not reach Fal');
+    }) as typeof fetch;
+    const gone = await handleResponse(uid, s.holdId);
+    assert.equal(gone.status, 410);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+/** 4: crash after reserve leaves a running job in `queued`; takeNextQueued claims it. */
+async function crashAfterReserve() {
+  const uid = await user();
+  const h = await hold(uid);
+  assert.equal(h.placement, 'running');
+  assert.equal((await db.collection('falQueue').doc(uid).get()).data()?.needsSubmit, true);
+  const taken = await takeNextQueued(uid);
+  assert.deepEqual(taken, { holdId: h.holdId, runId: h.runId });
+  assert.equal((await readGatewayJob(h.holdId))?.status, 'dispatching');
+  assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'claimed');
+  assert.equal(await takeNextQueued(uid), null);
+}
+
+/** 5: a failing spendDaily read never throws into the submit path. */
+async function spendReadNeverBlocks() {
+  const realDoc = db.doc.bind(db);
+  db.doc = (() => {
+    throw new Error('firestore down');
+  }) as typeof db.doc;
+  try {
+    await alertDailySpend('2026-01-01', 1, 250, Date.now());
+  } finally {
+    db.doc = realDoc;
+  }
 }
 
 async function lapsedPlanReleasesQueue() {
@@ -279,6 +432,11 @@ async function main() {
   for (let i = 0; i < 20; i++) await fifoDuringFinish();
   await definiteAndAmbiguous();
   await lapsedPlanReleasesQueue();
+  await unknownHandsOffSlot();
+  await rejectReleasesAtOnce();
+  await cancelPaths();
+  await crashAfterReserve();
+  await spendReadNeverBlocks();
   console.log('jobMachine.emulator: ok');
 }
 

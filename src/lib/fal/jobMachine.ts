@@ -3,10 +3,14 @@
  * Firestore transaction. `released` has no outgoing edge, so a refunded
  * job cannot be submitted or settled.
  *
- * Definite rejection (Fal answered and did not accept, including 429):
+ * Retry (429, or 503 with Retry-After: Fal refused before accepting):
  * requeue at the head, keep the hold, retry until the attempt or time cap.
- * Ambiguous (timeout or network error after the request was sent): `unknown`,
- * hold kept, never resubmitted.
+ * Reject (other 4xx): release in full at once.
+ * Ambiguous (other 5xx, timeout, or network error after send): `unknown`,
+ * slot freed, hold kept, never resubmitted. Fal's queue submit has no
+ * idempotency key, so a resubmit could run the job twice.
+ * `unknown -> released` is operator-only (scripts/drama-release-hold.ts after
+ * the Fal dashboard check).
  *
  * Caps: 6 attempts or 10 minutes from the first rejection, whichever is
  * first. Backoff is full jitter on exponential delays (1s, 2s, 4s, … cap
@@ -30,7 +34,7 @@ const EDGES: Record<FalJobState, readonly FalJobState[]> = {
   submitted: ['settled', 'released'],
   settled: [],
   released: [],
-  unknown: [],
+  unknown: ['released'],
 };
 
 /** Six Fal answers that refuse the job, or 10 minutes, then the hold is returned. */
@@ -101,20 +105,40 @@ export function decideDefiniteRejection(opts: {
   };
 }
 
-export type SubmitClass = 'accepted' | 'definite' | 'ambiguous';
+export type SubmitClass = 'accepted' | 'retry' | 'reject' | 'ambiguous';
 
-/** HTTP status means Fal answered. A throw after send is ambiguous. */
+/**
+ * Only a definite refusal is retried: 429, or 503 with Retry-After.
+ * 408 and other 5xx may have been accepted, so they are ambiguous.
+ */
 export function classifySubmitResult(input: {
   threw: boolean;
   httpStatus?: number;
   hasRequestId?: boolean;
+  hasRetryAfter?: boolean;
 }): SubmitClass {
-  if (input.threw || input.httpStatus === undefined) return 'ambiguous';
-  if (input.httpStatus >= 200 && input.httpStatus < 300) {
-    return input.hasRequestId ? 'accepted' : 'ambiguous';
-  }
-  if (input.httpStatus >= 400) return 'definite';
+  const s = input.httpStatus;
+  if (input.threw || s === undefined) return 'ambiguous';
+  if (s >= 200 && s < 300) return input.hasRequestId ? 'accepted' : 'ambiguous';
+  if (s === 429 || (s === 503 && input.hasRetryAfter)) return 'retry';
+  if (s >= 400 && s < 500 && s !== 408) return 'reject';
   return 'ambiguous';
+}
+
+export function falRejectedMessage(status: number): string {
+  return `Fal rejected this job (HTTP ${status}). Your credits were returned.`;
+}
+
+/**
+ * Fal queue status body. A cancelled or failed request is COMPLETED with an
+ * `error` / `error_type` field; anything else not COMPLETED is still pending.
+ */
+export function falOutcome(json: unknown): 'success' | 'failed' | 'pending' {
+  const rec = json && typeof json === 'object' ? (json as Record<string, unknown>) : {};
+  const status = String(rec.status ?? '').toUpperCase();
+  if (status === 'FAILED' || status === 'ERROR' || status === 'CANCELLED') return 'failed';
+  if (status !== 'COMPLETED') return 'pending';
+  return rec.error != null || rec.error_type != null ? 'failed' : 'success';
 }
 
 export function falNotAcceptedAlert(endpoint: string, status: number): string {

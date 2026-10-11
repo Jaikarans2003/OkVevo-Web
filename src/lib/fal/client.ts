@@ -98,12 +98,14 @@ async function estimateCost(
 /** Queue submit returns quickly. Past this, the request may have been accepted. */
 const SUBMIT_TIMEOUT_MS = 60_000;
 
+type FailureKind = 'retry' | 'reject' | 'ambiguous';
+
 export class FalSubmitError extends Error {
-  readonly kind: 'definite' | 'ambiguous';
+  readonly kind: FailureKind;
   readonly status: number;
   readonly retryAfterMs: number | null;
 
-  constructor(kind: 'definite' | 'ambiguous', status: number, retryAfter: number | null, message: string) {
+  constructor(kind: FailureKind, status: number, retryAfter: number | null, message: string) {
     super(message);
     this.name = 'FalSubmitError';
     this.kind = kind;
@@ -113,7 +115,7 @@ export class FalSubmitError extends Error {
 }
 
 export function classifyFalSubmitError(err: unknown): {
-  kind: 'definite' | 'ambiguous';
+  kind: FailureKind;
   status: number;
   retryAfterMs: number | null;
 } {
@@ -150,11 +152,17 @@ export async function submitFalQueue(
   }
   const text = await res.text();
   if (!res.ok) {
-    const kind = classifySubmitResult({ threw: false, httpStatus: res.status, hasRequestId: false });
+    const retryAfter = retryAfterMs(res.headers.get('retry-after'), Date.now());
+    const kind = classifySubmitResult({
+      threw: false,
+      httpStatus: res.status,
+      hasRequestId: false,
+      hasRetryAfter: retryAfter != null,
+    });
     throw new FalSubmitError(
-      kind === 'definite' ? 'definite' : 'ambiguous',
+      kind === 'retry' || kind === 'reject' ? kind : 'ambiguous',
       res.status,
-      retryAfterMs(res.headers.get('retry-after'), Date.now()),
+      retryAfter,
       `fal submit ${res.status}: ${text.slice(0, 400)}`
     );
   }
