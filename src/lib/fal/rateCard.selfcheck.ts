@@ -23,7 +23,6 @@ import {
   RESERVED_ABANDONED_AFTER_MS,
   reservedHoldAbandoned,
   settleOnce,
-  sweepAction,
 } from './holdSweep.ts';
 import { sendOpsAlert } from '@/lib/ops/alert';
 
@@ -350,9 +349,6 @@ memorySubmit({
 });
 assert.equal(resubmits, 0);
 
-assert.equal(sweepAction('IN_PROGRESS'), 'leave');
-assert.equal(sweepAction('COMPLETED'), 'settle');
-assert.equal(sweepAction('weird'), 'alert');
 assert.equal(holdIsDue(0, 6 * 60 * 60 * 1000), true);
 // reservedHoldAbandoned: 30-minute assumption, alert only when no Fal id.
 assert.equal(reservedHoldAbandoned(0, RESERVED_ABANDONED_AFTER_MS, undefined), true);

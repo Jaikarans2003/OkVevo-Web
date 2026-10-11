@@ -17,7 +17,9 @@ process.env.FAL_KEY ??= 'emulator-test-key';
 const { db } = await import('@/lib/firebase-admin');
 const { parseQueue } = await import('@/lib/fal/falQueue');
 const { falRejectedMessage } = await import('@/lib/fal/jobMachine');
-const { alertDailySpend, handleCancel, handleResponse } = await import('@/lib/fal/handleQueue');
+const { alertDailySpend, handleCancel, handleResponse, sweepStuckDispatching, sweepSubmittedJob } =
+  await import('@/lib/fal/handleQueue');
+const { RESERVED_ABANDONED_AFTER_MS } = await import('@/lib/fal/holdSweep');
 const {
   applyAmbiguous,
   applyDefiniteRejection,
@@ -426,6 +428,51 @@ async function raceSettleAndRelease() {
   }
 }
 
+/** Sweep: claimed-but-unrecorded dispatching goes unknown past the threshold; hold kept, slot freed. */
+async function sweepStuckDispatchingToUnknown() {
+  const later = Date.now() + RESERVED_ABANDONED_AFTER_MS + 60_000;
+  const uid = await user();
+  const a = await hold(uid);
+  assert.equal(await claimQueuedToDispatching(uid, a.runId, a.holdId), true);
+  assert.equal(await claimFalSubmit(uid, a.runId, a.holdId), 'claimed');
+  assert.equal(await sweepStuckDispatching(a.holdId, Date.now()), false);
+  assert.equal((await readGatewayJob(a.holdId))?.status, 'dispatching');
+  assert.equal(await sweepStuckDispatching(a.holdId, later), true);
+  assert.equal((await readGatewayJob(a.holdId))?.status, 'unknown');
+  assert.equal(await balance(uid), 900);
+  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  assert.equal(queue.running.includes(a.holdId), false);
+
+  const other = await user();
+  const unclaimed = await hold(other);
+  assert.equal(await claimQueuedToDispatching(other, unclaimed.runId, unclaimed.holdId), true);
+  assert.equal(await sweepStuckDispatching(unclaimed.holdId, later), false);
+  assert.equal((await readGatewayJob(unclaimed.holdId))?.status, 'dispatching');
+}
+
+/** Sweep: a job Fal confirms cancelled is released in full and never charged. */
+async function sweepNeverChargesCancelled() {
+  for (const body of [{ status: 'CANCELLED' }, { status: 'COMPLETED', error_type: 'client_cancelled' }]) {
+    const uid = await user();
+    const h = await hold(uid);
+    assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
+    assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'claimed');
+    assert.equal((await commitFalSubmitted({
+      holdId: h.holdId,
+      uid,
+      runId: h.runId,
+      falRequestId: `fal-${h.holdId}`,
+      falStatusUrl: 'https://queue.fal.run/status',
+      falResponseUrl: 'https://queue.fal.run/response',
+      falCancelUrl: 'https://queue.fal.run/cancel',
+    })).ok, true);
+    assert.equal(await sweepSubmittedJob(h.holdId, body), 'failed');
+    assert.equal((await readGatewayJob(h.holdId))?.status, 'released');
+    assert.equal((await db.collection('creditTransactions').doc(h.holdId).get()).exists, false);
+    assert.equal(await balance(uid), 1000);
+  }
+}
+
 async function main() {
   for (let i = 0; i < 25; i++) await raceCancelAndDispatch();
   for (let i = 0; i < 15; i++) await raceSettleAndRelease();
@@ -437,6 +484,8 @@ async function main() {
   await cancelPaths();
   await crashAfterReserve();
   await spendReadNeverBlocks();
+  await sweepStuckDispatchingToUnknown();
+  await sweepNeverChargesCancelled();
   console.log('jobMachine.emulator: ok');
 }
 

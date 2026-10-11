@@ -10,16 +10,6 @@ import { applyReconcile, type BucketBalances, type JobRecord } from '@/lib/gatew
 /** ponytail: 6h wall clock. Upgrade: per-model Fal queue SLA. */
 export const SUBMITTED_HOLD_MAX_MS = 6 * 60 * 60 * 1000;
 
-export type SweepAction = 'settle' | 'release' | 'leave' | 'alert';
-
-export function sweepAction(falStatus: string): SweepAction {
-  const status = falStatus.trim().toUpperCase();
-  if (status === 'COMPLETED') return 'settle';
-  if (status === 'FAILED' || status === 'ERROR') return 'release';
-  if (status === 'IN_QUEUE' || status === 'IN_PROGRESS') return 'leave';
-  return 'alert';
-}
-
 export function holdIsDue(createdAtMs: number, nowMs: number): boolean {
   return nowMs - createdAtMs >= SUBMITTED_HOLD_MAX_MS;
 }

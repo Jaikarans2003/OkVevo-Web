@@ -95,8 +95,12 @@ async function estimateCost(
   }
 }
 
-/** Queue submit returns quickly. Past this, the request may have been accepted. */
-const SUBMIT_TIMEOUT_MS = 60_000;
+/**
+ * Queue submit returns quickly. Past this, the request may have been accepted.
+ * Must stay well under runConfig.timeoutSeconds (60s) in apphosting*.yaml, or the
+ * request is killed mid-send and the hold is left in `dispatching`.
+ */
+const SUBMIT_TIMEOUT_MS = 20_000;
 
 type FailureKind = 'retry' | 'reject' | 'ambiguous';
 

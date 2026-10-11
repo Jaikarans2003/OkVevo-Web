@@ -21,11 +21,9 @@ import { env } from '@/config/env';
 import { auth, db } from '@/lib/firebase-admin';
 import { buildRollup, type RollupJobRow } from '@/lib/admin/rollup';
 import { estimateHistoricalCost, falQueueGet, getEndpointPricing } from '@/lib/fal/client';
-import { handoffSlot } from '@/lib/fal/dispatch';
-import { dispatchQueued, settleFalJob } from '@/lib/fal/handleQueue';
-import { holdCountsAsAbandoned, sweepAction } from '@/lib/fal/holdSweep';
+import { sweepStuckDispatching, sweepSubmittedJob } from '@/lib/fal/handleQueue';
+import { holdCountsAsAbandoned } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
-import { releaseCredits } from '@/lib/gateway/debit';
 import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
 import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
 
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const sweep = { settled: 0, released: 0, left: 0, alerted: 0 };
+  const sweep = { settled: 0, released: 0, left: 0, alerted: 0, unknown: 0 };
   let submittedOld = 0;
   const jobs = await db.collection('gatewayJobs').where('status', '==', 'submitted').get();
   for (const doc of jobs.docs) {
@@ -107,33 +105,18 @@ export async function POST(request: NextRequest) {
       );
       continue;
     }
-    let falStatus = 'unknown';
+    let statusJson: unknown;
     try {
       const got = await falQueueGet(url);
-      const rec = got.json && typeof got.json === 'object' ? (got.json as { status?: unknown }) : {};
-      falStatus = String(rec.status ?? 'unknown');
+      if (got.status >= 200 && got.status < 300) statusJson = got.json;
     } catch {
-      falStatus = 'unknown';
+      statusJson = undefined;
     }
-    const action = sweepAction(falStatus);
-    if (action === 'leave') {
-      sweep.left += 1;
-      continue;
-    }
-    if (action === 'settle') {
-      await settleFalJob({ requestId: doc.id, ok: true });
-      sweep.settled += 1;
-      continue;
-    }
-    if (action === 'release') {
-      await releaseCredits(doc.id);
-      const uid = typeof data.uid === 'string' ? data.uid : '';
-      const holdId = typeof data.holdId === 'string' ? data.holdId : doc.id;
-      if (uid) {
-        await handoffSlot(uid, holdId);
-        await dispatchQueued(uid);
-      }
-      sweep.released += 1;
+    if (statusJson !== undefined) {
+      const outcome = await sweepSubmittedJob(doc.id, statusJson);
+      if (outcome === 'success') sweep.settled += 1;
+      else if (outcome === 'failed') sweep.released += 1;
+      else sweep.left += 1;
       continue;
     }
     sweep.alerted += 1;
@@ -159,6 +142,10 @@ export async function POST(request: NextRequest) {
     .get();
   for (const doc of reserved.docs) {
     const data = doc.data();
+    if (data.status === 'dispatching' && (await sweepStuckDispatching(doc.id, nowMs))) {
+      sweep.unknown += 1;
+      continue;
+    }
     const created = data.createdAt?.toMillis?.() ?? nowMs;
     const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
     if (

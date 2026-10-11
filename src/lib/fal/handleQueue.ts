@@ -39,6 +39,7 @@ import {
   MediaResolveError,
   resolveMediaArgs,
 } from '@/lib/fal/mediaResolve';
+import { holdCountsAsAbandoned } from '@/lib/fal/holdSweep';
 import { parseFalQueuePath } from '@/lib/fal/queuePath';
 import { applyFalSafetyOff } from '@/lib/fal/safety';
 import {
@@ -62,6 +63,7 @@ import {
   PlanNotActiveError,
   claimFalSubmit,
   commitFalSubmitted,
+  falRunDocId,
   IdempotencyConflictError,
   markFalRun,
   patchGatewayJob,
@@ -510,6 +512,47 @@ async function submitReservedHold(
     }
     return { ok: false, status: 502, message: 'Fal submit outcome unknown; hold kept, not resubmitted' };
   }
+}
+
+/**
+ * Sweep: submit claimed but never recorded (the request died mid-send). Past the
+ * abandoned threshold the outcome is unknown — same handoff as applyAmbiguous.
+ */
+export async function sweepStuckDispatching(holdId: string, nowMs: number): Promise<boolean> {
+  const data = (await db.collection('gatewayJobs').doc(holdId).get()).data();
+  const uid = typeof data?.uid === 'string' ? data.uid : '';
+  const runId = typeof data?.runId === 'string' ? data.runId : '';
+  if (data?.status !== 'dispatching' || !uid || !runId) return false;
+  const idem = await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).get();
+  if (idem.data()?.submitStarted !== true) return false;
+  const abandoned = holdCountsAsAbandoned({
+    status: 'dispatching',
+    createdAtMs: data.createdAt?.toMillis?.() ?? nowMs,
+    dispatchedAtMs: data.dispatchedAt?.toMillis?.() ?? null,
+    nowMs,
+    falRequestId: data.falRequestId,
+  });
+  if (!abandoned) return false;
+  const moved = await applyAmbiguous(uid, runId, holdId);
+  if (!moved.ok) return false;
+  await alertFal(
+    'fal-submit-unknown',
+    holdId,
+    `Fal submit for ${holdId} was claimed but never recorded. Hold kept, not resubmitted. ${UNKNOWN_RELEASE_HINT}`
+  );
+  await submitPromoted(uid, moved.promoted);
+  await dispatchQueued(uid);
+  return true;
+}
+
+/** Sweep: Fal's status body decides. Success settles; failed or cancelled releases in full. */
+export async function sweepSubmittedJob(
+  holdId: string,
+  statusJson: unknown
+): Promise<'success' | 'failed' | 'pending'> {
+  const outcome = falOutcome(statusJson);
+  if (outcome !== 'pending') await settleFalJob({ requestId: holdId, ok: outcome === 'success' });
+  return outcome;
 }
 
 /** Start queued holds up to the live plan limit. Idempotent: takeNextQueued returns each id once. */
