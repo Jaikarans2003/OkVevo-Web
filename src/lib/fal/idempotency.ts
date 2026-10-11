@@ -66,7 +66,7 @@ export function clientRequestHash(endpoint: string, clientArgs: Record<string, u
   return canonicalBodyHash(hashableClientRequest(endpoint, clientArgs));
 }
 
-export type FalPhase = 'reserved' | 'submitted' | 'unknown' | 'settled' | 'released';
+export type FalPhase = 'reserved' | 'queued' | 'submitted' | 'unknown' | 'settled' | 'released';
 
 export type IdemRow = {
   uid: string;
@@ -101,6 +101,7 @@ export function decideIdempotency(existing: IdemRow | undefined, bodyHash: strin
   if (!existing) return { action: 'create' };
   if (existing.bodyHash !== bodyHash) return { action: 'conflict' };
   if (existing.phase === 'submitted' && existing.falRequestId) return { action: 'replay', row: existing };
+  if (existing.phase === 'queued' && !existing.submitStarted) return { action: 'replay', row: existing };
   if (existing.phase === 'settled' || existing.phase === 'released') return { action: 'replay', row: existing };
   if (existing.phase === 'unknown' || (existing.submitStarted && !existing.falRequestId)) {
     return { action: 'unknown', row: existing };

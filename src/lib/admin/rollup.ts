@@ -7,7 +7,6 @@
  */
 
 import { realizedMargin } from '@/lib/fal/rateCard';
-import { breakerDecision, type BreakerDecision } from '@/lib/fal/dramaSwitches';
 
 export type RollupJobRow = {
   uid: string;
@@ -43,7 +42,6 @@ export type DramaRollup = {
     byEndpoint: Record<string, { settled: number; released: number }>;
   };
   holds: { unknown: number; reservedOld: number; submittedOld: number };
-  breaker: { spendUsd: number; limitUsd: number; decision: BreakerDecision };
   topUsers: { uid: string; creditsCharged: number }[];
 };
 
@@ -52,7 +50,6 @@ export function buildRollup(opts: {
   jobsToday: RollupJobRow[];
   holds: { unknown: number; reservedOld: number; submittedOld: number };
   spendDaily: { falUsd: number; creditsCharged: number; jobs: number; overReserveEvents?: number };
-  breakerLimitUsd: number;
 }): DramaRollup {
   const settled = opts.jobsToday.filter((j) => j.status === 'settled');
   const released = opts.jobsToday.filter((j) => j.status === 'released');
@@ -121,11 +118,6 @@ export function buildRollup(opts: {
       byEndpoint: byEndpointJobs,
     },
     holds: opts.holds,
-    breaker: {
-      spendUsd: round4(opts.spendDaily.falUsd),
-      limitUsd: opts.breakerLimitUsd,
-      decision: breakerDecision(opts.spendDaily.falUsd, opts.breakerLimitUsd),
-    },
     topUsers,
   };
 }

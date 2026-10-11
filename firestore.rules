@@ -134,6 +134,9 @@ service cloud.firestore {
     match /spendDaily/{id} {
       allow read, write: if false;
     }
+    match /falQueue/{id} {
+      allow read, write: if false;
+    }
     match /opsConfig/{id} {
       allow read, write: if false;
     }

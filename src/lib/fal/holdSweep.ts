@@ -41,6 +41,27 @@ export function reservedHoldAbandoned(
   return nowMs - createdAtMs >= RESERVED_ABANDONED_AFTER_MS;
 }
 
+/**
+ * Queue wait is not abandonment. The clock starts at dispatchedAt (when the
+ * hold left the queue), falling back to createdAt for jobs that never queued.
+ */
+export function holdCountsAsAbandoned(opts: {
+  status: string;
+  createdAtMs: number;
+  nowMs: number;
+  dispatchedAtMs?: number | null;
+  falRequestId?: unknown;
+}): boolean {
+  if (opts.status === 'queued') return false;
+  const start =
+    typeof opts.dispatchedAtMs === 'number' && opts.dispatchedAtMs > 0
+      ? opts.dispatchedAtMs
+      : opts.createdAtMs;
+  if (opts.status === 'reserved') return reservedHoldAbandoned(start, opts.nowMs, opts.falRequestId);
+  if (opts.status === 'submitted') return holdIsDue(start, opts.nowMs);
+  return false;
+}
+
 export type SweepJob = {
   balances: BucketBalances;
   job: JobRecord;

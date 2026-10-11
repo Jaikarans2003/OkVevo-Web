@@ -42,7 +42,6 @@ const rollup = buildRollup({
   jobsToday: jobs,
   holds: { unknown: 1, reservedOld: 2, submittedOld: 3 },
   spendDaily: { falUsd: 5.112, creditsCharged: 10224, jobs: 2, overReserveEvents: 1 },
-  breakerLimitUsd: 250,
 });
 
 assert.equal(rollup.day, day);
@@ -63,7 +62,6 @@ assert.equal(rollup.spend.marginRealized, null);
 assert.deepEqual(rollup.spend.billedVsLedger, {});
 
 assert.deepEqual(rollup.holds, { unknown: 1, reservedOld: 2, submittedOld: 3 });
-assert.equal(rollup.breaker.decision, 'ok');
 assert.equal(rollup.topUsers[0].uid, 'u1');
 assert.equal(rollup.topUsers[0].creditsCharged, 240 + 9984);
 assert.equal(rollup.topUsers.length, 1);
@@ -74,21 +72,10 @@ const empty = buildRollup({
   jobsToday: [],
   holds: { unknown: 0, reservedOld: 0, submittedOld: 0 },
   spendDaily: { falUsd: 0, creditsCharged: 0, jobs: 0 },
-  breakerLimitUsd: 250,
 });
 assert.equal(empty.jobs.successRate, null);
 assert.equal(empty.jobs.avgSettleMs, null);
 assert.equal(empty.spend.marginEstimate, null);
 assert.deepEqual(empty.topUsers, []);
-
-// Breaker reflector.
-const tripped = buildRollup({
-  day,
-  jobsToday: [],
-  holds: { unknown: 0, reservedOld: 0, submittedOld: 0 },
-  spendDaily: { falUsd: 250, creditsCharged: 0, jobs: 0 },
-  breakerLimitUsd: 250,
-});
-assert.equal(tripped.breaker.decision, 'stop');
 
 console.log('rollup.selfcheck: ok');

@@ -21,9 +21,9 @@ import { env } from '@/config/env';
 import { auth, db } from '@/lib/firebase-admin';
 import { buildRollup, type RollupJobRow } from '@/lib/admin/rollup';
 import { estimateHistoricalCost, falQueueGet, getEndpointPricing } from '@/lib/fal/client';
-import { dailySpendLimitFromEnv } from '@/lib/fal/dramaSwitches';
-import { settleFalJob } from '@/lib/fal/handleQueue';
-import { holdIsDue, reservedHoldAbandoned, sweepAction } from '@/lib/fal/holdSweep';
+import { freeSlot } from '@/lib/fal/dispatch';
+import { dispatchQueued, settleFalJob } from '@/lib/fal/handleQueue';
+import { holdCountsAsAbandoned, sweepAction } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
 import { releaseCredits } from '@/lib/gateway/debit';
 import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
@@ -82,7 +82,18 @@ export async function POST(request: NextRequest) {
   for (const doc of jobs.docs) {
     const data = doc.data();
     const created = data.createdAt?.toMillis?.() ?? nowMs;
-    if (!holdIsDue(created, nowMs)) continue;
+    const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
+    if (
+      !holdCountsAsAbandoned({
+        status: 'submitted',
+        createdAtMs: created,
+        dispatchedAtMs,
+        nowMs,
+        falRequestId: data.falRequestId,
+      })
+    ) {
+      continue;
+    }
     submittedOld += 1;
     const url = typeof data.falStatusUrl === 'string' ? data.falStatusUrl : '';
     if (!url) {
@@ -116,6 +127,12 @@ export async function POST(request: NextRequest) {
     }
     if (action === 'release') {
       await releaseCredits(doc.id);
+      const uid = typeof data.uid === 'string' ? data.uid : '';
+      const holdId = typeof data.holdId === 'string' ? data.holdId : doc.id;
+      if (uid) {
+        await freeSlot(uid, holdId);
+        await dispatchQueued(uid);
+      }
       sweep.released += 1;
       continue;
     }
@@ -140,7 +157,18 @@ export async function POST(request: NextRequest) {
   for (const doc of reserved.docs) {
     const data = doc.data();
     const created = data.createdAt?.toMillis?.() ?? nowMs;
-    if (!reservedHoldAbandoned(created, nowMs, data.falRequestId)) continue;
+    const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
+    if (
+      !holdCountsAsAbandoned({
+        status: 'reserved',
+        createdAtMs: created,
+        dispatchedAtMs,
+        nowMs,
+        falRequestId: data.falRequestId,
+      })
+    ) {
+      continue;
+    }
     reservedOld += 1;
     sweep.alerted += 1;
     await alertOnce(
@@ -246,7 +274,6 @@ export async function POST(request: NextRequest) {
       jobs: Number(spendData.jobs ?? 0),
       overReserveEvents: Number(spendData.overReserveEvents ?? 0),
     },
-    breakerLimitUsd: dailySpendLimitFromEnv(process.env),
   });
   const topUsers = await Promise.all(
     rollup.topUsers.map(async (row) => {

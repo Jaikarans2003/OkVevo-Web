@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 
-import { applySpendClose, applySpendRelease, breakerDecision } from '@/lib/fal/dramaSwitches';
+import { applySpendClose, applySpendRelease } from '@/lib/fal/dramaSwitches';
+import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
 import { db } from '@/lib/firebase-admin';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
@@ -53,6 +54,7 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
   if (
     status !== 'reserved' &&
     status !== 'submitted' &&
+    status !== 'queued' &&
     status !== 'unknown' &&
     status !== 'settled' &&
     status !== 'released'
@@ -96,18 +98,10 @@ export class PlanNotActiveError extends Error {
   }
 }
 
-export class DailySpendLimitError extends Error {
-  constructor() {
-    super('daily spend limit');
-    this.name = 'DailySpendLimitError';
-  }
-}
-
 type SpendHoldRead = {
   spendRef: FirebaseFirestore.DocumentReference;
   spendSnap: FirebaseFirestore.DocumentSnapshot;
   reservedFalUsd: number;
-  limitUsd: number;
 };
 
 /** Read spendDaily before any write in the same reserve transaction. */
@@ -117,20 +111,14 @@ async function readSpendForHold(
 ): Promise<SpendHoldRead | null> {
   const reservedFalUsd = Number(extra?.reservedFalUsd ?? 0);
   const spendDay = typeof extra?.spendDay === 'string' ? extra.spendDay : '';
-  const limitUsd = Number(extra?.spendLimitUsd ?? 0);
   if (!(reservedFalUsd > 0) || !spendDay) return null;
   const spendRef = db.collection('spendDaily').doc(spendDay);
   const spendSnap = await tx.get(spendRef);
-  return { spendRef, spendSnap, reservedFalUsd, limitUsd };
+  return { spendRef, spendSnap, reservedFalUsd };
 }
 
 function applySpendHold(tx: FirebaseFirestore.Transaction, spend: SpendHoldRead | null): void {
   if (!spend) return;
-  const data = spend.spendSnap.data() || {};
-  const used = Number(data.falUsd ?? 0) + Number(data.falUsdHeld ?? 0);
-  if (breakerDecision(used + spend.reservedFalUsd, spend.limitUsd) === 'stop') {
-    throw new DailySpendLimitError();
-  }
   tx.set(spend.spendRef, { falUsdHeld: FieldValue.increment(spend.reservedFalUsd) }, { merge: true });
 }
 
@@ -267,7 +255,7 @@ export class IdempotencyConflictError extends Error {
   }
 }
 
-function falRunDocId(uid: string, runId: string): string {
+export function falRunDocId(uid: string, runId: string): string {
   return createHash('sha256').update(`${uid}\0${runId}`).digest('hex');
 }
 
@@ -308,6 +296,10 @@ export async function reserveFalRun(opts: {
   kind: 'created' | 'continue' | 'replay' | 'unknown';
   holdId: string;
   falRequestId?: string;
+  placement?: 'running' | 'queued';
+  position?: number;
+  slotsInUse?: number;
+  slotsLimit?: number;
 }> {
   const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
   return db.runTransaction(async (tx) => {
@@ -326,10 +318,15 @@ export async function reserveFalRun(opts: {
     const holdId = crypto.randomUUID();
     const userRef = db.collection('users').doc(opts.uid);
     const jobRef = db.collection('gatewayJobs').doc(holdId);
+    const queueRef = db.collection('falQueue').doc(opts.uid);
     const jobSnap = await tx.get(jobRef);
     const userSnap = await tx.get(userRef);
+    const queueSnap = await tx.get(queueRef);
     const data = userSnap.data();
-    if (readPlanStatus(data) !== 'active') throw new PlanNotActiveError();
+    const plan = slotsForPlan(data?.plan, readPlanStatus(data));
+    if (!plan.admit) throw new PlanNotActiveError();
+    const admitted = admit(parseQueue(queueSnap.data()), holdId, plan.slots);
+    if (!admitted.ok) throw new QueueFullError();
     const result = applyReserve(
       readBalances(data),
       jobFromSnap(jobSnap.data()),
@@ -350,13 +347,24 @@ export async function reserveFalRun(opts: {
       },
       { merge: true }
     );
+    tx.set(
+      queueRef,
+      {
+        running: admitted.state.running,
+        queued: admitted.state.queued,
+        queuedCount: admitted.state.queued.length,
+        needsSubmit: queueSnap.data()?.needsSubmit === true,
+      },
+      { merge: true }
+    );
     tx.set(jobRef, {
       uid: opts.uid,
       provider: 'fal',
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
       heldTopUp: result.job.heldTopUp,
-      status: 'reserved',
+      status: admitted.placement === 'queued' ? 'queued' : 'reserved',
+      queuePosition: admitted.position,
       createdAt: FieldValue.serverTimestamp(),
       ...(opts.extra ?? {}),
     });
@@ -364,11 +372,18 @@ export async function reserveFalRun(opts: {
       uid: opts.uid,
       runId: opts.runId,
       bodyHash: opts.bodyHash,
-      phase: 'reserved',
+      phase: admitted.placement === 'queued' ? 'queued' : 'reserved',
       submitStarted: false,
       holdId,
     });
-    return { kind: 'created' as const, holdId };
+    return {
+      kind: 'created' as const,
+      holdId,
+      placement: admitted.placement,
+      position: admitted.position,
+      slotsInUse: admitted.slotsInUse,
+      slotsLimit: plan.slots,
+    };
   });
 }
 
@@ -413,10 +428,13 @@ export async function rebindGatewayJob(fromId: string, toId: string): Promise<vo
 
 export async function readGatewayJob(
   requestId: string
-): Promise<(GatewayJobFields & { id: string }) | null> {
+): Promise<(GatewayJobFields & { id: string; runId?: string; falBody?: Record<string, unknown>; falRequestId?: string; queuePosition?: number }) | null> {
   const snap = await db.collection('gatewayJobs').doc(requestId).get();
   if (!snap.exists) return null;
   const data = snap.data() ?? {};
+  if (typeof data.aliasOf === 'string' && data.aliasOf && data.aliasOf !== requestId) {
+    return readGatewayJob(data.aliasOf);
+  }
   const job = jobFromSnap(data);
   if (!job) return null;
   return {
@@ -429,6 +447,13 @@ export async function readGatewayJob(
       data.submitArgs && typeof data.submitArgs === 'object'
         ? (data.submitArgs as Record<string, unknown>)
         : undefined,
+    falBody:
+      data.falBody && typeof data.falBody === 'object'
+        ? (data.falBody as Record<string, unknown>)
+        : undefined,
+    runId: typeof data.runId === 'string' ? data.runId : undefined,
+    falRequestId: typeof data.falRequestId === 'string' ? data.falRequestId : undefined,
+    queuePosition: typeof data.queuePosition === 'number' ? data.queuePosition : undefined,
     falStatusUrl: typeof data.falStatusUrl === 'string' ? data.falStatusUrl : undefined,
     falResponseUrl: typeof data.falResponseUrl === 'string' ? data.falResponseUrl : undefined,
     falCancelUrl: typeof data.falCancelUrl === 'string' ? data.falCancelUrl : undefined,

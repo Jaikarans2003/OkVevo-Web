@@ -35,9 +35,22 @@ The generation key is never used for billing reads. The billing key is never use
 
 **Alerts:** `sendOpsAlert` writes an `opsAlerts` record + a structured log line (`severity`, `condition`, `id`). No chat. With no operator console, Cloud Monitoring emails HIGH log lines and a missing fal-drift heartbeat to jaikaran.pesce@gmail.com. Absence windows longer than 23h30m are rejected, and a once-a-day series false-alarms inside that cap, so fal-drift runs every 12h and the policy is 23h: a healthy gap stays quiet, a missed run emails. `scripts/drama-infra.sh --apply` creates those policies; it does not skip them.
 
-**Guardrails:** daily spend circuit breaker (HIGH 80%, hard stop 100%); Firestore kill switch at submit, toggled by `scripts/drama-kill-switch.ts --project <id> --on|--off`, which writes the flag and an audit row (who, when, old → new) in one transaction. Production stays OFF (`disabled: true`) until an explicit `--on`. `MAX_JOB_CREDITS`; never auto-resubmit; margin applied once.
+**Guardrails (2026-10-11):** generation is always on. No kill switch. No daily spend stop. Balance check, `MAX_JOB_CREDITS`, and `run_id` idempotency stay. Daily raw Fal spend at **$250** emails jaikaran.pesce@gmail.com once per UTC day (`condition: daily-spend`, existing HIGH log → Cloud Monitoring). Env `FAL_DAILY_SPEND_ALERT_USD` changes the line. It never refuses a submit.
 
-**Admin console deferred** to a separate plan. These PRs do not ship `/admin/drama`, a sign-in page, an admin session cookie, or admin API routes. Rollup writes, `opsAlerts`, structured logs, the kill switch, the breaker, capture, and the sweep stay.
+Per-plan slots, one map in `src/lib/fal/falQueue.ts`: Starter 2, Pro 5, Max 10 running jobs. A user without `planStatus: active` is refused with `plan not active` before any hold (the existing spend gate). A submit over the slot limit is `queued`: credits reserved, price snapshot locked, FIFO per user. Queued jobs do not take a slot. Settle, fail, and cancel dispatch the next job in that request; `POST /api/cron/fal-dispatch` every minute is the backup. Cancel while queued releases the hold and does not call Fal. Queue length is bounded by balance, plus a safety cap of 100 queued jobs per user. An upgrade uses the new limit on the next dispatch. A downgrade lets running jobs finish. The abandon clock starts at dispatch, so queue wait is not an abandoned hold.
+
+Fal account concurrency starts at 2 in-progress requests and scales with paid invoices up to 40 ([Fal concurrency limits](https://fal.ai/docs/documentation/model-apis/concurrency-limits)). Our per-user caps can sum past that. Fal queues the overflow. A Fal 429 is a HIGH log, and that hold is not resubmitted.
+
+**Admin console deferred** to a separate plan. These PRs do not ship `/admin/drama`, a sign-in page, an admin session cookie, or admin API routes. Rollup writes, `opsAlerts`, structured logs, capture, and the sweep stay.
+
+## Rollback
+
+Emergencies use the normal App Hosting rollback, then a revert of the PR. Do not merge a fix-forward in a hurry.
+
+1. Firebase console → App Hosting → the backend for the project (`okvevo-testing` or `text2video-16cbf`) → Rollouts → the previous healthy rollout → Rollback. That puts the last good build back on the URL without a new git push.
+2. Revert the PR on the branch that deploys (`staging` for testing, `production` for www) and push that revert. Otherwise the next push of the bad commit rolls the bad build out again. Do not merge to a branch you did not mean to ship.
+
+`opsAdminAudit` rows stay. The `opsConfig/drama` flag doc is deleted; rolling back code does not recreate it.
 
 ## Trade-offs
 

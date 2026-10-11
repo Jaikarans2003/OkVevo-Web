@@ -40,6 +40,7 @@ for (const col of [
   'dramaUploadRates',
   'falMediaIndex',
   'spendDaily',
+  'falQueue',
   'opsConfig',
   'opsAdminAudit',
   'adminRollups',

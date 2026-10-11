@@ -1,78 +1,10 @@
 /**
- * Guardrail truth tables: kill switch, circuit breaker (80% warn / 100% stop),
- * env limit parsing. Run: npx tsx src/lib/fal/dramaSwitches.selfcheck.ts
+ * Daily spend close: held never goes negative; a second close is a no-op.
+ * Run: npx tsx src/lib/fal/dramaSwitches.selfcheck.ts
  */
 import assert from 'node:assert/strict';
 
-import {
-  applySpendClose,
-  breakerDecision,
-  BREAKER_WARN_RATIO,
-  dailySpendLimitFromEnv,
-  DEFAULT_DAILY_SPEND_LIMIT_USD,
-  killSwitchDisabled,
-  planKillSwitch,
-  settleSpendOnce,
-} from '@/lib/fal/dramaSwitches';
-
-assert.equal(killSwitchDisabled(undefined), false);
-assert.equal(killSwitchDisabled({}), false);
-assert.equal(killSwitchDisabled({ disabled: false }), false);
-assert.equal(killSwitchDisabled({ disabled: 'yes' }), false);
-assert.equal(killSwitchDisabled({ disabled: true }), true);
-
-const turnedOff = planKillSwitch({
-  current: undefined,
-  disabled: true,
-  actor: 'admin@example.com',
-  atIso: '2026-10-11T06:30:00.000Z',
-});
-assert.equal(turnedOff.disabled, true);
-assert.deepEqual(turnedOff.audit, {
-  action: 'drama-kill-switch',
-  actor: 'admin@example.com',
-  at: '2026-10-11T06:30:00.000Z',
-  old: false,
-  new: true,
-});
-const turnedOn = planKillSwitch({
-  current: { disabled: true },
-  disabled: false,
-  actor: ' admin@example.com ',
-  atIso: '2026-10-11T07:00:00.000Z',
-});
-assert.equal(turnedOn.audit.old, true);
-assert.equal(turnedOn.audit.new, false);
-assert.equal(turnedOn.audit.actor, 'admin@example.com');
-assert.throws(
-  () => planKillSwitch({ current: undefined, disabled: true, actor: ' ', atIso: 't' }),
-  /actor is required/
-);
-
-const limit = 100;
-assert.equal(breakerDecision(0, limit), 'ok');
-assert.equal(breakerDecision(limit * BREAKER_WARN_RATIO - 0.01, limit), 'ok');
-assert.equal(breakerDecision(limit * BREAKER_WARN_RATIO, limit), 'warn');
-assert.equal(breakerDecision(limit - 0.01, limit), 'warn');
-assert.equal(breakerDecision(limit, limit), 'stop');
-assert.equal(breakerDecision(limit * 2, limit), 'stop');
-assert.equal(breakerDecision(500, 0), 'stop'); // explicit 0 is a hard stop
-assert.equal(breakerDecision(-1, limit), 'ok');
-assert.equal(dailySpendLimitFromEnv({ DRAMA_DAILY_SPEND_LIMIT_USD: '0' } as NodeJS.ProcessEnv), 0);
-
-assert.equal(dailySpendLimitFromEnv({} as NodeJS.ProcessEnv), DEFAULT_DAILY_SPEND_LIMIT_USD);
-assert.equal(
-  dailySpendLimitFromEnv({ DRAMA_DAILY_SPEND_LIMIT_USD: '75' } as NodeJS.ProcessEnv),
-  75
-);
-assert.equal(
-  dailySpendLimitFromEnv({ DRAMA_DAILY_SPEND_LIMIT_USD: '-5' } as NodeJS.ProcessEnv),
-  DEFAULT_DAILY_SPEND_LIMIT_USD
-);
-assert.equal(
-  dailySpendLimitFromEnv({ DRAMA_DAILY_SPEND_LIMIT_USD: 'abc' } as NodeJS.ProcessEnv),
-  DEFAULT_DAILY_SPEND_LIMIT_USD
-);
+import { applySpendClose, settleSpendOnce } from '@/lib/fal/dramaSwitches';
 
 const firstClose = applySpendClose(
   { falUsd: 10, falUsdHeld: 2, creditsCharged: 100, jobs: 1 },

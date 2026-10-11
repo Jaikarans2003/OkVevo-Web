@@ -6,8 +6,8 @@
 
 export type GatewayProvider = 'openrouter' | 'fal' | 'tavily';
 
-/** submitted = Fal accepted, hold still open. unknown = no Fal id; hold stays. */
-export type JobStatus = 'reserved' | 'submitted' | 'unknown' | 'settled' | 'released';
+/** submitted = Fal accepted, hold still open. queued = slot wait, hold open. unknown = no Fal id; hold stays. */
+export type JobStatus = 'reserved' | 'submitted' | 'queued' | 'unknown' | 'settled' | 'released';
 
 export type BucketBalances = {
   allocationBalance: number;
@@ -146,7 +146,10 @@ export function applyRelease(
   balances: BucketBalances,
   job: JobRecord | undefined
 ): ReleaseResult {
-  if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) {
+  if (
+    !job ||
+    (job.status !== 'reserved' && job.status !== 'submitted' && job.status !== 'queued')
+  ) {
     return { ok: true, skipped: true };
   }
   return {

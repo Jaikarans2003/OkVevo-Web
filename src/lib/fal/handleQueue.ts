@@ -13,11 +13,19 @@ import {
   getEndpointPricing,
   submitFalQueue,
 } from '@/lib/fal/client';
+import { freeSlot, takeNextQueued } from '@/lib/fal/dispatch';
 import {
-  breakerDecision,
-  dailySpendLimitFromEnv,
-  killSwitchDisabled,
-} from '@/lib/fal/dramaSwitches';
+  FAL_ACCOUNT_CONCURRENCY_NEW,
+  FAL_ACCOUNT_CONCURRENCY_SELF_SERVE_MAX,
+  dailySpendAlertUsd,
+  parseQueue,
+  PLAN_SLOTS,
+  QUEUE_CAP,
+  QueueFullError,
+  slotWaitMessage,
+  slotsForPlan,
+  spendAlertCrossed,
+} from '@/lib/fal/falQueue';
 import {
   indexPayloadMedia,
   MediaResolveError,
@@ -35,7 +43,6 @@ import { pickMediaArgs } from '@/lib/fal/mediaInputs';
 import { clientRequestHash, pickSubmitArgs } from '@/lib/fal/idempotency';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
-  DailySpendLimitError,
   InsufficientCreditsError,
   PlanNotActiveError,
   claimFalSubmit,
@@ -174,8 +181,10 @@ export async function settleFalJob(opts: {
 }): Promise<void> {
   const job = await readGatewayJob(opts.requestId);
   if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) return;
+  const requestId = job.id;
   if (!opts.ok) {
-    await releaseCredits(opts.requestId);
+    await releaseCredits(requestId);
+    await finishSlot(job.uid, job.holdId || requestId);
     return;
   }
   const endpoint = job.endpoint || '';
@@ -214,26 +223,26 @@ export async function settleFalJob(opts: {
       );
     }
     await reconcileCredits({
-      requestId: opts.requestId,
+      requestId,
       actualCredits: actual,
       provider: 'fal',
       model: endpoint,
       costUsd: creditsFromUsd(rawUsd).costUsd,
       priceUsd: rawUsd,
     });
-    await patchGatewayJob(opts.requestId, {
+    await patchGatewayJob(requestId, {
       settledAt: FieldValue.serverTimestamp(),
       settledCredits: actual,
       settledFalUsd: rawUsd,
     });
     if (rateCardEntry(endpoint) && opts.payload !== undefined) {
-      await indexPayloadMedia(endpoint, opts.payload, args, job.uid, opts.requestId);
+      await indexPayloadMedia(endpoint, opts.payload, args, job.uid, requestId);
     }
   } catch (err) {
     if (err instanceof QuantityError) {
       console.error('fal settle quantity failed, keeping estimate', err);
       await reconcileCredits({
-        requestId: opts.requestId,
+        requestId,
         actualCredits: actual,
         provider: 'fal',
         model: endpoint,
@@ -250,15 +259,16 @@ export async function settleFalJob(opts: {
       {
         severity: 'HIGH',
         condition: 'voice-record-failed',
-        id: opts.requestId,
+        id: requestId,
         text: `settled ${endpoint} but clonedVoices write failed`,
       },
       { nowMs: Date.now(), store: firestoreAlertStore(db) }
     );
   }
   if (opts.payload !== undefined) {
-    await patchGatewayJob(opts.requestId, { payload: opts.payload });
+    await patchGatewayJob(requestId, { payload: opts.payload });
   }
+  await finishSlot(job.uid, job.holdId || requestId);
 }
 
 async function persistVoiceOwnership(
@@ -303,13 +313,137 @@ function falStatusOf(json: unknown): string {
   return String(rec.status ?? '').toUpperCase();
 }
 
-/** Kill-switch doc cache — a toggle takes effect within a minute, no deploy. */
-let killCache = { atMs: 0, disabled: false };
-async function dramaKillSwitchDisabled(nowMs: number): Promise<boolean> {
-  if (nowMs - killCache.atMs < 60_000) return killCache.disabled;
-  const snap = await db.doc('opsConfig/drama').get();
-  killCache = { atMs: nowMs, disabled: killSwitchDisabled(snap.data()) };
-  return killCache.disabled;
+async function slotView(uid: string, holdId: string) {
+  const [userSnap, queueSnap] = await Promise.all([
+    db.collection('users').doc(uid).get(),
+    db.collection('falQueue').doc(uid).get(),
+  ]);
+  const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
+  const queue = parseQueue(queueSnap.data());
+  const queuedAt = queue.queued.indexOf(holdId);
+  const running = queue.running.includes(holdId) || queuedAt < 0;
+  return {
+    slotsInUse: queue.running.length,
+    slotsLimit: decision.admit ? decision.slots : 0,
+    queuePosition: queuedAt >= 0 ? queuedAt + 1 : 0,
+    state: (queuedAt >= 0 ? 'queued' : running ? 'running' : 'done') as 'queued' | 'running' | 'done',
+  };
+}
+
+function withSlot(
+  body: Record<string, unknown>,
+  slot: { slotsInUse: number; slotsLimit: number; queuePosition: number; state: 'queued' | 'running' | 'done' }
+) {
+  return {
+    ...body,
+    state: slot.state,
+    queue_position: slot.queuePosition,
+    slots_in_use: slot.slotsInUse,
+    slots_limit: slot.slotsLimit,
+    ...(slot.state === 'queued'
+      ? { message: slotWaitMessage(slot.slotsInUse, slot.slotsLimit) }
+      : {}),
+  };
+}
+
+async function finishSlot(uid: string, holdId: string) {
+  await freeSlot(uid, holdId);
+  await dispatchQueued(uid);
+}
+
+type SubmitOutcome =
+  | { ok: true; requestId: string }
+  | { ok: false; status: number; message: string };
+
+async function submitReservedHold(
+  uid: string,
+  runId: string,
+  holdId: string,
+  keepHoldId: boolean,
+  follow: boolean
+): Promise<SubmitOutcome> {
+  const claimed = await claimFalSubmit(uid, runId);
+  if (!claimed) return { ok: false, status: 202, message: 'Fal submit already in progress for this run' };
+  const job = await readGatewayJob(holdId);
+  const endpoint = job?.endpoint || '';
+  const falBody = job?.falBody;
+  if (!job || !endpoint || !falBody) {
+    await patchGatewayJob(holdId, { status: 'unknown' });
+    await markFalRun(uid, runId, { phase: 'unknown' });
+    return { ok: false, status: 502, message: 'Fal submit outcome unknown; hold kept, not resubmitted' };
+  }
+  try {
+    const submitted = await submitFalQueue(endpoint, falBody);
+    if (keepHoldId) {
+      await db.collection('gatewayJobs').doc(submitted.request_id).set({ aliasOf: holdId, uid });
+      await patchGatewayJob(holdId, {
+        status: 'submitted',
+        falRequestId: submitted.request_id,
+        falStatusUrl: submitted.status_url,
+        falResponseUrl: submitted.response_url,
+        falCancelUrl: submitted.cancel_url,
+      });
+    } else {
+      await rebindGatewayJob(holdId, submitted.request_id);
+      await patchGatewayJob(submitted.request_id, {
+        status: 'submitted',
+        falRequestId: submitted.request_id,
+        falStatusUrl: submitted.status_url,
+        falResponseUrl: submitted.response_url,
+        falCancelUrl: submitted.cancel_url,
+      });
+    }
+    await markFalRun(uid, runId, { phase: 'submitted', falRequestId: submitted.request_id });
+    return { ok: true, requestId: keepHoldId ? holdId : submitted.request_id };
+  } catch (err) {
+    console.error('fal submit failed', err);
+    const msg = err instanceof Error ? err.message : '';
+    const code = Number(/^fal submit (\d+)/.exec(msg)?.[1] ?? 0);
+    if (code === 429) {
+      await sendOpsAlert(
+        {
+          severity: 'HIGH',
+          condition: 'fal-429',
+          id: holdId,
+          text: `Fal returned 429 for ${endpoint}. Account concurrency starts at ${FAL_ACCOUNT_CONCURRENCY_NEW} and scales to ${FAL_ACCOUNT_CONCURRENCY_SELF_SERVE_MAX}. Fal queues the overflow. Hold kept, not resubmitted.`,
+        },
+        { nowMs: Date.now(), store: firestoreAlertStore(db) }
+      );
+      await patchGatewayJob(holdId, { status: 'unknown' });
+      await markFalRun(uid, runId, { phase: 'unknown' });
+      return { ok: false, status: 502, message: 'Fal is busy; hold kept, not resubmitted' };
+    }
+    if (code >= 400 && code < 500) {
+      await releaseCredits(holdId);
+      await markFalRun(uid, runId, { phase: 'released' });
+      await freeSlot(uid, holdId);
+      if (follow) await dispatchQueued(uid);
+      return { ok: false, status: 502, message: 'Fal submit failed' };
+    }
+    await patchGatewayJob(holdId, { status: 'unknown' });
+    await markFalRun(uid, runId, { phase: 'unknown' });
+    return { ok: false, status: 502, message: 'Fal submit outcome unknown; hold kept, not resubmitted' };
+  }
+}
+
+/** Start queued holds up to the live plan limit. Idempotent: takeNextQueued returns each id once. */
+export async function dispatchQueued(uid: string): Promise<void> {
+  for (let n = 0; n < PLAN_SLOTS.max + QUEUE_CAP; n++) {
+    const next = await takeNextQueued(uid);
+    if (!next) return;
+    const result = await submitReservedHold(uid, next.runId, next.holdId, true, false);
+    if (!result.ok && result.status !== 202) continue;
+  }
+}
+
+export async function dispatchQueuedUsers(): Promise<number> {
+  const [waiting, pending] = await Promise.all([
+    db.collection('falQueue').where('queuedCount', '>', 0).get(),
+    db.collection('falQueue').where('needsSubmit', '==', true).get(),
+  ]);
+  const uids = new Set([...waiting.docs, ...pending.docs].map((doc) => doc.id));
+  for (const uid of uids) await dispatchQueued(uid);
+  return uids.size;
 }
 
 async function handleSubmit(
@@ -332,7 +466,7 @@ async function handleSubmit(
 
   const nowMs = Date.now();
   const day = utcDay(nowMs);
-  const limitUsd = dailySpendLimitFromEnv(process.env);
+  const alertUsd = dailySpendAlertUsd(process.env);
 
   if (card && SINGULAR_MEDIA_KEYS.some((key) => args[key] != null)) {
     return jsonError(400, 'use the *_urls array media keys on a reference-to-video endpoint');
@@ -373,16 +507,30 @@ async function handleSubmit(
     return jsonError(409, 'idempotency conflict');
   }
   if (peeked.action === 'replay' && peeked.falRequestId) {
-    return NextResponse.json(proxyUrls(endpoint, peeked.falRequestId));
+    const slot = await slotView(uid, peeked.holdId || peeked.falRequestId);
+    return NextResponse.json(
+      withSlot({ ...proxyUrls(endpoint, peeked.falRequestId), status: 'IN_PROGRESS', logs: [] }, {
+        ...slot,
+        state: 'running',
+      })
+    );
+  }
+  if (peeked.action === 'replay' && peeked.holdId) {
+    const existing = await readGatewayJob(peeked.holdId);
+    if (existing?.status === 'queued') {
+      const slot = await slotView(uid, existing.holdId || existing.id);
+      return NextResponse.json(
+        withSlot(
+          { ...proxyUrls(endpoint, existing.id), status: 'IN_QUEUE', logs: [] },
+          { ...slot, state: 'queued' }
+        )
+      );
+    }
   }
   if (peeked.action === 'replay' || peeked.action === 'unknown') {
     return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
   }
   const skipLimits = peeked.action === 'continue';
-
-  if (await dramaKillSwitchDisabled(nowMs)) {
-    return jsonError(503, 'generation is temporarily disabled');
-  }
 
   // Signed URLs are minted only after the request hash. Replay and conflict
   // returned above, so a retry does not mint a URL or open a hold.
@@ -436,30 +584,20 @@ async function handleSubmit(
     if (!(rawUsd > 0) || estimated <= 0) {
       return jsonError(400, 'unpriced Fal request — estimate is not a positive price');
     }
-    // Warn from settled + in-flight holds + this job. Stop is re-checked
-    // inside the reserve transaction so two concurrent submits cannot both pass.
+    // Alert only. The balance check, MAX_JOB_CREDITS, and idempotency still gate the submit.
     const spendSnap = await db.doc(`spendDaily/${day}`).get();
     const spendUsd =
-      Number(spendSnap.data()?.falUsd ?? 0) +
-      Number(spendSnap.data()?.falUsdHeld ?? 0) +
-      rawUsd;
-    const warnDecision = breakerDecision(spendUsd, limitUsd);
-    if (warnDecision !== 'ok') {
+      Number(spendSnap.data()?.falUsd ?? 0) + Number(spendSnap.data()?.falUsdHeld ?? 0) + rawUsd;
+    if (spendAlertCrossed(spendUsd, alertUsd)) {
       await sendOpsAlert(
         {
           severity: 'HIGH',
-          condition: warnDecision === 'stop' ? 'circuit-breaker' : 'circuit-breaker-80',
+          condition: 'daily-spend',
           id: day,
-          text:
-            warnDecision === 'stop'
-              ? `daily Fal spend $${spendUsd.toFixed(2)} reached the $${limitUsd} limit; new submits refused`
-              : `daily Fal spend $${spendUsd.toFixed(2)} at 80% of the $${limitUsd} limit`,
+          text: `daily Fal spend $${spendUsd.toFixed(2)} passed the $${alertUsd} alert. Submits are not blocked.`,
         },
         { nowMs, store: firestoreAlertStore(db) }
       );
-      if (warnDecision === 'stop') {
-        return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
-      }
     }
     if (estimated > MAX_JOB_CREDITS) {
       return jsonError(400, `job exceeds MAX_JOB_CREDITS (${MAX_JOB_CREDITS})`);
@@ -484,7 +622,8 @@ async function handleSubmit(
     priceSnapshot: snapshot,
     reservedFalUsd: rawUsd,
     spendDay: day,
-    spendLimitUsd: limitUsd,
+    runId,
+    falBody: applyFalSafetyOff(endpoint, { ...submitArgs, ...resolvedMediaArgs }),
     character: typeof args.character === 'string' ? args.character.trim().slice(0, 80) : undefined,
     project: typeof args.project === 'string' ? args.project.trim().slice(0, 80) : undefined,
     consentAt:
@@ -501,16 +640,37 @@ async function handleSubmit(
       extra,
     });
     if (reserved.kind === 'replay' && reserved.falRequestId) {
-      return NextResponse.json(proxyUrls(endpoint, reserved.falRequestId));
+      const slot = await slotView(uid, reserved.holdId);
+      return NextResponse.json(
+        withSlot({ ...proxyUrls(endpoint, reserved.falRequestId), status: 'IN_PROGRESS', logs: [] }, {
+          ...slot,
+          state: 'running',
+        })
+      );
     }
     if (reserved.kind === 'unknown') {
       return jsonError(202, 'Fal submit outcome unknown; hold kept, not resubmitted');
     }
     holdId = reserved.holdId;
-    const claimed = await claimFalSubmit(uid, runId);
-    if (!claimed) {
-      return jsonError(202, 'Fal submit already in progress for this run');
+    if (reserved.placement === 'queued') {
+      const slot = await slotView(uid, holdId);
+      return NextResponse.json(
+        withSlot(
+          { ...proxyUrls(endpoint, holdId), status: 'IN_QUEUE', logs: [] },
+          { ...slot, state: 'queued', queuePosition: reserved.position ?? slot.queuePosition }
+        )
+      );
     }
+    const outcome = await submitReservedHold(uid, runId, holdId, false, true);
+    if (!outcome.ok) return jsonError(outcome.status, outcome.message);
+    const slot = await slotView(uid, holdId);
+    return NextResponse.json(
+      withSlot({ ...proxyUrls(endpoint, outcome.requestId), status: 'IN_QUEUE', logs: [] }, {
+        ...slot,
+        state: 'running',
+        queuePosition: 0,
+      })
+    );
   } catch (err) {
     if (err instanceof PlanNotActiveError) {
       return jsonError(403, 'plan not active');
@@ -521,42 +681,10 @@ async function handleSubmit(
     if (err instanceof IdempotencyConflictError) {
       return jsonError(409, 'idempotency conflict');
     }
-    if (err instanceof DailySpendLimitError) {
-      return jsonError(429, 'daily Fal spend limit reached — new jobs resume next UTC day');
+    if (err instanceof QueueFullError) {
+      return jsonError(429, `queue is full (${QUEUE_CAP} jobs)`);
     }
     throw err;
-  }
-
-  try {
-    const submitted = await submitFalQueue(
-      endpoint,
-      applyFalSafetyOff(endpoint, { ...submitArgs, ...resolvedMediaArgs })
-    );
-    await rebindGatewayJob(holdId, submitted.request_id);
-    await patchGatewayJob(submitted.request_id, {
-      status: 'submitted',
-      falStatusUrl: submitted.status_url,
-      falResponseUrl: submitted.response_url,
-      falCancelUrl: submitted.cancel_url,
-      priceSnapshot: snapshot,
-    });
-    if (runId) {
-      await markFalRun(uid, runId, { phase: 'submitted', falRequestId: submitted.request_id });
-    }
-    return NextResponse.json(proxyUrls(endpoint, submitted.request_id));
-  } catch (err) {
-    console.error('fal submit failed', err);
-    const msg = err instanceof Error ? err.message : '';
-    const http = /^fal submit (\d+)/.exec(msg);
-    const code = http ? Number(http[1]) : 0;
-    if (code >= 400 && code < 500) {
-      await releaseCredits(holdId);
-      if (runId) await markFalRun(uid, runId, { phase: 'released' });
-      return jsonError(502, 'Fal submit failed');
-    }
-    await patchGatewayJob(holdId, { status: 'unknown' });
-    if (runId) await markFalRun(uid, runId, { phase: 'unknown' });
-    return jsonError(502, 'Fal submit outcome unknown; hold kept, not resubmitted');
   }
 }
 
@@ -569,8 +697,16 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
     return jsonError(RELEASED_STATUS.http, RELEASED_STATUS.message);
   }
 
+  if (job.status === 'queued') {
+    const slot = await slotView(uid, job.holdId || job.id);
+    return NextResponse.json(
+      withSlot({ status: 'IN_QUEUE', logs: [] }, { ...slot, state: 'queued' })
+    );
+  }
+
   if (job.status === 'settled' && job.payload !== undefined) {
-    return NextResponse.json(SETTLED_STATUS_BODY);
+    const slot = await slotView(uid, job.holdId || job.id);
+    return NextResponse.json(withSlot({ ...SETTLED_STATUS_BODY }, { ...slot, state: 'done', queuePosition: 0 }));
   }
 
   const url = job.falStatusUrl;
@@ -603,7 +739,15 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
       return jsonError(FAILED_STATUS_HTTP, `Fal job ${falStatus.toLowerCase()}`);
     }
   }
-  return NextResponse.json(json, { status });
+  const slot = await slotView(uid, job.holdId || job.id);
+  const body =
+    json && typeof json === 'object' && !Array.isArray(json)
+      ? (json as Record<string, unknown>)
+      : { status: falStatus };
+  return NextResponse.json(
+    withSlot(body, { ...slot, state: 'running', queuePosition: 0 }),
+    { status }
+  );
 }
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
@@ -629,12 +773,18 @@ async function handleResponse(uid: string, requestId: string): Promise<Response>
 async function handleCancel(uid: string, requestId: string): Promise<Response> {
   const job = await readGatewayJob(requestId);
   if (!job || job.uid !== uid) return jsonError(404, 'unknown Fal job');
-  await settleFalJob({ requestId, ok: false });
+  if (job.status === 'queued') {
+    await releaseCredits(job.id);
+    if (job.runId) await markFalRun(uid, job.runId, { phase: 'released' });
+    await finishSlot(job.uid, job.holdId || job.id);
+    return NextResponse.json({ ok: true, state: 'done' });
+  }
+  await settleFalJob({ requestId: job.id, ok: false });
   if (job.falCancelUrl) {
     const status = await falQueueCancel(job.falCancelUrl);
-    return NextResponse.json({ ok: true }, { status: status >= 400 ? status : 200 });
+    return NextResponse.json({ ok: true, state: 'done' }, { status: status >= 400 ? status : 200 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, state: 'done' });
 }
 
 export async function handleFalQueue(

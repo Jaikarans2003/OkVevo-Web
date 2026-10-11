@@ -1,7 +1,8 @@
 /**
  * Portal drama ledger. Prices come from the chooser. No live Fal call.
  *
- * Assumptions: concurrent cap 2; choose/quote 60 per minute; upload 20 per minute;
+ * Assumptions: parked ledger; live caps are PLAN_SLOTS in falQueue.ts.
+ * choose/quote 60 per minute; upload 20 per minute;
  * upload cap 20MB; hold expiry 6h; 1080p means 1920×1080 in either orientation;
  * generate_audio omitted by the client is sent as true (OpenAPI default).
  */
@@ -9,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { creditsFromRawMicro, rawMicroTimesQuantity, usdNumberToDecimal } from '../gateway/pricing';
+import { PLAN_SLOTS } from './falQueue';
 import {
   billedMegapixels,
   capabilityReason,
@@ -23,7 +25,6 @@ import {
   type Shot,
 } from './dramaChooser';
 
-export const DRAMA_CONCURRENT_CAP = 2;
 export const HOLD_MS = 6 * 60 * 60 * 1000;
 export const CHOOSE_QUOTE_PER_MINUTE = 60;
 export const UPLOAD_PER_MINUTE = 20;
@@ -250,7 +251,7 @@ export class DramaLedger {
   private tail: Promise<void> = Promise.resolve();
 
   constructor(opts?: { cap?: number; chooseLimit?: number; uploadLimit?: number }) {
-    this.cap = opts?.cap ?? DRAMA_CONCURRENT_CAP;
+    this.cap = opts?.cap ?? PLAN_SLOTS.starter;
     this.chooseLimit = opts?.chooseLimit ?? CHOOSE_QUOTE_PER_MINUTE;
     this.uploadLimit = opts?.uploadLimit ?? UPLOAD_PER_MINUTE;
   }

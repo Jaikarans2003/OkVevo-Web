@@ -5,6 +5,8 @@
  * Run: npx tsx src/lib/ops/alert.selfcheck.ts
  */
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import {
   alertDocId,
@@ -106,5 +108,29 @@ assert.deepEqual(
   Object.keys(line).sort(),
   ['condition', 'day', 'id', 'opsAlert', 'severity', 'text'].sort()
 );
+
+const root = path.join(import.meta.dirname, '..', '..', '..');
+const infra = readFileSync(path.join(root, 'scripts', 'drama-infra.sh'), 'utf8');
+const billing = readFileSync(path.join(root, 'scripts', 'ops-billing-finish.sh'), 'utf8');
+const cron = readFileSync(path.join(root, 'src', 'app', 'api', 'cron', 'fal-drift', 'route.ts'), 'utf8');
+const gone = [
+  ['src', 'app', 'admin', 'drama'],
+  ['src', 'app', 'admin', 'login'],
+  ['src', 'app', 'api', 'admin', 'session'],
+  ['src', 'app', 'api', 'admin', 'drama'],
+  ['src', 'lib', 'admin', 'sessionCookie.ts'],
+  ['scripts', 'admin-claim.ts'],
+  ['src', 'lib', 'fal', 'adminGuard.selfcheck.ts'],
+  ['scripts', 'drama-kill-switch.ts'],
+].map((parts) => path.join(root, ...parts));
+for (const file of gone) assert.equal(existsSync(file), false, `removed path still present: ${file}`);
+
+assert.ok(infra.includes('jaikaran.pesce@gmail.com'), 'HIGH and heartbeat mail goes to the operator');
+assert.ok(infra.includes('conditionAbsent'), 'missing heartbeat uses a metric-absence condition');
+assert.ok(infra.includes('82800s'), 'heartbeat absence window is 23h');
+assert.equal(infra.includes('93600s'), false, '26h is over the Cloud Monitoring cap');
+assert.ok(billing.includes('20 */12 * * *'), 'fal-drift runs every 12h so 23h absence does not false-alarm');
+assert.ok(billing.includes('* * * * *'), 'queue dispatcher runs every minute');
+assert.ok(cron.includes("condition: 'heartbeat'"), 'fal-drift must log a heartbeat line');
 
 console.log('alert.selfcheck: ok');

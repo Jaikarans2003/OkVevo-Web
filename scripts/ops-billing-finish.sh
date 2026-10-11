@@ -133,6 +133,25 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
+# Backup dispatcher for per-user Fal queue. Settle/fail/cancel dispatch in
+# the request; this minute job only starts holds those events missed.
+DISPATCH_URI="${ORIGIN}/api/cron/fal-dispatch"
+if gcloud scheduler jobs describe nia-fal-dispatch --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-dispatch"
+  gcloud scheduler jobs update http nia-fal-dispatch \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="* * * * *" --time-zone="Etc/UTC" \
+    --uri="$DISPATCH_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fal-dispatch"
+  gcloud scheduler jobs create http nia-fal-dispatch \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="* * * * *" --time-zone="Etc/UTC" \
+    --uri="$DISPATCH_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
 echo "==> Wait for users planStatus + nextAllocationDate composite index READY"
 for i in $(seq 1 90); do
   STATE=$(gcloud firestore indexes composite list --project="$PROJECT" --format=json 2>/dev/null | python3 -c '
