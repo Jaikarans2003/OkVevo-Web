@@ -32,6 +32,7 @@ import {
 } from '@/lib/fal/statusContract';
 import { adjustedUsd, quantity, QuantityError } from '@/lib/fal/quantity';
 import { pickMediaArgs } from '@/lib/fal/mediaInputs';
+import { clientRequestHash, pickSubmitArgs } from '@/lib/fal/idempotency';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   DailySpendLimitError,
@@ -59,7 +60,6 @@ import {
   type MediaContext,
   type PriceSnapshot,
 } from '@/lib/fal/rateCard';
-import { canonicalBodyHash } from '@/lib/fal/idempotency';
 import { sendOpsAlert, utcDay } from '@/lib/ops/alert';
 import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
 import {
@@ -74,31 +74,6 @@ import {
   speechVoiceOwnershipDenied,
 } from '@/lib/fal/voiceOwnership';
 
-const SUBMIT_KEYS = [
-  'duration',
-  'num_images',
-  'image_size',
-  'generate_audio',
-  'resolution',
-  'num_frames',
-  'width',
-  'height',
-  'enable_web_search',
-  'web_search',
-  'quality',
-  'text',
-  'lyrics',
-  'size',
-  'task',
-  'aspect_ratio',
-  'prompt',
-  // speech-02-hd voice selection (harmless absent on other endpoints).
-  'voice_id',
-  'language_boost',
-  'audio_url',
-  'model',
-] as const;
-
 /**
  * Singular media keys no wired endpoint accepts (schemas use the *_urls
  * arrays or named slots). Rejected before any hold with the right shape named.
@@ -107,15 +82,6 @@ const SINGULAR_MEDIA_KEYS = ['video_url'] as const;
 
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: { message } }, { status });
-}
-
-function pickSubmitArgs(body: unknown): Record<string, unknown> {
-  const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  const out: Record<string, unknown> = {};
-  for (const k of SUBMIT_KEYS) {
-    if (k in rec) out[k] = rec[k];
-  }
-  return out;
 }
 
 function proxyUrls(endpoint: string, requestId: string) {
@@ -392,37 +358,16 @@ async function handleSubmit(
     }
   }
 
-  // Media references (drama-upload:// / Fal output URLs) resolve to Fal-
-  // fetchable URLs + the measured MediaContext BEFORE any hold.
-  let falBody = args;
-  let media: MediaContext | undefined;
-  if (card) {
-    try {
-      const resolved = await resolveMediaArgs(endpoint, args, uid);
-      falBody = resolved.falArgs;
-      media = resolved.media;
-    } catch (err) {
-      if (err instanceof MediaResolveError) return jsonError(400, err.message);
-      throw err;
-    }
-  }
-
-  const submitArgs = pickSubmitArgs(falBody);
-  const hashMediaArgs = pickMediaArgs(args);
-  const resolvedMediaArgs = pickMediaArgs(falBody);
   const runId = typeof args.run_id === 'string' ? args.run_id.trim() : '';
   const approved =
     typeof args.approved_credits === 'number' ? args.approved_credits : null;
   if (!runId) {
     return jsonError(400, 'run_id is required for every metered submit');
   }
-  // Hash the client media refs (drama-upload://), never the resolved signed URL.
-  const bodyHash = canonicalBodyHash({
-    endpoint,
-    submitArgs,
-    mediaArgs: hashMediaArgs,
-    runId,
-  });
+  // Hash the client request before any signed URL is minted. audio_url is
+  // both a submit key and a media key; media keys stay as drama-upload://
+  // or the original Fal media URL.
+  const bodyHash = clientRequestHash(endpoint, args);
   const peeked = await peekFalRun(uid, runId, bodyHash);
   if (peeked.action === 'conflict') {
     return jsonError(409, 'idempotency conflict');
@@ -438,6 +383,23 @@ async function handleSubmit(
   if (await dramaKillSwitchDisabled(nowMs)) {
     return jsonError(503, 'generation is temporarily disabled');
   }
+
+  // Signed URLs are minted only after the request hash. Replay and conflict
+  // returned above, so a retry does not mint a URL or open a hold.
+  let falBody = args;
+  let media: MediaContext | undefined;
+  if (card) {
+    try {
+      const resolved = await resolveMediaArgs(endpoint, args, uid);
+      falBody = resolved.falArgs;
+      media = resolved.media;
+    } catch (err) {
+      if (err instanceof MediaResolveError) return jsonError(400, err.message);
+      throw err;
+    }
+  }
+  const submitArgs = pickSubmitArgs(falBody);
+  const resolvedMediaArgs = pickMediaArgs(falBody);
 
   let rawUsd = 0;
   let snapshot: PriceSnapshot | undefined;

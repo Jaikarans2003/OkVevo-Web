@@ -202,29 +202,17 @@ function walk(root: string, out: string[]) {
     else if (/\.(ts|tsx|js|mjs|py|json)$/.test(name)) out.push(path);
   }
 }
-const roots = [
-  join(import.meta.dirname, "../../../..", "OkVevo-Web/src"),
-  join(import.meta.dirname, "../../../..", "hermes-agent/okvevo"),
-  join(import.meta.dirname, "../../../..", "hermes-agent/apps/desktop/electron"),
-  join(import.meta.dirname, "../../../..", "hermes-agent/apps/desktop/src"),
-];
+// In-repo only. The drama adapter's "no price logic / no Fal key" check lives
+// in OkVevo-Nia pytest (tests/skills/test_drama_portal_adapter.py) and fails
+// if that file is missing. A missing scan root here is a failure, not a skip.
+const srcRoot = join(import.meta.dirname, "..", "..");
+assert.ok(existsSync(srcRoot), `in-repo scan root missing: ${srcRoot}`);
 const files: string[] = [];
-for (const root of roots) {
-  if (!existsSync(root)) continue;
-  walk(root, files);
-}
+walk(srcRoot, files);
+assert.ok(files.length > 0, "in-repo FAL key scan found no files");
 const keyPattern = /FAL_(?:KEY|API_KEY)\s*=\s*['"][A-Za-z0-9][^'"]{6,}['"]/;
 for (const file of files) {
   assert.equal(keyPattern.test(readFileSync(file, "utf8")), false, file);
-}
-const adapterPath = join(import.meta.dirname, "../../../..", "hermes-agent/okvevo/drama_fal_adapter.py");
-if (existsSync(adapterPath)) {
-  const adapter = readFileSync(adapterPath, "utf8");
-  for (const word of ["unit_price", "creditsFromUsd", "rawMicro", "FAL_KEY", "def choose", "MARGIN"]) {
-    assert.equal(adapter.includes(word), false, word);
-  }
-  assert.match(adapter, /choose/);
-  assert.match(adapter, /\/api\/gateway\/fal\/drama\//);
 }
 
 const chosen = await handleDrama("choose", "fresh", {

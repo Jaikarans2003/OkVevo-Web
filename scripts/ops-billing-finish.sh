@@ -68,8 +68,8 @@ printf '%s' "$RAZORPAY_WEBHOOK_SECRET" | firebase apphosting:secrets:set RAZORPA
 echo "==> Grant App Hosting backend access to secrets (idempotent)"
 firebase apphosting:secrets:grantaccess CRON_SECRET,RAZORPAY_WEBHOOK_SECRET --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
 
-# Ops alerts: HIGH conditions write an opsAlerts record (admin dashboard
-# banner) plus a structured log line. No chat integration to provision.
+# Ops alerts: HIGH conditions write an opsAlerts record plus a structured
+# log line. Cloud Monitoring emails that line. No chat integration to provision.
 
 echo "==> Local-source App Hosting deploy (backend has no connected GitHub repo)"
 firebase deploy --only apphosting --project "$PROJECT" --force --non-interactive
@@ -111,7 +111,9 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
-# Daily price drift + abandoned submitted holds + admin rollup. Margin is
+# Price drift + abandoned submitted holds + rollup, every 12h. A daily cron
+# cannot be absence-alerted: Cloud Monitoring rejects windows over 23h30m, and
+# a 24h series false-alarms inside that cap. 00:20 and 12:20 UTC. Margin is
 # estimated from the rate card (deterministic mode, ADR-001): the Fal key has
 # no billing read access, so there is no FAL_BILLING_KEY anywhere.
 FAL_URI="${ORIGIN}/api/cron/fal-drift"
@@ -119,14 +121,14 @@ if gcloud scheduler jobs describe nia-fal-drift --project="$PROJECT" --location=
   echo "==> Update scheduler job nia-fal-drift"
   gcloud scheduler jobs update http nia-fal-drift \
     --project="$PROJECT" --location="$LOCATION" \
-    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --schedule="20 */12 * * *" --time-zone="Etc/UTC" \
     --uri="$FAL_URI" --http-method=POST \
     --update-headers="Authorization=Bearer ${CRON_SECRET}"
 else
   echo "==> Create scheduler job nia-fal-drift"
   gcloud scheduler jobs create http nia-fal-drift \
     --project="$PROJECT" --location="$LOCATION" \
-    --schedule="20 0 * * *" --time-zone="Etc/UTC" \
+    --schedule="20 */12 * * *" --time-zone="Etc/UTC" \
     --uri="$FAL_URI" --http-method=POST \
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi

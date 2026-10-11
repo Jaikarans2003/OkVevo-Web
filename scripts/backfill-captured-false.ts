@@ -62,13 +62,13 @@ async function main() {
   }
 
   const { db } = await import('../src/lib/firebase-admin.ts');
-  const snap = await db.collection('gatewayJobs').where('status', '==', 'settled').get();
-  const ids: string[] = [];
-  for (const doc of snap.docs) {
-    const captured = doc.data().captured;
-    if (captured === true || captured === false) continue;
-    ids.push(doc.id);
-  }
+  const { shouldSetCapturedFalse } = await import('../src/lib/fal/capture.ts');
+  const snap = await db
+    .collection('gatewayJobs')
+    .where('provider', '==', 'fal')
+    .where('status', '==', 'settled')
+    .get();
+  const ids = snap.docs.filter((doc) => shouldSetCapturedFalse(doc.data())).map((doc) => doc.id);
 
   console.log(
     JSON.stringify({
@@ -84,20 +84,21 @@ async function main() {
     return;
   }
 
-  // ponytail: 400-write batches. Fine at current testing count (~4k).
-  // Upgrade: collection query on captured==null if Firestore adds it.
+  // One transaction per document: re-read, skip if captured was set since the scan.
   let updated = 0;
-  const CHUNK = 400;
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const chunk = ids.slice(i, i + CHUNK);
-    const batch = db.batch();
-    for (const id of chunk) {
-      batch.set(db.collection('gatewayJobs').doc(id), { captured: false }, { merge: true });
-    }
-    await batch.commit();
-    updated += chunk.length;
+  let skipped = 0;
+  for (const id of ids) {
+    const ref = db.collection('gatewayJobs').doc(id);
+    const wrote = await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(ref);
+      if (!shouldSetCapturedFalse(fresh.data())) return false;
+      tx.set(ref, { captured: false }, { merge: true });
+      return true;
+    });
+    if (wrote) updated += 1;
+    else skipped += 1;
   }
-  console.log(JSON.stringify({ apply: true, updated }));
+  console.log(JSON.stringify({ apply: true, updated, skipped }));
 }
 
 main().catch((err) => {

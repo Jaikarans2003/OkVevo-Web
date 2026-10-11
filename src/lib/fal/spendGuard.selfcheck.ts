@@ -39,11 +39,12 @@ assert.ok(
   !submitBody.includes('applyFalSafetyOff(endpoint, falBody)'),
   'Fal POST must be pickSubmitArgs + media URLs, not the raw client body'
 );
+const hashIdx = submitBody.search(/clientRequestHash\(endpoint,\s*args\)/);
+const resolveIdx = submitBody.indexOf('resolveMediaArgs(');
+assert.ok(hashIdx >= 0, 'handleSubmit must hash the client request');
 assert.ok(
-  submitBody.includes('pickMediaArgs(args)') &&
-    submitBody.includes('canonicalBodyHash({') &&
-    submitBody.includes('mediaArgs: hashMediaArgs'),
-  'canonicalBodyHash must use client media refs (drama-upload://), not signed URLs'
+  resolveIdx > hashIdx,
+  'signed URLs are minted only after the client request hash, including audio_url'
 );
 assert.ok(
   peekIdx >= 0 && peekIdx < breakerIdx && peekIdx < capIdx,

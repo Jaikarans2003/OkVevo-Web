@@ -1,5 +1,5 @@
 /**
- * Daily Cloud Scheduler → POST Authorization: Bearer CRON_SECRET.
+ * Cloud Scheduler every 12h → POST Authorization: Bearer CRON_SECRET.
  * Price drift (generation credential) and abandoned submitted holds.
  * Deterministic billing mode: the existing Fal key gets 403 on usage and
  * billing-events, so realized margin is estimated from the rate card —
@@ -26,7 +26,7 @@ import { settleFalJob } from '@/lib/fal/handleQueue';
 import { holdIsDue, reservedHoldAbandoned, sweepAction } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
 import { releaseCredits } from '@/lib/gateway/debit';
-import { sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
+import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
 import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
 
 export const runtime = 'nodejs';
@@ -133,8 +133,8 @@ export async function POST(request: NextRequest) {
   // abandoned threshold gets ONE HIGH alert per UTC day. NEVER auto-release
   // and NEVER resubmit: only a human can tell Fal did not run the job (Fal
   // dashboard usage page for its window), then scripts/drama-release-hold.ts
-  // releases through the same compare-and-set. HIGH alerts surface on the
-  // admin dashboard banner until resolved.
+  // releases through the same compare-and-set. HIGH log lines email via
+  // Cloud Monitoring until resolved.
   let reservedOld = 0;
   const reserved = await db.collection('gatewayJobs').where('status', '==', 'reserved').get();
   for (const doc of reserved.docs) {
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       'hold-reserved-no-fal-id',
       doc.id,
       `reserved hold ${doc.id} older than 30m has no Fal request id; not released, not resubmitted. ` +
-        'Check the Fal dashboard usage page for its window, then scripts/drama-release-hold.ts',
+        'Check the Fal usage page for its window, then scripts/drama-release-hold.ts',
       nowMs
     );
   }
@@ -161,9 +161,22 @@ export async function POST(request: NextRequest) {
     },
     { merge: true }
   );
+  // Cloud Monitoring counts this line. The job runs every 12h; the absence
+  // policy is 23h. GCP rejects windows over 23h30m, which a daily series would
+  // false-alarm inside.
+  console.error(
+    alertLogLine({
+      day: utcDay(nowMs),
+      severity: 'INFO',
+      condition: 'heartbeat',
+      id: 'fal-drift',
+      text: 'fal-drift heartbeat',
+      resolved: false,
+    })
+  );
 
-  // Pre-aggregated admin dashboard rollup. The dashboard reads this, never
-  // raw scans. Top users get emails attached here (server-side only).
+  // Pre-aggregated daily rollup. Admin console is deferred; this write stays
+  // so a later console can read it without scanning gatewayJobs.
   const day = utcDay(nowMs);
   const dayStartMs = Date.parse(`${day}T00:00:00.000Z`);
   const createdToday = await db

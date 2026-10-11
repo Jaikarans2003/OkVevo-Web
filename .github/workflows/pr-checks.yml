@@ -33,9 +33,28 @@ jobs:
       - name: Run drama selfchecks
         run: |
           set -euo pipefail
+          required=(
+            src/lib/fal/dramaGate.selfcheck.ts
+            src/lib/fal/idempotency.selfcheck.ts
+            src/lib/fal/capture.selfcheck.ts
+            src/lib/fal/storageRules.selfcheck.ts
+            src/lib/fal/killSwitch.selfcheck.ts
+            src/lib/gateway/reserve.selfcheck.ts
+            src/lib/billing/fxDrift.selfcheck.ts
+            src/lib/agent/firestoreRules.selfcheck.ts
+          )
+          for f in "${required[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "missing required drama, billing, or rules check: $f" >&2
+              exit 1
+            fi
+          done
           for f in src/lib/fal/*.selfcheck.ts \
                    src/lib/admin/rollup.selfcheck.ts \
-                   src/lib/ops/alert.selfcheck.ts; do
+                   src/lib/ops/alert.selfcheck.ts \
+                   src/lib/gateway/reserve.selfcheck.ts \
+                   src/lib/billing/fxDrift.selfcheck.ts \
+                   src/lib/agent/firestoreRules.selfcheck.ts; do
             echo "==> $f"
             npx tsx "$f"
           done

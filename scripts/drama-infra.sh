@@ -7,7 +7,11 @@
 #
 # Optional: --origin <url> (scheduler HTTP target)
 #           --location us-central1
-#           --monitoring-email <addr>  (apply only; creates log-based HIGH + heartbeat alerts)
+#           --monitoring-email <addr>  (default jaikaran.pesce@gmail.com)
+# Apply always creates the HIGH-log email and the missing-heartbeat email.
+# Heartbeat absence is 23h. Cloud Monitoring rejects longer than 23h30m, and a
+# once-a-day series false-alarms inside that cap. fal-drift runs every 12h
+# (ops-billing-finish.sh), so a healthy gap stays quiet and a missed run emails.
 #
 # Read-before-write:
 #   Bucket lifecycle is merged (drama-inputs/ 7d Delete via matchesPrefix).
@@ -23,6 +27,7 @@ ORIGIN=""
 LOCATION="us-central1"
 MODE=""
 MONITORING_EMAIL=""
+DEFAULT_MONITORING_EMAIL="jaikaran.pesce@gmail.com"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 LOG="$ROOT/docs/ops-log/drama-parity.md"
 
@@ -43,6 +48,9 @@ done
 if [[ -z "$PROJECT" || -z "$MODE" ]]; then
   echo "Usage: $0 --project <id> --dry-run|--apply|--rollback" >&2
   exit 1
+fi
+if [[ -z "$MONITORING_EMAIL" ]]; then
+  MONITORING_EMAIL="$DEFAULT_MONITORING_EMAIL"
 fi
 if [[ "$PROJECT" != "okvevo-testing" && "$PROJECT" != "text2video-16cbf" ]]; then
   echo "STOP: unexpected project '$PROJECT' (want okvevo-testing or text2video-16cbf)" >&2
@@ -282,34 +290,147 @@ storage_rules_step() {
   log "storage.rules deployed"
 }
 
-# --- optional monitoring (commands documented; created only with --monitoring-email on apply) ---
-monitoring_step() {
-  cat <<EOF
-# Optional Cloud Monitoring (HIGH opsAlerts + heartbeat stale). Console:
-#   Logging → Logs Explorer → create metric on jsonPayload.severity="HIGH"
-#   Monitoring → Alerting → Create policy → that metric + heartbeat gap > 26h
-# Cloud Shell (do not run unless --monitoring-email is set):
-gcloud logging metrics create nia_ops_high --project=$PROJECT \\
-  --description="Drama/Fal HIGH ops alert" \\
-  --log-filter='jsonPayload.severity="HIGH" OR textPayload:"\\"severity\\":\\"HIGH\\""'
-gcloud logging metrics create nia_fal_heartbeat --project=$PROJECT \\
-  --description="fal-drift heartbeat" \\
-  --log-filter='jsonPayload.condition="heartbeat" OR textPayload:"fal-drift heartbeat"'
-# Then attach an email notification channel and a policy. Skip if unused.
-EOF
-  if [[ -z "$MONITORING_EMAIL" || "$MODE" != "apply" ]]; then
-    log "monitoring: printed, not created"
+# --- required monitoring: HIGH log email + missed 12h heartbeat (23h absence) ---
+# ponytail: conditionAbsent max is 23h30m (GCP). 26h is not representable.
+# Upgrade path: if GCP allows >=26h, set duration back and the cron can be daily.
+HIGH_LOG_FILTER='(jsonPayload.opsAlert=true AND jsonPayload.severity="HIGH") OR (textPayload:"\"opsAlert\":true" AND textPayload:"\"severity\":\"HIGH\"")'
+HEARTBEAT_LOG_FILTER='jsonPayload.condition="heartbeat" OR textPayload:"\"condition\":\"heartbeat\""'
+
+ensure_log_metric() {
+  local name="$1" desc="$2" filter="$3"
+  if gcloud logging metrics describe "$name" --project="$PROJECT" >/dev/null 2>&1; then
+    gcloud logging metrics update "$name" --project="$PROJECT" --description="$desc" --log-filter="$filter"
+  else
+    gcloud logging metrics create "$name" --project="$PROJECT" --description="$desc" --log-filter="$filter"
+  fi
+}
+
+ensure_email_channel() {
+  # Notification channels are stable in the Monitoring REST API. This gcloud
+  # install has no beta component, so do not depend on `gcloud beta`.
+  local token existing body
+  token="$(gcloud auth print-access-token)"
+  existing="$(curl -fsS -H "Authorization: Bearer ${token}" \
+    "https://monitoring.googleapis.com/v3/projects/${PROJECT}/notificationChannels?pageSize=500" \
+    | python3 -c '
+import json, sys
+email = sys.argv[1]
+data = json.load(sys.stdin)
+for ch in data.get("notificationChannels") or []:
+    labels = ch.get("labels") or {}
+    if ch.get("type") == "email" and labels.get("email_address") == email:
+        print(ch.get("name", ""))
+        break
+' "$MONITORING_EMAIL")"
+  if [[ -n "$existing" ]]; then
+    printf '%s' "$existing"
     return 0
   fi
-  log "monitoring-email set; creating log metrics (policy still needs a console channel for $MONITORING_EMAIL)"
-  gcloud logging metrics describe nia_ops_high --project="$PROJECT" >/dev/null 2>&1 \
-    || gcloud logging metrics create nia_ops_high --project="$PROJECT" \
-      --description="Drama/Fal HIGH ops alert" \
-      --log-filter='jsonPayload.severity="HIGH"'
-  gcloud logging metrics describe nia_fal_heartbeat --project="$PROJECT" >/dev/null 2>&1 \
-    || gcloud logging metrics create nia_fal_heartbeat --project="$PROJECT" \
-      --description="fal-drift heartbeat" \
-      --log-filter='jsonPayload.condition="heartbeat"'
+  body="$(python3 -c 'import json,sys; print(json.dumps({"type":"email","displayName":"Drama ops "+sys.argv[1],"labels":{"email_address":sys.argv[1]}}))' "$MONITORING_EMAIL")"
+  curl -fsS -X POST \
+    -H "Authorization: Bearer ${token}" \
+    -H "Content-Type: application/json" \
+    "https://monitoring.googleapis.com/v3/projects/${PROJECT}/notificationChannels" \
+    -d "$body" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("name",""))'
+}
+
+policy_name() {
+  local title="$1"
+  gcloud monitoring policies list --project="$PROJECT" --format=json \
+    | python3 -c '
+import json, sys
+title = sys.argv[1]
+for policy in json.load(sys.stdin):
+    if policy.get("displayName") == title:
+        print(policy.get("name", ""))
+        break
+' "$title"
+}
+
+write_policy() {
+  local file="$1" title="$2" channel="$3" kind="$4"
+  python3 - "$file" "$title" "$channel" "$kind" "$PROJECT" <<'PY'
+import json, sys
+path, title, channel, kind, project = sys.argv[1:]
+metric = "logging.googleapis.com/user/nia_ops_high" if kind == "high" else "logging.googleapis.com/user/nia_fal_heartbeat"
+base = f'metric.type="{metric}" AND resource.type="cloud_run_revision"'
+if kind == "high":
+    condition = {
+        "displayName": "HIGH opsAlert log line",
+        "conditionThreshold": {
+            "filter": base,
+            "comparison": "COMPARISON_GT",
+            "thresholdValue": 0,
+            "duration": "0s",
+            "aggregations": [{
+                "alignmentPeriod": "300s",
+                "perSeriesAligner": "ALIGN_SUM",
+                "crossSeriesReducer": "REDUCE_SUM",
+            }],
+        },
+    }
+else:
+    condition = {
+        "displayName": "fal-drift heartbeat missing for 23h",
+        "conditionAbsent": {
+            "filter": base,
+            "duration": "82800s",
+            "aggregations": [{
+                "alignmentPeriod": "3600s",
+                "perSeriesAligner": "ALIGN_SUM",
+                "crossSeriesReducer": "REDUCE_SUM",
+            }],
+        },
+    }
+policy = {
+    "displayName": title,
+    "combiner": "OR",
+    "enabled": True,
+    "notificationChannels": [channel],
+    "conditions": [condition],
+}
+open(path, "w", encoding="utf-8").write(json.dumps(policy))
+PY
+}
+
+ensure_policy() {
+  local title="$1" kind="$2" channel="$3"
+  local file existing
+  file="$(mktemp)"
+  write_policy "$file" "$title" "$channel" "$kind"
+  existing="$(policy_name "$title" || true)"
+  if [[ -n "$existing" ]]; then
+    gcloud monitoring policies update "$existing" --project="$PROJECT" --policy-from-file="$file"
+  else
+    gcloud monitoring policies create --project="$PROJECT" --policy-from-file="$file"
+  fi
+  rm -f "$file"
+}
+
+monitoring_step() {
+  if [[ -z "$MONITORING_EMAIL" ]]; then
+    echo "STOP: monitoring email is required" >&2
+    exit 1
+  fi
+  log "monitoring required: HIGH logs + heartbeat absent 23h -> ${MONITORING_EMAIL}"
+  if [[ "$MODE" == "dry-run" ]]; then
+    log "  (dry-run, not executed)"
+    return 0
+  fi
+  gcloud services enable monitoring.googleapis.com logging.googleapis.com --project="$PROJECT"
+  ensure_log_metric nia_ops_high "Drama/Fal HIGH ops alert" "$HIGH_LOG_FILTER"
+  ensure_log_metric nia_fal_heartbeat "fal-drift heartbeat" "$HEARTBEAT_LOG_FILTER"
+  local channel
+  channel="$(ensure_email_channel)"
+  if [[ -z "$channel" ]]; then
+    echo "STOP: email notification channel was not created for ${MONITORING_EMAIL}" >&2
+    exit 1
+  fi
+  log "monitoring channel ${channel}"
+  ensure_policy "Drama HIGH ops alert" high "$channel"
+  ensure_policy "Drama fal-drift heartbeat missing" heartbeat "$channel"
+  log "monitoring policies ensured"
 }
 
 # --- capture job (FAL_BILLING_KEY; App Hosting never gets this secret) ---

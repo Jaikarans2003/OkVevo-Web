@@ -52,6 +52,20 @@ export function captureLagMs(settledAtMs: number, eventTimestamp: string): numbe
   return Math.max(0, ev - settledAtMs);
 }
 
+/**
+ * One-time backfill predicate. Only settled Fal jobs that never wrote
+ * `captured` should become `captured: false` so the capture query can see them.
+ * A set boolean (true or false) is already decided — skip it.
+ */
+export function shouldSetCapturedFalse(
+  data: { provider?: unknown; status?: unknown; captured?: unknown } | undefined
+): boolean {
+  if (!data) return false;
+  if (data.provider !== 'fal') return false;
+  if (data.status !== 'settled') return false;
+  return data.captured !== true && data.captured !== false;
+}
+
 /** Until G3 measures lag: 15 min. Docs say recent events are delayed. */
 export const CAPTURE_INTERVAL_CRON = '*/15 * * * *';
 export const CAPTURE_INTERVAL_NOTE =

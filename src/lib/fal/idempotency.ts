@@ -6,6 +6,66 @@
 
 import { createHash } from 'node:crypto';
 
+import { MEDIA_ARG_KEYS, pickMediaArgs } from '@/lib/fal/mediaInputs';
+
+/**
+ * Fields copied onto the Fal submit. Price-relevant params and the prompt
+ * live here. Media keys that also appear in this list (audio_url) are hashed
+ * from the client ref, not from this copy after URL signing.
+ */
+export const SUBMIT_KEYS = [
+  'duration',
+  'num_images',
+  'image_size',
+  'generate_audio',
+  'resolution',
+  'num_frames',
+  'width',
+  'height',
+  'enable_web_search',
+  'web_search',
+  'quality',
+  'text',
+  'lyrics',
+  'size',
+  'task',
+  'aspect_ratio',
+  'prompt',
+  'voice_id',
+  'language_boost',
+  'audio_url',
+  'model',
+] as const;
+
+export function pickSubmitArgs(body: unknown): Record<string, unknown> {
+  const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = {};
+  for (const k of SUBMIT_KEYS) {
+    if (k in rec) out[k] = rec[k];
+  }
+  return out;
+}
+
+/**
+ * Canonical client request: model id, price-relevant params, prompt, and
+ * stable media ids (drama-upload://<id> or the original Fal media URL).
+ * Media keys are omitted from submitArgs so a later signed URL cannot
+ * change the hash, including keys that are both submit keys and media keys.
+ * canonicalBodyHash sorts object keys.
+ */
+export function hashableClientRequest(
+  endpoint: string,
+  clientArgs: Record<string, unknown>
+): { endpoint: string; submitArgs: Record<string, unknown>; mediaArgs: Record<string, unknown> } {
+  const submitArgs = pickSubmitArgs(clientArgs);
+  for (const key of Object.keys(MEDIA_ARG_KEYS)) delete submitArgs[key];
+  return { endpoint, submitArgs, mediaArgs: pickMediaArgs(clientArgs) };
+}
+
+export function clientRequestHash(endpoint: string, clientArgs: Record<string, unknown>): string {
+  return canonicalBodyHash(hashableClientRequest(endpoint, clientArgs));
+}
+
 export type FalPhase = 'reserved' | 'submitted' | 'unknown' | 'settled' | 'released';
 
 export type IdemRow = {

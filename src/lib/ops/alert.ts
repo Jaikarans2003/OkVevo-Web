@@ -1,8 +1,8 @@
 /**
- * One ops alert path. Outputs: an `opsAlerts` Firestore record (banner/badge
- * source for the admin dashboard) plus one structured log line (severity,
- * condition, id) that a log-based alert policy can match. HIGH dedupes to one
- * send per (condition, id) per UTC day. Text must not contain secrets.
+ * One ops alert path. Outputs: an `opsAlerts` Firestore record plus one
+ * structured log line (severity, condition, id) that Cloud Monitoring email
+ * alerts match. HIGH dedupes to one send per (condition, id) per UTC day.
+ * Text must not contain secrets.
  */
 
 export type AlertSeverity = 'HIGH' | 'INFO';

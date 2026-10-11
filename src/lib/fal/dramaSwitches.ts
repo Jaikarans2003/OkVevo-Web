@@ -1,6 +1,6 @@
 /**
- * Drama guardrails, pure decisions. Firestore IO lives in handleQueue /
- * the admin routes:
+ * Drama guardrails, pure decisions. Firestore IO lives in handleQueue
+ * and scripts/drama-kill-switch.ts:
  *   kill switch  — opsConfig/drama { disabled: true } stops every metered
  *                  Fal submit (rate-card drama jobs and live-priced
  *                  image/video). One flag, no deploy.
@@ -19,6 +19,37 @@ export function killSwitchDisabled(doc: unknown): boolean {
     typeof doc === 'object' &&
     (doc as Record<string, unknown>).disabled === true
   );
+}
+
+export type KillSwitchAudit = {
+  action: 'drama-kill-switch';
+  actor: string;
+  at: string;
+  old: boolean;
+  new: boolean;
+};
+
+/** Flag write plus the audit row. --off means disabled=true. Actor and time are required. */
+export function planKillSwitch(opts: {
+  current: unknown;
+  disabled: boolean;
+  actor: string;
+  atIso: string;
+}): { disabled: boolean; audit: KillSwitchAudit } {
+  const actor = opts.actor.trim();
+  if (!actor) throw new Error('kill switch actor is required');
+  if (!opts.atIso) throw new Error('kill switch time is required');
+  const old = killSwitchDisabled(opts.current);
+  return {
+    disabled: opts.disabled,
+    audit: {
+      action: 'drama-kill-switch',
+      actor,
+      at: opts.atIso,
+      old,
+      new: opts.disabled,
+    },
+  };
 }
 
 export type BreakerDecision = 'ok' | 'warn' | 'stop';

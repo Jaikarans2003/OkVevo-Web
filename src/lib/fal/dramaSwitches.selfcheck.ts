@@ -11,6 +11,7 @@ import {
   dailySpendLimitFromEnv,
   DEFAULT_DAILY_SPEND_LIMIT_USD,
   killSwitchDisabled,
+  planKillSwitch,
   settleSpendOnce,
 } from '@/lib/fal/dramaSwitches';
 
@@ -19,6 +20,34 @@ assert.equal(killSwitchDisabled({}), false);
 assert.equal(killSwitchDisabled({ disabled: false }), false);
 assert.equal(killSwitchDisabled({ disabled: 'yes' }), false);
 assert.equal(killSwitchDisabled({ disabled: true }), true);
+
+const turnedOff = planKillSwitch({
+  current: undefined,
+  disabled: true,
+  actor: 'admin@example.com',
+  atIso: '2026-10-11T06:30:00.000Z',
+});
+assert.equal(turnedOff.disabled, true);
+assert.deepEqual(turnedOff.audit, {
+  action: 'drama-kill-switch',
+  actor: 'admin@example.com',
+  at: '2026-10-11T06:30:00.000Z',
+  old: false,
+  new: true,
+});
+const turnedOn = planKillSwitch({
+  current: { disabled: true },
+  disabled: false,
+  actor: ' admin@example.com ',
+  atIso: '2026-10-11T07:00:00.000Z',
+});
+assert.equal(turnedOn.audit.old, true);
+assert.equal(turnedOn.audit.new, false);
+assert.equal(turnedOn.audit.actor, 'admin@example.com');
+assert.throws(
+  () => planKillSwitch({ current: undefined, disabled: true, actor: ' ', atIso: 't' }),
+  /actor is required/
+);
 
 const limit = 100;
 assert.equal(breakerDecision(0, limit), 'ok');

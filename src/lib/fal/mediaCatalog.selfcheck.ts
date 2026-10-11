@@ -7,8 +7,7 @@
  * Run: npx tsx src/lib/fal/mediaCatalog.selfcheck.ts
  */
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { METERABLE_ENDPOINTS } from './allowlist.ts';
@@ -40,25 +39,6 @@ for (const row of shipped) {
     `shipped catalog id is not meterable on the gateway: ${row.id} — ` +
       'add it to METERABLE_ENDPOINTS (with verified unit pricing) or flip shipped back to false'
   );
-}
-
-// Cross-repo byte drift check (only when both checkouts share a workspace).
-const sibling = path.join(
-  import.meta.dirname,
-  '..', '..', '..', '..', // workspace root
-  'hermes-agent', 'okvevo', 'media-catalog.json'
-);
-if (existsSync(sibling)) {
-  const digest = (p: string) => createHash('sha256').update(readFileSync(p)).digest('hex');
-  assert.equal(
-    digest(catalogPath),
-    digest(sibling),
-    'catalog copies drifted — keep OkVevo-Web/src/lib/fal/media-catalog.json ' +
-      'and hermes-agent/okvevo/media-catalog.json byte-identical'
-  );
-  console.log(`  cross-repo bytes identical: ${digest(catalogPath).slice(0, 12)}…`);
-} else {
-  console.log('  sibling hermes-agent checkout absent — skipped byte-drift check');
 }
 
 console.log(

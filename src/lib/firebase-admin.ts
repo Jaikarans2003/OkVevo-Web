@@ -37,38 +37,23 @@ export function getAdminBucket() {
 }
 
 export async function verifyAdminToken(token: string): Promise<boolean> {
-  return (await readAdminSession(token)) === 'admin';
-}
-
-/** Admin custom claim only. Email lists are not admin. Expired tokens are invalid. */
-export async function readAdminSession(
-  token: string
-): Promise<'admin' | 'user' | 'invalid'> {
   try {
     const decodedToken = await auth.verifyIdToken(token);
-    return decodedToken.admin === true ? 'admin' : 'user';
+
+    // Check if user has admin claim or is in admin list
+    if (decodedToken.admin === true) {
+      return true;
+    }
+
+    // Alternatively, check against admin emails list
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
+    if (decodedToken.email && adminEmails.includes(decodedToken.email)) {
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error('Token verification error:', error);
-    return 'invalid';
-  }
-}
-
-const ADMIN_SESSION_MS = 60 * 60 * 1000;
-
-export async function createAdminSessionCookie(idToken: string): Promise<string> {
-  return auth.createSessionCookie(idToken, { expiresIn: ADMIN_SESSION_MS });
-}
-
-/** Session cookie with revocation check. Admin custom claim only. */
-export async function readAdminSessionCookie(
-  cookie: string
-): Promise<'admin' | 'user' | 'invalid'> {
-  if (!cookie) return 'invalid';
-  try {
-    const decoded = await auth.verifySessionCookie(cookie, true);
-    return decoded.admin === true ? 'admin' : 'user';
-  } catch (error) {
-    console.error('Session cookie verification error:', error);
-    return 'invalid';
+    return false;
   }
 }

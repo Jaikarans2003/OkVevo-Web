@@ -8,7 +8,13 @@ import path from 'node:path';
 
 import { applyCapture, applyReconcile, applyReserve } from '@/lib/gateway/reserve';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
-import { captureCharge, captureLagMs, falCreditsFromUsd, pickEvent } from '@/lib/fal/capture';
+import {
+  captureCharge,
+  captureLagMs,
+  falCreditsFromUsd,
+  pickEvent,
+  shouldSetCapturedFalse,
+} from '@/lib/fal/capture';
 
 const ev = pickEvent(
   [
@@ -20,6 +26,21 @@ const ev = pickEvent(
 assert.equal(ev?.cost_total, 0.4);
 assert.equal(pickEvent([{ request_id: 'abc', cost_total: 0 }], 'abc'), null);
 assert.equal(pickEvent([{ request_id: 'abc', cost_total: -1 }], 'abc'), null);
+
+assert.equal(shouldSetCapturedFalse({ provider: 'fal', status: 'settled' }), true);
+assert.equal(shouldSetCapturedFalse({ provider: 'openrouter', status: 'settled' }), false);
+assert.equal(shouldSetCapturedFalse({ provider: 'fal', status: 'reserved' }), false);
+assert.equal(shouldSetCapturedFalse({ provider: 'fal', status: 'settled', captured: false }), false);
+assert.equal(shouldSetCapturedFalse({ provider: 'fal', status: 'settled', captured: true }), false);
+assert.equal(shouldSetCapturedFalse(undefined), false);
+const backfillSrc = readFileSync(
+  path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'backfill-captured-false.ts'),
+  'utf8'
+);
+assert.ok(backfillSrc.includes("where('provider', '==', 'fal')"), 'backfill must filter provider == fal');
+assert.ok(backfillSrc.includes('runTransaction'), 'backfill must re-read inside a transaction');
+assert.ok(backfillSrc.includes('shouldSetCapturedFalse'), 'backfill must skip when captured is already set');
+assert.equal(backfillSrc.includes('db.batch('), false, 'backfill must not batch-write over a newer captured flag');
 
 const jobSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'fal-capture-job.ts'), 'utf8');
 assert.ok(jobSrc.includes("where('captured', '==', false)"), 'capture job must query uncaptured rows');

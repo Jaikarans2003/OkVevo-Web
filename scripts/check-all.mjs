@@ -16,6 +16,24 @@ const AGENT = path.join(ROOT, 'services/agent');
 
 const results = [];
 
+// Drama, billing, and rules checks must exist. A missing file is a failure,
+// not a skip. Sibling-repo checks do not live here.
+const requiredChecks = [
+  'src/lib/fal/dramaGate.selfcheck.ts',
+  'src/lib/fal/idempotency.selfcheck.ts',
+  'src/lib/fal/capture.selfcheck.ts',
+  'src/lib/fal/storageRules.selfcheck.ts',
+  'src/lib/fal/killSwitch.selfcheck.ts',
+  'src/lib/gateway/reserve.selfcheck.ts',
+  'src/lib/billing/fxDrift.selfcheck.ts',
+  'src/lib/agent/firestoreRules.selfcheck.ts',
+];
+for (const rel of requiredChecks) {
+  if (!fs.existsSync(path.join(ROOT, rel))) {
+    record(rel, 'fail', 'required drama, billing, or rules check is missing');
+  }
+}
+
 function record(name, status, detail = '') {
   results.push({ name, status, detail });
   const tag = status === 'ok' ? 'ok  ' : status === 'skip' ? 'skip' : 'FAIL';

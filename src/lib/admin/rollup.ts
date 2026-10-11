@@ -1,7 +1,7 @@
 /**
- * Admin dashboard rollup. Pure aggregation over one day's job rows plus the
+ * Daily drama rollup. Pure aggregation over one day's job rows plus the
  * risk counters the cron already sweeps. The cron (fal-drift) writes
- * adminRollups/{day}; the dashboard reads rollups, never raw scans.
+ * adminRollups/{day}. The admin console is deferred; this stays the read model.
  * Margin is realized from Fal billing-events (capturedFalUsd) when the
  * capture job has run; otherwise the rate-card estimate is shown.
  */

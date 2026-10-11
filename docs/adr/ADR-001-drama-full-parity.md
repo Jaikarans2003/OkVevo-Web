@@ -27,15 +27,17 @@ The generation key is never used for billing reads. The billing key is never use
 
 **Provisional settle** (webhook / collect / sweep) = `min(formula on result metadata, reserve)`. Never above the approved amount.
 
-**Capture** (Cloud Run Job `nia-fal-capture`, own service account, Scheduler `*/15 * * * *` until G3 measures lag): look up billing-events by `request_id`. Final charge = `min(creditsFromUsd(cost_total), reserve, alreadyCharged)`. Refund the difference with the same compare-and-set as collect (`creditTransactions/{id}:capture` + `captured=true`). Idempotent. Fal billed above reserve → absorb (no surcharge) and HIGH `opsAlerts`. Dashboard realized margin uses Fal's billed cost (`capturedFalUsd`), not the formula estimate; billed-vs-ledger is per model.
+**Capture** (Cloud Run Job `nia-fal-capture`, own service account, Scheduler `*/15 * * * *` until G3 measures lag): look up billing-events by `request_id`. Final charge = `min(creditsFromUsd(cost_total), reserve, alreadyCharged)`. Refund the difference with the same compare-and-set as collect (`creditTransactions/{id}:capture` + `captured=true`). Idempotent. Fal billed above reserve → absorb (no surcharge) and HIGH `opsAlerts`. The daily rollup's realized margin uses Fal's billed cost (`capturedFalUsd`), not the formula estimate; billed-vs-ledger is per model.
 
 **Voice clone** is `fal-ai/minimax/voice-clone` (not chatterbox). Sample ≥10s server-measured; consent before clone; one `custom_voice_id` per character; 7-day unused-clone warning; first real speech-02-hd job marks it permanent. Ownership SoT is Firestore `clonedVoices/{base64url(id)}` `{uid, custom_voice_id, character, project, cloned_at, used_in_tts_at, consent_at, sample_sha256, status, deleted_at}`. Speech with a custom `voice_id` not owned by the requesting uid is 403 **before any hold**. Local `metadata/voices` is a cache; restore is `GET /api/fal/voices`. Fal/MiniMax has no delete-voice API — `DELETE /api/fal/voices/{id}` tombstones the row (`status: deleted`, never removed) so no uid can register or use that id again (`provider_deleted: false`).
 
 **Webhooks:** submit with a portal webhook URL; verify Fal’s ED25519 JWKS signature; 300s skew; unsigned rejected. Desktop polling + daily sweep stay as backups. Settle is idempotent across webhook / collect / sweep / capture.
 
-**Alerts:** `sendOpsAlert` writes an `opsAlerts` record + a structured log line (`severity`, `condition`, `id`). No chat. Admin dashboard (`/admin/drama`) is the operator surface (custom claim `admin=true`, server-verified, 404 otherwise).
+**Alerts:** `sendOpsAlert` writes an `opsAlerts` record + a structured log line (`severity`, `condition`, `id`). No chat. With no operator console, Cloud Monitoring emails HIGH log lines and a missing fal-drift heartbeat to jaikaran.pesce@gmail.com. Absence windows longer than 23h30m are rejected, and a once-a-day series false-alarms inside that cap, so fal-drift runs every 12h and the policy is 23h: a healthy gap stays quiet, a missed run emails. `scripts/drama-infra.sh --apply` creates those policies; it does not skip them.
 
-**Guardrails:** daily spend circuit breaker (HIGH 80%, hard stop 100%); Firestore kill switch at submit (OFF in production until enabled from the dashboard); `MAX_JOB_CREDITS`; never auto-resubmit; margin applied once.
+**Guardrails:** daily spend circuit breaker (HIGH 80%, hard stop 100%); Firestore kill switch at submit, toggled by `scripts/drama-kill-switch.ts --project <id> --on|--off`, which writes the flag and an audit row (who, when, old → new) in one transaction. Production stays OFF (`disabled: true`) until an explicit `--on`. `MAX_JOB_CREDITS`; never auto-resubmit; margin applied once.
+
+**Admin console deferred** to a separate plan. These PRs do not ship `/admin/drama`, a sign-in page, an admin session cookie, or admin API routes. Rollup writes, `opsAlerts`, structured logs, the kill switch, the breaker, capture, and the sweep stay.
 
 ## Trade-offs
 
