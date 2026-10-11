@@ -84,18 +84,18 @@ async function main() {
     return;
   }
 
+  // ponytail: 400-write batches. Fine at current testing count (~4k).
+  // Upgrade: collection query on captured==null if Firestore adds it.
   let updated = 0;
-  for (const id of ids) {
-    const ref = db.collection('gatewayJobs').doc(id);
-    await db.runTransaction(async (tx) => {
-      const live = await tx.get(ref);
-      if (!live.exists) return;
-      const data = live.data() ?? {};
-      if (data.status !== 'settled') return;
-      if (data.captured === true || data.captured === false) return;
-      tx.set(ref, { captured: false }, { merge: true });
-      updated += 1;
-    });
+  const CHUNK = 400;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const batch = db.batch();
+    for (const id of chunk) {
+      batch.set(db.collection('gatewayJobs').doc(id), { captured: false }, { merge: true });
+    }
+    await batch.commit();
+    updated += chunk.length;
   }
   console.log(JSON.stringify({ apply: true, updated }));
 }
