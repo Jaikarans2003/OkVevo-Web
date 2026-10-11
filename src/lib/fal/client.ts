@@ -1,4 +1,5 @@
 import { env } from '@/config/env';
+import { classifySubmitResult, retryAfterMs } from '@/lib/fal/jobMachine';
 import { parseEndpointPricing, type PricingRow } from '@/lib/fal/pricingParse';
 
 export function falServerKey(): string {
@@ -12,7 +13,9 @@ function falHeaders(key: string): HeadersInit {
   };
 }
 
-const CACHE_TTL_MS = 60_000;
+/** Fresh for the charge path. Older rows stay as last-known-good for one hour. */
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const LAST_KNOWN_GOOD_MS = 60 * 60 * 1000;
 const pricingCache = new Map<string, { at: number; row: PricingRow }>();
 
 export async function getEndpointPricing(endpoint: string): Promise<PricingRow | null> {
@@ -23,23 +26,25 @@ export async function getEndpointPricing(endpoint: string): Promise<PricingRow |
   if (hit && now - hit.at < CACHE_TTL_MS) return hit.row;
 
   const key = falServerKey();
-  if (!key) return null;
+  const stale =
+    hit && now - hit.at <= LAST_KNOWN_GOOD_MS ? hit.row : null;
+  if (!key) return stale;
   const url = `https://api.fal.ai/v1/models/pricing?endpoint_id=${encodeURIComponent(id)}`;
   try {
     const res = await fetch(url, { headers: falHeaders(key), cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) return stale;
     const body: unknown = await res.json();
     const row = parseEndpointPricing(body, id);
     if (!row) {
       const keys =
         body && typeof body === 'object' ? Object.keys(body as object).join(',') : typeof body;
       console.error('fal pricing parse failed', id, keys);
-      return null;
+      return stale;
     }
     pricingCache.set(id, { at: now, row });
     return row;
   } catch {
-    return null;
+    return stale;
   }
 }
 
@@ -47,6 +52,26 @@ export async function getEndpointPricing(endpoint: string): Promise<PricingRow |
 export async function estimateUnitPriceCost(
   endpoint: string,
   unitQuantity: number
+): Promise<number | null> {
+  return estimateCost(endpoint, 'unit_price', { unit_quantity: unitQuantity });
+}
+
+/**
+ * POST /models/pricing/estimate historical_api_price: what Fal actually
+ * charged for the last callQuantity calls of endpoint, total. Null on failure.
+ * The deterministic-billing drift tripwire (ADR-001).
+ */
+export async function estimateHistoricalCost(
+  endpoint: string,
+  callQuantity: number
+): Promise<number | null> {
+  return estimateCost(endpoint, 'historical_api_price', { call_quantity: callQuantity });
+}
+
+async function estimateCost(
+  endpoint: string,
+  estimateType: 'unit_price' | 'historical_api_price',
+  quantity: Record<string, number>
 ): Promise<number | null> {
   const key = falServerKey();
   if (!key) return null;
@@ -56,17 +81,52 @@ export async function estimateUnitPriceCost(
       headers: falHeaders(key),
       cache: 'no-store',
       body: JSON.stringify({
-        estimate_type: 'unit_price',
-        endpoints: { [endpoint]: { unit_quantity: unitQuantity } },
+        estimate_type: estimateType,
+        endpoints: { [endpoint]: quantity },
       }),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { total_cost?: unknown };
     const n = Number(body.total_cost);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    // 0 is unpriced, not free — a real Fal price is always positive.
+    return Number.isFinite(n) && n > 0 ? n : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Queue submit returns quickly. Past this, the request may have been accepted.
+ * Must stay well under runConfig.timeoutSeconds (60s) in apphosting*.yaml, or the
+ * request is killed mid-send and the hold is left in `dispatching`.
+ */
+const SUBMIT_TIMEOUT_MS = 20_000;
+
+type FailureKind = 'retry' | 'reject' | 'ambiguous';
+
+export class FalSubmitError extends Error {
+  readonly kind: FailureKind;
+  readonly status: number;
+  readonly retryAfterMs: number | null;
+
+  constructor(kind: FailureKind, status: number, retryAfter: number | null, message: string) {
+    super(message);
+    this.name = 'FalSubmitError';
+    this.kind = kind;
+    this.status = status;
+    this.retryAfterMs = retryAfter;
+  }
+}
+
+export function classifyFalSubmitError(err: unknown): {
+  kind: FailureKind;
+  status: number;
+  retryAfterMs: number | null;
+} {
+  if (err instanceof FalSubmitError) {
+    return { kind: err.kind, status: err.status, retryAfterMs: err.retryAfterMs };
+  }
+  return { kind: 'ambiguous', status: 0, retryAfterMs: null };
 }
 
 export async function submitFalQueue(
@@ -82,14 +142,33 @@ export async function submitFalQueue(
   if (!key) throw new Error('FAL_KEY missing');
   const webhook = `${env.siteUrl}/api/webhooks/fal`;
   const url = `https://queue.fal.run/${endpoint}?fal_webhook=${encodeURIComponent(webhook)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: falHeaders(key),
-    body: JSON.stringify(args),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: falHeaders(key),
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'fal submit failed';
+    throw new FalSubmitError('ambiguous', 0, null, message);
+  }
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`fal submit ${res.status}: ${text.slice(0, 400)}`);
+    const retryAfter = retryAfterMs(res.headers.get('retry-after'), Date.now());
+    const kind = classifySubmitResult({
+      threw: false,
+      httpStatus: res.status,
+      hasRequestId: false,
+      hasRetryAfter: retryAfter != null,
+    });
+    throw new FalSubmitError(
+      kind === 'retry' || kind === 'reject' ? kind : 'ambiguous',
+      res.status,
+      retryAfter,
+      `fal submit ${res.status}: ${text.slice(0, 400)}`
+    );
   }
   const data = JSON.parse(text) as {
     request_id?: unknown;
@@ -98,7 +177,7 @@ export async function submitFalQueue(
     cancel_url?: unknown;
   };
   if (typeof data.request_id !== 'string' || !data.request_id) {
-    throw new Error('fal submit missing request_id');
+    throw new FalSubmitError('ambiguous', res.status, null, 'fal submit missing request_id');
   }
   return {
     request_id: data.request_id,

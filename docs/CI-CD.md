@@ -67,7 +67,14 @@ firebase deploy --only apphosting --project okvevo-testing --force --non-interac
 ./scripts/ops-billing-finish.sh --project text2video-16cbf --origin https://www.okvevo.com
 ```
 
-Requires `.ops-billing-secrets.env` on the machine that runs it (never commit). Production cron must exist before yearly INR/USD subscribers go live.
+Requires `.ops-billing-secrets.env` on the machine that runs it (never commit). Production cron must exist before yearly INR/USD subscribers go live. The script also creates `nia-fal-dispatch` (`* * * * *` → `/api/cron/fal-dispatch`).
+
+## Rollback an App Hosting rollout
+
+1. Firebase console → App Hosting → the backend → Rollouts → previous healthy rollout → Rollback.
+2. Revert the PR and push that revert to the branch that deploys (`staging` or `production`), so the next push does not put the bad commit back. Production deploys only from Actions.
+
+Details: `docs/adr/ADR-001-drama-full-parity.md`.
 
 ## Download buttons
 

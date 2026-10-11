@@ -10,6 +10,7 @@ runConfig:
   memoryMiB: 1024
   concurrency: 20
   minInstances: 0
+  timeoutSeconds: 60
 
 env:
   - variable: OKVEVO_ENV

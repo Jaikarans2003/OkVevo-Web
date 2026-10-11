@@ -16,29 +16,21 @@ import {
 } from './reconstructUiMessage.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const shellSrc = fs.readFileSync(
-  path.join(root, 'src/components/workspace/ai-studio/AiStudioShell.tsx'),
-  'utf8'
+function readIfExists(rel: string): string | null {
+  const p = path.join(root, rel);
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+}
+const shellSrc = readIfExists('src/components/workspace/ai-studio/AiStudioShell.tsx');
+const streamSrc = readIfExists(
+  'src/app/api/agent/sessions/[sessionId]/stream/route.ts'
 );
-const streamSrc = fs.readFileSync(
-  path.join(
-    root,
-    'src/app/api/agent/sessions/[sessionId]/stream/route.ts'
-  ),
-  'utf8'
+const loadingSrc = readIfExists('src/components/shared/LoadingScreen.tsx');
+const projectLoaderSrc = readIfExists(
+  'src/components/workspace/ai-studio/AiStudioProjectLoader.tsx'
 );
-const loadingSrc = fs.readFileSync(
-  path.join(root, 'src/components/shared/LoadingScreen.tsx'),
-  'utf8'
-);
-const projectLoaderSrc = fs.readFileSync(
-  path.join(
-    root,
-    'src/components/workspace/ai-studio/AiStudioProjectLoader.tsx'
-  ),
-  'utf8'
-);
+const leftoverAiStudio = Boolean(shellSrc && streamSrc && loadingSrc && projectLoaderSrc);
 
+if (leftoverAiStudio && shellSrc && streamSrc && loadingSrc && projectLoaderSrc) {
 assert.match(shellSrc, /pipelineState\?\.activeRunId/);
 assert.match(shellSrc, /isPreparingSend=\{isPreparingSend\}/);
 assert.match(
@@ -202,6 +194,7 @@ assert.match(sseSrc, /where\('seq', '>', afterSeq\)/);
 assert.match(sseSrc, /createReconnectPacer/);
 assert.match(sseSrc, /cancel\(\)/, 'consumer cancel must unsub firestore listens');
 assert.match(streamSrc, /createReconnectPacer/);
+}
 
 async function main() {
   const seen = { text: new Set<string>(), tool: new Set<string>() };

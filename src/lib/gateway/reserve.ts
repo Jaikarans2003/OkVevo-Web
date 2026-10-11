@@ -6,7 +6,18 @@
 
 export type GatewayProvider = 'openrouter' | 'fal' | 'tavily';
 
-export type JobStatus = 'reserved' | 'settled' | 'released';
+/**
+ * Chat/Tavily holds use `reserved` until settle.
+ * Fal queue holds use queued → dispatching → submitted → settled | released, plus unknown.
+ */
+export type JobStatus =
+  | 'reserved'
+  | 'queued'
+  | 'dispatching'
+  | 'submitted'
+  | 'unknown'
+  | 'settled'
+  | 'released';
 
 export type BucketBalances = {
   allocationBalance: number;
@@ -20,6 +31,10 @@ export type JobRecord = {
   status: JobStatus;
   heldAllocation: number;
   heldTopUp: number;
+  /** Credits actually taken at provisional settle. */
+  settledCredits?: number;
+  /** Capture job has applied Fal billing-events. Idempotency flag. */
+  captured?: boolean;
 };
 
 export type ReserveOk = {
@@ -98,12 +113,17 @@ export type ReconcileResult =
  * Clamps so neither bucket goes negative. debitAmount stays the billed amount
  * (same as single-balance reconcile).
  */
+function canSettle(job: JobRecord): boolean {
+  if (job.provider === 'fal') return job.status === 'submitted';
+  return job.status === 'reserved' || job.status === 'submitted';
+}
+
 export function applyReconcile(
   balances: BucketBalances,
   job: JobRecord | undefined,
   actual: number
 ): ReconcileResult {
-  if (!job || job.status !== 'reserved') {
+  if (!job || !canSettle(job)) {
     return { ok: true, skipped: true };
   }
   const billed = Number.isInteger(actual) && actual > 0 ? actual : 0;
@@ -137,11 +157,19 @@ export type ReleaseResult =
       status: 'released';
     };
 
+const RELEASABLE: ReadonlySet<JobStatus> = new Set([
+  'reserved',
+  'queued',
+  'dispatching',
+  'submitted',
+  'unknown',
+]);
+
 export function applyRelease(
   balances: BucketBalances,
   job: JobRecord | undefined
 ): ReleaseResult {
-  if (!job || job.status !== 'reserved') {
+  if (!job || !RELEASABLE.has(job.status)) {
     return { ok: true, skipped: true };
   }
   return {
@@ -152,6 +180,62 @@ export function applyRelease(
       topUpBalance: balances.topUpBalance + job.heldTopUp,
     },
     status: 'released',
+  };
+}
+
+export type CaptureResult =
+  | { ok: true; skipped: true }
+  | {
+      ok: true;
+      skipped: false;
+      balances: BucketBalances;
+      settledCredits: number;
+      heldAllocation: number;
+      heldTopUp: number;
+      refund: number;
+      overReserve: boolean;
+    };
+
+/**
+ * Second pass after provisional settle. final = min(Fal credits, reserve,
+ * already charged) — refund only, never a surcharge. Idempotent once
+ * `captured` is set. Fal billed above reserve → overReserve, no extra charge.
+ */
+export function applyCapture(
+  balances: BucketBalances,
+  job: JobRecord | undefined,
+  falCredits: number
+): CaptureResult {
+  if (!job || job.status !== 'settled' || job.captured) {
+    return { ok: true, skipped: true };
+  }
+  const already =
+    job.settledCredits ??
+    (Number.isInteger(job.heldAllocation + job.heldTopUp)
+      ? job.heldAllocation + job.heldTopUp
+      : job.estimatedCredits);
+  const fal = Number.isInteger(falCredits) && falCredits > 0 ? falCredits : 0;
+  const overReserve = fal > job.estimatedCredits;
+  const final = Math.min(fal, job.estimatedCredits, already);
+  const refund = already - final;
+  let fromTop = Math.min(refund, job.heldTopUp);
+  let fromAlloc = refund - fromTop;
+  if (fromAlloc > job.heldAllocation) {
+    fromTop += fromAlloc - job.heldAllocation;
+    fromAlloc = job.heldAllocation;
+  }
+  return {
+    ok: true,
+    skipped: false,
+    balances: {
+      allocationBalance: balances.allocationBalance + fromAlloc,
+      topUpBalance: balances.topUpBalance + fromTop,
+    },
+    settledCredits: final,
+    heldAllocation: job.heldAllocation - fromAlloc,
+    heldTopUp: job.heldTopUp - fromTop,
+    refund,
+    overReserve,
   };
 }
 

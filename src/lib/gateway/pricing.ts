@@ -88,6 +88,51 @@ export function creditsFromUsd(rawUsd: number): {
   return { rawUsd, costUsd, credits };
 }
 
+/**
+ * Drama money is integer micro-USD (1e-6 USD). Credits match creditsFromUsd:
+ * ceil(rawUsd * 2 * 1000) = ceil(rawMicro / 500). A rate finer than one micro
+ * is multiplied first, then the product is ceiled to a micro.
+ */
+export function parseUsdDecimal(text: string): { num: bigint; scale: number } {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(text.trim());
+  if (!match) throw new Error(`not a USD decimal: ${text}`);
+  const frac = match[2] ?? '';
+  return { num: BigInt(`${match[1]}${frac}`), scale: frac.length };
+}
+
+export function usdNumberToDecimal(value: number): string {
+  const text = Object.is(value, -0) ? '0' : String(value);
+  if (!/^\d+(?:\.\d+)?$/.test(text)) throw new Error(`usd number is not a plain decimal: ${text}`);
+  return text;
+}
+
+/** raw micro-USD = ceil(rate × quantity). quantity is an integer unit count. */
+export function rawMicroTimesQuantity(rateText: string, quantity: bigint): bigint {
+  if (quantity < 0n) throw new Error('negative quantity');
+  const { num, scale } = parseUsdDecimal(rateText);
+  const den = 10n ** BigInt(scale);
+  const prod = num * quantity * 1_000_000n;
+  return (prod + den - 1n) / den;
+}
+
+/** (height × width × seconds × 24) / 1024 / 1000, times the per-1000-token rate. */
+export function rawMicroTokens(
+  rateText: string,
+  width: number,
+  height: number,
+  seconds: number
+): bigint {
+  const { num, scale } = parseUsdDecimal(rateText);
+  const den = 10n ** BigInt(scale) * 1024n * 1000n;
+  const prod = num * BigInt(height) * BigInt(width) * BigInt(seconds) * 24n * 1_000_000n;
+  return (prod + den - 1n) / den;
+}
+
+export function creditsFromRawMicro(rawMicro: bigint): number {
+  if (rawMicro <= 0n) return 0;
+  return Number((rawMicro + 499n) / 500n);
+}
+
 export function clampDebitAmount(computed: number, balanceBefore: number): number {
   if (!Number.isInteger(computed) || computed <= 0) return 0;
   if (!Number.isInteger(balanceBefore) || balanceBefore <= 0) return 0;
