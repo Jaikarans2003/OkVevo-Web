@@ -97,3 +97,4 @@ okvevo-ai-prep-*.zip
 infrastructure/cdk.out/
 infrastructure/cdk.out-*/
 infrastructure/dist/
+*adminsdk*.json
