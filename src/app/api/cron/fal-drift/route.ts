@@ -21,7 +21,7 @@ import { env } from '@/config/env';
 import { auth, db } from '@/lib/firebase-admin';
 import { buildRollup, type RollupJobRow } from '@/lib/admin/rollup';
 import { estimateHistoricalCost, falQueueGet, getEndpointPricing } from '@/lib/fal/client';
-import { freeSlot } from '@/lib/fal/dispatch';
+import { handoffSlot } from '@/lib/fal/dispatch';
 import { dispatchQueued, settleFalJob } from '@/lib/fal/handleQueue';
 import { holdCountsAsAbandoned, sweepAction } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       const uid = typeof data.uid === 'string' ? data.uid : '';
       const holdId = typeof data.holdId === 'string' ? data.holdId : doc.id;
       if (uid) {
-        await freeSlot(uid, holdId);
+        await handoffSlot(uid, holdId);
         await dispatchQueued(uid);
       }
       sweep.released += 1;
@@ -153,14 +153,17 @@ export async function POST(request: NextRequest) {
   // releases through the same compare-and-set. HIGH log lines email via
   // Cloud Monitoring until resolved.
   let reservedOld = 0;
-  const reserved = await db.collection('gatewayJobs').where('status', '==', 'reserved').get();
+  const reserved = await db
+    .collection('gatewayJobs')
+    .where('status', 'in', ['reserved', 'dispatching'])
+    .get();
   for (const doc of reserved.docs) {
     const data = doc.data();
     const created = data.createdAt?.toMillis?.() ?? nowMs;
     const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
     if (
       !holdCountsAsAbandoned({
-        status: 'reserved',
+        status: typeof data.status === 'string' ? data.status : 'reserved',
         createdAtMs: created,
         dispatchedAtMs,
         nowMs,

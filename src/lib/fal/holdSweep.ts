@@ -57,7 +57,9 @@ export function holdCountsAsAbandoned(opts: {
     typeof opts.dispatchedAtMs === 'number' && opts.dispatchedAtMs > 0
       ? opts.dispatchedAtMs
       : opts.createdAtMs;
-  if (opts.status === 'reserved') return reservedHoldAbandoned(start, opts.nowMs, opts.falRequestId);
+  if (opts.status === 'reserved' || opts.status === 'dispatching') {
+    return reservedHoldAbandoned(start, opts.nowMs, opts.falRequestId);
+  }
   if (opts.status === 'submitted') return holdIsDue(start, opts.nowMs);
   return false;
 }

@@ -70,7 +70,7 @@ const reserved = applyReserve(
 );
 assert.equal(reserved.ok, true);
 if (!reserved.ok) throw new Error('unreachable');
-const settled = applyReconcile(reserved.balances, reserved.job, 800);
+const settled = applyReconcile(reserved.balances, { ...reserved.job, status: 'submitted' }, 800);
 assert.equal(settled.skipped, false);
 if (settled.skipped) throw new Error('unreachable');
 

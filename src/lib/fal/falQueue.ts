@@ -22,8 +22,9 @@
  *
  * Fal account concurrency (https://fal.ai/docs/documentation/model-apis/concurrency-limits):
  * new accounts start at 2 IN_PROGRESS requests and scale with paid invoices
- * up to 40. Our per-user caps can sum past that. Fal's own queue holds the
- * overflow; a Fal 429 is logged HIGH and is not a submit block on our side.
+ * up to 40. Our per-user caps can sum past that. A Fal 429 means Fal did
+ * not accept the job: it goes back to the head of this user's queue and is
+ * retried. It is not treated as queued on Fal's side.
  */
 
 export const PLAN_SLOTS = { starter: 2, pro: 5, max: 10 } as const;
@@ -33,19 +34,23 @@ export const QUEUE_CAP = 100;
 
 export const DEFAULT_DAILY_SPEND_ALERT_USD = 250;
 
-export const FAL_ACCOUNT_CONCURRENCY_NEW = 2;
-export const FAL_ACCOUNT_CONCURRENCY_SELF_SERVE_MAX = 40;
-
 export type PlanName = keyof typeof PLAN_SLOTS;
 
 export type SlotDecision =
   | { admit: false; reason: 'plan_not_active' }
   | { admit: true; slots: number };
 
+const warnedPlans = new Set<string>();
+
 export function slotsForPlan(plan: unknown, planStatus: unknown): SlotDecision {
   if (planStatus !== 'active') return { admit: false, reason: 'plan_not_active' };
   if (plan === 'starter' || plan === 'pro' || plan === 'max') {
     return { admit: true, slots: PLAN_SLOTS[plan] };
+  }
+  const key = JSON.stringify(plan);
+  if (!warnedPlans.has(key)) {
+    warnedPlans.add(key);
+    console.warn(`fal queue: unknown active plan ${key}; using starter slots`);
   }
   return { admit: true, slots: PLAN_SLOTS.starter };
 }
@@ -90,7 +95,9 @@ export function admit(state: QueueDoc, holdId: string, slots: number): AdmitResu
       slotsInUse: running.length,
     };
   }
-  if (running.length < slots) {
+  // A free slot is taken only when nobody is waiting. Otherwise the new
+  // job stands at the end, even if a finish has not promoted yet.
+  if (queued.length === 0 && running.length < slots) {
     const next = { running: [...running, holdId], queued };
     return { ok: true, state: next, placement: 'running', position: 0, slotsInUse: next.running.length };
   }
@@ -105,31 +112,51 @@ export function admit(state: QueueDoc, holdId: string, slots: number): AdmitResu
   };
 }
 
+/** Oldest queued id moves into running when a slot is free. */
+export function promoteHead(
+  state: QueueDoc,
+  slots: number
+): { state: QueueDoc; dispatch: string | null } {
+  if (state.running.length >= slots || state.queued.length === 0) {
+    return { state, dispatch: null };
+  }
+  const next = state.queued[0];
+  return {
+    state: { running: [...state.running, next], queued: state.queued.slice(1) },
+    dispatch: next,
+  };
+}
+
 /**
- * Remove a finished or cancelled id. Start the next queued job only when
- * running is under the current plan limit.
+ * Remove a finished or cancelled id and promote the oldest waiter.
+ * This is the only slot-handoff rule; the Firestore transaction applies it.
  */
 export function releaseAndDispatch(
   state: QueueDoc,
   holdId: string,
   slots: number
 ): { state: QueueDoc; dispatch: string | null } {
-  const running = state.running.filter((id) => id !== holdId);
-  const queued = state.queued.filter((id) => id !== holdId);
-  if (running.length >= slots || queued.length === 0) {
-    return { state: { running, queued }, dispatch: null };
-  }
-  const next = queued[0];
+  return promoteHead(
+    {
+      running: state.running.filter((id) => id !== holdId),
+      queued: state.queued.filter((id) => id !== holdId),
+    },
+    slots
+  );
+}
+
+/** Definite Fal rejection: drop the slot and stand at the head. Hold stays. */
+export function requeueAtHead(state: QueueDoc, holdId: string): QueueDoc {
   return {
-    state: { running: [...running, next], queued: queued.slice(1) },
-    dispatch: next,
+    running: state.running.filter((id) => id !== holdId),
+    queued: [holdId, ...state.queued.filter((id) => id !== holdId)],
   };
 }
 
 /** Fill newly available slots (upgrade, or a missed finish). FIFO. Does not cancel running jobs. */
-/** A hold already in `running` whose Fal submit was never claimed. Safe to submit once. */
+/** Claimed for dispatch, Fal not yet called. A queued hold is not sent. */
 export function canRetrySubmit(status: string, submitStarted: boolean): boolean {
-  return status === 'queued' && submitStarted !== true;
+  return status === 'dispatching' && submitStarted !== true;
 }
 
 export function fillSlots(state: QueueDoc, slots: number): { state: QueueDoc; dispatch: string[] } {

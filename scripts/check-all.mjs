@@ -24,6 +24,7 @@ const requiredChecks = [
   'src/lib/fal/capture.selfcheck.ts',
   'src/lib/fal/storageRules.selfcheck.ts',
   'src/lib/fal/falQueue.selfcheck.ts',
+  'src/lib/fal/jobMachine.selfcheck.ts',
   'src/lib/gateway/reserve.selfcheck.ts',
   'src/lib/billing/fxDrift.selfcheck.ts',
   'src/lib/agent/firestoreRules.selfcheck.ts',

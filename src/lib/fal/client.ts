@@ -1,4 +1,5 @@
 import { env } from '@/config/env';
+import { classifySubmitResult, retryAfterMs } from '@/lib/fal/jobMachine';
 import { parseEndpointPricing, type PricingRow } from '@/lib/fal/pricingParse';
 
 export function falServerKey(): string {
@@ -94,6 +95,34 @@ async function estimateCost(
   }
 }
 
+/** Queue submit returns quickly. Past this, the request may have been accepted. */
+const SUBMIT_TIMEOUT_MS = 60_000;
+
+export class FalSubmitError extends Error {
+  readonly kind: 'definite' | 'ambiguous';
+  readonly status: number;
+  readonly retryAfterMs: number | null;
+
+  constructor(kind: 'definite' | 'ambiguous', status: number, retryAfter: number | null, message: string) {
+    super(message);
+    this.name = 'FalSubmitError';
+    this.kind = kind;
+    this.status = status;
+    this.retryAfterMs = retryAfter;
+  }
+}
+
+export function classifyFalSubmitError(err: unknown): {
+  kind: 'definite' | 'ambiguous';
+  status: number;
+  retryAfterMs: number | null;
+} {
+  if (err instanceof FalSubmitError) {
+    return { kind: err.kind, status: err.status, retryAfterMs: err.retryAfterMs };
+  }
+  return { kind: 'ambiguous', status: 0, retryAfterMs: null };
+}
+
 export async function submitFalQueue(
   endpoint: string,
   args: Record<string, unknown>
@@ -107,14 +136,27 @@ export async function submitFalQueue(
   if (!key) throw new Error('FAL_KEY missing');
   const webhook = `${env.siteUrl}/api/webhooks/fal`;
   const url = `https://queue.fal.run/${endpoint}?fal_webhook=${encodeURIComponent(webhook)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: falHeaders(key),
-    body: JSON.stringify(args),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: falHeaders(key),
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'fal submit failed';
+    throw new FalSubmitError('ambiguous', 0, null, message);
+  }
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`fal submit ${res.status}: ${text.slice(0, 400)}`);
+    const kind = classifySubmitResult({ threw: false, httpStatus: res.status, hasRequestId: false });
+    throw new FalSubmitError(
+      kind === 'definite' ? 'definite' : 'ambiguous',
+      res.status,
+      retryAfterMs(res.headers.get('retry-after'), Date.now()),
+      `fal submit ${res.status}: ${text.slice(0, 400)}`
+    );
   }
   const data = JSON.parse(text) as {
     request_id?: unknown;
@@ -123,7 +165,7 @@ export async function submitFalQueue(
     cancel_url?: unknown;
   };
   if (typeof data.request_id !== 'string' || !data.request_id) {
-    throw new Error('fal submit missing request_id');
+    throw new FalSubmitError('ambiguous', res.status, null, 'fal submit missing request_id');
   }
   return {
     request_id: data.request_id,

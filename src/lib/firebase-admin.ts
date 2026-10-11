@@ -9,6 +9,15 @@ function getAdminApp(): App {
     return getApps()[0];
   }
 
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    return initializeApp({
+      projectId:
+        process.env.GCLOUD_PROJECT ||
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+        'demo-okvevo',
+    });
+  }
+
   const key =
     process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
     process.env.FB_SERVICE_ACCOUNT_KEY;

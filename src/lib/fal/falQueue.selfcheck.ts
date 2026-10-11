@@ -13,6 +13,7 @@ import {
   PLAN_SLOTS,
   QUEUE_CAP,
   releaseAndDispatch,
+  requeueAtHead,
   slotWaitMessage,
   slotsForPlan,
   spendAlertCrossed,
@@ -25,6 +26,7 @@ assert.deepEqual(slotsForPlan('pro', 'cancelled'), { admit: false, reason: 'plan
 assert.deepEqual(slotsForPlan('starter', 'active'), { admit: true, slots: 2 });
 assert.deepEqual(slotsForPlan('pro', 'active'), { admit: true, slots: 5 });
 assert.deepEqual(slotsForPlan('max', 'active'), { admit: true, slots: 10 });
+assert.deepEqual(slotsForPlan('enterprise', 'active'), { admit: true, slots: 2 });
 assert.equal(PLAN_SLOTS.starter, 2);
 assert.equal(PLAN_SLOTS.pro, 5);
 assert.equal(PLAN_SLOTS.max, 10);
@@ -56,6 +58,17 @@ assert.equal(fourth.ok, true);
 if (!fourth.ok) throw new Error('fourth');
 assert.equal(fourth.position, 2);
 state = fourth.state;
+// A free slot does not let a new submit pass an older waiter.
+const jumping = admit({ running: ['a'], queued: ['c'] }, 'd', PLAN_SLOTS.starter);
+assert.equal(jumping.ok, true);
+if (!jumping.ok) throw new Error('jump');
+assert.equal(jumping.placement, 'queued');
+assert.deepEqual(jumping.state.queued, ['c', 'd']);
+assert.deepEqual(jumping.state.running, ['a']);
+const headed = requeueAtHead({ running: ['a', 'b'], queued: ['c'] }, 'b');
+assert.deepEqual(headed.running, ['a']);
+assert.deepEqual(headed.queued, ['b', 'c']);
+
 const freed = releaseAndDispatch(state, 'a', PLAN_SLOTS.starter);
 assert.equal(freed.dispatch, 'c');
 assert.deepEqual(freed.state.queued, ['d']);
@@ -151,8 +164,9 @@ assert.equal(
   true
 );
 
-assert.equal(canRetrySubmit('queued', false), true);
-assert.equal(canRetrySubmit('queued', true), false);
+assert.equal(canRetrySubmit('dispatching', false), true);
+assert.equal(canRetrySubmit('dispatching', true), false);
+assert.equal(canRetrySubmit('queued', false), false);
 assert.equal(canRetrySubmit('submitted', false), false);
 
 console.log('falQueue.selfcheck: ok');

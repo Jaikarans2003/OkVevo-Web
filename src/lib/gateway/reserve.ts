@@ -6,8 +6,18 @@
 
 export type GatewayProvider = 'openrouter' | 'fal' | 'tavily';
 
-/** submitted = Fal accepted, hold still open. queued = slot wait, hold open. unknown = no Fal id; hold stays. */
-export type JobStatus = 'reserved' | 'submitted' | 'queued' | 'unknown' | 'settled' | 'released';
+/**
+ * Chat/Tavily holds use `reserved` until settle.
+ * Fal queue holds use queued → dispatching → submitted → settled | released, plus unknown.
+ */
+export type JobStatus =
+  | 'reserved'
+  | 'queued'
+  | 'dispatching'
+  | 'submitted'
+  | 'unknown'
+  | 'settled'
+  | 'released';
 
 export type BucketBalances = {
   allocationBalance: number;
@@ -103,12 +113,17 @@ export type ReconcileResult =
  * Clamps so neither bucket goes negative. debitAmount stays the billed amount
  * (same as single-balance reconcile).
  */
+function canSettle(job: JobRecord): boolean {
+  if (job.provider === 'fal') return job.status === 'submitted';
+  return job.status === 'reserved' || job.status === 'submitted';
+}
+
 export function applyReconcile(
   balances: BucketBalances,
   job: JobRecord | undefined,
   actual: number
 ): ReconcileResult {
-  if (!job || (job.status !== 'reserved' && job.status !== 'submitted')) {
+  if (!job || !canSettle(job)) {
     return { ok: true, skipped: true };
   }
   const billed = Number.isInteger(actual) && actual > 0 ? actual : 0;
@@ -142,14 +157,18 @@ export type ReleaseResult =
       status: 'released';
     };
 
+const RELEASABLE: ReadonlySet<JobStatus> = new Set([
+  'reserved',
+  'queued',
+  'dispatching',
+  'submitted',
+]);
+
 export function applyRelease(
   balances: BucketBalances,
   job: JobRecord | undefined
 ): ReleaseResult {
-  if (
-    !job ||
-    (job.status !== 'reserved' && job.status !== 'submitted' && job.status !== 'queued')
-  ) {
+  if (!job || !RELEASABLE.has(job.status)) {
     return { ok: true, skipped: true };
   }
   return {
