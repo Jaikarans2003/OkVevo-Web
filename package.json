@@ -31,6 +31,7 @@
     "@types/three": "^0.182.0",
     "@vscode/codicons": "0.0.45",
     "ai": "^7.0.79",
+    "ajv": "^8.20.0",
     "autoprefixer": "^10.4.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

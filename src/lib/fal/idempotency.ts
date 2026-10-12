@@ -32,9 +32,14 @@ export const SUBMIT_KEYS = [
   'aspect_ratio',
   'prompt',
   'voice_id',
+  'voice_setting',
   'language_boost',
   'audio_url',
   'model',
+  'prompt_expansion_mode',
+  'audio',
+  'output_format',
+  'seed',
 ] as const;
 
 export function pickSubmitArgs(body: unknown): Record<string, unknown> {

@@ -87,6 +87,21 @@ export function speechVoiceOwnershipDenied(opts: {
   return !opts.record || opts.record.uid !== opts.uid;
 }
 
+/**
+ * Voice a speech-02-hd body selects. Fal reads voice_setting.voice_id only;
+ * a top-level voice_id is also checked so ownership never trusts the
+ * field Fal ignores (the schema guard rejects it later).
+ */
+export function speechVoiceId(args: Record<string, unknown>): string {
+  const setting = args.voice_setting;
+  const nested =
+    setting && typeof setting === 'object' ? (setting as Record<string, unknown>).voice_id : undefined;
+  for (const value of [nested, args.voice_id]) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
 /** Any existing row (active or tombstone) blocks a new registration of this id. */
 export function cloneRegisterDenied(existing: { status?: string } | null): boolean {
   return existing != null;
