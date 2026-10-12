@@ -18,6 +18,12 @@ export type BillingEvent = {
   cost_total?: number;
 };
 
+/** Response body: { billing_events: [...], next_cursor, has_more }. */
+export function billingEventsFrom(json: unknown): BillingEvent[] {
+  const events = (json as { billing_events?: unknown } | null)?.billing_events;
+  return Array.isArray(events) ? (events as BillingEvent[]) : [];
+}
+
 export function pickEvent(events: BillingEvent[], requestId: string): BillingEvent | null {
   // cost_total 0 is not a final bill — treating it as captured would lock
   // the charge at 0 and ignore a later real event.

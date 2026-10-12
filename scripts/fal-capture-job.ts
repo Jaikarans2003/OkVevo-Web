@@ -6,7 +6,7 @@
 import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-import { captureCharge, captureLagMs, pickEvent, type BillingEvent } from '../src/lib/fal/capture';
+import { billingEventsFrom, captureCharge, captureLagMs, pickEvent, type BillingEvent } from '../src/lib/fal/capture';
 import { captureCreditsOn } from '../src/lib/gateway/captureCredits';
 import { sendOpsAlert, type AlertStore } from '../src/lib/ops/alert';
 
@@ -36,8 +36,7 @@ async function fetchEvents(requestId: string, startIso: string): Promise<{ statu
   url.searchParams.set('limit', '20');
   const res = await fetch(url, { headers: { Authorization: `Key ${key}` } });
   if (res.status !== 200) return { status: res.status, events: [] };
-  const json = (await res.json()) as { items?: BillingEvent[]; data?: BillingEvent[] };
-  return { status: 200, events: json.items ?? json.data ?? [] };
+  return { status: 200, events: billingEventsFrom(await res.json()) };
 }
 
 async function main() {
