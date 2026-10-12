@@ -22,6 +22,7 @@ import { auth, db } from '@/lib/firebase-admin';
 import { buildRollup, type RollupJobRow } from '@/lib/admin/rollup';
 import { estimateHistoricalCost, falQueueGet, getEndpointPricing } from '@/lib/fal/client';
 import { sweepStuckDispatching, sweepSubmittedJob } from '@/lib/fal/handleQueue';
+import { falSchemaUrl, PINNED_SCHEMAS, schemaDrift } from '@/lib/fal/falSchema';
 import { holdCountsAsAbandoned } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
 import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
@@ -72,6 +73,25 @@ export async function POST(request: NextRequest) {
       `${line.level} fal price drift ${line.endpoint}: ${line.note}`,
       nowMs
     );
+  }
+
+  // Input-schema drift: pinned (src/lib/fal/schemas) vs live Fal OpenAPI.
+  // A required-field or enum change breaks request bodies → HIGH (email).
+  // Re-pin: npx tsx scripts/pin-fal-schemas.ts, then mirror to hermes-agent.
+  const schemaLines: { endpoint: string; level: string; note: string }[] = [];
+  for (const id of RATE_CARD_IDS) {
+    let found;
+    try {
+      const res = await fetch(falSchemaUrl(id), { signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      found = schemaDrift(id, PINNED_SCHEMAS[id].openapi, await res.json());
+    } catch (err) {
+      found = [{ endpoint: id, level: 'INFO' as const, note: `live schema fetch failed: ${String(err)}` }];
+    }
+    for (const line of found) {
+      schemaLines.push(line);
+      await alertOnce(line.level, 'schema-drift', id, `${line.level} fal schema drift ${id}: ${line.note}`, nowMs);
+    }
   }
 
   const sweep = { settled: 0, released: 0, left: 0, alerted: 0, unknown: 0 };
@@ -300,5 +320,5 @@ export async function POST(request: NextRequest) {
     { merge: true }
   );
 
-  return NextResponse.json({ ok: true, drift: lines, sweep });
+  return NextResponse.json({ ok: true, drift: lines, schemaDrift: schemaLines, sweep });
 }

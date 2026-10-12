@@ -138,3 +138,10 @@ Secrets redacted. Append-only. Target project unless noted: `okvevo-testing`.
 - Forced one run each 12:21 UTC: drift 200, dispatch 200, capture 200 (Cloud Run execution `nia-fal-capture-5d4bq` succeeded). Dispatch then fired on schedule every minute, all 200.
 - Heartbeat: `fal-drift heartbeat` log line on cloud_run_revision; `nia_fal_heartbeat` metric = 1 at 12:22 UTC.
 - Production not touched.
+
+## 2026-10-12 — G3 smoke (okvevo-testing), stopped after job 1
+
+- Karan's G3 yes given 2026-10-12 (creator confirmation for the C.3/C.4 list).
+- Test user `nia-healthcheck`: Starter plan fields set (`planStatus: active`, `plan: starter`, `creditsIncluded: 20000`) and +20,000 topUp via `grantCredits` (`bucket: topUp`, requestId `g3-smoke-topup-nia-healthcheck`). No payment, no allocation grant.
+- Job 1 `openai/gpt-image-2` low 1024×1024 via the real adapter: quote 12 credits ($0.006). Fal accepted (`01a130d6-808e-77a3-aaea-40209422d785`), then failed. Hold `f74c40e3-…` released, 0 credits charged. billing-events: no charge. Billing matches (0 = 0); the job itself failed.
+- Cause: the adapter sent no `prompt` for image/video/music, `image_size` as `"1024x1024"`, h3-max lower-case resolution, no `prompt_expansion_mode`, seedance integer `duration`, wan `generate_audio` (wan uses `audio`), video fields on music, and speech `voice_id` at top level (Fal reads `voice_setting.voice_id`). Fixed on `fix/drama-fal-request-contract` (OkVevo-Web + OkVevo-Nia): bodies built from pinned Fal schemas, portal schema guard before any hold. G3 resumes from job 1 after both merge to staging.

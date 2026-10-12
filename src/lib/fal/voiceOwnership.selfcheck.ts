@@ -11,10 +11,16 @@ import {
   extractCustomVoiceId,
   isPresetVoice,
   isVoiceTombstoned,
+  speechVoiceId,
   speechVoiceOwnershipDenied,
   voiceDocId,
   VOICE_RETAIN_MS,
 } from './voiceOwnership.ts';
+
+assert.equal(speechVoiceId({ voice_setting: { voice_id: ' clone-1 ' } }), 'clone-1', 'Fal reads voice_setting.voice_id');
+assert.equal(speechVoiceId({ voice_id: 'clone-2' }), 'clone-2', 'top-level id is still ownership-checked');
+assert.equal(speechVoiceId({ voice_setting: { voice_id: 'a' }, voice_id: 'b' }), 'a');
+assert.equal(speechVoiceId({}), '');
 
 assert.equal(isPresetVoice('Wise_Woman'), true);
 assert.equal(isPresetVoice('cloned-hero-1'), false);

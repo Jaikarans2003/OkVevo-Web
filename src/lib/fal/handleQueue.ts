@@ -95,8 +95,10 @@ import {
   readClonedVoice,
   recordClonedVoice,
   sampleSha256FromAudioUrl,
+  speechVoiceId,
   speechVoiceOwnershipDenied,
 } from '@/lib/fal/voiceOwnership';
+import { falBodyErrors, fieldErrorText } from '@/lib/fal/falSchema';
 
 /**
  * Singular media keys no wired endpoint accepts (schemas use the *_urls
@@ -319,7 +321,7 @@ async function persistVoiceOwnership(
     return;
   }
   if (endpoint === SPEECH_ENDPOINT) {
-    const voiceId = typeof args.voice_id === 'string' ? args.voice_id.trim() : '';
+    const voiceId = speechVoiceId(args);
     if (!voiceId || isPresetVoice(voiceId)) return;
     await markVoiceUsedInTts(voiceId, uid, new Date().toISOString());
   }
@@ -646,7 +648,7 @@ async function handleSubmit(
   // Custom voice_id is a capability on OkVevo's Fal account. Refuse before
   // any hold when the requesting uid does not own the clone record.
   if (endpoint === SPEECH_ENDPOINT) {
-    const voiceId = typeof args.voice_id === 'string' ? args.voice_id.trim() : '';
+    const voiceId = speechVoiceId(args);
     if (voiceId && !isPresetVoice(voiceId)) {
       const owned = await readClonedVoice(voiceId);
       if (speechVoiceOwnershipDenied({ voiceId, uid, record: owned })) {
@@ -697,20 +699,33 @@ async function handleSubmit(
 
   // Signed URLs are minted only after the request hash. Replay and conflict
   // returned above, so a retry does not mint a URL or open a hold.
-  let falBody = args;
+  let resolvedArgs = args;
   let media: MediaContext | undefined;
   if (card) {
     try {
       const resolved = await resolveMediaArgs(endpoint, args, uid);
-      falBody = resolved.falArgs;
+      resolvedArgs = resolved.falArgs;
       media = resolved.media;
     } catch (err) {
       if (err instanceof MediaResolveError) return jsonError(400, err.message);
       throw err;
     }
   }
-  const submitArgs = pickSubmitArgs(falBody);
-  const resolvedMediaArgs = pickMediaArgs(falBody);
+  const submitArgs = pickSubmitArgs(resolvedArgs);
+  const resolvedMediaArgs = pickMediaArgs(resolvedArgs);
+  const falRequest = applyFalSafetyOff(endpoint, { ...submitArgs, ...resolvedMediaArgs });
+
+  // The exact body Fal will receive must match Fal's pinned input schema
+  // before pricing or any hold; Fal would reject it after the hold otherwise.
+  if (card) {
+    const fieldErrors = falBodyErrors(endpoint, falRequest);
+    if (fieldErrors.length) {
+      return NextResponse.json(
+        { error: { message: fieldErrorText(endpoint, fieldErrors), fields: fieldErrors } },
+        { status: 400 }
+      );
+    }
+  }
 
   let rawUsd = 0;
   let snapshot: PriceSnapshot | undefined;
@@ -772,7 +787,7 @@ async function handleSubmit(
     reservedFalUsd: rawUsd,
     spendDay: day,
     runId,
-    falBody: applyFalSafetyOff(endpoint, { ...submitArgs, ...resolvedMediaArgs }),
+    falBody: falRequest,
     character: typeof args.character === 'string' ? args.character.trim().slice(0, 80) : undefined,
     project: typeof args.project === 'string' ? args.project.trim().slice(0, 80) : undefined,
     consentAt:
