@@ -130,3 +130,11 @@ Secrets redacted. Append-only. Target project unless noted: `okvevo-testing`.
 - App Hosting code (403 / tombstone / list APIs) is **not** live until a staging push. Infra only.
 - Kill switch not flipped. Production not touched.
 - Still rotate the Fal Billing key (was pasted in chat).
+
+## 2026-10-12 — scheduler jobs (okvevo-testing)
+
+- Created `nia-fal-dispatch` (`* * * * *`) and `nia-fal-drift` (`20 */12 * * *`) directly with gcloud, same flags as ops-billing-finish.sh. Full script not run.
+- CRON_SECRET in `.ops-billing-secrets.env` matches Secret Manager on testing (hash compare, value not printed).
+- Forced one run each 12:21 UTC: drift 200, dispatch 200, capture 200 (Cloud Run execution `nia-fal-capture-5d4bq` succeeded). Dispatch then fired on schedule every minute, all 200.
+- Heartbeat: `fal-drift heartbeat` log line on cloud_run_revision; `nia_fal_heartbeat` metric = 1 at 12:22 UTC.
+- Production not touched.
