@@ -91,10 +91,7 @@ async function main() {
   console.log(JSON.stringify({ captured, pending, looked: snap.size }));
 }
 
-const invoked = process.argv[1]?.includes('fal-capture-job');
-if (invoked) {
-  main().catch((err) => {
-    console.error(err instanceof Error ? err.message : 'capture failed');
-    process.exit(1);
-  });
-}
+main().catch((err) => {
+  console.error(err instanceof Error ? err.message : 'capture failed');
+  process.exit(1);
+});
