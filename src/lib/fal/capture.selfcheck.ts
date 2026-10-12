@@ -59,6 +59,8 @@ const jobSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'sc
 assert.ok(jobSrc.includes("where('captured', '==', false)"), 'capture job must query uncaptured rows');
 assert.ok(jobSrc.includes('captureCreditsOn'), 'capture job must re-read the job via captureCreditsOn');
 assert.ok(jobSrc.includes('billingEventsFrom(await res.json())'), 'capture job must parse billing_events');
+// The image runs dist/capture.mjs; an argv-name guard silently skipped main() there.
+assert.ok(/^main\(\)\.catch/m.test(jobSrc), 'capture job must call main() unconditionally');
 const infraSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'drama-infra.sh'), 'utf8');
 assert.ok(infraSrc.includes('must be exactly'), 'billing-key IAM must require an exact accessor set');
 

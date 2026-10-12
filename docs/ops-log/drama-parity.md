@@ -151,3 +151,63 @@ Secrets redacted. Append-only. Target project unless noted: `okvevo-testing`.
 - Contract fix merged to staging: OkVevo-Web #11 (14010176, App Hosting deploy success), OkVevo-Nia #52 (8b27af09, Desktop staging + CI green).
 - Job 1 `openai/gpt-image-2` low 1024×1024: quote 12 cr, reserved = settled = $0.006 / 12 cr, one debit. Fal `01a13122-c0c8-7e52-8f6b-b48e9b5b40ab` billed $0.006 (billing-events). Billed = charged. PASS.
 - Found: `scripts/fal-capture-job.ts` read `items`/`data`; Fal returns `billing_events`. The capture job never saw an event, so it never captured or refunded. Testing only (production has no capture job). Stop condition (refund path) → Karan chose fix-then-continue. Fixed on `fix/fal-capture-billing-events`: `billingEventsFrom()` + selfcheck on the live response shape. Capture job redeploy on okvevo-testing after merge; G3 continues from job 2.
+2026-10-12T18:11:47Z mode=dry-run project=okvevo-testing location=us-central1 bucket=okvevo-testing.firebasestorage.app origin=unset
+2026-10-12T18:11:50Z api enabled: secretmanager.googleapis.com
+2026-10-12T18:11:52Z api enabled: run.googleapis.com
+2026-10-12T18:11:54Z api enabled: cloudscheduler.googleapis.com
+2026-10-12T18:11:57Z api enabled: storage.googleapis.com
+2026-10-12T18:11:59Z api enabled: iamcredentials.googleapis.com
+2026-10-12T18:12:02Z api enabled: firebaserules.googleapis.com
+2026-10-12T18:12:04Z lifecycle dry-run shown (not written)
+2026-10-12T18:12:07Z storage.rules identical to deployed — skip
+2026-10-12T18:12:09Z FAL_BILLING_KEY: present (value not printed)
+2026-10-12T18:12:11Z sa exists: nia-fal-capture@okvevo-testing.iam.gserviceaccount.com
+2026-10-12T18:12:11Z + gcloud projects add-iam-policy-binding okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/datastore.user --condition=None
+2026-10-12T18:12:11Z   (dry-run, not executed)
+2026-10-12T18:12:11Z + gcloud projects add-iam-policy-binding okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/logging.logWriter --condition=None
+2026-10-12T18:12:11Z   (dry-run, not executed)
+2026-10-12T18:12:12Z + gcloud secrets add-iam-policy-binding FAL_BILLING_KEY --project=okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+2026-10-12T18:12:12Z   (dry-run, not executed)
+2026-10-12T18:12:13Z FAL_BILLING_KEY accessor: nia-fal-capture@okvevo-testing.iam.gserviceaccount.com only (exact)
+2026-10-12T18:12:13Z + gcloud run jobs deploy nia-fal-capture --source=<staged capture context>
+2026-10-12T18:12:13Z   (dry-run, not executed)
+2026-10-12T18:12:13Z + gcloud run jobs add-iam-policy-binding nia-fal-capture --project=okvevo-testing --region=us-central1 --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/run.invoker
+2026-10-12T18:12:13Z   (dry-run, not executed)
+2026-10-12T18:12:16Z + gcloud scheduler jobs update http nia-fal-capture --project=okvevo-testing --location=us-central1 --schedule=*/15 * * * * --time-zone=Etc/UTC --uri=https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/okvevo-testing/jobs/nia-fal-capture:run --http-method=POST --oauth-service-account-email=nia-fal-capture@okvevo-testing.iam.gserviceaccount.com
+2026-10-12T18:12:16Z   (dry-run, not executed)
+2026-10-12T18:12:16Z capture interval */15 * * * * (until G3 measures billing-events lag)
+2026-10-12T18:12:16Z monitoring required: HIGH logs + heartbeat absent 23h -> jaikaran.pesce@gmail.com
+2026-10-12T18:12:16Z   (dry-run, not executed)
+2026-10-12T18:12:16Z scheduler: pass --origin to document the target; job itself is created by ops-billing-finish.sh
+2026-10-12T18:12:16Z done dry-run
+2026-10-12T18:12:26Z mode=apply project=okvevo-testing location=us-central1 bucket=okvevo-testing.firebasestorage.app origin=unset
+2026-10-12T18:12:28Z api enabled: secretmanager.googleapis.com
+2026-10-12T18:12:31Z api enabled: run.googleapis.com
+2026-10-12T18:12:33Z api enabled: cloudscheduler.googleapis.com
+2026-10-12T18:12:35Z api enabled: storage.googleapis.com
+2026-10-12T18:12:38Z api enabled: iamcredentials.googleapis.com
+2026-10-12T18:12:40Z api enabled: firebaserules.googleapis.com
+2026-10-12T18:12:42Z lifecycle already merged
+2026-10-12T18:12:45Z storage.rules identical to deployed — skip
+2026-10-12T18:12:46Z FAL_BILLING_KEY: present (value not printed)
+2026-10-12T18:12:48Z sa exists: nia-fal-capture@okvevo-testing.iam.gserviceaccount.com
+2026-10-12T18:12:48Z + gcloud projects add-iam-policy-binding okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/datastore.user --condition=None
+2026-10-12T18:12:52Z   ok
+2026-10-12T18:12:52Z + gcloud projects add-iam-policy-binding okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/logging.logWriter --condition=None
+2026-10-12T18:12:56Z   ok
+2026-10-12T18:12:57Z + gcloud secrets add-iam-policy-binding FAL_BILLING_KEY --project=okvevo-testing --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+2026-10-12T18:13:00Z   ok
+2026-10-12T18:13:01Z FAL_BILLING_KEY accessor: nia-fal-capture@okvevo-testing.iam.gserviceaccount.com only (exact)
+2026-10-12T18:13:01Z + gcloud run jobs deploy nia-fal-capture --source=<staged capture context>
+2026-10-12T18:15:47Z   ok
+2026-10-12T18:15:47Z + gcloud run jobs add-iam-policy-binding nia-fal-capture --project=okvevo-testing --region=us-central1 --member=serviceAccount:nia-fal-capture@okvevo-testing.iam.gserviceaccount.com --role=roles/run.invoker
+2026-10-12T18:15:52Z   ok
+2026-10-12T18:15:54Z + gcloud scheduler jobs update http nia-fal-capture --project=okvevo-testing --location=us-central1 --schedule=*/15 * * * * --time-zone=Etc/UTC --uri=https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/okvevo-testing/jobs/nia-fal-capture:run --http-method=POST --oauth-service-account-email=nia-fal-capture@okvevo-testing.iam.gserviceaccount.com
+2026-10-12T18:16:00Z   ok
+2026-10-12T18:16:00Z capture interval */15 * * * * (until G3 measures billing-events lag)
+2026-10-12T18:16:00Z monitoring required: HIGH logs + heartbeat absent 23h -> jaikaran.pesce@gmail.com
+2026-10-12T18:16:16Z monitoring channel projects/okvevo-testing/notificationChannels/10843402238057585730
+2026-10-12T18:16:21Z monitoring policies ensured
+2026-10-12T18:16:21Z scheduler: pass --origin to document the target; job itself is created by ops-billing-finish.sh
+2026-10-12T18:16:21Z done apply
+- Redeployed capture (drama-infra.sh --apply, okvevo-testing, 18:16Z) and forced one execution: exit 0, no output, job 1 still uncaptured. Second bug: the image runs `dist/capture.mjs` but the job only called `main()` when argv contained `fal-capture-job`, so every execution since deploy was a silent no-op (including the 12:21 "capture 200"). Fixed on `fix/fal-capture-entrypoint`: call `main()` unconditionally (nothing imports the module); selfcheck asserts it.
