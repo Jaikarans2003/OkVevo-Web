@@ -9,12 +9,25 @@ import path from 'node:path';
 import { applyCapture, applyReconcile, applyReserve } from '@/lib/gateway/reserve';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 import {
+  billingEventsFrom,
   captureCharge,
   captureLagMs,
   falCreditsFromUsd,
   pickEvent,
   shouldSetCapturedFalse,
 } from '@/lib/fal/capture';
+
+// Live response shape (okvevo-testing, 2026-10-12, G3 job 1).
+const live = {
+  billing_events: [
+    { timestamp: '2026-10-12T17:22:12.878305000Z', cost_total: 0.006, request_id: '01a13122-c0c8-7e52-8f6b-b48e9b5b40ab' },
+  ],
+  next_cursor: null,
+  has_more: false,
+};
+assert.equal(pickEvent(billingEventsFrom(live), '01a13122-c0c8-7e52-8f6b-b48e9b5b40ab')?.cost_total, 0.006);
+assert.deepEqual(billingEventsFrom({ items: live.billing_events }), []);
+assert.deepEqual(billingEventsFrom(null), []);
 
 const ev = pickEvent(
   [
@@ -45,6 +58,7 @@ assert.equal(backfillSrc.includes('db.batch('), false, 'backfill must not batch-
 const jobSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'fal-capture-job.ts'), 'utf8');
 assert.ok(jobSrc.includes("where('captured', '==', false)"), 'capture job must query uncaptured rows');
 assert.ok(jobSrc.includes('captureCreditsOn'), 'capture job must re-read the job via captureCreditsOn');
+assert.ok(jobSrc.includes('billingEventsFrom(await res.json())'), 'capture job must parse billing_events');
 const infraSrc = readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'drama-infra.sh'), 'utf8');
 assert.ok(infraSrc.includes('must be exactly'), 'billing-key IAM must require an exact accessor set');
 
