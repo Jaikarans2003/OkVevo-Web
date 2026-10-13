@@ -32,8 +32,9 @@ export function reservedHoldAbandoned(
 }
 
 /**
- * Queue wait is not abandonment. The clock starts at dispatchedAt (when the
- * hold left the queue), falling back to createdAt for jobs that never queued.
+ * Queue wait behind live Fal work is not abandonment. The clock starts at
+ * dispatchedAt (when the hold left the queue), falling back to createdAt for
+ * jobs that never queued.
  */
 export function holdCountsAsAbandoned(opts: {
   status: string;
@@ -52,6 +53,31 @@ export function holdCountsAsAbandoned(opts: {
   }
   if (opts.status === 'submitted') return holdIsDue(start, opts.nowMs);
   return false;
+}
+
+/** Terminal queue occupants that should not hold a slot. */
+export function isTerminalQueueStatus(status: string): boolean {
+  return status === 'settled' || status === 'released' || status === 'unknown';
+}
+
+/**
+ * A queued hold stuck behind only terminal `running` ids (finishSlot missed)
+ * past the reserved abandoned window — credits held, never submitted. Move to
+ * `unknown` so the operator can release; do not auto-submit (client likely gone).
+ */
+export function shouldAbandonQueuedBehindDeadSlots(opts: {
+  status: string;
+  createdAtMs: number;
+  nowMs: number;
+  falRequestId?: unknown;
+  liveRunningCount: number;
+  terminalRunningCount: number;
+}): boolean {
+  if (opts.status !== 'queued') return false;
+  if (typeof opts.falRequestId === 'string' && opts.falRequestId) return false;
+  if (opts.liveRunningCount > 0) return false;
+  if (opts.terminalRunningCount === 0) return false;
+  return opts.nowMs - opts.createdAtMs >= RESERVED_ABANDONED_AFTER_MS;
 }
 
 export type SweepJob = {

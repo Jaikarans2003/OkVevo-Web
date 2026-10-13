@@ -38,6 +38,7 @@ const {
 const {
   claimFalSubmit,
   commitFalSubmitted,
+  falRunDocId,
   readGatewayJob,
   reconcileCredits,
   releaseCredits,
@@ -470,6 +471,69 @@ async function minuteDispatcherRecoversStuck() {
   assert.equal(await balance(uid), 900);
 }
 
+/**
+ * Settled ids left in falQueue.running block waiters forever. Past the abandoned
+ * window the waiter goes unknown (credits held); dead slots are pruned.
+ */
+async function pruneSettledRunningAbandonsAgedWaiter() {
+  const uid = await user(500);
+  const deadA = `dead-a-${seq++}`;
+  const deadB = `dead-b-${seq++}`;
+  const waiter = `waiter-${seq++}`;
+  const createdAt = new Date(Date.now() - RESERVED_ABANDONED_AFTER_MS - 60_000);
+  const base = {
+    uid,
+    provider: 'fal',
+    estimatedCredits: 100,
+    heldAllocation: 100,
+    heldTopUp: 0,
+  };
+  await db.collection('gatewayJobs').doc(deadA).set({
+    ...base,
+    status: 'settled',
+    runId: `r-${deadA}`,
+    createdAt,
+  });
+  await db.collection('gatewayJobs').doc(deadB).set({
+    ...base,
+    status: 'settled',
+    runId: `r-${deadB}`,
+    createdAt,
+  });
+  await db.collection('gatewayJobs').doc(waiter).set({
+    ...base,
+    status: 'queued',
+    runId: `r-${waiter}`,
+    createdAt,
+  });
+  await db.collection('gatewayIdempotency').doc(falRunDocId(uid, `r-${waiter}`)).set({
+    uid,
+    runId: `r-${waiter}`,
+    phase: 'queued',
+    submitStarted: false,
+    holdId: waiter,
+    bodyHash: 'w',
+  });
+  await db.collection('users').doc(uid).set(
+    { allocationBalance: 400, topUpBalance: 0, plan: 'starter', planStatus: 'active' },
+    { merge: true }
+  );
+  await db.collection('falQueue').doc(uid).set({
+    running: [deadA, deadB],
+    queued: [waiter],
+    queuedCount: 1,
+    needsSubmit: true,
+  });
+  const run = await dispatchQueuedUsers(Date.now());
+  assert.ok(run.abandoned >= 1);
+  assert.equal((await readGatewayJob(waiter))?.status, 'unknown');
+  assert.equal(await balance(uid), 400, 'credits stay held on unknown');
+  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  assert.equal(queue.running.includes(deadA), false);
+  assert.equal(queue.running.includes(deadB), false);
+  assert.equal(queue.queued.includes(waiter), false);
+}
+
 /** Sweep: a job Fal confirms cancelled is released in full and never charged. */
 async function sweepNeverChargesCancelled() {
   for (const body of [{ status: 'CANCELLED' }, { status: 'COMPLETED', error_type: 'client_cancelled' }]) {
@@ -507,6 +571,7 @@ async function main() {
   await sweepStuckDispatchingToUnknown();
   await sweepNeverChargesCancelled();
   await minuteDispatcherRecoversStuck();
+  await pruneSettledRunningAbandonsAgedWaiter();
   console.log('jobMachine.emulator: ok');
 }
 

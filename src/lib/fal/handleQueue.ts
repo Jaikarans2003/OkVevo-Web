@@ -20,6 +20,7 @@ import {
   cancelFalJob,
   claimQueuedToDispatching,
   handoffSlot,
+  recoverStaleRunningSlots,
   releaseInactiveQueued,
   takeNextQueued,
   type Promoted,
@@ -558,20 +559,26 @@ export async function sweepSubmittedJob(
 }
 
 /** Start queued holds up to the live plan limit. Idempotent: takeNextQueued returns each id once. */
-export async function dispatchQueued(uid: string): Promise<void> {
+export async function dispatchQueued(
+  uid: string,
+  nowMs = Date.now()
+): Promise<{ abandoned: string[] }> {
   await releaseInactiveQueued(uid);
+  const stale = await recoverStaleRunningSlots(uid, nowMs);
   for (let n = 0; n < PLAN_SLOTS.max + QUEUE_CAP; n++) {
     const next = await takeNextQueued(uid);
-    if (!next) return;
+    if (!next) return { abandoned: stale.abandoned };
     const result = await submitReservedHold(uid, next.runId, next.holdId, true, false);
     if (!result.ok && result.status !== 202) continue;
   }
+  return { abandoned: stale.abandoned };
 }
 
 export async function dispatchQueuedUsers(
   nowMs = Date.now()
-): Promise<{ users: number; recovered: number }> {
+): Promise<{ users: number; recovered: number; abandoned: number }> {
   let recovered = 0;
+  let abandoned = 0;
   const dispatching = await db.collection('gatewayJobs').where('status', '==', 'dispatching').get();
   for (const doc of dispatching.docs) {
     if (await sweepStuckDispatching(doc.id, nowMs)) recovered += 1;
@@ -581,8 +588,19 @@ export async function dispatchQueuedUsers(
     db.collection('falQueue').where('needsSubmit', '==', true).get(),
   ]);
   const uids = new Set([...waiting.docs, ...pending.docs].map((doc) => doc.id));
-  for (const uid of uids) await dispatchQueued(uid);
-  return { users: uids.size, recovered };
+  for (const uid of uids) {
+    const got = await dispatchQueued(uid, nowMs);
+    for (const holdId of got.abandoned) {
+      abandoned += 1;
+      await alertFal(
+        'hold-queued-dead-slots',
+        holdId,
+        `queued hold ${holdId} abandoned behind terminal running slots. ` +
+          `Hold kept, not submitted. ${UNKNOWN_RELEASE_HINT}`
+      );
+    }
+  }
+  return { users: uids.size, recovered, abandoned };
 }
 
 /** Alert only; never throws. Balance, MAX_JOB_CREDITS, and idempotency gate the submit. */
