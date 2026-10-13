@@ -20,6 +20,7 @@ import {
 
 assert.equal(canTransition('queued', 'dispatching'), true);
 assert.equal(canTransition('queued', 'released'), true);
+assert.equal(canTransition('queued', 'unknown'), true);
 assert.equal(canTransition('dispatching', 'submitted'), true);
 assert.equal(canTransition('dispatching', 'queued'), true);
 assert.equal(canTransition('dispatching', 'unknown'), true);

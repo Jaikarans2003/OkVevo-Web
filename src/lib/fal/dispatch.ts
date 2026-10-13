@@ -17,6 +17,10 @@ import {
   type QueueDoc,
 } from '@/lib/fal/falQueue';
 import {
+  isTerminalQueueStatus,
+  shouldAbandonQueuedBehindDeadSlots,
+} from '@/lib/fal/holdSweep';
+import {
   canTransition,
   decideDefiniteRejection,
   FAL_NOT_ACCEPTED_MESSAGE,
@@ -123,6 +127,85 @@ export async function handoffSlot(uid: string, holdId: string): Promise<Promoted
     }
     writeQueue(tx, queueRef, state, state.queued.length > 0 || promoted !== null);
     return promoted;
+  });
+}
+
+/**
+ * Drop terminal ids from `running`. Queued holds older than the abandoned
+ * window that were blocked only by those dead slots go to `unknown` (credits
+ * held, never submitted). Younger waiters stay queued for promote.
+ */
+export async function recoverStaleRunningSlots(
+  uid: string,
+  nowMs: number
+): Promise<{ pruned: number; abandoned: string[] }> {
+  const queueRef = db.collection('falQueue').doc(uid);
+  return db.runTransaction(async (tx) => {
+    const queueSnap = await tx.get(queueRef);
+    const state = parseQueue(queueSnap.data());
+    if (state.running.length === 0 && state.queued.length === 0) {
+      return { pruned: 0, abandoned: [] as string[] };
+    }
+    const runningSnaps = [];
+    for (const id of state.running) {
+      runningSnaps.push(await tx.get(db.collection('gatewayJobs').doc(id)));
+    }
+    let liveRunningCount = 0;
+    let terminalRunningCount = 0;
+    const liveRunning: string[] = [];
+    for (let i = 0; i < state.running.length; i++) {
+      const status = String(runningSnaps[i].data()?.status ?? '');
+      if (isTerminalQueueStatus(status)) {
+        terminalRunningCount += 1;
+      } else {
+        liveRunningCount += 1;
+        liveRunning.push(state.running[i]);
+      }
+    }
+    const abandoned: string[] = [];
+    const keptQueued: string[] = [];
+    for (const id of state.queued) {
+      const jobSnap = await tx.get(db.collection('gatewayJobs').doc(id));
+      const data = jobSnap.data();
+      const status = String(data?.status ?? '');
+      const createdAtMs = data?.createdAt?.toMillis?.() ?? nowMs;
+      const falRequestId = data?.falRequestId;
+      if (
+        shouldAbandonQueuedBehindDeadSlots({
+          status,
+          createdAtMs,
+          nowMs,
+          falRequestId,
+          liveRunningCount,
+          terminalRunningCount,
+        }) &&
+        canTransition('queued', 'unknown')
+      ) {
+        const runId = typeof data?.runId === 'string' ? data.runId : '';
+        tx.set(jobSnap.ref, { status: 'unknown' }, { merge: true });
+        if (runId) {
+          tx.set(
+            db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)),
+            { phase: 'unknown' },
+            { merge: true }
+          );
+        }
+        abandoned.push(id);
+      } else {
+        keptQueued.push(id);
+      }
+    }
+    const pruned = state.running.length - liveRunning.length;
+    if (pruned === 0 && abandoned.length === 0) {
+      return { pruned: 0, abandoned };
+    }
+    writeQueue(
+      tx,
+      queueRef,
+      { running: liveRunning, queued: keptQueued },
+      keptQueued.length > 0
+    );
+    return { pruned, abandoned };
   });
 }
 

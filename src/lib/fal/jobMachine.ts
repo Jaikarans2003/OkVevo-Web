@@ -29,7 +29,9 @@ export const FAL_JOB_STATES = [
 export type FalJobState = (typeof FAL_JOB_STATES)[number];
 
 const EDGES: Record<FalJobState, readonly FalJobState[]> = {
-  queued: ['dispatching', 'released'],
+  // unknown: waiter abandoned behind terminal (settled/released) slots that
+  // never handed off — never submitted to Fal; operator releases later.
+  queued: ['dispatching', 'released', 'unknown'],
   dispatching: ['submitted', 'queued', 'unknown', 'released'],
   submitted: ['settled', 'released'],
   settled: [],

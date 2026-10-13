@@ -18,7 +18,12 @@ import {
   slotsForPlan,
   spendAlertCrossed,
 } from '@/lib/fal/falQueue';
-import { holdCountsAsAbandoned, RESERVED_ABANDONED_AFTER_MS } from '@/lib/fal/holdSweep';
+import {
+  holdCountsAsAbandoned,
+  isTerminalQueueStatus,
+  RESERVED_ABANDONED_AFTER_MS,
+  shouldAbandonQueuedBehindDeadSlots,
+} from '@/lib/fal/holdSweep';
 import { applyRelease } from '@/lib/gateway/reserve';
 
 assert.deepEqual(slotsForPlan('starter', null), { admit: false, reason: 'plan_not_active' });
@@ -162,6 +167,45 @@ assert.equal(
     falRequestId: null,
   }),
   true
+);
+
+assert.equal(isTerminalQueueStatus('settled'), true);
+assert.equal(isTerminalQueueStatus('released'), true);
+assert.equal(isTerminalQueueStatus('unknown'), true);
+assert.equal(isTerminalQueueStatus('queued'), false);
+assert.equal(isTerminalQueueStatus('dispatching'), false);
+assert.equal(
+  shouldAbandonQueuedBehindDeadSlots({
+    status: 'queued',
+    createdAtMs: now - RESERVED_ABANDONED_AFTER_MS - 1,
+    nowMs: now,
+    falRequestId: null,
+    liveRunningCount: 0,
+    terminalRunningCount: 2,
+  }),
+  true
+);
+assert.equal(
+  shouldAbandonQueuedBehindDeadSlots({
+    status: 'queued',
+    createdAtMs: now - RESERVED_ABANDONED_AFTER_MS - 1,
+    nowMs: now,
+    falRequestId: null,
+    liveRunningCount: 1,
+    terminalRunningCount: 1,
+  }),
+  false
+);
+assert.equal(
+  shouldAbandonQueuedBehindDeadSlots({
+    status: 'queued',
+    createdAtMs: now - 60_000,
+    nowMs: now,
+    falRequestId: null,
+    liveRunningCount: 0,
+    terminalRunningCount: 2,
+  }),
+  false
 );
 
 assert.equal(canRetrySubmit('dispatching', false), true);
