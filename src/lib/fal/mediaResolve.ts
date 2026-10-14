@@ -12,6 +12,7 @@ import { db, getAdminBucket } from '@/lib/firebase-admin';
 import {
   classifyMediaValue,
   MEDIA_ARG_KEYS,
+  falMediaIndexFields,
   payloadMediaEntries,
   validateAndBuildMedia,
   type MeasuredMedia,
@@ -142,7 +143,7 @@ export async function indexPayloadMedia(
     await db
       .doc(`falMediaIndex/${falIndexId(entry.url)}`)
       .set({
-        ...entry,
+        ...falMediaIndexFields(entry),
         endpoint,
         uid,
         requestId,
