@@ -38,8 +38,21 @@ const seedance = resolveRateCard({
 });
 const expectedTokens = seedanceKTokens(1280, 720, 5);
 assert.equal(expectedTokens * 0.014, seedance.rawUsd);
-assert.ok(Math.abs(seedance.rawUsd - 1.512) < 1e-9);
+// 5s → 121 frames; floor(1280×720×121/1024)/1000 × $0.014
+assert.ok(Math.abs(seedance.rawUsd - 1.5246) < 1e-9);
 assert.equal(creditsFromUsd(seedance.rawUsd).credits, Math.ceil(seedance.rawUsd * 2 * 1000));
+
+// G3 job 5880d595: Fal billed $0.568316 on real 864×496 × 97 frames (480p 4s t2v).
+const g3Seedance = resolveRateCard({
+  endpoint: 'bytedance/seedance-2.0/text-to-video',
+  args: { resolution: '480p', duration: 4, generate_audio: true },
+  liveUnitPrice: 0.014,
+  liveFetchedAtMs: nowPromo,
+  nowMs: nowPromo,
+});
+assert.equal(g3Seedance.rawUsd, 0.568316);
+assert.equal(seedanceKTokens(864, 496, 4), 40.594);
+assert.equal(creditsFromUsd(0.568316).credits, 1137);
 
 const h3 = resolveRateCard({
   endpoint: 'minimax/h3-max/reference-to-video',
@@ -62,7 +75,7 @@ const sdRef = resolveRateCard({
   nowMs: nowPromo,
 });
 assert.ok(Math.abs(sdRef.rawUsd - seedanceKTokens(1280, 720, 18) * 0.0214 * 0.6) < 1e-9);
-assert.ok(Math.abs(sdRef.rawUsd - 4.992192) < 1e-6);
+assert.ok(Math.abs(sdRef.rawUsd - 5.003748) < 1e-6);
 
 // Same request without a video input: no ×0.6 multiplier, image refs free.
 const sdRefImgs = resolveRateCard({

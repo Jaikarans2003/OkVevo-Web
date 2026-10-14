@@ -219,11 +219,18 @@ function secondsOrThrow(args: Record<string, unknown>, payload?: unknown): numbe
   return n;
 }
 
-/** (height × width × seconds × 24) / 1024 / 1000 — same formula as quantity.ts. */
+/**
+ * Seedance video tokens in "1000 tokens" units (Fal: tokens = h×w×FPS×duration / 1024).
+ * Observed on okvevo-testing job 5880d595 (seedance-2.0 t2v 480p 4s): Fal emits
+ * `requestedSeconds * 24 + 1` frames and bills `floor(h×w×frames / 1024)` tokens at
+ * $unitPrice / 1k — not naive 854×480×requestedSeconds. Pin: 864×496×97 → $0.568316.
+ */
 export function seedanceKTokens(width: number, height: number, seconds: number): number {
-  return (height * width * seconds * 24) / 1024 / 1000;
+  const frames = Math.round(seconds * 24) + 1;
+  return Math.floor((height * width * frames) / 1024) / 1000;
 }
 
+/** Generic 16:9 ladder (non-Seedance). */
 const RES_PX: Record<string, { width: number; height: number }> = {
   '480p': { width: 854, height: 480 },
   '720p': { width: 1280, height: 720 },
@@ -232,11 +239,46 @@ const RES_PX: Record<string, { width: number; height: number }> = {
   '4k': { width: 3840, height: 2160 },
 };
 
+/**
+ * Seedance actual output pixels by resolution × aspect (16-aligned).
+ * 480p auto/16:9 measured 864×496 on jobs 5880d595 + 8ef57191; 1:1 from i2v 640×640.
+ */
+const SEEDANCE_PX: Record<string, Record<string, { width: number; height: number }>> = {
+  '480p': {
+    '16:9': { width: 864, height: 496 },
+    auto: { width: 864, height: 496 },
+    '9:16': { width: 496, height: 864 },
+    '1:1': { width: 640, height: 640 },
+    '4:3': { width: 640, height: 480 },
+    '3:4': { width: 480, height: 640 },
+    '21:9': { width: 960, height: 416 },
+  },
+  '720p': {
+    '16:9': { width: 1280, height: 720 },
+    auto: { width: 1280, height: 720 },
+    '9:16': { width: 720, height: 1280 },
+    '1:1': { width: 720, height: 720 },
+    '4:3': { width: 960, height: 720 },
+    '3:4': { width: 720, height: 960 },
+    '21:9': { width: 1280, height: 544 },
+  },
+};
+
+function seedanceAspect(args: Record<string, unknown>): string {
+  const a = typeof args.aspect_ratio === 'string' ? args.aspect_ratio.trim().toLowerCase() : 'auto';
+  return a || 'auto';
+}
+
 function videoPx(args: Record<string, unknown>): { width: number; height: number } {
   const w = Number(args.width);
   const h = Number(args.height);
   if (w > 0 && h > 0) return { width: w, height: h };
   const res = resolutionOrThrow(args);
+  const byAspect = SEEDANCE_PX[res];
+  if (byAspect) {
+    const px = byAspect[seedanceAspect(args)] ?? byAspect.auto ?? byAspect['16:9'];
+    if (px) return px;
+  }
   const px = RES_PX[res];
   if (!px) throw new RateCardError(`no pixel size for resolution ${res}`);
   return px;

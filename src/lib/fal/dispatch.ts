@@ -282,7 +282,16 @@ export type CancelResult =
   | { kind: 'cancel_remote'; cancelUrl: string; statusUrl: string }
   | { kind: 'noop' };
 
-/** queued → released with a full refund and a slot handoff. Later states only flag cancel. */
+/**
+ * Cancel semantics (Fal queue):
+ * - `queued` (not yet sent to Fal): release immediately with a full refund.
+ * - `dispatching` / `submitted`: set `cancelRequested` and PUT Fal's cancel URL.
+ *   Fal's cancel HTTP 202 / `{state:"running"}` means "ack received", not "stopped".
+ *   Credits release only when a later status poll shows terminal CANCELLED/FAILED
+ *   (`cancelAtFal` → settle ok:false). If Fal still completes the job, settling
+ *   normally (charge) is correct — cancel is best-effort once dispatched.
+ * - Queued waiters behind a cancelled head still get promoted (stop future work).
+ */
 export async function cancelFalJob(uid: string, holdId: string): Promise<CancelResult> {
   const jobRef = db.collection('gatewayJobs').doc(holdId);
   const userRef = db.collection('users').doc(uid);

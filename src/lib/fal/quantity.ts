@@ -20,7 +20,8 @@ const IMAGE_SIZE_PRESETS: Record<string, { width: number; height: number }> = {
 };
 
 const RESOLUTION_PX: Record<string, { width: number; height: number }> = {
-  '480p': { width: 854, height: 480 },
+  // Seedance 480p auto/16:9 measured output (job 5880d595); keep for token estimates.
+  '480p': { width: 864, height: 496 },
   '720p': { width: 1280, height: 720 },
   '768p': { width: 1366, height: 768 },
   '1080p': { width: 1920, height: 1080 },
@@ -192,7 +193,10 @@ export function quantity(input: QuantityInput): number {
     if (duration == null) {
       throw new QuantityError('1000 tokens unit needs output duration');
     }
-    return (height * width * duration * 24) / 1024 / 1000;
+    // Match rateCard.seedanceKTokens: Seedance emits requested*24+1 frames;
+    // Fal bills floor(h×w×frames/1024)/1000 (pinned job 5880d595).
+    const frames = Math.round(duration * 24) + 1;
+    return Math.floor((height * width * frames) / 1024) / 1000;
   }
 
   if (unit === 'compute seconds') {
