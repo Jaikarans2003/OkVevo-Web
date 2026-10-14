@@ -54,8 +54,9 @@ const seedance = quantity({
   args: { width: 1280, height: 720, duration: 7 },
   metrics: { inference_time: 276 },
 });
-assert.equal(seedance, (720 * 1280 * 7 * 24) / 1024 / 1000);
-const wallClockTokens = (720 * 1280 * 276 * 24) / 1024 / 1000;
+// 7s → 169 frames; floor(1280×720×169/1024)/1000
+assert.equal(seedance, Math.floor((720 * 1280 * 169) / 1024) / 1000);
+const wallClockTokens = Math.floor((720 * 1280 * (Math.round(276 * 24) + 1)) / 1024) / 1000;
 assert.notEqual(seedance, wallClockTokens);
 
 assert.equal(isMeterableEndpoint('fal-ai/gpt-image-1.5'), false);
