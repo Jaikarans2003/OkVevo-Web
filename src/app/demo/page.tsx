@@ -1,28 +1,31 @@
 import type { Metadata } from 'next';
 import PublicLayout from '@/components/shared/layouts/PublicLayout';
-import Demo from '@/components/landing-page/Demo';
+import HowNiaWorks from '@/components/landing-page/HowNiaWorks';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
-    title: 'OKVEVO Demo - AI Video Generator in Action | Create Reels Without Camera',
-    description: 'Watch OKVEVO AI create viral Instagram reels and YouTube shorts automatically. Best AI video generator demo - text to video in seconds. No camera needed for faceless content creation.',
-    keywords: [
-        'OKVEVO demo', 'OKVEVO AI demo', 'AI video generator demo', 'text to video AI demo',
-        'AI reel generator demo', 'faceless video creator demo', 'AI video maker in action',
-        'how to create videos using AI without camera', 'AI tool to create reels automatically',
-        'best AI video generator for Instagram reels demo', 'AI influencer generator demo',
-        'create viral reels using AI', 'automated video creation demo', 'AI content creator tool demo',
-        'AI video generator India demo', 'OKVEVO platform demo', 'AI storytelling video generator',
-    ],
+    title: 'How Nia works',
+    description: 'A Nia session: you ask, she uses tools on your computer, you approve changes, and the transcript stays on the machine.',
     openGraph: {
-        title: 'OKVEVO AI Demo - See AI Video Generation in Action',
-        description: 'Watch how OKVEVO creates viral reels and videos using AI. Perfect for Instagram, YouTube & faceless content.',
+        title: 'How Nia works',
+        description: 'Ask, act, approve, keep. A session on your computer.',
     },
 };
 
 export default function DemoPage() {
     return (
         <PublicLayout>
-            <Demo />
+            <div>
+                <HowNiaWorks />
+                <div className="bg-[#f6f1ec] flex justify-center px-6 pb-28">
+                    <Link
+                        href="/nia"
+                        className="mx-auto inline-flex h-12 items-center rounded-full bg-[#ff6d1f] px-6 text-sm font-medium text-[#2b2b2b] active:scale-[0.98]"
+                    >
+                        Download
+                    </Link>
+                </div>
+            </div>
         </PublicLayout>
     );
 }

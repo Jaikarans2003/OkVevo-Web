@@ -1,3 +1,13 @@
+/**
+ * Fal queue webhook signature verification, per
+ * https://fal.ai/docs/documentation/model-apis/inference/webhooks :
+ * ED25519 signature over `requestId\nuserId\ntimestamp\nsha256hex(body)`,
+ * public keys from the Fal JWKS endpoint. Timestamp skew is bounded at
+ * 300s; anything unsigned or stale is rejected before any state change.
+ * Replay safety: the timestamp window is small, and a replayed verified
+ * webhook re-enters settleFalJob, which no-ops on an already-settled job
+ * (status check + idempotent reconcileCredits), so duplicates settle once.
+ */
 import crypto from 'crypto';
 
 const JWKS_URL = 'https://rest.fal.ai/.well-known/jwks.json';
@@ -125,4 +135,33 @@ export function selfcheck(): void {
     throw new Error('bad signature accepted');
   }
   console.log('fal verifyWebhook selfcheck ok');
+}
+
+/** Network-free negative paths: missing headers and stale/replayed timestamps. */
+export async function selfcheckNegative(): Promise<void> {
+  const missing = await verifyFalWebhook({}, Buffer.from('{}'));
+  if (missing.ok || missing.status !== 400) throw new Error('missing headers accepted');
+
+  const stale = String(Math.floor(Date.now() / 1000) - MAX_SKEW_SECONDS - 60);
+  const old = await verifyFalWebhook(
+    { requestId: 'r', userId: 'u', timestamp: stale, signature: 'aa' },
+    Buffer.from('{}')
+  );
+  if (old.ok || old.status !== 400 || !/stale/.test(old.error)) {
+    throw new Error('stale timestamp accepted — replay window is broken');
+  }
+
+  const future = String(Math.floor(Date.now() / 1000) + MAX_SKEW_SECONDS + 60);
+  const ahead = await verifyFalWebhook(
+    { requestId: 'r', userId: 'u', timestamp: future, signature: 'aa' },
+    Buffer.from('{}')
+  );
+  if (ahead.ok || ahead.status !== 400) throw new Error('future timestamp accepted');
+
+  const badTs = await verifyFalWebhook(
+    { requestId: 'r', userId: 'u', timestamp: 'not-a-number', signature: 'aa' },
+    Buffer.from('{}')
+  );
+  if (badTs.ok || badTs.status !== 400) throw new Error('non-numeric timestamp accepted');
+  console.log('fal verifyWebhook negative selfcheck ok');
 }

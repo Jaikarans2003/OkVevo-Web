@@ -1,0 +1,78 @@
+/**
+ * Capture math over Fal billing-events. Pure: no secret, no I/O.
+ * GET /v1/models/billing-events?request_id=… (BILLING-preset key only).
+ * Docs: https://fal.ai/docs/platform-apis/v1/models/billing-events
+ */
+
+/** Same as creditsFromUsd in pricing.ts. Inlined so the capture job never
+ * loads App Hosting env. Selfcheck asserts equality with the shared helper. */
+export function falCreditsFromUsd(rawUsd: number): number {
+  if (!Number.isFinite(rawUsd) || rawUsd <= 0) return 0;
+  return Math.ceil(rawUsd * 2 * 1000);
+}
+
+export type BillingEvent = {
+  request_id?: string;
+  timestamp?: string;
+  endpoint?: string;
+  cost_total?: number;
+};
+
+/** Response body: { billing_events: [...], next_cursor, has_more }. */
+export function billingEventsFrom(json: unknown): BillingEvent[] {
+  const events = (json as { billing_events?: unknown } | null)?.billing_events;
+  return Array.isArray(events) ? (events as BillingEvent[]) : [];
+}
+
+export function pickEvent(events: BillingEvent[], requestId: string): BillingEvent | null {
+  // cost_total 0 is not a final bill — treating it as captured would lock
+  // the charge at 0 and ignore a later real event.
+  return (
+    events.find(
+      (e) =>
+        e.request_id === requestId &&
+        typeof e.cost_total === 'number' &&
+        e.cost_total > 0
+    ) ?? null
+  );
+}
+
+/** final credits = min(creditsFromUsd(cost_total), reserve). Never above reserve. */
+export function captureCharge(costTotalUsd: number, reserveCredits: number): {
+  falCredits: number;
+  finalCredits: number;
+  overReserve: boolean;
+} {
+  const falCredits = falCreditsFromUsd(costTotalUsd);
+  const finalCredits = Math.min(falCredits, reserveCredits);
+  return { falCredits, finalCredits, overReserve: falCredits > reserveCredits };
+}
+
+/**
+ * Lag from job settle to the billing-event timestamp, milliseconds.
+ * Used after G3 to set the Cloud Scheduler interval.
+ */
+export function captureLagMs(settledAtMs: number, eventTimestamp: string): number | null {
+  const ev = Date.parse(eventTimestamp);
+  if (!Number.isFinite(ev) || !Number.isFinite(settledAtMs)) return null;
+  return Math.max(0, ev - settledAtMs);
+}
+
+/**
+ * One-time backfill predicate. Only settled Fal jobs that never wrote
+ * `captured` should become `captured: false` so the capture query can see them.
+ * A set boolean (true or false) is already decided — skip it.
+ */
+export function shouldSetCapturedFalse(
+  data: { provider?: unknown; status?: unknown; captured?: unknown } | undefined
+): boolean {
+  if (!data) return false;
+  if (data.provider !== 'fal') return false;
+  if (data.status !== 'settled') return false;
+  return data.captured !== true && data.captured !== false;
+}
+
+/** G3 measured billing-events lag p95 ≈ 25 min → ceil(p95)+5 = 30 min. */
+export const CAPTURE_INTERVAL_CRON = '*/30 * * * *';
+export const CAPTURE_INTERVAL_NOTE =
+  '30 min = ceil(G3 billing-events lag p95)+5 min (samples 11s/46s/177s/1641s)';

@@ -62,7 +62,9 @@ jobs.set('a', a.job);
 const b = applyReserve(balances, jobs.get('b'), 40, uid, 'fal');
 assert.equal(b.ok, false);
 
-const settled = applyReconcile(balances, a.job, 10);
+assert.equal(applyReconcile(balances, a.job, 10).skipped, true);
+const falSubmitted = { ...a.job, status: 'submitted' as const };
+const settled = applyReconcile(balances, falSubmitted, 10);
 assert.equal(settled.skipped, false);
 if (settled.skipped) throw new Error('unreachable');
 assert.equal(settled.debitAmount, 10);
@@ -72,7 +74,7 @@ assert.equal(settled.balances.topUpBalance, 0);
 
 const over = applyReconcile(
   { allocationBalance: 0, topUpBalance: 10 },
-  { ...a.job, heldAllocation: 40, heldTopUp: 0 },
+  { ...falSubmitted, heldAllocation: 40, heldTopUp: 0 },
   55
 );
 assert.equal(over.skipped, false);
@@ -93,6 +95,10 @@ assert.equal(released.balances.topUpBalance, 50);
 const already = { ...a.job, status: 'settled' as const };
 assert.equal(applyReconcile(balances, already, 5).skipped, true);
 assert.equal(applyRelease(balances, already).skipped, true);
+assert.equal(applyReconcile(balances, { ...a.job, status: 'released' }, 10).skipped, true);
+assert.equal(applyReconcile(balances, { ...a.job, status: 'queued' }, 10).skipped, true);
+assert.equal(applyReconcile(balances, { ...a.job, status: 'dispatching' }, 10).skipped, true);
+assert.equal(applyRelease({ allocationBalance: 0, topUpBalance: 0 }, { ...a.job, status: 'released' }).skipped, true);
 
 const zero = applyReserve(
   { allocationBalance: 5, topUpBalance: 0 },

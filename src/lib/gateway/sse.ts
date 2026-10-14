@@ -5,14 +5,20 @@ export type OpenRouterUsage = {
 
 export type UsageScan = {
   id?: string;
+  model?: string;
   usage?: OpenRouterUsage;
 };
 
 function absorbDataPayload(scan: UsageScan, payload: string): void {
   if (!payload || payload === '[DONE]') return;
   try {
-    const obj = JSON.parse(payload) as { id?: unknown; usage?: unknown };
+    const obj = JSON.parse(payload) as {
+      id?: unknown;
+      model?: unknown;
+      usage?: unknown;
+    };
     if (typeof obj.id === 'string' && obj.id) scan.id = obj.id;
+    if (typeof obj.model === 'string' && obj.model) scan.model = obj.model;
     if (obj.usage && typeof obj.usage === 'object') {
       scan.usage = obj.usage as OpenRouterUsage;
     }

@@ -68,6 +68,9 @@ printf '%s' "$RAZORPAY_WEBHOOK_SECRET" | firebase apphosting:secrets:set RAZORPA
 echo "==> Grant App Hosting backend access to secrets (idempotent)"
 firebase apphosting:secrets:grantaccess CRON_SECRET,RAZORPAY_WEBHOOK_SECRET --backend "$BACKEND" --project "$PROJECT" --non-interactive || true
 
+# Ops alerts: HIGH conditions write an opsAlerts record plus a structured
+# log line. Cloud Monitoring emails that line. No chat integration to provision.
+
 echo "==> Local-source App Hosting deploy (backend has no connected GitHub repo)"
 firebase deploy --only apphosting --project "$PROJECT" --force --non-interactive
 
@@ -105,6 +108,58 @@ else
     --project="$PROJECT" --location="$LOCATION" \
     --schedule="0 9 * * 1" --time-zone="Etc/UTC" \
     --uri="$FX_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
+# Price drift + abandoned submitted holds + rollup, every 12h. A daily cron
+# cannot be absence-alerted: Cloud Monitoring rejects windows over 23h30m, and
+# a 24h series false-alarms inside that cap. 00:20 and 12:20 UTC. Margin is
+# estimated from the rate card (deterministic mode, ADR-001): the Fal key has
+# no billing read access, so there is no FAL_BILLING_KEY anywhere.
+FAL_URI="${ORIGIN}/api/cron/fal-drift"
+if gcloud scheduler jobs describe nia-fal-drift --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-drift"
+  gcloud scheduler jobs update http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 */12 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fal-drift"
+  gcloud scheduler jobs create http nia-fal-drift \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="20 */12 * * *" --time-zone="Etc/UTC" \
+    --uri="$FAL_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
+# Fal billing-events capture (Cloud Run Job nia-fal-capture). Schedule only —
+# image/SA live in scripts/drama-infra.sh. G3 lag p95 ≈ 25m → */30.
+if gcloud scheduler jobs describe nia-fal-capture --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-capture (*/30)"
+  gcloud scheduler jobs update http nia-fal-capture \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="*/30 * * * *" --time-zone="Etc/UTC"
+else
+  echo "==> nia-fal-capture scheduler missing — run scripts/drama-infra.sh apply first"
+fi
+
+# Backup dispatcher for per-user Fal queue. Settle/fail/cancel dispatch in
+# the request; this minute job only starts holds those events missed.
+DISPATCH_URI="${ORIGIN}/api/cron/fal-dispatch"
+if gcloud scheduler jobs describe nia-fal-dispatch --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-dispatch"
+  gcloud scheduler jobs update http nia-fal-dispatch \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="* * * * *" --time-zone="Etc/UTC" \
+    --uri="$DISPATCH_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job nia-fal-dispatch"
+  gcloud scheduler jobs create http nia-fal-dispatch \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="* * * * *" --time-zone="Etc/UTC" \
+    --uri="$DISPATCH_URI" --http-method=POST \
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 

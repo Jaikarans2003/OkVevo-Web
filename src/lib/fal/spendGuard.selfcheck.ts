@@ -19,13 +19,43 @@ assert.ok(submitStart >= 0 && submitEnd > submitStart, 'handleSubmit not found')
 const submitBody = queueSrc.slice(submitStart, submitEnd);
 
 const meterableIdx = submitBody.indexOf('!isMeterableEndpoint(endpoint)');
-const reserveIdx = submitBody.indexOf('reserveCredits(');
+const reserveIdx = submitBody.indexOf('reserveFalRun(');
+const unpricedIdx = submitBody.indexOf('unpriced Fal request');
+const capIdx = submitBody.indexOf('MAX_JOB_CREDITS');
 assert.ok(meterableIdx >= 0, 'handleSubmit lost its meterable-endpoint guard');
 assert.ok(reserveIdx >= 0, 'handleSubmit no longer reserves — selfcheck is stale');
 assert.ok(
   meterableIdx < reserveIdx,
-  'unmetered-endpoint 400 must precede reserveCredits — ' +
+  'unmetered-endpoint 400 must precede reserveFalRun — ' +
     'a reserve created before the meter check would debit an unmetered endpoint'
+);
+assert.ok(unpricedIdx >= 0 && unpricedIdx < reserveIdx, 'zero/unpriced estimate must refuse before reserve');
+assert.equal(submitBody.includes('dramaKillSwitchDisabled'), false, 'kill switch must be gone');
+assert.equal(submitBody.includes('breakerDecision'), false, 'daily spend breaker must be gone');
+assert.equal(submitBody.includes('DailySpendLimitError'), false, 'daily spend breaker must be gone');
+assert.ok(!submitBody.includes('reserveCredits('), 'metered Fal submit must require a run_id hold');
+assert.ok(
+  !submitBody.includes('applyFalSafetyOff(endpoint, falBody)'),
+  'Fal POST must be pickSubmitArgs + media URLs, not the raw client body'
+);
+const hashIdx = submitBody.search(/clientRequestHash\(endpoint,\s*args\)/);
+const resolveIdx = submitBody.indexOf('resolveMediaArgs(');
+assert.ok(hashIdx >= 0, 'handleSubmit must hash the client request');
+assert.ok(
+  resolveIdx > hashIdx,
+  'signed URLs are minted only after the client request hash, including audio_url'
+);
+const peekIdx = submitBody.indexOf('peekFalRun');
+assert.ok(
+  peekIdx >= 0 && peekIdx < capIdx && peekIdx < reserveIdx,
+  'idempotency replay must run before MAX_JOB_CREDITS and reserve'
+);
+assert.ok(submitBody.includes('await alertDailySpend('), 'daily spend is an alert, not a refusal');
+assert.ok(queueSrc.includes("condition: 'daily-spend'"), 'daily spend alert condition missing');
+assert.ok(submitBody.includes("placement === 'queued'"), 'a submit over the slot limit is accepted as queued');
+assert.ok(
+  submitBody.includes('submitPriceGate(estimated, approved, runId, !!card)'),
+  'approved_credits is required only for rate-card (drama-skill) jobs'
 );
 
 // The quote route is read-only: no reserve/debit/reconcile imports at all.
