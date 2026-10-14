@@ -72,7 +72,7 @@ export function shouldSetCapturedFalse(
   return data.captured !== true && data.captured !== false;
 }
 
-/** Until G3 measures lag: 15 min. Docs say recent events are delayed. */
-export const CAPTURE_INTERVAL_CRON = '*/15 * * * *';
+/** G3 measured billing-events lag p95 ≈ 25 min → ceil(p95)+5 = 30 min. */
+export const CAPTURE_INTERVAL_CRON = '*/30 * * * *';
 export const CAPTURE_INTERVAL_NOTE =
-  '15 min until G3 measures billing-events lag; then tighten to ceil(p95 lag)+5 min';
+  '30 min = ceil(G3 billing-events lag p95)+5 min (samples 11s/46s/177s/1641s)';

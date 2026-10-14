@@ -133,6 +133,17 @@ else
     --headers="Authorization=Bearer ${CRON_SECRET}"
 fi
 
+# Fal billing-events capture (Cloud Run Job nia-fal-capture). Schedule only —
+# image/SA live in scripts/drama-infra.sh. G3 lag p95 ≈ 25m → */30.
+if gcloud scheduler jobs describe nia-fal-capture --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job nia-fal-capture (*/30)"
+  gcloud scheduler jobs update http nia-fal-capture \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="*/30 * * * *" --time-zone="Etc/UTC"
+else
+  echo "==> nia-fal-capture scheduler missing — run scripts/drama-infra.sh apply first"
+fi
+
 # Backup dispatcher for per-user Fal queue. Settle/fail/cancel dispatch in
 # the request; this minute job only starts holds those events missed.
 DISPATCH_URI="${ORIGIN}/api/cron/fal-dispatch"

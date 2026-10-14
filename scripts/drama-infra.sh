@@ -438,7 +438,7 @@ CAPTURE_SA_NAME="nia-fal-capture"
 CAPTURE_SA="${CAPTURE_SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 CAPTURE_JOB="nia-fal-capture"
 CAPTURE_SCHEDULER="nia-fal-capture"
-CAPTURE_CRON="*/15 * * * *"
+CAPTURE_CRON="*/30 * * * *"
 
 capture_step() {
   if ! gcloud secrets describe FAL_BILLING_KEY --project="$PROJECT" >/dev/null 2>&1; then
@@ -545,7 +545,7 @@ print("\n".join(sorted(accessors)))
       --uri="$uri" --http-method=POST \
       --oauth-service-account-email="$CAPTURE_SA"
   fi
-  log "capture interval $CAPTURE_CRON (until G3 measures billing-events lag)"
+  log "capture interval $CAPTURE_CRON (G3 lag p95≈25m → ceil+5 = 30m)"
 }
 
 # --- signing IAM note (App Hosting uses FIREBASE_SERVICE_ACCOUNT_KEY → local sign) ---
