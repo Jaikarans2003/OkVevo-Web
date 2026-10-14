@@ -259,6 +259,15 @@ export type FalMediaIndexEntry = {
   height?: number;
 };
 
+/** Firestore rejects `undefined` field values — omit optional dims/seconds when absent. */
+export function falMediaIndexFields(entry: FalMediaIndexEntry): Record<string, string | number> {
+  const out: Record<string, string | number> = { url: entry.url, kind: entry.kind };
+  if (entry.seconds != null) out.seconds = entry.seconds;
+  if (entry.width != null) out.width = entry.width;
+  if (entry.height != null) out.height = entry.height;
+  return out;
+}
+
 /**
  * Extract output media from a result payload for the falMediaIndex.
  * Shapes: video → payload.video.url (+duration), gpt → payload.images[],

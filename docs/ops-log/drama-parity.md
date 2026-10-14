@@ -211,3 +211,88 @@ Secrets redacted. Append-only. Target project unless noted: `okvevo-testing`.
 2026-10-12T18:16:21Z scheduler: pass --origin to document the target; job itself is created by ops-billing-finish.sh
 2026-10-12T18:16:21Z done apply
 - Redeployed capture (drama-infra.sh --apply, okvevo-testing, 18:16Z) and forced one execution: exit 0, no output, job 1 still uncaptured. Second bug: the image runs `dist/capture.mjs` but the job only called `main()` when argv contained `fal-capture-job`, so every execution since deploy was a silent no-op (including the 12:21 "capture 200"). Fixed on `fix/fal-capture-entrypoint`: call `main()` unconditionally (nothing imports the module); selfcheck asserts it.
+2026-10-14T14:04:28Z mode=dry-run project=text2video-16cbf location=us-central1 bucket=NONE origin=unset
+2026-10-14T14:04:30Z api missing: secretmanager.googleapis.com
+2026-10-14T14:04:30Z + gcloud services enable secretmanager.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:30Z   (dry-run, not executed)
+2026-10-14T14:04:33Z api missing: run.googleapis.com
+2026-10-14T14:04:33Z + gcloud services enable run.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:33Z   (dry-run, not executed)
+2026-10-14T14:04:35Z api missing: cloudscheduler.googleapis.com
+2026-10-14T14:04:35Z + gcloud services enable cloudscheduler.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:35Z   (dry-run, not executed)
+2026-10-14T14:04:39Z api missing: storage.googleapis.com
+2026-10-14T14:04:39Z + gcloud services enable storage.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:39Z   (dry-run, not executed)
+2026-10-14T14:04:41Z api missing: iamcredentials.googleapis.com
+2026-10-14T14:04:41Z + gcloud services enable iamcredentials.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:41Z   (dry-run, not executed)
+2026-10-14T14:04:43Z api missing: firebaserules.googleapis.com
+2026-10-14T14:04:43Z + gcloud services enable firebaserules.googleapis.com --project=text2video-16cbf
+2026-10-14T14:04:43Z   (dry-run, not executed)
+2026-10-14T14:05:52Z mode=dry-run project=text2video-16cbf location=us-central1 bucket=text2video-16cbf.firebasestorage.app origin=unset
+2026-10-14T14:05:54Z api enabled: secretmanager.googleapis.com
+2026-10-14T14:05:56Z api enabled: run.googleapis.com
+2026-10-14T14:05:59Z api enabled: cloudscheduler.googleapis.com
+2026-10-14T14:06:01Z api enabled: storage.googleapis.com
+2026-10-14T14:06:03Z api enabled: iamcredentials.googleapis.com
+2026-10-14T14:06:06Z api enabled: firebaserules.googleapis.com
+2026-10-14T14:06:07Z lifecycle dry-run shown (not written)
+2026-10-14T14:06:12Z storage.rules would deploy (repo is a superset of deployed paths)
+2026-10-14T14:06:13Z FAL_BILLING_KEY: MISSING — store via pbpaste before apply
+2026-10-14T14:06:19Z + gcloud iam service-accounts create nia-fal-capture --project=text2video-16cbf --display-name=Nia Fal billing capture
+2026-10-14T14:06:19Z   (dry-run, not executed)
+2026-10-14T14:06:19Z + gcloud projects add-iam-policy-binding text2video-16cbf --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/datastore.user --condition=None
+2026-10-14T14:06:19Z   (dry-run, not executed)
+2026-10-14T14:06:19Z + gcloud projects add-iam-policy-binding text2video-16cbf --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/logging.logWriter --condition=None
+2026-10-14T14:06:19Z   (dry-run, not executed)
+2026-10-14T14:06:20Z + gcloud run jobs deploy nia-fal-capture --source=<staged capture context>
+2026-10-14T14:06:20Z   (dry-run, not executed)
+2026-10-14T14:06:20Z + gcloud run jobs add-iam-policy-binding nia-fal-capture --project=text2video-16cbf --region=us-central1 --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/run.invoker
+2026-10-14T14:06:20Z   (dry-run, not executed)
+2026-10-14T14:06:23Z + gcloud scheduler jobs create http nia-fal-capture --project=text2video-16cbf --location=us-central1 --schedule=*/15 * * * * --time-zone=Etc/UTC --uri=https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/text2video-16cbf/jobs/nia-fal-capture:run --http-method=POST --oauth-service-account-email=nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com
+2026-10-14T14:06:23Z   (dry-run, not executed)
+2026-10-14T14:06:23Z capture interval */15 * * * * (until G3 measures billing-events lag)
+2026-10-14T14:06:23Z monitoring required: HIGH logs + heartbeat absent 23h -> jaikaran.pesce@gmail.com
+2026-10-14T14:06:23Z   (dry-run, not executed)
+2026-10-14T14:06:23Z scheduler: pass --origin to document the target; job itself is created by ops-billing-finish.sh
+2026-10-14T14:06:23Z done dry-run
+2026-10-14T14:12:26Z mode=apply project=text2video-16cbf location=us-central1 bucket=text2video-16cbf.firebasestorage.app origin=unset
+2026-10-14T14:12:28Z api enabled: secretmanager.googleapis.com
+2026-10-14T14:12:30Z api enabled: run.googleapis.com
+2026-10-14T14:12:32Z api enabled: cloudscheduler.googleapis.com
+2026-10-14T14:12:35Z api enabled: storage.googleapis.com
+2026-10-14T14:12:37Z api enabled: iamcredentials.googleapis.com
+2026-10-14T14:12:39Z api enabled: firebaserules.googleapis.com
+2026-10-14T14:12:42Z lifecycle merged age=7 matchesPrefix=drama-inputs/
+2026-10-14T14:14:46Z mode=apply project=text2video-16cbf location=us-central1 bucket=text2video-16cbf.firebasestorage.app origin=unset
+2026-10-14T14:14:48Z api enabled: secretmanager.googleapis.com
+2026-10-14T14:14:50Z api enabled: run.googleapis.com
+2026-10-14T14:14:52Z api enabled: cloudscheduler.googleapis.com
+2026-10-14T14:14:55Z api enabled: storage.googleapis.com
+2026-10-14T14:14:57Z api enabled: iamcredentials.googleapis.com
+2026-10-14T14:14:59Z api enabled: firebaserules.googleapis.com
+2026-10-14T14:15:01Z lifecycle already merged
+2026-10-14T14:15:03Z storage.rules identical to deployed — skip
+2026-10-14T14:15:03Z FAL_BILLING_KEY: present (value not printed)
+2026-10-14T14:15:05Z + gcloud iam service-accounts create nia-fal-capture --project=text2video-16cbf --display-name=Nia Fal billing capture
+2026-10-14T14:15:08Z   ok
+2026-10-14T14:15:08Z + gcloud projects add-iam-policy-binding text2video-16cbf --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/datastore.user --condition=None
+2026-10-14T14:15:11Z   ok
+2026-10-14T14:15:11Z + gcloud projects add-iam-policy-binding text2video-16cbf --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/logging.logWriter --condition=None
+2026-10-14T14:15:15Z   ok
+2026-10-14T14:15:16Z + gcloud secrets add-iam-policy-binding FAL_BILLING_KEY --project=text2video-16cbf --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+2026-10-14T14:15:18Z   ok
+2026-10-14T14:15:19Z FAL_BILLING_KEY accessor: nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com only (exact)
+2026-10-14T14:15:19Z + gcloud run jobs deploy nia-fal-capture --source=<staged capture context>
+2026-10-14T14:19:29Z   ok
+2026-10-14T14:19:29Z + gcloud run jobs add-iam-policy-binding nia-fal-capture --project=text2video-16cbf --region=us-central1 --member=serviceAccount:nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com --role=roles/run.invoker
+2026-10-14T14:19:34Z   ok
+2026-10-14T14:19:39Z + gcloud scheduler jobs create http nia-fal-capture --project=text2video-16cbf --location=us-central1 --schedule=*/15 * * * * --time-zone=Etc/UTC --uri=https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/text2video-16cbf/jobs/nia-fal-capture:run --http-method=POST --oauth-service-account-email=nia-fal-capture@text2video-16cbf.iam.gserviceaccount.com
+2026-10-14T14:19:49Z   ok
+2026-10-14T14:19:49Z capture interval */15 * * * * (until G3 measures billing-events lag)
+2026-10-14T14:19:49Z monitoring required: HIGH logs + heartbeat absent 23h -> jaikaran.pesce@gmail.com
+2026-10-14T14:20:08Z monitoring channel projects/text2video-16cbf/notificationChannels/10973821969910128005
+2026-10-14T14:21:20Z monitoring policies ensured
+2026-10-14T14:21:20Z scheduler: pass --origin to document the target; job itself is created by ops-billing-finish.sh
+2026-10-14T14:21:20Z done apply
