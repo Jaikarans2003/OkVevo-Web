@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 
 import {
   classifyMediaValue,
+  falMediaIndexFields,
   payloadMediaEntries,
   pickMediaArgs,
   validateAndBuildMedia,
@@ -192,6 +193,20 @@ const v = payloadMediaEntries(
 assert.deepEqual(v, [
   { url: 'https://v3b.fal.media/files/a.mp4', kind: 'video', seconds: 6, width: undefined, height: undefined },
 ]);
+assert.deepEqual(falMediaIndexFields(v[0]), {
+  url: 'https://v3b.fal.media/files/a.mp4',
+  kind: 'video',
+  seconds: 6,
+});
+assert.deepEqual(
+  falMediaIndexFields({
+    url: 'https://v3b.fal.media/files/c.png',
+    kind: 'image',
+    width: undefined,
+    height: undefined,
+  }),
+  { url: 'https://v3b.fal.media/files/c.png', kind: 'image' }
+);
 const sd = payloadMediaEntries(
   'bytedance/seedance-2.5/reference-to-video',
   { video: { url: 'https://v3b.fal.media/files/b.mp4' } },
