@@ -77,6 +77,47 @@ assert.equal(named.choice, null);
 assert.ok(named.rejections.some((row) => row.id === "fal-ai/ltx-2.3/image-to-video"));
 assert.ok(!named.rejections.some((row) => row.reason.includes("using standard")));
 
+// RC6: media-catalog ships openai/gpt-image-2 — named choose must not say "not shipped".
+const mediaCatalog = JSON.parse(
+  readFileSync(new URL("./media-catalog.json", import.meta.url), "utf8")
+) as { photos?: { id: string; shipped?: boolean; tier?: string }[] };
+const gptRow = (mediaCatalog.photos ?? []).find((row) => row.id === "openai/gpt-image-2");
+assert.ok(gptRow?.shipped, "openai/gpt-image-2 must be shipped in media-catalog");
+const gptTier = (gptRow.tier === "draft" || gptRow.tier === "standard" || gptRow.tier === "best"
+  ? gptRow.tier
+  : "best") as DramaCard["tier"];
+const gptCard: DramaCard = {
+  id: "openai/gpt-image-2",
+  max_images: 0,
+  max_videos: 0,
+  max_audio: 0,
+  duration: { enum: [1] },
+  aspects: ["1:1"],
+  jobs: ["text-only"],
+  tier: gptTier,
+  billing_unit: "units",
+  unit_price: 0.211,
+  shipped: true,
+  input_schema: { type: "object", properties: {} },
+};
+const gptShot: Shot = {
+  job: "text-only",
+  images: 0,
+  videos: 0,
+  audios: 0,
+  durationSeconds: 1,
+  aspect: "1:1",
+  tier: gptTier,
+  modelId: "openai/gpt-image-2",
+};
+const gptNamed = choose([gptCard], { "openai/gpt-image-2": { unit: "units", unitPrice: 0.211 } }, gptShot);
+assert.ok(
+  !gptNamed.rejections.some((row) => row.reason === "named model is not shipped"),
+  "named GPT Image 2 must not be rejected as unshipped when media-catalog ships it"
+);
+// Card is in the shipped pool (would have short-circuited with "not shipped" otherwise).
+assert.ok(gptNamed.choice || gptNamed.rejections.every((row) => row.id === "openai/gpt-image-2"));
+
 const fast = cards.find((card) => card.id === "lightricks/ltx-2.5/text-to-video/fast");
 assert.ok(fast);
 const fastPrice = prices[fast.id] as RatePrice;
