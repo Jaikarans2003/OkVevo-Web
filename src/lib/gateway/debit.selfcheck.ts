@@ -36,11 +36,16 @@ assert.doesNotMatch(fal, /jsonError\(402, 'Fal submit failed'\)/);
 const chat = src('app/api/gateway/chat/completions/route.ts');
 assert.match(chat, /PlanNotActiveError/);
 assert.match(chat, /openaiError\(403, 'plan not active'/);
-assert.match(chat, /insufficient credits/);
+assert.match(chat, /insufficientCreditsResponse\(\)/);
+assert.match(chat, /inFlightBudgetResponse\(\)/);
+assert.match(chat, /planConcurrencyResponse\(\)/);
+assert.doesNotMatch(chat, /openaiError\(\s*402/);
 
 const tavily = src('lib/tavily/handleRequest.ts');
 assert.match(tavily, /PlanNotActiveError/);
 assert.match(tavily, /jsonError\(403, 'plan not active'\)/);
-assert.match(tavily, /jsonError\(402, 'insufficient credits'\)/);
+assert.match(tavily, /insufficientCreditsResponse\(\)/);
+assert.match(tavily, /inFlightBudgetResponse\(\)/);
+assert.doesNotMatch(tavily, /jsonError\(402/);
 
 console.log('debit.selfcheck: ok');

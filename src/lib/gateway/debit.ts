@@ -11,9 +11,15 @@ import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
 import {
+  chatConcurrencyBlocked,
+  denialForFailedReserve,
+  summarizeOpenHolds,
+} from '@/lib/gateway/reserveDenial';
+import {
   applyReconcile,
   applyRelease,
   applyReserve,
+  RELEASABLE,
   type BucketBalances,
   type GatewayProvider,
   type JobRecord,
@@ -98,6 +104,42 @@ export class PlanNotActiveError extends Error {
   constructor() {
     super('plan not active');
     this.name = 'PlanNotActiveError';
+  }
+}
+
+export class InFlightBudgetError extends Error {
+  readonly code = 'in_flight_budget_exhausted' as const;
+  constructor() {
+    super('in flight budget exhausted');
+    this.name = 'InFlightBudgetError';
+  }
+}
+
+export class PlanConcurrencyError extends Error {
+  readonly code = 'plan_concurrency_limit' as const;
+  constructor() {
+    super('plan concurrency limit');
+    this.name = 'PlanConcurrencyError';
+  }
+}
+
+/**
+ * Open holds for this user. Null when the query cannot run (index still
+ * building): callers then keep today's 402 instead of failing the reserve.
+ * ponytail: read just before the transaction, so two parallel chats can both
+ * pass a slot check. Upgrade: run the query inside the transaction.
+ */
+async function listOpenHolds(uid: string): Promise<{ held: number; openChat: number } | null> {
+  try {
+    const snap = await db
+      .collection('gatewayJobs')
+      .where('uid', '==', uid)
+      .where('status', 'in', [...RELEASABLE])
+      .get();
+    return summarizeOpenHolds(snap.docs.map((doc) => doc.data()));
+  } catch (err) {
+    console.error('gateway: open hold query failed', err);
+    return null;
   }
 }
 
@@ -209,6 +251,7 @@ export async function reserveCredits(opts: {
 
   const userRef = db.collection('users').doc(uid);
   const jobRef = db.collection('gatewayJobs').doc(requestId);
+  const holds = await listOpenHolds(uid);
 
   await db.runTransaction(async (tx) => {
     const spend = await readSpendForHold(tx, extra);
@@ -218,8 +261,15 @@ export async function reserveCredits(opts: {
     if (readPlanStatus(data) !== 'active') {
       throw new PlanNotActiveError();
     }
+    if (provider === 'openrouter' && holds) {
+      const plan = slotsForPlan(data?.plan, readPlanStatus(data));
+      if (plan.admit && chatConcurrencyBlocked(holds.openChat, plan.slots)) {
+        throw new PlanConcurrencyError();
+      }
+    }
+    const balances = readBalances(data);
     const result = applyReserve(
-      readBalances(data),
+      balances,
       jobFromSnap(jobSnap.data()),
       estimatedCredits,
       uid,
@@ -227,6 +277,16 @@ export async function reserveCredits(opts: {
     );
     if (!result.ok) {
       if (result.reason === 'duplicate') return;
+      if (
+        holds &&
+        denialForFailedReserve({
+          spendable: balances.allocationBalance + balances.topUpBalance,
+          estimated: estimatedCredits,
+          inFlightHeld: holds.held,
+        }) === 'in_flight_budget_exhausted'
+      ) {
+        throw new InFlightBudgetError();
+      }
       throw new InsufficientCreditsError();
     }
     applySpendHold(tx, spend);

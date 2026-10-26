@@ -4,12 +4,20 @@ import { env } from '@/config/env';
 import { auth } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
+  InFlightBudgetError,
   InsufficientCreditsError,
+  PlanConcurrencyError,
   PlanNotActiveError,
   releaseCredits,
   reserveCredits,
   settleCompletedChat,
 } from '@/lib/gateway/debit';
+import {
+  inFlightBudgetResponse,
+  insufficientCreditsResponse,
+  invalidTokenResponse,
+  planConcurrencyResponse,
+} from '@/lib/gateway/httpErrors';
 import {
   creditsFromTokens,
   hasPositiveRates,
@@ -87,15 +95,13 @@ function estimateChatCredits(opts: {
 
 export async function POST(request: NextRequest) {
   const idToken = gatewayIdToken(request);
-  if (!idToken) {
-    return openaiError(401, 'invalid_token', 'invalid_request_error', 'invalid_api_key');
-  }
+  if (!idToken) return invalidTokenResponse();
 
   let uid: string;
   try {
     uid = (await auth.verifyIdToken(idToken)).uid;
   } catch {
-    return openaiError(401, 'invalid_token', 'invalid_request_error', 'invalid_api_key');
+    return invalidTokenResponse();
   }
 
   const key = process.env.OPENROUTER_API_KEY?.trim();
@@ -119,25 +125,21 @@ export async function POST(request: NextRequest) {
   }
 
   const model = modelFromBody(parsed);
+  if (!model) {
+    return openaiError(400, 'model is required', 'invalid_request_error', 'invalid_request');
+  }
   const stream = wantsStream(parsed);
   const routerAlias = isRouterAliasModel(model);
-  const rates = model
-    ? await resolveChatReserveRates({
-        model,
-        allowedModels: allowedModelsFromBody(parsed),
-      })
-    : null;
+  const rates = await resolveChatReserveRates({
+    model,
+    allowedModels: allowedModelsFromBody(parsed),
+  });
 
-  // Normal models: missing rates → 402. Free catalog 0/0 still passes (estimated
-  // stays 0). Router aliases always get a positive ceiling from
-  // resolveChatReserveRates — never the estimated === 0 free path.
+  // Missing catalog row is not a balance failure (402 would bench the key
+  // for an hour). Free catalog 0/0 still passes. Router aliases always get a
+  // positive ceiling from resolveChatReserveRates.
   if (!rates || (routerAlias && !hasPositiveRates(rates))) {
-    return openaiError(
-      402,
-      'insufficient credits',
-      'insufficient_quota',
-      'insufficient_quota'
-    );
+    return openaiError(404, 'model not found', 'invalid_request_error', 'model_not_found');
   }
 
   const estimated = estimateChatCredits({
@@ -153,12 +155,7 @@ export async function POST(request: NextRequest) {
   if (mustMeter) {
     if (estimated <= 0) {
       // Defensive: alias path should never produce 0 with hasPositiveRates.
-      return openaiError(
-        402,
-        'insufficient credits',
-        'insufficient_quota',
-        'insufficient_quota'
-      );
+      return openaiError(502, 'upstream unavailable', 'server_error', 'internal_error');
     }
     try {
       await reserveCredits({
@@ -172,14 +169,9 @@ export async function POST(request: NextRequest) {
       if (err instanceof PlanNotActiveError) {
         return openaiError(403, 'plan not active', 'plan_not_active', 'plan_not_active');
       }
-      if (err instanceof InsufficientCreditsError) {
-        return openaiError(
-          402,
-          'insufficient credits',
-          'insufficient_quota',
-          'insufficient_quota'
-        );
-      }
+      if (err instanceof PlanConcurrencyError) return planConcurrencyResponse();
+      if (err instanceof InFlightBudgetError) return inFlightBudgetResponse();
+      if (err instanceof InsufficientCreditsError) return insufficientCreditsResponse();
       throw err;
     }
   }

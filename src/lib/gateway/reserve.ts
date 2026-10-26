@@ -157,7 +157,7 @@ export type ReleaseResult =
       status: 'released';
     };
 
-const RELEASABLE: ReadonlySet<JobStatus> = new Set([
+export const RELEASABLE: ReadonlySet<JobStatus> = new Set([
   'reserved',
   'queued',
   'dispatching',

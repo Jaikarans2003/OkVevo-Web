@@ -3,12 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
+  InFlightBudgetError,
   InsufficientCreditsError,
   PlanNotActiveError,
   reconcileCredits,
   releaseCredits,
   reserveCredits,
 } from '@/lib/gateway/debit';
+import {
+  inFlightBudgetResponse,
+  insufficientCreditsResponse,
+  invalidTokenResponse,
+} from '@/lib/gateway/httpErrors';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 import { proxyTavily, tavilyServerKey } from '@/lib/tavily/client';
 import {
@@ -22,16 +28,6 @@ function jsonError(status: number, message: string) {
   return NextResponse.json({ error: { message } }, { status });
 }
 
-async function uidFromRequest(request: NextRequest): Promise<string | null> {
-  const token = gatewayIdToken(request);
-  if (!token) return null;
-  try {
-    return (await auth.verifyIdToken(token)).uid;
-  } catch {
-    return null;
-  }
-}
-
 export async function handleTavily(
   request: NextRequest,
   action: string
@@ -39,8 +35,14 @@ export async function handleTavily(
   if (action !== 'search' && action !== 'extract') {
     return jsonError(404, 'not found');
   }
-  const uid = await uidFromRequest(request);
-  if (!uid) return jsonError(401, 'invalid_token');
+  const token = gatewayIdToken(request);
+  if (!token) return invalidTokenResponse();
+  let uid: string;
+  try {
+    uid = (await auth.verifyIdToken(token)).uid;
+  } catch {
+    return invalidTokenResponse();
+  }
   if (!tavilyServerKey()) return jsonError(500, 'TAVILY_API_KEY missing');
 
   let body: unknown = {};
@@ -70,9 +72,8 @@ export async function handleTavily(
     if (err instanceof PlanNotActiveError) {
       return jsonError(403, 'plan not active');
     }
-    if (err instanceof InsufficientCreditsError) {
-      return jsonError(402, 'insufficient credits');
-    }
+    if (err instanceof InFlightBudgetError) return inFlightBudgetResponse();
+    if (err instanceof InsufficientCreditsError) return insufficientCreditsResponse();
     throw err;
   }
 
