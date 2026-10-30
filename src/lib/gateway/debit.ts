@@ -579,6 +579,8 @@ export async function readGatewayJob(
   queuePosition?: number;
   releaseReason?: string;
   clientMessage?: string;
+  clientCode?: string;
+  vendorStatus?: number;
   cancelRequested?: boolean;
   submitAttempts?: number;
   firstRejectAtMs?: number | null;
@@ -610,6 +612,8 @@ export async function readGatewayJob(
     falRequestId: typeof data.falRequestId === 'string' ? data.falRequestId : undefined,
     releaseReason: typeof data.releaseReason === 'string' ? data.releaseReason : undefined,
     clientMessage: typeof data.clientMessage === 'string' ? data.clientMessage : undefined,
+    clientCode: typeof data.clientCode === 'string' ? data.clientCode : undefined,
+    vendorStatus: typeof data.vendorStatus === 'number' ? data.vendorStatus : undefined,
     cancelRequested: data.cancelRequested === true,
     submitAttempts: typeof data.submitAttempts === 'number' ? data.submitAttempts : 0,
     firstRejectAtMs: typeof data.firstRejectAtMs === 'number' ? data.firstRejectAtMs : null,
