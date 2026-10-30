@@ -13,6 +13,7 @@ import {
   alertLogLine,
   sendOpsAlert,
   utcDay,
+  utcHour,
   type AlertRecord,
 } from '@/lib/ops/alert';
 
@@ -64,6 +65,23 @@ const again = await sendOpsAlert(
 );
 assert.equal(again, 'sent');
 assert.equal(store.map.size, 2);
+
+// vendor_unavailable keyed by UTC hour: one send per hour, a new hour sends again.
+const hourStore = memStore();
+const hourLines: string[] = [];
+const t0 = Date.parse('2026-10-30T14:26:01Z');
+const vendorAlert = (t: number) =>
+  sendOpsAlert(
+    { severity: 'HIGH', condition: 'vendor_unavailable', id: utcHour(t), text: 'Fal locked' },
+    { nowMs: t, store: hourStore, log: (l) => hourLines.push(l) }
+  );
+assert.equal(utcHour(t0), '2026-10-30T14');
+assert.equal(await vendorAlert(t0), 'sent');
+assert.equal(await vendorAlert(t0 + 30 * 60 * 1000), 'deduped');
+assert.equal(await vendorAlert(Date.parse('2026-10-30T15:00:05Z')), 'sent');
+assert.equal(hourLines.length, 2);
+assert.equal(JSON.parse(hourLines[0]).condition, 'vendor_unavailable');
+assert.equal(JSON.parse(hourLines[0]).opsAlert, true);
 
 // INFO is not deduped; each send rewrites the record.
 const infoStore = memStore();

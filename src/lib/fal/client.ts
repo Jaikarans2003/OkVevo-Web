@@ -108,13 +108,22 @@ export class FalSubmitError extends Error {
   readonly kind: FailureKind;
   readonly status: number;
   readonly retryAfterMs: number | null;
+  /** Fal's response body (truncated); never sent to the client. */
+  readonly body: string;
 
-  constructor(kind: FailureKind, status: number, retryAfter: number | null, message: string) {
+  constructor(
+    kind: FailureKind,
+    status: number,
+    retryAfter: number | null,
+    message: string,
+    body = ''
+  ) {
     super(message);
     this.name = 'FalSubmitError';
     this.kind = kind;
     this.status = status;
     this.retryAfterMs = retryAfter;
+    this.body = body;
   }
 }
 
@@ -122,11 +131,12 @@ export function classifyFalSubmitError(err: unknown): {
   kind: FailureKind;
   status: number;
   retryAfterMs: number | null;
+  body: string;
 } {
   if (err instanceof FalSubmitError) {
-    return { kind: err.kind, status: err.status, retryAfterMs: err.retryAfterMs };
+    return { kind: err.kind, status: err.status, retryAfterMs: err.retryAfterMs, body: err.body };
   }
-  return { kind: 'ambiguous', status: 0, retryAfterMs: null };
+  return { kind: 'ambiguous', status: 0, retryAfterMs: null, body: '' };
 }
 
 export async function submitFalQueue(
@@ -167,7 +177,8 @@ export async function submitFalQueue(
       kind === 'retry' || kind === 'reject' ? kind : 'ambiguous',
       res.status,
       retryAfter,
-      `fal submit ${res.status}: ${text.slice(0, 400)}`
+      `fal submit ${res.status}: ${text.slice(0, 400)}`,
+      text.slice(0, 400)
     );
   }
   const data = JSON.parse(text) as {
