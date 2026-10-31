@@ -37,6 +37,11 @@ export function utcDay(nowMs: number): string {
   return new Date(nowMs).toISOString().slice(0, 10);
 }
 
+/** Use as the alert `id` to cap a HIGH condition at one send per UTC hour. */
+export function utcHour(nowMs: number): string {
+  return new Date(nowMs).toISOString().slice(0, 13);
+}
+
 /** Structured log line a Cloud Monitoring log-based alert can match. */
 export function alertLogLine(record: AlertRecord): string {
   return JSON.stringify({

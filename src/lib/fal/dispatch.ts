@@ -25,6 +25,7 @@ import {
   decideDefiniteRejection,
   FAL_NOT_ACCEPTED_MESSAGE,
   PLAN_INACTIVE_MESSAGE,
+  type VendorErrorCode,
 } from '@/lib/fal/jobMachine';
 import {
   falRunDocId,
@@ -403,6 +404,9 @@ export async function applyDefiniteRejection(opts: {
   retryAfterMs: number | null;
   rand: number;
   rejectMessage?: string;
+  /** Stored on release so the status poll returns the same `error.code`. */
+  vendorCode?: VendorErrorCode;
+  vendorStatus?: number;
 }): Promise<RejectionResult> {
   const jobRef = db.collection('gatewayJobs').doc(opts.holdId);
   const userRef = db.collection('users').doc(opts.uid);
@@ -483,6 +487,9 @@ export async function applyDefiniteRejection(opts: {
         releaseReason: cancelRequested ? 'cancelled' : 'fal_not_accepted',
         clientMessage: message,
         submitAttempts: decision.attempts,
+        ...(!cancelRequested && opts.vendorCode
+          ? { clientCode: opts.vendorCode, vendorStatus: opts.vendorStatus ?? 0 }
+          : {}),
       },
       { merge: true }
     );
