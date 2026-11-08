@@ -1,60 +1,37 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 
+// The tab's first page shows the full loader animation (loading-screen.css: drawn by ~2s, work flowing from ~1.9s) and holds it
+// until at least MIN_PLAY_MS after navigation start, even on a fast load, then lifts away.
+// Later pages and reloads (the layout's head script sets data-loader="quick") skip it: the site is already warm,
+// and route-level loaders (app/loading.tsx, billing, profile) show the quick variant only while really waiting.
+const MIN_PLAY_MS = 3000;
+
 export function AppLoadingGate({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const { loading: authLoading } = useAuth();
+    const { loading: authLoading } = useAuth();
+    const [done, setDone] = useState(false);
+    const [fadingOut, setFadingOut] = useState(false);
 
-  const [overlayActive, setOverlayActive] = useState(false);
-  const [fadingOut, setFadingOut] = useState(false);
-  const prevPathname = useRef(pathname);
+    useEffect(() => {
+        if (done || fadingOut) return;
+        if (document.documentElement.dataset.loader === 'quick') {
+            setDone(true);
+            return;
+        }
+        if (authLoading) return;
+        const timer = setTimeout(() => setFadingOut(true), Math.max(0, MIN_PLAY_MS - performance.now()));
+        return () => clearTimeout(timer);
+    }, [authLoading, done, fadingOut]);
 
-  useLayoutEffect(() => {
-    if (authLoading) {
-      setOverlayActive(true);
-      setFadingOut(false);
-    }
-  }, [authLoading]);
-
-  useLayoutEffect(() => {
-    if (prevPathname.current === pathname) return;
-    prevPathname.current = pathname;
-    setOverlayActive(true);
-    setFadingOut(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (authLoading || !overlayActive || fadingOut) return;
-    // Double rAF so destination page can paint its LoadingScreen underneath before fade.
-    let innerId = 0;
-    const outerId = requestAnimationFrame(() => {
-      innerId = requestAnimationFrame(() => setFadingOut(true));
-    });
-    return () => {
-      cancelAnimationFrame(outerId);
-      cancelAnimationFrame(innerId);
-    };
-  }, [authLoading, overlayActive, fadingOut, pathname]);
-
-  const showOverlay = authLoading || overlayActive;
-
-  return (
-    <>
-      {children}
-      {showOverlay ? (
-        <LoadingScreen
-          loadKey={pathname}
-          fadingOut={fadingOut && !authLoading}
-          onFadeComplete={() => {
-            setOverlayActive(false);
-            setFadingOut(false);
-          }}
-        />
-      ) : null}
-    </>
-  );
+    return (
+        <>
+            {children}
+            {done ? null : (
+                <LoadingScreen variant="full" fadingOut={fadingOut} onFadeComplete={() => setDone(true)} />
+            )}
+        </>
+    );
 }

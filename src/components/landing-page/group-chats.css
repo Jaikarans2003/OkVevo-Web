@@ -1,0 +1,49 @@
+/* GroupChats: the Nia app, dark, one group chat per pillar department.
+   Same tokens as the NiaBots stage: sidebar #252525, canvas #1f1f20, sand text, orange accent, Ubuntu. */
+.gc-fit{min-width:0}
+.gc{
+  --gc-fg:rgba(227,220,214,.94); --gc-muted:rgba(227,220,214,.56); --gc-quiet:rgba(227,220,214,.36); --gc-line:#41403f;
+  display:flex; flex-direction:column; height:560px; max-width:1080px; margin:0 auto; overflow:hidden;
+  border-radius:16px; background:#1f1f20; color:var(--gc-fg); font:13px/1.5 var(--font-ubuntu),"Ubuntu",system-ui,sans-serif;
+  box-shadow:0 0 0 1.5px #2a2a2a, 8px 8px 0 #2a2a2a;
+}
+.gc-bar{display:flex; align-items:center; gap:7px; height:40px; padding:0 14px; background:#232323; border-bottom:1px solid var(--gc-line); flex:none}
+.gc-bar i{width:11px; height:11px; border-radius:50%; background:#ff5f57}
+.gc-bar i:nth-child(2){background:#febc2e}
+.gc-bar i:nth-child(3){background:#28c840}
+.gc-bar span{margin-left:12px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--gc-muted)}
+.gc-body{display:grid; grid-template-columns:262px minmax(0,1fr); flex:1; min-height:0}
+
+.gc-side{display:flex; flex-direction:column; gap:2px; padding:12px 8px; background:#252525; border-right:1px solid var(--gc-line); overflow-y:auto}
+.gc-group{display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:10px; padding:10px; border:0; border-radius:10px; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; transition:background-color .2s}
+.gc-group:hover{background:rgba(227,220,214,.05)}
+.gc-group[aria-pressed=true]{background:color-mix(in srgb,#ff6d1f 12%,rgba(227,220,214,.05)); box-shadow:inset 2px 0 0 #ff6d1f}
+.gc-group:focus-visible{outline:2px solid #ff6d1f; outline-offset:-2px}
+.gc-group__text{display:grid; min-width:0}
+.gc-group__text b{font-weight:500; color:var(--gc-fg)}
+.gc-group__text span{font-size:12px; color:var(--gc-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.gc-pile{display:flex}
+.gc-pile .gc-face+.gc-face{margin-left:-8px}
+.gc-face{display:block; border-radius:50%; background:#2b2b2b; box-shadow:0 0 0 2px #252525; flex:none}
+
+.gc-chat{display:flex; flex-direction:column; min-height:0}
+.gc-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 22px; border-bottom:1px solid var(--gc-line); flex:none}
+.gc-head div{display:grid}
+.gc-head b{font-weight:500; font-size:14px}
+.gc-head span{font-size:12px; color:var(--gc-muted)}
+.gc-feed{flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:18px 22px; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; scrollbar-color:#41403f transparent}
+.gc-about{margin:0 auto 4px; max-width:56ch; padding:8px 14px; border-radius:10px; background:rgba(227,220,214,.04); font-size:12px; color:var(--gc-muted); text-align:center}
+.gc-msg{margin:0; animation:gc-in .35s cubic-bezier(.25,.8,.25,1) both}
+@keyframes gc-in{from{opacity:0; transform:translateY(6px)}}
+.gc-msg--you{align-self:flex-end; max-width:72%; padding:10px 15px; border-radius:18px; background:#2f2f2f}
+.gc-msg--bot{display:grid; grid-template-columns:28px minmax(0,1fr); gap:10px; align-items:start; max-width:82%}
+.gc-msg--bot b{display:block; font-weight:500; font-size:12px; color:var(--gc-muted); margin-bottom:2px}
+.gc-msg--bot p{margin:0; padding:9px 14px; border-radius:4px 16px 16px 16px; background:rgba(227,220,214,.06); color:var(--gc-fg)}
+.gc-typing p{display:flex; gap:4px; width:max-content}
+.gc-typing p i{width:6px; height:6px; border-radius:50%; background:var(--gc-muted); animation:gc-dot 1s ease-in-out infinite}
+.gc-typing p i:nth-child(2){animation-delay:.15s}
+.gc-typing p i:nth-child(3){animation-delay:.3s}
+@keyframes gc-dot{0%,100%{opacity:.3; transform:none}50%{opacity:1; transform:translateY(-3px)}}
+.gc-composer{margin:0 22px 16px; padding:11px 16px; border-radius:18px; box-shadow:inset 0 0 0 1px var(--gc-line); color:var(--gc-quiet); flex:none}
+
+@media (prefers-reduced-motion:reduce){.gc-msg,.gc-typing p i{animation:none}}

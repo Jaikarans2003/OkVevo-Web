@@ -129,7 +129,7 @@ export default function AboutPage() {
 
     const handleJoinClick = () => {
         if (user) {
-            router.push('/workspace');
+            router.push('/billing');
         } else {
             router.push('/login');
         }

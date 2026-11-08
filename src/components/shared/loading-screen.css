@@ -1,0 +1,64 @@
+/* The loader, on the site's paper. Full (the tab's first page): what OkVevo is, drawn in ink: the core, a line out
+   to each of the five pillars, a ring joining them, work flowing back into the core; then the sheet lifts off.
+   Quick (everything after): plain paper at once; the logo and a pen line only fade in if the wait passes ~0.35s. */
+.ok-loader{
+  --l-ink:#2a2a2a; --l-orange:#ff6f20; --l-teal:#2c5a55; --l-rust:#a8422f; --l-ochre:#c9962e; --l-olive:#5c6d4a; --l-slate:#4a5a63; --l-card:#fbf7f1;
+  position:fixed;inset:0;z-index:300;display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle,rgba(42,42,42,.07) 1px,transparent 1.5px) 0 0/14px 14px,#f4f2ee
+}
+.ok-loader__label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ok-loader__inner{display:grid;justify-items:center;gap:6px}
+.ok-loader__mark{display:grid;justify-items:center}
+.ok-loader__logo{width:96px;height:96px}
+.ok-loader__rule{width:120px;height:12px;margin-top:-18px;overflow:visible}
+.ok-loader__rule path{fill:none;stroke:var(--l-orange);stroke-width:3;stroke-linecap:round}
+
+/* full: the system diagram and its line */
+:root[data-loader=quick] .ok-loader--full{display:none}
+.ok-loader__system{width:min(92vw,560px);height:auto;overflow:visible}
+.ok-loader__system .s{fill:none;stroke:var(--l-ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.ok-loader__system .orbit{stroke:rgba(42,42,42,.28);stroke-width:1.5}
+.ok-loader__system .spoke{stroke-width:2.2}
+.ok-loader__system .ring{stroke-width:4}
+.ok-loader__system .ic{stroke-width:2.6}
+.ok-loader__system .nd{fill:var(--l-card)}
+.ok-loader__system .core{fill:var(--l-ink)}
+.ok-loader__system .core-glow{fill:none;stroke:var(--l-orange);stroke-width:3;opacity:0}
+.ok-loader__system .flow{fill:var(--l-orange);opacity:0}
+.ok-loader__system .lbl{font:600 15px/1 var(--font-ubuntu),Ubuntu,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;fill:var(--l-ink)}
+.ok-loader__tag{margin:0;font:italic 400 clamp(1.4rem,3.4vw,2rem)/1.1 var(--font-display),Georgia,serif;letter-spacing:-0.02em;color:var(--l-ink);text-align:center}
+
+/* exit: the drawing drifts up and fades first, then the sheet lifts off with a soft rounded edge */
+.ok-loader--full{transition:transform .9s cubic-bezier(.65,0,.2,1) .18s,border-radius .9s cubic-bezier(.65,0,.2,1) .18s;box-shadow:0 10px 0 var(--l-orange);will-change:transform}
+.ok-loader--full.ok-loader--out{transform:translateY(calc(-100% - 12px));border-radius:0 0 64px 64px}
+.ok-loader--full .ok-loader__inner{transition:opacity .4s ease-out,transform .55s cubic-bezier(.4,0,.2,1)}
+.ok-loader--full.ok-loader--out .ok-loader__inner{opacity:0;transform:translateY(-28px) scale(.97)}
+
+/* quick: plain paper; the mark only shows if the wait drags on */
+.ok-loader--quick .ok-loader__mark{opacity:0;animation:ok-l-show .3s .35s ease-out forwards}
+.ok-loader--quick{transition:opacity .3s ease-out;animation:ok-l-in .25s ease-out backwards}
+.ok-loader--quick.ok-loader--out{opacity:0}
+
+@keyframes ok-l-draw{to{stroke-dashoffset:0}}
+@keyframes ok-l-show{to{opacity:1}}
+@keyframes ok-l-in{from{opacity:0}}
+@keyframes ok-l-pop{0%{opacity:0;transform:scale(.3)}70%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+@keyframes ok-l-flow{0%{opacity:0;translate:0 0}15%,80%{opacity:1}100%{opacity:0;translate:var(--dx) var(--dy)}}
+@keyframes ok-l-glow{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.7)}}
+@keyframes ok-l-rule{0%{stroke-dashoffset:1}45%,70%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+
+@media (prefers-reduced-motion:no-preference){
+  .ok-loader__system .s{stroke-dasharray:1;stroke-dashoffset:1;animation:ok-l-draw .55s cubic-bezier(.5,0,.25,1) var(--d) forwards}
+  .ok-loader__system .orbit{animation-duration:.8s}
+  .ok-loader__system :is(.nd,.core){opacity:0;transform-box:fill-box;transform-origin:center;animation:ok-l-pop .45s cubic-bezier(.3,1.4,.5,1) var(--d) forwards}
+  .ok-loader__system :is(.lbl,.core-logo){opacity:0;animation:ok-l-show .4s ease-out var(--d) forwards}
+  .ok-loader__system .flow{animation:ok-l-flow 1.4s cubic-bezier(.45,0,.55,1) var(--d) infinite}
+  .ok-loader__system .core-glow{transform-box:fill-box;transform-origin:center;animation:ok-l-glow 1.6s ease-out var(--d) infinite}
+  .ok-loader--full .ok-loader__tag{opacity:0;animation:ok-l-show .5s ease-out 1.7s forwards}
+  .ok-loader__rule path{stroke-dasharray:1;stroke-dashoffset:1;animation:ok-l-rule 1.8s ease-in-out infinite}
+}
+@media (prefers-reduced-motion:reduce){
+  .ok-loader--full{transition:opacity .35s ease-out;box-shadow:none}
+  .ok-loader--full .ok-loader__inner{transition:none}
+  .ok-loader--full.ok-loader--out{transform:none;opacity:0}
+}

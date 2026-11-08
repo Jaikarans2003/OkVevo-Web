@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { X } from 'lucide-react';
 import {
     formatPlanPrice,
@@ -16,6 +17,8 @@ import {
     toBillingPeriod,
     type PlanChangeTier,
 } from '@/lib/billing/planChange';
+
+const TIER_INK: Record<PlanChangeTier, string> = { starter: 'var(--ochre)', pro: 'var(--orange)', max: 'var(--teal)' };
 
 type ChangePlanModalProps = {
     currentPlan: string | null;
@@ -45,35 +48,34 @@ export default function ChangePlanModal({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="pt-modal-back"
             onClick={() => !busy && onClose()}
         >
             <div
                 role="dialog"
+                aria-modal="true"
                 aria-labelledby="change-plan-title"
-                className="bg-[#111] border border-white/10 rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
+                className="pt-modal pt-modal--wide"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
                     type="button"
                     onClick={() => !busy && onClose()}
                     disabled={busy}
-                    className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                    className="pt-x"
                     aria-label="Close"
                 >
-                    <X className="w-5 h-5 text-white/50" />
+                    <X size={18} aria-hidden />
                 </button>
 
-                <h2 id="change-plan-title" className="text-3xl font-black text-white mb-2">
-                    Change Plan
-                </h2>
-                <p className="text-white/60 mb-6 text-sm">
+                <h2 id="change-plan-title">Change plan</h2>
+                <p>
                     {isUpi
                         ? 'UPI upgrades charge the full new-plan price via a new UPI payment. Existing credits stay until the new billing date. Downgrades apply at cycle end.'
                         : 'Upgrades charge the prorated difference now. Downgrades apply at cycle end. Your billing date never resets.'}
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div className="pt-tiers">
                     {SELF_SERVE_TIERS.map((tier) => (
                         <TierPick
                             key={tier}
@@ -89,8 +91,8 @@ export default function ChangePlanModal({
                     ))}
                 </div>
 
-                {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-                {busy && <p className="text-white/50 text-sm mt-3">Updating plan…</p>}
+                {error && <p className="pt-err" role="alert" style={{ marginTop: 16 }}>{error}</p>}
+                {busy && <p className="pt-fine" role="status" style={{ marginTop: 12 }}>Updating plan…</p>}
             </div>
         </div>
     );
@@ -123,14 +125,14 @@ function TierPick({
     const upgradeAnnual = scheduleChangeAt(currentPlan, currentPeriod, tier, 'annual');
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+        <div className="pt-tier" style={{ '--spot': TIER_INK[tier] } as CSSProperties}>
             <div>
-                <p className="text-lg font-black text-white">{monthly.name}</p>
-                <p className="text-sm text-[#FF4D00] font-bold">
+                <h3>{monthly.name}</h3>
+                <p className="pt-price">
                     {formatPlanPrice(monthly.displayedMonthly, currency)}
-                    <span className="text-white/40 font-medium"> / mo</span>
+                    <small> / mo</small>
                 </p>
-                <p className="text-xs text-white/40 mt-1">
+                <p className="pt-fine">
                     Yearly {formatPlanPrice(annual.displayedMonthly, currency)}/mo
                 </p>
             </div>
@@ -176,14 +178,14 @@ function PeriodButton({
             disabled={disabled}
             title={hint ?? undefined}
             onClick={onClick}
-            className="w-full px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="pt-pick"
         >
             {disabled && label === 'Current' ? (
                 label
             ) : (
                 <>
                     {label}
-                    {hint ? <span className="block mt-1 normal-case tracking-normal font-medium text-white/50 text-[10px] leading-snug">{hint}</span> : null}
+                    {hint ? <span>{hint}</span> : null}
                 </>
             )}
         </button>
