@@ -42,7 +42,6 @@ const SECTIONS = [
 const ROUTES = [
     { name: 'Pricing', href: '/pricing' },
     { name: 'Nia', href: '/nia' },
-    { name: 'Sign in', href: '/login' },
 ];
 
 const LEGAL = [
@@ -286,8 +285,8 @@ export default function LandingPage() {
                         <div>
                             <p>Tell us about your business, your workflows and the work you want to automate. We’ll help you identify where OkVevo can make the biggest difference.</p>
                             <div className="cta-actions">
-                                <a className="btn btn--go" href="mailto:hello@okvevo.com">Talk to founders</a>
-                                <small>Booking calendar coming soon. Until then, write to hello@okvevo.com.</small>
+                                <a className="btn btn--go" href="mailto:info@okvevo.com">Talk to founders</a>
+                                <small>Booking calendar coming soon. Until then, write to info@okvevo.com.</small>
                             </div>
                         </div>
                     </div>
@@ -301,12 +300,17 @@ export default function LandingPage() {
                         <p className="foot-tag"><b>The AI business operating system.</b>OkVevo connects Technology, Finance, Marketing, Sales and Operations into one AI business operating system, configured and run around the way your business works.</p>
                     </div>
                     <div className="foot-row">
-                        <a href="mailto:hello@okvevo.com">hello@okvevo.com</a>
-                        <nav aria-label="Footer">
+                        <nav aria-labelledby="foot-menu">
+                            <h3 id="foot-menu">Menu</h3>
                             {SECTIONS.map((link) => <a key={link.href} href={link.href}>{link.name}</a>)}
-                            {[...ROUTES, ...LEGAL].map((link) => <Link key={link.href} href={link.href}>{link.name}</Link>)}
+                            {ROUTES.map((link) => <Link key={link.href} href={link.href}>{link.name}</Link>)}
+                        </nav>
+                        <nav aria-labelledby="foot-legal">
+                            <h3 id="foot-legal">Legal</h3>
+                            {LEGAL.map((link) => <Link key={link.href} href={link.href}>{link.name}</Link>)}
                         </nav>
                     </div>
+                    <a className="foot-mail" href="mailto:info@okvevo.com">info@okvevo.com</a>
                 </div>
             </footer>
         </div>
