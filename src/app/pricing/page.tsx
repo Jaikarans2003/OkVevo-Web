@@ -17,7 +17,7 @@ export default function PricingPage() {
     }, []);
 
     return (
-        <PublicLayout>
+        <PublicLayout footer={false}>
             <div className="pt-20">
                 <Pricing user={user} />
             </div>

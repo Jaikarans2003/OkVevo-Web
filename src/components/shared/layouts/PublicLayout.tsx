@@ -5,7 +5,7 @@ import Navbar from '@/components/landing-page/Navbar';
 import Footer from '@/components/landing-page/Footer';
 import SmoothScroll from '@/components/landing-page/SmoothScroll';
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({ children, footer = true }: { children: React.ReactNode; footer?: boolean }) {
     return (
         <div className="min-h-screen bg-[#f6f1ec]">
             <SmoothScroll />
@@ -14,7 +14,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <main id="main">
                 {children}
             </main>
-            <Footer />
+            {footer && <Footer />}
         </div>
     );
 }

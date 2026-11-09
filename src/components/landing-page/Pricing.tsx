@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, Zap, Crown, Tag, Loader2 } from 'lucide-react';
+import { Check, Sparkles, Zap, Crown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import RazorpayCheckout from '@/components/shared/payment/RazorpayCheckout';
 import ContactUsModal from '@/components/shared/ContactUsModal';
+import DrawnArt from '@/components/landing-page/DrawnArt';
 import {
     SUBSCRIPTION_PLANS,
     ANNUAL_DISCOUNT_PCT,
@@ -15,16 +16,7 @@ import {
     type SelfServePlanType,
 } from '@/config/razorpay';
 import { readCurrencyCookie, writeCurrencyCookie } from '@/lib/billing/currency';
-
-type CouponValidationResponse = {
-    valid: boolean;
-    discountAmount: number;
-    type: 'affiliate' | 'flat' | null;
-    affiliateId?: string;
-    message: string;
-    finalAmount?: number;
-    couponCode?: string;
-};
+import '@/components/landing-page/okvevo-landing.css';
 
 interface PricingProps {
     user?: any;
@@ -41,21 +33,11 @@ const PLAN_ICONS: Record<SelfServePlanType, typeof Sparkles> = {
     max: Crown,
 };
 
-function couponAmountMinor(planType: SelfServePlanType, isAnnual: boolean, currency: BillingCurrency): number {
-    const details = getPlanDetailsByPeriod(planType, isAnnual ? 'annual' : 'monthly', currency);
-    return Math.round(details.price * 100);
-}
-
 const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProps) => {
     const [isAnnual, setIsAnnual] = useState(true);
     const [currency, setCurrency] = useState<BillingCurrency | null>(null);
     const [contactOpen, setContactOpen] = useState(false);
     const router = useRouter();
-
-    const [couponCode, setCouponCode] = useState('');
-    const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResponse | null>(null);
-    const [couponLoading, setCouponLoading] = useState(false);
-    const [couponError, setCouponError] = useState('');
 
     useEffect(() => {
         const cookie = readCurrencyCookie();
@@ -88,53 +70,6 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
             sessionStorage.setItem('returnToPlan', planName.toLowerCase());
             router.push('/login');
         }
-    };
-
-    const handleApplyCoupon = async (planType: SelfServePlanType) => {
-        if (!couponCode.trim()) {
-            setCouponError('Please enter a coupon code');
-            return;
-        }
-
-        setCouponLoading(true);
-        setCouponError('');
-
-        try {
-            const totalAmount = couponAmountMinor(planType, isAnnual, currency ?? 'USD');
-
-            const response = await fetch('/api/coupons/validate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    couponCode: couponCode.trim(),
-                    phoneNumber: user?.phoneNumber || user?.email || '',
-                    totalAmount,
-                    billingPeriod: isAnnual ? 'annual' : 'monthly',
-                    userId: user?.uid,
-                }),
-            });
-
-            const data: CouponValidationResponse = await response.json();
-
-            if (data.valid) {
-                setAppliedCoupon(data);
-                setCouponError('');
-            } else {
-                setCouponError(data.message);
-                setAppliedCoupon(null);
-            }
-        } catch {
-            setCouponError('Failed to validate coupon. Please try again.');
-            setAppliedCoupon(null);
-        } finally {
-            setCouponLoading(false);
-        }
-    };
-
-    const handleRemoveCoupon = () => {
-        setAppliedCoupon(null);
-        setCouponCode('');
-        setCouponError('');
     };
 
     const SHOW_PAID_PLANS = true;
@@ -192,7 +127,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
             yearlyTotalDisplay: formatPlanPrice(annual.price, currency),
             description:
                 planType === 'starter'
-                    ? 'For individuals getting started with Nia'
+                    ? 'For individuals getting started with OkVevo'
                     : planType === 'pro'
                       ? 'For power users scaling daily AI work'
                       : 'For creators and teams at maximum capacity',
@@ -230,15 +165,16 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
 
     return (
         <>
-            <section id="pricing" data-section-theme="light" data-currency={currency ?? ''} className="relative scroll-mt-24 overflow-hidden bg-[#f6f1ec] py-28 font-sans text-[#2b2b2b] selection:bg-[#ff6d1f] selection:text-[#2b2b2b] md:py-36">
+            <section id="pricing" data-section-theme="light" data-currency={currency ?? ''} className="relative scroll-mt-24 overflow-hidden bg-[#f6f1ec] pb-28 pt-10 font-sans text-[#2b2b2b] selection:bg-[#ff6d1f] selection:text-[#2b2b2b] md:pb-36 md:pt-16">
                 <div className="relative z-10 mx-auto max-w-[1120px] px-6">
-                    <div className="mb-16 text-center">
+                    <div className="mb-8 grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
+                    <div className="text-center md:text-left">
                         <motion.h2
                             initial={{ opacity: 0, y: 24 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                            className="nia-display mx-auto max-w-[12ch] text-5xl leading-[1.02] tracking-tight text-[#2b2b2b] md:text-7xl"
+                            className="nia-display mx-auto max-w-[12ch] text-5xl leading-[1.02] tracking-tight text-[#2b2b2b] md:mx-0 md:text-7xl"
                         >
                             Pricing
                         </motion.h2>
@@ -247,9 +183,9 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-                            className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[#2b2b2b]/70"
+                            className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[#2b2b2b]/70 md:mx-0"
                         >
-                            Choose a plan for Nia.
+                            Choose a self-serve plan.
                         </motion.p>
 
                         <motion.div
@@ -257,7 +193,7 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                            className="mt-8 flex flex-wrap items-center justify-center gap-3"
+                            className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start"
                         >
                             <div
                                 role="group"
@@ -303,6 +239,11 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                 ))}
                             </div>
                         </motion.div>
+                    </div>
+                    <div className="ok-landing hidden md:block" style={{ background: '#f6f1ec' }}>
+                        <DrawnArt name="pricing" layers={6} width={1100} height={917} float={[1, 2, 3]}
+                            alt="Three plan cards fanned out, an orange one raised in the middle with a star badge" />
+                    </div>
                     </div>
 
                     {SHOW_PAID_PLANS && (
@@ -362,66 +303,12 @@ const Pricing = ({ user, onSuccessMax, onSuccessPro, showOnlyPlan }: PricingProp
                                                 )}
                                             </div>
 
-                                            {user && (
-                                                <div className="w-full mb-3 relative z-10">
-                                                    {!appliedCoupon ? (
-                                                        <div className="space-y-2">
-                                                            <div className="flex gap-2">
-                                                                <div className="relative flex-1">
-                                                                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                                    <input
-                                                                        type="text"
-                                                                        value={couponCode}
-                                                                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                                                        placeholder="Coupon / Affiliate Code"
-                                                                        className="w-full rounded-lg border border-[#2b2b2b]/15 bg-[#f6f1ec] py-2.5 pl-10 pr-4 text-sm text-[#2b2b2b] placeholder:text-[#2b2b2b]/40 transition-colors focus:border-[#ff6d1f] focus:outline-none"
-                                                                        disabled={couponLoading}
-                                                                    />
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => handleApplyCoupon(planType)}
-                                                                    disabled={couponLoading || !couponCode.trim()}
-                                                                    className="px-4 py-2.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg text-orange-400 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                                                >
-                                                                    {couponLoading ? (
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    ) : (
-                                                                        'Apply'
-                                                                    )}
-                                                                </button>
-                                                            </div>
-                                                            {couponError && <p className="rounded-lg bg-[#a8422f] px-3 py-2 text-xs text-white">{couponError}</p>}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="rounded-lg bg-[#2c5a55] p-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <p className="text-sm text-white">{appliedCoupon.message}</p>
-                                                                    {appliedCoupon.discountAmount > 0 && (
-                                                                        <p className="mt-0.5 text-xs text-white/80">
-                                                                            Discount: {formatPlanPrice(appliedCoupon.discountAmount / 100, currency ?? 'USD')}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                                <button
-                                                                    onClick={handleRemoveCoupon}
-                                                                    className="text-xs text-white underline-offset-4 hover:underline"
-                                                                >
-                                                                    Remove
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
                                             <div className="w-full mb-4 relative z-10">
                                                 {user && currency ? (
                                                     <RazorpayCheckout
                                                         planType={planType}
                                                         billingPeriod={isAnnual ? 'annual' : 'monthly'}
                                                         currency={currency}
-                                                        couponData={appliedCoupon}
                                                         highlighted={plan.highlighted}
                                                         onSuccess={(subscriptionId) => {
                                                             console.log('Subscription successful:', subscriptionId);
