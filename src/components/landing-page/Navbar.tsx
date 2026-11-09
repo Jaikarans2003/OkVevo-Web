@@ -15,7 +15,7 @@ const PRODUCT: { name: string; blurb: string; href: string; Icon: LucideIcon }[]
 
 const LINKS = [
     { name: 'Pricing', href: '/pricing' },
-    { name: 'Nia', href: '/nia' },
+    { name: 'OkVevo', href: '/nia' },
 ];
 
 const CTA = { name: 'Talk to founders', href: '/#contact' };
