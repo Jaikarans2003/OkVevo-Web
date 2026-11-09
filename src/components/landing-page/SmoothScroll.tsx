@@ -29,6 +29,7 @@ export default function SmoothScroll() {
             duration: 1.05,
             lerp: 0.1,
             smoothWheel: true,
+            anchors: { offset: -88 },
         });
         landingScroll = lenis
 

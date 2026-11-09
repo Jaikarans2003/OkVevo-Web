@@ -55,8 +55,12 @@ import {
   falNotAcceptedAlert,
   falOutcome,
   falRejectedMessage,
+  falVendorCode,
   FAL_NOT_ACCEPTED_MESSAGE,
   PLAN_INACTIVE_MESSAGE,
+  VENDOR_UNAVAILABLE_MESSAGE,
+  vendorErrorBody,
+  type VendorErrorCode,
 } from '@/lib/fal/jobMachine';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
@@ -85,7 +89,7 @@ import {
   type MediaContext,
   type PriceSnapshot,
 } from '@/lib/fal/rateCard';
-import { sendOpsAlert, utcDay } from '@/lib/ops/alert';
+import { sendOpsAlert, utcDay, utcHour } from '@/lib/ops/alert';
 import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
 import {
   SPEECH_ENDPOINT,
@@ -379,7 +383,13 @@ async function finishSlot(uid: string, holdId: string) {
 
 type SubmitOutcome =
   | { ok: true; requestId: string; queued?: boolean }
-  | { ok: false; status: number; message: string };
+  | {
+      ok: false;
+      status: number;
+      message: string;
+      vendorCode?: VendorErrorCode;
+      vendorStatus?: number;
+    };
 
 async function alertFal(condition: string, id: string, text: string) {
   try {
@@ -481,7 +491,18 @@ async function submitReservedHold(
     console.error('fal submit failed', err);
     const failure = classifyFalSubmitError(err);
     if (failure.kind === 'retry' || failure.kind === 'reject') {
-      await alertFal(failure.status === 429 ? 'fal-429' : 'fal-not-accepted', holdId, falNotAcceptedAlert(endpoint, failure.status));
+      const vendorCode = falVendorCode(failure.status, failure.body);
+      if (vendorCode === 'vendor_unavailable') {
+        const nowMs = Date.now();
+        await alertFal(
+          'vendor_unavailable',
+          utcHour(nowMs),
+          `Fal account locked or out of balance (HTTP ${failure.status}) on ${endpoint}. ` +
+            'User credits were returned. Top up at fal.ai/dashboard/billing.'
+        );
+      } else {
+        await alertFal(failure.status === 429 ? 'fal-429' : 'fal-not-accepted', holdId, falNotAcceptedAlert(endpoint, failure.status));
+      }
       const outcome = await applyDefiniteRejection({
         uid,
         runId,
@@ -489,17 +510,33 @@ async function submitReservedHold(
         nowMs: Date.now(),
         retryAfterMs: failure.retryAfterMs,
         rand: Math.random(),
-        rejectMessage: failure.kind === 'reject' ? falRejectedMessage(failure.status) : undefined,
+        rejectMessage:
+          failure.kind !== 'reject'
+            ? undefined
+            : vendorCode === 'vendor_unavailable'
+              ? VENDOR_UNAVAILABLE_MESSAGE
+              : falRejectedMessage(failure.status),
+        vendorCode,
+        vendorStatus: failure.status,
       });
       if (outcome.action === 'requeue') {
         return { ok: true, requestId: holdId, queued: true };
       }
       if (outcome.promoted && follow) await submitPromoted(uid, outcome.promoted);
       if (follow) await dispatchQueued(uid);
+      if (outcome.action !== 'giveUp') {
+        return {
+          ok: false,
+          status: outcome.action === 'released' ? 499 : 502,
+          message: outcome.message || FAL_NOT_ACCEPTED_MESSAGE,
+        };
+      }
       return {
         ok: false,
-        status: outcome.action === 'released' ? 499 : 502,
+        status: 502,
         message: outcome.message || FAL_NOT_ACCEPTED_MESSAGE,
+        vendorCode,
+        vendorStatus: failure.status,
       };
     }
     const ambiguous = await applyAmbiguous(uid, runId, holdId);
@@ -847,6 +884,12 @@ async function handleSubmit(
     if (!outcome.ok && outcome.message === 'Fal submit failed') {
       return jsonError(502, 'Fal submit failed');
     }
+    if (!outcome.ok && outcome.vendorCode) {
+      return NextResponse.json(
+        vendorErrorBody(outcome.vendorCode, outcome.vendorStatus ?? 0, outcome.message),
+        { status: outcome.status }
+      );
+    }
     if (!outcome.ok) return jsonError(outcome.status, outcome.message);
     if (outcome.queued) {
       const slot = await slotView(uid, holdId);
@@ -889,7 +932,13 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
   if (job.status === 'released') {
     if (job.releaseReason === 'plan_inactive') return jsonError(403, PLAN_INACTIVE_MESSAGE);
     if (job.releaseReason === 'fal_not_accepted') {
-      return jsonError(502, job.clientMessage || FAL_NOT_ACCEPTED_MESSAGE);
+      const message = job.clientMessage || FAL_NOT_ACCEPTED_MESSAGE;
+      if (job.clientCode === 'vendor_rejected' || job.clientCode === 'vendor_unavailable') {
+        return NextResponse.json(vendorErrorBody(job.clientCode, job.vendorStatus ?? 0, message), {
+          status: 502,
+        });
+      }
+      return jsonError(502, message);
     }
     // See statusContract.ts: cancelled is HTTP 499, never a status JSON.
     return jsonError(RELEASED_STATUS.http, RELEASED_STATUS.message);

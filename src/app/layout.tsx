@@ -97,6 +97,24 @@ export default function RootLayout({
             `,
                     }}
                 />
+                {/* Before first paint: is this the tab's first page? It gets the full loader animation; later pages and
+                    reloads get the quick one. A first arrival on "/" is flagged for the signed-in redirect. */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+              (function() {
+                var d = document.documentElement;
+                try {
+                  var first = !sessionStorage.getItem('ok-entered');
+                  sessionStorage.setItem('ok-entered', '1');
+                  var nav = performance.getEntriesByType('navigation')[0];
+                  d.dataset.loader = first ? 'full' : 'quick';
+                  if (first && (!nav || nav.type === 'navigate') && location.pathname === '/') d.dataset.arrival = '1';
+                } catch (e) { d.dataset.loader = 'full'; }
+              })();
+            `,
+                    }}
+                />
             </head>
             <body className={`${ubuntu.className} ${ubuntu.variable} ${allura.variable} ${display.variable} font-sans antialiased bg-bg-main min-h-dvh`} suppressHydrationWarning>
                 <ThemeProvider>

@@ -130,8 +130,6 @@ assert.match(pricing, /aria-label="Checkout currency"/);
 assert.match(pricing, /currency=\{currency\}/);
 assert.match(pricing, /selectCurrency/);
 
-const landing = src('components/landing-page/LandingPage.tsx');
-assert.match(landing, /<Pricing user=\{user\} \/>/);
 assert.match(src('app/pricing/page.tsx'), /from '@\/components\/landing-page\/Pricing'/);
 
 const checkout = src('components/shared/payment/RazorpayCheckout.tsx');

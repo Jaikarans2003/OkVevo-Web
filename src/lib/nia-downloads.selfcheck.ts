@@ -14,8 +14,8 @@ assert.equal(prod.mac.endsWith(NIA_MAC_ARTIFACT), true)
 assert.equal(prod.win.endsWith(NIA_WIN_ARTIFACT), true)
 
 const staging = niaDownloadUrls(STAGING_NIA_RELEASES_BASE)
-assert.equal(staging.mac, 'https://releases.okvevo.com/staging/Nia-mac-arm64.dmg')
-assert.equal(staging.win, 'https://releases.okvevo.com/staging/Nia-win-x64.exe')
+assert.equal(staging.mac, 'https://releases.okvevo.com/okvevo/staging/OkVevo-mac-arm64.dmg')
+assert.equal(staging.win, 'https://releases.okvevo.com/okvevo/staging/OkVevo-win-x64.exe')
 
 assert.equal(
   niaDownloadUrls('https://releases.okvevo.com/').mac,

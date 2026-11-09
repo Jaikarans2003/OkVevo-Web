@@ -3,6 +3,8 @@
  * Run: npx tsx src/lib/fal/jobMachine.selfcheck.ts
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import {
   canTransition,
@@ -12,10 +14,13 @@ import {
   falNotAcceptedAlert,
   falOutcome,
   falRejectedMessage,
+  falVendorCode,
   MAX_SUBMIT_ATTEMPTS,
   MAX_SUBMIT_WINDOW_MS,
   nextSubmitDelayMs,
   retryAfterMs,
+  VENDOR_UNAVAILABLE_MESSAGE,
+  vendorErrorBody,
 } from '@/lib/fal/jobMachine';
 
 assert.equal(canTransition('queued', 'dispatching'), true);
@@ -113,5 +118,36 @@ const alert = falNotAcceptedAlert('minimax/music-3', 429);
 assert.match(alert, /did not accept/);
 assert.doesNotMatch(alert, /queues the overflow/);
 assert.doesNotMatch(alert, /not resubmitted/);
+
+// Fal's locked-account 403 is vendor_unavailable; any other reject stays vendor_rejected.
+const locked =
+  '{"detail":"User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing."}';
+assert.equal(falVendorCode(403, locked), 'vendor_unavailable');
+assert.equal(falVendorCode(403, 'User is locked. Reason: Exhausted balance.'), 'vendor_unavailable');
+assert.equal(falVendorCode(403, '{"detail":"Forbidden for this model"}'), 'vendor_rejected');
+assert.equal(falVendorCode(403, ''), 'vendor_rejected');
+assert.equal(falVendorCode(422, locked), 'vendor_rejected');
+assert.equal(falVendorCode(429, ''), 'vendor_rejected');
+
+const body = vendorErrorBody('vendor_unavailable', 403, VENDOR_UNAVAILABLE_MESSAGE);
+assert.deepEqual(body, {
+  error: {
+    code: 'vendor_unavailable',
+    vendor: 'fal',
+    vendor_status: 403,
+    credits_returned: true,
+    message: VENDOR_UNAVAILABLE_MESSAGE,
+  },
+});
+assert.doesNotMatch(VENDOR_UNAVAILABLE_MESSAGE, /HTTP\s*\d{3}/, 'old desktop builds read HTTP digits as sign-in');
+
+// A user's own 402 (InsufficientCreditsError) must not alert the team.
+const handleQueueSrc = readFileSync(path.join(import.meta.dirname, 'handleQueue.ts'), 'utf8');
+const creditsCatch = handleQueueSrc.match(
+  /if \(err instanceof InsufficientCreditsError\) \{[\s\S]*?\n {4}\}/
+);
+assert.ok(creditsCatch, 'handleSubmit still maps InsufficientCreditsError');
+assert.match(creditsCatch[0], /jsonError\(402/);
+assert.doesNotMatch(creditsCatch[0], /sendOpsAlert|alertFal/);
 
 console.log('jobMachine.selfcheck: ok');

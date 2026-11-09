@@ -1,0 +1,232 @@
+/* Editorial riso print: cream stock, charcoal ink line, flat spot inks (the brand orange plus six section inks),
+   the same inks the drawn art in public/art is printed with (art/okart.py). Cards are printed panels:
+   paper, an ink border, and a spot-ink plate printed slightly off-register behind them.
+   Type: Ubuntu for reading, Instrument Serif italic (--font-display) for headings and accents. */
+.ok-landing{
+  --paper:#f4f2ee; --card:#fbf7f1;
+  --orange:#ff6f20; --orange-deep:#c2470b; --orange-soft:#ffe9dc;
+  --teal:#2c5a55; --rust:#a8422f; --ochre:#c9962e; --olive:#5c6d4a; --umber:#6b4a35; --slate:#4a5a63;
+  --ink:#2a2a2a; --ink-2:#4a4642; --muted:#7d776f; --rule:rgba(42,42,42,.16); --line:1.5px solid var(--ink);
+  --f-body:var(--font-ubuntu),"Ubuntu",ui-sans-serif,system-ui,sans-serif; --f-head:var(--font-display),Georgia,serif;
+  --r:16px; --max:1200px; --gut:40px;
+  /* textures: paper grain everywhere, a riso halftone screen on the coloured panels */
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .14 0 0 0 0 .12 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+  --dots:radial-gradient(circle,rgba(20,16,12,.16) 1.1px,transparent 1.6px) 0 0/10px 10px;
+  background:var(--grain),var(--paper);color:var(--ink);font:400 17px/1.6 var(--f-body);-webkit-font-smoothing:antialiased;overflow-x:clip
+}
+/* dark sections flip the ink tokens; printed panels inside them stay dark-on-paper */
+.ok-landing .on-dark{--ink:#f4f2ee;--ink-2:rgba(244,242,238,.84);--muted:rgba(244,242,238,.64);--rule:rgba(244,242,238,.2);--orange-deep:#ffc49a;--line:1.5px solid #f4f2ee;color:var(--ink)}
+.ok-landing .on-dark :is(.pcard,.prin,.net-steps .num,.p5-icon,.road-stops .role,.btn){--ink:#2a2a2a;--ink-2:#4a4642;--muted:#7d776f;--rule:rgba(42,42,42,.16);--orange-deep:#c2470b;--line:1.5px solid #2a2a2a;color:var(--ink)}
+
+/* section shapes: plain paper, a rounded band or a rounded sheet */
+.ok-landing .band{margin:24px 16px;border-radius:44px;border:1.5px solid #2a2a2a}
+.ok-landing .band--sand{background:var(--grain),var(--dots),#e3dcd6}
+.ok-landing .sheet{margin:24px 16px;border-radius:44px;border:1.5px solid #2a2a2a}
+.ok-landing .sheet--dark{background:var(--grain),radial-gradient(circle,rgba(255,111,32,.12) 1.1px,transparent 1.6px) 0 0/11px 11px,#2a2a2a;box-shadow:8px 8px 0 var(--orange)}
+.ok-landing .sheet--teal{background:var(--grain),radial-gradient(circle,rgba(0,0,0,.2) 1.1px,transparent 1.6px) 0 0/10px 10px,var(--teal);box-shadow:8px 8px 0 var(--orange)}
+.ok-landing .sheet--sand{background:var(--grain),var(--dots),#e3dcd6;box-shadow:8px 8px 0 #2a2a2a}
+.ok-landing .sheet--olive{background:var(--grain),radial-gradient(circle,rgba(0,0,0,.18) 1.1px,transparent 1.6px) 0 0/10px 10px,var(--olive);box-shadow:8px 8px 0 var(--orange)}
+.ok-landing *,.ok-landing *::before,.ok-landing *::after{box-sizing:border-box}
+.ok-landing ::selection{background:var(--orange);color:var(--ink)}
+.ok-landing :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ok-landing h1,.ok-landing h2,.ok-landing h3,.ok-landing p{margin:0}
+.ok-landing h1,.ok-landing h2,.ok-landing h3{font-family:var(--f-head);font-style:italic;font-weight:400;letter-spacing:-0.03em;line-height:1.02;text-wrap:balance;overflow-wrap:break-word;min-width:0}
+.ok-landing ul,.ok-landing ol{margin:0;padding:0;list-style:none}
+.ok-landing a{color:inherit}
+.ok-landing section[id]{scroll-margin-top:96px}
+.ok-landing .wrap{max-width:var(--max);margin-inline:auto;padding-inline:var(--gut)}
+.ok-landing .hand{font-family:var(--f-head);font-style:italic;font-weight:400;letter-spacing:-0.02em}
+.ok-landing .btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 22px;border-radius:999px;border:var(--line);background:var(--card);color:var(--ink);font:500 15px/1 var(--f-body);text-decoration:none;cursor:pointer;box-shadow:3px 3px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.ok-landing .btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.ok-landing .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.ok-landing .btn--go{background:var(--orange)}
+
+.ok-landing .kicker{display:inline-flex;align-items:center;gap:10px;font:600 12px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.ok-landing .kicker i{width:11px;height:11px;border-radius:50%;border:var(--line)}
+/* drawn art (DrawnArt): stage layers stacked; ink in one by one once in view, some keep bobbing.
+   The art's paper is white (art/okart.py) and the figure multiplies onto the page, so its inks land on the page's paper. */
+.ok-landing .drawn{position:relative;display:block;width:100%;margin:0}
+.ok-landing .drawn img{position:absolute;inset:0;width:100%;height:100%}
+@keyframes ok-ink-in{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@keyframes ok-bob{0%,100%{translate:0 0}50%{translate:0 -7px}}
+@keyframes ok-ink-out{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:no-preference){
+  .ok-landing .drawn[data-state=armed] img+img{opacity:0}
+  .ok-landing .drawn[data-state=out] img+img{animation:ok-ink-out .6s ease-in both}
+  .ok-landing .drawn[data-state=on] img+img{animation:ok-ink-in .7s cubic-bezier(.3,.7,.2,1) both;animation-delay:calc(.15s + var(--i) * .42s)}
+  .ok-landing .drawn[data-state=on] img.bob{animation:ok-ink-in .7s cubic-bezier(.3,.7,.2,1) both,ok-bob 5.5s ease-in-out infinite;animation-delay:calc(.15s + var(--i) * .42s),calc(1s + var(--i) * .42s + var(--b) * .7s)}
+}
+.ok-landing .drawn{mix-blend-mode:multiply}
+.ok-landing .drawn--dark{mix-blend-mode:screen}
+
+.ok-landing .sec{padding-block:112px}
+.ok-landing .sec-head{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px 48px;align-items:end;margin-bottom:56px;padding-top:28px;border-top:var(--line)}
+.ok-landing .sec-head .kicker{grid-column:1/-1}
+.ok-landing .sec-head h2{font-size:clamp(2.1rem,3.6vw,3.4rem)}
+.ok-landing .sec-head p:not(.kicker){font-size:18px;color:var(--ink-2);max-width:42ch}
+.ok-landing .sec-head--center{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}
+.ok-landing .sec-head--center h2{max-width:20ch}
+.ok-landing .sec-head--stack{grid-template-columns:minmax(0,1fr);align-items:start;margin-bottom:0}
+.ok-landing .close{margin-top:56px;font-size:clamp(1.3rem,2vw,1.75rem);font-weight:500;letter-spacing:-0.02em;max-width:34ch}
+.ok-landing .close b{color:var(--orange-deep);font-weight:500}
+.ok-landing .flow-cap{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+
+/* hero: copy left, the drawn orbit right, inking itself in layer by layer */
+.ok-landing .hero{padding:132px 0 88px}
+.ok-landing .hero-grid{max-width:1320px;margin-inline:auto;padding-inline:var(--gut);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:40px;align-items:center}
+.ok-landing .hero-copy{display:grid;justify-items:start;gap:0}
+.ok-landing .hero h1{margin-top:22px;font-size:clamp(2.7rem,4.6vw,4.8rem)}
+.ok-landing .hero h1 span{display:block;color:var(--orange)}
+.ok-landing .hero .sub{margin-top:26px;font-size:18px;color:var(--ink-2);max-width:46ch}
+.ok-landing .hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.ok-landing .hero-logos{max-width:1320px;margin:72px auto 0;padding-inline:var(--gut);display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center}
+.ok-landing .hero-logos p{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ok-landing .hero-logos img{display:block;height:40px;width:auto;max-width:190px;object-fit:contain;opacity:.72}
+
+/* problem: the drawn desk, the five problems pinned around it.
+   Tilt uses `rotate`/`translate`, not `transform`, so the nia-row scroll animation doesn't override it. */
+.ok-landing .prob-scene{position:relative;padding-top:120px}
+.ok-landing .prob-art{width:62%;margin-inline:auto}
+.ok-landing .pcard{position:absolute;width:29%;padding:26px 24px 22px;display:grid;gap:8px;align-content:start;background:color-mix(in srgb,var(--spot) 15%,#fbf7f1);border:0;border-radius:3px 3px 22px 3px;box-shadow:0 18px 30px -16px rgba(42,42,42,.45),0 1px 0 rgba(42,42,42,.06)}
+.ok-landing .pcard::before{content:"";position:absolute;top:-11px;left:50%;width:86px;height:24px;translate:-50% 0;rotate:-4deg;background:color-mix(in srgb,var(--spot) 45%,rgba(251,247,241,.55));box-shadow:0 1px 2px rgba(42,42,42,.18)}
+.ok-landing .pcard::after{content:"";position:absolute;right:0;bottom:0;width:22px;height:22px;border-radius:0 0 22px 0;background:linear-gradient(135deg,color-mix(in srgb,var(--spot) 30%,#fbf7f1) 50%,transparent 50%);box-shadow:-2px -2px 3px -2px rgba(42,42,42,.25)}
+.ok-landing .pcard--sales{left:0;top:130px;rotate:-2deg}
+.ok-landing .pcard--finance{left:50%;top:0;translate:-50% 0;rotate:1.5deg}
+.ok-landing .pcard--marketing{right:0;top:170px;rotate:2deg}
+.ok-landing .pcard--technology{left:2%;bottom:24px;rotate:1.5deg}
+.ok-landing .pcard--operations{right:2%;bottom:0;rotate:-1.5deg}
+.ok-landing .pcard .tag{justify-self:start;display:inline-flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--ink)}
+.ok-landing .pcard .tag svg{color:var(--spot)}
+.ok-landing .pcard h3{font-size:22px}
+.ok-landing .pcard p{color:var(--ink-2);font-size:14.5px;line-height:1.55}
+
+/* pillars: the drawn temple; labels sit on it, the five columns' words line up under their columns */
+.ok-landing .temple-art{position:relative}
+.ok-landing .temple-label{color:#2a2a2a;position:absolute;left:50%;top:16.2%;translate:-50% -50%;font:italic 400 clamp(1rem,2.4vw,2.1rem)/1 var(--f-head);letter-spacing:-0.02em;white-space:nowrap}
+.ok-landing .p5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:84.4%;margin:8px auto 0}
+.ok-landing .p5 li{display:grid;gap:10px;justify-items:center;align-content:start;text-align:center;padding:16px 12px 0;border-top:4px solid var(--spot)}
+.ok-landing .p5-icon{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;border:var(--line);background:var(--card);box-shadow:3px 3px 0 var(--spot);font-size:12px;font-weight:600;letter-spacing:.06em}
+.ok-landing .p5 h3{font-size:24px}
+.ok-landing .p5 p{color:var(--ink-2);font-size:15px;max-width:24ch}
+
+/* system: the product itself, then what it does */
+.ok-landing .statement b{color:var(--orange-deep);font-weight:500}
+.ok-landing .principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:56px}
+/* system: what it does on the left, the app doing it on the right */
+.ok-landing .sys-grid{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:36px;align-items:stretch}
+.ok-landing .sys-grid .principles{grid-template-columns:minmax(0,1fr);gap:20px;margin-top:0}
+.ok-landing .sys-grid .prin{padding:22px 24px;gap:8px}
+.ok-landing .sys-grid .gc-fit{display:flex}
+.ok-landing .sys-grid .gc{flex:1;margin:0;max-width:none;height:auto;min-height:560px}
+.ok-landing .sys-grid .gc-body{grid-template-columns:200px minmax(0,1fr)}
+.ok-landing .prin{padding:30px;display:grid;gap:12px;align-content:start;background:var(--card);border:var(--line);border-radius:var(--r);box-shadow:6px 6px 0 var(--spot,var(--orange))}
+.ok-landing .prin .k{width:40px;height:40px;border-radius:50%;border:var(--line);background:var(--card);box-shadow:3px 3px 0 var(--spot);display:grid;place-items:center;font-weight:700;font-size:16px}
+.ok-landing .prin h3{font-size:22px}
+.ok-landing .prin p{color:var(--ink-2)}
+.ok-landing .notask{margin-top:48px;font-size:30px;color:var(--orange-deep);text-align:center}
+
+
+
+/* rules */
+.ok-landing .rules-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:72px;align-items:start}
+.ok-landing .rules-grid h2{font-size:clamp(2.1rem,3.4vw,3.2rem)}
+.ok-landing .rules-intro{margin-top:4px;color:var(--ink-2);font-size:17px;display:grid;gap:14px;max-width:42ch}
+
+/* rules: a ledger page, ruled lines and a margin rule; outlined numbers fill with the row's ink on hover */
+.ok-landing .ledger{background:var(--grain),linear-gradient(90deg,transparent 0 4%,rgba(255,111,32,.5) 4% calc(4% + 1.5px),transparent 0),repeating-linear-gradient(transparent 0 37px,rgba(42,42,42,.08) 37px 38px),var(--paper)}
+.ok-landing .ledger .sec-head{position:sticky;top:120px}
+.ok-landing .rlist{border-top:var(--line)}
+.ok-landing .rlist li{display:grid;grid-template-columns:88px minmax(0,1fr);column-gap:24px;row-gap:6px;padding:26px 0;border-bottom:var(--line)}
+.ok-landing .rlist .rnum{grid-row:span 2;font:italic 400 64px/.9 var(--f-head);color:transparent;-webkit-text-stroke:1.5px var(--ink);transition:color .25s}
+.ok-landing .rlist li:hover .rnum{color:var(--spot)}
+.ok-landing .rlist h3{font-size:24px}
+.ok-landing .rlist p{color:var(--ink-2)}
+
+.ok-landing .service-intro{display:grid;gap:14px;font-size:18px;color:var(--ink-2);max-width:58ch}
+.ok-landing #how h2{max-width:18ch}
+.ok-landing .road{margin-top:24px}
+.ok-landing .road-stops{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px;margin-top:-6px}
+.ok-landing .road-stops li{display:grid;gap:8px;justify-items:center;align-content:start;text-align:center}
+.ok-landing .road-stops .role{padding:4px 11px;border:var(--line);border-radius:999px;background:var(--card);box-shadow:3px 3px 0 var(--spot);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.ok-landing .road-stops h3{font-size:21px}
+.ok-landing .road-stops p{color:var(--ink-2);font-size:15px}
+
+/* logos: one endless row, paused on hover */
+.ok-landing .marquee{display:flex;width:100%;max-width:1000px;overflow:hidden;-webkit-mask:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+.ok-landing .marquee ul{display:flex;flex:none;align-items:center;gap:80px;padding-right:80px;animation:ok-marquee 28s linear infinite}
+.ok-landing .marquee:hover ul{animation-play-state:paused}
+@keyframes ok-marquee{to{translate:-100% 0}}
+@media (prefers-reduced-motion:reduce){
+  .ok-landing .marquee{justify-content:center;-webkit-mask:none;mask:none}
+  .ok-landing .marquee ul{animation:none;flex-wrap:wrap;justify-content:center;gap:28px 56px;padding:0}
+  .ok-landing .marquee ul+ul,.ok-landing .marquee li:nth-child(n+4){display:none}
+}
+
+/* networks: the copy beside the drawn network, the four steps along a dashed road under both */
+.ok-landing .net-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:40px;align-items:center;margin-bottom:56px}
+.ok-landing .net-copy{display:grid;gap:20px;align-content:start}
+.ok-landing .net-copy h2{font-size:clamp(2.1rem,3.6vw,3.4rem)}
+.ok-landing .net-copy>p:not(.flow-cap){font-size:18px;color:var(--ink-2);max-width:46ch}
+.ok-landing .net-copy .flow-cap{margin:8px 0 0}
+.ok-landing .who-list{border-top:var(--line)}
+.ok-landing .who-list li{display:flex;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid var(--rule);font:italic 400 22px/1.2 var(--f-head)}
+.ok-landing .who-list li::before{content:"";width:14px;height:14px;border-radius:4px;border:var(--line);background:var(--spot);flex:none}
+.ok-landing .net-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));position:relative}
+.ok-landing .net-steps::before{content:"";position:absolute;left:0;right:0;top:32px;height:1.5px;background:repeating-linear-gradient(90deg,var(--ink) 0 8px,transparent 8px 16px)}
+.ok-landing .net-steps li{padding-right:28px;display:grid;gap:12px;align-content:start;position:relative}
+.ok-landing .net-steps .num{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--card);border:var(--line);box-shadow:4px 4px 0 var(--spot);font:700 20px/1 var(--f-body);margin-bottom:18px}
+.ok-landing .net-steps h3{font-size:22px}
+.ok-landing .net-steps p{color:var(--ink-2);max-width:28ch}
+
+
+/* cta */
+.ok-landing .cta-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px;align-items:center}
+.ok-landing .cta h2{font-size:clamp(2.4rem,4.6vw,4.4rem)}
+.ok-landing .cta p{font-size:18px;color:var(--ink-2);max-width:42ch}
+.ok-landing .cta-actions{display:grid;gap:14px;justify-items:start;margin-top:28px}
+.ok-landing .cta-actions small{color:var(--muted);font-size:14px}
+
+/* footer */
+.ok-landing .foot{margin-top:24px;padding-block:80px 48px;border-radius:44px 44px 0 0;background:var(--grain),radial-gradient(circle,rgba(255,111,32,.16) 1.1px,transparent 1.6px) 0 0/11px 11px,#2a2a2a;box-shadow:inset 0 6px 0 var(--orange)}
+.ok-landing .foot-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px;align-items:start}
+.ok-landing .foot-logo{display:block;width:72px;height:72px;margin:-8px 0 16px -8px}
+.ok-landing .foot-tag{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:42ch}
+.ok-landing .foot-tag b{display:block;margin-bottom:6px;font-size:20px;font-weight:500;letter-spacing:-0.02em;color:var(--ink)}
+.ok-landing .foot-row{display:grid;justify-items:end;gap:20px;font-size:14px;color:var(--muted)}
+.ok-landing .foot-row nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px 20px}
+.ok-landing .foot-row a{text-decoration:none}
+.ok-landing .foot-row a:hover{color:var(--orange-deep)}
+
+@media (max-width:1000px){
+  .ok-landing{--gut:24px}
+  .ok-landing .sec{padding-block:80px}
+  .ok-landing :is(.sec-head,.rules-grid,.foot-grid,.hero-grid,.net-grid){grid-template-columns:minmax(0,1fr)}
+  .ok-landing .ledger .sec-head{position:static}
+  .ok-landing .rules-grid{gap:36px}
+  .ok-landing .rlist li{grid-template-columns:56px minmax(0,1fr);column-gap:16px}
+  .ok-landing .rlist .rnum{font-size:44px}
+  .ok-landing .road-stops{grid-template-columns:minmax(0,1fr);gap:22px;margin-top:20px}
+  .ok-landing .road-stops li{justify-items:start;text-align:left}
+  .ok-landing .foot{border-radius:28px 28px 0 0}
+  .ok-landing .hero-art{max-width:640px;width:100%;margin-inline:auto}
+  .ok-landing .prob-scene{padding-top:0;display:grid;gap:18px}
+  .ok-landing .prob-art{width:100%}
+  .ok-landing .pcard{position:relative;inset:auto;width:auto;rotate:none;translate:none;margin-top:12px}
+  .ok-landing .p5{grid-template-columns:minmax(0,1fr);width:100%;gap:18px;margin-top:20px}
+  .ok-landing .p5 li{justify-items:start;text-align:left;border-top:0;border-left:4px solid var(--spot);padding:2px 0 2px 18px}
+  .ok-landing .p5 p{max-width:none}
+  .ok-landing .principles,.ok-landing .sys-grid{grid-template-columns:minmax(0,1fr)}
+  .ok-landing .net-steps{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:48px}
+  .ok-landing .net-steps::before{display:none}
+  .ok-landing .foot-row{justify-items:start}
+  .ok-landing .foot-row nav{justify-content:flex-start}
+}
+@media (max-width:600px){
+  .ok-landing{--gut:18px;font-size:16px}
+  .ok-landing :is(.band,.sheet){margin:12px 8px;border-radius:28px}
+  .ok-landing .hero{padding-top:112px}
+  .ok-landing .hero-cta .btn{flex:1 1 100%}
+  .ok-landing .cta-grid{grid-template-columns:minmax(0,1fr);gap:24px}
+  .ok-landing .net-steps{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.ok-landing *,.ok-landing *::before,.ok-landing *::after{transition-duration:.01ms!important}}

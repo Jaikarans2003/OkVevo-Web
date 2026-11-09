@@ -131,6 +131,40 @@ export function falRejectedMessage(status: number): string {
   return `Fal rejected this job (HTTP ${status}). Your credits were returned.`;
 }
 
+/** Clients classify on `error.code` + HTTP status only, never `message`. */
+export type VendorErrorCode = 'vendor_rejected' | 'vendor_unavailable';
+
+export const VENDOR_UNAVAILABLE_MESSAGE =
+  'The image service is temporarily unavailable. Your credits were returned.';
+
+/**
+ * Fal sends no error code for a locked account (exhausted balance). Its 403
+ * `detail` text is the only signal, so this is the one place we read it.
+ */
+export function falVendorCode(status: number, body: string): VendorErrorCode {
+  if (status !== 403) return 'vendor_rejected';
+  let detail = body;
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed?.detail === 'string') detail = parsed.detail;
+  } catch {
+    // Non-JSON body: match the raw text.
+  }
+  return /user is locked|exhausted balance/i.test(detail) ? 'vendor_unavailable' : 'vendor_rejected';
+}
+
+export function vendorErrorBody(code: VendorErrorCode, vendorStatus: number, message: string) {
+  return {
+    error: {
+      code,
+      vendor: 'fal',
+      vendor_status: vendorStatus,
+      credits_returned: true,
+      message,
+    },
+  };
+}
+
 /**
  * Fal queue status body. A cancelled or failed request is COMPLETED with an
  * `error` / `error_type` field; anything else not COMPLETED is still pending.

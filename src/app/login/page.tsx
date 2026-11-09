@@ -1,5 +1,6 @@
 import AuthForm from '@/components/shared/AuthForm';
-import NoiseOverlay from '@/components/shared/NoiseOverlay';
+import PortalShell from '@/components/portal/PortalShell';
+import DrawnArt from '@/components/landing-page/DrawnArt';
 
 export default async function LoginPage({
     searchParams,
@@ -9,19 +10,15 @@ export default async function LoginPage({
     const { redirect, state } = await searchParams;
 
     return (
-        <main className="min-h-screen w-full flex items-center justify-center p-4 bg-black relative overflow-hidden">
-            <NoiseOverlay />
-
-            {/* Background Decorative Gradients */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-accent-orange/20 rounded-full blur-[150px] animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent-orange/10 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
-            </div>
-
-            {/* Content */}
-            <div className="relative z-10 w-full flex justify-center">
+        <PortalShell signedIn={false}>
+            <section className="pt-auth">
+                <div className="pt-auth-art sheet sheet--sand">
+                    <DrawnArt name="login" layers={7} width={1100} height={917} float={[6]}
+                        alt="An open door with warm light spilling onto the mat, a key floating beside it" />
+                    <p className="hand">The door&apos;s open. <span>Come on in.</span></p>
+                </div>
                 <AuthForm desktopRedirect={redirect} desktopState={state} />
-            </div>
-        </main>
+            </section>
+        </PortalShell>
     );
 }

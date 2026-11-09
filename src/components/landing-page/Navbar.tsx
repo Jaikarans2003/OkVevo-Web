@@ -1,21 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, Layers, Menu, Sparkles, X, type LucideIcon } from 'lucide-react';
+import { ChevronDown, Columns3, Lightbulb, Menu, Network, Workflow, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 
 const LOGO = '/OKVEVO%20Logos%20WithOut%20BackGrounds/Orange.svg';
 
 const PRODUCT: { name: string; blurb: string; href: string; Icon: LucideIcon }[] = [
-    { name: 'How it works', blurb: 'Ask, let her work, and watch her remember.', href: '/#how', Icon: Sparkles },
-    { name: 'Why Nia', blurb: 'A generalist you can help, a professional you can trust.', href: '/#why', Icon: Layers },
-    { name: 'Download', blurb: 'Nia for Mac and Windows.', href: '/nia', Icon: Download },
+    { name: 'How it works', blurb: 'We don’t just give you software. We put it to work.', href: '/#how', Icon: Workflow },
+    { name: 'Five pillars', blurb: 'Every business runs on five fundamental pillars.', href: '/#pillars', Icon: Columns3 },
+    { name: 'Problem & solution', blurb: 'What if all five pillars worked together?', href: '/#problem', Icon: Lightbulb },
+    { name: 'Network', blurb: 'One operating system. An entire network of businesses.', href: '/#networks', Icon: Network },
 ];
 
 const LINKS = [
-    { name: 'Pricing', href: '/#pricing' },
-    { name: 'FAQ', href: '/#faq' },
+    { name: 'Pricing', href: '/pricing' },
+    { name: 'Nia', href: '/nia' },
 ];
+
+const CTA = { name: 'Talk to founders', href: '/#contact' };
 
 const NAV_ITEM =
     'inline-flex h-10 items-center rounded-full px-3 text-sm text-[#2A2A2A]/80 transition-colors hover:bg-white/70 hover:text-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6F20]';
@@ -71,7 +74,7 @@ export default function Navbar() {
                             <div
                                 id="nav-product"
                                 data-state={product ? 'open' : 'closed'}
-                                className="absolute left-1/2 top-[calc(100%+0.75rem)] w-[21rem] origin-top -translate-x-1/2 rounded-[1.75rem] border border-white/80 bg-[#F4F2EE]/90 p-2 shadow-[0_20px_50px_rgba(42,42,42,0.12)] backdrop-blur-2xl transition-[opacity,transform,visibility] duration-200 ease-out before:absolute before:-top-4 before:left-0 before:h-4 before:w-full before:content-[''] data-[state=closed]:invisible data-[state=closed]:-translate-y-1 data-[state=closed]:scale-95 data-[state=closed]:opacity-0"
+                                className="absolute left-1/2 top-[calc(100%+0.75rem)] w-[22rem] origin-top -translate-x-1/2 rounded-[1.75rem] border border-white/80 bg-[#F4F2EE] p-2 shadow-[0_20px_50px_rgba(42,42,42,0.12)] transition-[opacity,transform,visibility] duration-200 ease-out before:absolute before:-top-4 before:left-0 before:h-4 before:w-full before:content-[''] data-[state=closed]:invisible data-[state=closed]:-translate-y-1 data-[state=closed]:scale-95 data-[state=closed]:opacity-0"
                             >
                                 {PRODUCT.map(({ name, blurb, href, Icon }) => (
                                     <Link
@@ -100,10 +103,10 @@ export default function Navbar() {
 
                     <div className="flex items-center gap-1">
                         <Link
-                            href="/#pricing"
+                            href={CTA.href}
                             className="hidden h-10 items-center rounded-full bg-[#FF6F20] px-4 text-sm font-medium text-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2A2A2A] md:inline-flex"
                         >
-                            Get Nia
+                            {CTA.name}
                         </Link>
                         <button
                             type="button"
@@ -133,11 +136,11 @@ export default function Navbar() {
                             </Link>
                         ))}
                         <Link
-                            href="/#pricing"
+                            href={CTA.href}
                             onClick={() => setOpen(false)}
                             className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#FF6F20] text-sm font-medium text-[#2A2A2A]"
                         >
-                            Get Nia
+                            {CTA.name}
                         </Link>
                     </nav>
                 ) : null}

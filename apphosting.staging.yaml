@@ -26,7 +26,7 @@ env:
       - RUNTIME
 
   - variable: NEXT_PUBLIC_NIA_RELEASES_BASE
-    value: https://releases.okvevo.com/staging
+    value: https://releases.okvevo.com/okvevo/staging
     availability:
       - BUILD
       - RUNTIME
