@@ -52,6 +52,21 @@ const nextConfig = {
         ];
     },
 
+    async redirects() {
+        return [
+            {
+                source: '/nia',
+                destination: '/okvevo-download',
+                permanent: true,
+            },
+            {
+                source: '/nia/:path*',
+                destination: '/okvevo-download/:path*',
+                permanent: true,
+            },
+        ];
+    },
+
     async rewrites() {
         return [
             {

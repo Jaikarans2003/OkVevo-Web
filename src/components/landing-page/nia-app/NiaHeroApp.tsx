@@ -20,14 +20,14 @@ I work on your own computer, so I can use your **files, terminal and browser** t
 - Research, write and organise everyday work
 - Remember your formats, so you explain less every week
 
-This is a preview, so I can only say hello here. [Download Nia](/nia) for Mac or Windows and give me something real to do.`
+This is a preview, so I can only say hello here. [Download OkVevo](/okvevo-download) for Mac or Windows and give me something real to do.`
 
 const FOLLOW_REPLY = `That's the idea. In this preview I only have a few lines to share, but the real Nia reads your files, does the work and comes back with it done.
 
-Ready to see it on your own work? [Download Nia](/nia) for Mac or Windows.`
+Ready to see it on your own work? [Download OkVevo](/okvevo-download) for Mac or Windows.`
 
 const SAMPLE_REPLY =
-    'This is a sample session from the preview. [Download Nia](/nia) to keep real sessions, files and memory on your own computer.'
+    'This is a sample session from the preview. [Download OkVevo](/okvevo-download) to keep real sessions, files and memory on your own computer.'
 
 const seed = (id: string, title: string, age: string, section: Section): Session => ({
     id,
