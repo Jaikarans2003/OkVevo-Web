@@ -41,7 +41,7 @@ const SECTIONS = [
 
 const ROUTES = [
     { name: 'Pricing', href: '/pricing' },
-    { name: 'Nia', href: '/nia' },
+    { name: 'OkVevo', href: '/okvevo-download' },
 ];
 
 const LEGAL = [

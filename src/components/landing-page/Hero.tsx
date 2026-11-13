@@ -86,10 +86,10 @@ const Hero = () => {
                     className="flex flex-col sm:flex-row items-center gap-4 mb-20"
                 >
                     <Link
-                        href="/nia"
+                        href="/okvevo-download"
                         className="btn-premium text-black bg-white px-10 py-5"
                     >
-                        Hire Nia
+                        Hire OkVevo
                     </Link>
                     <a
                         href="#showcase"
