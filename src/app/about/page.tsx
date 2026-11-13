@@ -147,19 +147,19 @@ export default function AboutPage() {
     id: "01",
     title: "INSTANT AI VIDEO CREATION",
     desc: "Turn source media into polished videos with AI-assisted editing, captions, and custom visuals.",
-    href: "/nia"
+    href: "/okvevo-download"
   },
   {
     id: "02",
     title: "CUSTOM HYPERFRAMES",
     desc: "Build deterministic animated compositions that combine narration, media, captions, and brand visuals.",
-    href: "/nia"
+    href: "/okvevo-download"
   },
   {
     id: "03",
     title: "FULL CREATIVE CONTROL",
     desc: "Customize every video with branding, logos, captions, and overlays. Maintain consistency across all your social media and marketing content.",
-    href: "/nia"
+    href: "/okvevo-download"
   },
   {
     id: "04",

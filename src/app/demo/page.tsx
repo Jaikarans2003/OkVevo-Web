@@ -19,7 +19,7 @@ export default function DemoPage() {
                 <HowNiaWorks />
                 <div className="bg-[#f6f1ec] flex justify-center px-6 pb-28">
                     <Link
-                        href="/nia"
+                        href="/okvevo-download"
                         className="mx-auto inline-flex h-12 items-center rounded-full bg-[#ff6d1f] px-6 text-sm font-medium text-[#2b2b2b] active:scale-[0.98]"
                     >
                         Download

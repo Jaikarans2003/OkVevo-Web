@@ -28,7 +28,7 @@ function WindowsLogo() {
   );
 }
 
-export default function NiaDownloadPage() {
+export default function OkVevoDownloadPage() {
   return (
     <div className="ok-landing flex min-h-screen flex-col md:h-dvh md:overflow-hidden">
       <Navbar />
