@@ -78,4 +78,4 @@ Details: `docs/adr/ADR-001-drama-full-parity.md`.
 
 ## Download buttons
 
-`/okvevo-download` (permanent redirects from `/nia`) uses `NEXT_PUBLIC_NIA_RELEASES_BASE` (staging yaml → `/okvevo/staging`, production → bucket root). Staging buttons use `OkVevo-mac-arm64.dmg` / `OkVevo-win-x64.exe`; production still uses root `Nia-*` until the first OkVevo Publish + artifact cutover. Staging sync writes OkVevo stable names under `okvevo/staging/` on every pack; production root `OkVevo-*` names are written by OkVevo-Nia **Publish release**.
+`/okvevo-download` (permanent redirects from `/nia`) uses `NEXT_PUBLIC_NIA_RELEASES_BASE` (staging yaml → `/okvevo/staging`, production → bucket root). Both staging and production buttons use `OkVevo-mac-arm64.dmg` / `OkVevo-win-x64.exe`. Staging pack writes those under `okvevo/staging/`; production root names are written by OkVevo-Nia **Publish release**. Legacy `Nia-*` root objects may still exist — prefer Cloudflare 302s to `OkVevo-*` for old bookmarks.
