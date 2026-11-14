@@ -65,6 +65,8 @@ async function user(credits = 1000, planStatus = 'active') {
     planStatus,
     allocationBalance: credits,
     topUpBalance: 0,
+    // Entitlement requires currentPeriodEnd in the future when active.
+    currentPeriodEnd: planStatus === 'active' ? new Date(Date.now() + 30 * 864e5) : null,
   });
   return uid;
 }
@@ -495,6 +497,7 @@ async function pruneSettledRunningAbandonsAgedWaiter() {
     topUpBalance: 0,
     plan: 'starter',
     planStatus: 'active',
+    currentPeriodEnd: new Date(Date.now() + 30 * 864e5),
   });
   await upsertQueue(sql, uid, { running: [deadA, deadB], queued: [waiter], queuedCount: 1, needsSubmit: true });
   const run = await dispatchQueuedUsers(Date.now());

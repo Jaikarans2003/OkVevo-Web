@@ -19,6 +19,7 @@ import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 import { canTransition } from '@/lib/fal/jobMachine';
 
 import { applySpendClose, applySpendRelease, type SpendDaily } from '@/lib/fal/dramaSwitches';
+import { isEntitled } from '@/lib/billing/entitlement';
 import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
@@ -268,7 +269,7 @@ export type GatewayJobFields = {
 
 /**
  * Decrement buckets (FIFO) and write gateway_jobs/{requestId} as reserved.
- * Spend gate: planStatus must be 'active'.
+ * Spend gate: entitled (active + before currentPeriodEnd). No grace.
  *
  * ponytail: reserved jobs stay held until webhook/poll/release. Stuck if Fal
  * never completes. Upgrade: TTL sweeper that releases expired reserved jobs.
@@ -289,7 +290,7 @@ export async function reserveCredits(opts: {
     const holds = await listOpenHolds(tx, uid);
     const jobRow = await lockJob(tx, requestId);
     const data = billing;
-    if (readPlanStatus(data) !== 'active') {
+    if (!isEntitled(data)) {
       throw new PlanNotActiveError();
     }
     if (provider === 'openrouter' && holds) {
@@ -499,6 +500,7 @@ export async function reserveFalRun(opts: {
     const jobRow = await lockJob(tx, holdId);
     const queue = await lockQueue(tx, opts.uid);
     const data = billing;
+    if (!isEntitled(data)) throw new PlanNotActiveError();
     const plan = slotsForPlan(data?.plan, readPlanStatus(data));
     if (!plan.admit) throw new PlanNotActiveError();
     const admitted = admit(parseQueue(queue), holdId, plan.slots);
@@ -800,9 +802,9 @@ export async function reconcileCredits(opts: {
 
     const billing = await lockBillingByUserId(tx, job.uid);
     const data = billing;
-    if (readPlanStatus(data) !== 'active') {
+    if (!isEntitled(data)) {
       // Still settle the hold split back if plan lapsed mid-flight — release path preferred.
-      // Plan: reconcile requires active; release unused instead.
+      // Plan: reconcile requires entitled; release unused instead.
       const released = applyRelease(readBalances(data), job);
       if (!released.skipped) {
         if (spendDay) {

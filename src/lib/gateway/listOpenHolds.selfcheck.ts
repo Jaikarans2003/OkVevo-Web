@@ -18,6 +18,7 @@ await ensureUserAndBilling(sql, uid)
 await updateBillingByUserId(sql, uid, {
   plan: 'starter',
   planStatus: 'active',
+  currentPeriodEnd: new Date(Date.now() + 30 * 864e5),
   allocationBalance: 150,
   topUpBalance: 0,
 })
