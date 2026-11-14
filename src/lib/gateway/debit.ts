@@ -137,17 +137,19 @@ export class PlanConcurrencyError extends Error {
 }
 
 /**
- * Open holds for this user. Null when the query cannot run (index still
- * building): callers then keep today's 402 instead of failing the reserve.
- * ponytail: read just before the transaction, so two parallel chats can both
- * pass a slot check. Upgrade: run the query inside the transaction.
+ * Open holds for this user, read inside the reserve transaction after the
+ * billing_accounts lock so parallel chats cannot both pass a slot/budget check.
+ * Null when the query cannot run: callers then keep today's 402.
  */
-async function listOpenHolds(uid: string): Promise<{ held: number; openChat: number } | null> {
+async function listOpenHolds(
+  tx: TxSql,
+  uid: string
+): Promise<{ held: number; openChat: number } | null> {
   try {
-    const rows = await sql`
+    const rows = await tx`
       select provider, status, held_allocation, held_top_up, estimated_credits
       from gateway_jobs
-      where user_id = ${uid} and status in ${sql(Array.from(RELEASABLE))}
+      where user_id = ${uid} and status in ${tx(Array.from(RELEASABLE))}
     `;
     return summarizeOpenHolds(
       rows.map((r) => ({
@@ -281,11 +283,10 @@ export async function reserveCredits(opts: {
   const { uid, requestId, provider, estimatedCredits, extra } = opts;
   if (!uid || !requestId) throw new Error('uid and requestId required');
 
-  const holds = await listOpenHolds(uid);
-
   await withTx(async (tx) => {
     const spend = readSpendForHold(extra);
     const billing = await lockBillingByUserId(tx, uid);
+    const holds = await listOpenHolds(tx, uid);
     const jobRow = await lockJob(tx, requestId);
     const data = billing;
     if (readPlanStatus(data) !== 'active') {
