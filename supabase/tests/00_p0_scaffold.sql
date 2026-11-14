@@ -1,6 +1,6 @@
--- P0 scaffold smoke. Real pgTAP lock-down lands with the schema/tests phases.
-BEGIN;
-SELECT plan(1);
-SELECT pass('p0 supabase scaffold');
-SELECT * FROM finish();
-ROLLBACK;
+-- Kept so CI always has at least one pgTAP file before lock-down grows.
+begin;
+select plan(1);
+select pass('p0 supabase scaffold');
+select * from finish();
+rollback;

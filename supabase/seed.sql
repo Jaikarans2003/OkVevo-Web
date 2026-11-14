@@ -1,1 +1,2 @@
--- P0 scaffold. Schema migration lands in the next phase.
+-- P0/PR1 seed placeholder. Test fixtures land with the ledger suite.
+-- PR 2 adds the super-org → org → users tree.
