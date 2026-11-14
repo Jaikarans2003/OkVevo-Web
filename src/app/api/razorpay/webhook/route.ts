@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
 import { withTx } from '@/lib/db/tx';
@@ -28,6 +27,7 @@ import {
     proratedCreditGrant,
     subscriptionUpdatedRequestId,
 } from '@/lib/billing/planChange';
+import { verifyRazorpayWebhookSignature as verifyWebhookSignature } from '@/lib/billing/razorpayWebhookSig';
 import {
     logStaleSubscriptionEvent,
     normalizePaymentMethod,
@@ -67,18 +67,6 @@ function shouldUpdateStatus(currentStatus: string | undefined | null, newStatus:
 
     // Strict greater than — same-priority events don't overwrite
     return newPriority > currentPriority;
-}
-
-/**
- * Verify Razorpay webhook signature
- */
-function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-    const expectedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(body)
-        .digest('hex');
-
-    return expectedSignature === signature;
 }
 
 async function patchUserBilling(uid: string, data: Record<string, unknown>): Promise<void> {
