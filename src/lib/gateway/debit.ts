@@ -19,6 +19,7 @@ import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 import { canTransition } from '@/lib/fal/jobMachine';
 
 import { applySpendClose, applySpendRelease, type SpendDaily } from '@/lib/fal/dramaSwitches';
+import { refreshAllocationIfDue } from '@/lib/billing/allocation';
 import { isEntitled } from '@/lib/billing/entitlement';
 import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
@@ -271,6 +272,51 @@ export type GatewayJobFields = {
 export const CHAT_HOLD_TTL_MS = 15 * 60 * 1000;
 
 /**
+ * If monthly allocation is due, SET it on the locked billing row before spend.
+ * Same transaction as the caller — closes the cron vs spend race.
+ */
+async function applyAllocationDueInTx(
+  tx: TxSql,
+  uid: string,
+  billing: NonNullable<Awaited<ReturnType<typeof lockBillingByUserId>>>
+): Promise<NonNullable<Awaited<ReturnType<typeof lockBillingByUserId>>>> {
+  const patch = refreshAllocationIfDue({
+    planStatus: billing.planStatus,
+    creditsIncluded: billing.creditsIncluded,
+    allocationBalance: billing.allocationBalance,
+    nextAllocationDate: billing.nextAllocationDate,
+  });
+  if (!patch) return billing;
+  const requestId = `alloc_due_${uid}_${patch.nextAllocationDate.getTime()}`;
+  if (!(await creditTransactionExists(tx, requestId))) {
+    await insertCreditTransaction(tx, requestId, billing.id, {
+      user_id: uid,
+      type: 'grant',
+      amount: patch.allocationBalance,
+      bucket: 'allocation',
+      reason: 'allocation_due_on_reserve',
+      mode: 'set',
+      request_id: requestId,
+    });
+  }
+  await updateBillingByUserId(tx, uid, {
+    allocationBalance: patch.allocationBalance,
+    nextAllocationDate: patch.nextAllocationDate,
+    allocationGrantedTotal: nextAllocationGrantedTotal(
+      'set',
+      billing.allocationGrantedTotal,
+      patch.allocationBalance,
+      patch.allocationBalance
+    ),
+  });
+  return {
+    ...billing,
+    allocationBalance: patch.allocationBalance,
+    nextAllocationDate: patch.nextAllocationDate,
+  };
+}
+
+/**
  * Decrement buckets (FIFO) and write gateway_jobs/{requestId} as reserved.
  * Spend gate: entitled (active + before currentPeriodEnd). No grace.
  */
@@ -286,7 +332,9 @@ export async function reserveCredits(opts: {
 
   await withTx(async (tx) => {
     const spend = readSpendForHold(extra);
-    const billing = await lockBillingByUserId(tx, uid);
+    let billing = await lockBillingByUserId(tx, uid);
+    if (!billing) throw new PlanNotActiveError();
+    billing = await applyAllocationDueInTx(tx, uid, billing);
     const holds = await listOpenHolds(tx, uid);
     const jobRow = await lockJob(tx, requestId);
     const data = billing;
@@ -501,7 +549,9 @@ export async function reserveFalRun(opts: {
       };
     }
     const holdId = crypto.randomUUID();
-    const billing = await lockBillingByUserId(tx, opts.uid);
+    let billing = await lockBillingByUserId(tx, opts.uid);
+    if (!billing) throw new PlanNotActiveError();
+    billing = await applyAllocationDueInTx(tx, opts.uid, billing);
     const jobRow = await lockJob(tx, holdId);
     const queue = await lockQueue(tx, opts.uid);
     const data = billing;
