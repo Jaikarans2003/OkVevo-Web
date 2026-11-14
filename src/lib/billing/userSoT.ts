@@ -190,3 +190,21 @@ export function logStaleSubscriptionEvent(opts: {
 }): void {
   console.warn('stale subscription event', opts);
 }
+
+/** Razorpay subscription.* events that patch users/{uid}.planStatus (webhook). */
+export function planStatusForSubscriptionEvent(event: SubscriptionEventKind): string | null {
+  switch (event) {
+    case 'cancelled':
+      return 'cancelled';
+    case 'paused':
+      return 'paused';
+    case 'halted':
+      return 'halted';
+    case 'resumed':
+      return 'active';
+    case 'completed':
+      return 'completed';
+    default:
+      return null;
+  }
+}

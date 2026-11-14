@@ -32,6 +32,7 @@ import {
     logStaleSubscriptionEvent,
     normalizePaymentMethod,
     shouldApplySubscriptionEvent,
+    planStatusForSubscriptionEvent,
     userBillingFromData,
     type SubscriptionEventKind,
 } from '@/lib/billing/userSoT';
@@ -659,6 +660,14 @@ export async function POST(request: NextRequest) {
                     resumedAt: new Date(),
                 });
 
+                const resumedUser = await loadWebhookUser(userId);
+                if (pointerDecision(userId, subscription.id, 'resumed', resumedUser.billing, subscription.notes).apply) {
+                    const planStatus = planStatusForSubscriptionEvent('resumed');
+                    if (planStatus) {
+                        await patchUserBilling(userId, { planStatus });
+                    }
+                }
+
                 console.log(`▶️ Subscription resumed: ${subscription.id}`);
                 break;
             }
@@ -682,6 +691,14 @@ export async function POST(request: NextRequest) {
                     completedAt: new Date(),
                     ...(expiresAt && { expiresAt }),
                 });
+
+                const completedUser = await loadWebhookUser(userId);
+                if (pointerDecision(userId, subscription.id, 'completed', completedUser.billing, subscription.notes).apply) {
+                    const planStatus = planStatusForSubscriptionEvent('completed');
+                    if (planStatus) {
+                        await patchUserBilling(userId, { planStatus });
+                    }
+                }
 
                 console.log(`✅ Subscription completed: ${subscription.id}${expiresAt ? ` (annual - expires ${expiresAt.toISOString()})` : ''}`);
                 break;
