@@ -40,7 +40,7 @@ const cron = readFileSync(path.join(root, 'app/api/cron/fx-drift/route.ts'), 'ut
 assert.doesNotMatch(cron, /razorpay\.subscriptions/i);
 assert.doesNotMatch(cron, /plan_id/);
 assert.doesNotMatch(cron, /RAZORPAY_PLAN_IDS/);
-assert.match(cron, /opsAlerts\/fxDrift/);
+assert.match(cron, /setOpsAlert\(sql, 'fxDrift'/);
 assert.match(cron, /Never auto-changes a Razorpay plan/);
 
 console.log('fxDrift.selfcheck: ok');

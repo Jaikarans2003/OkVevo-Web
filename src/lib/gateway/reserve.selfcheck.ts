@@ -15,7 +15,6 @@ import {
   addOneMonthClamped,
   refreshAllocationIfDue,
 } from '../billing/allocation.ts';
-import { Timestamp } from 'firebase-admin/firestore';
 
 const uid = 'u1';
 
@@ -139,7 +138,7 @@ const notDue = refreshAllocationIfDue(
   {
     planStatus: 'active',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() + 86400000)),
+    nextAllocationDate: new Date(Date.now() + 86400000),
   },
   new Date()
 );
@@ -149,19 +148,19 @@ const due = refreshAllocationIfDue(
   {
     planStatus: 'active',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+    nextAllocationDate: new Date(Date.now() - 1000),
   },
   new Date()
 );
 assert.ok(due);
 assert.equal(due!.allocationBalance, 20000);
-assert.ok(due!.nextAllocationDate.toDate().getTime() > Date.now());
+assert.ok(due!.nextAllocationDate.getTime() > Date.now());
 
 const inactive = refreshAllocationIfDue(
   {
     planStatus: 'halted',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+    nextAllocationDate: new Date(Date.now() - 1000),
   },
   new Date()
 );

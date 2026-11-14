@@ -115,6 +115,24 @@ create table public.gateway_jobs (
   reserved_fal_usd numeric,
   spend_day text,
   release_reason text,
+  -- Fal queue/dispatch fields (ported with debit.ts / captureCredits.ts in PR 1 slice).
+  cancel_requested boolean not null default false,
+  queue_position integer,
+  fal_request_id text,
+  run_id text,
+  client_message text,
+  client_code text,
+  vendor_status integer,
+  submit_attempts integer not null default 0,
+  first_reject_at_ms bigint,
+  next_attempt_at_ms bigint,
+  captured_at timestamptz,
+  captured_fal_usd numeric,
+  request_id text,
+  -- Fal dispatch/settle timestamps (ported with dispatch.ts / handleQueue.ts).
+  dispatched_at timestamptz,
+  settled_at timestamptz,
+  settled_fal_usd numeric,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -132,7 +150,7 @@ create table public.razorpay_webhook_events (
   received_at timestamptz not null default now()
 );
 
--- Razorpay subscription mirror (was razorpaySubscriptions + nested)
+-- Razorpay subscription mirror (was razorpaySubscriptions + nested users/{uid}/subscriptions)
 create table public.razorpay_subscriptions (
   id text primary key,
   billing_account_id uuid references public.billing_accounts (id),
@@ -144,6 +162,34 @@ create table public.razorpay_subscriptions (
   last_payment_at timestamptz,
   notes jsonb,
   cancel_at_cycle_end boolean,
+  -- Coupon/affiliate fields seeded on the subscription record itself (webhook write-only today).
+  coupon_code text,
+  coupon_type text,
+  affiliate_id text,
+  discount_amount text,
+  coupon_applied boolean,
+  -- Lifecycle timestamps (ported 1:1 with the webhook's per-event writes).
+  activated_at timestamptz,
+  halted_at timestamptz,
+  cancelled_at timestamptz,
+  paused_at timestamptz,
+  resumed_at timestamptz,
+  completed_at timestamptz,
+  expires_at timestamptz,
+  grace_period_ends_at timestamptz,
+  last_payment_failure jsonb,
+  invoice_paid_at timestamptz,
+  -- Legacy subscription-doc display credits (Pro-Team / old UI). Two-bucket grants go via grantCredits.
+  credits integer,
+  initial_credits integer,
+  credits_used integer,
+  payment_method text,
+  payment_method_updated_at timestamptz,
+  -- UPI upgrade-flow replacement bookkeeping.
+  being_replaced_by text,
+  will_cancel_at timestamptz,
+  replacing_subscription_id text,
+  will_activate_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -194,6 +240,13 @@ create table public.ops_alerts (
   created_at timestamptz not null default now()
 );
 
+-- Daily admin rollup (was adminRollups; written by cron/fal-drift)
+create table public.admin_rollups (
+  day date primary key,
+  data jsonb not null default '{}'::jsonb,
+  written_at timestamptz not null default now()
+);
+
 -- Desktop sign-in codes (was desktopAuthCodes)
 create table public.desktop_auth_codes (
   code text primary key,
@@ -239,6 +292,10 @@ create table public.fal_media_index (
   seconds double precision,
   width integer,
   height integer,
+  -- Settle-time provenance (ported with mediaResolve.ts).
+  endpoint text,
+  uid text references public.users (id),
+  request_id text,
   created_at timestamptz not null default now()
 );
 

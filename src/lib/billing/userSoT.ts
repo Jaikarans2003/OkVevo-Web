@@ -4,7 +4,6 @@
  */
 import type { BillingCurrency } from '@/config/razorpay';
 import { isBillingCurrency } from '@/config/razorpay';
-import type { DocumentData, Timestamp } from 'firebase-admin/firestore';
 
 export type UserPaymentMethod = 'card' | 'upi' | 'emandate' | 'netbanking';
 
@@ -17,7 +16,7 @@ export type UserBillingSoT = {
   billingCycle: string | null;
   currency: BillingCurrency | null;
   cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: Timestamp | null;
+  currentPeriodEnd: Date | null;
   hasScheduledChanges: boolean;
   scheduledPlanType: string | null;
   scheduledPlanId: string | null;
@@ -81,7 +80,7 @@ export function isUpiSubscriptionUpdateError(error: unknown): boolean {
   );
 }
 
-export function userBillingFromData(uid: string, data: DocumentData | undefined): UserBillingSoT {
+export function userBillingFromData(uid: string, data: Record<string, unknown> | undefined): UserBillingSoT {
   if (!data) {
     return {
       uid,
@@ -108,7 +107,7 @@ export function userBillingFromData(uid: string, data: DocumentData | undefined)
     billingCycle: asString(data.billingCycle),
     currency: isBillingCurrency(data.currency) ? data.currency : null,
     cancelAtPeriodEnd: data.cancelAtPeriodEnd === true,
-    currentPeriodEnd: data.currentPeriodEnd ?? null,
+    currentPeriodEnd: (data.currentPeriodEnd as Date | null | undefined) ?? null,
     hasScheduledChanges: data.hasScheduledChanges === true,
     scheduledPlanType: asString(data.scheduledPlanType),
     scheduledPlanId: asString(data.scheduledPlanId),
@@ -117,9 +116,10 @@ export function userBillingFromData(uid: string, data: DocumentData | undefined)
 }
 
 export async function loadUserBillingSoT(uid: string): Promise<UserBillingSoT> {
-  const { db } = await import('@/lib/firebase-admin');
-  const snap = await db.collection('users').doc(uid).get();
-  return userBillingFromData(uid, snap.exists ? snap.data() : undefined);
+  const { sql } = await import('@/lib/db/client');
+  const { getBillingByUserId } = await import('@/lib/db/wallet');
+  const billing = await getBillingByUserId(sql, uid);
+  return userBillingFromData(uid, billing);
 }
 
 export function isCancellablePlanStatus(status: string | null): boolean {

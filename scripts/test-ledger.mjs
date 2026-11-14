@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 /**
- * P0 placeholder. The TS race suite against local Postgres lands with the
- * schema + ported jobMachine scenarios (PR 1 schema/tests phases).
- * CI calls `npm run test:ledger` so the job stays wired from day one.
+ * Runs the 14-scenario Fal job-machine race suite against local Postgres.
+ * Expects `npx supabase db reset` to have already run (fresh schema).
  */
-console.log('test:ledger: P0 scaffold OK (suite lands with schema)')
-process.exit(0)
+import { spawnSync } from 'node:child_process'
+
+process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+
+const result = spawnSync('npx', ['tsx', 'src/lib/fal/jobMachine.emulator.ts'], {
+  stdio: 'inherit',
+  env: process.env,
+})
+process.exit(result.status ?? 1)

@@ -1,12 +1,25 @@
 import { createHash } from 'node:crypto';
 
-import { FieldValue } from 'firebase-admin/firestore';
+import { sql } from '@/lib/db/client';
+import { withTx, type TxSql } from '@/lib/db/tx';
+import {
+  type DbHandle,
+  creditTransactionExists,
+  ensureUserAndBilling,
+  getBillingByUserId,
+  getJob,
+  insertCreditTransaction,
+  insertJob,
+  lockBillingByUserId,
+  lockJob,
+  updateBillingByUserId,
+  updateJob,
+} from '@/lib/db/wallet';
 import { decideIdempotency, type IdemRow } from '@/lib/fal/idempotency';
 import { canTransition } from '@/lib/fal/jobMachine';
 
-import { applySpendClose, applySpendRelease } from '@/lib/fal/dramaSwitches';
+import { applySpendClose, applySpendRelease, type SpendDaily } from '@/lib/fal/dramaSwitches';
 import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
-import { db } from '@/lib/firebase-admin';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
 import { clampDebitAmount, creditsFromTokens, hasPositiveRates, isRouterAliasModel, lookupModelRates, settleBillModel } from '@/lib/gateway/pricing';
@@ -36,7 +49,7 @@ function readInt(n: unknown): number {
  * Read two buckets. One-time migrate: legacy creditBalance → topUpBalance
  * when both new buckets are absent/zero and creditBalance > 0.
  */
-export function readBalances(data: FirebaseFirestore.DocumentData | undefined): BucketBalances {
+export function readBalances(data: Record<string, unknown> | undefined): BucketBalances {
   if (!data) return { allocationBalance: 0, topUpBalance: 0 };
   const allocation = readInt(data.allocationBalance);
   let topUp = readInt(data.topUpBalance);
@@ -48,12 +61,12 @@ export function readBalances(data: FirebaseFirestore.DocumentData | undefined): 
   return { allocationBalance: allocation, topUpBalance: topUp };
 }
 
-function readPlanStatus(data: FirebaseFirestore.DocumentData | undefined): string | null {
+function readPlanStatus(data: Record<string, unknown> | undefined): string | null {
   const s = data?.planStatus;
   return typeof s === 'string' ? s : null;
 }
 
-export function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecord | undefined {
+export function jobFromSnap(data: Record<string, unknown> | undefined): JobRecord | undefined {
   if (!data) return undefined;
   const status = data.status;
   const provider = data.provider;
@@ -131,67 +144,86 @@ export class PlanConcurrencyError extends Error {
  */
 async function listOpenHolds(uid: string): Promise<{ held: number; openChat: number } | null> {
   try {
-    const snap = await db
-      .collection('gatewayJobs')
-      .where('uid', '==', uid)
-      .where('status', 'in', [...RELEASABLE])
-      .get();
-    return summarizeOpenHolds(snap.docs.map((doc) => doc.data()));
+    const rows = await sql`
+      select provider, status, held_allocation, held_top_up, estimated_credits
+      from gateway_jobs
+      where user_id = ${uid} and status in ${sql(Array.from(RELEASABLE))}
+    `;
+    return summarizeOpenHolds(
+      rows.map((r) => ({
+        provider: r.provider,
+        status: r.status,
+        heldAllocation: r.held_allocation,
+        heldTopUp: r.held_top_up,
+        estimatedCredits: r.estimated_credits,
+      }))
+    );
   } catch (err) {
     console.error('gateway: open hold query failed', err);
     return null;
   }
 }
 
-type SpendHoldRead = {
-  spendRef: FirebaseFirestore.DocumentReference;
-  spendSnap: FirebaseFirestore.DocumentSnapshot;
+type SpendHold = {
+  spendDay: string;
   reservedFalUsd: number;
 };
 
-/** Read spendDaily before any write in the same reserve transaction. */
-async function readSpendForHold(
-  tx: FirebaseFirestore.Transaction,
-  extra: Record<string, unknown> | undefined
-): Promise<SpendHoldRead | null> {
+/** Read-only parse of the reserve-time spend hold request. No DB read needed: the write is a plain increment. */
+function readSpendForHold(extra: Record<string, unknown> | undefined): SpendHold | null {
   const reservedFalUsd = Number(extra?.reservedFalUsd ?? 0);
   const spendDay = typeof extra?.spendDay === 'string' ? extra.spendDay : '';
   if (!(reservedFalUsd > 0) || !spendDay) return null;
-  const spendRef = db.collection('spendDaily').doc(spendDay);
-  const spendSnap = await tx.get(spendRef);
-  return { spendRef, spendSnap, reservedFalUsd };
+  return { spendDay, reservedFalUsd };
 }
 
-function applySpendHold(tx: FirebaseFirestore.Transaction, spend: SpendHoldRead | null): void {
+async function applySpendHold(tx: TxSql, spend: SpendHold | null): Promise<void> {
   if (!spend) return;
-  tx.set(spend.spendRef, { falUsdHeld: FieldValue.increment(spend.reservedFalUsd) }, { merge: true });
+  await tx`
+    insert into spend_daily (day, fal_usd_held) values (${spend.spendDay}, ${spend.reservedFalUsd})
+    on conflict (day) do update set fal_usd_held = spend_daily.fal_usd_held + ${spend.reservedFalUsd}
+  `;
+}
+
+function spendRowToData(row: Record<string, unknown> | undefined): SpendDaily | undefined {
+  if (!row) return undefined;
+  return {
+    falUsd: Number(row.fal_usd ?? 0),
+    falUsdHeld: Number(row.fal_usd_held ?? 0),
+    creditsCharged: Number(row.credits_charged ?? 0),
+    jobs: Number(row.jobs ?? 0),
+  };
+}
+
+/** Create-if-missing + lock spend_daily for `day`. Mirrors Firestore's tx.get on a doc that may not exist yet. */
+async function lockSpendDaily(tx: TxSql, day: string): Promise<SpendDaily | undefined> {
+  await tx`insert into spend_daily (day) values (${day}) on conflict (day) do nothing`;
+  const rows = await tx`select * from spend_daily where day = ${day} for update`;
+  return spendRowToData(rows[0] as Record<string, unknown> | undefined);
 }
 
 type SpendReleaseRead = {
-  spendRef: FirebaseFirestore.DocumentReference;
-  spendSnap: FirebaseFirestore.DocumentSnapshot;
+  spendDay: string;
+  current: SpendDaily | undefined;
   reservedFalUsd: number;
 };
 
+/** Read spend_daily (locked) before any write in the same reserve transaction. */
 export async function loadSpendRelease(
-  tx: FirebaseFirestore.Transaction,
-  data: FirebaseFirestore.DocumentData | undefined
+  tx: TxSql,
+  data: Record<string, unknown> | undefined
 ): Promise<SpendReleaseRead | null> {
   const reservedFalUsd = Number(data?.reservedFalUsd ?? 0);
   const spendDay = typeof data?.spendDay === 'string' ? data.spendDay : '';
   if (!(reservedFalUsd > 0) || !spendDay) return null;
-  const spendRef = db.collection('spendDaily').doc(spendDay);
-  const spendSnap = await tx.get(spendRef);
-  return { spendRef, spendSnap, reservedFalUsd };
+  const current = await lockSpendDaily(tx, spendDay);
+  return { spendDay, current, reservedFalUsd };
 }
 
-export function writeSpendRelease(tx: FirebaseFirestore.Transaction, spend: SpendReleaseRead | null): void {
+export function writeSpendRelease(tx: TxSql, spend: SpendReleaseRead | null): void {
   if (!spend) return;
-  tx.set(
-    spend.spendRef,
-    applySpendRelease(spend.spendSnap.data(), spend.reservedFalUsd),
-    { merge: true }
-  );
+  const patch = applySpendRelease(spend.current, spend.reservedFalUsd);
+  void tx`update spend_daily set fal_usd_held = ${patch.falUsdHeld} where day = ${spend.spendDay}`;
 }
 
 export type GatewayJobFields = {
@@ -233,7 +265,7 @@ export type GatewayJobFields = {
 };
 
 /**
- * Decrement buckets (FIFO) and write gatewayJobs/{requestId} as reserved.
+ * Decrement buckets (FIFO) and write gateway_jobs/{requestId} as reserved.
  * Spend gate: planStatus must be 'active'.
  *
  * ponytail: reserved jobs stay held until webhook/poll/release. Stuck if Fal
@@ -249,15 +281,13 @@ export async function reserveCredits(opts: {
   const { uid, requestId, provider, estimatedCredits, extra } = opts;
   if (!uid || !requestId) throw new Error('uid and requestId required');
 
-  const userRef = db.collection('users').doc(uid);
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
   const holds = await listOpenHolds(uid);
 
-  await db.runTransaction(async (tx) => {
-    const spend = await readSpendForHold(tx, extra);
-    const jobSnap = await tx.get(jobRef);
-    const userSnap = await tx.get(userRef);
-    const data = userSnap.data();
+  await withTx(async (tx) => {
+    const spend = readSpendForHold(extra);
+    const billing = await lockBillingByUserId(tx, uid);
+    const jobRow = await lockJob(tx, requestId);
+    const data = billing;
     if (readPlanStatus(data) !== 'active') {
       throw new PlanNotActiveError();
     }
@@ -270,7 +300,7 @@ export async function reserveCredits(opts: {
     const balances = readBalances(data);
     const result = applyReserve(
       balances,
-      jobFromSnap(jobSnap.data()),
+      jobFromSnap(jobRow),
       estimatedCredits,
       uid,
       provider
@@ -289,23 +319,18 @@ export async function reserveCredits(opts: {
       }
       throw new InsufficientCreditsError();
     }
-    applySpendHold(tx, spend);
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(jobRef, {
+    await applySpendHold(tx, spend);
+    await updateBillingByUserId(tx, uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await insertJob(tx, requestId, uid, billing!.id, {
       uid,
       provider,
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
       heldTopUp: result.job.heldTopUp,
       status: 'reserved',
-      createdAt: FieldValue.serverTimestamp(),
       ...(extra ?? {}),
     });
   });
@@ -322,6 +347,98 @@ export function falRunDocId(uid: string, runId: string): string {
   return createHash('sha256').update(`${uid}\0${runId}`).digest('hex');
 }
 
+function idemRowToData(row: Record<string, unknown> | undefined): IdemRow | undefined {
+  if (!row) return undefined;
+  return {
+    uid: String(row.user_id),
+    runId: String(row.run_id),
+    bodyHash: String(row.body_hash ?? ''),
+    phase: row.phase as IdemRow['phase'],
+    submitStarted: row.submit_started === true,
+    holdId: String(row.hold_id ?? ''),
+    falRequestId: (row.fal_request_id as string) || undefined,
+  };
+}
+
+export async function getIdemRow(db: DbHandle, id: string): Promise<IdemRow | undefined> {
+  const rows = await db`select * from fal_run_idempotency where id = ${id}`;
+  return idemRowToData(rows[0] as Record<string, unknown> | undefined);
+}
+
+export async function lockIdemRow(tx: TxSql, id: string): Promise<IdemRow | undefined> {
+  const rows = await tx`select * from fal_run_idempotency where id = ${id} for update`;
+  return idemRowToData(rows[0] as Record<string, unknown> | undefined);
+}
+
+export async function insertIdemRow(
+  tx: TxSql,
+  id: string,
+  row: { uid: string; runId: string; bodyHash: string; phase: string; submitStarted: boolean; holdId: string }
+): Promise<void> {
+  await tx`
+    insert into fal_run_idempotency ${tx({
+      id,
+      user_id: row.uid,
+      run_id: row.runId,
+      body_hash: row.bodyHash,
+      phase: row.phase,
+      submit_started: row.submitStarted,
+      hold_id: row.holdId,
+    })}
+  `;
+}
+
+export async function updateIdemRow(tx: TxSql, id: string, patch: Record<string, unknown>): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if ('phase' in patch) row.phase = patch.phase;
+  if ('submitStarted' in patch) row.submit_started = patch.submitStarted;
+  if ('falRequestId' in patch) row.fal_request_id = patch.falRequestId;
+  if (Object.keys(row).length === 0) return;
+  await tx`update fal_run_idempotency set ${tx(row)}, updated_at = now() where id = ${id}`;
+}
+
+export async function lockQueue(
+  tx: TxSql,
+  uid: string
+): Promise<{ running: unknown; queued: unknown; needsSubmit: boolean } | undefined> {
+  const rows = await tx`select * from fal_queues where user_id = ${uid} for update`;
+  const row = rows[0] as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return { running: row.running, queued: row.queued, needsSubmit: row.needs_submit === true };
+}
+
+export async function getQueue(
+  db: DbHandle,
+  uid: string
+): Promise<{ running: unknown; queued: unknown; needsSubmit: boolean } | undefined> {
+  const rows = await db`select * from fal_queues where user_id = ${uid}`;
+  const row = rows[0] as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return { running: row.running, queued: row.queued, needsSubmit: row.needs_submit === true };
+}
+
+export async function upsertQueue(
+  tx: TxSql,
+  uid: string,
+  patch: { running: string[]; queued: string[]; queuedCount: number; needsSubmit: boolean }
+): Promise<void> {
+  await tx`
+    insert into fal_queues ${tx({
+      user_id: uid,
+      running: patch.running,
+      queued: patch.queued,
+      queued_count: patch.queuedCount,
+      needs_submit: patch.needsSubmit,
+    })}
+    on conflict (user_id) do update set
+      running = excluded.running,
+      queued = excluded.queued,
+      queued_count = excluded.queued_count,
+      needs_submit = excluded.needs_submit,
+      updated_at = now()
+  `;
+}
+
 /** Read-only idempotency check. Never creates a hold. */
 export async function peekFalRun(
   uid: string,
@@ -332,8 +449,7 @@ export async function peekFalRun(
   holdId?: string;
   falRequestId?: string;
 }> {
-  const snap = await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).get();
-  const existing = snap.exists ? (snap.data() as IdemRow) : undefined;
+  const existing = await getIdemRow(sql, falRunDocId(uid, runId));
   const decision = decideIdempotency(existing, bodyHash);
   if (decision.action === 'conflict' || decision.action === 'create') {
     return { action: decision.action };
@@ -364,11 +480,10 @@ export async function reserveFalRun(opts: {
   slotsInUse?: number;
   slotsLimit?: number;
 }> {
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
-  return db.runTransaction(async (tx) => {
-    const spend = await readSpendForHold(tx, opts.extra);
-    const idemSnap = await tx.get(idemRef);
-    const existing = idemSnap.exists ? (idemSnap.data() as IdemRow) : undefined;
+  const idemId = falRunDocId(opts.uid, opts.runId);
+  return withTx(async (tx) => {
+    const spend = readSpendForHold(opts.extra);
+    const existing = await lockIdemRow(tx, idemId);
     const decision = decideIdempotency(existing, opts.bodyHash);
     if (decision.action === 'conflict') throw new IdempotencyConflictError();
     if (decision.action !== 'create') {
@@ -379,20 +494,17 @@ export async function reserveFalRun(opts: {
       };
     }
     const holdId = crypto.randomUUID();
-    const userRef = db.collection('users').doc(opts.uid);
-    const jobRef = db.collection('gatewayJobs').doc(holdId);
-    const queueRef = db.collection('falQueue').doc(opts.uid);
-    const jobSnap = await tx.get(jobRef);
-    const userSnap = await tx.get(userRef);
-    const queueSnap = await tx.get(queueRef);
-    const data = userSnap.data();
+    const billing = await lockBillingByUserId(tx, opts.uid);
+    const jobRow = await lockJob(tx, holdId);
+    const queue = await lockQueue(tx, opts.uid);
+    const data = billing;
     const plan = slotsForPlan(data?.plan, readPlanStatus(data));
     if (!plan.admit) throw new PlanNotActiveError();
-    const admitted = admit(parseQueue(queueSnap.data()), holdId, plan.slots);
+    const admitted = admit(parseQueue(queue), holdId, plan.slots);
     if (!admitted.ok) throw new QueueFullError();
     const result = applyReserve(
       readBalances(data),
-      jobFromSnap(jobSnap.data()),
+      jobFromSnap(jobRow),
       opts.estimatedCredits,
       opts.uid,
       'fal'
@@ -401,26 +513,18 @@ export async function reserveFalRun(opts: {
       if (result.reason === 'duplicate') throw new IdempotencyConflictError();
       throw new InsufficientCreditsError();
     }
-    applySpendHold(tx, spend);
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(
-      queueRef,
-      {
-        running: admitted.state.running,
-        queued: admitted.state.queued,
-        queuedCount: admitted.state.queued.length,
-        needsSubmit: admitted.placement === 'running' || queueSnap.data()?.needsSubmit === true,
-      },
-      { merge: true }
-    );
-    tx.set(jobRef, {
+    await applySpendHold(tx, spend);
+    await updateBillingByUserId(tx, opts.uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await upsertQueue(tx, opts.uid, {
+      running: admitted.state.running,
+      queued: admitted.state.queued,
+      queuedCount: admitted.state.queued.length,
+      needsSubmit: admitted.placement === 'running' || queue?.needsSubmit === true,
+    });
+    await insertJob(tx, holdId, opts.uid, billing!.id, {
       uid: opts.uid,
       provider: 'fal',
       estimatedCredits: result.job.estimatedCredits,
@@ -428,10 +532,9 @@ export async function reserveFalRun(opts: {
       heldTopUp: result.job.heldTopUp,
       status: 'queued',
       queuePosition: admitted.position,
-      createdAt: FieldValue.serverTimestamp(),
       ...(opts.extra ?? {}),
     });
-    tx.set(idemRef, {
+    await insertIdemRow(tx, idemId, {
       uid: opts.uid,
       runId: opts.runId,
       bodyHash: opts.bodyHash,
@@ -459,16 +562,14 @@ export async function claimFalSubmit(
   runId: string,
   holdId: string
 ): Promise<'claimed' | 'cancelled' | 'busy'> {
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
-  const jobRef = db.collection('gatewayJobs').doc(holdId);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(idemRef);
-    const jobSnap = await tx.get(jobRef);
-    if (jobSnap.data()?.status !== 'dispatching') return 'busy';
-    const row = snap.data();
+  const idemId = falRunDocId(uid, runId);
+  return withTx(async (tx) => {
+    const row = await lockIdemRow(tx, idemId);
+    const job = await lockJob(tx, holdId);
+    if (job?.status !== 'dispatching') return 'busy';
     if (!row || row.submitStarted === true) return 'busy';
-    if (jobSnap.data()?.cancelRequested === true) return 'cancelled';
-    tx.set(idemRef, { submitStarted: true, phase: 'dispatching' }, { merge: true });
+    if (job?.cancelRequested === true) return 'cancelled';
+    await updateIdemRow(tx, idemId, { submitStarted: true, phase: 'dispatching' });
     return 'claimed';
   });
 }
@@ -481,18 +582,16 @@ export async function transitionGatewayJob(
   patch: Record<string, unknown> = {},
   idem?: { uid: string; runId: string; patch: Record<string, unknown> }
 ): Promise<boolean> {
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(jobRef);
-    const status = snap.data()?.status;
+  return withTx(async (tx) => {
+    const job = await lockJob(tx, requestId);
+    const status = job?.status;
     if (typeof status !== 'string' || !from.includes(status as JobStatus)) return false;
     if (!canTransition(status, to)) return false;
-    const idemSnap = idem
-      ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(idem.uid, idem.runId)))
-      : null;
-    tx.set(jobRef, { status: to, ...patch }, { merge: true });
-    if (idem && idemSnap) {
-      tx.set(idemSnap.ref, idem.patch, { merge: true });
+    const idemId = idem ? falRunDocId(idem.uid, idem.runId) : null;
+    const idemRow = idemId ? await lockIdemRow(tx, idemId) : null;
+    await updateJob(tx, requestId, { status: to, ...patch });
+    if (idem && idemRow && idemId) {
+      await updateIdemRow(tx, idemId, idem.patch);
     }
     return true;
   });
@@ -508,36 +607,31 @@ export async function commitFalSubmitted(opts: {
   falResponseUrl: string;
   falCancelUrl: string;
 }): Promise<{ ok: boolean; cancelRequested: boolean }> {
-  const jobRef = db.collection('gatewayJobs').doc(opts.holdId);
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
-  const aliasRef = db.collection('gatewayJobs').doc(opts.falRequestId);
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const status = jobSnap.data()?.status;
+  const idemId = falRunDocId(opts.uid, opts.runId);
+  return withTx(async (tx) => {
+    const job = await lockJob(tx, opts.holdId);
+    const status = job?.status;
     if (status !== 'dispatching' || !canTransition('dispatching', 'submitted')) {
       return { ok: false, cancelRequested: false };
     }
-    const aliasSnap = opts.falRequestId === opts.holdId ? null : await tx.get(aliasRef);
-    const cancelRequested = jobSnap.data()?.cancelRequested === true;
-    if (aliasSnap && !aliasSnap.exists) {
-      tx.set(aliasRef, { aliasOf: opts.holdId, uid: opts.uid });
+    const cancelRequested = job?.cancelRequested === true;
+    if (opts.falRequestId !== opts.holdId) {
+      const aliasRow = await lockJob(tx, opts.falRequestId);
+      if (!aliasRow) {
+        const billing = await getBillingByUserId(tx, opts.uid);
+        if (billing) {
+          await insertJob(tx, opts.falRequestId, opts.uid, billing.id, { aliasOf: opts.holdId });
+        }
+      }
     }
-    tx.set(
-      jobRef,
-      {
-        status: 'submitted',
-        falRequestId: opts.falRequestId,
-        falStatusUrl: opts.falStatusUrl,
-        falResponseUrl: opts.falResponseUrl,
-        falCancelUrl: opts.falCancelUrl,
-      },
-      { merge: true }
-    );
-    tx.set(
-      idemRef,
-      { phase: 'submitted', falRequestId: opts.falRequestId, submitStarted: true },
-      { merge: true }
-    );
+    await updateJob(tx, opts.holdId, {
+      status: 'submitted',
+      falRequestId: opts.falRequestId,
+      falStatusUrl: opts.falStatusUrl,
+      falResponseUrl: opts.falResponseUrl,
+      falCancelUrl: opts.falCancelUrl,
+    });
+    await updateIdemRow(tx, idemId, { phase: 'submitted', falRequestId: opts.falRequestId, submitStarted: true });
     return { ok: true, cancelRequested };
   });
 }
@@ -547,25 +641,46 @@ export async function markFalRun(
   runId: string,
   patch: { phase: 'submitted' | 'unknown' | 'released'; falRequestId?: string }
 ): Promise<void> {
-  await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).set(patch, { merge: true });
+  const idemId = falRunDocId(uid, runId);
+  await sql`
+    insert into fal_run_idempotency ${sql({
+      id: idemId,
+      user_id: uid,
+      run_id: runId,
+      phase: patch.phase,
+      fal_request_id: patch.falRequestId ?? null,
+    })}
+    on conflict (id) do update set
+      phase = excluded.phase,
+      fal_request_id = coalesce(excluded.fal_request_id, fal_run_idempotency.fal_request_id),
+      updated_at = now()
+  `;
 }
 
-/** Move a reserved hold to Fal's request_id so webhook lookup is gatewayJobs/{falId}. */
+/** Move a reserved hold to Fal's request_id so webhook lookup is gateway_jobs/{falId}. */
 export async function rebindGatewayJob(fromId: string, toId: string): Promise<void> {
   if (!fromId || !toId || fromId === toId) return;
-  const fromRef = db.collection('gatewayJobs').doc(fromId);
-  const toRef = db.collection('gatewayJobs').doc(toId);
 
-  await db.runTransaction(async (tx) => {
-    const fromSnap = await tx.get(fromRef);
-    if (!fromSnap.exists) return;
-    const toSnap = await tx.get(toRef);
-    if (toSnap.exists) {
-      tx.delete(fromRef);
+  await withTx(async (tx) => {
+    const fromRows = await tx`select * from gateway_jobs where id = ${fromId} for update`;
+    const fromRow = fromRows[0] as Record<string, unknown> | undefined;
+    if (!fromRow) return;
+    const toRows = await tx`select 1 from gateway_jobs where id = ${toId} for update`;
+    if (toRows.length > 0) {
+      await tx`delete from gateway_jobs where id = ${fromId}`;
       return;
     }
-    tx.set(toRef, { ...fromSnap.data(), holdId: fromId, requestId: toId });
-    tx.delete(fromRef);
+    const { id: _fromRowId, created_at: _createdAt, updated_at: _updatedAt, ...rest } = fromRow;
+    await tx`
+      insert into gateway_jobs ${tx({
+        ...rest,
+        id: toId,
+        hold_id: fromId,
+        request_id: toId,
+        created_at: fromRow.created_at as Date,
+      })}
+    `;
+    await tx`delete from gateway_jobs where id = ${fromId}`;
   });
 }
 
@@ -586,16 +701,15 @@ export async function readGatewayJob(
   firstRejectAtMs?: number | null;
   nextAttemptAtMs?: number | null;
 }) | null> {
-  const snap = await db.collection('gatewayJobs').doc(requestId).get();
-  if (!snap.exists) return null;
-  const data = snap.data() ?? {};
+  const data = await getJob(sql, requestId);
+  if (!data) return null;
   if (typeof data.aliasOf === 'string' && data.aliasOf && data.aliasOf !== requestId) {
     return readGatewayJob(data.aliasOf);
   }
   const job = jobFromSnap(data);
   if (!job) return null;
   return {
-    id: snap.id,
+    id: requestId,
     ...job,
     endpoint: typeof data.endpoint === 'string' ? data.endpoint : undefined,
     unit: typeof data.unit === 'string' ? data.unit : undefined,
@@ -650,12 +764,12 @@ export async function patchGatewayJob(
   if (Object.prototype.hasOwnProperty.call(patch, 'status')) {
     throw new Error('job status is compare-and-set only');
   }
-  await db.collection('gatewayJobs').doc(requestId).set(patch, { merge: true });
+  await updateJob(sql, requestId, patch);
 }
 
 /**
  * Write one debit for actual credits; refund unused reserve or extra-decrement.
- * Idempotent on creditTransactions/{requestId}.
+ * Idempotent on credit_transactions/{requestId}.
  */
 export async function reconcileCredits(opts: {
   requestId: string;
@@ -670,46 +784,35 @@ export async function reconcileCredits(opts: {
   const { requestId, actualCredits, provider } = opts;
   if (!requestId) return;
 
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
-  const txnRef = db.collection('creditTransactions').doc(requestId);
+  await withTx(async (tx) => {
+    if (await creditTransactionExists(tx, requestId)) return;
 
-  await db.runTransaction(async (tx) => {
-    const txnSnap = await tx.get(txnRef);
-    if (txnSnap.exists) return;
-
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
+    const jobRow = await lockJob(tx, requestId);
+    const job = jobFromSnap(jobRow);
     if (!job) return;
-    const jobData = jobSnap.data();
+    const jobData = jobRow;
     const spendDay = typeof jobData?.spendDay === 'string' ? jobData.spendDay : '';
     const reservedFalUsd = Number(jobData?.reservedFalUsd ?? 0);
-    const spendRef = spendDay ? db.collection('spendDaily').doc(spendDay) : null;
-    const spendSnap = spendRef ? await tx.get(spendRef) : null;
+    // Gate is spendDay truthy only — unlike loadSpendRelease, reconcile always
+    // touches the day row (even reservedFalUsd 0) to match the Firestore original.
+    const spendCurrent = spendDay ? await lockSpendDaily(tx, spendDay) : undefined;
 
-    const userRef = db.collection('users').doc(job.uid);
-    const userSnap = await tx.get(userRef);
-    const data = userSnap.data();
+    const billing = await lockBillingByUserId(tx, job.uid);
+    const data = billing;
     if (readPlanStatus(data) !== 'active') {
       // Still settle the hold split back if plan lapsed mid-flight — release path preferred.
       // Plan: reconcile requires active; release unused instead.
       const released = applyRelease(readBalances(data), job);
       if (!released.skipped) {
-        if (spendRef && spendSnap) {
-          tx.set(
-            spendRef,
-            applySpendRelease(spendSnap.data(), reservedFalUsd),
-            { merge: true }
-          );
+        if (spendDay) {
+          const patch = applySpendRelease(spendCurrent, reservedFalUsd);
+          await tx`update spend_daily set fal_usd_held = ${patch.falUsdHeld} where day = ${spendDay}`;
         }
-        tx.set(
-          userRef,
-          {
-            allocationBalance: released.balances.allocationBalance,
-            topUpBalance: released.balances.topUpBalance,
-          },
-          { merge: true }
-        );
-        tx.set(jobRef, { status: 'released' }, { merge: true });
+        await updateBillingByUserId(tx, job.uid, {
+          allocationBalance: released.balances.allocationBalance,
+          topUpBalance: released.balances.topUpBalance,
+        });
+        await updateJob(tx, requestId, { status: 'released' });
       }
       return;
     }
@@ -717,69 +820,62 @@ export async function reconcileCredits(opts: {
     const result = applyReconcile(readBalances(data), job, actualCredits);
     if (result.skipped) return;
 
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(
-      jobRef,
-      {
-        status: 'settled',
-        captured: false,
+    await updateBillingByUserId(tx, job.uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await updateJob(tx, requestId, {
+      status: 'settled',
+      captured: false,
+      actualCredits: result.debitAmount,
+      heldAllocation: result.heldAllocation,
+      heldTopUp: result.heldTopUp,
+    });
+    if (spendDay) {
+      const closed = applySpendClose(spendCurrent, {
+        reservedFalUsd,
+        settledRawUsd: opts.priceUsd ?? 0,
         actualCredits: result.debitAmount,
-        heldAllocation: result.heldAllocation,
-        heldTopUp: result.heldTopUp,
-      },
-      { merge: true }
-    );
-    if (spendRef && spendSnap) {
-      tx.set(
-        spendRef,
-        applySpendClose(spendSnap.data(), {
-          reservedFalUsd,
-          settledRawUsd: opts.priceUsd ?? 0,
-          actualCredits: result.debitAmount,
-        }),
-        { merge: true }
-      );
+      });
+      await tx`
+        update spend_daily set
+          fal_usd = ${closed.falUsd},
+          fal_usd_held = ${closed.falUsdHeld},
+          credits_charged = ${closed.creditsCharged},
+          jobs = ${closed.jobs}
+        where day = ${spendDay}
+      `;
     }
+
     if (result.debitAmount <= 0) return;
 
     const amount = clampDebitAmount(result.debitAmount, result.debitAmount);
-    tx.set(
-      txnRef,
-      omitUndefined({
-        uid: job.uid,
-        type: 'debit',
-        amount,
-        provider,
-        model: opts.model,
-        promptTokens: opts.promptTokens,
-        completionTokens: opts.completionTokens,
-        costUsd: opts.costUsd,
-        priceUsd: opts.priceUsd,
-        requestId,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
+    await insertCreditTransaction(tx, requestId, billing!.id, omitUndefined({
+      user_id: job.uid,
+      type: 'debit',
+      amount,
+      provider,
+      model: opts.model,
+      prompt_tokens: opts.promptTokens,
+      completion_tokens: opts.completionTokens,
+      cost_usd: opts.costUsd,
+      price_usd: opts.priceUsd,
+      request_id: requestId,
+    }));
   });
 }
 
 /**
  * Capture pass: Fal billing-events cost_total → min(credits, reserve).
  * Refunds via the same wallet CAS as collect. Idempotent on captured=true
- * and creditTransactions/{requestId}:capture.
+ * and credit_transactions/{requestId}:capture.
  */
 export async function captureCredits(opts: {
   requestId: string;
   falUsd: number;
   falCredits: number;
 }): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
-  return captureCreditsOn(db, opts);
+  return captureCreditsOn(opts);
 }
 
 const DEFAULT_RELEASE_FROM: readonly JobStatus[] = ['reserved', 'submitted', 'queued'];
@@ -800,37 +896,32 @@ export async function releaseCredits(
 ): Promise<boolean> {
   if (!requestId) return false;
   const from = opts?.from ?? DEFAULT_RELEASE_FROM;
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
 
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
+  return withTx(async (tx) => {
+    const jobRow = await lockJob(tx, requestId);
+    const job = jobFromSnap(jobRow);
     if (!job || !from.includes(job.status)) return false;
     if (job.provider === 'fal' && !canTransition(job.status, 'released')) return false;
-    let unsentIdem: FirebaseFirestore.DocumentReference | null = null;
+    let unsentIdemId: string | null = null;
     if (opts?.unsent && job.status === 'dispatching') {
-      const runId = String(jobSnap.data()?.runId ?? '');
+      const runId = String(jobRow?.runId ?? '');
       if (!runId) return false;
-      const idemSnap = await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(job.uid, runId)));
-      if (idemSnap.data()?.submitStarted === true) return false;
-      unsentIdem = idemSnap.ref;
+      const idemId = falRunDocId(job.uid, runId);
+      const idemRow = await lockIdemRow(tx, idemId);
+      if (idemRow?.submitStarted === true) return false;
+      unsentIdemId = idemId;
     }
-    const userRef = db.collection('users').doc(job.uid);
-    const userSnap = await tx.get(userRef);
-    const spend = await loadSpendRelease(tx, jobSnap.data());
-    const result = applyRelease(readBalances(userSnap.data()), job);
+    const billing = await lockBillingByUserId(tx, job.uid);
+    const spend = await loadSpendRelease(tx, jobRow);
+    const result = applyRelease(readBalances(billing), job);
     if (result.skipped) return false;
     writeSpendRelease(tx, spend);
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(jobRef, { status: 'released', ...(opts?.patch ?? {}) }, { merge: true });
-    if (unsentIdem) tx.set(unsentIdem, { phase: 'released', submitStarted: true }, { merge: true });
+    await updateBillingByUserId(tx, job.uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await updateJob(tx, requestId, { status: 'released', ...(opts?.patch ?? {}) });
+    if (unsentIdemId) await updateIdemRow(tx, unsentIdemId, { phase: 'released', submitStarted: true });
     return true;
   });
 }
@@ -839,7 +930,7 @@ export type GrantBucket = 'allocation' | 'topUp';
 
 /**
  * allocation grants SET (default) or ADD (`mode: 'add'`); topUp grants ADD.
- * Idempotent when requestId is provided (creditTransactions/{requestId}).
+ * Idempotent when requestId is provided (credit_transactions/{requestId}).
  */
 export async function grantCredits(opts: {
   uid: string;
@@ -869,20 +960,18 @@ export async function grantCredits(opts: {
   const requestId =
     opts.requestId ??
     `grant-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-  const userRef = db.collection('users').doc(uid);
-  const txnRef = db.collection('creditTransactions').doc(requestId);
 
-  return db.runTransaction(async (tx) => {
-    const txnSnap = await tx.get(txnRef);
-    if (txnSnap.exists) {
-      const userSnap = await tx.get(userRef);
-      const b = readBalances(userSnap.data());
+  return withTx(async (tx) => {
+    if (await creditTransactionExists(tx, requestId)) {
+      const billing = await getBillingByUserId(tx, uid);
+      const b = readBalances(billing);
       return { ...b, requestId };
     }
 
-    const userSnap = await tx.get(userRef);
-    const userData = userSnap.data();
-    const current = readBalances(userData);
+    // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
+    await ensureUserAndBilling(tx, uid);
+    const billing = await lockBillingByUserId(tx, uid);
+    const current = readBalances(billing);
     const next: BucketBalances =
       bucket === 'allocation'
         ? {
@@ -895,43 +984,38 @@ export async function grantCredits(opts: {
             topUpBalance: current.topUpBalance + amount,
           };
 
-    tx.set(
-      userRef,
-      {
-        allocationBalance: next.allocationBalance,
-        topUpBalance: next.topUpBalance,
-        ...(bucket === 'topUp'
-          ? {
-              topUpPurchasedTotal: nextTopUpPurchasedTotal(
-                readInt(userData?.topUpPurchasedTotal),
-                amount,
-                next.topUpBalance
-              ),
-            }
-          : {
-              // Spend must not touch this field — missing stays on creditsIncluded until seed/next grant.
-              allocationGrantedTotal: nextAllocationGrantedTotal(
-                mode,
-                readInt(userData?.allocationGrantedTotal),
-                amount,
-                next.allocationBalance
-              ),
-            }),
-        ...(userPatch ?? {}),
-      },
-      { merge: true }
-    );
+    await updateBillingByUserId(tx, uid, {
+      allocationBalance: next.allocationBalance,
+      topUpBalance: next.topUpBalance,
+      ...(bucket === 'topUp'
+        ? {
+            topUpPurchasedTotal: nextTopUpPurchasedTotal(
+              readInt(billing?.topUpPurchasedTotal),
+              amount,
+              next.topUpBalance
+            ),
+          }
+        : {
+            // Spend must not touch this field — missing stays on creditsIncluded until seed/next grant.
+            allocationGrantedTotal: nextAllocationGrantedTotal(
+              mode,
+              readInt(billing?.allocationGrantedTotal),
+              amount,
+              next.allocationBalance
+            ),
+          }),
+      ...(userPatch ?? {}),
+    });
 
     if (amount > 0 || mode === 'add') {
-      tx.set(txnRef, {
-        uid,
+      await insertCreditTransaction(tx, requestId, billing!.id, {
+        user_id: uid,
         type: 'grant',
         amount,
-        bucket,
-        requestId,
+        bucket: bucket === 'topUp' ? 'top_up' : 'allocation',
+        request_id: requestId,
         reason,
         mode,
-        createdAt: FieldValue.serverTimestamp(),
       });
     }
 

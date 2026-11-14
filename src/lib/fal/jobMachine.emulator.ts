@@ -1,20 +1,27 @@
 /**
- * Firestore emulator races for the Fal job machine.
- * Run: firebase emulators:exec --only firestore --project demo-okvevo -- "npx tsx src/lib/fal/jobMachine.emulator.ts"
+ * Postgres races for the Fal job machine.
+ * Run (after `npx supabase db reset`):
+ *   DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npx tsx src/lib/fal/jobMachine.emulator.ts
  */
 import assert from 'node:assert/strict';
 
-if (!process.env.FIRESTORE_EMULATOR_HOST) {
-  console.error('FIRESTORE_EMULATOR_HOST is required');
-  process.exit(1);
-}
 process.env.OKVEVO_ENV ??= 'local';
-process.env.GCLOUD_PROJECT ??= 'demo-okvevo';
-process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ??= 'demo-okvevo';
-process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??= 'demo.appspot.com';
 process.env.FAL_KEY ??= 'emulator-test-key';
+// handleQueue.ts/voiceOwnership.ts import firebase-admin for Auth/Storage
+// (unrelated to this Postgres suite). Its getAdminApp() only skips the
+// real-service-account-key requirement when this emulator-host var is set;
+// nothing here actually talks to a Firestore emulator.
+process.env.FIRESTORE_EMULATOR_HOST ??= 'localhost:0';
 
-const { db } = await import('@/lib/firebase-admin');
+const { sql } = await import('@/lib/db/client');
+const {
+  ensureUserAndBilling,
+  getBillingByUserId,
+  insertJob,
+  updateJob,
+  updateBillingByUserId,
+  creditTransactionExists,
+} = await import('@/lib/db/wallet');
 const { parseQueue } = await import('@/lib/fal/falQueue');
 const { falRejectedMessage } = await import('@/lib/fal/jobMachine');
 const {
@@ -39,18 +46,21 @@ const {
   claimFalSubmit,
   commitFalSubmitted,
   falRunDocId,
+  getQueue,
+  insertIdemRow,
   readGatewayJob,
   reconcileCredits,
   releaseCredits,
   reserveFalRun,
   transitionGatewayJob,
+  upsertQueue,
 } = await import('@/lib/gateway/debit');
 
 let seq = 0;
 
 async function user(credits = 1000, planStatus = 'active') {
   const uid = `u-${seq++}-${Date.now()}`;
-  await db.collection('users').doc(uid).set({
+  await ensureUserAndBilling(sql, uid, {
     plan: 'starter',
     planStatus,
     allocationBalance: credits,
@@ -73,24 +83,12 @@ async function hold(uid: string, credits = 100) {
 }
 
 async function balance(uid: string): Promise<number> {
-  const snap = await db.collection('users').doc(uid).get();
-  return Number(snap.data()?.allocationBalance ?? -1);
+  const billing = await getBillingByUserId(sql, uid);
+  return billing?.allocationBalance ?? -1;
 }
 
-/**
- * The emulator reports a contended transactional read as INVALID_ARGUMENT
- * "Transaction is invalid or closed"; production returns ABORTED, which
- * runTransaction retries. Nothing committed, so rerun the same way.
- */
-async function contended<T>(fn: () => Promise<T>): Promise<T> {
-  for (let i = 0; ; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const details = String((err as { details?: unknown }).details ?? '');
-      if (i >= 5 || !details.includes('invalid or closed')) throw err;
-    }
-  }
+async function queueFor(uid: string) {
+  return parseQueue(await getQueue(sql, uid));
 }
 
 async function raceCancelAndDispatch() {
@@ -98,12 +96,12 @@ async function raceCancelAndDispatch() {
   const { runId, holdId } = await hold(uid);
   let falCalls = 0;
   await Promise.all([
-    contended(() => cancelFalJob(uid, holdId)),
+    cancelFalJob(uid, holdId),
     (async () => {
-      const claimed = await contended(() => claimQueuedToDispatching(uid, runId, holdId));
+      const claimed = await claimQueuedToDispatching(uid, runId, holdId);
       if (!claimed) return;
       falCalls += 1;
-      const stored = await contended(() => commitFalSubmitted({
+      const stored = await commitFalSubmitted({
         holdId,
         uid,
         runId,
@@ -111,21 +109,20 @@ async function raceCancelAndDispatch() {
         falStatusUrl: 'https://queue.fal.run/status',
         falResponseUrl: 'https://queue.fal.run/response',
         falCancelUrl: 'https://queue.fal.run/cancel',
-      }));
+      });
       if (!stored.ok) return;
-      await contended(() => reconcileCredits({
+      await reconcileCredits({
         requestId: holdId,
         actualCredits: 100,
         provider: 'fal',
         model: 'minimax/music-3',
         priceUsd: 0.1,
-      }));
+      });
     })(),
   ]);
   const job = await readGatewayJob(holdId);
-  const txn = await db.collection('creditTransactions').doc(holdId).get();
+  const charged = await creditTransactionExists(sql, holdId);
   const refunded = job?.status === 'released';
-  const charged = txn.exists;
   assert.equal(refunded && charged, false, `${holdId} refunded AND charged`);
   assert.equal(refunded && falCalls > 0, false, `${holdId} refunded AND sent to Fal`);
   const bal = await balance(uid);
@@ -147,17 +144,17 @@ async function fifoDuringFinish() {
   const b = `b-${seq++}`;
   const c = `c-${seq++}`;
   const base = {
-    uid,
     provider: 'fal',
     estimatedCredits: 10,
     heldAllocation: 10,
     heldTopUp: 0,
-    runId: '',
   };
-  await db.collection('gatewayJobs').doc(a).set({ ...base, status: 'submitted', runId: `ra-${a}` });
-  await db.collection('gatewayJobs').doc(b).set({ ...base, status: 'submitted', runId: `rb-${b}` });
-  await db.collection('gatewayJobs').doc(c).set({ ...base, status: 'queued', runId: `rc-${c}` });
-  await db.collection('gatewayIdempotency').doc(`idem-${c}`).set({
+  const billing = await getBillingByUserId(sql, uid);
+  const billingAccountId = billing!.id;
+  await insertJob(sql, a, uid, billingAccountId, { ...base, status: 'submitted', runId: `ra-${a}` });
+  await insertJob(sql, b, uid, billingAccountId, { ...base, status: 'submitted', runId: `rb-${b}` });
+  await insertJob(sql, c, uid, billingAccountId, { ...base, status: 'queued', runId: `rc-${c}` });
+  await insertIdemRow(sql, falRunDocId(uid, `rc-${c}`), {
     uid,
     runId: `rc-${c}`,
     phase: 'queued',
@@ -165,12 +162,7 @@ async function fifoDuringFinish() {
     holdId: c,
     bodyHash: 'c',
   });
-  await db.collection('falQueue').doc(uid).set({
-    running: [a, b],
-    queued: [c],
-    queuedCount: 1,
-    needsSubmit: false,
-  });
+  await upsertQueue(sql, uid, { running: [a, b], queued: [c], queuedCount: 1, needsSubmit: false });
   const [, reserved] = await Promise.all([
     handoffSlot(uid, a),
     reserveFalRun({
@@ -180,7 +172,7 @@ async function fifoDuringFinish() {
       estimatedCredits: 10,
     }),
   ]);
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   const d = reserved.holdId;
   const cQueued = queue.queued.indexOf(c);
   const dQueued = queue.queued.indexOf(d);
@@ -206,12 +198,12 @@ async function definiteAndAmbiguous() {
   const after = await readGatewayJob(first.holdId);
   assert.equal(after?.status, 'queued');
   assert.equal(await balance(uid), 900);
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   assert.equal(queue.queued[0], first.holdId);
   assert.equal(queue.running.includes(first.holdId), false);
   assert.equal(await claimFalSubmit(uid, first.runId, first.holdId), 'busy');
 
-  await db.collection('gatewayJobs').doc(first.holdId).set({ submitAttempts: 5 }, { merge: true });
+  await updateJob(sql, first.holdId, { submitAttempts: 5 });
   assert.equal(await claimQueuedToDispatching(uid, first.runId, first.holdId), true);
   const givenUp = await applyDefiniteRejection({
     uid,
@@ -254,7 +246,7 @@ async function unknownHandsOffSlot() {
   const res = await applyAmbiguous(uid, a.runId, a.holdId);
   assert.equal(res.ok, true);
   assert.deepEqual(res.promoted, { holdId: c.holdId, runId: c.runId });
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   assert.deepEqual(queue.running, [b.holdId, c.holdId]);
   assert.deepEqual(queue.queued, []);
   assert.equal((await readGatewayJob(c.holdId))?.status, 'dispatching');
@@ -262,9 +254,14 @@ async function unknownHandsOffSlot() {
 
   const sent = await hold(uid);
   const unsent = await hold(uid);
-  await db.collection('falQueue').doc(uid).set({ running: [sent.holdId, unsent.holdId], queued: [] }, { merge: true });
+  await upsertQueue(sql, uid, {
+    running: [sent.holdId, unsent.holdId],
+    queued: [],
+    queuedCount: 0,
+    needsSubmit: false,
+  });
   for (const h of [sent, unsent]) {
-    await db.collection('gatewayJobs').doc(h.holdId).set({ status: 'queued' }, { merge: true });
+    await updateJob(sql, h.holdId, { status: 'queued' });
     assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
   }
   assert.equal(await claimFalSubmit(uid, sent.runId, sent.holdId), 'claimed');
@@ -346,7 +343,7 @@ async function crashAfterReserve() {
   const uid = await user();
   const h = await hold(uid);
   assert.equal(h.placement, 'running');
-  assert.equal((await db.collection('falQueue').doc(uid).get()).data()?.needsSubmit, true);
+  assert.equal((await getQueue(sql, uid))?.needsSubmit, true);
   const taken = await takeNextQueued(uid);
   assert.deepEqual(taken, { holdId: h.holdId, runId: h.runId });
   assert.equal((await readGatewayJob(h.holdId))?.status, 'dispatching');
@@ -354,27 +351,23 @@ async function crashAfterReserve() {
   assert.equal(await takeNextQueued(uid), null);
 }
 
-/** 5: a failing spendDaily read never throws into the submit path. */
+/**
+ * 5: a failing spendDaily read never throws into the submit path. Postgres
+ * has no global read hook to monkeypatch, so force a genuine DB error
+ * instead — an invalid literal for the `date` column alertDailySpend reads.
+ */
 async function spendReadNeverBlocks() {
-  const realDoc = db.doc.bind(db);
-  db.doc = (() => {
-    throw new Error('firestore down');
-  }) as typeof db.doc;
-  try {
-    await alertDailySpend('2026-01-01', 1, 250, Date.now());
-  } finally {
-    db.doc = realDoc;
-  }
+  await alertDailySpend('not-a-date', 1, 250, Date.now());
 }
 
 async function lapsedPlanReleasesQueue() {
   const uid = await user();
   const waiting = await hold(uid);
   assert.equal(waiting.placement, 'running');
-  await db.collection('users').doc(uid).set({ planStatus: 'cancelled' }, { merge: true });
+  await updateBillingByUserId(sql, uid, { planStatus: 'cancelled' });
   const filler = `q-${seq++}`;
-  await db.collection('gatewayJobs').doc(filler).set({
-    uid,
+  const billing = await getBillingByUserId(sql, uid);
+  await insertJob(sql, filler, uid, billing!.id, {
     provider: 'fal',
     estimatedCredits: 40,
     heldAllocation: 40,
@@ -382,17 +375,14 @@ async function lapsedPlanReleasesQueue() {
     status: 'queued',
     runId: `rq-${filler}`,
   });
-  await db.collection('falQueue').doc(uid).set(
-    { running: [waiting.holdId], queued: [filler], queuedCount: 1 },
-    { merge: true }
-  );
-  await db.collection('users').doc(uid).set({ allocationBalance: 860 }, { merge: true });
+  await upsertQueue(sql, uid, { running: [waiting.holdId], queued: [filler], queuedCount: 1, needsSubmit: false });
+  await updateBillingByUserId(sql, uid, { allocationBalance: 860 });
   const n = await releaseInactiveQueued(uid);
   assert.equal(n, 1);
   assert.equal((await readGatewayJob(filler))?.status, 'released');
   assert.equal((await readGatewayJob(filler))?.releaseReason, 'plan_inactive');
   assert.equal((await readGatewayJob(waiting.holdId))?.status, 'queued');
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   assert.deepEqual(queue.queued, []);
   assert.ok(queue.running.includes(waiting.holdId));
 }
@@ -422,15 +412,15 @@ async function raceSettleAndRelease() {
     }),
   ]);
   const job = await readGatewayJob(holdId);
-  const txn = await db.collection('creditTransactions').doc(holdId).get();
+  const charged = await creditTransactionExists(sql, holdId);
   const bal = await balance(uid);
   assert.notEqual(job?.status, 'dispatching');
-  assert.equal(job?.status === 'released' && txn.exists, false, `${holdId} released and debited`);
-  assert.equal(bal === 1000 && txn.exists, false, `${holdId} refunded balance and debited`);
+  assert.equal(job?.status === 'released' && charged, false, `${holdId} released and debited`);
+  assert.equal(bal === 1000 && charged, false, `${holdId} refunded balance and debited`);
   assert.ok(job?.status === 'released' || job?.status === 'settled');
   if (job?.status === 'released') assert.equal(bal, 1000);
   if (job?.status === 'settled') {
-    assert.equal(txn.exists, true);
+    assert.equal(charged, true);
     assert.equal(bal, 900);
   }
 }
@@ -447,7 +437,7 @@ async function sweepStuckDispatchingToUnknown() {
   assert.equal(await sweepStuckDispatching(a.holdId, later), true);
   assert.equal((await readGatewayJob(a.holdId))?.status, 'unknown');
   assert.equal(await balance(uid), 900);
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   assert.equal(queue.running.includes(a.holdId), false);
 
   const other = await user();
@@ -472,7 +462,7 @@ async function minuteDispatcherRecoversStuck() {
 }
 
 /**
- * Settled ids left in falQueue.running block waiters forever. Past the abandoned
+ * Settled ids left in fal_queues.running block waiters forever. Past the abandoned
  * window the waiter goes unknown (credits held); dead slots are pruned.
  */
 async function pruneSettledRunningAbandonsAgedWaiter() {
@@ -482,31 +472,17 @@ async function pruneSettledRunningAbandonsAgedWaiter() {
   const waiter = `waiter-${seq++}`;
   const createdAt = new Date(Date.now() - RESERVED_ABANDONED_AFTER_MS - 60_000);
   const base = {
-    uid,
     provider: 'fal',
     estimatedCredits: 100,
     heldAllocation: 100,
     heldTopUp: 0,
   };
-  await db.collection('gatewayJobs').doc(deadA).set({
-    ...base,
-    status: 'settled',
-    runId: `r-${deadA}`,
-    createdAt,
-  });
-  await db.collection('gatewayJobs').doc(deadB).set({
-    ...base,
-    status: 'settled',
-    runId: `r-${deadB}`,
-    createdAt,
-  });
-  await db.collection('gatewayJobs').doc(waiter).set({
-    ...base,
-    status: 'queued',
-    runId: `r-${waiter}`,
-    createdAt,
-  });
-  await db.collection('gatewayIdempotency').doc(falRunDocId(uid, `r-${waiter}`)).set({
+  const billing = await getBillingByUserId(sql, uid);
+  const billingAccountId = billing!.id;
+  await insertJob(sql, deadA, uid, billingAccountId, { ...base, status: 'settled', runId: `r-${deadA}`, createdAt });
+  await insertJob(sql, deadB, uid, billingAccountId, { ...base, status: 'settled', runId: `r-${deadB}`, createdAt });
+  await insertJob(sql, waiter, uid, billingAccountId, { ...base, status: 'queued', runId: `r-${waiter}`, createdAt });
+  await insertIdemRow(sql, falRunDocId(uid, `r-${waiter}`), {
     uid,
     runId: `r-${waiter}`,
     phase: 'queued',
@@ -514,21 +490,18 @@ async function pruneSettledRunningAbandonsAgedWaiter() {
     holdId: waiter,
     bodyHash: 'w',
   });
-  await db.collection('users').doc(uid).set(
-    { allocationBalance: 400, topUpBalance: 0, plan: 'starter', planStatus: 'active' },
-    { merge: true }
-  );
-  await db.collection('falQueue').doc(uid).set({
-    running: [deadA, deadB],
-    queued: [waiter],
-    queuedCount: 1,
-    needsSubmit: true,
+  await updateBillingByUserId(sql, uid, {
+    allocationBalance: 400,
+    topUpBalance: 0,
+    plan: 'starter',
+    planStatus: 'active',
   });
+  await upsertQueue(sql, uid, { running: [deadA, deadB], queued: [waiter], queuedCount: 1, needsSubmit: true });
   const run = await dispatchQueuedUsers(Date.now());
   assert.ok(run.abandoned >= 1);
   assert.equal((await readGatewayJob(waiter))?.status, 'unknown');
   assert.equal(await balance(uid), 400, 'credits stay held on unknown');
-  const queue = parseQueue((await db.collection('falQueue').doc(uid).get()).data());
+  const queue = await queueFor(uid);
   assert.equal(queue.running.includes(deadA), false);
   assert.equal(queue.running.includes(deadB), false);
   assert.equal(queue.queued.includes(waiter), false);
@@ -541,18 +514,23 @@ async function sweepNeverChargesCancelled() {
     const h = await hold(uid);
     assert.equal(await claimQueuedToDispatching(uid, h.runId, h.holdId), true);
     assert.equal(await claimFalSubmit(uid, h.runId, h.holdId), 'claimed');
-    assert.equal((await commitFalSubmitted({
-      holdId: h.holdId,
-      uid,
-      runId: h.runId,
-      falRequestId: `fal-${h.holdId}`,
-      falStatusUrl: 'https://queue.fal.run/status',
-      falResponseUrl: 'https://queue.fal.run/response',
-      falCancelUrl: 'https://queue.fal.run/cancel',
-    })).ok, true);
+    assert.equal(
+      (
+        await commitFalSubmitted({
+          holdId: h.holdId,
+          uid,
+          runId: h.runId,
+          falRequestId: `fal-${h.holdId}`,
+          falStatusUrl: 'https://queue.fal.run/status',
+          falResponseUrl: 'https://queue.fal.run/response',
+          falCancelUrl: 'https://queue.fal.run/cancel',
+        })
+      ).ok,
+      true
+    );
     assert.equal(await sweepSubmittedJob(h.holdId, body), 'failed');
     assert.equal((await readGatewayJob(h.holdId))?.status, 'released');
-    assert.equal((await db.collection('creditTransactions').doc(h.holdId).get()).exists, false);
+    assert.equal(await creditTransactionExists(sql, h.holdId), false);
     assert.equal(await balance(uid), 1000);
   }
 }
@@ -573,9 +551,11 @@ async function main() {
   await minuteDispatcherRecoversStuck();
   await pruneSettledRunningAbandonsAgedWaiter();
   console.log('jobMachine.emulator: ok');
+  await sql.end();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(err);
+  await sql.end();
   process.exit(1);
 });

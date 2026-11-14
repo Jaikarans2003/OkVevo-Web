@@ -25,6 +25,17 @@ function createSql(): ReturnType<typeof postgres> {
     ssl: local ? false : 'require',
     max: 5,
     idle_timeout: 20,
+    // bigint columns here are ms-epoch timestamps, well under
+    // Number.MAX_SAFE_INTEGER — parse as number, not postgres.js's default
+    // string, so they round-trip like the Firestore numbers they replace.
+    types: {
+      bigint: {
+        to: 20,
+        from: [20],
+        serialize: (x: number) => String(x),
+        parse: (x: string) => Number(x),
+      },
+    },
   })
 }
 

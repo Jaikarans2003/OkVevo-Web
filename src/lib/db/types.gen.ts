@@ -5,7 +5,21 @@ export type Database = {
   
   "public": {
           Tables: {
-            "billing_accounts": {
+            "admin_rollups": {
+                  Row: {
+                    "data": NonNullable<Json>,"day": string,"written_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "data"?: NonNullable<Json>,"day": string,"written_at"?: string
+                  }
+                  Update: {
+                    "data"?: NonNullable<Json>,"day"?: string,"written_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"billing_accounts": {
                   Row: {
                     "access_mode": string,"account_kind": string,"allocation_balance": number,"allocation_granted_total": number,"billing_cycle": string | null,"cancel_at_period_end": boolean,"concurrency_override": number | null,"created_at": string,"credits_included": number,"currency": string | null,"current_period_end": string | null,"has_scheduled_changes": boolean,"id": string,"next_allocation_date": string | null,"owner_user_id": string,"payment_method": string | null,"plan": string | null,"plan_name": string | null,"plan_status": string | null,"razorpay_customer_id": string | null,"razorpay_subscription_id": string | null,"scheduled_change_at": string | null,"scheduled_plan_id": string | null,"scheduled_plan_type": string | null,"top_up_balance": number,"top_up_purchased_total": number,"updated_at": string
                   }
@@ -127,17 +141,23 @@ isOneToOne: false
                   ]
                 },"fal_media_index": {
                   Row: {
-                    "created_at": string,"height": number | null,"id": string,"kind": string,"seconds": number | null,"url": string,"width": number | null
+                    "created_at": string,"endpoint": string | null,"height": number | null,"id": string,"kind": string,"request_id": string | null,"seconds": number | null,"uid": string | null,"url": string,"width": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"height"?: number | null,"id": string,"kind": string,"seconds"?: number | null,"url": string,"width"?: number | null
+                    "created_at"?: string,"endpoint"?: string | null,"height"?: number | null,"id": string,"kind": string,"request_id"?: string | null,"seconds"?: number | null,"uid"?: string | null,"url": string,"width"?: number | null
                   }
                   Update: {
-                    "created_at"?: string,"height"?: number | null,"id"?: string,"kind"?: string,"seconds"?: number | null,"url"?: string,"width"?: number | null
+                    "created_at"?: string,"endpoint"?: string | null,"height"?: number | null,"id"?: string,"kind"?: string,"request_id"?: string | null,"seconds"?: number | null,"uid"?: string | null,"url"?: string,"width"?: number | null
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "fal_media_index_uid_fkey"
+      columns: ["uid"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"fal_queues": {
                   Row: {
@@ -181,14 +201,14 @@ isOneToOne: false
                   ]
                 },"gateway_jobs": {
                   Row: {
-                    "actual_credits": number | null,"alias_of": string | null,"billing_account_id": string,"captured": boolean,"character": string | null,"consent_at": string | null,"created_at": string,"end_customer_ref": string | null,"endpoint": string | null,"estimated_credits": number | null,"fal_body": Json | null,"fal_cancel_url": string | null,"fal_response_url": string | null,"fal_status_url": string | null,"held_allocation": number | null,"held_top_up": number | null,"hold_expires_at": string | null,"hold_id": string | null,"id": string,"media": Json | null,"payload": Json | null,"price_snapshot": Json | null,"project": string | null,"provider": string | null,"release_reason": string | null,"reserved_fal_usd": number | null,"sample_sha256": string | null,"settled_credits": number | null,"spend_day": string | null,"status": string | null,"submit_args": Json | null,"unit": string | null,"unit_price": number | null,"updated_at": string,"user_id": string
+                    "actual_credits": number | null,"alias_of": string | null,"billing_account_id": string,"cancel_requested": boolean,"captured": boolean,"captured_at": string | null,"captured_fal_usd": number | null,"character": string | null,"client_code": string | null,"client_message": string | null,"consent_at": string | null,"created_at": string,"dispatched_at": string | null,"end_customer_ref": string | null,"endpoint": string | null,"estimated_credits": number | null,"fal_body": Json | null,"fal_cancel_url": string | null,"fal_request_id": string | null,"fal_response_url": string | null,"fal_status_url": string | null,"first_reject_at_ms": number | null,"held_allocation": number | null,"held_top_up": number | null,"hold_expires_at": string | null,"hold_id": string | null,"id": string,"media": Json | null,"next_attempt_at_ms": number | null,"payload": Json | null,"price_snapshot": Json | null,"project": string | null,"provider": string | null,"queue_position": number | null,"release_reason": string | null,"request_id": string | null,"reserved_fal_usd": number | null,"run_id": string | null,"sample_sha256": string | null,"settled_at": string | null,"settled_credits": number | null,"settled_fal_usd": number | null,"spend_day": string | null,"status": string | null,"submit_args": Json | null,"submit_attempts": number,"unit": string | null,"unit_price": number | null,"updated_at": string,"user_id": string,"vendor_status": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id": string,"captured"?: boolean,"character"?: string | null,"consent_at"?: string | null,"created_at"?: string,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id": string,"media"?: Json | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"release_reason"?: string | null,"reserved_fal_usd"?: number | null,"sample_sha256"?: string | null,"settled_credits"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id": string
+                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id": string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id": string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id": string,"vendor_status"?: number | null
                   }
                   Update: {
-                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id"?: string,"captured"?: boolean,"character"?: string | null,"consent_at"?: string | null,"created_at"?: string,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id"?: string,"media"?: Json | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"release_reason"?: string | null,"reserved_fal_usd"?: number | null,"sample_sha256"?: string | null,"settled_credits"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id"?: string
+                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id"?: string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id"?: string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id"?: string,"vendor_status"?: number | null
                   }
                   Relationships: [
                     {
@@ -221,14 +241,14 @@ isOneToOne: false
                   ]
                 },"razorpay_subscriptions": {
                   Row: {
-                    "billing_account_id": string | null,"cancel_at_cycle_end": boolean | null,"charge_count": number,"created_at": string,"id": string,"last_payment_amount": number | null,"last_payment_at": string | null,"last_payment_id": string | null,"notes": Json | null,"plan_type": string | null,"status": string | null,"updated_at": string
+                    "activated_at": string | null,"affiliate_id": string | null,"being_replaced_by": string | null,"billing_account_id": string | null,"cancel_at_cycle_end": boolean | null,"cancelled_at": string | null,"charge_count": number,"completed_at": string | null,"coupon_applied": boolean | null,"coupon_code": string | null,"coupon_type": string | null,"created_at": string,"credits": number | null,"credits_used": number | null,"discount_amount": string | null,"expires_at": string | null,"grace_period_ends_at": string | null,"halted_at": string | null,"id": string,"initial_credits": number | null,"invoice_paid_at": string | null,"last_payment_amount": number | null,"last_payment_at": string | null,"last_payment_failure": Json | null,"last_payment_id": string | null,"notes": Json | null,"paused_at": string | null,"payment_method": string | null,"payment_method_updated_at": string | null,"plan_type": string | null,"replacing_subscription_id": string | null,"resumed_at": string | null,"status": string | null,"updated_at": string,"will_activate_at": string | null,"will_cancel_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "billing_account_id"?: string | null,"cancel_at_cycle_end"?: boolean | null,"charge_count"?: number,"created_at"?: string,"id": string,"last_payment_amount"?: number | null,"last_payment_at"?: string | null,"last_payment_id"?: string | null,"notes"?: Json | null,"plan_type"?: string | null,"status"?: string | null,"updated_at"?: string
+                    "activated_at"?: string | null,"affiliate_id"?: string | null,"being_replaced_by"?: string | null,"billing_account_id"?: string | null,"cancel_at_cycle_end"?: boolean | null,"cancelled_at"?: string | null,"charge_count"?: number,"completed_at"?: string | null,"coupon_applied"?: boolean | null,"coupon_code"?: string | null,"coupon_type"?: string | null,"created_at"?: string,"credits"?: number | null,"credits_used"?: number | null,"discount_amount"?: string | null,"expires_at"?: string | null,"grace_period_ends_at"?: string | null,"halted_at"?: string | null,"id": string,"initial_credits"?: number | null,"invoice_paid_at"?: string | null,"last_payment_amount"?: number | null,"last_payment_at"?: string | null,"last_payment_failure"?: Json | null,"last_payment_id"?: string | null,"notes"?: Json | null,"paused_at"?: string | null,"payment_method"?: string | null,"payment_method_updated_at"?: string | null,"plan_type"?: string | null,"replacing_subscription_id"?: string | null,"resumed_at"?: string | null,"status"?: string | null,"updated_at"?: string,"will_activate_at"?: string | null,"will_cancel_at"?: string | null
                   }
                   Update: {
-                    "billing_account_id"?: string | null,"cancel_at_cycle_end"?: boolean | null,"charge_count"?: number,"created_at"?: string,"id"?: string,"last_payment_amount"?: number | null,"last_payment_at"?: string | null,"last_payment_id"?: string | null,"notes"?: Json | null,"plan_type"?: string | null,"status"?: string | null,"updated_at"?: string
+                    "activated_at"?: string | null,"affiliate_id"?: string | null,"being_replaced_by"?: string | null,"billing_account_id"?: string | null,"cancel_at_cycle_end"?: boolean | null,"cancelled_at"?: string | null,"charge_count"?: number,"completed_at"?: string | null,"coupon_applied"?: boolean | null,"coupon_code"?: string | null,"coupon_type"?: string | null,"created_at"?: string,"credits"?: number | null,"credits_used"?: number | null,"discount_amount"?: string | null,"expires_at"?: string | null,"grace_period_ends_at"?: string | null,"halted_at"?: string | null,"id"?: string,"initial_credits"?: number | null,"invoice_paid_at"?: string | null,"last_payment_amount"?: number | null,"last_payment_at"?: string | null,"last_payment_failure"?: Json | null,"last_payment_id"?: string | null,"notes"?: Json | null,"paused_at"?: string | null,"payment_method"?: string | null,"payment_method_updated_at"?: string | null,"plan_type"?: string | null,"replacing_subscription_id"?: string | null,"resumed_at"?: string | null,"status"?: string | null,"updated_at"?: string,"will_activate_at"?: string | null,"will_cancel_at"?: string | null
                   }
                   Relationships: [
                     {

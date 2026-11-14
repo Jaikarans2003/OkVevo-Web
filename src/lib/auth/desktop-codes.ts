@@ -1,7 +1,10 @@
 import { randomBytes } from 'node:crypto';
 
 import { env } from '@/config/env';
-import { auth, db } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { withTx, type TxSql } from '@/lib/db/tx';
+import { ensureUserAndBilling } from '@/lib/db/wallet';
+import { auth } from '@/lib/firebase-admin';
 
 import {
   isAllowlistedDesktopRedirect,
@@ -13,7 +16,6 @@ import type { CustomTokenSignInBody } from './desktop-token-response';
 export { tokensFromCustomTokenResponse } from './desktop-token-response';
 export type { CustomTokenSignInBody } from './desktop-token-response';
 
-const COLLECTION = 'desktopAuthCodes';
 const TTL_MS = 60_000;
 
 export class DesktopAuthError extends Error {
@@ -48,12 +50,11 @@ export async function mintDesktopAuthCode(
   }
 
   const code = newDesktopAuthCode();
-  await db.collection(COLLECTION).doc(code).set({
-    uid,
-    state,
-    exp: Date.now() + TTL_MS,
-    used: false,
-  });
+  await ensureUserAndBilling(sql, uid);
+  await sql`
+    insert into desktop_auth_codes (code, user_id, state, expires_at, used)
+    values (${code}, ${uid}, ${state}, ${new Date(Date.now() + TTL_MS)}, false)
+  `;
   return code;
 }
 
@@ -121,32 +122,30 @@ export async function exchangeDesktopAuthCode(
     throw new DesktopAuthError(400, 'invalid_grant');
   }
 
-  const ref = db.collection(COLLECTION).doc(code);
-  const uid = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) {
+  const uid = await withTx(async (tx: TxSql) => {
+    const rows = await tx`
+      select user_id, state, expires_at, used from desktop_auth_codes where code = ${code} for update
+    `;
+    const data = rows[0] as
+      | { user_id?: string; state?: string; expires_at?: Date; used?: boolean }
+      | undefined;
+    if (!data) {
       throw new DesktopAuthError(400, 'invalid_grant');
     }
-    const data = snap.data() as {
-      uid?: string;
-      state?: string;
-      exp?: number;
-      used?: boolean;
-    };
     if (data.used) {
       throw new DesktopAuthError(400, 'invalid_grant');
     }
     if (data.state !== state) {
       throw new DesktopAuthError(400, 'invalid_grant');
     }
-    if (typeof data.exp !== 'number' || Date.now() > data.exp) {
+    if (!data.expires_at || Date.now() > data.expires_at.getTime()) {
       throw new DesktopAuthError(400, 'invalid_grant');
     }
-    if (!data.uid) {
+    if (!data.user_id) {
       throw new DesktopAuthError(400, 'invalid_grant');
     }
-    tx.update(ref, { used: true });
-    return data.uid;
+    await tx`update desktop_auth_codes set used = true where code = ${code}`;
+    return data.user_id;
   });
 
   const customToken = await auth.createCustomToken(uid);
