@@ -1,0 +1,1 @@
+-- P0 scaffold. Schema migration lands in the next phase.

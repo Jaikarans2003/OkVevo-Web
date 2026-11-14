@@ -12,7 +12,11 @@ runConfig:
   memoryMiB: 1024
   concurrency: 20
   minInstances: 0
-  timeoutSeconds: 60
+  # 20 × postgres.js pool max 5 = 100 < Supabase Micro pooler limit 200.
+  maxInstances: 20
+  # Match chat route maxDuration (800s). If App Hosting rejects 900, keep 60
+  # and rely on the hold-expiry sweeper (plan §8 / §12).
+  timeoutSeconds: 900
 
 env:
   - variable: OKVEVO_ENV
@@ -215,5 +219,11 @@ env:
 
   - variable: CRON_SECRET
     secret: CRON_SECRET
+    availability:
+      - RUNTIME
+
+  # Supabase transaction pooler URI (port 6543). Secret Manager name DATABASE_URL.
+  - variable: DATABASE_URL
+    secret: DATABASE_URL
     availability:
       - RUNTIME
