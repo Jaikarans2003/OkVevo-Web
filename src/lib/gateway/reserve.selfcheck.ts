@@ -80,7 +80,11 @@ assert.equal(over.skipped, false);
 if (over.skipped) throw new Error('unreachable');
 assert.equal(over.balances.allocationBalance, 0);
 assert.equal(over.balances.topUpBalance, 0);
-assert.equal(over.debitAmount, 55); // ledger billed; balances clamped
+assert.equal(over.debitAmount, 55); // billed (job actualCredits)
+assert.equal(over.walletDebit, 50); // credits taken from wallet
+assert.equal(over.absorbed, 5); // OkVevo eats the shortfall
+// creditLimit=0 stays byte-identical on balances
+assert.equal(applyReconcile({ allocationBalance: 0, topUpBalance: 10 }, { ...falSubmitted, heldAllocation: 40, heldTopUp: 0 }, 55, 0).absorbed, 5);
 
 const released = applyRelease(
   { allocationBalance: 0, topUpBalance: 30 },

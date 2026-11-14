@@ -907,11 +907,12 @@ export async function reconcileCredits(opts: {
 
     if (result.debitAmount <= 0) return;
 
-    const amount = clampDebitAmount(result.debitAmount, result.debitAmount);
+    const amount = clampDebitAmount(result.walletDebit, result.walletDebit);
     await insertCreditTransaction(tx, requestId, billing!.id, omitUndefined({
       user_id: job.uid,
       type: 'debit',
       amount,
+      absorbed: result.absorbed,
       provider,
       model: opts.model,
       prompt_tokens: opts.promptTokens,
