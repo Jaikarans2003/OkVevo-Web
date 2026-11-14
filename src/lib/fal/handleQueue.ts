@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { FieldValue } from 'firebase-admin/firestore';
-
 import { env } from '@/config/env';
-import { auth, db } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { getBillingByUserId, getJob } from '@/lib/db/wallet';
+import { auth } from '@/lib/firebase-admin';
 import { isMeterableEndpoint } from '@/lib/fal/allowlist';
 import {
   classifyFalSubmitError,
@@ -64,6 +64,8 @@ import {
 } from '@/lib/fal/jobMachine';
 import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
+  getIdemRow,
+  getQueue,
   InsufficientCreditsError,
   PlanNotActiveError,
   claimFalSubmit,
@@ -89,8 +91,8 @@ import {
   type MediaContext,
   type PriceSnapshot,
 } from '@/lib/fal/rateCard';
+import { alertStore } from '@/lib/ops/alertStore';
 import { sendOpsAlert, utcDay, utcHour } from '@/lib/ops/alert';
-import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
 import {
   SPEECH_ENDPOINT,
   VOICE_CLONE_ENDPOINT,
@@ -239,12 +241,12 @@ export async function settleFalJob(opts: {
           id: opts.requestId,
           text: `settle formula ${creditsFromUsd(rawUsd).credits} credits exceeds reserve ${job.estimatedCredits} on ${endpoint}; absorbed`,
         },
-        { nowMs: Date.now(), store: firestoreAlertStore(db) }
+        { nowMs: Date.now(), store: alertStore(sql) }
       );
-      await db.doc(`spendDaily/${day}`).set(
-        { overReserveEvents: FieldValue.increment(1) },
-        { merge: true }
-      );
+      await sql`
+        insert into spend_daily (day, over_reserve_events) values (${day}, 1)
+        on conflict (day) do update set over_reserve_events = spend_daily.over_reserve_events + 1
+      `;
     }
     await reconcileCredits({
       requestId,
@@ -255,7 +257,7 @@ export async function settleFalJob(opts: {
       priceUsd: rawUsd,
     });
     await patchGatewayJob(requestId, {
-      settledAt: FieldValue.serverTimestamp(),
+      settledAt: new Date(),
       settledCredits: actual,
       settledFalUsd: rawUsd,
     });
@@ -286,7 +288,7 @@ export async function settleFalJob(opts: {
         id: requestId,
         text: `settled ${endpoint} but clonedVoices write failed`,
       },
-      { nowMs: Date.now(), store: firestoreAlertStore(db) }
+      { nowMs: Date.now(), store: alertStore(sql) }
     );
   }
   if (opts.payload !== undefined) {
@@ -338,16 +340,16 @@ function falStatusOf(json: unknown): string {
 }
 
 async function slotView(uid: string, holdId: string) {
-  const [userSnap, queueSnap] = await Promise.all([
-    db.collection('users').doc(uid).get(),
-    db.collection('falQueue').doc(uid).get(),
+  const [billing, queue] = await Promise.all([
+    getBillingByUserId(sql, uid),
+    getQueue(sql, uid),
   ]);
-  const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
-  const queue = parseQueue(queueSnap.data());
-  const queuedAt = queue.queued.indexOf(holdId);
-  const running = queue.running.includes(holdId) || queuedAt < 0;
+  const decision = slotsForPlan(billing?.plan, billing?.planStatus);
+  const parsed = parseQueue(queue);
+  const queuedAt = parsed.queued.indexOf(holdId);
+  const running = parsed.running.includes(holdId) || queuedAt < 0;
   return {
-    slotsInUse: queue.running.length,
+    slotsInUse: parsed.running.length,
     slotsLimit: decision.admit ? decision.slots : 0,
     queuePosition: queuedAt >= 0 ? queuedAt + 1 : 0,
     state: (queuedAt >= 0 ? 'queued' : running ? 'running' : 'done') as 'queued' | 'running' | 'done',
@@ -395,7 +397,7 @@ async function alertFal(condition: string, id: string, text: string) {
   try {
     await sendOpsAlert(
       { severity: 'HIGH', condition, id, text },
-      { nowMs: Date.now(), store: firestoreAlertStore(db) }
+      { nowMs: Date.now(), store: alertStore(sql) }
     );
   } catch (err) {
     console.error('ops alert write failed', condition, err);
@@ -559,16 +561,16 @@ async function submitReservedHold(
  * abandoned threshold the outcome is unknown — same handoff as applyAmbiguous.
  */
 export async function sweepStuckDispatching(holdId: string, nowMs: number): Promise<boolean> {
-  const data = (await db.collection('gatewayJobs').doc(holdId).get()).data();
+  const data = await getJob(sql, holdId);
   const uid = typeof data?.uid === 'string' ? data.uid : '';
   const runId = typeof data?.runId === 'string' ? data.runId : '';
   if (data?.status !== 'dispatching' || !uid || !runId) return false;
-  const idem = await db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)).get();
-  if (idem.data()?.submitStarted !== true) return false;
+  const idem = await getIdemRow(sql, falRunDocId(uid, runId));
+  if (idem?.submitStarted !== true) return false;
   const abandoned = holdCountsAsAbandoned({
     status: 'dispatching',
-    createdAtMs: data.createdAt?.toMillis?.() ?? nowMs,
-    dispatchedAtMs: data.dispatchedAt?.toMillis?.() ?? null,
+    createdAtMs: (data.createdAt as Date | undefined)?.getTime() ?? nowMs,
+    dispatchedAtMs: (data.dispatchedAt as Date | undefined)?.getTime() ?? null,
     nowMs,
     falRequestId: data.falRequestId,
   });
@@ -616,15 +618,15 @@ export async function dispatchQueuedUsers(
 ): Promise<{ users: number; recovered: number; abandoned: number }> {
   let recovered = 0;
   let abandoned = 0;
-  const dispatching = await db.collection('gatewayJobs').where('status', '==', 'dispatching').get();
-  for (const doc of dispatching.docs) {
-    if (await sweepStuckDispatching(doc.id, nowMs)) recovered += 1;
+  const dispatching = await sql`select id from gateway_jobs where status = 'dispatching'`;
+  for (const row of dispatching) {
+    if (await sweepStuckDispatching(row.id as string, nowMs)) recovered += 1;
   }
   const [waiting, pending] = await Promise.all([
-    db.collection('falQueue').where('queuedCount', '>', 0).get(),
-    db.collection('falQueue').where('needsSubmit', '==', true).get(),
+    sql`select user_id from fal_queues where queued_count > 0`,
+    sql`select user_id from fal_queues where needs_submit = true`,
   ]);
-  const uids = new Set([...waiting.docs, ...pending.docs].map((doc) => doc.id));
+  const uids = new Set([...waiting, ...pending].map((row) => row.user_id as string));
   for (const uid of uids) {
     const got = await dispatchQueued(uid, nowMs);
     for (const holdId of got.abandoned) {
@@ -648,9 +650,9 @@ export async function alertDailySpend(
   nowMs: number
 ): Promise<void> {
   try {
-    const spendSnap = await db.doc(`spendDaily/${day}`).get();
-    const spendUsd =
-      Number(spendSnap.data()?.falUsd ?? 0) + Number(spendSnap.data()?.falUsdHeld ?? 0) + rawUsd;
+    const spendRows = await sql`select fal_usd, fal_usd_held from spend_daily where day = ${day}`;
+    const spend = spendRows[0];
+    const spendUsd = Number(spend?.fal_usd ?? 0) + Number(spend?.fal_usd_held ?? 0) + rawUsd;
     if (!spendAlertCrossed(spendUsd, alertUsd)) return;
     await sendOpsAlert(
       {
@@ -659,7 +661,7 @@ export async function alertDailySpend(
         id: day,
         text: `daily Fal spend $${spendUsd.toFixed(2)} passed the $${alertUsd} alert. Submits are not blocked.`,
       },
-      { nowMs, store: firestoreAlertStore(db) }
+      { nowMs, store: alertStore(sql) }
     );
   } catch (err) {
     console.error('spend alert failed', err);
@@ -950,8 +952,8 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
 
   if (job.status === 'queued' || job.status === 'dispatching') {
     if (job.status === 'queued') {
-      const userSnap = await db.collection('users').doc(uid).get();
-      const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
+      const billing = await getBillingByUserId(sql, uid);
+      const decision = slotsForPlan(billing?.plan, billing?.planStatus);
       if (!decision.admit) {
         await releaseInactiveQueued(uid);
         return jsonError(403, PLAN_INACTIVE_MESSAGE);

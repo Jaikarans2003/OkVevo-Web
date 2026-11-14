@@ -61,10 +61,10 @@ jobs:
           done
           npm run check:fal-webhook
 
-  job-machine-emulator:
-    name: Fal job machine (Firestore emulator)
+  db-tests:
+    name: Supabase db tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -73,17 +73,25 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # firebase-tools emulators need Java 21+.
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        with:
-          distribution: temurin
-          java-version: "21"
-
       - run: npm ci
-      - run: npm install --no-save tsx
 
-      - name: Run jobMachine.emulator.ts
-        run: npx firebase emulators:exec --only firestore --project demo-okvevo "npx tsx src/lib/fal/jobMachine.emulator.ts"
+      - name: Start local Supabase + reset
+        run: |
+          set -euo pipefail
+          npx supabase start
+          npx supabase db reset
+
+      - name: Types must match local schema
+        run: |
+          set -euo pipefail
+          npm run db:types
+          git diff --exit-code src/lib/db/types.gen.ts
+
+      - name: pgTAP
+        run: npm run db:test
+
+      - name: Ledger race suite
+        run: npm run test:ledger
 
   # Same typecheck next build runs in App Hosting Cloud Build.
   typecheck:

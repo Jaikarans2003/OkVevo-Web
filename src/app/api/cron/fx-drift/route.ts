@@ -5,11 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
 
 import { env } from '@/config/env';
 import { evaluateFxDrift, fetchUsdInrRate } from '@/lib/billing/fxDrift';
-import { db } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { setOpsAlert } from '@/lib/ops/alertStore';
 
 export const runtime = 'nodejs';
 
@@ -42,20 +42,17 @@ export async function POST(request: NextRequest) {
     } catch (err) {
         const message = err instanceof Error ? err.message : 'FX rate unavailable';
         console.error('fx-drift: rate fetch failed', message);
-        await db.doc('opsAlerts/fxDrift').set(
-            {
-                checkedAt: FieldValue.serverTimestamp(),
-                error: message,
-                alert: false,
-            },
-            { merge: true }
-        );
+        await setOpsAlert(sql, 'fxDrift', {
+            checkedAt: new Date().toISOString(),
+            error: message,
+            alert: false,
+        });
         return NextResponse.json({ ok: false, error: message });
     }
 
     const evaluation = evaluateFxDrift(quote.rate);
     const payload = {
-        checkedAt: FieldValue.serverTimestamp(),
+        checkedAt: new Date().toISOString(),
         rate: quote.rate,
         source: quote.source,
         bandLow: evaluation.bandLow,
@@ -63,12 +60,14 @@ export async function POST(request: NextRequest) {
         driftRatio: evaluation.driftRatio,
         threshold: evaluation.threshold,
         alert: evaluation.alert,
-        error: FieldValue.delete(),
+        // jsonb merge can only add/overwrite keys, never delete — shadow a
+        // stale `error` from a prior failed check with null instead.
+        error: null,
         note: 'INR price book assumes ~₹95–100 per USD. Review display prices manually — never auto-change live Plans.',
         adminEmails: (process.env.ADMIN_EMAILS ?? '').trim() || null,
     };
 
-    await db.doc('opsAlerts/fxDrift').set(payload, { merge: true });
+    await setOpsAlert(sql, 'fxDrift', payload);
 
     if (evaluation.alert) {
         const pct = (evaluation.driftRatio * 100).toFixed(1);

@@ -65,7 +65,7 @@ async function main() {
     }
     const reserve = Number(data.estimatedCredits || 0);
     const charge = captureCharge(ev.cost_total, reserve);
-    const result = await captureCreditsOn(db, {
+    const result = await captureCreditsOn({
       requestId: doc.id,
       falUsd: ev.cost_total,
       falCredits: charge.falCredits,
