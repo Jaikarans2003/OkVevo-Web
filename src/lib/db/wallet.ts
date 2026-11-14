@@ -191,6 +191,7 @@ const JOB_KEY_MAP: Record<string, string> = {
   capturedAt: 'captured_at',
   capturedFalUsd: 'captured_fal_usd',
   aliasOf: 'alias_of',
+  holdExpiresAt: 'hold_expires_at',
   createdAt: 'created_at',
   dispatchedAt: 'dispatched_at',
   settledAt: 'settled_at',

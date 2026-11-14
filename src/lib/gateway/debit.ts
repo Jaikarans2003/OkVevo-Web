@@ -267,12 +267,12 @@ export type GatewayJobFields = {
   spendDay?: string;
 };
 
+/** Chat/Tavily reserved-hold TTL (plan: > chat maxDuration 800s). Fal uses its own sweeps. */
+export const CHAT_HOLD_TTL_MS = 15 * 60 * 1000;
+
 /**
  * Decrement buckets (FIFO) and write gateway_jobs/{requestId} as reserved.
  * Spend gate: entitled (active + before currentPeriodEnd). No grace.
- *
- * ponytail: reserved jobs stay held until webhook/poll/release. Stuck if Fal
- * never completes. Upgrade: TTL sweeper that releases expired reserved jobs.
  */
 export async function reserveCredits(opts: {
   uid: string;
@@ -326,6 +326,10 @@ export async function reserveCredits(opts: {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
+    const holdExpiresAt =
+      provider === 'openrouter' || provider === 'tavily'
+        ? new Date(Date.now() + CHAT_HOLD_TTL_MS)
+        : undefined;
     await insertJob(tx, requestId, uid, billing!.id, {
       uid,
       provider,
@@ -333,6 +337,7 @@ export async function reserveCredits(opts: {
       heldAllocation: result.job.heldAllocation,
       heldTopUp: result.job.heldTopUp,
       status: 'reserved',
+      ...(holdExpiresAt ? { holdExpiresAt } : {}),
       ...(extra ?? {}),
     });
   });
