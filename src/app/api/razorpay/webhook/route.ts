@@ -27,6 +27,10 @@ import {
     proratedCreditGrant,
     subscriptionUpdatedRequestId,
 } from '@/lib/billing/planChange';
+import {
+    claimWebhookEventId,
+    releaseWebhookEventId,
+} from '@/lib/billing/razorpayWebhookEvents';
 import { verifyRazorpayWebhookSignature as verifyWebhookSignature } from '@/lib/billing/razorpayWebhookSig';
 import {
     logStaleSubscriptionEvent,
@@ -182,11 +186,27 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const eventId = request.headers.get('x-razorpay-event-id')?.trim() || '';
+        if (!eventId) {
+            console.error('❌ Missing Razorpay event id');
+            return NextResponse.json(
+                { success: false, error: 'Missing event id' },
+                { status: 400 }
+            );
+        }
+
         const event = JSON.parse(body);
         const { event: eventType, payload } = event;
 
         console.log(`📨 Razorpay webhook: ${eventType}`);
 
+        const claimed = await claimWebhookEventId(eventId, typeof eventType === 'string' ? eventType : null);
+        if (!claimed) {
+            console.log(`↻ Duplicate Razorpay event ${eventId}; skipping`);
+            return NextResponse.json({ success: true, duplicate: true });
+        }
+
+        try {
         // Handle different event types
         switch (eventType) {
             // ========== SUBSCRIPTION STATE EVENTS ==========
@@ -906,6 +926,10 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({ success: true });
+        } catch (handlerErr) {
+            await releaseWebhookEventId(eventId);
+            throw handlerErr;
+        }
 
     } catch (error: any) {
         console.error('❌ Webhook error:', error);
