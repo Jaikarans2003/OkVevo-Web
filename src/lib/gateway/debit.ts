@@ -272,51 +272,6 @@ export type GatewayJobFields = {
 export const CHAT_HOLD_TTL_MS = 15 * 60 * 1000;
 
 /**
- * If monthly allocation is due, SET it on the locked billing row before spend.
- * Same transaction as the caller — closes the cron vs spend race.
- */
-async function applyAllocationDueInTx(
-  tx: TxSql,
-  uid: string,
-  billing: NonNullable<Awaited<ReturnType<typeof lockBillingByUserId>>>
-): Promise<NonNullable<Awaited<ReturnType<typeof lockBillingByUserId>>>> {
-  const patch = refreshAllocationIfDue({
-    planStatus: billing.planStatus,
-    creditsIncluded: billing.creditsIncluded,
-    allocationBalance: billing.allocationBalance,
-    nextAllocationDate: billing.nextAllocationDate,
-  });
-  if (!patch) return billing;
-  const requestId = `alloc_due_${uid}_${patch.nextAllocationDate.getTime()}`;
-  if (!(await creditTransactionExists(tx, requestId))) {
-    await insertCreditTransaction(tx, requestId, billing.id, {
-      user_id: uid,
-      type: 'grant',
-      amount: patch.allocationBalance,
-      bucket: 'allocation',
-      reason: 'allocation_due_on_reserve',
-      mode: 'set',
-      request_id: requestId,
-    });
-  }
-  await updateBillingByUserId(tx, uid, {
-    allocationBalance: patch.allocationBalance,
-    nextAllocationDate: patch.nextAllocationDate,
-    allocationGrantedTotal: nextAllocationGrantedTotal(
-      'set',
-      billing.allocationGrantedTotal,
-      patch.allocationBalance,
-      patch.allocationBalance
-    ),
-  });
-  return {
-    ...billing,
-    allocationBalance: patch.allocationBalance,
-    nextAllocationDate: patch.nextAllocationDate,
-  };
-}
-
-/**
  * Decrement buckets (FIFO) and write gateway_jobs/{requestId} as reserved.
  * Spend gate: entitled (active + before currentPeriodEnd). No grace.
  */
@@ -332,9 +287,7 @@ export async function reserveCredits(opts: {
 
   await withTx(async (tx) => {
     const spend = readSpendForHold(extra);
-    let billing = await lockBillingByUserId(tx, uid);
-    if (!billing) throw new PlanNotActiveError();
-    billing = await applyAllocationDueInTx(tx, uid, billing);
+    const billing = await lockBillingByUserId(tx, uid);
     const holds = await listOpenHolds(tx, uid);
     const jobRow = await lockJob(tx, requestId);
     const data = billing;
@@ -549,9 +502,7 @@ export async function reserveFalRun(opts: {
       };
     }
     const holdId = crypto.randomUUID();
-    let billing = await lockBillingByUserId(tx, opts.uid);
-    if (!billing) throw new PlanNotActiveError();
-    billing = await applyAllocationDueInTx(tx, opts.uid, billing);
+    const billing = await lockBillingByUserId(tx, opts.uid);
     const jobRow = await lockJob(tx, holdId);
     const queue = await lockQueue(tx, opts.uid);
     const data = billing;
@@ -1014,17 +965,39 @@ export async function grantCredits(opts: {
     // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
     await ensureUserAndBilling(tx, uid);
     const billing = await lockBillingByUserId(tx, uid);
+    if (!billing) throw new Error('billing account missing after ensure');
+
+    // Cron reads due rows without a lock, then SETs here. Re-check on the locked
+    // row so a concurrent subscription.charged SET that already advanced
+    // next_allocation_date is not overwritten.
+    let grantAmount = amount;
+    let patch: Record<string, unknown> | undefined = userPatch;
+    if (bucket === 'allocation' && mode === 'set' && reason === 'cron.allocation_refresh') {
+      const due = refreshAllocationIfDue({
+        planStatus: billing.planStatus,
+        creditsIncluded: billing.creditsIncluded,
+        allocationBalance: billing.allocationBalance,
+        nextAllocationDate: billing.nextAllocationDate,
+      });
+      if (!due) {
+        const b = readBalances(billing);
+        return { ...b, requestId };
+      }
+      grantAmount = due.allocationBalance;
+      patch = { ...(userPatch ?? {}), nextAllocationDate: due.nextAllocationDate };
+    }
+
     const current = readBalances(billing);
     const next: BucketBalances =
       bucket === 'allocation'
         ? {
             allocationBalance:
-              mode === 'add' ? current.allocationBalance + amount : amount,
+              mode === 'add' ? current.allocationBalance + grantAmount : grantAmount,
             topUpBalance: current.topUpBalance,
           }
         : {
             allocationBalance: current.allocationBalance,
-            topUpBalance: current.topUpBalance + amount,
+            topUpBalance: current.topUpBalance + grantAmount,
           };
 
     await updateBillingByUserId(tx, uid, {
@@ -1033,8 +1006,8 @@ export async function grantCredits(opts: {
       ...(bucket === 'topUp'
         ? {
             topUpPurchasedTotal: nextTopUpPurchasedTotal(
-              readInt(billing?.topUpPurchasedTotal),
-              amount,
+              readInt(billing.topUpPurchasedTotal),
+              grantAmount,
               next.topUpBalance
             ),
           }
@@ -1042,19 +1015,19 @@ export async function grantCredits(opts: {
             // Spend must not touch this field — missing stays on creditsIncluded until seed/next grant.
             allocationGrantedTotal: nextAllocationGrantedTotal(
               mode,
-              readInt(billing?.allocationGrantedTotal),
-              amount,
+              readInt(billing.allocationGrantedTotal),
+              grantAmount,
               next.allocationBalance
             ),
           }),
-      ...(userPatch ?? {}),
+      ...(patch ?? {}),
     });
 
-    if (amount > 0 || mode === 'add') {
-      await insertCreditTransaction(tx, requestId, billing!.id, {
+    if (grantAmount > 0 || mode === 'add') {
+      await insertCreditTransaction(tx, requestId, billing.id, {
         user_id: uid,
         type: 'grant',
-        amount,
+        amount: grantAmount,
         bucket: bucket === 'topUp' ? 'top_up' : 'allocation',
         request_id: requestId,
         reason,
