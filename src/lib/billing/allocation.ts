@@ -1,9 +1,8 @@
 /**
  * Per-user anchored monthly allocation helpers.
  * Stripe-style month clamp: Jan 31 + 1 month → Feb 28/29.
+ * Postgres port: nextAllocationDate is a plain Date (was Firestore Timestamp).
  */
-
-import { Timestamp } from 'firebase-admin/firestore';
 
 /** Last-day clamp (Stripe billing-anchor convention). */
 export function addOneMonthClamped(date: Date): Date {
@@ -26,12 +25,12 @@ export type AllocationUserSlice = {
     planStatus?: string | null;
     creditsIncluded?: number;
     allocationBalance?: number;
-    nextAllocationDate?: Timestamp | Date | null;
+    nextAllocationDate?: Date | null;
 };
 
 export type AllocationRefreshPatch = {
     allocationBalance: number;
-    nextAllocationDate: Timestamp;
+    nextAllocationDate: Date;
 };
 
 /**
@@ -59,7 +58,7 @@ export function refreshAllocationIfDue(
 
     return {
         allocationBalance: included,
-        nextAllocationDate: Timestamp.fromDate(next),
+        nextAllocationDate: next,
     };
 }
 
@@ -70,13 +69,10 @@ export function initialAllocationGrant(
 ): AllocationRefreshPatch {
     return {
         allocationBalance: creditsIncluded,
-        nextAllocationDate: Timestamp.fromDate(addOneMonthClamped(currentStart)),
+        nextAllocationDate: addOneMonthClamped(currentStart),
     };
 }
 
-function toDate(v: Timestamp | Date | null | undefined): Date | null {
-    if (!v) return null;
-    if (v instanceof Date) return v;
-    if (typeof (v as Timestamp).toDate === 'function') return (v as Timestamp).toDate();
-    return null;
+function toDate(v: Date | null | undefined): Date | null {
+    return v instanceof Date ? v : null;
 }

@@ -107,10 +107,12 @@ export default function AuthForm({
                 userCredential = await createUserWithEmailAndPassword(auth, email, password);
             }
 
-            // Create user profile in Firestore for new users
-            if (!isLogin) {
-                const { createUserProfile } = await import('@/services/userService');
-                await createUserProfile(userCredential.user.uid, userCredential.user.email || '');
+            // Lazy-create users + personal wallet on the server.
+            {
+                const idToken = await userCredential.user.getIdToken();
+                await fetch('/api/me', {
+                    headers: { Authorization: `Bearer ${idToken}` },
+                });
             }
 
             if (isDesktopRoundTrip) {
@@ -141,9 +143,12 @@ export default function AuthForm({
         try {
             const result = await signInWithPopup(auth, googleProvider);
 
-            // Create user profile if it doesn't exist
-            const { createUserProfile } = await import('@/services/userService');
-            await createUserProfile(result.user.uid, result.user.email || '');
+            {
+                const idToken = await result.user.getIdToken();
+                await fetch('/api/me', {
+                    headers: { Authorization: `Bearer ${idToken}` },
+                });
+            }
 
             if (isDesktopRoundTrip) {
                 await bounceToDesktop(result.user);

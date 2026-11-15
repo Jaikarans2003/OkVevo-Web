@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { db } from '@/lib/firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { sql } from '@/lib/db/client';
+import { updateBillingByUserId } from '@/lib/db/wallet';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { isCancellablePlanStatus, loadUserBillingSoT } from '@/lib/billing/userSoT';
@@ -52,20 +52,14 @@ export async function POST(request: NextRequest) {
         );
 
         const willCancelAt = billing.currentPeriodEnd
-            ?? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+            ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        await db.collection('users').doc(user.uid).set(
-            {
-                cancelAtPeriodEnd: true,
-                updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-        );
+        await updateBillingByUserId(sql, user.uid, { cancelAtPeriodEnd: true });
 
         return NextResponse.json({
             success: true,
             message: 'Subscription scheduled for cancellation at end of billing cycle',
-            willCancelAt: willCancelAt.toDate().toISOString(),
+            willCancelAt: willCancelAt.toISOString(),
             subscription: {
                 id: subscriptionId,
                 status: cancelledSubscription.status,

@@ -1,7 +1,7 @@
 /**
- * One ops alert path. Outputs: an `opsAlerts` Firestore record plus one
- * structured log line (severity, condition, id) that Cloud Monitoring email
- * alerts match. HIGH dedupes to one send per (condition, id) per UTC day.
+ * One ops alert path. Outputs: an `ops_alerts` row plus one structured log
+ * line (severity, condition, id) that Cloud Monitoring email alerts match.
+ * HIGH dedupes to one send per (condition, id) per UTC day.
  * Text must not contain secrets.
  */
 
@@ -16,7 +16,7 @@ export type AlertRecord = {
   resolved: boolean;
 };
 
-/** Map-friendly store so selfchecks stay in-memory; prod uses firestoreAlertStore. */
+/** Map-friendly store so selfchecks stay in-memory; prod uses alertStore (ops_alerts table). */
 export type AlertStore = {
   has(key: string): Promise<boolean> | boolean;
   set(key: string, record: AlertRecord): Promise<void> | void;

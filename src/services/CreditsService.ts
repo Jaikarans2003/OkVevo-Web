@@ -1,182 +1,152 @@
 /**
- * Credits Service
- *
- * Client reads only. SoT is users/{uid} two buckets.
- * Ledger is top-level creditTransactions (Admin-written).
+ * Credits Service — client reads via OkVevo HTTP APIs.
+ * Server computes percentages; raw balances never leave the API.
  */
 
-import { db } from '../config/firebase';
-import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    onSnapshot,
-    query,
-    where,
-    orderBy,
-    limit,
-    type Unsubscribe,
-} from 'firebase/firestore';
-import {
-    additionalRemainingPct,
-    remainingPct,
-    type CreditTransaction,
-    type UserCredits,
-} from '../types/credits';
+import type { User } from 'firebase/auth'
 
-export type { CreditTransaction, UserCredits };
+import { authedJson } from '@/lib/api/browser'
+import type { BillingSummary } from '@/lib/api/billingSummary'
+
+export type CreditTransaction = {
+  id: string
+  type: string
+  amount: number
+  provider?: string | null
+  model?: string | null
+  createdAt: Date
+}
 
 export type BillingSnapshot = {
-    plan: string | null;
-    planName: string | null;
-    planStatus: string | null;
-    billingCycle: string | null;
-    currency: 'USD' | 'INR' | null;
-    creditsIncluded: number;
-    allocationBalance: number;
-    topUpBalance: number;
-    topUpPurchasedTotal: number;
-    /** Plan remaining, two-decimal floor 0–100 — never show raw allocation. */
-    remainingPct: number;
-    /** Additional remaining, floored 0–100 — never show raw topUpBalance. */
-    additionalPct: number;
-    currentPeriodEnd: Date | null;
-    nextAllocationDate: Date | null;
-    cancelAtPeriodEnd: boolean;
-    razorpaySubscriptionId: string | null;
-    hasScheduledChanges: boolean;
-    scheduledPlanType: string | null;
-    scheduledChangeAt: Date | null;
-    paymentMethod: string | null;
-};
-
-function readInt(n: unknown): number {
-    return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 0;
+  plan: string | null
+  planName: string | null
+  planStatus: string | null
+  entitled: boolean
+  billingCycle: string | null
+  currency: 'USD' | 'INR' | null
+  remainingPct: number
+  additionalPct: number
+  additionalNextExpiry: Date | null
+  currentPeriodEnd: Date | null
+  cancelAtPeriodEnd: boolean
+  razorpaySubscriptionId: string | null
+  hasScheduledChanges: boolean
+  scheduledPlanType: string | null
+  scheduledChangeAt: Date | null
+  paymentMethod: string | null
+  canPurchase: boolean
+  fundedBy: string | null
+  accountKind: string
 }
 
-function toDate(v: unknown): Date | null {
-    if (!v) return null;
-    if (v instanceof Date) return v;
-    if (typeof v === 'object' && v !== null && 'toDate' in v && typeof (v as { toDate: () => Date }).toDate === 'function') {
-        return (v as { toDate: () => Date }).toDate();
-    }
-    return null;
+function toDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? null : d
 }
 
-export function billingSnapshotFromUserData(data: Record<string, unknown> | undefined): BillingSnapshot {
-    if (!data) {
-        return {
-            plan: null,
-            planName: null,
-            planStatus: null,
-            billingCycle: null,
-            currency: null,
-            creditsIncluded: 0,
-            allocationBalance: 0,
-            topUpBalance: 0,
-            topUpPurchasedTotal: 0,
-            remainingPct: 0,
-            additionalPct: 0,
-            currentPeriodEnd: null,
-            nextAllocationDate: null,
-            cancelAtPeriodEnd: false,
-            razorpaySubscriptionId: null,
-            hasScheduledChanges: false,
-            scheduledPlanType: null,
-            scheduledChangeAt: null,
-            paymentMethod: null,
-        };
-    }
-    const allocationBalance = readInt(data.allocationBalance);
-    let topUpBalance = readInt(data.topUpBalance);
-    const legacy = readInt(data.creditBalance);
-    if (allocationBalance === 0 && topUpBalance === 0 && legacy > 0 && data.topUpBalance === undefined) {
-        topUpBalance = legacy;
-    }
-    const creditsIncluded = readInt(data.creditsIncluded);
-    const topUpPurchasedTotal = readInt(data.topUpPurchasedTotal);
-    const allocationGrantedTotal = readInt(data.allocationGrantedTotal);
-    return {
-        plan: typeof data.plan === 'string' ? data.plan : null,
-        planName: typeof data.planName === 'string' ? data.planName : null,
-        planStatus: typeof data.planStatus === 'string' ? data.planStatus : null,
-        billingCycle: typeof data.billingCycle === 'string' ? data.billingCycle : null,
-        currency: data.currency === 'INR' || data.currency === 'USD' ? data.currency : null,
-        creditsIncluded,
-        allocationBalance,
-        topUpBalance,
-        topUpPurchasedTotal,
-        remainingPct: remainingPct(creditsIncluded, allocationBalance, allocationGrantedTotal),
-        additionalPct: additionalRemainingPct(topUpBalance, topUpPurchasedTotal),
-        currentPeriodEnd: toDate(data.currentPeriodEnd),
-        nextAllocationDate: toDate(data.nextAllocationDate),
-        cancelAtPeriodEnd: data.cancelAtPeriodEnd === true,
-        razorpaySubscriptionId:
-            typeof data.razorpaySubscriptionId === 'string' ? data.razorpaySubscriptionId : null,
-        hasScheduledChanges: data.hasScheduledChanges === true,
-        scheduledPlanType: typeof data.scheduledPlanType === 'string' ? data.scheduledPlanType : null,
-        scheduledChangeAt: toDate(data.scheduledChangeAt),
-        paymentMethod: typeof data.paymentMethod === 'string' ? data.paymentMethod : null,
-    };
+export function billingSnapshotFromSummary(data: BillingSummary): BillingSnapshot {
+  return {
+    plan: data.plan,
+    planName: data.planName,
+    planStatus: data.status,
+    entitled: data.entitled,
+    billingCycle: data.billingCycle,
+    currency: data.currency === 'INR' || data.currency === 'USD' ? data.currency : null,
+    remainingPct: data.remainingPct,
+    additionalPct: data.additionalPct,
+    additionalNextExpiry: toDate(data.additionalNextExpiry),
+    currentPeriodEnd: toDate(data.periodEnd),
+    cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+    razorpaySubscriptionId: data.razorpaySubscriptionId,
+    hasScheduledChanges: data.scheduledChange != null,
+    scheduledPlanType: data.scheduledChange?.planType ?? null,
+    scheduledChangeAt: toDate(data.scheduledChange?.changeAt),
+    paymentMethod: data.paymentMethod,
+    canPurchase: data.canPurchase,
+    fundedBy: data.fundedBy,
+    accountKind: data.accountKind,
+  }
 }
 
-/** @deprecated Prefer getBillingSnapshot / subscribeUserBilling — raw sum is not the period figure. */
-export async function getUserCredits(userId: string): Promise<number> {
-    const snap = await getBillingSnapshot(userId);
-    return snap.allocationBalance + snap.topUpBalance;
+export function emptyBillingSnapshot(): BillingSnapshot {
+  return billingSnapshotFromSummary({
+    plan: null,
+    planName: null,
+    status: null,
+    entitled: false,
+    remainingPct: 0,
+    additionalPct: 0,
+    additionalNextExpiry: null,
+    periodEnd: null,
+    cancelAtPeriodEnd: false,
+    scheduledChange: null,
+    accountKind: 'individual',
+    canPurchase: true,
+    fundedBy: null,
+    billingCycle: null,
+    currency: null,
+    paymentMethod: null,
+    razorpaySubscriptionId: null,
+  })
 }
 
-export async function getBillingSnapshot(userId: string): Promise<BillingSnapshot> {
-    if (!userId) return billingSnapshotFromUserData(undefined);
-    try {
-        const snap = await getDoc(doc(db, 'users', userId));
-        if (!snap.exists()) return billingSnapshotFromUserData(undefined);
-        return billingSnapshotFromUserData(snap.data() as Record<string, unknown>);
-    } catch (error) {
-        console.error('Failed to get billing snapshot:', error);
-        return billingSnapshotFromUserData(undefined);
-    }
+export async function getBillingSnapshot(user: User): Promise<BillingSnapshot> {
+  const data = await authedJson<BillingSummary>(user, '/api/billing/summary')
+  return billingSnapshotFromSummary(data)
 }
 
+/**
+ * Poll billing summary while the UI is open (30 s), on window focus, and once immediately.
+ */
 export function subscribeUserBilling(
-    userId: string,
-    onData: (snap: BillingSnapshot) => void,
-    onError?: (err: Error) => void
-): Unsubscribe {
-    if (!userId) {
-        onData(billingSnapshotFromUserData(undefined));
-        return () => {};
+  user: User,
+  onData: (snap: BillingSnapshot) => void,
+  onError?: (err: Error) => void
+): () => void {
+  let stopped = false
+  let timer: ReturnType<typeof setInterval> | null = null
+
+  const pull = async () => {
+    try {
+      const snap = await getBillingSnapshot(user)
+      if (!stopped) onData(snap)
+    } catch (err) {
+      if (!stopped) onError?.(err instanceof Error ? err : new Error(String(err)))
     }
-    return onSnapshot(
-        doc(db, 'users', userId),
-        (snap) => {
-            onData(billingSnapshotFromUserData(snap.exists() ? (snap.data() as Record<string, unknown>) : undefined));
-        },
-        (err) => {
-            console.error('subscribeUserBilling:', err);
-            onError?.(err);
-        }
-    );
+  }
+
+  void pull()
+  timer = setInterval(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    void pull()
+  }, 30_000)
+
+  const onFocus = () => void pull()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onFocus)
+  }
+
+  return () => {
+    stopped = true
+    if (timer) clearInterval(timer)
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', onFocus)
+    }
+  }
 }
 
-export async function getCreditHistory(
-    userId: string,
-    limitCount: number = 50
-): Promise<CreditTransaction[]> {
-    if (!userId) return [];
-
-    try {
-        const q = query(
-            collection(db, 'creditTransactions'),
-            where('uid', '==', userId),
-            orderBy('createdAt', 'desc'),
-            limit(limitCount)
-        );
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as CreditTransaction));
-    } catch (error) {
-        console.error('Failed to get credit history:', error);
-        return [];
-    }
+export async function getCreditHistory(user: User, limitCount: number = 50): Promise<CreditTransaction[]> {
+  const data = await authedJson<{ items: Array<Record<string, unknown>> }>(
+    user,
+    '/api/billing/transactions'
+  )
+  return (data.items ?? []).slice(0, limitCount).map((row) => ({
+    id: String(row.id),
+    type: String(row.type),
+    amount: Number(row.amount) || 0,
+    provider: (row.provider as string | null) ?? null,
+    model: (row.model as string | null) ?? null,
+    createdAt: toDate(String(row.createdAt)) ?? new Date(0),
+  }))
 }

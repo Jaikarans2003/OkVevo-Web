@@ -6,6 +6,8 @@
 #   production → text2video-16cbf, required-reviewer approval on the Environment
 #
 # Secret (per Environment): FIREBASE_SERVICE_ACCOUNT  (JSON)
+# Supabase (per Environment): SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD
+# Variable (per Environment): SUPABASE_PROJECT_REF
 # Production Environment vars: optional overlay of public keys in apphosting.production.yaml
 #
 # `environment:` must be the string literal `staging` / `production`. A dynamic
@@ -40,6 +42,9 @@ jobs:
       FIREBASE_PROJECT: okvevo-testing
       APPHOSTING_ENV: staging
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
       NEXT_PUBLIC_NIA_RELEASES_BASE: ${{ vars.NEXT_PUBLIC_NIA_RELEASES_BASE }}
       ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
@@ -66,6 +71,29 @@ jobs:
       RAZORPAY_INR_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Session pooler (IPv4) via CLI default pooler path; dns-resolver https for runners without IPv6.
+      - name: Push Supabase migrations (staging)
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_PROJECT_REF:-}" ]; then
+            echo "::error::SUPABASE_PROJECT_REF is empty on Environment staging"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] || [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN or SUPABASE_DB_PASSWORD missing on Environment staging"
+            exit 1
+          fi
+          # Installed CLI is v2.x: --project-ref (not --remote). Session pooler via CLI default; dns-resolver https for IPv4 runners.
+          npx supabase db push --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes --dns-resolver https
+          npx supabase db advisors --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
 
       - uses: ./.github/actions/deploy-apphosting
         env:
@@ -83,6 +111,9 @@ jobs:
       FIREBASE_PROJECT: text2video-16cbf
       APPHOSTING_ENV: production
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
       NEXT_PUBLIC_NIA_RELEASES_BASE: ${{ vars.NEXT_PUBLIC_NIA_RELEASES_BASE }}
       ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
@@ -109,6 +140,29 @@ jobs:
       RAZORPAY_INR_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Inside the production Environment job (approval gate). Never in an ungated job.
+      - name: Push Supabase migrations (production)
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_PROJECT_REF:-}" ]; then
+            echo "::error::SUPABASE_PROJECT_REF is empty on Environment production"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] || [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN or SUPABASE_DB_PASSWORD missing on Environment production"
+            exit 1
+          fi
+          # Installed CLI is v2.x: --project-ref (not --remote). Inside production Environment (approval gate).
+          npx supabase db push --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes --dns-resolver https
+          npx supabase db advisors --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
 
       - uses: ./.github/actions/deploy-apphosting
         env:

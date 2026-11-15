@@ -1,12 +1,17 @@
 /**
- * Firestore side of the per-user queue. Fal HTTP stays in handleQueue.
+ * Postgres side of the per-user queue. Fal HTTP stays in handleQueue.
  * Slot handoff (free + promote the oldest waiter) is one transaction.
  * Status changes go through the job machine; a released job is not promoted.
  */
 
-import { FieldValue } from 'firebase-admin/firestore';
-
-import { db } from '@/lib/firebase-admin';
+import { withTx, type TxSql } from '@/lib/db/tx';
+import {
+  lockBillingByUserId,
+  lockJob,
+  updateBillingByUserId,
+  updateJob,
+} from '@/lib/db/wallet';
+import type { IdemRow } from '@/lib/fal/idempotency';
 import {
   canRetrySubmit,
   parseQueue,
@@ -31,27 +36,32 @@ import {
   falRunDocId,
   jobFromSnap,
   loadSpendRelease,
+  lockIdemRow,
+  lockQueue,
   readBalances,
+  updateIdemRow,
+  upsertQueue,
   writeSpendRelease,
 } from '@/lib/gateway/debit';
 import { applyRelease } from '@/lib/gateway/reserve';
 
 export type Promoted = { holdId: string; runId: string };
 
-function writeQueue(
-  tx: FirebaseFirestore.Transaction,
-  ref: FirebaseFirestore.DocumentReference,
+async function writeQueue(
+  tx: TxSql,
+  uid: string,
   state: QueueDoc,
   needsSubmit: boolean
-) {
-  tx.set(
-    ref,
-    { running: state.running, queued: state.queued, queuedCount: state.queued.length, needsSubmit },
-    { merge: true }
-  );
+): Promise<void> {
+  await upsertQueue(tx, uid, {
+    running: state.running,
+    queued: state.queued,
+    queuedCount: state.queued.length,
+    needsSubmit,
+  });
 }
 
-function headReady(data: FirebaseFirestore.DocumentData | undefined, nowMs: number): boolean {
+function headReady(data: Record<string, unknown> | undefined, nowMs: number): boolean {
   const at = data?.nextAttemptAtMs;
   return typeof at !== 'number' || at <= nowMs;
 }
@@ -65,23 +75,48 @@ export async function claimQueuedToDispatching(
   runId: string,
   holdId: string
 ): Promise<boolean> {
-  const jobRef = db.collection('gatewayJobs').doc(holdId);
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const idemSnap = await tx.get(idemRef);
-    const status = jobSnap.data()?.status;
-    const submitStarted = idemSnap.data()?.submitStarted === true;
+  const idemId = falRunDocId(uid, runId);
+  return withTx(async (tx) => {
+    const job = await lockJob(tx, holdId);
+    const idem = await lockIdemRow(tx, idemId);
+    const status = job?.status;
+    const submitStarted = idem?.submitStarted === true;
     if (status === 'dispatching' && !submitStarted) return true;
     if (status !== 'queued' || !canTransition('queued', 'dispatching')) return false;
-    tx.set(
-      jobRef,
-      { status: 'dispatching', dispatchedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    tx.set(idemRef, { phase: 'dispatching' }, { merge: true });
+    await updateJob(tx, holdId, { status: 'dispatching', dispatchedAt: new Date() });
+    await updateIdemRow(tx, idemId, { phase: 'dispatching' });
     return true;
   });
+}
+
+/** Both sides of a promote: decide readiness from the dispatch target's row, then commit or requeue it. */
+async function commitPromotion(
+  tx: TxSql,
+  uid: string,
+  next: { state: QueueDoc; dispatch: string | null },
+  promotedRow: Record<string, unknown> | undefined,
+  promotedIdem: IdemRow | undefined
+): Promise<{ state: QueueDoc; promoted: Promoted | null }> {
+  if (!next.dispatch || !promotedRow) return { state: next.state, promoted: null };
+  const runId = typeof promotedRow.runId === 'string' ? promotedRow.runId : '';
+  const ready =
+    promotedRow.status === 'queued' &&
+    !!runId &&
+    headReady(promotedRow, Date.now()) &&
+    promotedIdem?.submitStarted !== true &&
+    canTransition('queued', 'dispatching');
+  if (!ready) {
+    return {
+      state: {
+        running: next.state.running.filter((id) => id !== next.dispatch),
+        queued: [next.dispatch, ...next.state.queued.filter((id) => id !== next.dispatch)],
+      },
+      promoted: null,
+    };
+  }
+  await updateJob(tx, next.dispatch, { status: 'dispatching', dispatchedAt: new Date() });
+  await updateIdemRow(tx, falRunDocId(uid, runId), { phase: 'dispatching' });
+  return { state: next.state, promoted: { holdId: next.dispatch, runId } };
 }
 
 /**
@@ -89,45 +124,25 @@ export async function claimQueuedToDispatching(
  * A waiter whose retry time has not arrived stays at the head and blocks later jobs.
  */
 export async function handoffSlot(uid: string, holdId: string): Promise<Promoted | null> {
-  const queueRef = db.collection('falQueue').doc(uid);
-  const userRef = db.collection('users').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const userSnap = await tx.get(userRef);
-    const queueSnap = await tx.get(queueRef);
-    const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
+  return withTx(async (tx) => {
+    const billing = await lockBillingByUserId(tx, uid);
+    const queue = await lockQueue(tx, uid);
+    const decision = slotsForPlan(billing?.plan, billing?.planStatus);
     const slots = decision.admit ? decision.slots : 0;
-    const next = releaseAndDispatch(parseQueue(queueSnap.data()), holdId, slots);
-    let state = next.state;
-    let promoted: Promoted | null = null;
-    if (next.dispatch) {
-      const jobSnap = await tx.get(db.collection('gatewayJobs').doc(next.dispatch));
-      const data = jobSnap.data();
-      const runId = typeof data?.runId === 'string' ? data.runId : '';
-      const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
-      const idemSnap = runId ? await tx.get(idemRef) : null;
-      const ready =
-        data?.status === 'queued' &&
-        !!runId &&
-        headReady(data, Date.now()) &&
-        idemSnap?.data()?.submitStarted !== true &&
-        canTransition('queued', 'dispatching');
-      if (!ready) {
-        state = {
-          running: next.state.running.filter((id) => id !== next.dispatch),
-          queued: [next.dispatch!, ...next.state.queued.filter((id) => id !== next.dispatch)],
-        };
-      } else {
-        tx.set(
-          jobSnap.ref,
-          { status: 'dispatching', dispatchedAt: FieldValue.serverTimestamp() },
-          { merge: true }
-        );
-        tx.set(idemRef, { phase: 'dispatching' }, { merge: true });
-        promoted = { holdId: next.dispatch, runId };
-      }
-    }
-    writeQueue(tx, queueRef, state, state.queued.length > 0 || promoted !== null);
-    return promoted;
+    const next = releaseAndDispatch(parseQueue(queue), holdId, slots);
+    const promotedRow = next.dispatch ? await lockJob(tx, next.dispatch) : undefined;
+    const promotedRunId = typeof promotedRow?.runId === 'string' ? promotedRow.runId : '';
+    const promotedIdem = promotedRunId
+      ? await lockIdemRow(tx, falRunDocId(uid, promotedRunId))
+      : undefined;
+    const promoted = await commitPromotion(tx, uid, next, promotedRow, promotedIdem);
+    await writeQueue(
+      tx,
+      uid,
+      promoted.state,
+      promoted.state.queued.length > 0 || promoted.promoted !== null
+    );
+    return promoted.promoted;
   });
 }
 
@@ -140,22 +155,19 @@ export async function recoverStaleRunningSlots(
   uid: string,
   nowMs: number
 ): Promise<{ pruned: number; abandoned: string[] }> {
-  const queueRef = db.collection('falQueue').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const queueSnap = await tx.get(queueRef);
-    const state = parseQueue(queueSnap.data());
+  return withTx(async (tx) => {
+    const queue = await lockQueue(tx, uid);
+    const state = parseQueue(queue);
     if (state.running.length === 0 && state.queued.length === 0) {
       return { pruned: 0, abandoned: [] as string[] };
     }
-    const runningSnaps = [];
-    for (const id of state.running) {
-      runningSnaps.push(await tx.get(db.collection('gatewayJobs').doc(id)));
-    }
+    const runningRows: (Record<string, unknown> | undefined)[] = [];
+    for (const id of state.running) runningRows.push(await lockJob(tx, id));
     let liveRunningCount = 0;
     let terminalRunningCount = 0;
     const liveRunning: string[] = [];
     for (let i = 0; i < state.running.length; i++) {
-      const status = String(runningSnaps[i].data()?.status ?? '');
+      const status = String(runningRows[i]?.status ?? '');
       if (isTerminalQueueStatus(status)) {
         terminalRunningCount += 1;
       } else {
@@ -166,10 +178,9 @@ export async function recoverStaleRunningSlots(
     const abandoned: string[] = [];
     const keptQueued: string[] = [];
     for (const id of state.queued) {
-      const jobSnap = await tx.get(db.collection('gatewayJobs').doc(id));
-      const data = jobSnap.data();
+      const data = await lockJob(tx, id);
       const status = String(data?.status ?? '');
-      const createdAtMs = data?.createdAt?.toMillis?.() ?? nowMs;
+      const createdAtMs = (data?.createdAt as Date | undefined)?.getTime() ?? nowMs;
       const falRequestId = data?.falRequestId;
       if (
         shouldAbandonQueuedBehindDeadSlots({
@@ -183,14 +194,8 @@ export async function recoverStaleRunningSlots(
         canTransition('queued', 'unknown')
       ) {
         const runId = typeof data?.runId === 'string' ? data.runId : '';
-        tx.set(jobSnap.ref, { status: 'unknown' }, { merge: true });
-        if (runId) {
-          tx.set(
-            db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)),
-            { phase: 'unknown' },
-            { merge: true }
-          );
-        }
+        await updateJob(tx, id, { status: 'unknown' });
+        if (runId) await updateIdemRow(tx, falRunDocId(uid, runId), { phase: 'unknown' });
         abandoned.push(id);
       } else {
         keptQueued.push(id);
@@ -200,9 +205,9 @@ export async function recoverStaleRunningSlots(
     if (pruned === 0 && abandoned.length === 0) {
       return { pruned: 0, abandoned };
     }
-    writeQueue(
+    await writeQueue(
       tx,
-      queueRef,
+      uid,
       { running: liveRunning, queued: keptQueued },
       keptQueued.length > 0
     );
@@ -212,32 +217,25 @@ export async function recoverStaleRunningSlots(
 
 /** Move the oldest ready waiter into a free slot. Does not pass a job that is waiting to retry. */
 export async function takeNextQueued(uid: string): Promise<Promoted | null> {
-  const queueRef = db.collection('falQueue').doc(uid);
-  const userRef = db.collection('users').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const userSnap = await tx.get(userRef);
-    const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
-    const queueSnap = await tx.get(queueRef);
-    const state = parseQueue(queueSnap.data());
+  return withTx(async (tx) => {
+    const billing = await lockBillingByUserId(tx, uid);
+    const decision = slotsForPlan(billing?.plan, billing?.planStatus);
+    const queue = await lockQueue(tx, uid);
+    const state = parseQueue(queue);
     if (!decision.admit) {
-      if (queueSnap.data()?.needsSubmit === true) writeQueue(tx, queueRef, state, false);
+      if (queue?.needsSubmit === true) await writeQueue(tx, uid, state, false);
       return null;
     }
     for (const holdId of state.running) {
-      const jobSnap = await tx.get(db.collection('gatewayJobs').doc(holdId));
-      const data = jobSnap.data();
+      const data = await lockJob(tx, holdId);
       const runId = typeof data?.runId === 'string' ? data.runId : '';
       if (!runId) continue;
-      const idemSnap = await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)));
-      const started = idemSnap.data()?.submitStarted === true;
+      const idem = await lockIdemRow(tx, falRunDocId(uid, runId));
+      const started = idem?.submitStarted === true;
       // Crash between reserve (placed running) and the dispatch claim.
       if (data?.status === 'queued' && !started && canTransition('queued', 'dispatching')) {
-        tx.set(
-          jobSnap.ref,
-          { status: 'dispatching', dispatchedAt: FieldValue.serverTimestamp() },
-          { merge: true }
-        );
-        tx.set(idemSnap.ref, { phase: 'dispatching' }, { merge: true });
+        await updateJob(tx, holdId, { status: 'dispatching', dispatchedAt: new Date() });
+        await updateIdemRow(tx, falRunDocId(uid, runId), { phase: 'dispatching' });
         return { holdId, runId };
       }
       if (!canRetrySubmit(String(data?.status ?? ''), started)) continue;
@@ -245,20 +243,18 @@ export async function takeNextQueued(uid: string): Promise<Promoted | null> {
     }
     const headId = state.queued[0];
     if (!headId) {
-      if (queueSnap.data()?.needsSubmit === true) writeQueue(tx, queueRef, state, false);
+      if (queue?.needsSubmit === true) await writeQueue(tx, uid, state, false);
       return null;
     }
-    const headSnap = await tx.get(db.collection('gatewayJobs').doc(headId));
-    const head = headSnap.data();
+    const head = await lockJob(tx, headId);
     if (!headReady(head, Date.now())) return null;
     const runId = typeof head?.runId === 'string' ? head.runId : '';
-    const idemSnap = runId
-      ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId)))
-      : null;
-    if (head?.status !== 'queued' || !runId || idemSnap?.data()?.submitStarted === true) {
-      writeQueue(
+    const idemId = runId ? falRunDocId(uid, runId) : null;
+    const idem = idemId ? await lockIdemRow(tx, idemId) : undefined;
+    if (head?.status !== 'queued' || !runId || idem?.submitStarted === true) {
+      await writeQueue(
         tx,
-        queueRef,
+        uid,
         { running: state.running, queued: state.queued.slice(1) },
         state.queued.length > 1
       );
@@ -266,13 +262,9 @@ export async function takeNextQueued(uid: string): Promise<Promoted | null> {
     }
     const moved = promoteHead(state, decision.slots);
     if (!moved.dispatch || !canTransition('queued', 'dispatching')) return null;
-    tx.set(
-      headSnap.ref,
-      { status: 'dispatching', dispatchedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    tx.set(idemSnap!.ref, { phase: 'dispatching' }, { merge: true });
-    writeQueue(tx, queueRef, moved.state, true);
+    await updateJob(tx, headId, { status: 'dispatching', dispatchedAt: new Date() });
+    await updateIdemRow(tx, idemId!, { phase: 'dispatching' });
+    await writeQueue(tx, uid, moved.state, true);
     return { holdId: moved.dispatch, runId };
   });
 }
@@ -294,94 +286,52 @@ export type CancelResult =
  * - Queued waiters behind a cancelled head still get promoted (stop future work).
  */
 export async function cancelFalJob(uid: string, holdId: string): Promise<CancelResult> {
-  const jobRef = db.collection('gatewayJobs').doc(holdId);
-  const userRef = db.collection('users').doc(uid);
-  const queueRef = db.collection('falQueue').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
+  return withTx(async (tx) => {
+    const jobRow = await lockJob(tx, holdId);
+    const job = jobFromSnap(jobRow);
     if (!job || job.uid !== uid) return { kind: 'noop' as const };
-    const data = jobSnap.data() ?? {};
+    const data = jobRow ?? {};
     if (job.status === 'dispatching' || job.status === 'submitted') {
       const falRequestId = typeof data.falRequestId === 'string' ? data.falRequestId : '';
       const cancelUrl = typeof data.falCancelUrl === 'string' ? data.falCancelUrl : '';
-      tx.set(jobRef, { cancelRequested: true }, { merge: true });
+      await updateJob(tx, holdId, { cancelRequested: true });
       const statusUrl = typeof data.falStatusUrl === 'string' ? data.falStatusUrl : '';
       if (falRequestId && cancelUrl) return { kind: 'cancel_remote' as const, cancelUrl, statusUrl };
       return { kind: 'await_request' as const };
     }
     if (job.status !== 'queued') return { kind: 'noop' as const };
-    const userSnap = await tx.get(userRef);
-    const queueSnap = await tx.get(queueRef);
+    const billing = await lockBillingByUserId(tx, uid);
+    const queue = await lockQueue(tx, uid);
     const spend = await loadSpendRelease(tx, data);
     const runId = typeof data.runId === 'string' ? data.runId : '';
-    const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
-    const idemSnap = runId ? await tx.get(idemRef) : null;
-    const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
-    const next = releaseAndDispatch(parseQueue(queueSnap.data()), holdId, decision.admit ? decision.slots : 0);
-    const promotedSnap = next.dispatch
-      ? await tx.get(db.collection('gatewayJobs').doc(next.dispatch))
-      : null;
-    const promotedRunId =
-      typeof promotedSnap?.data()?.runId === 'string' ? promotedSnap.data()!.runId : '';
+    const idemId = runId ? falRunDocId(uid, runId) : null;
+    const idem = idemId ? await lockIdemRow(tx, idemId) : undefined;
+    void idem;
+    const decision = slotsForPlan(billing?.plan, billing?.planStatus);
+    const next = releaseAndDispatch(parseQueue(queue), holdId, decision.admit ? decision.slots : 0);
+    const promotedRow = next.dispatch ? await lockJob(tx, next.dispatch) : undefined;
+    const promotedRunId = typeof promotedRow?.runId === 'string' ? promotedRow.runId : '';
     const promotedIdem = promotedRunId
-      ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(uid, promotedRunId)))
-      : null;
-    const result = applyRelease(readBalances(userSnap.data()), job);
+      ? await lockIdemRow(tx, falRunDocId(uid, promotedRunId))
+      : undefined;
+    const result = applyRelease(readBalances(billing), job);
     if (result.skipped || !canTransition('queued', 'released')) return { kind: 'noop' as const };
     writeSpendRelease(tx, spend);
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(jobRef, { status: 'released', releaseReason: 'cancelled' }, { merge: true });
-    if (idemSnap) tx.set(idemSnap.ref, { phase: 'released', submitStarted: true }, { merge: true });
-    const promoted = commitPromotion(tx, next, promotedSnap, promotedIdem);
-    writeQueue(
+    await updateBillingByUserId(tx, uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await updateJob(tx, holdId, { status: 'released', releaseReason: 'cancelled' });
+    if (idemId) await updateIdemRow(tx, idemId, { phase: 'released', submitStarted: true });
+    const promoted = await commitPromotion(tx, uid, next, promotedRow, promotedIdem);
+    await writeQueue(
       tx,
-      queueRef,
+      uid,
       promoted.state,
       promoted.state.queued.length > 0 || promoted.promoted !== null
     );
     return { kind: 'released' as const, promoted: promoted.promoted };
   });
-}
-
-function commitPromotion(
-  tx: FirebaseFirestore.Transaction,
-  next: { state: QueueDoc; dispatch: string | null },
-  promotedSnap: FirebaseFirestore.DocumentSnapshot | null,
-  promotedIdem: FirebaseFirestore.DocumentSnapshot | null
-): { state: QueueDoc; promoted: Promoted | null } {
-  if (!next.dispatch || !promotedSnap) return { state: next.state, promoted: null };
-  const data = promotedSnap.data();
-  const runId = typeof data?.runId === 'string' ? data.runId : '';
-  const ready =
-    data?.status === 'queued' &&
-    !!runId &&
-    headReady(data, Date.now()) &&
-    promotedIdem?.data()?.submitStarted !== true &&
-    canTransition('queued', 'dispatching');
-  if (!ready) {
-    return {
-      state: {
-        running: next.state.running.filter((id) => id !== next.dispatch),
-        queued: [next.dispatch, ...next.state.queued.filter((id) => id !== next.dispatch)],
-      },
-      promoted: null,
-    };
-  }
-  tx.set(
-    promotedSnap.ref,
-    { status: 'dispatching', dispatchedAt: FieldValue.serverTimestamp() },
-    { merge: true }
-  );
-  if (promotedIdem) tx.set(promotedIdem.ref, { phase: 'dispatching' }, { merge: true });
-  return { state: next.state, promoted: { holdId: next.dispatch, runId } };
 }
 
 export type RejectionResult = {
@@ -408,21 +358,19 @@ export async function applyDefiniteRejection(opts: {
   vendorCode?: VendorErrorCode;
   vendorStatus?: number;
 }): Promise<RejectionResult> {
-  const jobRef = db.collection('gatewayJobs').doc(opts.holdId);
-  const userRef = db.collection('users').doc(opts.uid);
-  const queueRef = db.collection('falQueue').doc(opts.uid);
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, opts.runId));
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
+  const idemId = falRunDocId(opts.uid, opts.runId);
+  return withTx(async (tx) => {
+    const jobRow = await lockJob(tx, opts.holdId);
+    const job = jobFromSnap(jobRow);
     if (!job || job.status !== 'dispatching' || !canTransition('dispatching', 'queued')) {
       return { action: 'lost' as const, promoted: null, message: '' };
     }
-    const data = jobSnap.data() ?? {};
-    const userSnap = await tx.get(userRef);
-    const queueSnap = await tx.get(queueRef);
+    const data = jobRow ?? {};
+    const billing = await lockBillingByUserId(tx, opts.uid);
+    const queue = await lockQueue(tx, opts.uid);
     const spend = await loadSpendRelease(tx, data);
-    const idemSnap = await tx.get(idemRef);
+    const idem = await lockIdemRow(tx, idemId);
+    void idem;
     const cancelRequested = data.cancelRequested === true;
     const attemptsSoFar = Number(data.submitAttempts ?? 0);
     const decision = cancelRequested
@@ -437,67 +385,52 @@ export async function applyDefiniteRejection(opts: {
           rand: opts.rand,
         });
     if (decision.action === 'requeue') {
-      const state = requeueAtHead(parseQueue(queueSnap.data()), opts.holdId);
-      tx.set(
-        jobRef,
-        {
-          status: 'queued',
-          submitAttempts: decision.attempts,
-          firstRejectAtMs: typeof data.firstRejectAtMs === 'number' ? data.firstRejectAtMs : opts.nowMs,
-          nextAttemptAtMs: decision.nextAttemptAtMs,
-        },
-        { merge: true }
-      );
-      tx.set(idemSnap.ref, { phase: 'queued', submitStarted: false }, { merge: true });
-      writeQueue(tx, queueRef, state, true);
+      const state = requeueAtHead(parseQueue(queue), opts.holdId);
+      await updateJob(tx, opts.holdId, {
+        status: 'queued',
+        submitAttempts: decision.attempts,
+        firstRejectAtMs: typeof data.firstRejectAtMs === 'number' ? data.firstRejectAtMs : opts.nowMs,
+        nextAttemptAtMs: decision.nextAttemptAtMs,
+      });
+      await updateIdemRow(tx, idemId, { phase: 'queued', submitStarted: false });
+      await writeQueue(tx, opts.uid, state, true);
       return { action: 'requeue' as const, promoted: null, message: '' };
     }
-    const plan = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
+    const plan = slotsForPlan(billing?.plan, billing?.planStatus);
     const next = releaseAndDispatch(
-      parseQueue(queueSnap.data()),
+      parseQueue(queue),
       opts.holdId,
       plan.admit ? plan.slots : 0
     );
-    const promotedSnap = next.dispatch
-      ? await tx.get(db.collection('gatewayJobs').doc(next.dispatch))
-      : null;
-    const promotedRunId =
-      typeof promotedSnap?.data()?.runId === 'string' ? promotedSnap!.data()!.runId : '';
+    const promotedRow = next.dispatch ? await lockJob(tx, next.dispatch) : undefined;
+    const promotedRunId = typeof promotedRow?.runId === 'string' ? promotedRow.runId : '';
     const promotedIdem = promotedRunId
-      ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(opts.uid, promotedRunId)))
-      : null;
-    const released = applyRelease(readBalances(userSnap.data()), job);
+      ? await lockIdemRow(tx, falRunDocId(opts.uid, promotedRunId))
+      : undefined;
+    const released = applyRelease(readBalances(billing), job);
     if (released.skipped || !canTransition('dispatching', 'released')) {
       return { action: 'lost' as const, promoted: null, message: '' };
     }
     writeSpendRelease(tx, spend);
-    tx.set(
-      userRef,
-      {
-        allocationBalance: released.balances.allocationBalance,
-        topUpBalance: released.balances.topUpBalance,
-      },
-      { merge: true }
-    );
+    await updateBillingByUserId(tx, opts.uid, {
+      allocationBalance: released.balances.allocationBalance,
+      topUpBalance: released.balances.topUpBalance,
+    });
     const message = cancelRequested ? 'cancelled' : decision.message || FAL_NOT_ACCEPTED_MESSAGE;
-    tx.set(
-      jobRef,
-      {
-        status: 'released',
-        releaseReason: cancelRequested ? 'cancelled' : 'fal_not_accepted',
-        clientMessage: message,
-        submitAttempts: decision.attempts,
-        ...(!cancelRequested && opts.vendorCode
-          ? { clientCode: opts.vendorCode, vendorStatus: opts.vendorStatus ?? 0 }
-          : {}),
-      },
-      { merge: true }
-    );
-    tx.set(idemSnap.ref, { phase: 'released', submitStarted: true }, { merge: true });
-    const promoted = commitPromotion(tx, next, promotedSnap, promotedIdem);
-    writeQueue(
+    await updateJob(tx, opts.holdId, {
+      status: 'released',
+      releaseReason: cancelRequested ? 'cancelled' : 'fal_not_accepted',
+      clientMessage: message,
+      submitAttempts: decision.attempts,
+      ...(!cancelRequested && opts.vendorCode
+        ? { clientCode: opts.vendorCode, vendorStatus: opts.vendorStatus ?? 0 }
+        : {}),
+    });
+    await updateIdemRow(tx, idemId, { phase: 'released', submitStarted: true });
+    const promoted = await commitPromotion(tx, opts.uid, next, promotedRow, promotedIdem);
+    await writeQueue(
       tx,
-      queueRef,
+      opts.uid,
       promoted.state,
       promoted.state.queued.length > 0 || promoted.promoted !== null
     );
@@ -518,34 +451,28 @@ export async function applyAmbiguous(
   runId: string,
   holdId: string
 ): Promise<{ ok: boolean; promoted: Promoted | null }> {
-  const jobRef = db.collection('gatewayJobs').doc(holdId);
-  const idemRef = db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId));
-  const userRef = db.collection('users').doc(uid);
-  const queueRef = db.collection('falQueue').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const jobSnap = await tx.get(jobRef);
-    const status = jobSnap.data()?.status;
+  const idemId = falRunDocId(uid, runId);
+  return withTx(async (tx) => {
+    const job = await lockJob(tx, holdId);
+    const status = job?.status;
     if (status !== 'dispatching' || !canTransition('dispatching', 'unknown')) {
       return { ok: false, promoted: null };
     }
-    const userSnap = await tx.get(userRef);
-    const queueSnap = await tx.get(queueRef);
-    const plan = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
-    const next = releaseAndDispatch(parseQueue(queueSnap.data()), holdId, plan.admit ? plan.slots : 0);
-    const promotedSnap = next.dispatch
-      ? await tx.get(db.collection('gatewayJobs').doc(next.dispatch))
-      : null;
-    const promotedRunId =
-      typeof promotedSnap?.data()?.runId === 'string' ? promotedSnap!.data()!.runId : '';
+    const billing = await lockBillingByUserId(tx, uid);
+    const queue = await lockQueue(tx, uid);
+    const plan = slotsForPlan(billing?.plan, billing?.planStatus);
+    const next = releaseAndDispatch(parseQueue(queue), holdId, plan.admit ? plan.slots : 0);
+    const promotedRow = next.dispatch ? await lockJob(tx, next.dispatch) : undefined;
+    const promotedRunId = typeof promotedRow?.runId === 'string' ? promotedRow.runId : '';
     const promotedIdem = promotedRunId
-      ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(uid, promotedRunId)))
-      : null;
-    tx.set(jobRef, { status: 'unknown' }, { merge: true });
-    tx.set(idemRef, { phase: 'unknown', submitStarted: true }, { merge: true });
-    const promoted = commitPromotion(tx, next, promotedSnap, promotedIdem);
-    writeQueue(
+      ? await lockIdemRow(tx, falRunDocId(uid, promotedRunId))
+      : undefined;
+    await updateJob(tx, holdId, { status: 'unknown' });
+    await updateIdemRow(tx, idemId, { phase: 'unknown', submitStarted: true });
+    const promoted = await commitPromotion(tx, uid, next, promotedRow, promotedIdem);
+    await writeQueue(
       tx,
-      queueRef,
+      uid,
       promoted.state,
       promoted.state.queued.length > 0 || promoted.promoted !== null
     );
@@ -555,56 +482,48 @@ export async function applyAmbiguous(
 
 /** Plan no longer active: release every queued hold. In-flight Fal jobs are left alone. */
 export async function releaseInactiveQueued(uid: string): Promise<number> {
-  const userRef = db.collection('users').doc(uid);
-  const queueRef = db.collection('falQueue').doc(uid);
-  return db.runTransaction(async (tx) => {
-    const userSnap = await tx.get(userRef);
-    const decision = slotsForPlan(userSnap.data()?.plan, userSnap.data()?.planStatus);
+  return withTx(async (tx) => {
+    const billing = await lockBillingByUserId(tx, uid);
+    const decision = slotsForPlan(billing?.plan, billing?.planStatus);
     if (decision.admit) return 0;
-    const queueSnap = await tx.get(queueRef);
-    const state = parseQueue(queueSnap.data());
-    const snaps = [];
-    for (const id of state.queued) snaps.push(await tx.get(db.collection('gatewayJobs').doc(id)));
+    const queue = await lockQueue(tx, uid);
+    const state = parseQueue(queue);
+    const rows: (Record<string, unknown> | undefined)[] = [];
+    for (const id of state.queued) rows.push(await lockJob(tx, id));
     const spends = [];
-    for (const snap of snaps) spends.push(await loadSpendRelease(tx, snap.data()));
-    const idemSnaps = [];
-    for (const snap of snaps) {
-      const runId = typeof snap.data()?.runId === 'string' ? snap.data()!.runId : '';
-      idemSnaps.push(
-        runId ? await tx.get(db.collection('gatewayIdempotency').doc(falRunDocId(uid, runId))) : null
-      );
+    for (const row of rows) spends.push(await loadSpendRelease(tx, row));
+    const idemRows: (IdemRow | undefined)[] = [];
+    for (const row of rows) {
+      const runId = typeof row?.runId === 'string' ? row.runId : '';
+      idemRows.push(runId ? await lockIdemRow(tx, falRunDocId(uid, runId)) : undefined);
     }
-    let balances = readBalances(userSnap.data());
+    void idemRows;
+    let balances = readBalances(billing);
     let released = 0;
-    for (let i = 0; i < snaps.length; i++) {
-      const snap = snaps[i];
-      const job = jobFromSnap(snap.data());
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const job = jobFromSnap(row);
       if (!job || job.status !== 'queued' || !canTransition('queued', 'released')) continue;
       const result = applyRelease(balances, job);
       if (result.skipped) continue;
       balances = result.balances;
       writeSpendRelease(tx, spends[i]);
-      tx.set(
-        snap.ref,
-        {
-          status: 'released',
-          releaseReason: 'plan_inactive',
-          clientMessage: PLAN_INACTIVE_MESSAGE,
-        },
-        { merge: true }
-      );
-      const idem = idemSnaps[i];
-      if (idem) tx.set(idem.ref, { phase: 'released', submitStarted: true }, { merge: true });
+      await updateJob(tx, state.queued[i], {
+        status: 'released',
+        releaseReason: 'plan_inactive',
+        clientMessage: PLAN_INACTIVE_MESSAGE,
+      });
+      const runId = typeof row?.runId === 'string' ? row.runId : '';
+      if (runId) await updateIdemRow(tx, falRunDocId(uid, runId), { phase: 'released', submitStarted: true });
       released += 1;
     }
     if (released > 0) {
-      tx.set(
-        userRef,
-        { allocationBalance: balances.allocationBalance, topUpBalance: balances.topUpBalance },
-        { merge: true }
-      );
+      await updateBillingByUserId(tx, uid, {
+        allocationBalance: balances.allocationBalance,
+        topUpBalance: balances.topUpBalance,
+      });
     }
-    writeQueue(tx, queueRef, { running: state.running, queued: [] }, false);
+    await writeQueue(tx, uid, { running: state.running, queued: [] }, false);
     return released;
   });
 }

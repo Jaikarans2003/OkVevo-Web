@@ -102,7 +102,12 @@ export type ReconcileResult =
       ok: true;
       skipped: false;
       balances: BucketBalances;
+      /** Billed credits (job actualCredits). */
       debitAmount: number;
+      /** Credits actually taken from the wallet (= debitAmount - absorbed). */
+      walletDebit: number;
+      /** Billed beyond what the wallet could cover — OkVevo eats it. */
+      absorbed: number;
       status: 'settled';
       heldAllocation: number;
       heldTopUp: number;
@@ -110,8 +115,9 @@ export type ReconcileResult =
 
 /**
  * Return held amounts, then re-hold actual via FIFO from the restored wallets.
- * Clamps so neither bucket goes negative. debitAmount stays the billed amount
- * (same as single-balance reconcile).
+ * Clamps so neither bucket goes negative. debitAmount stays the billed amount;
+ * walletDebit is what left the wallet; absorbed is the rest.
+ * `creditLimit` (default 0) is reserved for prepaid orgs that may go negative (PR 2).
  */
 function canSettle(job: JobRecord): boolean {
   if (job.provider === 'fal') return job.status === 'submitted';
@@ -121,7 +127,8 @@ function canSettle(job: JobRecord): boolean {
 export function applyReconcile(
   balances: BucketBalances,
   job: JobRecord | undefined,
-  actual: number
+  actual: number,
+  creditLimit = 0
 ): ReconcileResult {
   if (!job || !canSettle(job)) {
     return { ok: true, skipped: true };
@@ -129,8 +136,9 @@ export function applyReconcile(
   const billed = Number.isInteger(actual) && actual > 0 ? actual : 0;
   const restoredAlloc = balances.allocationBalance + job.heldAllocation;
   const restoredTop = balances.topUpBalance + job.heldTopUp;
-  const available = restoredAlloc + restoredTop;
-  const take = Math.min(billed, available);
+  const floor = creditLimit > 0 ? -creditLimit : 0;
+  const available = restoredAlloc + restoredTop - floor;
+  const take = Math.min(billed, Math.max(0, available));
   const heldAllocation = Math.min(take, restoredAlloc);
   const heldTopUp = take - heldAllocation;
 
@@ -142,6 +150,8 @@ export function applyReconcile(
       topUpBalance: restoredTop - heldTopUp,
     },
     debitAmount: billed,
+    walletDebit: take,
+    absorbed: billed - take,
     status: 'settled',
     heldAllocation,
     heldTopUp,

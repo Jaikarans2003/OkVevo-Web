@@ -6,13 +6,11 @@
 
 import { createHash } from 'node:crypto';
 
-import { FieldValue } from 'firebase-admin/firestore';
-
-import { db, getAdminBucket } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { getAdminBucket } from '@/lib/firebase-admin';
 import {
   classifyMediaValue,
   MEDIA_ARG_KEYS,
-  falMediaIndexFields,
   payloadMediaEntries,
   validateAndBuildMedia,
   type MeasuredMedia,
@@ -39,16 +37,17 @@ function falIndexId(url: string): string {
 }
 
 async function resolveUpload(id: string, uid: string): Promise<{ url: string; measured: MeasuredMedia }> {
-  const snap = await db.doc(`dramaUploads/${id}`).get();
-  if (!snap.exists) throw new MediaResolveError('unknown upload — upload the file first');
-  const data = snap.data()!;
-  if (data.uid !== uid) throw new MediaResolveError('upload belongs to another user');
-  if (typeof data.createdAtMs !== 'number' || uploadExpired(data.createdAtMs, Date.now())) {
+  const rows = await sql`select * from drama_uploads where id = ${id}`;
+  const data = rows[0] as Record<string, unknown> | undefined;
+  if (!data) throw new MediaResolveError('unknown upload — upload the file first');
+  if (data.user_id !== uid) throw new MediaResolveError('upload belongs to another user');
+  const createdAtMs = (data.created_at as Date | undefined)?.getTime();
+  if (typeof createdAtMs !== 'number' || uploadExpired(createdAtMs, Date.now())) {
     throw new MediaResolveError('upload expired (7-day retention) — upload it again');
   }
   // Overwrite check: a replaced object has a new generation; never meter or
   // ship bytes that were swapped in after measurement.
-  const file = getAdminBucket().file(data.path);
+  const file = getAdminBucket().file(data.path as string);
   const [meta] = await file.getMetadata().catch(() => [null] as const);
   if (!meta || String(meta.generation) !== String(data.generation)) {
     throw new MediaResolveError('upload was replaced after measurement — upload it again');
@@ -61,8 +60,8 @@ async function resolveUpload(id: string, uid: string): Promise<{ url: string; me
   return {
     url,
     measured: {
-      kind: data.kind,
-      seconds: typeof data.durationSeconds === 'number' ? data.durationSeconds : undefined,
+      kind: data.kind as MeasuredMedia['kind'],
+      seconds: typeof data.duration_seconds === 'number' ? data.duration_seconds : undefined,
       width: typeof data.width === 'number' ? data.width : undefined,
       height: typeof data.height === 'number' ? data.height : undefined,
     },
@@ -71,18 +70,18 @@ async function resolveUpload(id: string, uid: string): Promise<{ url: string; me
 
 async function resolveFalUrl(url: string): Promise<MeasuredMedia> {
   // A Fal media URL is only trusted when it is a known output of this
-  // gateway (falMediaIndex, written at settle). The URL itself is the
+  // gateway (fal_media_index, written at settle). The URL itself is the
   // capability, so reuse across users is fine; a FOREIGN url is unknown and
   // rejected.
-  const snap = await db.doc(`falMediaIndex/${falIndexId(url)}`).get();
-  if (!snap.exists) {
+  const rows = await sql`select * from fal_media_index where id = ${falIndexId(url)}`;
+  const data = rows[0] as Record<string, unknown> | undefined;
+  if (!data) {
     throw new MediaResolveError(
       'URL is not a known Fal output of this gateway — download it and upload the file instead'
     );
   }
-  const data = snap.data()!;
   return {
-    kind: data.kind,
+    kind: data.kind as MeasuredMedia['kind'],
     seconds: typeof data.seconds === 'number' ? data.seconds : undefined,
     width: typeof data.width === 'number' ? data.width : undefined,
     height: typeof data.height === 'number' ? data.height : undefined,
@@ -140,14 +139,27 @@ export async function indexPayloadMedia(
   requestId: string
 ): Promise<void> {
   for (const entry of payloadMediaEntries(endpoint, payload, submitArgs)) {
-    await db
-      .doc(`falMediaIndex/${falIndexId(entry.url)}`)
-      .set({
-        ...falMediaIndexFields(entry),
+    await sql`
+      insert into fal_media_index ${sql({
+        id: falIndexId(entry.url),
+        url: entry.url,
+        kind: entry.kind,
+        seconds: entry.seconds ?? null,
+        width: entry.width ?? null,
+        height: entry.height ?? null,
         endpoint,
         uid,
-        requestId,
-        at: FieldValue.serverTimestamp(),
-      });
+        request_id: requestId,
+      })}
+      on conflict (id) do update set
+        url = excluded.url,
+        kind = excluded.kind,
+        seconds = excluded.seconds,
+        width = excluded.width,
+        height = excluded.height,
+        endpoint = excluded.endpoint,
+        uid = excluded.uid,
+        request_id = excluded.request_id
+    `;
   }
 }

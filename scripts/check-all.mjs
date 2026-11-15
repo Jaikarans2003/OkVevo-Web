@@ -28,7 +28,6 @@ const requiredChecks = [
   'src/lib/fal/falSchema.selfcheck.ts',
   'src/lib/gateway/reserve.selfcheck.ts',
   'src/lib/billing/fxDrift.selfcheck.ts',
-  'src/lib/agent/firestoreRules.selfcheck.ts',
 ];
 for (const rel of requiredChecks) {
   if (!fs.existsSync(path.join(ROOT, rel))) {

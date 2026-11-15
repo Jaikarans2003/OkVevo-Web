@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { db } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { sql } from '@/lib/db/client';
+import { updateBillingByUserId } from '@/lib/db/wallet';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { isUpiLikePaymentMethod, isUpiSubscriptionUpdateError, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
@@ -47,16 +47,12 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        await db.collection('users').doc(user.uid).set(
-            {
-                hasScheduledChanges: false,
-                scheduledChangeAt: FieldValue.delete(),
-                scheduledPlanId: FieldValue.delete(),
-                scheduledPlanType: FieldValue.delete(),
-                updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-        );
+        await updateBillingByUserId(sql, user.uid, {
+            hasScheduledChanges: false,
+            scheduledChangeAt: null,
+            scheduledPlanId: null,
+            scheduledPlanType: null,
+        });
 
         return NextResponse.json({
             success: true,

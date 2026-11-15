@@ -7,18 +7,19 @@
  * (music-metadata, pure JS — App Hosting buildpacks ship no ffprobe) and for
  * images the pixel size (image-size), enforcing the ≤2048px normalization
  * bound the rate card prices against. The measured record lands in
- * dramaUploads/{id} with the object's GCS generation so a later overwrite is
+ * drama_uploads/{id} with the object's GCS generation so a later overwrite is
  * detected at submit time.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 
-import { FieldValue } from 'firebase-admin/firestore';
 import { imageSize } from 'image-size';
 import { parseBuffer } from 'music-metadata';
 
-import { db, getAdminBucket } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { ensureUserAndBilling } from '@/lib/db/wallet';
+import { getAdminBucket } from '@/lib/firebase-admin';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import {
   UPLOAD_CAPS,
@@ -127,21 +128,28 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const record = {
-    uid: user.uid,
-    path,
-    kind,
-    mime: String(meta.contentType ?? ''),
-    durationSeconds,
-    width,
-    height,
-    bytes: total,
-    sha256: hash.digest('hex'),
-    generation: String(meta.generation ?? ''),
-    createdAtMs: Date.now(),
-    createdAt: FieldValue.serverTimestamp(),
-  };
-  await db.doc(`dramaUploads/${id}`).set(record);
+  await ensureUserAndBilling(sql, user.uid);
+  await sql`
+    insert into drama_uploads ${sql({
+      id,
+      user_id: user.uid,
+      path,
+      kind,
+      mime: String(meta.contentType ?? ''),
+      duration_seconds: durationSeconds,
+      width,
+      height,
+      bytes: total,
+      sha256: hash.digest('hex'),
+      generation: String(meta.generation ?? ''),
+    })}
+    on conflict (id) do update set
+      user_id = excluded.user_id, path = excluded.path, kind = excluded.kind,
+      mime = excluded.mime, duration_seconds = excluded.duration_seconds,
+      width = excluded.width, height = excluded.height, bytes = excluded.bytes,
+      sha256 = excluded.sha256, generation = excluded.generation,
+      created_at = now()
+  `;
 
   return NextResponse.json({
     id,

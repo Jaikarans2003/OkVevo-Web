@@ -1,24 +1,21 @@
 /**
- * Cloned-voice ownership. Firestore `clonedVoices/{base64url(custom_voice_id)}`
- * is the SoT; the skill's metadata/voices file is a cache.
+ * Cloned-voice ownership. Postgres `cloned_voices` row id =
+ * `base64url(custom_voice_id)` is the SoT; the skill's metadata/voices file
+ * is a cache.
  *
  * Fal/MiniMax voice-clone (llms.txt 2026-10-10) has no delete-voice API.
  * Unused provider clones auto-delete after 7 days; used clones persist.
- * DELETE /api/fal/voices tombstones the row (`status: 'deleted'`). The doc
+ * DELETE /api/fal/voices tombstones the row (`status: 'deleted'`). The row
  * is never removed, so no other uid can register or use that voice_id again.
  * Fal still has no delete-voice API (`provider_deleted: false`).
  */
 
+import { sql } from '@/lib/db/client';
+import { withTx, type TxSql } from '@/lib/db/tx';
 import { classifyMediaValue } from '@/lib/fal/mediaInputs';
-
-async function firestore() {
-  const { db } = await import('@/lib/firebase-admin');
-  return db;
-}
 
 export const SPEECH_ENDPOINT = 'fal-ai/minimax/speech-02-hd';
 export const VOICE_CLONE_ENDPOINT = 'fal-ai/minimax/voice-clone';
-export const CLONED_VOICES = 'clonedVoices';
 
 /** Fal retains unused clones for 7 days (voice-clone llms.txt 2026-10-10). */
 export const VOICE_RETAIN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -171,63 +168,80 @@ export function parseClonedVoice(data: unknown): ClonedVoiceRecord | null {
   };
 }
 
+/** cloned_voices row -> the doc shape parseClonedVoice reads (uid, not user_id). */
+function voiceRowToDoc(row: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!row) return undefined;
+  return { ...row, uid: row.user_id };
+}
+
 export async function readClonedVoice(customVoiceId: string): Promise<ClonedVoiceRecord | null> {
-  const db = await firestore();
-  const snap = await db.doc(`${CLONED_VOICES}/${voiceDocId(customVoiceId)}`).get();
-  return parseClonedVoice(snap.data());
+  const rows = await sql`select * from cloned_voices where id = ${voiceDocId(customVoiceId)}`;
+  return parseClonedVoice(voiceRowToDoc(rows[0] as Record<string, unknown> | undefined));
 }
 
 export async function listClonedVoicesForUid(uid: string): Promise<ClonedVoiceRecord[]> {
-  const db = await firestore();
-  const snap = await db.collection(CLONED_VOICES).where('uid', '==', uid).get();
-  return snap.docs
-    .map((d) => parseClonedVoice(d.data()))
+  const rows = await sql`select * from cloned_voices where user_id = ${uid}`;
+  return rows
+    .map((r) => parseClonedVoice(voiceRowToDoc(r as Record<string, unknown>)))
     .filter((r): r is ClonedVoiceRecord => r != null && !isVoiceTombstoned(r));
 }
 
 /**
- * ponytail: admin counts scan the collection. Ceiling ~10k docs; upgrade to
+ * ponytail: admin counts scan the table. Ceiling ~10k rows; upgrade to
  * count() + unused+cloned_at range index when that is too slow.
  */
 export async function listAllClonedVoices(): Promise<ClonedVoiceRecord[]> {
-  const db = await firestore();
-  const snap = await db.collection(CLONED_VOICES).get();
-  return snap.docs.map((d) => parseClonedVoice(d.data())).filter((r): r is ClonedVoiceRecord => r != null);
+  const rows = await sql`select * from cloned_voices`;
+  return rows
+    .map((r) => parseClonedVoice(voiceRowToDoc(r as Record<string, unknown>)))
+    .filter((r): r is ClonedVoiceRecord => r != null);
 }
 
 export async function recordClonedVoice(
   row: Omit<ClonedVoiceRecord, 'status' | 'deleted_at'>
 ): Promise<'ok' | 'exists' | 'tombstoned'> {
-  const db = await firestore();
-  const ref = db.doc(`${CLONED_VOICES}/${voiceDocId(row.custom_voice_id)}`);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (snap.exists) {
-      return isVoiceTombstoned(parseClonedVoice(snap.data())) ? 'tombstoned' : 'exists';
+  const id = voiceDocId(row.custom_voice_id);
+  return withTx(async (tx: TxSql) => {
+    const existing = await tx`select * from cloned_voices where id = ${id} for update`;
+    if (existing.length > 0) {
+      const rec = parseClonedVoice(voiceRowToDoc(existing[0] as Record<string, unknown>));
+      return isVoiceTombstoned(rec) ? 'tombstoned' : 'exists';
     }
-    tx.set(ref, { ...row, status: 'active', deleted_at: null });
-    return 'ok';
+    await tx`
+      insert into cloned_voices ${tx({
+        id,
+        user_id: row.uid,
+        custom_voice_id: row.custom_voice_id,
+        character: row.character,
+        project: row.project,
+        cloned_at: row.cloned_at,
+        used_in_tts_at: row.used_in_tts_at,
+        consent_at: row.consent_at,
+        sample_sha256: row.sample_sha256,
+        status: 'active',
+        deleted_at: null,
+      })}
+    `;
+    return 'ok' as const;
   });
 }
 
 export async function markVoiceUsedInTts(customVoiceId: string, uid: string, atIso: string): Promise<void> {
-  const db = await firestore();
-  const ref = db.doc(`${CLONED_VOICES}/${voiceDocId(customVoiceId)}`);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const row = parseClonedVoice(snap.data());
+  const id = voiceDocId(customVoiceId);
+  await withTx(async (tx: TxSql) => {
+    const rows = await tx`select * from cloned_voices where id = ${id} for update`;
+    const row = parseClonedVoice(voiceRowToDoc(rows[0] as Record<string, unknown> | undefined));
     if (!row || row.uid !== uid || row.used_in_tts_at || isVoiceTombstoned(row)) return;
-    tx.update(ref, { used_in_tts_at: atIso });
+    await tx`update cloned_voices set used_in_tts_at = ${atIso} where id = ${id}`;
   });
 }
 
 export async function sampleSha256FromAudioUrl(audioUrl: unknown, uid: string): Promise<string | null> {
   const ref = classifyMediaValue(audioUrl);
   if (typeof ref === 'string' || ref.kind !== 'upload') return null;
-  const db = await firestore();
-  const snap = await db.doc(`dramaUploads/${ref.id}`).get();
-  const data = snap.data();
-  if (!data || data.uid !== uid || typeof data.sha256 !== 'string') return null;
+  const rows = await sql`select user_id, sha256 from drama_uploads where id = ${ref.id}`;
+  const data = rows[0] as Record<string, unknown> | undefined;
+  if (!data || data.user_id !== uid || typeof data.sha256 !== 'string') return null;
   return data.sha256;
 }
 
@@ -235,15 +249,14 @@ export async function deleteClonedVoiceRecord(
   uid: string,
   customVoiceId: string
 ): Promise<'ok' | 'missing' | 'forbidden'> {
-  const db = await firestore();
-  const ref = db.doc(`${CLONED_VOICES}/${voiceDocId(customVoiceId)}`);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) return 'missing';
-    const row = parseClonedVoice(snap.data());
-    if (!row || row.uid !== uid) return 'forbidden';
-    if (isVoiceTombstoned(row)) return 'ok';
-    tx.update(ref, { status: 'deleted', deleted_at: new Date().toISOString() });
-    return 'ok';
+  const id = voiceDocId(customVoiceId);
+  return withTx(async (tx: TxSql) => {
+    const rows = await tx`select * from cloned_voices where id = ${id} for update`;
+    if (rows.length === 0) return 'missing' as const;
+    const row = parseClonedVoice(voiceRowToDoc(rows[0] as Record<string, unknown>));
+    if (!row || row.uid !== uid) return 'forbidden' as const;
+    if (isVoiceTombstoned(row)) return 'ok' as const;
+    await tx`update cloned_voices set status = 'deleted', deleted_at = ${new Date().toISOString()} where id = ${id}`;
+    return 'ok' as const;
   });
 }
