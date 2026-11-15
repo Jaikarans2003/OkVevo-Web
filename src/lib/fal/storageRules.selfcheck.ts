@@ -30,24 +30,13 @@ const wildcards = [...rules.matchAll(/match \/(.*\{allPaths=\*\*\}.*)\{/g)].map(
 );
 assert.deepEqual(wildcards, ['users/{userId}/{allPaths=**}']);
 
-// Firestore: the drama parity collections are Admin-SDK-only.
+// Firestore: post-cutover deny-all (Admin SDK only; nothing client-readable).
 const fsRules = readFileSync(
   path.join(import.meta.dirname, '..', '..', '..', 'firestore.rules'),
   'utf8'
 );
-for (const col of [
-  'dramaUploads',
-  'dramaUploadRates',
-  'falMediaIndex',
-  'spendDaily',
-  'falQueue',
-  'opsConfig',
-  'opsAdminAudit',
-  'adminRollups',
-  'clonedVoices',
-]) {
-  const re = new RegExp(`match /${col}/\\{id\\} \\{[\\s\\S]*?allow read, write: if false;`);
-  assert.match(fsRules, re, `${col} must deny clients`);
-}
+assert.match(fsRules, /match \/\{document=\*\*\}/);
+assert.match(fsRules, /allow read,\s*write:\s*if false/);
+
 
 console.log('storageRules.selfcheck: ok');

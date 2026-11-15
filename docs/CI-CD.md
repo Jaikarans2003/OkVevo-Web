@@ -48,6 +48,8 @@ IAM for the CI service account (each Firebase project): Service Usage Consumer, 
 firebase deploy --only apphosting,firestore:rules,firestore:indexes,storage --project <alias> --force --non-interactive
 ```
 
+`firestore.rules` is **deny-all** after the Supabase cutover (`allow read, write: if false`). Deleting the file would leave the last live rules in place, so keep it in `firebase.json` and let this deploy push the lock-down: staging (`okvevo-testing`) when PR 1 lands on `staging`, production (`text2video-16cbf`) on promotion after Karan approves.
+
 Cloud Build still runs `npm run build`. This workflow does **not** run `next build` first.
 
 ## Local / agent deploys
