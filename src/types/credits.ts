@@ -1,5 +1,3 @@
-import type { Timestamp } from 'firebase/firestore';
-
 /** grant | debit | refund — amount is always a non-negative platform credit unit, integer. */
 export type TransactionType = 'grant' | 'debit' | 'refund';
 
@@ -24,13 +22,13 @@ export interface CreditTransaction {
     requestId?: string;
     /** Which wallet was credited (grants only). */
     bucket?: 'allocation' | 'topUp';
-    createdAt: Timestamp;
+    createdAt: Date | string;
 }
 
 /**
  * Spendable SoT on users/{uid}. Two prepaid wallets:
  * - allocationBalance: plan grant; forfeited on refresh
- * - topUpBalance: Payment Link purchases; never expires on its own
+ * - topUpBalance: Payment Link purchases; expire 1 year after purchase (PR 2 enforces)
  * Dropped: creditBalance as SoT (migrate once → topUpBalance).
  */
 export interface UserCredits {
@@ -55,15 +53,15 @@ export interface UserCredits {
     /** Credits granted this billing cycle (SET replaces, ADD grows). Plan remaining % denominator. Admin-only. */
     allocationGrantedTotal?: number;
     /** Due-date gate for charged + daily cron. */
-    nextAllocationDate?: Timestamp | null;
-    currentPeriodEnd?: Timestamp | null;
+    nextAllocationDate?: Date | string | null;
+    currentPeriodEnd?: Date | string | null;
     /** True only if the current sub was cancelled via Cancel Subscription. */
     cancelAtPeriodEnd?: boolean;
     hasScheduledChanges?: boolean;
     scheduledPlanType?: string | null;
     scheduledPlanId?: string | null;
-    scheduledChangeAt?: Timestamp | null;
-    createdAt: Timestamp;
+    scheduledChangeAt?: Date | string | null;
+    createdAt?: Date | string;
 }
 
 /** 0–100, two-decimal floor. Never round up — 19931/20000 is 99.65, not 99.66 or 100. */

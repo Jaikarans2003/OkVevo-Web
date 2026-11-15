@@ -2,25 +2,24 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '../../config/firebase';
+import { auth } from '../../config/firebase';
 import { onAuthStateChanged, User, updateEmail } from 'firebase/auth';
-import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { getUserProfile } from '../../services/userService';
 import type { UserProfile } from '../../services/userService';
-import { getUserSubscription, type SubscriptionWithPlanDetails } from '../../services/SubscriptionService';
 import { Loader2, Check, AlertCircle, Edit3, Activity, Phone, Crown, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import PortalShell from '@/components/portal/PortalShell';
 import DrawnArt from '@/components/landing-page/DrawnArt';
+import { authedJson } from '@/lib/api/browser';
+import type { MePayload } from '@/lib/api/me';
+import type { BillingSummary } from '@/lib/api/billingSummary';
 
 export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [subscription, setSubscription] = useState<SubscriptionWithPlanDetails | null>(null);
-    const [affiliateData, setAffiliateData] = useState<any>(null);
+    const [billing, setBilling] = useState<BillingSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -37,31 +36,25 @@ export default function ProfilePage() {
             if (currentUser) {
                 setUser(currentUser);
                 try {
-                    const [profileData, subData] = await Promise.all([
-                        getUserProfile(currentUser.uid),
-                        getUserSubscription(currentUser.uid)
+                    const [me, summary] = await Promise.all([
+                        authedJson<MePayload>(currentUser, '/api/me'),
+                        authedJson<BillingSummary>(currentUser, '/api/billing/summary'),
                     ]);
+                    const profileData: UserProfile = {
+                        uid: me.user.id,
+                        email: me.user.email || currentUser.email || '',
+                        onboardingComplete: true,
+                        bio: me.user.bio ?? undefined,
+                        phoneNumber: me.user.phoneNumber ?? undefined,
+                        createdAt: null,
+                        updatedAt: null,
+                    };
                     setProfile(profileData);
-                    setSubscription(subData);
-                    
-                    try {
-                        const affiliatesRef = collection(db, 'affiliates');
-                        const affiliateQuery = query(affiliatesRef, where('email', '==', currentUser.email));
-                        const affiliateSnapshot = await getDocs(affiliateQuery);
-                        if (!affiliateSnapshot.empty) {
-                            const affiliateDoc = affiliateSnapshot.docs[0];
-                            setAffiliateData({
-                                id: affiliateDoc.id,
-                                ...affiliateDoc.data()
-                            });
-                        }
-                    } catch {
-                        // affiliates is client-denied; leftover query may be empty
-                    }
+                    setBilling(summary);
                     setFormData({
-                        email: profileData?.email || currentUser.email || '',
-                        phoneNumber: profileData?.phoneNumber || '',
-                        bio: profileData?.bio || ''
+                        email: profileData.email,
+                        phoneNumber: profileData.phoneNumber || '',
+                        bio: profileData.bio || '',
                     });
                 } catch (error) {
                     console.error('Error fetching user data:', error);
@@ -97,12 +90,12 @@ export default function ProfilePage() {
                 }
             }
 
-            const userRef = doc(db, 'users', user.uid);
-            await updateDoc(userRef, {
-                email: formData.email,
-                phoneNumber: formData.phoneNumber,
-                bio: formData.bio,
-                updatedAt: serverTimestamp()
+            await authedJson(user, '/api/me', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    phoneNumber: formData.phoneNumber,
+                    bio: formData.bio,
+                }),
             });
 
             setProfile(prev => prev ? { ...prev, email: formData.email, phoneNumber: formData.phoneNumber, bio: formData.bio } : null);
@@ -138,21 +131,16 @@ export default function ProfilePage() {
     const facts = [
         {
             label: 'Subscription Plan',
-            value: subscription?.planDetails?.name || 'No active plan',
+            value: billing?.planName || billing?.plan || 'No active plan',
             icon: Activity,
             ink: 'teal',
-            detail: subscription?.status ? `Status: ${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}` : 'Manage it in billing',
+            detail: billing?.status
+                ? `Status: ${billing.status.charAt(0).toUpperCase() + billing.status.slice(1)}`
+                : 'Manage it in billing',
             href: '/billing',
         },
         { label: 'Account Type', value: typeInfo.label, icon: typeInfo.icon, ink: typeInfo.ink, detail: typeInfo.detail },
         { label: 'Phone', value: formData.phoneNumber || 'Not added', icon: Phone, ink: 'olive', detail: 'Primary contact' },
-        ...(affiliateData ? [{
-            label: 'Affiliate Earnings',
-            value: `₹${affiliateData.totalEarnings || 0}`,
-            icon: Activity,
-            ink: 'rust',
-            detail: `${affiliateData.totalSales || 0} sales • ${affiliateData.couponCode || 'N/A'}`,
-        }] : []),
     ];
     const closeEdit = () => { setIsEditing(false); setStatus({ type: null, message: '' }); };
 

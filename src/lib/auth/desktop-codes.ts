@@ -154,14 +154,6 @@ export async function exchangeDesktopAuthCode(
   return { ...tokens, ...profile };
 }
 
-export async function mintDesktopCustomToken(
-  refreshToken: string
-): Promise<{ customToken: string; uid: string }> {
-  const { uid } = await refreshDesktopAuthTokens(refreshToken);
-  const customToken = await auth.createCustomToken(uid);
-  return { customToken, uid };
-}
-
 export async function refreshDesktopAuthTokens(
   refreshToken: string
 ): Promise<DesktopTokenBundle> {

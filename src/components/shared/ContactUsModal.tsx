@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronDown, Send, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
-import { db } from '@/config/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
-
 export type ContactCategory = 'enterpriseEnquiry' | 'problemTicket' | 'generalQuery' | '';
 
 interface ContactUsModalProps {
@@ -69,21 +66,28 @@ export default function ContactUsModal({ isOpen, onClose, defaultCategory = 'gen
 
         setSubmitting(true);
         try {
-            const submissionData: Record<string, any> = {
-                name: name.trim(),
-                designation: designation.trim(),
+            const body: Record<string, string> = {
+                category,
                 email: email.trim(),
-                message: message.trim(),
-                submittedAt: Timestamp.now(),
+                message: [
+                    name.trim() && `Name: ${name.trim()}`,
+                    designation.trim() && `Designation: ${designation.trim()}`,
+                    message.trim(),
+                ]
+                    .filter(Boolean)
+                    .join('\n'),
             };
-            if (whatsapp.trim()) {
-                submissionData.whatsapp = whatsapp.trim();
-            }
+            if (whatsapp.trim()) body.whatsapp = whatsapp.trim();
 
-            await addDoc(
-                collection(db, 'contactSubmissions', category, 'submissions'),
-                submissionData
-            );
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const data = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(data.error || 'submit_failed');
+            }
 
             setSubmitted(true);
         } catch (err) {
