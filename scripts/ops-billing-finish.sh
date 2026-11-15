@@ -144,6 +144,24 @@ else
   echo "==> nia-fal-capture scheduler missing — run scripts/drama-infra.sh apply first"
 fi
 
+# Release expired chat/Tavily holds (Supabase cutover). Every 5 minutes.
+HOLDS_URI="${ORIGIN}/api/cron/release-expired-holds"
+if gcloud scheduler jobs describe okvevo-release-expired-holds --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job okvevo-release-expired-holds"
+  gcloud scheduler jobs update http okvevo-release-expired-holds \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="*/5 * * * *" --time-zone="Etc/UTC" \
+    --uri="$HOLDS_URI" --http-method=POST \
+    --update-headers="Authorization=Bearer ${CRON_SECRET}"
+else
+  echo "==> Create scheduler job okvevo-release-expired-holds"
+  gcloud scheduler jobs create http okvevo-release-expired-holds \
+    --project="$PROJECT" --location="$LOCATION" \
+    --schedule="*/5 * * * *" --time-zone="Etc/UTC" \
+    --uri="$HOLDS_URI" --http-method=POST \
+    --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+
 # Backup dispatcher for per-user Fal queue. Settle/fail/cancel dispatch in
 # the request; this minute job only starts holds those events missed.
 DISPATCH_URI="${ORIGIN}/api/cron/fal-dispatch"
