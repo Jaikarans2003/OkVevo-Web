@@ -1,0 +1,63 @@
+/**
+ * Trusted client IP is rightmost X-Forwarded-For (GFE), not leftmost.
+ * Run: npx tsx src/lib/api/clientIp.selfcheck.ts
+ */
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { checkRateLimit } from '@/lib/api-utils'
+import { clientIpFromRequest } from './clientIp.ts'
+
+function headers(map: Record<string, string>) {
+  return {
+    get(name: string) {
+      return map[name.toLowerCase()] ?? null
+    },
+  }
+}
+
+assert.equal(clientIpFromRequest(headers({})), 'unknown')
+assert.equal(clientIpFromRequest(headers({ 'x-real-ip': '203.0.113.9' })), '203.0.113.9')
+assert.equal(
+  clientIpFromRequest(headers({ 'x-forwarded-for': '198.51.100.1' })),
+  '198.51.100.1'
+)
+assert.equal(
+  clientIpFromRequest(
+    headers({ 'x-forwarded-for': '198.51.100.1, 203.0.113.7, 35.191.0.1' })
+  ),
+  '35.191.0.1',
+  'rightmost is GFE-appended peer'
+)
+assert.equal(
+  clientIpFromRequest(
+    headers({ 'x-forwarded-for': 'spoof, 203.0.113.7, 35.191.0.1' }),
+    { proxyHops: 1 }
+  ),
+  '203.0.113.7',
+  'one trusted hop left of rightmost'
+)
+
+// Spoofed left entries cannot open a new rate-limit bucket when the rightmost
+// (GFE) IP is unchanged.
+const real = '35.191.0.1'
+const keyA = `contact:${clientIpFromRequest(headers({ 'x-forwarded-for': `1.1.1.1, ${real}` }))}`
+const keyB = `contact:${clientIpFromRequest(headers({ 'x-forwarded-for': `9.9.9.9, ${real}` }))}`
+assert.equal(keyA, keyB)
+
+const limit = 3
+for (let i = 0; i < limit; i++) {
+  assert.equal(checkRateLimit(keyA, limit), true)
+}
+assert.equal(checkRateLimit(keyB, limit), false, 'spoofed XFF must not bypass the limit')
+
+const route = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../../app/api/contact/route.ts'),
+  'utf8'
+)
+assert.match(route, /clientIpFromRequest/)
+assert.doesNotMatch(route, /split\(','\)\[0\]/)
+
+console.log('clientIp.selfcheck: ok')

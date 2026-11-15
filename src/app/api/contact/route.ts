@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { clientIpFromRequest } from '@/lib/api/clientIp'
 import { insertContactSubmission, validateContactInput } from '@/lib/api/contact'
 import { checkRateLimit } from '@/lib/api-utils'
 
@@ -7,10 +8,8 @@ export const runtime = 'nodejs'
 
 /** POST /api/contact — plain categories; no auth required. Per-IP rate limit. */
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown'
+  // Rightmost X-Forwarded-For (GFE / Cloud Run). Leftmost is client-controlled.
+  const ip = clientIpFromRequest(req.headers)
   if (!checkRateLimit(`contact:${ip}`, 10)) {
     return NextResponse.json({ error: 'rate_limit' }, { status: 429 })
   }
