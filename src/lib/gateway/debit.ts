@@ -857,24 +857,8 @@ export async function reconcileCredits(opts: {
 
     const billing = await lockBillingByUserId(tx, job.uid);
     const data = billing;
-    if (!isEntitled(data)) {
-      // Still settle the hold split back if plan lapsed mid-flight — release path preferred.
-      // Plan: reconcile requires entitled; release unused instead.
-      const released = applyRelease(readBalances(data), job);
-      if (!released.skipped) {
-        if (spendDay) {
-          const patch = applySpendRelease(spendCurrent, reservedFalUsd);
-          await tx`update spend_daily set fal_usd_held = ${patch.falUsdHeld} where day = ${spendDay}`;
-        }
-        await updateBillingByUserId(tx, job.uid, {
-          allocationBalance: released.balances.allocationBalance,
-          topUpBalance: released.balances.topUpBalance,
-        });
-        await updateJob(tx, requestId, { status: 'released' });
-      }
-      return;
-    }
-
+    // Limits are checked only at reserve. Admitted work is always charged (§5.1),
+    // even if the plan lapsed mid-call.
     const result = applyReconcile(readBalances(data), job, actualCredits);
     if (result.skipped) return;
 
