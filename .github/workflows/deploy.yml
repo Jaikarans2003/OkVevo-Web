@@ -93,7 +93,8 @@ jobs:
           fi
           # Installed CLI is v2.x: --project-ref (not --remote). Session pooler via CLI default; dns-resolver https for IPv4 runners.
           npx supabase db push --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes --dns-resolver https
-          npx supabase db advisors --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
+          # advisors requires --linked with --project-ref (CLI rejects --project-ref alone).
+          npx supabase db advisors --linked --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
 
       - uses: ./.github/actions/deploy-apphosting
         env:
@@ -162,7 +163,8 @@ jobs:
           fi
           # Installed CLI is v2.x: --project-ref (not --remote). Inside production Environment (approval gate).
           npx supabase db push --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes --dns-resolver https
-          npx supabase db advisors --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
+          # advisors requires --linked with --project-ref (CLI rejects --project-ref alone).
+          npx supabase db advisors --linked --project-ref "$SUPABASE_PROJECT_REF" --fail-on error --dns-resolver https
 
       - uses: ./.github/actions/deploy-apphosting
         env:
