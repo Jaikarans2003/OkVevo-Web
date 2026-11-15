@@ -7,7 +7,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { checkRateLimit } from '@/lib/api-utils'
 import { clientIpFromRequest } from './clientIp.ts'
 
 function headers(map: Record<string, string>) {
@@ -16,6 +15,20 @@ function headers(map: Record<string, string>) {
       return map[name.toLowerCase()] ?? null
     },
   }
+}
+
+/** Same shape as api-utils checkRateLimit — kept local so this file never loads firebase-admin. */
+function checkRateLimit(
+  store: Map<string, { count: number; resetAt: number }>,
+  key: string,
+  limitPerMinute: number
+): boolean {
+  const now = Date.now()
+  let cur = store.get(key)
+  if (!cur || cur.resetAt < now) cur = { count: 1, resetAt: now + 60_000 }
+  else cur.count++
+  store.set(key, cur)
+  return cur.count <= limitPerMinute
 }
 
 assert.equal(clientIpFromRequest(headers({})), 'unknown')
@@ -47,11 +60,16 @@ const keyA = `contact:${clientIpFromRequest(headers({ 'x-forwarded-for': `1.1.1.
 const keyB = `contact:${clientIpFromRequest(headers({ 'x-forwarded-for': `9.9.9.9, ${real}` }))}`
 assert.equal(keyA, keyB)
 
+const store = new Map<string, { count: number; resetAt: number }>()
 const limit = 3
 for (let i = 0; i < limit; i++) {
-  assert.equal(checkRateLimit(keyA, limit), true)
+  assert.equal(checkRateLimit(store, keyA, limit), true)
 }
-assert.equal(checkRateLimit(keyB, limit), false, 'spoofed XFF must not bypass the limit')
+assert.equal(
+  checkRateLimit(store, keyB, limit),
+  false,
+  'spoofed XFF must not bypass the limit'
+)
 
 const route = fs.readFileSync(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '../../app/api/contact/route.ts'),
