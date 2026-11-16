@@ -96,7 +96,7 @@ export function billingSummaryFromAccount(
       billing.allocationBalance,
       billing.allocationGrantedTotal
     ),
-    additionalPct: additionalRemainingPct(billing.topUpBalance, billing.topUpPurchasedTotal),
+    additionalPct: additionalRemainingPct(billing.topUpBalance, billing.topUpReference),
     // PR 1: top-ups have no expiry column yet (PR 2).
     additionalNextExpiry: null,
     periodEnd: iso(billing.currentPeriodEnd),

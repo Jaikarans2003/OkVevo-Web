@@ -113,8 +113,15 @@ assert.match(
 );
 assert.match(
   src('lib/api/billingSummary.ts'),
-  /additionalRemainingPct\(billing\.topUpBalance, billing\.topUpPurchasedTotal\)/
+  /additionalRemainingPct\(billing\.topUpBalance, billing\.topUpReference\)/
 );
+assert.match(src('lib/api/billingSummary.ts'), /additionalPct/);
+assert.doesNotMatch(src('lib/api/billingSummary.ts'), /additionalCredits/);
+assert.match(creditsService, /additionalPct/);
+assert.doesNotMatch(creditsService, /additionalCredits/);
+assert.match(billingPage, /additionalPct/);
+assert.doesNotMatch(billingPage, /additionalCredits/);
+assert.match(src('lib/gateway/debit.ts'), /topUpReference:\s*next\.topUpBalance/);
 
 // --- zero tax on checkout + billing surfaces ---
 const taxSurfaces = [
