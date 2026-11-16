@@ -1005,6 +1005,8 @@ export async function grantCredits(opts: {
       topUpBalance: next.topUpBalance,
       ...(bucket === 'topUp'
         ? {
+            // Additional % bar resets to 100% of the post-purchase balance.
+            topUpReference: next.topUpBalance,
             topUpPurchasedTotal: nextTopUpPurchasedTotal(
               readInt(billing.topUpPurchasedTotal),
               grantAmount,

@@ -27,6 +27,8 @@ export type BillingAccountData = {
   creditsIncluded: number
   allocationBalance: number
   topUpBalance: number
+  /** Balance right after the most recent top-up; additional % denominator. */
+  topUpReference: number
   allocationGrantedTotal: number
   topUpPurchasedTotal: number
   nextAllocationDate: Date | null
@@ -60,6 +62,7 @@ export function billingRowToData(row: Record<string, unknown> | undefined): Bill
     creditsIncluded: num(row.credits_included),
     allocationBalance: num(row.allocation_balance),
     topUpBalance: num(row.top_up_balance),
+    topUpReference: num(row.top_up_reference),
     allocationGrantedTotal: num(row.allocation_granted_total),
     topUpPurchasedTotal: num(row.top_up_purchased_total),
     nextAllocationDate: (row.next_allocation_date as Date | null) ?? null,
@@ -127,6 +130,7 @@ const BILLING_KEY_MAP: Record<string, string> = {
   creditsIncluded: 'credits_included',
   allocationBalance: 'allocation_balance',
   topUpBalance: 'top_up_balance',
+  topUpReference: 'top_up_reference',
   allocationGrantedTotal: 'allocation_granted_total',
   topUpPurchasedTotal: 'top_up_purchased_total',
   nextAllocationDate: 'next_allocation_date',

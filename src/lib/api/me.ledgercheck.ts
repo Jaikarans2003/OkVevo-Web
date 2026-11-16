@@ -55,6 +55,7 @@ await updateBillingByUserId(sql, uid, {
   allocationBalance: 10_000,
   allocationGrantedTotal: 20_000,
   topUpBalance: 250,
+  topUpReference: 500,
   topUpPurchasedTotal: 500,
   currentPeriodEnd: new Date(Date.now() + 864e5),
 })
