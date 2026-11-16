@@ -12,7 +12,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 
-import { db, getAdminBucket } from '@/lib/firebase-admin';
+import { withTx, type TxSql } from '@/lib/db/tx';
+import { ensureUserAndBilling } from '@/lib/db/wallet';
+import { getAdminBucket } from '@/lib/firebase-admin';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import {
   SIGNED_PUT_TTL_MS,
@@ -60,12 +62,22 @@ export async function POST(request: NextRequest) {
   }
 
   const nowMs = Date.now();
-  const rateRef = db.doc(`dramaUploadRates/${user.uid}`);
-  const decision = await db.runTransaction(async (txn) => {
-    const snap = await txn.get(rateRef);
-    const prior = snap.exists ? (snap.data() as UploadRateWindow) : null;
+  const decision = await withTx(async (tx: TxSql) => {
+    await ensureUserAndBilling(tx, user.uid);
+    const rows = await tx`
+      select window_start_ms, count from upload_rate_limits where user_id = ${user.uid} for update
+    `;
+    const row = rows[0] as { window_start_ms: number; count: number } | undefined;
+    const prior: UploadRateWindow | null = row
+      ? { windowStartMs: row.window_start_ms, count: row.count }
+      : null;
     const d = uploadRateDecision(prior, nowMs);
-    txn.set(rateRef, d.window);
+    await tx`
+      insert into upload_rate_limits (user_id, window_start_ms, count)
+      values (${user.uid}, ${d.window.windowStartMs}, ${d.window.count})
+      on conflict (user_id) do update set
+        window_start_ms = excluded.window_start_ms, count = excluded.count
+    `;
     return d;
   });
   if (!decision.allowed) {

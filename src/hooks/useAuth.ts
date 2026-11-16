@@ -1,99 +1,85 @@
-import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../config/firebase';
-import { getUserProfile, UserProfile } from '../services/userService';
+import { useState, useEffect } from 'react'
+import { onAuthStateChanged, User } from 'firebase/auth'
+import { auth } from '../config/firebase'
+import { authedJson } from '@/lib/api/browser'
+import type { MePayload } from '@/lib/api/me'
+import type { UserProfile } from '../services/userService'
 
 export interface AuthState {
-    user: User | null;
-    userProfile: UserProfile | null;
-    loading: boolean;
-    error: string | null;
+  user: User | null
+  userProfile: UserProfile | null
+  loading: boolean
+  error: string | null
 }
 
-/**
- * Hook to get current authenticated user and their profile
- */
+function profileFromMe(payload: MePayload): UserProfile {
+  return {
+    uid: payload.user.id,
+    email: payload.user.email || '',
+    onboardingComplete: true,
+    bio: payload.user.bio ?? undefined,
+    phoneNumber: payload.user.phoneNumber ?? undefined,
+    createdAt: null,
+    updatedAt: null,
+  }
+}
+
+/** Hook to get current authenticated user and their profile via GET /api/me. */
 export function useAuth() {
-    const [authState, setAuthState] = useState<AuthState>({
-        user: null,
-        userProfile: null,
-        loading: true,
-        error: null
-    });
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    userProfile: null,
+    loading: true,
+    error: null,
+  })
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    // Fetch user profile from Firestore
-                    const profile = await getUserProfile(user.uid);
-
-                    setAuthState({
-                        user,
-                        userProfile: profile,
-                        loading: false,
-                        error: null
-                    });
-                } catch (error) {
-                    console.error('Failed to fetch user profile:', error);
-                    setAuthState({
-                        user,
-                        userProfile: null,
-                        loading: false,
-                        error: 'Failed to load user profile'
-                    });
-                }
-            } else {
-                setAuthState({
-                    user: null,
-                    userProfile: null,
-                    loading: false,
-                    error: null
-                });
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    /**
-     * Get the ID to use for storage (userId or organisationId)
-     */
-    const getStorageId = (): string | null => {
-        if (!authState.userProfile) return null;
-
-        // If user is part of an organisation, use organisationId
-        if (authState.userProfile.organisationId) {
-            return authState.userProfile.organisationId;
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const me = await authedJson<MePayload>(user, '/api/me')
+          setAuthState({
+            user,
+            userProfile: profileFromMe(me),
+            loading: false,
+            error: null,
+          })
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error)
+          setAuthState({
+            user,
+            userProfile: null,
+            loading: false,
+            error: 'Failed to load user profile',
+          })
         }
+      } else {
+        setAuthState({
+          user: null,
+          userProfile: null,
+          loading: false,
+          error: null,
+        })
+      }
+    })
 
-        // If user is part of a pro organisation, use proOrganisationId
-        if (authState.userProfile.proOrganisationId) {
-            return authState.userProfile.proOrganisationId;
-        }
+    return () => unsubscribe()
+  }, [])
 
-        // Otherwise use userId
-        return authState.userProfile.uid;
-    };
+  const getStorageId = (): string | null => {
+    return authState.userProfile?.uid ?? null
+  }
 
-    /**
-     * Check if user is authenticated
-     */
-    const isAuthenticated = (): boolean => {
-        return authState.user !== null;
-    };
+  const isAuthenticated = (): boolean => authState.user !== null
 
-    /**
-     * Get user type
-     */
-    const getUserType = (): 'single' | 'organisation' | 'pro' | null => {
-        return authState.userProfile?.userType || null;
-    };
+  const getUserType = (): 'single' | 'organisation' | 'pro' | null => {
+    return authState.userProfile?.userType || null
+  }
 
-    return {
-        ...authState,
-        getStorageId,
-        isAuthenticated,
-        getUserType
-    };
+  return {
+    ...authState,
+    getStorageId,
+    isAuthenticated,
+    getUserType,
+  }
 }

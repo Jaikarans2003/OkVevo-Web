@@ -15,10 +15,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
 
 import { env } from '@/config/env';
-import { auth, db } from '@/lib/firebase-admin';
+import { sql } from '@/lib/db/client';
+import { gatewayJobRowToData } from '@/lib/db/wallet';
+import { auth } from '@/lib/firebase-admin';
 import { buildRollup, type RollupJobRow } from '@/lib/admin/rollup';
 import { estimateHistoricalCost, falQueueGet, getEndpointPricing } from '@/lib/fal/client';
 import { sweepStuckDispatching, sweepSubmittedJob } from '@/lib/fal/handleQueue';
@@ -26,7 +27,7 @@ import { falSchemaUrl, PINNED_SCHEMAS, schemaDrift } from '@/lib/fal/falSchema';
 import { holdCountsAsAbandoned } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
 import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
-import { firestoreAlertStore } from '@/lib/ops/firestoreAlertStore';
+import { alertStore, setOpsAlert } from '@/lib/ops/alertStore';
 
 export const runtime = 'nodejs';
 
@@ -39,7 +40,7 @@ async function alertOnce(
 ) {
   await sendOpsAlert(
     { severity, condition, id, text },
-    { nowMs, store: firestoreAlertStore(db) }
+    { nowMs, store: alertStore(sql) }
   );
 }
 
@@ -96,31 +97,32 @@ export async function POST(request: NextRequest) {
 
   const sweep = { settled: 0, released: 0, left: 0, alerted: 0, unknown: 0 };
   let submittedOld = 0;
-  const jobs = await db.collection('gatewayJobs').where('status', '==', 'submitted').get();
-  for (const doc of jobs.docs) {
-    const data = doc.data();
-    const created = data.createdAt?.toMillis?.() ?? nowMs;
-    const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
+  const submittedRows = await sql`select * from gateway_jobs where status = 'submitted'`;
+  for (const row of submittedRows) {
+    const id = row.id as string;
+    const data = gatewayJobRowToData(row as Record<string, unknown>);
+    const created = (data?.createdAt as Date | undefined)?.getTime() ?? nowMs;
+    const dispatchedAtMs = (data?.dispatchedAt as Date | undefined)?.getTime() ?? null;
     if (
       !holdCountsAsAbandoned({
         status: 'submitted',
         createdAtMs: created,
         dispatchedAtMs,
         nowMs,
-        falRequestId: data.falRequestId,
+        falRequestId: data?.falRequestId as string | undefined,
       })
     ) {
       continue;
     }
     submittedOld += 1;
-    const url = typeof data.falStatusUrl === 'string' ? data.falStatusUrl : '';
+    const url = typeof data?.falStatusUrl === 'string' ? data.falStatusUrl : '';
     if (!url) {
       sweep.alerted += 1;
       await alertOnce(
         'HIGH',
         'hold-unknown',
-        doc.id,
-        `submitted hold ${doc.id} has no Fal status url; not resubmitted`,
+        id,
+        `submitted hold ${id} has no Fal status url; not resubmitted`,
         nowMs
       );
       continue;
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
       statusJson = undefined;
     }
     if (statusJson !== undefined) {
-      const outcome = await sweepSubmittedJob(doc.id, statusJson);
+      const outcome = await sweepSubmittedJob(id, statusJson);
       if (outcome === 'success') sweep.settled += 1;
       else if (outcome === 'failed') sweep.released += 1;
       else sweep.left += 1;
@@ -143,8 +145,8 @@ export async function POST(request: NextRequest) {
     await alertOnce(
       'HIGH',
       'hold-unknown',
-      doc.id,
-      `submitted hold ${doc.id} Fal status unknown; not resubmitted`,
+      id,
+      `submitted hold ${id} Fal status unknown; not resubmitted`,
       nowMs
     );
   }
@@ -156,25 +158,23 @@ export async function POST(request: NextRequest) {
   // releases through the same compare-and-set. HIGH log lines email via
   // Cloud Monitoring until resolved.
   let reservedOld = 0;
-  const reserved = await db
-    .collection('gatewayJobs')
-    .where('status', 'in', ['reserved', 'dispatching'])
-    .get();
-  for (const doc of reserved.docs) {
-    const data = doc.data();
-    if (data.status === 'dispatching' && (await sweepStuckDispatching(doc.id, nowMs))) {
+  const reservedRows = await sql`select * from gateway_jobs where status in ('reserved', 'dispatching')`;
+  for (const row of reservedRows) {
+    const id = row.id as string;
+    const data = gatewayJobRowToData(row as Record<string, unknown>);
+    if (data?.status === 'dispatching' && (await sweepStuckDispatching(id, nowMs))) {
       sweep.unknown += 1;
       continue;
     }
-    const created = data.createdAt?.toMillis?.() ?? nowMs;
-    const dispatchedAtMs = data.dispatchedAt?.toMillis?.() ?? null;
+    const created = (data?.createdAt as Date | undefined)?.getTime() ?? nowMs;
+    const dispatchedAtMs = (data?.dispatchedAt as Date | undefined)?.getTime() ?? null;
     if (
       !holdCountsAsAbandoned({
-        status: typeof data.status === 'string' ? data.status : 'reserved',
+        status: typeof data?.status === 'string' ? data.status : 'reserved',
         createdAtMs: created,
         dispatchedAtMs,
         nowMs,
-        falRequestId: data.falRequestId,
+        falRequestId: data?.falRequestId as string | undefined,
       })
     ) {
       continue;
@@ -184,21 +184,18 @@ export async function POST(request: NextRequest) {
     await alertOnce(
       'HIGH',
       'hold-reserved-no-fal-id',
-      doc.id,
-      `reserved hold ${doc.id} older than 30m has no Fal request id; not released, not resubmitted. ` +
+      id,
+      `reserved hold ${id} older than 30m has no Fal request id; not released, not resubmitted. ` +
         'Check the Fal usage page for its window, then scripts/drama-release-hold.ts',
       nowMs
     );
   }
 
-  await db.doc('opsAlerts/falDrift-heartbeat').set(
-    {
-      checkedAt: FieldValue.serverTimestamp(),
-      drift: lines.length,
-      sweep,
-    },
-    { merge: true }
-  );
+  await setOpsAlert(sql, 'falDrift-heartbeat', {
+    checkedAt: new Date().toISOString(),
+    drift: lines.length,
+    sweep,
+  });
   // Cloud Monitoring counts this line. The job runs every 12h; the absence
   // policy is 23h. GCP rejects windows over 23h30m, which a daily series would
   // false-alarm inside.
@@ -217,30 +214,28 @@ export async function POST(request: NextRequest) {
   // so a later console can read it without scanning gatewayJobs.
   const day = utcDay(nowMs);
   const dayStartMs = Date.parse(`${day}T00:00:00.000Z`);
-  const createdToday = await db
-    .collection('gatewayJobs')
-    .where('createdAt', '>=', new Date(dayStartMs))
-    .get();
-  const jobsToday: RollupJobRow[] = createdToday.docs.map((doc) => {
-    const d = doc.data();
+  const createdTodayRows = await sql`select * from gateway_jobs where created_at >= ${new Date(dayStartMs)}`;
+  const jobsToday: RollupJobRow[] = createdTodayRows.map((row) => {
+    const d = gatewayJobRowToData(row as Record<string, unknown>);
     return {
-      uid: String(d.uid ?? ''),
-      endpoint: String(d.endpoint ?? ''),
-      status: String(d.status ?? ''),
-      createdAtMs: d.createdAt?.toMillis?.() ?? dayStartMs,
-      settledAtMs: d.settledAt?.toMillis?.(),
-      settledCredits: typeof d.settledCredits === 'number' ? d.settledCredits : undefined,
-      settledFalUsd: typeof d.settledFalUsd === 'number' ? d.settledFalUsd : undefined,
+      uid: String(d?.uid ?? ''),
+      endpoint: String(d?.endpoint ?? ''),
+      status: String(d?.status ?? ''),
+      createdAtMs: (d?.createdAt as Date | undefined)?.getTime() ?? dayStartMs,
+      settledAtMs: (d?.settledAt as Date | undefined)?.getTime(),
+      settledCredits: typeof d?.settledCredits === 'number' ? d.settledCredits : undefined,
+      settledFalUsd: typeof d?.settledFalUsd === 'number' ? d.settledFalUsd : undefined,
     };
   });
-  const unknownHolds = await db.collection('gatewayJobs').where('status', '==', 'unknown').get();
-  for (const doc of unknownHolds.docs) {
+  const unknownHoldRows = await sql`select id from gateway_jobs where status = 'unknown'`;
+  for (const row of unknownHoldRows) {
+    const id = row.id as string;
     sweep.alerted += 1;
     await alertOnce(
       'HIGH',
       'hold-unknown',
-      doc.id,
-      `hold ${doc.id} is unknown (Fal submit outcome not known); credits held, not resubmitted. ` +
+      id,
+      `hold ${id} is unknown (Fal submit outcome not known); credits held, not resubmitted. ` +
         'Check the Fal usage page for its window, then scripts/drama-release-hold.ts',
       nowMs
     );
@@ -283,17 +278,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const spendSnap = await db.doc(`spendDaily/${day}`).get();
-  const spendData = spendSnap.data() ?? {};
+  const spendRows = await sql`select * from spend_daily where day = ${day}`;
+  const spendData = (spendRows[0] as Record<string, unknown> | undefined) ?? {};
   const rollup = buildRollup({
     day,
     jobsToday,
-    holds: { unknown: unknownHolds.size, reservedOld, submittedOld },
+    holds: { unknown: unknownHoldRows.length, reservedOld, submittedOld },
     spendDaily: {
-      falUsd: Number(spendData.falUsd ?? 0),
-      creditsCharged: Number(spendData.creditsCharged ?? 0),
+      falUsd: Number(spendData.fal_usd ?? 0),
+      creditsCharged: Number(spendData.credits_charged ?? 0),
       jobs: Number(spendData.jobs ?? 0),
-      overReserveEvents: Number(spendData.overReserveEvents ?? 0),
+      overReserveEvents: Number(spendData.over_reserve_events ?? 0),
     },
   });
   const topUsers = await Promise.all(
@@ -307,18 +302,18 @@ export async function POST(request: NextRequest) {
       return { uid: row.uid, email, creditsCharged: row.creditsCharged };
     })
   );
-  await db.doc(`adminRollups/${day}`).set(
-    {
-      ...rollup,
-      topUsers,
-      priceHealth: [
-        ...lines.map((l) => ({ endpoint: l.endpoint, level: l.level, note: l.note })),
-        ...historical,
-      ],
-      writtenAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const rollupData = {
+    ...rollup,
+    topUsers,
+    priceHealth: [
+      ...lines.map((l) => ({ endpoint: l.endpoint, level: l.level, note: l.note })),
+      ...historical,
+    ],
+  };
+  await sql`
+    insert into admin_rollups ${sql({ day, data: rollupData })}
+    on conflict (day) do update set data = excluded.data, written_at = now()
+  `;
 
   return NextResponse.json({ ok: true, drift: lines, schemaDrift: schemaLines, sweep });
 }

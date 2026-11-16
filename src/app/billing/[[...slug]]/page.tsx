@@ -81,7 +81,7 @@ export default function BillingPage() {
     const router = useRouter();
     const params = useParams<{ slug?: string | string[] }>();
     const action = portalBillingActionFromSlug(params.slug);
-    const { user, userProfile, loading: authLoading, isAuthenticated } = useAuth();
+    const { user, loading: authLoading, isAuthenticated } = useAuth();
 
     const [billing, setBilling] = useState<BillingSnapshot | null>(null);
     const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
@@ -107,13 +107,13 @@ export default function BillingPage() {
     }, [authLoading, isAuthenticated, router]);
 
     useEffect(() => {
-        if (!userProfile) return;
+        if (!user) return;
 
         setLoading(true);
         setError(null);
 
         const unsubBilling = subscribeUserBilling(
-            userProfile.uid,
+            user,
             (snap) => {
                 setBilling(snap);
                 setLoading(false);
@@ -121,12 +121,12 @@ export default function BillingPage() {
             () => setError('Failed to load billing details. Please try again.')
         );
 
-        getCreditHistory(userProfile.uid, 10)
+        getCreditHistory(user, 10)
             .then(setCreditHistory)
             .catch(() => setError('Failed to load billing details. Please try again.'));
 
         return () => unsubBilling();
-    }, [userProfile]);
+    }, [user]);
 
     const currency = parseBillingCurrency(billing?.currency, 'USD');
     const period = toBillingPeriod(billing?.billingCycle);
@@ -134,7 +134,8 @@ export default function BillingPage() {
     const upgradeTier = nextUpgradeTier(billing?.plan);
     const cancelAtPeriodEnd = billing?.cancelAtPeriodEnd === true;
     const renewalDate = billing?.currentPeriodEnd ?? null;
-    const periodEndLabel = formatDate(renewalDate, currency);
+    const periodEnded = billing?.planStatus === 'ended';
+    const periodEndLabel = periodEnded ? 'Ended' : formatDate(renewalDate, currency);
     const currentPlanLabel = billing?.planName || (isPlanChangeTier(billing?.plan) ? billing!.plan : 'None');
 
     const currentPrice = useMemo(() => {
@@ -411,7 +412,13 @@ export default function BillingPage() {
                 <section className="sheet sheet--olive on-dark pt-sheet pt-topup">
                     <div>
                         <h2>Add Credits</h2>
-                        <p className="sub">Top-up credits never expire on their own. They&apos;re spent after your plan&apos;s credits run out.</p>
+                        <p className="sub">
+                            Additional credits expire 1 year after purchase. They&apos;re spent after your plan&apos;s
+                            credits run out.
+                            {billing?.additionalNextExpiry
+                                ? ` Next expiry ${formatDate(billing.additionalNextExpiry, currency)}.`
+                                : ''}
+                        </p>
                     </div>
                     <div>
                         <div className="pt-topup-form">
@@ -428,13 +435,14 @@ export default function BillingPage() {
                                         value={topUpAmount}
                                         onChange={(e) => setTopUpAmount(Number(e.target.value))}
                                         className="pt-input"
+                                        disabled={hasPlan && billing?.entitled === false}
                                     />
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleAddCredits}
-                                disabled={topUpLoading}
+                                disabled={topUpLoading || (hasPlan && billing?.entitled === false)}
                                 className="btn btn--go"
                                 style={{ marginTop: 26 }}
                             >
@@ -479,7 +487,7 @@ export default function BillingPage() {
                                         <div>
                                             <p className="what">{label}</p>
                                             <p className="when">
-                                                {transaction.createdAt?.toDate?.()?.toLocaleDateString('en-IN', {
+                                                {transaction.createdAt?.toLocaleDateString('en-IN', {
                                                     day: 'numeric',
                                                     month: 'short',
                                                     year: 'numeric',

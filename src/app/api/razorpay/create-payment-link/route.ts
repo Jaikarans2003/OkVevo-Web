@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
 import { RAZORPAY_CONFIG, PLACEHOLDER_CREDITS_PER_USD, parseBillingCurrency } from '@/config/razorpay';
-import { uidFromIdToken } from '@/lib/gateway/auth';
-import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
 import { topUpAmountMinorUnits } from '@/lib/billing/currency';
+import { isEntitled } from '@/lib/billing/entitlement';
+import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { uidFromIdToken } from '@/lib/gateway/auth';
 
 export const runtime = 'nodejs';
 
@@ -35,6 +36,12 @@ export async function POST(request: NextRequest) {
 
     try {
         const billing = await loadUserBillingSoT(uid);
+        if (!isEntitled(billing)) {
+            return NextResponse.json(
+                { error: 'plan_not_active', message: 'Subscription is not active' },
+                { status: 403 }
+            );
+        }
         const currency = parseBillingCurrency(billing.currency, 'USD');
         const credits = Math.round(amountUsd * PLACEHOLDER_CREDITS_PER_USD);
         const amountMinor = topUpAmountMinorUnits(amountUsd, currency);

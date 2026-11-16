@@ -77,9 +77,9 @@ assert.match(
 );
 
 const debit = src('lib/gateway/debit.ts');
-assert.match(debit, /mode === 'add' \? current\.allocationBalance \+ amount : amount/);
-assert.match(debit, /Spend gate: planStatus must be 'active'/);
-assert.match(debit, /readPlanStatus\(data\) !== 'active'/);
+assert.match(debit, /mode === 'add' \? current\.allocationBalance \+ grantAmount : grantAmount/);
+assert.match(debit, /Spend gate: entitled/);
+assert.match(debit, /!isEntitled\(data\)/);
 
 // --- % floor (19931/20000 is 99.65, never 100) ---
 assert.equal(flooredPct(19_931, 20_000), 99.65);
@@ -101,12 +101,20 @@ assert.doesNotMatch(billingPage, /topUpBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
 
 const creditsService = src('services/CreditsService.ts');
+assert.match(creditsService, /billingSnapshotFromSummary/);
+assert.match(creditsService, /\/api\/billing\/summary/);
+assert.match(creditsService, /subscribeUserBilling/);
+assert.match(creditsService, /30_000/);
+assert.doesNotMatch(creditsService, /onSnapshot/);
+assert.doesNotMatch(creditsService, /firebase\/firestore/);
 assert.match(
-  creditsService,
-  /remainingPct: remainingPct\(creditsIncluded, allocationBalance, allocationGrantedTotal\)/
+  src('lib/api/billingSummary.ts'),
+  /remainingPct\(\s*billing\.creditsIncluded,\s*billing\.allocationBalance,\s*billing\.allocationGrantedTotal\s*\)/
 );
-assert.match(creditsService, /additionalPct: additionalRemainingPct\(topUpBalance, topUpPurchasedTotal\)/);
-assert.match(creditsService, /onSnapshot/);
+assert.match(
+  src('lib/api/billingSummary.ts'),
+  /additionalRemainingPct\(billing\.topUpBalance, billing\.topUpPurchasedTotal\)/
+);
 
 // --- zero tax on checkout + billing surfaces ---
 const taxSurfaces = [

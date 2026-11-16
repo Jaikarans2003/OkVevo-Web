@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { db } from '@/lib/firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { sql } from '@/lib/db/client';
+import { updateBillingByUserId } from '@/lib/db/wallet';
 import {
     RAZORPAY_CONFIG,
     getRazorpayPlanId,
@@ -119,10 +119,7 @@ export async function POST(request: NextRequest) {
                     (fetched as { payment_method?: unknown }).payment_method
                 );
                 if (paymentMethod) {
-                    await db.collection('users').doc(user.uid).set(
-                        { paymentMethod, updatedAt: FieldValue.serverTimestamp() },
-                        { merge: true }
-                    );
+                    await updateBillingByUserId(sql, user.uid, { paymentMethod });
                 }
             } catch (fetchErr) {
                 console.warn('subscription fetch for paymentMethod failed', fetchErr);
@@ -153,27 +150,23 @@ export async function POST(request: NextRequest) {
             if (when === 'cycle_end') {
                 const changeScheduledAt =
                     typeof updated.change_scheduled_at === 'number'
-                        ? Timestamp.fromMillis(updated.change_scheduled_at * 1000)
+                        ? new Date(updated.change_scheduled_at * 1000)
                         : billing.currentPeriodEnd
-                          ?? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+                          ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-                await db.collection('users').doc(user.uid).set(
-                    {
-                        hasScheduledChanges: true,
-                        scheduledChangeAt: changeScheduledAt,
-                        scheduledPlanId: newPlanId,
-                        scheduledPlanType: newPlanType,
-                        updatedAt: FieldValue.serverTimestamp(),
-                    },
-                    { merge: true }
-                );
+                await updateBillingByUserId(sql, user.uid, {
+                    hasScheduledChanges: true,
+                    scheduledChangeAt: changeScheduledAt,
+                    scheduledPlanId: newPlanId,
+                    scheduledPlanType: newPlanType,
+                });
 
                 return NextResponse.json({
                     success: true,
                     flow: 'update',
                     scheduleChangeAt: when,
                     message: 'Plan change scheduled for end of billing cycle',
-                    scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+                    scheduledChangeAt: changeScheduledAt.toISOString(),
                     newPlanType,
                     currentPlanType: billing.plan,
                     subscription: {
@@ -245,29 +238,25 @@ export async function POST(request: NextRequest) {
 
 async function persistUpiDowngrade(
     uid: string,
-    currentPeriodEnd: Timestamp | null,
+    currentPeriodEnd: Date | null,
     newPlanId: string,
     newPlanType: string,
     currentPlanType: string | null
 ) {
     const changeScheduledAt =
-        currentPeriodEnd ?? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-    await db.collection('users').doc(uid).set(
-        {
-            hasScheduledChanges: true,
-            scheduledChangeAt: changeScheduledAt,
-            scheduledPlanId: newPlanId,
-            scheduledPlanType: newPlanType,
-            updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-    );
+        currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await updateBillingByUserId(sql, uid, {
+        hasScheduledChanges: true,
+        scheduledChangeAt: changeScheduledAt,
+        scheduledPlanId: newPlanId,
+        scheduledPlanType: newPlanType,
+    });
     return NextResponse.json({
         success: true,
         flow: 'update',
         scheduleChangeAt: 'cycle_end',
         message: 'Plan change scheduled for end of billing cycle',
-        scheduledChangeAt: changeScheduledAt.toDate().toISOString(),
+        scheduledChangeAt: changeScheduledAt.toISOString(),
         newPlanType,
         currentPlanType: currentPlanType,
         subscription: {

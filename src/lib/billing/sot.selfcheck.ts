@@ -48,10 +48,9 @@ for (const rel of ROUTES) {
 }
 
 const clientFiles = [
-  'services/SubscriptionService.ts',
   'app/billing/[[...slug]]/page.tsx',
-  'middleware/subscriptionCheck.ts',
   'lib/billing/userSoT.ts',
+  'services/CreditsService.ts',
 ];
 for (const rel of clientFiles) {
   const text = src(rel);
@@ -118,8 +117,10 @@ assert.match(payLink, /razorpayErrorDescription/);
 assert.match(payLink, /parseBillingCurrency/);
 
 const creditsService = src('services/CreditsService.ts');
-assert.match(creditsService, /paymentMethod: typeof data\.paymentMethod === 'string'/);
+assert.match(creditsService, /paymentMethod: data\.paymentMethod/);
+assert.match(creditsService, /\/api\/billing\/summary/);
 assert.doesNotMatch(creditsService, /data\.payment_method/);
+assert.doesNotMatch(creditsService, /firebase\/firestore/);
 
 
 const checkout = src('components/shared/payment/RazorpayCheckout.tsx');

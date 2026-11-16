@@ -19,8 +19,8 @@ const reserveFn = debit.slice(
   debit.indexOf('export async function reserveCredits'),
   debit.indexOf('export async function rebindGatewayJob')
 );
-const planGate = reserveFn.match(/if \(readPlanStatus\(data\) !== 'active'\) \{[^}]+\}/);
-assert.ok(planGate, 'reserveCredits plan-status gate missing');
+const planGate = reserveFn.match(/if \(!isEntitled\(data\)\) \{[^}]+\}/);
+assert.ok(planGate, 'reserveCredits entitlement gate missing');
 assert.match(planGate[0], /throw new PlanNotActiveError\(\)/);
 assert.doesNotMatch(planGate[0], /InsufficientCreditsError/);
 assert.match(reserveFn, /if \(!result\.ok\) \{[\s\S]*?throw new InsufficientCreditsError\(\)/);

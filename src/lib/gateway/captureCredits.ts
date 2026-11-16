@@ -1,16 +1,23 @@
 /**
- * Capture wallet write. Takes a Firestore handle so the Cloud Run job can
- * call the same transaction as App Hosting (re-read the job inside the tx).
+ * Capture wallet write. Uses withTx internally so both App Hosting and the
+ * Cloud Run capture job call the same transaction (job is re-read inside it).
  */
-import { FieldValue, type Firestore } from 'firebase-admin/firestore';
-
+import { withTx } from '@/lib/db/tx';
+import {
+  creditTransactionExists,
+  insertCreditTransaction,
+  lockBillingByUserId,
+  lockJob,
+  updateBillingByUserId,
+  updateJob,
+} from '@/lib/db/wallet';
 import { applyCapture, omitUndefined, type JobRecord } from '@/lib/gateway/reserve';
 
 function readInt(n: unknown): number {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
-function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecord | undefined {
+function jobFromSnap(data: Record<string, unknown> | undefined): JobRecord | undefined {
   if (!data || data.status !== 'settled' || data.provider !== 'fal') return undefined;
   const uid = data.uid;
   const estimated = data.estimatedCredits;
@@ -34,32 +41,27 @@ function jobFromSnap(data: FirebaseFirestore.DocumentData | undefined): JobRecor
 }
 
 export async function captureCreditsOn(
-  db: Firestore,
   opts: { requestId: string; falUsd: number; falCredits: number }
 ): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
   const { requestId, falUsd, falCredits } = opts;
   if (!requestId) return { skipped: true, refund: 0, overReserve: false };
 
-  const jobRef = db.collection('gatewayJobs').doc(requestId);
-  const txnRef = db.collection('creditTransactions').doc(`${requestId}:capture`);
+  const txnId = `${requestId}:capture`;
   let out = { skipped: true, refund: 0, overReserve: false };
 
-  await db.runTransaction(async (tx) => {
-    const txnSnap = await tx.get(txnRef);
-    if (txnSnap.exists) {
+  await withTx(async (tx) => {
+    if (await creditTransactionExists(tx, txnId)) {
       out = { skipped: true, refund: 0, overReserve: false };
       return;
     }
-    const jobSnap = await tx.get(jobRef);
-    const job = jobFromSnap(jobSnap.data());
+    const jobRow = await lockJob(tx, requestId);
+    const job = jobFromSnap(jobRow);
     if (!job) return;
-    const userRef = db.collection('users').doc(job.uid);
-    const userSnap = await tx.get(userRef);
-    const data = userSnap.data() || {};
+    const billing = await lockBillingByUserId(tx, job.uid);
     const result = applyCapture(
       {
-        allocationBalance: Number(data.allocationBalance || 0),
-        topUpBalance: Number(data.topUpBalance || 0),
+        allocationBalance: Number(billing?.allocationBalance || 0),
+        topUpBalance: Number(billing?.topUpBalance || 0),
       },
       job,
       falCredits
@@ -68,38 +70,26 @@ export async function captureCreditsOn(
       out = { skipped: true, refund: 0, overReserve: false };
       return;
     }
-    tx.set(
-      userRef,
-      {
-        allocationBalance: result.balances.allocationBalance,
-        topUpBalance: result.balances.topUpBalance,
-      },
-      { merge: true }
-    );
-    tx.set(
-      jobRef,
-      {
-        captured: true,
-        capturedAt: FieldValue.serverTimestamp(),
-        capturedFalUsd: falUsd,
-        settledCredits: result.settledCredits,
-        actualCredits: result.settledCredits,
-        heldAllocation: result.heldAllocation,
-        heldTopUp: result.heldTopUp,
-      },
-      { merge: true }
-    );
-    tx.set(
-      txnRef,
-      omitUndefined({
-        uid: job.uid,
-        type: 'refund',
-        amount: result.refund,
-        provider: 'fal',
-        requestId,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
+    await updateBillingByUserId(tx, job.uid, {
+      allocationBalance: result.balances.allocationBalance,
+      topUpBalance: result.balances.topUpBalance,
+    });
+    await updateJob(tx, requestId, {
+      captured: true,
+      capturedAt: new Date(),
+      capturedFalUsd: falUsd,
+      settledCredits: result.settledCredits,
+      actualCredits: result.settledCredits,
+      heldAllocation: result.heldAllocation,
+      heldTopUp: result.heldTopUp,
+    });
+    await insertCreditTransaction(tx, txnId, billing!.id, omitUndefined({
+      user_id: job.uid,
+      type: 'refund',
+      amount: result.refund,
+      provider: 'fal',
+      request_id: requestId,
+    }));
     out = { skipped: false, refund: result.refund, overReserve: result.overReserve };
   });
   return out;

@@ -15,7 +15,6 @@ import {
   addOneMonthClamped,
   refreshAllocationIfDue,
 } from '../billing/allocation.ts';
-import { Timestamp } from 'firebase-admin/firestore';
 
 const uid = 'u1';
 
@@ -81,7 +80,11 @@ assert.equal(over.skipped, false);
 if (over.skipped) throw new Error('unreachable');
 assert.equal(over.balances.allocationBalance, 0);
 assert.equal(over.balances.topUpBalance, 0);
-assert.equal(over.debitAmount, 55); // ledger billed; balances clamped
+assert.equal(over.debitAmount, 55); // billed (job actualCredits)
+assert.equal(over.walletDebit, 50); // credits taken from wallet
+assert.equal(over.absorbed, 5); // OkVevo eats the shortfall
+// creditLimit=0 stays byte-identical on balances
+assert.equal(applyReconcile({ allocationBalance: 0, topUpBalance: 10 }, { ...falSubmitted, heldAllocation: 40, heldTopUp: 0 }, 55, 0).absorbed, 5);
 
 const released = applyRelease(
   { allocationBalance: 0, topUpBalance: 30 },
@@ -139,7 +142,7 @@ const notDue = refreshAllocationIfDue(
   {
     planStatus: 'active',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() + 86400000)),
+    nextAllocationDate: new Date(Date.now() + 86400000),
   },
   new Date()
 );
@@ -149,19 +152,19 @@ const due = refreshAllocationIfDue(
   {
     planStatus: 'active',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+    nextAllocationDate: new Date(Date.now() - 1000),
   },
   new Date()
 );
 assert.ok(due);
 assert.equal(due!.allocationBalance, 20000);
-assert.ok(due!.nextAllocationDate.toDate().getTime() > Date.now());
+assert.ok(due!.nextAllocationDate.getTime() > Date.now());
 
 const inactive = refreshAllocationIfDue(
   {
     planStatus: 'halted',
     creditsIncluded: 20000,
-    nextAllocationDate: Timestamp.fromDate(new Date(Date.now() - 1000)),
+    nextAllocationDate: new Date(Date.now() - 1000),
   },
   new Date()
 );
