@@ -15,3 +15,8 @@ export function verifyRazorpayWebhookSignature(
   if (a.length !== b.length) return false
   return timingSafeEqual(a, b)
 }
+
+/** Sign a fixture body for Layer 1 webhook replay (test-only; mirrors verify above). */
+export function signRazorpayWebhookBody(body: string, secret: string): string {
+  return createHmac('sha256', secret).update(body).digest('hex')
+}
