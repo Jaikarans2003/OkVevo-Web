@@ -78,20 +78,26 @@ echo "==> Enable Cloud Scheduler API"
 gcloud services enable cloudscheduler.googleapis.com --project="$PROJECT"
 
 URI="${ORIGIN}/api/cron/allocation-refresh"
-if gcloud scheduler jobs describe nia-allocation-refresh --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
-  echo "==> Update scheduler job nia-allocation-refresh"
-  gcloud scheduler jobs update http nia-allocation-refresh \
+if gcloud scheduler jobs describe okvevo-allocation-refresh --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Update scheduler job okvevo-allocation-refresh"
+  gcloud scheduler jobs update http okvevo-allocation-refresh \
     --project="$PROJECT" --location="$LOCATION" \
     --schedule="10 0 * * *" --time-zone="Etc/UTC" \
     --uri="$URI" --http-method=POST \
     --update-headers="Authorization=Bearer ${CRON_SECRET}"
 else
-  echo "==> Create scheduler job nia-allocation-refresh"
-  gcloud scheduler jobs create http nia-allocation-refresh \
+  echo "==> Create scheduler job okvevo-allocation-refresh"
+  gcloud scheduler jobs create http okvevo-allocation-refresh \
     --project="$PROJECT" --location="$LOCATION" \
     --schedule="10 0 * * *" --time-zone="Etc/UTC" \
     --uri="$URI" --http-method=POST \
     --headers="Authorization=Bearer ${CRON_SECRET}"
+fi
+# Drop legacy name if present (Scheduler has no rename).
+if gcloud scheduler jobs describe nia-allocation-refresh --project="$PROJECT" --location="$LOCATION" >/dev/null 2>&1; then
+  echo "==> Delete legacy scheduler job nia-allocation-refresh"
+  gcloud scheduler jobs delete nia-allocation-refresh \
+    --project="$PROJECT" --location="$LOCATION" --quiet
 fi
 
 FX_URI="${ORIGIN}/api/cron/fx-drift"

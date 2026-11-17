@@ -1,5 +1,5 @@
 /**
- * Billing summary: percentages only; ended status after periodEnd.
+ * Billing summary: percentages only; additional % uses top_up_reference; ended after periodEnd.
  * Run: npx tsx src/lib/api/billingSummary.selfcheck.ts
  */
 import assert from 'node:assert/strict'
@@ -24,6 +24,7 @@ const base: BillingAccountData = {
   creditsIncluded: 20_000,
   allocationBalance: 15_000,
   topUpBalance: 500,
+  topUpReference: 1_000,
   allocationGrantedTotal: 20_000,
   topUpPurchasedTotal: 1_000,
   nextAllocationDate: null,
@@ -49,6 +50,56 @@ assert.equal(summary.fundedBy, null)
 assert.equal(summary.additionalNextExpiry, null)
 assert.equal('allocationBalance' in summary, false)
 assert.equal('topUpBalance' in summary, false)
+assert.equal('additionalCredits' in summary, false)
+
+// buy 1,000 → 100%; spend 700 → 30%; buy 1,000 → 100%; spend 650 → 50%
+const afterBuy = billingSummaryFromAccount(
+  { ...base, topUpBalance: 1_000, topUpReference: 1_000, allocationBalance: 20_000 },
+  now
+)
+assert.equal(afterBuy.additionalPct, 100)
+assert.equal(afterBuy.remainingPct, 100)
+
+const afterSpend700 = billingSummaryFromAccount(
+  { ...base, topUpBalance: 300, topUpReference: 1_000, allocationBalance: 20_000 },
+  now
+)
+assert.equal(afterSpend700.additionalPct, 30)
+assert.equal(afterSpend700.remainingPct, 100)
+
+const afterSecondBuy = billingSummaryFromAccount(
+  { ...base, topUpBalance: 1_300, topUpReference: 1_300, allocationBalance: 20_000 },
+  now
+)
+assert.equal(afterSecondBuy.additionalPct, 100)
+assert.equal(afterSecondBuy.remainingPct, 100)
+
+const afterSpend650 = billingSummaryFromAccount(
+  { ...base, topUpBalance: 650, topUpReference: 1_300, allocationBalance: 20_000 },
+  now
+)
+assert.equal(afterSpend650.additionalPct, 50)
+assert.equal(afterSpend650.remainingPct, 100)
+
+// Top-up never changes the plan %
+const planOnly = billingSummaryFromAccount(
+  { ...base, allocationBalance: 10_000, topUpBalance: 0, topUpReference: 0 },
+  now
+)
+const planAfterTopUp = billingSummaryFromAccount(
+  { ...base, allocationBalance: 10_000, topUpBalance: 1_000, topUpReference: 1_000 },
+  now
+)
+assert.equal(planOnly.remainingPct, 50)
+assert.equal(planAfterTopUp.remainingPct, 50)
+assert.equal(planAfterTopUp.additionalPct, 100)
+
+// Hold released after a top-up never shows above 100%
+const afterReleaseAboveRef = billingSummaryFromAccount(
+  { ...base, topUpBalance: 1_100, topUpReference: 1_000 },
+  now
+)
+assert.equal(afterReleaseAboveRef.additionalPct, 100)
 
 const ended = billingSummaryFromAccount(
   { ...base, currentPeriodEnd: new Date('2020-01-01T00:00:00.000Z') },
@@ -58,7 +109,6 @@ assert.equal(ended.entitled, false)
 assert.equal(ended.status, 'ended')
 assert.equal(billingDisplayStatus({ planStatus: 'cancelled', currentPeriodEnd: new Date(0) }, now), 'cancelled')
 
-// Hide past scheduled changes
 const pastSched = billingSummaryFromAccount(
   {
     ...base,
@@ -83,7 +133,6 @@ const futureSched = billingSummaryFromAccount(
 )
 assert.equal(futureSched.scheduledChange?.planType, 'pro')
 
-// Routes exist
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 for (const rel of [
   'app/api/me/route.ts',

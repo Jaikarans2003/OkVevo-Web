@@ -54,7 +54,12 @@ assert.equal(flooredPct(20000, 20000), 100);
 assert.equal(flooredPct(50, 0), 0);
 assert.equal(remainingPct(60000, 59999, 60000), 99.99);
 assert.equal(additionalRemainingPct(2500, 5000), 50);
-assert.equal(additionalRemainingPct(5000, 0), 100);
+assert.equal(additionalRemainingPct(1000, 1000), 100);
+assert.equal(additionalRemainingPct(300, 1000), 30);
+assert.equal(additionalRemainingPct(1300, 1300), 100);
+assert.equal(additionalRemainingPct(650, 1300), 50);
+assert.equal(additionalRemainingPct(1100, 1000), 100); // hold release after top-up, capped
+assert.equal(additionalRemainingPct(5000, 0), 100); // unseeded leftover = full bar
 assert.equal(additionalRemainingPct(0, 0), 0);
 assert.equal(nextTopUpPurchasedTotal(0, 500, 1500), 1500);
 assert.equal(nextTopUpPurchasedTotal(1000, 500, 800), 1500);

@@ -100,12 +100,17 @@ export function remainingPct(
     return flooredPct(allocationBalance, granted);
 }
 
-/** Additional remaining. Denominator is max(purchasedTotal, leftover) so unseeded leftover never exceeds 100%. */
-export function additionalRemainingPct(topUpBalance: number, topUpPurchasedTotal: number): number {
-    const purchased =
-        Number.isInteger(topUpPurchasedTotal) && topUpPurchasedTotal >= 0 ? topUpPurchasedTotal : 0;
+/**
+ * Additional remaining. Denominator is the balance right after the most recent
+ * top-up (`top_up_reference`), not lifetime purchases. flooredPct already caps
+ * at 100% (a hold released after a top-up can leave balance > reference).
+ * Unseeded leftover (reference 0) uses leftover as the bar so it shows 100%.
+ */
+export function additionalRemainingPct(topUpBalance: number, topUpReference: number): number {
     const leftover = Number.isInteger(topUpBalance) && topUpBalance >= 0 ? topUpBalance : 0;
-    return flooredPct(leftover, Math.max(purchased, leftover));
+    const reference =
+        Number.isInteger(topUpReference) && topUpReference > 0 ? topUpReference : leftover;
+    return flooredPct(leftover, reference);
 }
 
 /**
