@@ -5,7 +5,9 @@ name: PR checks
 
 on:
   pull_request:
-    branches: [staging]
+    # Layer 1 billing timeline lives in test:ledger (db-tests); required on
+    # every PR into staging and production (this repo's ship branch).
+    branches: [staging, production]
 
 permissions:
   contents: read
@@ -42,6 +44,7 @@ jobs:
             src/lib/fal/falSchema.selfcheck.ts
             src/lib/gateway/reserve.selfcheck.ts
             src/lib/billing/fxDrift.selfcheck.ts
+            src/lib/billing/ledgerInvariant.selfcheck.ts
           )
           for f in "${required[@]}"; do
             if [[ ! -f "$f" ]]; then
@@ -53,7 +56,8 @@ jobs:
                    src/lib/admin/rollup.selfcheck.ts \
                    src/lib/ops/alert.selfcheck.ts \
                    src/lib/gateway/reserve.selfcheck.ts \
-                   src/lib/billing/fxDrift.selfcheck.ts; do
+                   src/lib/billing/fxDrift.selfcheck.ts \
+                   src/lib/billing/ledgerInvariant.selfcheck.ts; do
             echo "==> $f"
             npx tsx "$f"
           done
@@ -88,7 +92,8 @@ jobs:
       - name: pgTAP
         run: npm run db:test
 
-      - name: Ledger race suite
+      - name: Ledger race suite + billing timeline Layer 1
+        # Picks up every *.ledgercheck.ts including billingTimelineLayer1.
         run: npm run test:ledger
 
   # Same typecheck next build runs in App Hosting Cloud Build.
