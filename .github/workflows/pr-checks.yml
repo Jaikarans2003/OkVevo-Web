@@ -42,6 +42,7 @@ jobs:
             src/lib/fal/falSchema.selfcheck.ts
             src/lib/gateway/reserve.selfcheck.ts
             src/lib/billing/fxDrift.selfcheck.ts
+            src/lib/billing/ledgerInvariant.selfcheck.ts
           )
           for f in "${required[@]}"; do
             if [[ ! -f "$f" ]]; then
@@ -53,7 +54,8 @@ jobs:
                    src/lib/admin/rollup.selfcheck.ts \
                    src/lib/ops/alert.selfcheck.ts \
                    src/lib/gateway/reserve.selfcheck.ts \
-                   src/lib/billing/fxDrift.selfcheck.ts; do
+                   src/lib/billing/fxDrift.selfcheck.ts \
+                   src/lib/billing/ledgerInvariant.selfcheck.ts; do
             echo "==> $f"
             npx tsx "$f"
           done

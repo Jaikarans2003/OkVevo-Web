@@ -26,6 +26,7 @@ import { sweepStuckDispatching, sweepSubmittedJob } from '@/lib/fal/handleQueue'
 import { falSchemaUrl, PINNED_SCHEMAS, schemaDrift } from '@/lib/fal/falSchema';
 import { holdCountsAsAbandoned } from '@/lib/fal/holdSweep';
 import { RATE_CARD_IDS, priceDrift, rateCardEntry } from '@/lib/fal/rateCard';
+import { findLedgerMismatches } from '@/lib/billing/ledgerInvariant';
 import { alertLogLine, sendOpsAlert, utcDay, type AlertSeverity } from '@/lib/ops/alert';
 import { alertStore, setOpsAlert } from '@/lib/ops/alertStore';
 
@@ -191,10 +192,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Nightly ledger invariant: sum(ledger) − open holds == cached balances.
+  const ledgerMismatches = await findLedgerMismatches(sql);
+  for (const m of ledgerMismatches) {
+    await alertOnce(
+      'HIGH',
+      'ledger-mismatch',
+      m.billingAccountId,
+      `ledger mismatch wallet ${m.billingAccountId}: ` +
+        `allocΔ=${m.allocDelta} topUpΔ=${m.topUpDelta} ` +
+        `(cache ${m.allocationBalance}/${m.topUpBalance}, ` +
+        `ledger ${m.ledgerAlloc}/${m.ledgerTopUp}, ` +
+        `holds ${m.holdAlloc}/${m.holdTopUp})`,
+      nowMs
+    );
+  }
+
   await setOpsAlert(sql, 'falDrift-heartbeat', {
     checkedAt: new Date().toISOString(),
     drift: lines.length,
     sweep,
+    ledgerMismatches: ledgerMismatches.length,
   });
   // Cloud Monitoring counts this line. The job runs every 12h; the absence
   // policy is 23h. GCP rejects windows over 23h30m, which a daily series would
@@ -315,5 +333,11 @@ export async function POST(request: NextRequest) {
     on conflict (day) do update set data = excluded.data, written_at = now()
   `;
 
-  return NextResponse.json({ ok: true, drift: lines, schemaDrift: schemaLines, sweep });
+  return NextResponse.json({
+    ok: true,
+    drift: lines,
+    schemaDrift: schemaLines,
+    sweep,
+    ledgerMismatches: ledgerMismatches.length,
+  });
 }
