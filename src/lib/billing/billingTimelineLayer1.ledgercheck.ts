@@ -162,6 +162,8 @@ scenario('renew: subscription.charged SETs allocation; additional untouched', as
     allocationBalance: 1234, // partially spent
     allocationGrantedTotal: CREDITS.starter,
     topUpBalance: 300,
+    // §14.0: additional % denominator is top_up_reference (not lifetime purchased).
+    topUpReference: 1000,
     topUpPurchasedTotal: 1000,
     currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
     nextAllocationDate: new Date((BASE_NOW_UNIX - 60) * 1000), // already due, relative to the clock set below
@@ -187,7 +189,7 @@ scenario('renew: subscription.charged SETs allocation; additional untouched', as
 
   const summary = await getBillingSummary(id)
   assert.equal(summary.json.remainingPct, 100)
-  assert.equal(summary.json.additionalPct, 30) // 300/1000
+  assert.equal(summary.json.additionalPct, 30) // 300/1000 reference
 })
 
 // ---------------------------------------------------------------------------
