@@ -46,14 +46,8 @@ assert.equal(portalBillingActionFromSlug(['change-plan']), 'change-plan');
 assert.equal(portalBillingActionFromSlug(['cancel']), 'cancel');
 assert.equal(portalBillingActionFromSlug(['upgrade']), 'upgrade');
 assert.equal(portalBillingActionFromSlug(undefined), 'overview');
-assert.equal(
-  planChangeCopy('now'),
-  'You will pay the prorated difference now. Your billing date stays the same.'
-);
-assert.equal(
-  planChangeCopy('now', { upi: true }),
-  'You will pay the full new-plan price via a new UPI payment. Existing credits stay until the new billing date.'
-);
+assert.match(planChangeCopy('now'), /full new-plan price/);
+assert.match(planChangeCopy('cycle_end'), /end of this billing cycle/);
 
 assert.equal(proratedCreditGrant(40_000, 1, 2), 20_000);
 assert.equal(proratedCreditGrant(40_000, 15, 30), 20_000);
@@ -90,11 +84,17 @@ const updateRoute = readFileSync(
   path.join(root, 'app/api/razorpay/update-subscription/route.ts'),
   'utf8'
 );
-assert.match(updateRoute, /scheduleChangeAt\(/);
-assert.match(updateRoute, /schedule_change_at: when/);
-assert.doesNotMatch(updateRoute, /start_at:/);
-assert.doesNotMatch(updateRoute, /remaining_count:/);
-assert.match(updateRoute, /upi_upgrade_required/);
+assert.match(updateRoute, /export \{ POST \} from '\.\.\/upgrade-upi\/route'/);
+assert.doesNotMatch(updateRoute, /subscriptions\.update/);
+
+const changeRoute = readFileSync(
+  path.join(root, 'app/api/razorpay/upgrade-upi/route.ts'),
+  'utf8'
+);
+assert.match(changeRoute, /scheduleChangeAt\(/);
+assert.match(changeRoute, /start_at/);
+assert.doesNotMatch(changeRoute, /remaining_count:/);
+assert.doesNotMatch(changeRoute, /subscriptions\.update/);
 
 const webhook = readFileSync(
   path.join(root, 'app/api/razorpay/webhook/route.ts'),

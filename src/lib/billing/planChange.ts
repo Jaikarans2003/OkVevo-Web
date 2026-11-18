@@ -1,6 +1,6 @@
 /**
- * Razorpay-native plan change (industry: Stripe-style upgrade-now / downgrade-at-period-end).
- * Billing anchor never resets — callers must not send start_at or remaining_count.
+ * Plan change helpers. Razorpay India: plan change = new subscription (every method).
+ * Upgrade charges now; downgrade creates with start_at = period end (no mid-cycle charge).
  */
 
 export type ScheduleChangeAt = 'now' | 'cycle_end';
@@ -43,18 +43,10 @@ export function portalBillingActionFromSlug(
   return 'overview';
 }
 
-export function planChangeCopy(
-  when: ScheduleChangeAt,
-  opts?: { upi?: boolean }
-): string {
-  if (opts?.upi) {
-    return when === 'now'
-      ? 'You will pay the full new-plan price via a new UPI payment. Existing credits stay until the new billing date.'
-      : 'This change takes effect at the end of your current billing cycle. You will not be charged now.';
-  }
+export function planChangeCopy(when: ScheduleChangeAt): string {
   return when === 'now'
-    ? 'You will pay the prorated difference now. Your billing date stays the same.'
-    : 'This change takes effect at the end of your current billing cycle. You will not be charged now.';
+    ? 'You will pay the full new-plan price now on a new subscription. Remaining plan credits are kept and the new plan\'s full credits are added.'
+    : 'Authorize the smaller plan now. It starts at the end of this billing cycle — you will not be charged until then. Plan and credits stay the same until then.';
 }
 
 export function toBillingPeriod(cycle: string | null | undefined): PlanChangePeriod {
