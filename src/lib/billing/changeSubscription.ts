@@ -1,12 +1,19 @@
 /**
- * Client plan-change: Razorpay update (card) or UPI replacement checkout.
+ * Client plan-change: always a new Razorpay subscription (every payment method).
  * Identity comes from the ID token on the server — never a client uid field.
  */
 
 import type { BillingPeriod, SelfServePlanType } from '@/config/razorpay';
 
 export type PlanChangeResult =
-  | { ok: true; scheduleChangeAt: 'now' | 'cycle_end'; shortUrl?: string; message: string }
+  | {
+      ok: true;
+      scheduleChangeAt: 'now' | 'cycle_end';
+      shortUrl?: string;
+      newSubscriptionId?: string;
+      razorpayKeyId?: string;
+      message: string;
+    }
   | { ok: false; error: string };
 
 async function postJson(
@@ -41,41 +48,27 @@ export async function changeSubscriptionPlan(
   newBillingPeriod: BillingPeriod
 ): Promise<PlanChangeResult> {
   const payload = { newPlanType, newBillingPeriod };
-  const updated = await postJson('/api/razorpay/update-subscription', idToken, payload);
+  const res = await postJson('/api/razorpay/upgrade-upi', idToken, payload);
 
-  if (updated.status === 200 && updated.data.success === true) {
+  if (res.status === 200 && (res.data.success === true || res.data.requiresNewAuth === true)) {
     return {
       ok: true,
-      scheduleChangeAt: updated.data.scheduleChangeAt === 'cycle_end' ? 'cycle_end' : 'now',
+      scheduleChangeAt: res.data.scheduleChangeAt === 'cycle_end' ? 'cycle_end' : 'now',
+      shortUrl: typeof res.data.shortUrl === 'string' ? res.data.shortUrl : undefined,
+      newSubscriptionId:
+        typeof res.data.newSubscriptionId === 'string' ? res.data.newSubscriptionId : undefined,
+      razorpayKeyId:
+        typeof res.data.razorpayKeyId === 'string' ? res.data.razorpayKeyId : undefined,
       message:
-        typeof updated.data.message === 'string'
-          ? updated.data.message
-          : 'Plan updated.',
-    };
-  }
-
-  if (updated.data.flow === 'upi_upgrade_required') {
-    const upi = await postJson('/api/razorpay/upgrade-upi', idToken, payload);
-    if (upi.status === 200 && (upi.data.success === true || upi.data.requiresNewAuth === true)) {
-      const shortUrl = typeof upi.data.shortUrl === 'string' ? upi.data.shortUrl : undefined;
-      return {
-        ok: true,
-        scheduleChangeAt: 'now',
-        shortUrl,
-        message:
-          typeof upi.data.message === 'string'
-            ? upi.data.message
-            : 'Complete UPI authorization to finish the upgrade.',
-      };
-    }
-    return {
-      ok: false,
-      error: typeof upi.data.error === 'string' ? upi.data.error : 'Failed to start UPI upgrade',
+        typeof res.data.message === 'string'
+          ? res.data.message
+          : 'Complete payment authorization to finish the plan change.',
     };
   }
 
   return {
     ok: false,
-    error: typeof updated.data.error === 'string' ? updated.data.error : 'Failed to update subscription',
+    error:
+      typeof res.data.error === 'string' ? res.data.error : 'Failed to start plan change',
   };
 }

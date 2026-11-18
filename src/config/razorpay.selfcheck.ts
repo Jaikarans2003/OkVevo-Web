@@ -89,7 +89,7 @@ assert.match(checkout, /currency,/);
 assert.doesNotMatch(checkout, /currency:\s*currency/);
 assert.doesNotMatch(checkout, /gst|GST|tax_invoice/i);
 
-const update = readFileSync(path.join(root, 'app/api/razorpay/update-subscription/route.ts'), 'utf8');
-assert.match(update, /getRazorpayPlanId\([^)]+currency/);
+const changePlan = readFileSync(path.join(root, 'app/api/razorpay/upgrade-upi/route.ts'), 'utf8');
+assert.match(changePlan, /getRazorpayPlanId\([^)]+planCurrency/);
 
 console.log('razorpay.selfcheck: ok');

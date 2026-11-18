@@ -24,6 +24,11 @@ services/Untitled
 /out/ 
 /build/
 
+# Playwright (billing-timeline-l2)
+/test-results/
+/playwright-report/
+/blob-report/
+
 # Production
 /dist
 /Deployment Scripts Productions

@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
-import { updateBillingByUserId } from '@/lib/db/wallet';
+import { getRazorpaySubscription, updateBillingByUserId, upsertRazorpaySubscription } from '@/lib/db/wallet';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { isUpiLikePaymentMethod, isUpiSubscriptionUpdateError, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
 
 export const runtime = 'nodejs';
 
 /**
- * Cancel a pending plan change scheduled for end of cycle.
+ * Cancel a scheduled downgrade by cancelling the pending replacement subscription.
+ * The current (old) subscription is not cancelled until the new one activates —
+ * Razorpay cancel is irreversible (cannot renew/reactivate), so undo = cancel the
+ * pending new sub only. If there is no pending replacement id, undo is unavailable.
  */
 export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
@@ -35,17 +38,42 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (!isUpiLikePaymentMethod(billing.paymentMethod)) {
-            const razorpay = new Razorpay({
-                key_id: RAZORPAY_CONFIG.keyId,
-                key_secret: RAZORPAY_CONFIG.keySecret,
-            });
-            try {
-                await razorpay.subscriptions.cancelScheduledChanges(subscriptionId);
-            } catch (error: unknown) {
-                if (!isUpiSubscriptionUpdateError(error)) throw error;
-            }
+        const oldSub = await getRazorpaySubscription(sql, subscriptionId);
+        const pendingNewId =
+            typeof oldSub?.beingReplacedBy === 'string' && oldSub.beingReplacedBy.length > 0
+                ? oldSub.beingReplacedBy
+                : null;
+
+        if (!pendingNewId) {
+            // No cancellable pending sub (e.g. old already cancel_at_cycle_end with no
+            // replacement row). Razorpay cannot undo a cycle-end cancel.
+            return NextResponse.json(
+                {
+                    error: 'Scheduled plan change cannot be undone',
+                    flow: 'undo_unavailable',
+                    message:
+                        'The pending plan change has no cancellable replacement subscription.',
+                },
+                { status: 400 }
+            );
         }
+
+        const razorpay = new Razorpay({
+            key_id: RAZORPAY_CONFIG.keyId,
+            key_secret: RAZORPAY_CONFIG.keySecret,
+        });
+
+        // Pending start_at subs are authenticated/created — cycle_end cancel is rejected
+        // ("no billing cycle is going on"). Immediate cancel only.
+        await razorpay.subscriptions.cancel(pendingNewId, 0);
+
+        await upsertRazorpaySubscription(sql, subscriptionId, user.uid, {
+            beingReplacedBy: null,
+        });
+        await upsertRazorpaySubscription(sql, pendingNewId, user.uid, {
+            status: 'cancelled',
+            cancelledAt: new Date(),
+        });
 
         await updateBillingByUserId(sql, user.uid, {
             hasScheduledChanges: false,
@@ -60,22 +88,28 @@ export async function POST(request: NextRequest) {
             subscription: {
                 id: subscriptionId,
                 has_scheduled_changes: false,
+                cancelled_pending_subscription_id: pendingNewId,
             },
         });
-
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('❌ Cancel scheduled change error:', error);
 
-        if (error.statusCode === 400) {
-            return NextResponse.json(
-                { error: razorpayErrorDescription(error) },
-                { status: 400 }
-            );
-        }
+        const statusCode =
+            typeof error === 'object' &&
+            error &&
+            'statusCode' in error &&
+            (error as { statusCode?: number }).statusCode === 400
+                ? 400
+                : 500;
 
         return NextResponse.json(
-            { error: 'Failed to cancel scheduled change. Please try again.' },
-            { status: 500 }
+            {
+                error:
+                    statusCode === 400
+                        ? razorpayErrorDescription(error)
+                        : 'Failed to cancel scheduled change. Please try again.',
+            },
+            { status: statusCode }
         );
     }
 }

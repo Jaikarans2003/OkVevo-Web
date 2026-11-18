@@ -102,6 +102,56 @@ jobs:
           FIREBASE_PROJECT: ${{ env.FIREBASE_PROJECT }}
           APPHOSTING_ENV: ${{ env.APPHOSTING_ENV }}
 
+  # Billing timeline Layer 2 (plan §14.3). Staging Environment only — never
+  # production. `environment: staging` is what makes RAZORPAY_KEY_SECRET
+  # available; env.ts in the suite also fails closed if the key id isn't
+  # rzp_test_*. Promotion staging → production must stay blocked unless this
+  # job passed on the exact staging commit being promoted (manual branch
+  # protection check on this repo — not configured by this job).
+  billing-timeline-l2:
+    name: Billing timeline Layer 2 (staging)
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    env:
+      STAGING_BASE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+      RAZORPAY_KEY_ID: ${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+      RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Wait for staging rollout to serve traffic
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$STAGING_BASE_URL" || echo 000)
+            [ "$code" = "200" ] && exit 0
+            echo "staging not ready yet (http $code), retrying…"
+            sleep 5
+          done
+          echo "::error::staging did not return 200 after rollout"
+          exit 1
+
+      - run: npm run test:billing-l2
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: billing-timeline-l2-report
+          path: playwright-report/
+          retention-days: 7
+
   deploy-production:
     name: Deploy production
     if: github.ref == 'refs/heads/production'

@@ -24,7 +24,6 @@ type ChangePlanModalProps = {
     currentPlan: string | null;
     currentCycle: string | null;
     currency: BillingCurrency;
-    paymentMethod: string | null;
     periodEndLabel: string;
     busy: boolean;
     error: string | null;
@@ -36,7 +35,6 @@ export default function ChangePlanModal({
     currentPlan,
     currentCycle,
     currency,
-    paymentMethod,
     periodEndLabel,
     busy,
     error,
@@ -44,7 +42,6 @@ export default function ChangePlanModal({
     onConfirm,
 }: ChangePlanModalProps) {
     const currentPeriod = toBillingPeriod(currentCycle);
-    const isUpi = paymentMethod === 'upi' || paymentMethod === 'emandate';
 
     return (
         <div
@@ -70,9 +67,7 @@ export default function ChangePlanModal({
 
                 <h2 id="change-plan-title">Change plan</h2>
                 <p>
-                    {isUpi
-                        ? 'UPI upgrades charge the full new-plan price via a new UPI payment. Existing credits stay until the new billing date. Downgrades apply at cycle end.'
-                        : 'Upgrades charge the prorated difference now. Downgrades apply at cycle end. Your billing date never resets.'}
+                    Upgrades start a new subscription at the full new-plan price now (remaining credits are kept). Downgrades authorize a new smaller-plan subscription that starts at cycle end.
                 </p>
 
                 <div className="pt-tiers">
@@ -85,7 +80,6 @@ export default function ChangePlanModal({
                             currency={currency}
                             periodEndLabel={periodEndLabel}
                             busy={busy}
-                            upi={isUpi}
                             onConfirm={onConfirm}
                         />
                     ))}
@@ -105,7 +99,6 @@ function TierPick({
     currency,
     periodEndLabel,
     busy,
-    upi,
     onConfirm,
 }: {
     tier: PlanChangeTier;
@@ -114,7 +107,6 @@ function TierPick({
     currency: BillingCurrency;
     periodEndLabel: string;
     busy: boolean;
-    upi: boolean;
     onConfirm: (plan: SelfServePlanType, period: BillingPeriod) => void;
 }) {
     const monthly = getPlanDetailsByPeriod(tier, 'monthly', currency);
@@ -142,22 +134,22 @@ function TierPick({
                 hint={
                     isCurrentMonthly
                         ? null
-                        : hintFor(upgradeMonthly, periodEndLabel, upi)
+                        : hintFor(upgradeMonthly, periodEndLabel)
                 }
                 onClick={() => onConfirm(tier, 'monthly')}
             />
             <PeriodButton
                 disabled={busy || isCurrentAnnual}
                 label={isCurrentAnnual ? 'Current' : 'Yearly'}
-                hint={isCurrentAnnual ? null : hintFor(upgradeAnnual, periodEndLabel, upi)}
+                hint={isCurrentAnnual ? null : hintFor(upgradeAnnual, periodEndLabel)}
                 onClick={() => onConfirm(tier, 'annual')}
             />
         </div>
     );
 }
 
-function hintFor(when: 'now' | 'cycle_end', periodEndLabel: string, upi: boolean): string {
-    const base = planChangeCopy(when, { upi });
+function hintFor(when: 'now' | 'cycle_end', periodEndLabel: string): string {
+    const base = planChangeCopy(when);
     return when === 'cycle_end' && periodEndLabel !== '—' ? `${base} (${periodEndLabel})` : base;
 }
 
