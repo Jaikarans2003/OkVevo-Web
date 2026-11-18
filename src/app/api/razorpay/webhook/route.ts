@@ -78,6 +78,37 @@ async function patchUserBilling(uid: string, data: Record<string, unknown>): Pro
     await updateBillingByUserId(sql, uid, data);
 }
 
+/**
+ * Cancel the replaced sub at cycle end exactly once. Used after the replacement
+ * is confirmed (downgrade: subscription.authenticated; upgrade: subscription.activated).
+ * Replayed events must not call Razorpay cancel again.
+ */
+async function cancelReplacedSubscriptionAtCycleEnd(opts: {
+    oldSubId: string;
+    newSubId: string;
+    userId: string;
+    willCancelAt: Date;
+}): Promise<'cancelled' | 'already'> {
+    const existing = await getRazorpaySubscription(sql, opts.oldSubId);
+    if (existing?.cancelAtCycleEnd) {
+        return 'already';
+    }
+
+    const razorpay = new Razorpay({
+        key_id: RAZORPAY_CONFIG.keyId,
+        key_secret: RAZORPAY_CONFIG.keySecret,
+    });
+    await razorpay.subscriptions.cancel(opts.oldSubId, 1);
+
+    await upsertRazorpaySubscription(sql, opts.oldSubId, opts.userId, {
+        cancelAtCycleEnd: true,
+        cancelledAt: new Date(),
+        beingReplacedBy: opts.newSubId,
+        willCancelAt: opts.willCancelAt,
+    });
+    return 'cancelled';
+}
+
 async function loadWebhookUser(uid: string) {
     const billing = await getBillingByUserId(sql, uid);
     const data = (billing ?? {}) as unknown as Record<string, unknown>;
@@ -212,9 +243,9 @@ export async function POST(request: NextRequest) {
             // ========== SUBSCRIPTION STATE EVENTS ==========
 
             case 'subscription.authenticated': {
-                // subscription.authenticated is NOT trusted for status.
-                // It fires at the same time as subscription.activated and causes race conditions.
-                // We only use it to seed coupon fields if activated hasn't written them yet.
+                // Never write planStatus from authenticated (races with activated).
+                // Downgrade replacements: after Checkout auth, commit scheduled-change
+                // fields then cancel the old sub at cycle end (irreversible).
                 const subscription = payload.subscription.entity;
                 const { userId, planType } = subscription.notes || {};
 
@@ -242,6 +273,50 @@ export async function POST(request: NextRequest) {
                             couponApplied: true,
                         });
                     });
+                }
+
+                if (
+                    notes.upgrade_flow === 'true' &&
+                    notes.replacing_subscription_id &&
+                    notes.schedule_change_at === 'cycle_end'
+                ) {
+                    const oldSubId = notes.replacing_subscription_id as string;
+                    const webhookUser = await loadWebhookUser(userId);
+                    const willCancelAt =
+                        typeof subscription.start_at === 'number'
+                            ? new Date(subscription.start_at * 1000)
+                            : webhookUser.billing.currentPeriodEnd instanceof Date
+                              ? webhookUser.billing.currentPeriodEnd
+                              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+                    // DB first — then the irreversible Razorpay cancel (same order as
+                    // upgrade cancel-after-activation grant).
+                    await updateBillingByUserId(sql, userId, {
+                        hasScheduledChanges: true,
+                        scheduledChangeAt: willCancelAt,
+                        scheduledPlanId: subscription.plan_id || null,
+                        scheduledPlanType: planType,
+                    });
+                    await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                        replacingSubscriptionId: oldSubId,
+                        planType,
+                        willActivateAt: willCancelAt,
+                    });
+
+                    try {
+                        const outcome = await cancelReplacedSubscriptionAtCycleEnd({
+                            oldSubId,
+                            newSubId: subscription.id,
+                            userId,
+                            willCancelAt,
+                        });
+                        console.log(
+                            `🔄 Downgrade auth: old ${oldSubId} cycle-end cancel → ${outcome} (replacement ${subscription.id})`
+                        );
+                    } catch (error) {
+                        console.error(`❌ Failed to cancel old subscription ${oldSubId}:`, error);
+                        // Don't fail the webhook — Razorpay retry / activated safety net.
+                    }
                 }
 
                 console.log(`✅ Subscription authenticated (no status write): ${subscription.id}`);
@@ -349,45 +424,34 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
-                // Cancel old UPI sub at cycle_end only after the replacement is applied.
+                // Upgrade: cancel old at cycle end after the replacement is applied.
+                // Downgrade already cancelled on subscription.authenticated; helper is idempotent.
                 if (
                     activatedDecision.apply &&
                     notes.replacing_subscription_id &&
                     notes.upgrade_flow === 'true'
                 ) {
-                    const oldSubId = notes.replacing_subscription_id;
+                    const oldSubId = notes.replacing_subscription_id as string;
+                    const willCancelAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-                    console.log(`🔄 UPI Upgrade Flow: New subscription ${subscription.id} activated, cancelling old ${oldSubId}`);
+                    console.log(
+                        `🔄 Plan-change activation: replacement ${subscription.id}, old ${oldSubId}`
+                    );
 
                     try {
-                        const razorpay = new Razorpay({
-                            key_id: RAZORPAY_CONFIG.keyId,
-                            key_secret: RAZORPAY_CONFIG.keySecret,
-                        });
-
-                        // Cancel old subscription at cycle end
-                        await razorpay.subscriptions.cancel(oldSubId, 1); // 1 = cycle_end
-
-                        // Old subscription's `nextBillingDate` was never written anywhere in this
-                        // webhook (dead field in the Firestore original) — always falls to the
-                        // 30-day default below. Pure port: skip the dead lookup.
-                        const willCancelAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-                        // Update old subscription
-                        await upsertRazorpaySubscription(sql, oldSubId, userId, {
-                            cancelAtCycleEnd: true,
-                            cancelledAt: new Date(),
-                            beingReplacedBy: subscription.id,
+                        const outcome = await cancelReplacedSubscriptionAtCycleEnd({
+                            oldSubId,
+                            newSubId: subscription.id,
+                            userId,
                             willCancelAt,
                         });
-
-                        // Update new subscription with activation date
                         await upsertRazorpaySubscription(sql, subscription.id, userId, {
                             replacingSubscriptionId: oldSubId,
                             willActivateAt: willCancelAt,
                         });
-
-                        console.log(`✅ Old subscription ${oldSubId} cancelled at cycle end (${willCancelAt.toISOString()})`);
+                        console.log(
+                            `✅ Old subscription ${oldSubId} cycle-end cancel → ${outcome} (${willCancelAt.toISOString()})`
+                        );
                     } catch (error) {
                         console.error(`❌ Failed to cancel old subscription ${oldSubId}:`, error);
                         // Don't fail the webhook - log for manual review

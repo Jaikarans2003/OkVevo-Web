@@ -22,8 +22,9 @@ export type BillingSummary = {
     changeAt: string | null
   } | null
   /**
-   * Always false for Razorpay India plan changes: downgrade cancels the current
-   * sub at cycle end when scheduling, and that cancel cannot be undone.
+   * Always false for Razorpay India plan changes: after the replacement is
+   * authenticated, the current sub is cancelled at cycle end and that cancel
+   * cannot be undone.
    */
   canCancelScheduledChange: boolean
   accountKind: string

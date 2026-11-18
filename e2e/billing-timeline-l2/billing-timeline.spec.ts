@@ -1,6 +1,6 @@
 /**
  * Billing timeline Layer 2 (plan §14.3). Staging only, Razorpay test mode
- * only (env.ts fails closed on RAZORPAY_KEY_ID). Four scenarios, each with
+ * only (env.ts fails closed on RAZORPAY_KEY_ID). Five scenarios, each with
  * its own fresh subscription and dedicated test user.
  *
  * Plan change = new subscription for every payment method (no
@@ -99,7 +99,39 @@ test.describe('billing timeline Layer 2', () => {
     }
   });
 
-  test('downgrade: new sub with start_at schedules starter at cycle end', async ({ page }) => {
+  test('downgrade abandoned Checkout: create alone leaves the plan unchanged', async ({ page }) => {
+    const user = await createTestUser('dn-abandon');
+    let oldSubId: string | undefined;
+    let newSubId: string | undefined;
+    try {
+      oldSubId = await buyAndActivate(page, user, 'pro', 'card');
+      const before = await getBillingSummary(user.idToken);
+
+      const { status, json: change } = await changePlan(user.idToken, { newPlanType: 'starter' });
+      expect(change, `downgrade create HTTP ${status}`).toEqual(
+        expect.objectContaining({
+          success: true,
+          scheduleChangeAt: 'cycle_end',
+          requiresNewAuth: true,
+        })
+      );
+      newSubId = change.newSubscriptionId;
+
+      // No Checkout — old plan must stay; cancel only happens after authenticated.
+      const after = await getBillingSummary(user.idToken);
+      expect(after.json.plan).toBe('pro');
+      expect(after.json.status).toBe('active');
+      expect(after.json.scheduledChange).toBeNull();
+      expect(after.json.cancelAtPeriodEnd).toBe(false);
+      expect(after.json.razorpaySubscriptionId).toBe(before.json.razorpaySubscriptionId);
+    } finally {
+      if (newSubId) await forceCancelSubscription(newSubId);
+      if (oldSubId) await forceCancelSubscription(oldSubId);
+      await deleteTestUser(user);
+    }
+  });
+
+  test('downgrade: Checkout auth schedules starter at cycle end', async ({ page }) => {
     const user = await createTestUser('downgrade');
     let oldSubId: string | undefined;
     let newSubId: string | undefined;

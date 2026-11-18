@@ -110,6 +110,15 @@ assert.match(upgradeUpi, /cycle_end/);
 assert.match(upgradeUpi, /upgrade_flow: 'true'/);
 assert.match(upgradeUpi, /start_at/);
 assert.doesNotMatch(upgradeUpi, /subscriptions\.update/);
+assert.doesNotMatch(
+  upgradeUpi,
+  /subscriptions\.cancel/,
+  'downgrade must not cancel the old sub at create — only after authenticated'
+);
+
+const webhookRoute = src('app/api/razorpay/webhook/route.ts');
+assert.match(webhookRoute, /schedule_change_at === 'cycle_end'/);
+assert.match(webhookRoute, /cancelReplacedSubscriptionAtCycleEnd/);
 
 const payLink = src('app/api/razorpay/create-payment-link/route.ts');
 assert.match(payLink, /topUpAmountMinorUnits/);
