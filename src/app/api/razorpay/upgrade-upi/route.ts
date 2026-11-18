@@ -117,32 +117,29 @@ export async function POST(request: NextRequest) {
             billing.currentPeriodEnd ??
             new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        const createParams: Record<string, unknown> = {
+        const notes = {
+            userId,
+            planType: newPlanType,
+            billingPeriod: newBillingPeriod,
+            currency: planCurrency,
+            userEmail: user.email || '',
+            userName: user.name || '',
+            replacing_subscription_id: oldSubscriptionId,
+            upgrade_flow: 'true',
+            schedule_change_at: when,
+        };
+
+        // Downgrade: first charge at period end. Upgrade: charge on auth (no start_at).
+        const newSubscription = await razorpay.subscriptions.create({
             plan_id: razorpayPlanId,
             total_count: newBillingPeriod === 'annual' ? 1 : 12,
             quantity: 1,
             customer_notify: 1,
-            notes: {
-                userId,
-                planType: newPlanType,
-                billingPeriod: newBillingPeriod,
-                currency: planCurrency,
-                userEmail: user.email || '',
-                userName: user.name || '',
-                replacing_subscription_id: oldSubscriptionId,
-                upgrade_flow: 'true',
-                schedule_change_at: when,
-            },
-        };
-
-        // Downgrade: first charge at period end. Upgrade: charge on auth (no start_at).
-        if (when === 'cycle_end') {
-            createParams.start_at = Math.floor(changeScheduledAt.getTime() / 1000);
-        }
-
-        const newSubscription = await razorpay.subscriptions.create(
-            createParams as Parameters<typeof razorpay.subscriptions.create>[0]
-        );
+            notes,
+            ...(when === 'cycle_end'
+                ? { start_at: Math.floor(changeScheduledAt.getTime() / 1000) }
+                : {}),
+        });
 
         await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
             beingReplacedBy: newSubscription.id,
