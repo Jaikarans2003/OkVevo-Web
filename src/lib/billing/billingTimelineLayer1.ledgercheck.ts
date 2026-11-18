@@ -402,6 +402,12 @@ for (const [from, to] of DOWNGRADE_PAIRS) {
       'must not call subscriptions.update'
     )
 
+    const cancelOld = razorpayCalls.find(
+      (c) => c.method === 'post' && c.url === `/subscriptions/${subId}/cancel`
+    )
+    assert.ok(cancelOld, 'downgrade must cancel the current sub at cycle end now')
+    assert.deepEqual(cancelOld!.data, { cancel_at_cycle_end: 1 })
+
     const billing = await getBillingByUserId(sql, id)
     assert.equal(billing?.hasScheduledChanges, true)
     assert.equal(billing?.scheduledPlanType, to)
@@ -410,6 +416,10 @@ for (const [from, to] of DOWNGRADE_PAIRS) {
 
     const oldSub = await getRazorpaySubscription(sql, subId)
     assert.ok(oldSub?.beingReplacedBy, 'old sub must point at pending replacement')
+    assert.equal(oldSub?.cancelAtCycleEnd, true)
+
+    const summary = await getBillingSummary(id)
+    assert.equal(summary.json.canCancelScheduledChange, false)
     restoreClock()
   })
 }
@@ -470,12 +480,11 @@ scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end'
 })
 
 // ---------------------------------------------------------------------------
-// 8. Cancel a scheduled downgrade — cancel pending new sub; plan stays
+// 8. Scheduled downgrade cannot be undone (summary + API + UI)
 // ---------------------------------------------------------------------------
-scenario('cancel scheduled downgrade: cancel pending new sub; plan stays', async () => {
+scenario('scheduled downgrade: summary and API do not offer cancel', async () => {
   const id = uid('cxl-sched')
   const subId = `sub_${id}`
-  const pendingId = `sub_pending_${id}`
   await seedBilling(id, {
     plan: 'pro',
     planStatus: 'active',
@@ -486,54 +495,14 @@ scenario('cancel scheduled downgrade: cancel pending new sub; plan stays', async
     scheduledPlanId: getRazorpayPlanId('starter', 'monthly', 'USD'),
     scheduledChangeAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
   })
-  const { upsertRazorpaySubscription } = await import('@/lib/db/wallet')
-  await upsertRazorpaySubscription(sql, subId, id, { beingReplacedBy: pendingId })
-  await upsertRazorpaySubscription(sql, pendingId, id, {
-    replacingSubscriptionId: subId,
-    planType: 'starter',
-  })
 
-  resetRazorpayCalls()
-  const { status, json } = await callBillingRoute(
-    (await import('@/app/api/razorpay/cancel-scheduled-change/route')).POST,
-    id
-  )
-  assert.equal(status, 200, JSON.stringify(json))
-
-  const cancelPending = razorpayCalls.find(
-    (c) => c.method === 'post' && c.url === `/subscriptions/${pendingId}/cancel`
-  )
-  assert.ok(cancelPending, 'must cancel the pending replacement subscription')
-  // Razorpay SDK omits body when cancel_at_cycle_end is false/0 (immediate).
-  assert.equal(cancelPending!.data, undefined)
+  const summary = await getBillingSummary(id)
+  assert.ok(summary.json.scheduledChange, 'scheduled change is visible')
   assert.equal(
-    razorpayCalls.some((c) => c.url.endsWith('/cancel_scheduled_changes')),
+    summary.json.canCancelScheduledChange,
     false,
-    'must not call cancel_scheduled_changes (subscriptions.update path)'
+    'summary must not offer cancel (Razorpay cycle-end cancel is irreversible)'
   )
-
-  const billing = await getBillingByUserId(sql, id)
-  assert.equal(billing?.hasScheduledChanges, false)
-  assert.equal(billing?.scheduledPlanType, null)
-  assert.equal(billing?.scheduledPlanId, null)
-  assert.equal(billing?.plan, 'pro', 'plan stays')
-
-  const oldSub = await getRazorpaySubscription(sql, subId)
-  assert.equal(oldSub?.beingReplacedBy, null)
-})
-
-scenario('cancel scheduled downgrade unavailable without pending replacement', async () => {
-  const id = uid('cxl-none')
-  const subId = `sub_${id}`
-  await seedBilling(id, {
-    plan: 'pro',
-    planStatus: 'active',
-    razorpaySubscriptionId: subId,
-    hasScheduledChanges: true,
-    scheduledPlanType: 'starter',
-    scheduledPlanId: getRazorpayPlanId('starter', 'monthly', 'USD'),
-    scheduledChangeAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
-  })
 
   resetRazorpayCalls()
   const { status, json } = await callBillingRoute(
@@ -543,6 +512,19 @@ scenario('cancel scheduled downgrade unavailable without pending replacement', a
   assert.equal(status, 400)
   assert.equal(json.flow, 'undo_unavailable')
   assert.equal(razorpayCalls.length, 0)
+
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const billingPage = readFileSync(
+    join(import.meta.dirname, '../../app/billing/[[...slug]]/page.tsx'),
+    'utf8'
+  )
+  assert.equal(
+    /Cancel change/.test(billingPage),
+    false,
+    'billing UI must not render a cancel-scheduled button'
+  )
+  assert.equal(/cancel-scheduled-change/.test(billingPage), false)
 })
 
 // ---------------------------------------------------------------------------

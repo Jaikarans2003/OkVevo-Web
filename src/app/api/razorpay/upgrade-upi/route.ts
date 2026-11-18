@@ -19,9 +19,8 @@ export const runtime = 'nodejs';
 /**
  * Plan change for every payment method (Razorpay India: plan change = new subscription).
  * Upgrade → new sub charged now; old cancelled at cycle end on activation (webhook).
- * Downgrade → new sub with start_at = current period end; old cancelled at cycle end
- * on the new sub's first activation; credits SET then. Cancel scheduled = cancel the
- * pending new sub (old is not cancelled until then — Razorpay cancel is irreversible).
+ * Downgrade → new sub with start_at = period end; old cancelled at cycle end now
+ * (Razorpay cancel is irreversible — no undo); credits SET on the new sub's first charge.
  */
 export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 {
                     error: 'Subscription already has a pending plan change',
-                    message: 'Please cancel the existing scheduled change first',
+                    message: 'A plan change is already scheduled for the end of this billing cycle.',
                     scheduled_plan_type: billing.scheduledPlanType,
                 },
                 { status: 400 }
@@ -151,6 +150,15 @@ export async function POST(request: NextRequest) {
         });
 
         if (when === 'cycle_end') {
+            // Cancel old now at cycle end. Razorpay cannot undo cancel — UI must not
+            // offer "cancel scheduled" (cancelling only the replacement leaves no plan).
+            await razorpay.subscriptions.cancel(oldSubscriptionId, 1);
+            await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
+                cancelAtCycleEnd: true,
+                cancelledAt: new Date(),
+                willCancelAt: changeScheduledAt,
+                beingReplacedBy: newSubscription.id,
+            });
             await updateBillingByUserId(sql, userId, {
                 hasScheduledChanges: true,
                 scheduledChangeAt: changeScheduledAt,
