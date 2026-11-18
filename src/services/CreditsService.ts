@@ -81,6 +81,7 @@ export function emptyBillingSnapshot(): BillingSnapshot {
     periodEnd: null,
     cancelAtPeriodEnd: false,
     scheduledChange: null,
+    canCancelScheduledChange: false,
     accountKind: 'individual',
     canPurchase: true,
     fundedBy: null,

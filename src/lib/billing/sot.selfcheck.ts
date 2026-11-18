@@ -18,7 +18,6 @@ function src(rel: string): string {
 const ROUTES = [
   'app/api/razorpay/cancel-subscription/route.ts',
   'app/api/razorpay/create-payment-link/route.ts',
-  'app/api/razorpay/update-subscription/route.ts',
   'app/api/razorpay/cancel-scheduled-change/route.ts',
   'app/api/razorpay/create-subscription/route.ts',
   'app/api/razorpay/upgrade-upi/route.ts',
@@ -96,20 +95,21 @@ assert.doesNotMatch(
 );
 
 const changeClient = src('lib/billing/changeSubscription.ts');
-assert.match(changeClient, /\/api\/razorpay\/update-subscription/, 'plan change hits update-subscription');
-assert.match(changeClient, /\/api\/razorpay\/upgrade-upi/, 'UPI falls back to upgrade-upi');
+assert.match(changeClient, /\/api\/razorpay\/upgrade-upi/, 'plan change uses new-subscription route');
+assert.doesNotMatch(changeClient, /upi_upgrade_required/, 'no card→UPI fallback');
 assert.match(changeClient, /content-type/, 'plan change parses JSON only when the body is JSON');
 assert.doesNotMatch(changeClient, /userId/, 'plan change client must not send userId');
 
 const updateRoute = src('app/api/razorpay/update-subscription/route.ts');
-assert.match(updateRoute, /upi_upgrade_required/);
-assert.match(updateRoute, /subscriptions\.fetch/);
-assert.doesNotMatch(updateRoute, /payment mode is upi/);
+assert.match(updateRoute, /export \{ POST \} from '\.\.\/upgrade-upi\/route'/);
+assert.doesNotMatch(updateRoute, /subscriptions\.update/);
 
 const upgradeUpi = src('app/api/razorpay/upgrade-upi/route.ts');
 assert.match(upgradeUpi, /scheduleChangeAt\(/);
 assert.match(upgradeUpi, /cycle_end/);
 assert.match(upgradeUpi, /upgrade_flow: 'true'/);
+assert.match(upgradeUpi, /start_at/);
+assert.doesNotMatch(upgradeUpi, /subscriptions\.update/);
 
 const payLink = src('app/api/razorpay/create-payment-link/route.ts');
 assert.match(payLink, /topUpAmountMinorUnits/);

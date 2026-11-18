@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
-import { updateBillingByUserId } from '@/lib/db/wallet';
-import { RAZORPAY_CONFIG, getPlanDetailsByPeriod, getRazorpayPlanId, isSelfServePlanType, parseBillingCurrency, type SelfServePlanType } from '@/config/razorpay';
+import { updateBillingByUserId, upsertRazorpaySubscription } from '@/lib/db/wallet';
+import {
+    RAZORPAY_CONFIG,
+    getPlanDetailsByPeriod,
+    getRazorpayPlanId,
+    isSelfServePlanType,
+    parseBillingCurrency,
+    type SelfServePlanType,
+} from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { isUpiLikePaymentMethod, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { isUpdatablePlanStatus, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
 import { isSamePlan, scheduleChangeAt } from '@/lib/billing/planChange';
 
 export const runtime = 'nodejs';
 
 /**
- * UPI Upgrade Flow API
- * Creates new subscription FIRST, then cancels old one after activation.
- * uid + current sub id come from users/{uid}, not the body.
- * Downgrades are local-only (no new sub, no charge now).
+ * Plan change for every payment method (Razorpay India: plan change = new subscription).
+ * Upgrade → new sub charged now; old cancelled at cycle end on activation (webhook).
+ * Downgrade → new sub with start_at = period end; old cancelled at cycle end now
+ * (Razorpay cancel is irreversible — no undo); credits SET on the new sub's first charge.
  */
 export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
@@ -56,19 +63,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (billing.planStatus !== 'active') {
+        if (!isUpdatablePlanStatus(billing.planStatus)) {
             return NextResponse.json(
-                { error: 'Old subscription must be active to upgrade' },
+                { error: 'Subscription must be active or authenticated to update' },
                 { status: 400 }
             );
         }
 
-        const paymentMethod = billing.paymentMethod;
-        if (paymentMethod && !isUpiLikePaymentMethod(paymentMethod)) {
+        if (billing.hasScheduledChanges) {
             return NextResponse.json(
                 {
-                    error: 'This endpoint is only for UPI/eMandate subscriptions',
-                    message: 'Please use the regular update endpoint for Card/Netbanking',
+                    error: 'Subscription already has a pending plan change',
+                    message: 'A plan change is already scheduled for the end of this billing cycle.',
+                    scheduled_plan_type: billing.scheduledPlanType,
                 },
                 { status: 400 }
             );
@@ -94,27 +101,6 @@ export async function POST(request: NextRequest) {
             planCurrency
         );
 
-        if (when === 'cycle_end') {
-            const changeScheduledAt =
-                billing.currentPeriodEnd ??
-                new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            await updateBillingByUserId(sql, userId, {
-                hasScheduledChanges: true,
-                scheduledChangeAt: changeScheduledAt,
-                scheduledPlanId: razorpayPlanId,
-                scheduledPlanType: newPlanType,
-            });
-            return NextResponse.json({
-                success: true,
-                flow: 'update',
-                scheduleChangeAt: 'cycle_end',
-                message: 'Plan change scheduled for end of billing cycle',
-                scheduledChangeAt: changeScheduledAt.toISOString(),
-                newPlanType,
-                currentPlanType: billing.plan,
-            });
-        }
-
         const razorpay = new Razorpay({
             key_id: RAZORPAY_CONFIG.keyId,
             key_secret: RAZORPAY_CONFIG.keySecret,
@@ -126,27 +112,69 @@ export async function POST(request: NextRequest) {
             planCurrency
         );
 
+        const changeScheduledAt =
+            billing.currentPeriodEnd ??
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        const notes = {
+            userId,
+            planType: newPlanType,
+            billingPeriod: newBillingPeriod,
+            currency: planCurrency,
+            userEmail: user.email || '',
+            userName: user.name || '',
+            replacing_subscription_id: oldSubscriptionId,
+            upgrade_flow: 'true',
+            schedule_change_at: when,
+        };
+
+        // Downgrade: first charge at period end. Upgrade: charge on auth (no start_at).
         const newSubscription = await razorpay.subscriptions.create({
             plan_id: razorpayPlanId,
             total_count: newBillingPeriod === 'annual' ? 1 : 12,
             quantity: 1,
             customer_notify: 1,
-            notes: {
-                userId,
-                planType: newPlanType,
-                billingPeriod: newBillingPeriod,
-                currency: planCurrency,
-                userEmail: user.email || '',
-                userName: user.name || '',
-                replacing_subscription_id: oldSubscriptionId,
-                upgrade_flow: 'true',
-            },
+            notes,
+            ...(when === 'cycle_end'
+                ? { start_at: Math.floor(changeScheduledAt.getTime() / 1000) }
+                : {}),
         });
+
+        await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
+            beingReplacedBy: newSubscription.id,
+        });
+        await upsertRazorpaySubscription(sql, newSubscription.id, userId, {
+            replacingSubscriptionId: oldSubscriptionId,
+            planType: newPlanType,
+            ...(when === 'cycle_end' && { willActivateAt: changeScheduledAt }),
+        });
+
+        if (when === 'cycle_end') {
+            // Cancel old now at cycle end. Razorpay cannot undo cancel — UI must not
+            // offer "cancel scheduled" (cancelling only the replacement leaves no plan).
+            await razorpay.subscriptions.cancel(oldSubscriptionId, 1);
+            await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
+                cancelAtCycleEnd: true,
+                cancelledAt: new Date(),
+                willCancelAt: changeScheduledAt,
+                beingReplacedBy: newSubscription.id,
+            });
+            await updateBillingByUserId(sql, userId, {
+                hasScheduledChanges: true,
+                scheduledChangeAt: changeScheduledAt,
+                scheduledPlanId: razorpayPlanId,
+                scheduledPlanType: newPlanType,
+            });
+        }
 
         return NextResponse.json({
             success: true,
             flow: 'cancel_and_create',
-            message: 'New subscription created. Please complete UPI authorization.',
+            scheduleChangeAt: when,
+            message:
+                when === 'cycle_end'
+                    ? 'Authorize the new plan now. It starts at the end of your current billing cycle — you will not be charged until then.'
+                    : 'New subscription created. Please complete payment authorization.',
             requiresNewAuth: true,
             newSubscriptionId: newSubscription.id,
             oldSubscriptionId,
@@ -155,18 +183,22 @@ export async function POST(request: NextRequest) {
             currency: planDetails.currency,
             razorpayKeyId: RAZORPAY_CONFIG.keyId,
             shortUrl: newSubscription.short_url,
+            ...(when === 'cycle_end' && {
+                scheduledChangeAt: changeScheduledAt.toISOString(),
+            }),
+            newPlanType,
+            currentPlanType: billing.plan,
             newPlanDetails: {
                 name: planDetails.name,
                 price: planDetails.price,
                 period: planDetails.period,
             },
         });
-
     } catch (error: unknown) {
-        console.error('❌ UPI upgrade error:', error);
+        console.error('❌ Plan change (new subscription) error:', error);
         return NextResponse.json(
             {
-                error: razorpayErrorDescription(error) || 'Failed to create upgrade subscription',
+                error: razorpayErrorDescription(error) || 'Failed to create plan-change subscription',
             },
             { status: 500 }
         );

@@ -238,15 +238,6 @@ export default function BillingPage() {
         }
     };
 
-    const handleCancelScheduledChange = async () => {
-        try {
-            await authedPost('/api/razorpay/cancel-scheduled-change');
-            setBanner('Scheduled plan change cancelled.');
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to cancel scheduled change');
-        }
-    };
-
     if (authLoading || loading) {
         return <LoadingScreen loadKey="billing" />;
     }
@@ -286,10 +277,8 @@ export default function BillingPage() {
                                 Switching to{' '}
                                 <b style={{ textTransform: 'capitalize' }}>{billing.scheduledPlanType || 'the new plan'}</b>
                                 {billing.scheduledChangeAt ? ` on ${formatDate(billing.scheduledChangeAt, currency)}` : ' at cycle end'}.
+                                {' '}This cannot be undone — the current plan already ends at that date.
                             </p>
-                            <button type="button" onClick={handleCancelScheduledChange} className="btn">
-                                Cancel change
-                            </button>
                         </div>
                     </div>
                 )}
@@ -515,7 +504,6 @@ export default function BillingPage() {
                             currentPlan={billing?.plan ?? null}
                             currentCycle={billing?.billingCycle ?? null}
                             currency={currency}
-                            paymentMethod={billing?.paymentMethod ?? null}
                             periodEndLabel={periodEndLabel}
                             busy={changeBusy}
                             error={changeError}

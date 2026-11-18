@@ -44,12 +44,10 @@ const {
 const {
   subscriptionActivatedPayload,
   subscriptionChargedPayload,
-  subscriptionUpdatedPayload,
   subscriptionStatusPayload,
   paymentCapturedAddCreditsPayload,
 } = await import('@/lib/billing/__fixtures__/razorpayEvents')
 const { SUBSCRIPTION_PLANS, getRazorpayPlanId } = await import('@/config/razorpay')
-const { allocationCreditDelta, proratedCreditGrant } = await import('@/lib/billing/planChange')
 const { remainingPct, additionalRemainingPct } = await import('@/types/credits')
 const { isUpdatablePlanStatus } = await import('@/lib/billing/userSoT')
 
@@ -252,12 +250,121 @@ scenario('cancel: cycle-end cancel via route, then webhook — no grace after pe
 })
 
 // ---------------------------------------------------------------------------
-// 4. Upgrade, card — exact Razorpay update() arguments, every upgrade pair
+// 4. Upgrade — create new sub (no start_at), every pair + method
 // ---------------------------------------------------------------------------
 for (const [from, to] of UPGRADE_PAIRS) {
-  scenario(`upgrade card ${from}->${to}: exact Razorpay update() args`, async () => {
-    const id = uid(`upc-${from}-${to}`)
+  for (const method of ['card', 'upi'] as const) {
+    scenario(`upgrade ${method} ${from}->${to}: create new sub (no start_at)`, async () => {
+      const id = uid(`up-${method}-${from}-${to}`)
+      const subId = `sub_${id}`
+      const periodEndUnix = BASE_NOW_UNIX + MONTH
+      await seedBilling(id, {
+        plan: from,
+        planStatus: 'active',
+        billingCycle: 'monthly',
+        currency: 'USD',
+        razorpaySubscriptionId: subId,
+        paymentMethod: method,
+        creditsIncluded: CREDITS[from],
+        allocationBalance: CREDITS[from],
+        allocationGrantedTotal: CREDITS[from],
+        currentPeriodEnd: new Date(periodEndUnix * 1000),
+      })
+
+      setClock(BASE_NOW)
+      resetRazorpayCalls()
+      const { status, json } = await callBillingRoute(
+        (await import('@/app/api/razorpay/upgrade-upi/route')).POST,
+        id,
+        { newPlanType: to, newBillingPeriod: 'monthly' }
+      )
+      assert.equal(status, 200, JSON.stringify(json))
+      assert.equal(json.scheduleChangeAt, 'now')
+      assert.equal(json.flow, 'cancel_and_create')
+      assert.equal(json.requiresNewAuth, true)
+
+      const createCall = razorpayCalls.find(
+        (c) => c.method === 'post' && c.url === '/subscriptions'
+      )
+      assert.ok(createCall, 'must create a new Razorpay subscription')
+      const data = createCall!.data as Record<string, unknown>
+      assert.equal(data.plan_id, getRazorpayPlanId(to, 'monthly', 'USD'))
+      assert.equal(data.start_at, undefined, 'upgrade must not send start_at')
+      assert.equal((data.notes as Record<string, string>).upgrade_flow, 'true')
+      assert.equal((data.notes as Record<string, string>).replacing_subscription_id, subId)
+      assert.equal(
+        razorpayCalls.some((c) => c.method === 'patch'),
+        false,
+        'must not call subscriptions.update'
+      )
+
+      const billing = await getBillingByUserId(sql, id)
+      assert.equal(billing?.plan, from, 'plan unchanged until new sub activates')
+      assert.equal(billing?.hasScheduledChanges, false)
+      restoreClock()
+    })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Upgrade — activated: ADD full grant + cancel old at cycle_end
+// ---------------------------------------------------------------------------
+for (const method of ['card', 'upi'] as const) {
+  scenario(`upgrade ${method}: activated ADD full grant, old cancelled at cycle_end`, async () => {
+    const id = uid(`upact-${method}`)
+    const oldSubId = `sub_old_${id}`
+    const newSubId = `sub_new_${id}`
+    await seedBilling(id, {
+      plan: 'starter',
+      planStatus: 'active',
+      billingCycle: 'monthly',
+      currency: 'USD',
+      razorpaySubscriptionId: oldSubId,
+      paymentMethod: method,
+      creditsIncluded: CREDITS.starter,
+      allocationBalance: 500,
+      allocationGrantedTotal: CREDITS.starter,
+      currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
+    })
+
+    resetRazorpayCalls()
+    const { status } = await postWebhook({
+      eventType: 'subscription.activated',
+      payload: subscriptionActivatedPayload({
+        subscriptionId: newSubId,
+        userId: id,
+        planType: 'pro',
+        currentStart: BASE_NOW_UNIX,
+        currentEnd: BASE_NOW_UNIX + MONTH,
+        paymentMethod: method,
+        notes: { upgrade_flow: 'true', replacing_subscription_id: oldSubId },
+      }),
+    })
+    assert.equal(status, 200)
+
+    const cancelCall = razorpayCalls.find(
+      (c) => c.method === 'post' && c.url === `/subscriptions/${oldSubId}/cancel`
+    )
+    assert.ok(cancelCall, 'upgrade must cancel the old subscription via Razorpay')
+    assert.deepEqual(cancelCall!.data, { cancel_at_cycle_end: 1 })
+
+    const billing = await getBillingByUserId(sql, id)
+    assert.equal(billing?.razorpaySubscriptionId, newSubId)
+    assert.equal(billing?.allocationBalance, 500 + CREDITS.pro, 'kept leftover + new plan full grant (ADD)')
+
+    const oldSub = await getRazorpaySubscription(sql, oldSubId)
+    assert.equal(oldSub?.cancelAtCycleEnd, true)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// 6. Downgrade — create new sub with start_at = period end; every pair
+// ---------------------------------------------------------------------------
+for (const [from, to] of DOWNGRADE_PAIRS) {
+  scenario(`downgrade ${from}->${to}: create new sub with start_at=period end`, async () => {
+    const id = uid(`dn-${from}-${to}`)
     const subId = `sub_${id}`
+    const periodEndUnix = BASE_NOW_UNIX + MONTH
     await seedBilling(id, {
       plan: from,
       planStatus: 'active',
@@ -268,120 +375,90 @@ for (const [from, to] of UPGRADE_PAIRS) {
       creditsIncluded: CREDITS[from],
       allocationBalance: CREDITS[from],
       allocationGrantedTotal: CREDITS[from],
-      currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
+      currentPeriodEnd: new Date(periodEndUnix * 1000),
     })
 
     setClock(BASE_NOW)
     resetRazorpayCalls()
     const { status, json } = await callBillingRoute(
-      (await import('@/app/api/razorpay/update-subscription/route')).POST,
+      (await import('@/app/api/razorpay/upgrade-upi/route')).POST,
       id,
       { newPlanType: to, newBillingPeriod: 'monthly' }
     )
     assert.equal(status, 200, JSON.stringify(json))
-    assert.equal(json.scheduleChangeAt, 'now')
+    assert.equal(json.scheduleChangeAt, 'cycle_end')
+    assert.equal(json.requiresNewAuth, true)
 
-    const updateCall = razorpayCalls.find((c) => c.method === 'patch')
-    assert.ok(updateCall, 'update route must call Razorpay subscriptions.update')
-    assert.equal(updateCall!.url, `/subscriptions/${subId}`)
-    assert.deepEqual(updateCall!.data, {
-      plan_id: getRazorpayPlanId(to, 'monthly', 'USD'),
-      schedule_change_at: 'now',
-      customer_notify: 1,
-    })
+    const createCall = razorpayCalls.find(
+      (c) => c.method === 'post' && c.url === '/subscriptions'
+    )
+    assert.ok(createCall)
+    const data = createCall!.data as Record<string, unknown>
+    assert.equal(data.plan_id, getRazorpayPlanId(to, 'monthly', 'USD'))
+    assert.equal(data.start_at, periodEndUnix)
+    assert.equal(
+      razorpayCalls.some((c) => c.method === 'patch'),
+      false,
+      'must not call subscriptions.update'
+    )
+
+    const cancelOld = razorpayCalls.find(
+      (c) => c.method === 'post' && c.url === `/subscriptions/${subId}/cancel`
+    )
+    assert.ok(cancelOld, 'downgrade must cancel the current sub at cycle end now')
+    assert.deepEqual(cancelOld!.data, { cancel_at_cycle_end: 1 })
+
+    const billing = await getBillingByUserId(sql, id)
+    assert.equal(billing?.hasScheduledChanges, true)
+    assert.equal(billing?.scheduledPlanType, to)
+    assert.equal(billing?.plan, from, 'current plan and credits stay until period end')
+    assert.equal(billing?.allocationBalance, CREDITS[from])
+
+    const oldSub = await getRazorpaySubscription(sql, subId)
+    assert.ok(oldSub?.beingReplacedBy, 'old sub must point at pending replacement')
+    assert.equal(oldSub?.cancelAtCycleEnd, true)
+
+    const summary = await getBillingSummary(id)
+    assert.equal(summary.json.canCancelScheduledChange, false)
     restoreClock()
   })
 }
 
 // ---------------------------------------------------------------------------
-// 5. Upgrade, card — proration day1/mid/last, every upgrade pair
+// 7. Downgrade — new sub activates at period end: SET credits, cancel old
 // ---------------------------------------------------------------------------
-for (const [from, to] of UPGRADE_PAIRS) {
-  for (const [label, offset] of [
-    ['day1', 0],
-    ['mid', Math.floor(MONTH / 2)],
-    ['last', MONTH - 3600],
-  ] as const) {
-    scenario(`upgrade card proration ${from}->${to} @ ${label}`, async () => {
-      const id = uid(`upp-${from}-${to}-${label}`)
-      const subId = `sub_${id}`
-      const currentStart = BASE_NOW_UNIX
-      const currentEnd = BASE_NOW_UNIX + MONTH
-      const createdAt = currentStart + offset
-
-      await seedBilling(id, {
-        plan: from,
-        planStatus: 'active',
-        billingCycle: 'monthly',
-        currency: 'USD',
-        razorpaySubscriptionId: subId,
-        paymentMethod: 'card',
-        creditsIncluded: CREDITS[from],
-        allocationBalance: CREDITS[from],
-        allocationGrantedTotal: CREDITS[from],
-        currentPeriodEnd: new Date(currentEnd * 1000),
-      })
-
-      const delta = allocationCreditDelta(CREDITS[from], CREDITS[to])
-      const expectedGrant = proratedCreditGrant(delta, currentEnd - createdAt, currentEnd - currentStart)
-
-      const { status } = await postWebhook({
-        eventType: 'subscription.updated',
-        createdAt,
-        payload: subscriptionUpdatedPayload({
-          subscriptionId: subId,
-          userId: id,
-          planType: to,
-          currentStart,
-          currentEnd,
-          hasScheduledChanges: false,
-        }),
-      })
-      assert.equal(status, 200)
-
-      const billing = await getBillingByUserId(sql, id)
-      assert.equal(billing?.plan, to)
-      assert.equal(
-        billing?.allocationBalance,
-        CREDITS[from] + expectedGrant,
-        `${from}->${to} @ ${label}: grant must equal proratedCreditGrant(delta=${delta}, remaining=${
-          currentEnd - createdAt
-        }, period=${currentEnd - currentStart}) = ${expectedGrant}`
-      )
-    })
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 6. Upgrade, UPI — new sub activates with full grant; old sub cancelled
-// ---------------------------------------------------------------------------
-scenario('upgrade UPI: new sub ADD full grant, old sub cancelled with exact args', async () => {
-  const id = uid('upupi')
+scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end', async () => {
+  const id = uid('dnact')
   const oldSubId = `sub_old_${id}`
   const newSubId = `sub_new_${id}`
   await seedBilling(id, {
-    plan: 'starter',
+    plan: 'pro',
     planStatus: 'active',
     billingCycle: 'monthly',
     currency: 'USD',
     razorpaySubscriptionId: oldSubId,
-    paymentMethod: 'upi',
-    creditsIncluded: CREDITS.starter,
-    allocationBalance: 500, // leftover kept
-    allocationGrantedTotal: CREDITS.starter,
+    paymentMethod: 'card',
+    creditsIncluded: CREDITS.pro,
+    allocationBalance: CREDITS.pro,
+    allocationGrantedTotal: CREDITS.pro,
+    hasScheduledChanges: true,
+    scheduledPlanType: 'starter',
+    scheduledPlanId: getRazorpayPlanId('starter', 'monthly', 'USD'),
+    scheduledChangeAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
     currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
   })
 
+  setClock(new Date((BASE_NOW_UNIX + MONTH) * 1000))
   resetRazorpayCalls()
   const { status } = await postWebhook({
     eventType: 'subscription.activated',
     payload: subscriptionActivatedPayload({
       subscriptionId: newSubId,
       userId: id,
-      planType: 'pro',
-      currentStart: BASE_NOW_UNIX,
-      currentEnd: BASE_NOW_UNIX + MONTH,
-      paymentMethod: 'upi',
+      planType: 'starter',
+      currentStart: BASE_NOW_UNIX + MONTH,
+      currentEnd: BASE_NOW_UNIX + 2 * MONTH,
+      paymentMethod: 'card',
       notes: { upgrade_flow: 'true', replacing_subscription_id: oldSubId },
     }),
   })
@@ -390,148 +467,22 @@ scenario('upgrade UPI: new sub ADD full grant, old sub cancelled with exact args
   const cancelCall = razorpayCalls.find(
     (c) => c.method === 'post' && c.url === `/subscriptions/${oldSubId}/cancel`
   )
-  assert.ok(cancelCall, 'UPI upgrade must cancel the old subscription via Razorpay')
+  assert.ok(cancelCall)
   assert.deepEqual(cancelCall!.data, { cancel_at_cycle_end: 1 })
 
   const billing = await getBillingByUserId(sql, id)
   assert.equal(billing?.razorpaySubscriptionId, newSubId)
-  assert.equal(billing?.allocationBalance, 500 + CREDITS.pro, 'kept leftover + new plan full grant (ADD)')
-
-  const oldSub = await getRazorpaySubscription(sql, oldSubId)
-  assert.equal(oldSub?.cancelAtCycleEnd, true)
+  assert.equal(billing?.plan, 'starter')
+  assert.equal(billing?.creditsIncluded, CREDITS.starter)
+  assert.equal(billing?.allocationBalance, CREDITS.starter, 'smaller plan credits SET')
+  assert.equal(billing?.hasScheduledChanges, false)
+  restoreClock()
 })
 
 // ---------------------------------------------------------------------------
-// 7. Downgrade, card — scheduled via route, then SET at renewal; every pair
+// 8. Scheduled downgrade cannot be undone (summary + API + UI)
 // ---------------------------------------------------------------------------
-for (const [from, to] of DOWNGRADE_PAIRS) {
-  scenario(`downgrade card ${from}->${to}: scheduled via route, SET at renewal`, async () => {
-    const id = uid(`dnc-${from}-${to}`)
-    const subId = `sub_${id}`
-    await seedBilling(id, {
-      plan: from,
-      planStatus: 'active',
-      billingCycle: 'monthly',
-      currency: 'USD',
-      razorpaySubscriptionId: subId,
-      paymentMethod: 'card',
-      creditsIncluded: CREDITS[from],
-      allocationBalance: CREDITS[from],
-      allocationGrantedTotal: CREDITS[from],
-      currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
-      nextAllocationDate: new Date(BASE_NOW_UNIX * 1000), // due by the renewal instant set below
-    })
-
-    setClock(BASE_NOW)
-    resetRazorpayCalls()
-    const { status, json } = await callBillingRoute(
-      (await import('@/app/api/razorpay/update-subscription/route')).POST,
-      id,
-      { newPlanType: to, newBillingPeriod: 'monthly' }
-    )
-    assert.equal(status, 200, JSON.stringify(json))
-    assert.equal(json.scheduleChangeAt, 'cycle_end')
-
-    const updateCall = razorpayCalls.find((c) => c.method === 'patch')
-    assert.ok(updateCall)
-    assert.deepEqual(updateCall!.data, {
-      plan_id: getRazorpayPlanId(to, 'monthly', 'USD'),
-      schedule_change_at: 'cycle_end',
-      customer_notify: 1,
-    })
-
-    let billing = await getBillingByUserId(sql, id)
-    assert.equal(billing?.hasScheduledChanges, true)
-    assert.equal(billing?.scheduledPlanType, to)
-    assert.equal(billing?.plan, from, 'current plan and credits stay until period end')
-
-    // Renewal: Razorpay now charges the (already-switched) lower plan.
-    setClock(new Date((BASE_NOW_UNIX + MONTH) * 1000)) // refreshAllocationIfDue reads `now = new Date()`
-
-    // Real Razorpay fires `subscription.updated` (has_scheduled_changes -> false)
-    // at the instant the scheduled change takes effect, which is what actually
-    // flips `plan`/`creditsIncluded` in billing_accounts. Downgrade delta is <=0,
-    // so this event ADDs zero credits (no mid-cycle clawback) and merely syncs
-    // the plan fields; `subscription.charged` (below) is the separate renewal
-    // invoice that SETs allocationBalance to the new plan's grant via plan_id.
-    const { status: updatedStatus } = await postWebhook({
-      eventType: 'subscription.updated',
-      payload: subscriptionUpdatedPayload({
-        subscriptionId: subId,
-        userId: id,
-        planType: to,
-        currentStart: BASE_NOW_UNIX + MONTH,
-        currentEnd: BASE_NOW_UNIX + 2 * MONTH,
-        hasScheduledChanges: false,
-        updatedAt: BASE_NOW_UNIX + MONTH,
-      }),
-    })
-    assert.equal(updatedStatus, 200)
-
-    billing = await getBillingByUserId(sql, id)
-    assert.equal(billing?.plan, to, 'plan field synced by subscription.updated at cycle end')
-    assert.equal(billing?.creditsIncluded, CREDITS[to])
-    assert.equal(billing?.hasScheduledChanges, false)
-
-    const { status: chargedStatus } = await postWebhook({
-      eventType: 'subscription.charged',
-      payload: subscriptionChargedPayload({
-        subscriptionId: subId,
-        userId: id,
-        planType: to,
-        currentStart: BASE_NOW_UNIX + MONTH,
-        currentEnd: BASE_NOW_UNIX + 2 * MONTH,
-        paymentMethod: 'card',
-      }),
-    })
-    assert.equal(chargedStatus, 200)
-
-    billing = await getBillingByUserId(sql, id)
-    assert.equal(billing?.allocationBalance, CREDITS[to], 'smaller plan credits SET at renewal')
-    assert.equal(billing?.creditsIncluded, CREDITS[to])
-    restoreClock()
-  })
-}
-
-// ---------------------------------------------------------------------------
-// 8. Downgrade, UPI — scheduled locally, no Razorpay call
-// ---------------------------------------------------------------------------
-scenario('downgrade UPI: scheduled locally, no Razorpay call', async () => {
-  const id = uid('dnupi')
-  const subId = `sub_${id}`
-  await seedBilling(id, {
-    plan: 'pro',
-    planStatus: 'active',
-    billingCycle: 'monthly',
-    currency: 'USD',
-    razorpaySubscriptionId: subId,
-    paymentMethod: 'upi',
-    creditsIncluded: CREDITS.pro,
-    allocationBalance: CREDITS.pro,
-    allocationGrantedTotal: CREDITS.pro,
-    currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
-  })
-
-  resetRazorpayCalls()
-  const { status, json } = await callBillingRoute(
-    (await import('@/app/api/razorpay/update-subscription/route')).POST,
-    id,
-    { newPlanType: 'starter', newBillingPeriod: 'monthly' }
-  )
-  assert.equal(status, 200, JSON.stringify(json))
-  assert.equal(json.scheduleChangeAt, 'cycle_end')
-  assert.equal(razorpayCalls.length, 0, 'UPI downgrade must not call Razorpay at all')
-
-  const billing = await getBillingByUserId(sql, id)
-  assert.equal(billing?.hasScheduledChanges, true)
-  assert.equal(billing?.scheduledPlanType, 'starter')
-  assert.equal(billing?.plan, 'pro')
-})
-
-// ---------------------------------------------------------------------------
-// 9. Cancel a scheduled downgrade — plan stays
-// ---------------------------------------------------------------------------
-scenario('cancel scheduled downgrade: plan stays', async () => {
+scenario('scheduled downgrade: summary and API do not offer cancel', async () => {
   const id = uid('cxl-sched')
   const subId = `sub_${id}`
   await seedBilling(id, {
@@ -545,23 +496,35 @@ scenario('cancel scheduled downgrade: plan stays', async () => {
     scheduledChangeAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
   })
 
+  const summary = await getBillingSummary(id)
+  assert.ok(summary.json.scheduledChange, 'scheduled change is visible')
+  assert.equal(
+    summary.json.canCancelScheduledChange,
+    false,
+    'summary must not offer cancel (Razorpay cycle-end cancel is irreversible)'
+  )
+
   resetRazorpayCalls()
   const { status, json } = await callBillingRoute(
     (await import('@/app/api/razorpay/cancel-scheduled-change/route')).POST,
     id
   )
-  assert.equal(status, 200, JSON.stringify(json))
+  assert.equal(status, 400)
+  assert.equal(json.flow, 'undo_unavailable')
+  assert.equal(razorpayCalls.length, 0)
 
-  const cancelSchedCall = razorpayCalls.find(
-    (c) => c.method === 'post' && c.url === `/subscriptions/${subId}/cancel_scheduled_changes`
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const billingPage = readFileSync(
+    join(import.meta.dirname, '../../app/billing/[[...slug]]/page.tsx'),
+    'utf8'
   )
-  assert.ok(cancelSchedCall, 'must call Razorpay cancelScheduledChanges')
-
-  const billing = await getBillingByUserId(sql, id)
-  assert.equal(billing?.hasScheduledChanges, false)
-  assert.equal(billing?.scheduledPlanType, null)
-  assert.equal(billing?.scheduledPlanId, null)
-  assert.equal(billing?.plan, 'pro', 'plan stays')
+  assert.equal(
+    /Cancel change/.test(billingPage),
+    false,
+    'billing UI must not render a cancel-scheduled button'
+  )
+  assert.equal(/cancel-scheduled-change/.test(billingPage), false)
 })
 
 // ---------------------------------------------------------------------------

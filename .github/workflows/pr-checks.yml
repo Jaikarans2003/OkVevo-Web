@@ -11,12 +11,30 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  # §14.4 — block PRs into production unless Layer 2 passed on that staging tip.
+  l2-promotion-gate:
+    name: Layer 2 promotion gate
+    if: github.base_ref == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Require Layer 2 green on PR head (staging tip)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/require-l2-green.sh
+          ./scripts/require-l2-green.sh "${{ github.event.pull_request.head.sha }}"
+
   drama-selfchecks:
     name: Drama selfchecks
     runs-on: ubuntu-latest
