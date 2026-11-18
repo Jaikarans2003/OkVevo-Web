@@ -5,8 +5,8 @@ import { loadUserBillingSoT } from '@/lib/billing/userSoT';
 export const runtime = 'nodejs';
 
 /**
- * Scheduled downgrades cancel the current sub at cycle end when the replacement
- * is created. Razorpay cancel is irreversible (cannot renew/reactivate), so
+ * Once a downgrade replacement is authenticated, the current sub is cancelled at
+ * cycle end. Razorpay cancel is irreversible (cannot renew/reactivate), so
  * undoing by cancelling only the pending replacement would leave the customer
  * with no plan. This route always refuses — the billing UI must not offer it.
  */

@@ -18,6 +18,8 @@ export type SubFixtureOpts = {
   status?: string
   currentStart: number // unix seconds
   currentEnd: number // unix seconds
+  /** Future first charge (downgrade start_at). */
+  startAt?: number
   notes?: Record<string, string>
 }
 
@@ -31,6 +33,7 @@ function subscriptionEntity(opts: SubFixtureOpts): Record<string, unknown> {
     status: opts.status ?? 'active',
     current_start: opts.currentStart,
     current_end: opts.currentEnd,
+    ...(opts.startAt != null ? { start_at: opts.startAt } : {}),
     charge_at: opts.currentEnd,
     total_count: billingPeriod === 'annual' ? 1 : 12,
     paid_count: 1,
@@ -104,6 +107,15 @@ export function subscriptionUpdatedPayload(
 /** subscription.pending / halted / cancelled / paused / resumed / completed — status-only events. */
 export function subscriptionStatusPayload(opts: SubFixtureOpts) {
   return { subscription: { entity: subscriptionEntity(opts) } }
+}
+
+/** subscription.authenticated (Checkout authorized; no planStatus write). */
+export function subscriptionAuthenticatedPayload(opts: SubFixtureOpts) {
+  return {
+    subscription: {
+      entity: subscriptionEntity({ ...opts, status: opts.status ?? 'authenticated' }),
+    },
+  }
 }
 
 /** payment.captured for the Payment-Link add-credits path (no order_id). */

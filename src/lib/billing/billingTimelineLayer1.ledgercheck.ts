@@ -43,6 +43,7 @@ const {
 } = await import('@/lib/billing/layer1Harness')
 const {
   subscriptionActivatedPayload,
+  subscriptionAuthenticatedPayload,
   subscriptionChargedPayload,
   subscriptionStatusPayload,
   paymentCapturedAddCreditsPayload,
@@ -358,10 +359,10 @@ for (const method of ['card', 'upi'] as const) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Downgrade — create new sub with start_at = period end; every pair
+// 6. Downgrade — create new sub with start_at = period end; old untouched until auth
 // ---------------------------------------------------------------------------
 for (const [from, to] of DOWNGRADE_PAIRS) {
-  scenario(`downgrade ${from}->${to}: create new sub with start_at=period end`, async () => {
+  scenario(`downgrade ${from}->${to}: create leaves old sub untouched until authenticated`, async () => {
     const id = uid(`dn-${from}-${to}`)
     const subId = `sub_${id}`
     const periodEndUnix = BASE_NOW_UNIX + MONTH
@@ -405,32 +406,117 @@ for (const [from, to] of DOWNGRADE_PAIRS) {
     const cancelOld = razorpayCalls.find(
       (c) => c.method === 'post' && c.url === `/subscriptions/${subId}/cancel`
     )
-    assert.ok(cancelOld, 'downgrade must cancel the current sub at cycle end now')
-    assert.deepEqual(cancelOld!.data, { cancel_at_cycle_end: 1 })
+    assert.equal(
+      cancelOld,
+      undefined,
+      'created-but-not-authenticated must not cancel the old subscription'
+    )
 
     const billing = await getBillingByUserId(sql, id)
-    assert.equal(billing?.hasScheduledChanges, true)
-    assert.equal(billing?.scheduledPlanType, to)
+    assert.equal(billing?.hasScheduledChanges, false, 'scheduled fields wait for authenticated')
+    assert.ok(!billing?.scheduledPlanType, 'no scheduled plan until authenticated')
     assert.equal(billing?.plan, from, 'current plan and credits stay until period end')
     assert.equal(billing?.allocationBalance, CREDITS[from])
 
     const oldSub = await getRazorpaySubscription(sql, subId)
     assert.ok(oldSub?.beingReplacedBy, 'old sub must point at pending replacement')
-    assert.equal(oldSub?.cancelAtCycleEnd, true)
+    assert.ok(!oldSub?.cancelAtCycleEnd, 'old sub must not be cancelled until authenticated')
 
     const summary = await getBillingSummary(id)
     assert.equal(summary.json.canCancelScheduledChange, false)
+    assert.equal(summary.json.scheduledChange, null)
     restoreClock()
   })
 }
 
 // ---------------------------------------------------------------------------
-// 7. Downgrade — new sub activates at period end: SET credits, cancel old
+// 6b. Downgrade — authenticated cancels old exactly once (replay safe)
 // ---------------------------------------------------------------------------
-scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end', async () => {
+scenario('downgrade: authenticated cancels old once; replay does not cancel twice', async () => {
+  const id = uid('dnauth')
+  const oldSubId = `sub_old_${id}`
+  const newSubId = `sub_new_${id}`
+  const periodEndUnix = BASE_NOW_UNIX + MONTH
+  await seedBilling(id, {
+    plan: 'pro',
+    planStatus: 'active',
+    billingCycle: 'monthly',
+    currency: 'USD',
+    razorpaySubscriptionId: oldSubId,
+    paymentMethod: 'card',
+    creditsIncluded: CREDITS.pro,
+    allocationBalance: CREDITS.pro,
+    allocationGrantedTotal: CREDITS.pro,
+    currentPeriodEnd: new Date(periodEndUnix * 1000),
+  })
+  const { upsertRazorpaySubscription } = await import('@/lib/db/wallet')
+  await upsertRazorpaySubscription(sql, oldSubId, id, { beingReplacedBy: newSubId })
+  await upsertRazorpaySubscription(sql, newSubId, id, {
+    replacingSubscriptionId: oldSubId,
+    planType: 'starter',
+    willActivateAt: new Date(periodEndUnix * 1000),
+  })
+
+  setClock(BASE_NOW)
+  resetRazorpayCalls()
+  const authPayload = subscriptionAuthenticatedPayload({
+    subscriptionId: newSubId,
+    userId: id,
+    planType: 'starter',
+    currentStart: BASE_NOW_UNIX,
+    currentEnd: periodEndUnix,
+    startAt: periodEndUnix,
+    notes: {
+      upgrade_flow: 'true',
+      replacing_subscription_id: oldSubId,
+      schedule_change_at: 'cycle_end',
+    },
+  })
+  const first = await postWebhook({
+    eventType: 'subscription.authenticated',
+    payload: authPayload,
+    eventId: `evt-auth-1-${id}`,
+  })
+  assert.equal(first.status, 200)
+
+  const cancelCalls = () =>
+    razorpayCalls.filter(
+      (c) => c.method === 'post' && c.url === `/subscriptions/${oldSubId}/cancel`
+    )
+  assert.equal(cancelCalls().length, 1, 'authenticated must cancel old exactly once')
+  assert.deepEqual(cancelCalls()[0]!.data, { cancel_at_cycle_end: 1 })
+
+  const billing = await getBillingByUserId(sql, id)
+  assert.equal(billing?.hasScheduledChanges, true)
+  assert.equal(billing?.scheduledPlanType, 'starter')
+  assert.equal(billing?.plan, 'pro', 'plan unchanged until period-end activation')
+  assert.equal(billing?.allocationBalance, CREDITS.pro)
+
+  const oldSub = await getRazorpaySubscription(sql, oldSubId)
+  assert.equal(oldSub?.cancelAtCycleEnd, true)
+
+  const replay = await postWebhook({
+    eventType: 'subscription.authenticated',
+    payload: authPayload,
+    eventId: `evt-auth-2-${id}`,
+  })
+  assert.equal(replay.status, 200)
+  assert.equal(cancelCalls().length, 1, 'replayed authenticated must not cancel twice')
+
+  const summary = await getBillingSummary(id)
+  assert.ok(summary.json.scheduledChange)
+  assert.equal(summary.json.canCancelScheduledChange, false)
+  restoreClock()
+})
+
+// ---------------------------------------------------------------------------
+// 7. Downgrade — new sub activates at period end: SET credits (cancel already done)
+// ---------------------------------------------------------------------------
+scenario('downgrade: new sub activated SETs credits; old cancel is idempotent', async () => {
   const id = uid('dnact')
   const oldSubId = `sub_old_${id}`
   const newSubId = `sub_new_${id}`
+  const { upsertRazorpaySubscription } = await import('@/lib/db/wallet')
   await seedBilling(id, {
     plan: 'pro',
     planStatus: 'active',
@@ -447,6 +533,13 @@ scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end'
     scheduledChangeAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
     currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
   })
+  // Authenticated already cancelled the old sub at cycle end.
+  await upsertRazorpaySubscription(sql, oldSubId, id, {
+    cancelAtCycleEnd: true,
+    cancelledAt: new Date(),
+    beingReplacedBy: newSubId,
+    willCancelAt: new Date((BASE_NOW_UNIX + MONTH) * 1000),
+  })
 
   setClock(new Date((BASE_NOW_UNIX + MONTH) * 1000))
   resetRazorpayCalls()
@@ -459,7 +552,11 @@ scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end'
       currentStart: BASE_NOW_UNIX + MONTH,
       currentEnd: BASE_NOW_UNIX + 2 * MONTH,
       paymentMethod: 'card',
-      notes: { upgrade_flow: 'true', replacing_subscription_id: oldSubId },
+      notes: {
+        upgrade_flow: 'true',
+        replacing_subscription_id: oldSubId,
+        schedule_change_at: 'cycle_end',
+      },
     }),
   })
   assert.equal(status, 200)
@@ -467,8 +564,7 @@ scenario('downgrade: new sub activated SETs credits; old cancelled at cycle_end'
   const cancelCall = razorpayCalls.find(
     (c) => c.method === 'post' && c.url === `/subscriptions/${oldSubId}/cancel`
   )
-  assert.ok(cancelCall)
-  assert.deepEqual(cancelCall!.data, { cancel_at_cycle_end: 1 })
+  assert.equal(cancelCall, undefined, 'activation must not cancel again after authenticated')
 
   const billing = await getBillingByUserId(sql, id)
   assert.equal(billing?.razorpaySubscriptionId, newSubId)

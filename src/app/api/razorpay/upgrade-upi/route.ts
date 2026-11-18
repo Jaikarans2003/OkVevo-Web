@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
-import { updateBillingByUserId, upsertRazorpaySubscription } from '@/lib/db/wallet';
+import { upsertRazorpaySubscription } from '@/lib/db/wallet';
 import {
     RAZORPAY_CONFIG,
     getPlanDetailsByPeriod,
@@ -19,8 +19,10 @@ export const runtime = 'nodejs';
 /**
  * Plan change for every payment method (Razorpay India: plan change = new subscription).
  * Upgrade → new sub charged now; old cancelled at cycle end on activation (webhook).
- * Downgrade → new sub with start_at = period end; old cancelled at cycle end now
- * (Razorpay cancel is irreversible — no undo); credits SET on the new sub's first charge.
+ * Downgrade → new sub with start_at = period end; old cancelled at cycle end only after
+ * the replacement's subscription.authenticated (webhook). Creating alone must not cancel —
+ * an abandoned Checkout would otherwise end the current plan with no replacement
+ * (Razorpay cancel cannot be undone). Credits SET on the new sub's first charge.
  */
 export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
@@ -140,6 +142,8 @@ export async function POST(request: NextRequest) {
                 : {}),
         });
 
+        // Link rows only. Downgrade cycle-end cancel + scheduled-change fields land in
+        // the webhook on subscription.authenticated (after Checkout auth), not here.
         await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
             beingReplacedBy: newSubscription.id,
         });
@@ -148,24 +152,6 @@ export async function POST(request: NextRequest) {
             planType: newPlanType,
             ...(when === 'cycle_end' && { willActivateAt: changeScheduledAt }),
         });
-
-        if (when === 'cycle_end') {
-            // Cancel old now at cycle end. Razorpay cannot undo cancel — UI must not
-            // offer "cancel scheduled" (cancelling only the replacement leaves no plan).
-            await razorpay.subscriptions.cancel(oldSubscriptionId, 1);
-            await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
-                cancelAtCycleEnd: true,
-                cancelledAt: new Date(),
-                willCancelAt: changeScheduledAt,
-                beingReplacedBy: newSubscription.id,
-            });
-            await updateBillingByUserId(sql, userId, {
-                hasScheduledChanges: true,
-                scheduledChangeAt: changeScheduledAt,
-                scheduledPlanId: razorpayPlanId,
-                scheduledPlanType: newPlanType,
-            });
-        }
 
         return NextResponse.json({
             success: true,
