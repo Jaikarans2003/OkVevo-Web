@@ -21,6 +21,11 @@ export type BillingSummary = {
     planId: string | null
     changeAt: string | null
   } | null
+  /**
+   * Always false for Razorpay India plan changes: downgrade cancels the current
+   * sub at cycle end when scheduling, and that cancel cannot be undone.
+   */
+  canCancelScheduledChange: boolean
   accountKind: string
   canPurchase: boolean
   fundedBy: string | null
@@ -69,6 +74,7 @@ export function billingSummaryFromAccount(
       periodEnd: null,
       cancelAtPeriodEnd: false,
       scheduledChange: null,
+      canCancelScheduledChange: false,
       accountKind: 'individual',
       canPurchase: true,
       fundedBy: null,
@@ -108,6 +114,7 @@ export function billingSummaryFromAccount(
           changeAt: iso(billing.scheduledChangeAt),
         }
       : null,
+    canCancelScheduledChange: false,
     accountKind: 'individual',
     canPurchase: true,
     fundedBy: null,

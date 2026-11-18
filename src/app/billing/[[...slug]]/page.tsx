@@ -95,8 +95,6 @@ export default function BillingPage() {
     const [changeBusy, setChangeBusy] = useState(false);
     const [changeError, setChangeError] = useState<string | null>(null);
     const [banner, setBanner] = useState<string | null>(null);
-    /** Razorpay cancel is irreversible — hide undo when API says undo_unavailable. */
-    const [scheduledChangeUndoable, setScheduledChangeUndoable] = useState(true);
 
     const [topUpAmount, setTopUpAmount] = useState(10);
     const [topUpLoading, setTopUpLoading] = useState(false);
@@ -240,38 +238,6 @@ export default function BillingPage() {
         }
     };
 
-    const handleCancelScheduledChange = async () => {
-        if (!user) return;
-        try {
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/razorpay/cancel-scheduled-change', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${idToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: '{}',
-            });
-            const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-            if (response.ok) {
-                setBanner('Scheduled plan change cancelled.');
-                return;
-            }
-            if (data.flow === 'undo_unavailable') {
-                setScheduledChangeUndoable(false);
-                setError(
-                    typeof data.error === 'string'
-                        ? data.error
-                        : 'This scheduled change can no longer be undone.'
-                );
-                return;
-            }
-            setError(typeof data.error === 'string' ? data.error : 'Failed to cancel scheduled change');
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to cancel scheduled change');
-        }
-    };
-
     if (authLoading || loading) {
         return <LoadingScreen loadKey="billing" />;
     }
@@ -311,14 +277,8 @@ export default function BillingPage() {
                                 Switching to{' '}
                                 <b style={{ textTransform: 'capitalize' }}>{billing.scheduledPlanType || 'the new plan'}</b>
                                 {billing.scheduledChangeAt ? ` on ${formatDate(billing.scheduledChangeAt, currency)}` : ' at cycle end'}.
+                                {' '}This cannot be undone — the current plan already ends at that date.
                             </p>
-                            {/* Undo = cancel pending replacement. Old sub is not cycle-end-
-                                cancelled until then (Razorpay cancel cannot be undone). */}
-                            {scheduledChangeUndoable ? (
-                                <button type="button" onClick={handleCancelScheduledChange} className="btn">
-                                    Cancel change
-                                </button>
-                            ) : null}
                         </div>
                     </div>
                 )}

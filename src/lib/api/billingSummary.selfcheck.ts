@@ -132,8 +132,20 @@ const futureSched = billingSummaryFromAccount(
   now
 )
 assert.equal(futureSched.scheduledChange?.planType, 'pro')
+assert.equal(futureSched.canCancelScheduledChange, false)
+assert.equal(summary.canCancelScheduledChange, false)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const billingPage = fs.readFileSync(
+  path.join(root, 'app/billing/[[...slug]]/page.tsx'),
+  'utf8'
+)
+assert.doesNotMatch(
+  billingPage,
+  /Cancel change/,
+  'billing UI must not offer cancel scheduled (Razorpay cycle-end cancel is irreversible)'
+)
+assert.doesNotMatch(billingPage, /cancel-scheduled-change/)
 for (const rel of [
   'app/api/me/route.ts',
   'app/api/billing/summary/route.ts',

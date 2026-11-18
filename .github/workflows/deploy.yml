@@ -158,6 +158,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
+    permissions:
+      contents: read
+      actions: read
     env:
       FIREBASE_PROJECT: text2video-16cbf
       APPHOSTING_ENV: production
@@ -191,6 +194,8 @@ jobs:
       RAZORPAY_INR_MAX_ANNUAL_PLAN_ID: ${{ vars.RAZORPAY_INR_MAX_ANNUAL_PLAN_ID }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -198,6 +203,24 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # §14.4 — fail closed unless Layer 2 passed on the staging tip being promoted.
+      - name: Require Layer 2 green on staging tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/require-l2-green.sh
+          git fetch origin staging
+          STAGING_SHA=$(git rev-parse origin/staging)
+          echo "staging tip=$STAGING_SHA production tip=$GITHUB_SHA"
+          # Promote must ship the same tree as staging (merge or squash of staging tip).
+          if ! git diff --quiet origin/staging "$GITHUB_SHA"; then
+            echo "::error::production tip tree differs from staging tip — promote only staging→production"
+            exit 1
+          fi
+          ./scripts/require-l2-green.sh "$STAGING_SHA"
 
       # Inside the production Environment job (approval gate). Never in an ungated job.
       - name: Push Supabase migrations (production)
