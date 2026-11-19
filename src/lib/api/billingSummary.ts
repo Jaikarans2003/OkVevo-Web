@@ -92,6 +92,8 @@ export function billingSummaryFromAccount(
     (!billing.scheduledChangeAt ||
       !(billing.scheduledChangeAt instanceof Date) ||
       billing.scheduledChangeAt.getTime() > now.getTime())
+  // Child orgs (prepaid) never buy; fundedBy filled when summary is resolved with org context.
+  const canPurchase = billing.accessMode !== 'prepaid'
 
   return {
     plan: billing.plan,
@@ -116,8 +118,8 @@ export function billingSummaryFromAccount(
         }
       : null,
     canCancelScheduledChange: false,
-    accountKind: 'individual',
-    canPurchase: true,
+    accountKind: billing.accountKind,
+    canPurchase,
     fundedBy: null,
     billingCycle: billing.billingCycle,
     currency: billing.currency,

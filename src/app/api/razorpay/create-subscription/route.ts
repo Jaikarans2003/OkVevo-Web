@@ -11,8 +11,10 @@ import {
     type BillingPeriod,
     type SelfServePlanType,
 } from '@/config/razorpay';
+import { sql } from '@/lib/db/client';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { loadUserBillingSoT } from '@/lib/billing/userSoT';
+import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
 
 /**
  * Create Razorpay Subscription
@@ -27,6 +29,16 @@ export async function POST(request: NextRequest) {
             { success: false, error: 'Unauthorized' },
             { status: 401 }
         );
+    }
+
+    const childBlock = await rejectChildOrgPurchase(sql, {
+        req: request,
+        userId: user.uid,
+        email: user.email,
+    });
+    if (childBlock.blocked) {
+        const r = childPurchaseResponse(childBlock);
+        return NextResponse.json(r.body, { status: r.status });
     }
 
     try {

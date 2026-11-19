@@ -5,7 +5,9 @@ import { RAZORPAY_CONFIG, PLACEHOLDER_CREDITS_PER_USD, parseBillingCurrency } fr
 import { topUpAmountMinorUnits } from '@/lib/billing/currency';
 import { isEntitled } from '@/lib/billing/entitlement';
 import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { sql } from '@/lib/db/client';
 import { uidFromIdToken } from '@/lib/gateway/auth';
+import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +15,16 @@ export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const childBlock = await rejectChildOrgPurchase(sql, {
+        req: request,
+        userId: user.uid,
+        email: user.email,
+    });
+    if (childBlock.blocked) {
+        const r = childPurchaseResponse(childBlock);
+        return NextResponse.json(r.body, { status: r.status });
     }
 
     const uid = user.uid;

@@ -13,6 +13,9 @@ import type { BillingAccountData } from '@/lib/db/wallet'
 const base: BillingAccountData = {
   id: 'ba-1',
   ownerUserId: 'u1',
+  ownerOrgId: null,
+  accountKind: 'individual',
+  accessMode: 'subscription',
   plan: 'starter',
   planName: 'Starter',
   planStatus: 'active',
@@ -48,6 +51,13 @@ assert.equal(summary.accountKind, 'individual')
 assert.equal(summary.canPurchase, true)
 assert.equal(summary.fundedBy, null)
 assert.equal(summary.additionalNextExpiry, null)
+assert.equal(
+  billingSummaryFromAccount(
+    { ...base, ownerUserId: null, ownerOrgId: 'o1', accountKind: 'org', accessMode: 'prepaid' },
+    now
+  ).canPurchase,
+  false
+)
 assert.equal('allocationBalance' in summary, false)
 assert.equal('topUpBalance' in summary, false)
 assert.equal('additionalCredits' in summary, false)

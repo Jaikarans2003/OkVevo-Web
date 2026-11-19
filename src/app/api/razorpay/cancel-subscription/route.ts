@@ -5,6 +5,7 @@ import { updateBillingByUserId } from '@/lib/db/wallet';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { isCancellablePlanStatus, loadUserBillingSoT } from '@/lib/billing/userSoT';
+import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +13,16 @@ export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const childBlock = await rejectChildOrgPurchase(sql, {
+        req: request,
+        userId: user.uid,
+        email: user.email,
+    });
+    if (childBlock.blocked) {
+        const r = childPurchaseResponse(childBlock);
+        return NextResponse.json(r.body, { status: r.status });
     }
 
     try {
