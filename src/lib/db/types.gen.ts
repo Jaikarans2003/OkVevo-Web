@@ -337,6 +337,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"join_rate_limits": {
+                  Row: {
+                    "count": number,"user_id": string,"window_start_ms": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "count"?: number,"user_id": string,"window_start_ms": number
+                  }
+                  Update: {
+                    "count"?: number,"user_id"?: string,"window_start_ms"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "join_rate_limits_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: true
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"memberships": {
                   Row: {
                     "created_at": string,"org_id": string,"role": string,"status": string,"user_id": string
