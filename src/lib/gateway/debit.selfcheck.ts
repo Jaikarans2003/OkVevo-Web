@@ -19,7 +19,9 @@ const reserveFn = debit.slice(
   debit.indexOf('export async function reserveCredits'),
   debit.indexOf('export async function rebindGatewayJob')
 );
-const planGate = reserveFn.match(/if \(!isEntitled\(data\)\) \{[^}]+\}/);
+const planGate = reserveFn.match(
+  /if \(billing\.accessMode !== 'prepaid' && !isEntitled\(billing\)\) \{[^}]+\}/
+);
 assert.ok(planGate, 'reserveCredits entitlement gate missing');
 assert.match(planGate[0], /throw new PlanNotActiveError\(\)/);
 assert.doesNotMatch(planGate[0], /InsufficientCreditsError/);

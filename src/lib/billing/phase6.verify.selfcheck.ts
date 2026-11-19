@@ -79,7 +79,7 @@ assert.match(
 const debit = src('lib/gateway/debit.ts');
 assert.match(debit, /mode === 'add' \? current\.allocationBalance \+ grantAmount : grantAmount/);
 assert.match(debit, /Spend gate: entitled/);
-assert.match(debit, /!isEntitled\(data\)/);
+assert.match(debit, /accessMode !== 'prepaid' && !isEntitled\(billing\)/);
 
 // --- % floor (19931/20000 is 99.65, never 100) ---
 assert.equal(flooredPct(19_931, 20_000), 99.65);
