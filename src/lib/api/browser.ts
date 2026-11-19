@@ -1,7 +1,10 @@
 /**
  * Browser helpers for OkVevo HTTP APIs (Bearer Firebase ID token).
+ * Attaches X-OkVevo-Org from localStorage when an org account is selected.
  */
 import type { User } from 'firebase/auth'
+
+import { readActiveOrgPublicId } from '@/lib/orgs/activeOrg'
 
 export async function authedFetch(
   user: User,
@@ -13,6 +16,10 @@ export async function authedFetch(
   headers.set('Authorization', `Bearer ${idToken}`)
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
+  }
+  if (!headers.has('X-OkVevo-Org')) {
+    const org = readActiveOrgPublicId()
+    if (org) headers.set('X-OkVevo-Org', org)
   }
   return fetch(path, { ...init, headers })
 }

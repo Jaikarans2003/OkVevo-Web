@@ -3,7 +3,7 @@
  * Percentages only — never return raw allocation/top-up balances.
  */
 import { isEntitled } from '@/lib/billing/entitlement'
-import type { BillingAccountData } from '@/lib/db/wallet'
+import type { BillingAccountData, DbHandle } from '@/lib/db/wallet'
 import { additionalRemainingPct, remainingPct } from '@/types/credits'
 
 export type BillingSummary = {
@@ -59,9 +59,17 @@ export function billingDisplayStatus(
   return status
 }
 
+export type BillingSummaryExtras = {
+  additionalNextExpiry?: string | null
+  fundedBy?: string | null
+  /** When false, hides buy/change even for subscription wallets (non-owner). */
+  canPurchase?: boolean
+}
+
 export function billingSummaryFromAccount(
   billing: BillingAccountData | undefined,
-  now: Date = new Date()
+  now: Date = new Date(),
+  extras: BillingSummaryExtras = {}
 ): BillingSummary {
   if (!billing) {
     return {
@@ -71,14 +79,14 @@ export function billingSummaryFromAccount(
       entitled: false,
       remainingPct: 0,
       additionalPct: 0,
-      additionalNextExpiry: null,
+      additionalNextExpiry: extras.additionalNextExpiry ?? null,
       periodEnd: null,
       cancelAtPeriodEnd: false,
       scheduledChange: null,
       canCancelScheduledChange: false,
       accountKind: 'individual',
-      canPurchase: true,
-      fundedBy: null,
+      canPurchase: extras.canPurchase ?? true,
+      fundedBy: extras.fundedBy ?? null,
       billingCycle: null,
       currency: null,
       paymentMethod: null,
@@ -93,7 +101,8 @@ export function billingSummaryFromAccount(
       !(billing.scheduledChangeAt instanceof Date) ||
       billing.scheduledChangeAt.getTime() > now.getTime())
   // Child orgs (prepaid) never buy; fundedBy filled when summary is resolved with org context.
-  const canPurchase = billing.accessMode !== 'prepaid'
+  const canPurchase =
+    extras.canPurchase ?? billing.accessMode !== 'prepaid'
 
   return {
     plan: billing.plan,
@@ -106,8 +115,7 @@ export function billingSummaryFromAccount(
       billing.allocationGrantedTotal
     ),
     additionalPct: additionalRemainingPct(billing.topUpBalance, billing.topUpReference),
-    // PR 1: top-ups have no expiry column yet (PR 2).
-    additionalNextExpiry: null,
+    additionalNextExpiry: extras.additionalNextExpiry ?? null,
     periodEnd: iso(billing.currentPeriodEnd),
     cancelAtPeriodEnd: billing.cancelAtPeriodEnd,
     scheduledChange: hasScheduled
@@ -120,10 +128,31 @@ export function billingSummaryFromAccount(
     canCancelScheduledChange: false,
     accountKind: billing.accountKind,
     canPurchase,
-    fundedBy: null,
+    fundedBy: extras.fundedBy ?? null,
     billingCycle: billing.billingCycle,
     currency: billing.currency,
     paymentMethod: billing.paymentMethod,
     razorpaySubscriptionId: billing.razorpaySubscriptionId,
   }
+}
+
+/** Soonest unexpired top-up inflow expiry (ISO), or null. */
+export async function loadAdditionalNextExpiry(
+  db: DbHandle,
+  billingAccountId: string,
+  now: Date = new Date()
+): Promise<string | null> {
+  const rows = await db`
+    select min(expires_at) as next
+    from credit_transactions
+    where billing_account_id = ${billingAccountId}
+      and bucket = 'top_up'
+      and type in ('grant', 'transfer_in')
+      and expires_at is not null
+      and expires_at > ${now}
+  `
+  const next = rows[0]?.next
+  if (!next) return null
+  const d = next instanceof Date ? next : new Date(String(next))
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }

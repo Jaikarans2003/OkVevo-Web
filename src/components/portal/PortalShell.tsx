@@ -2,9 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { LogOut } from 'lucide-react';
 import { auth } from '@/config/firebase';
+import { authedJson } from '@/lib/api/browser';
+import type { MePayload } from '@/lib/api/me';
+import {
+    readActiveOrgPublicId,
+    resolveActiveOrg,
+    writeActiveOrgPublicId,
+} from '@/lib/orgs/activeOrg';
 import '@/components/landing-page/okvevo-landing.css';
 import './portal.css';
 
@@ -19,15 +27,58 @@ const LINKS = [
 export default function PortalShell({ children, signedIn = true }: { children: React.ReactNode; signedIn?: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
+    const [me, setMe] = useState<MePayload | null>(null);
+    const [activeOrg, setActiveOrg] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!signedIn) return;
+        const unsub = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                setMe(null);
+                setActiveOrg(null);
+                return;
+            }
+            try {
+                const payload = await authedJson<MePayload>(user, '/api/me');
+                setMe(payload);
+                const resolved = resolveActiveOrg({
+                    stored: readActiveOrgPublicId(),
+                    hidePersonal: payload.hidePersonal,
+                    upgradedOrgPublicId: payload.upgradedOrgPublicId,
+                    memberships: payload.memberships,
+                });
+                writeActiveOrgPublicId(resolved);
+                setActiveOrg(resolved);
+            } catch (e) {
+                console.error('PortalShell /api/me', e);
+            }
+        });
+        return () => unsub();
+    }, [signedIn]);
 
     const handleSignOut = async () => {
         try {
             await signOut(auth);
+            writeActiveOrgPublicId(null);
             router.push('/login');
         } catch (error) {
             console.error('Sign out error:', error);
         }
     };
+
+    const onAccountChange = (value: string) => {
+        const next = value === '' ? null : value;
+        writeActiveOrgPublicId(next);
+        setActiveOrg(next);
+        // Reload so billing/profile refetch with the new X-OkVevo-Org header.
+        router.refresh();
+        window.location.reload();
+    };
+
+    const showSwitcher =
+        signedIn &&
+        me &&
+        (me.memberships.length > 0 || !me.hidePersonal);
 
     return (
         <div className="ok-landing portal">
@@ -38,6 +89,27 @@ export default function PortalShell({ children, signedIn = true }: { children: R
                     </Link>
                     {signedIn ? (
                         <nav aria-label="Account">
+                            {showSwitcher ? (
+                                <label className="pt-link" style={{ gap: 6 }}>
+                                    <span className="lbl-long">Use credits from</span>
+                                    <select
+                                        aria-label="Use credits from"
+                                        value={activeOrg ?? ''}
+                                        onChange={(e) => onAccountChange(e.target.value)}
+                                        className="pt-input"
+                                        style={{ minWidth: 140, padding: '4px 8px', fontSize: 13 }}
+                                    >
+                                        {!me.hidePersonal ? (
+                                            <option value="">Personal</option>
+                                        ) : null}
+                                        {me.memberships.map((m) => (
+                                            <option key={m.orgPublicId} value={m.orgPublicId}>
+                                                {m.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            ) : null}
                             {LINKS.map((link) => (
                                 <Link
                                     key={link.href}

@@ -159,13 +159,9 @@ export default function BillingPage() {
 
     const authedPost = async (path: string, body: Record<string, unknown> = {}) => {
         if (!user) throw new Error('Not signed in');
-        const idToken = await user.getIdToken();
-        const response = await fetch(path, {
+        const { authedFetch } = await import('@/lib/api/browser');
+        const response = await authedFetch(user, path, {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify(body),
         });
         let data: Record<string, unknown> = {};
@@ -242,7 +238,9 @@ export default function BillingPage() {
         return <LoadingScreen loadKey="billing" />;
     }
 
-    const canMutatePlan = hasPlan && billing?.planStatus === 'active' && !cancelAtPeriodEnd;
+    const canPurchase = billing?.canPurchase !== false;
+    const canMutatePlan =
+        canPurchase && hasPlan && billing?.planStatus === 'active' && !cancelAtPeriodEnd;
     const spot = (ink: string) => ({ '--spot': `var(--${ink})` } as CSSProperties);
 
     return (
@@ -365,10 +363,18 @@ export default function BillingPage() {
 
                 <div className="pt-grid2">
                     <UsageBar label="Plan remaining" pct={billing?.remainingPct ?? 0} spot="var(--orange)" />
-                    <UsageBar label="Additional remaining" pct={billing?.additionalPct ?? 0} spot="var(--teal)" />
+                    <UsageBar
+                        label={
+                            billing?.additionalNextExpiry
+                                ? `Additional remaining · next expiry ${formatDate(billing.additionalNextExpiry, currency)}`
+                                : 'Additional remaining'
+                        }
+                        pct={billing?.additionalPct ?? 0}
+                        spot="var(--teal)"
+                    />
                 </div>
 
-                {hasPlan && (
+                {hasPlan && canPurchase && (
                     <div className="pt-row">
                         <button
                             type="button"
@@ -410,52 +416,61 @@ export default function BillingPage() {
                         </p>
                     </div>
                     <div>
-                        <div className="pt-topup-form">
-                            <div className="pt-field">
-                                <label htmlFor="topUpAmount">Amount in USD</label>
-                                <div className="pt-input-icon">
-                                    <DollarSign size={18} aria-hidden />
-                                    <input
-                                        id="topUpAmount"
-                                        type="number"
-                                        min={5}
-                                        max={100}
-                                        step={1}
-                                        value={topUpAmount}
-                                        onChange={(e) => setTopUpAmount(Number(e.target.value))}
-                                        className="pt-input"
-                                        disabled={hasPlan && billing?.entitled === false}
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleAddCredits}
-                                disabled={topUpLoading || (hasPlan && billing?.entitled === false)}
-                                className="btn btn--go"
-                                style={{ marginTop: 26 }}
-                            >
-                                {topUpLoading ? (
-                                    <>
-                                        <Loader2 size={16} className="animate-spin" aria-hidden />
-                                        Opening…
-                                    </>
-                                ) : (
-                                    'Buy Credits'
-                                )}
-                            </button>
-                        </div>
-                        <p className="pt-fine">
-                            $5 – $100 USD
-                            {currency === 'INR'
-                                ? ' · Charged in INR at ₹100 per USD ($10 → ₹1,000). Credits are still $ × 1,000.'
-                                : ' · Charged in USD.'}
-                        </p>
-                        {topUpError && (
-                            <p className="pt-note pt-note--bad" role="alert" style={{ marginTop: 12 }}>
-                                <AlertCircle size={18} aria-hidden />
-                                {topUpError}
+                        {!canPurchase ? (
+                            <p className="pt-note">
+                                Credits are provided by {billing?.fundedBy || 'your organisation'}. Ask your
+                                organisation admin for more.
                             </p>
+                        ) : (
+                            <>
+                                <div className="pt-topup-form">
+                                    <div className="pt-field">
+                                        <label htmlFor="topUpAmount">Amount in USD</label>
+                                        <div className="pt-input-icon">
+                                            <DollarSign size={18} aria-hidden />
+                                            <input
+                                                id="topUpAmount"
+                                                type="number"
+                                                min={5}
+                                                max={100}
+                                                step={1}
+                                                value={topUpAmount}
+                                                onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                                                className="pt-input"
+                                                disabled={hasPlan && billing?.entitled === false}
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddCredits}
+                                        disabled={topUpLoading || (hasPlan && billing?.entitled === false)}
+                                        className="btn btn--go"
+                                        style={{ marginTop: 26 }}
+                                    >
+                                        {topUpLoading ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" aria-hidden />
+                                                Opening…
+                                            </>
+                                        ) : (
+                                            'Buy Credits'
+                                        )}
+                                    </button>
+                                </div>
+                                <p className="pt-fine">
+                                    $5 – $100 USD
+                                    {currency === 'INR'
+                                        ? ' · Charged in INR at ₹100 per USD ($10 → ₹1,000). Credits are still $ × 1,000.'
+                                        : ' · Charged in USD.'}
+                                </p>
+                                {topUpError && (
+                                    <p className="pt-note pt-note--bad" role="alert" style={{ marginTop: 12 }}>
+                                        <AlertCircle size={18} aria-hidden />
+                                        {topUpError}
+                                    </p>
+                                )}
+                            </>
                         )}
                     </div>
                 </section>
