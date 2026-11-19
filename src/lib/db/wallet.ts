@@ -15,7 +15,10 @@ export type DbHandle = TxSql | Sql
 
 export type BillingAccountData = {
   id: string
-  ownerUserId: string
+  ownerUserId: string | null
+  ownerOrgId: string | null
+  accountKind: 'individual' | 'org' | 'super_org'
+  accessMode: 'subscription' | 'prepaid'
   plan: string | null
   planName: string | null
   planStatus: string | null
@@ -50,7 +53,10 @@ export function billingRowToData(row: Record<string, unknown> | undefined): Bill
   if (!row) return undefined
   return {
     id: String(row.id),
-    ownerUserId: String(row.owner_user_id),
+    ownerUserId: (row.owner_user_id as string | null) ?? null,
+    ownerOrgId: (row.owner_org_id as string | null) ?? null,
+    accountKind: (row.account_kind as BillingAccountData['accountKind']) ?? 'individual',
+    accessMode: (row.access_mode as BillingAccountData['accessMode']) ?? 'subscription',
     plan: (row.plan as string | null) ?? null,
     planName: (row.plan_name as string | null) ?? null,
     planStatus: (row.plan_status as string | null) ?? null,
@@ -91,6 +97,32 @@ export async function getBillingByUserId(
 ): Promise<BillingAccountData | undefined> {
   const rows = await db`select * from billing_accounts where owner_user_id = ${uid}`
   return billingRowToData(rows[0] as Record<string, unknown> | undefined)
+}
+
+export async function getBillingByOrgId(
+  db: DbHandle,
+  orgId: string
+): Promise<BillingAccountData | undefined> {
+  const rows = await db`select * from billing_accounts where owner_org_id = ${orgId}`
+  return billingRowToData(rows[0] as Record<string, unknown> | undefined)
+}
+
+export async function lockBillingById(
+  tx: TxSql,
+  id: string
+): Promise<BillingAccountData | undefined> {
+  const rows = await tx`select * from billing_accounts where id = ${id} for update`
+  return billingRowToData(rows[0] as Record<string, unknown> | undefined)
+}
+
+export async function updateBillingById(
+  tx: TxSql,
+  id: string,
+  patch: Record<string, unknown>
+): Promise<void> {
+  const row = omitUndefined(toBillingRow(patch))
+  if (Object.keys(row).length === 0) return
+  await tx`update billing_accounts set ${tx(row)}, updated_at = now() where id = ${id}`
 }
 
 /** Lazy-create users + billing_accounts rows. For tests, and grantCredits's first-ever grant. */

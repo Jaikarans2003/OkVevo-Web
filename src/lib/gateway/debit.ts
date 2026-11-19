@@ -988,6 +988,13 @@ export async function grantCredits(opts: {
     }
 
     const current = readBalances(billing);
+    let debtRecovered = 0;
+    let grantLedgerAmount = grantAmount;
+    if (bucket === 'topUp' && current.topUpBalance < 0 && grantAmount > 0) {
+      // Same repay step as transferCredits: net debt before recording the grant remainder.
+      debtRecovered = Math.min(grantAmount, -current.topUpBalance);
+      grantLedgerAmount = grantAmount - debtRecovered;
+    }
     const next: BucketBalances =
       bucket === 'allocation'
         ? {
@@ -1006,7 +1013,7 @@ export async function grantCredits(opts: {
       ...(bucket === 'topUp'
         ? {
             // Additional % bar resets to 100% of the post-purchase balance.
-            topUpReference: next.topUpBalance,
+            topUpReference: next.topUpBalance > 0 ? next.topUpBalance : billing.topUpReference,
             topUpPurchasedTotal: nextTopUpPurchasedTotal(
               readInt(billing.topUpPurchasedTotal),
               grantAmount,
@@ -1025,15 +1032,31 @@ export async function grantCredits(opts: {
       ...(patch ?? {}),
     });
 
-    if (grantAmount > 0 || mode === 'add') {
+    if (bucket === 'topUp' && debtRecovered > 0) {
+      await insertCreditTransaction(tx, `${requestId}:debt`, billing.id, {
+        user_id: uid,
+        type: 'debt_recovery',
+        amount: debtRecovered,
+        bucket: 'top_up',
+        request_id: requestId,
+        reason: `${reason}.debt`,
+      });
+    }
+
+    if (grantLedgerAmount > 0 || (mode === 'add' && bucket === 'allocation')) {
+      const expiresAt =
+        bucket === 'topUp'
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : null;
       await insertCreditTransaction(tx, requestId, billing.id, {
         user_id: uid,
         type: 'grant',
-        amount: grantAmount,
+        amount: grantLedgerAmount > 0 ? grantLedgerAmount : grantAmount,
         bucket: bucket === 'topUp' ? 'top_up' : 'allocation',
         request_id: requestId,
         reason,
         mode,
+        ...(expiresAt ? { expires_at: expiresAt } : {}),
       });
     }
 
