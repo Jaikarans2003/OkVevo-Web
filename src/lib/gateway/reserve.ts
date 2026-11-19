@@ -44,14 +44,27 @@ export type ReserveOk = {
 };
 export type ReserveFail = { ok: false; reason: 'insufficient' | 'duplicate' };
 
-function splitFifo(need: number, allocation: number, topUp: number): {
+/**
+ * FIFO: allocation first, then top-up. `creditLimit` (default 0) lets top-up
+ * go down to `-creditLimit` for prepaid child orgs (§5.2). creditLimit=0 is
+ * byte-identical to the pre-PR2 behaviour.
+ */
+function splitFifo(
+  need: number,
+  allocation: number,
+  topUp: number,
+  creditLimit = 0
+): {
   heldAllocation: number;
   heldTopUp: number;
   balances: BucketBalances;
 } | null {
   if (!Number.isInteger(need) || need < 0) return null;
   if (!Number.isInteger(allocation) || allocation < 0) return null;
-  if (!Number.isInteger(topUp) || topUp < 0) return null;
+  if (!Number.isInteger(topUp)) return null;
+  if (!Number.isInteger(creditLimit) || creditLimit < 0) return null;
+  const floor = creditLimit > 0 ? -creditLimit : 0;
+  if (topUp < floor) return null;
   if (need === 0) {
     return {
       heldAllocation: 0,
@@ -59,7 +72,8 @@ function splitFifo(need: number, allocation: number, topUp: number): {
       balances: { allocationBalance: allocation, topUpBalance: topUp },
     };
   }
-  if (allocation + topUp < need) return null;
+  const available = allocation + topUp - floor;
+  if (available < need) return null;
   const heldAllocation = Math.min(need, allocation);
   const heldTopUp = need - heldAllocation;
   return {
@@ -77,10 +91,16 @@ export function applyReserve(
   existing: JobRecord | undefined,
   estimated: number,
   uid: string,
-  provider: GatewayProvider
+  provider: GatewayProvider,
+  creditLimit = 0
 ): ReserveOk | ReserveFail {
   if (existing) return { ok: false, reason: 'duplicate' };
-  const split = splitFifo(estimated, balances.allocationBalance, balances.topUpBalance);
+  const split = splitFifo(
+    estimated,
+    balances.allocationBalance,
+    balances.topUpBalance,
+    creditLimit
+  );
   if (!split) return { ok: false, reason: 'insufficient' };
   return {
     ok: true,
