@@ -212,7 +212,7 @@ const xfer = await withTx((tx) =>
   })
 )
 assert.ok(xfer.ok)
-if (!xfer.ok) throw new Error(xfer.code)
+if (!xfer.ok) throw new Error('unreachable')
 
 // Spend the full transfer via a ledger debit so balance is 0 while
 // creditLimit still sees 1_000_000 received this month.

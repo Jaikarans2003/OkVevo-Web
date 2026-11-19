@@ -77,7 +77,7 @@ const xfer = await withTx((tx) =>
   })
 )
 assert.ok(xfer.ok)
-if (!xfer.ok) throw new Error(xfer.code)
+if (!xfer.ok) throw new Error('unreachable')
 assert.equal(xfer.debtRecovered, 300)
 assert.equal(xfer.toBalance, 700)
 

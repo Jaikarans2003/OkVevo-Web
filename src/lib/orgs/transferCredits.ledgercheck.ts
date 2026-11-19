@@ -205,7 +205,7 @@ const other = await withTx((tx) =>
   })
 )
 assert.equal(other.ok, true)
-if (!other.ok) throw new Error(other.code)
+if (!other.ok) throw new Error('unreachable')
 assert.equal(other.idempotent, false)
 const otherIds = transferLedgerIds(super2WalletId, otherKey)
 assert.notEqual(otherIds.out, ids.out)
