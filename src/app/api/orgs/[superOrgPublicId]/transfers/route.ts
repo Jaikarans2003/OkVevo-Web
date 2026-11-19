@@ -77,11 +77,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const status =
       result.code === 'insufficient_quota'
         ? 402
-        : result.code === 'plan_not_active'
-          ? 403
-          : result.code === 'not_child' || result.code === 'not_found'
+        : result.code === 'idempotency_conflict'
+          ? 409
+          : result.code === 'plan_not_active'
             ? 403
-            : 400
+            : result.code === 'not_child' || result.code === 'not_found'
+              ? 403
+              : 400
     return NextResponse.json({ error: result.code, code: result.code }, { status })
   }
 
