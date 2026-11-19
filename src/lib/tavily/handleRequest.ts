@@ -5,6 +5,7 @@ import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InFlightBudgetError,
   InsufficientCreditsError,
+  OrgAccessDeniedError,
   PlanNotActiveError,
   reconcileCredits,
   releaseCredits,
@@ -15,6 +16,10 @@ import {
   insufficientCreditsResponse,
   invalidTokenResponse,
 } from '@/lib/gateway/httpErrors';
+import {
+  endCustomerRefFromRequest,
+  orgPublicIdFromRequest,
+} from '@/lib/orgs/orgContext';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 import { proxyTavily, tavilyServerKey } from '@/lib/tavily/client';
 import {
@@ -38,12 +43,19 @@ export async function handleTavily(
   const token = gatewayIdToken(request);
   if (!token) return invalidTokenResponse();
   let uid: string;
+  let email: string | undefined;
+  let emailVerified: boolean | undefined;
   try {
-    uid = (await auth.verifyIdToken(token)).uid;
+    const decoded = await auth.verifyIdToken(token);
+    uid = decoded.uid;
+    email = decoded.email;
+    emailVerified = decoded.email_verified === true;
   } catch {
     return invalidTokenResponse();
   }
   if (!tavilyServerKey()) return jsonError(500, 'TAVILY_API_KEY missing');
+  const orgPublicId = orgPublicIdFromRequest(request);
+  const endCustomerRef = endCustomerRefFromRequest(request);
 
   let body: unknown = {};
   try {
@@ -67,8 +79,18 @@ export async function handleTavily(
       provider: 'tavily',
       estimatedCredits: estimated,
       extra: { action, tavilyCredits: tavilyEst },
+      orgPublicId,
+      endCustomerRef,
+      email,
+      emailVerified,
     });
   } catch (err) {
+    if (err instanceof OrgAccessDeniedError) {
+      return NextResponse.json(
+        { error: { message: err.code, code: err.code } },
+        { status: 403 }
+      );
+    }
     if (err instanceof PlanNotActiveError) {
       return jsonError(403, 'plan not active');
     }

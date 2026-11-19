@@ -186,6 +186,10 @@ function toBillingRow(patch: Record<string, unknown>): Record<string, unknown> {
 
 const JOB_KEY_MAP: Record<string, string> = {
   uid: 'user_id',
+  billingAccountId: 'billing_account_id',
+  orgId: 'org_id',
+  superOrgId: 'super_org_id',
+  endCustomerRef: 'end_customer_ref',
   provider: 'provider',
   estimatedCredits: 'estimated_credits',
   status: 'status',

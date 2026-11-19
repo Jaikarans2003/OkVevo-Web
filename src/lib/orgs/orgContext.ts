@@ -1,15 +1,134 @@
 /**
  * X-OkVevo-Org request context + child-org purchase block (plan §5.3 / §6).
+ * Paying-wallet resolution for money routes (plan §3.4).
  */
 import type { NextRequest } from 'next/server'
 
 import type { DbHandle } from '@/lib/db/wallet'
-import { getBillingByOrgId } from '@/lib/db/wallet'
+import {
+  ensureUserAndBilling,
+  getBillingByOrgId,
+  getBillingByUserId,
+  type BillingAccountData,
+} from '@/lib/db/wallet'
 import { authorizeOrg, type AuthorizeOk, type OrgRow } from '@/lib/orgs/authorize'
 
 export function orgPublicIdFromRequest(req: NextRequest): string | null {
   const raw = req.headers.get('x-okvevo-org')?.trim()
   return raw || null
+}
+
+export function endCustomerRefFromRequest(req: NextRequest): string | null {
+  const raw = req.headers.get('x-okvevo-end-customer')?.trim()
+  return raw || null
+}
+
+export type PayingWalletOk = {
+  ok: true
+  billingAccountId: string
+  orgId: string | null
+  superOrgId: string | null
+  endCustomerRef: string | null
+  accessMode: BillingAccountData['accessMode']
+}
+
+export type PayingWalletFail = {
+  ok: false
+  status: 403 | 404
+  code: 'org_access_denied' | 'org_not_found'
+}
+
+/**
+ * Resolve the wallet that pays for this request (§3.4).
+ * Header present → active spend membership required.
+ * Absent → upgraded_org_id wallet, else personal.
+ */
+export async function resolvePayingWallet(
+  db: DbHandle,
+  opts: {
+    userId: string
+    orgPublicId?: string | null
+    endCustomerRef?: string | null
+    email?: string | null
+    emailVerified?: boolean
+  }
+): Promise<PayingWalletOk | PayingWalletFail> {
+  const headerOrg = opts.orgPublicId?.trim() || null
+  const endRef =
+    headerOrg && opts.endCustomerRef?.trim() ? opts.endCustomerRef.trim() : null
+
+  if (headerOrg) {
+    const authz = await authorizeOrg(db, {
+      userId: opts.userId,
+      orgPublicId: headerOrg,
+      need: 'spend',
+      email: opts.email,
+      emailVerified: opts.emailVerified,
+    })
+    if (!authz.ok) {
+      return {
+        ok: false,
+        status: authz.code === 'org_not_found' ? 404 : 403,
+        code: authz.code,
+      }
+    }
+    const billing = await getBillingByOrgId(db, authz.org.id)
+    if (!billing) {
+      return { ok: false, status: 403, code: 'org_access_denied' }
+    }
+    const superOrgId =
+      authz.org.kind === 'super_org' ? authz.org.id : authz.org.parentId
+    return {
+      ok: true,
+      billingAccountId: billing.id,
+      orgId: authz.org.id,
+      superOrgId,
+      endCustomerRef: endRef,
+      accessMode: billing.accessMode,
+    }
+  }
+
+  const userRows = await db`
+    select upgraded_org_id from users where id = ${opts.userId}
+  `
+  const upgradedOrgId = (userRows[0]?.upgraded_org_id as string | null) ?? null
+  if (upgradedOrgId) {
+    const billing = await getBillingByOrgId(db, upgradedOrgId)
+    if (!billing) {
+      return { ok: false, status: 403, code: 'org_access_denied' }
+    }
+    const orgRows = await db`
+      select kind, parent_id from organizations where id = ${upgradedOrgId}
+    `
+    const kind = orgRows[0]?.kind as string | undefined
+    const parentId = (orgRows[0]?.parent_id as string | null) ?? null
+    const superOrgId = kind === 'super_org' ? upgradedOrgId : parentId
+    return {
+      ok: true,
+      billingAccountId: billing.id,
+      orgId: upgradedOrgId,
+      superOrgId,
+      endCustomerRef: null,
+      accessMode: billing.accessMode,
+    }
+  }
+
+  let billing = await getBillingByUserId(db, opts.userId)
+  if (!billing) {
+    await ensureUserAndBilling(db, opts.userId)
+    billing = await getBillingByUserId(db, opts.userId)
+  }
+  if (!billing) {
+    return { ok: false, status: 403, code: 'org_access_denied' }
+  }
+  return {
+    ok: true,
+    billingAccountId: billing.id,
+    orgId: null,
+    superOrgId: null,
+    endCustomerRef: null,
+    accessMode: billing.accessMode,
+  }
 }
 
 export type ChildPurchaseBlock =

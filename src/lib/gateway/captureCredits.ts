@@ -6,10 +6,11 @@ import { withTx } from '@/lib/db/tx';
 import {
   creditTransactionExists,
   insertCreditTransaction,
-  lockBillingByUserId,
+  lockBillingById,
   lockJob,
-  updateBillingByUserId,
+  updateBillingById,
   updateJob,
+  type BillingAccountData,
 } from '@/lib/db/wallet';
 import { applyCapture, omitUndefined, type JobRecord } from '@/lib/gateway/reserve';
 
@@ -40,6 +41,16 @@ function jobFromSnap(data: Record<string, unknown> | undefined): JobRecord | und
   };
 }
 
+async function lockBillingForJob(
+  tx: Parameters<Parameters<typeof withTx>[0]>[0],
+  jobRow: Record<string, unknown> | undefined
+): Promise<BillingAccountData | undefined> {
+  const billingAccountId =
+    typeof jobRow?.billingAccountId === 'string' ? jobRow.billingAccountId : null;
+  if (!billingAccountId) return undefined;
+  return lockBillingById(tx, billingAccountId);
+}
+
 export async function captureCreditsOn(
   opts: { requestId: string; falUsd: number; falCredits: number }
 ): Promise<{ skipped: boolean; refund: number; overReserve: boolean }> {
@@ -57,11 +68,12 @@ export async function captureCreditsOn(
     const jobRow = await lockJob(tx, requestId);
     const job = jobFromSnap(jobRow);
     if (!job) return;
-    const billing = await lockBillingByUserId(tx, job.uid);
+    const billing = await lockBillingForJob(tx, jobRow);
+    if (!billing) return;
     const result = applyCapture(
       {
-        allocationBalance: Number(billing?.allocationBalance || 0),
-        topUpBalance: Number(billing?.topUpBalance || 0),
+        allocationBalance: Number(billing.allocationBalance || 0),
+        topUpBalance: Number(billing.topUpBalance || 0),
       },
       job,
       falCredits
@@ -70,7 +82,7 @@ export async function captureCreditsOn(
       out = { skipped: true, refund: 0, overReserve: false };
       return;
     }
-    await updateBillingByUserId(tx, job.uid, {
+    await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
@@ -83,8 +95,12 @@ export async function captureCreditsOn(
       heldAllocation: result.heldAllocation,
       heldTopUp: result.heldTopUp,
     });
-    await insertCreditTransaction(tx, txnId, billing!.id, omitUndefined({
+    await insertCreditTransaction(tx, txnId, billing.id, omitUndefined({
       user_id: job.uid,
+      org_id: typeof jobRow?.orgId === 'string' ? jobRow.orgId : null,
+      super_org_id: typeof jobRow?.superOrgId === 'string' ? jobRow.superOrgId : null,
+      end_customer_ref:
+        typeof jobRow?.endCustomerRef === 'string' ? jobRow.endCustomerRef : null,
       type: 'refund',
       amount: result.refund,
       provider: 'fal',
