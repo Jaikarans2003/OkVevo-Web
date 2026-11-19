@@ -328,6 +328,15 @@ where type in ('debit', 'refund')
 group by 1, 2, 3, 4, 5, 6, 7, 8;
 
 -- ---------------------------------------------------------------------------
+-- Join-code redeem rate limit (same shape as upload_rate_limits)
+-- ---------------------------------------------------------------------------
+create table public.join_rate_limits (
+  user_id text primary key references public.users (id),
+  window_start_ms bigint not null,
+  count integer not null default 0
+);
+
+-- ---------------------------------------------------------------------------
 -- Lock-down new tables (same pattern as PR 1)
 -- ---------------------------------------------------------------------------
 do $$
@@ -341,7 +350,8 @@ begin
     where n.nspname = 'public'
       and c.relkind = 'r'
       and c.relname in (
-        'organizations', 'memberships', 'invitations', 'join_codes'
+        'organizations', 'memberships', 'invitations', 'join_codes',
+        'join_rate_limits'
       )
   loop
     execute format('alter table public.%I enable row level security', r.name);
