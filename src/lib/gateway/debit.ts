@@ -10,8 +10,10 @@ import {
   getJob,
   insertCreditTransaction,
   insertJob,
+  lockBillingById,
   lockBillingByUserId,
   lockJob,
+  updateBillingById,
   updateBillingByUserId,
   updateJob,
 } from '@/lib/db/wallet';
@@ -927,7 +929,10 @@ export type GrantBucket = 'allocation' | 'topUp';
  * Idempotent when requestId is provided (credit_transactions/{requestId}).
  */
 export async function grantCredits(opts: {
-  uid: string;
+  /** Individual wallet owner. Required unless `billingAccountId` is set (org wallets). */
+  uid?: string;
+  /** Org / upgraded wallet id. When set, skips ensureUserAndBilling + owner_user_id lock. */
+  billingAccountId?: string;
   amount: number;
   reason: string;
   bucket: GrantBucket;
@@ -937,10 +942,12 @@ export async function grantCredits(opts: {
   /** allocation only. `set` (default) replaces the bucket; `add` is an upgrade delta. */
   mode?: 'set' | 'add';
 }): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
-  const { uid, reason, bucket, userPatch } = opts;
+  const { reason, bucket, userPatch } = opts;
+  const uid = opts.uid;
+  const billingAccountId = opts.billingAccountId;
   const mode = opts.mode ?? 'set';
   const amount = opts.amount;
-  if (!uid) throw new Error('uid required');
+  if (!uid && !billingAccountId) throw new Error('uid or billingAccountId required');
   if (!Number.isInteger(amount) || amount < 0) {
     throw new Error('amount must be a non-negative integer');
   }
@@ -957,14 +964,21 @@ export async function grantCredits(opts: {
 
   return withTx(async (tx) => {
     if (await creditTransactionExists(tx, requestId)) {
-      const billing = await getBillingByUserId(tx, uid);
+      const billing = billingAccountId
+        ? await lockBillingById(tx, billingAccountId)
+        : await getBillingByUserId(tx, uid!);
       const b = readBalances(billing);
       return { ...b, requestId };
     }
 
-    // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
-    await ensureUserAndBilling(tx, uid);
-    const billing = await lockBillingByUserId(tx, uid);
+    let billing;
+    if (billingAccountId) {
+      billing = await lockBillingById(tx, billingAccountId);
+    } else {
+      // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
+      await ensureUserAndBilling(tx, uid!);
+      billing = await lockBillingByUserId(tx, uid!);
+    }
     if (!billing) throw new Error('billing account missing after ensure');
 
     // Cron reads due rows without a lock, then SETs here. Re-check on the locked
@@ -1007,7 +1021,7 @@ export async function grantCredits(opts: {
             topUpBalance: current.topUpBalance + grantAmount,
           };
 
-    await updateBillingByUserId(tx, uid, {
+    const balancePatch = {
       allocationBalance: next.allocationBalance,
       topUpBalance: next.topUpBalance,
       ...(bucket === 'topUp'
@@ -1030,11 +1044,17 @@ export async function grantCredits(opts: {
             ),
           }),
       ...(patch ?? {}),
-    });
+    };
+    if (billingAccountId) {
+      await updateBillingById(tx, billing.id, balancePatch);
+    } else {
+      await updateBillingByUserId(tx, uid!, balancePatch);
+    }
 
     if (bucket === 'topUp' && debtRecovered > 0) {
       await insertCreditTransaction(tx, `${requestId}:debt`, billing.id, {
-        user_id: uid,
+        user_id: billing.ownerUserId ?? uid ?? null,
+        org_id: billing.ownerOrgId,
         type: 'debt_recovery',
         amount: debtRecovered,
         bucket: 'top_up',
@@ -1049,7 +1069,8 @@ export async function grantCredits(opts: {
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
           : null;
       await insertCreditTransaction(tx, requestId, billing.id, {
-        user_id: uid,
+        user_id: billing.ownerUserId ?? uid ?? null,
+        org_id: billing.ownerOrgId,
         type: 'grant',
         amount: grantLedgerAmount > 0 ? grantLedgerAmount : grantAmount,
         bucket: bucket === 'topUp' ? 'top_up' : 'allocation',
