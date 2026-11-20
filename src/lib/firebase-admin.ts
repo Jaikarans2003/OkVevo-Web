@@ -44,25 +44,3 @@ export const auth = getAuth(app);
 export function getAdminBucket() {
   return getStorage(app).bucket(env.firebase.storageBucket);
 }
-
-export async function verifyAdminToken(token: string): Promise<boolean> {
-  try {
-    const decodedToken = await auth.verifyIdToken(token);
-
-    // Check if user has admin claim or is in admin list
-    if (decodedToken.admin === true) {
-      return true;
-    }
-
-    // Alternatively, check against admin emails list
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-    if (decodedToken.email && adminEmails.includes(decodedToken.email)) {
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return false;
-  }
-}
