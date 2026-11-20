@@ -174,7 +174,8 @@ env:
       - RUNTIME
 
   - variable: ADMIN_EMAILS
-    value: admin@okvevo.com
+    # Human ops + CI-only Layer 2 approve (never a human login in CI).
+    value: prod.okvevo@gmail.com,l2-admin@okvevo.com
     availability:
       - RUNTIME
 

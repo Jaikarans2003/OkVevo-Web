@@ -176,7 +176,7 @@ env:
       - RUNTIME
 
   - variable: ADMIN_EMAILS
-    value: admin@okvevo.com
+    value: prod.okvevo@gmail.com
     availability:
       - RUNTIME
 
