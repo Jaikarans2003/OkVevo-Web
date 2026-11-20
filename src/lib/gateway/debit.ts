@@ -3,15 +3,19 @@ import { createHash } from 'node:crypto';
 import { sql } from '@/lib/db/client';
 import { withTx, type TxSql } from '@/lib/db/tx';
 import {
+  type BillingAccountData,
   type DbHandle,
   creditTransactionExists,
   ensureUserAndBilling,
+  getBillingByOrgId,
   getBillingByUserId,
   getJob,
   insertCreditTransaction,
   insertJob,
+  lockBillingById,
   lockBillingByUserId,
   lockJob,
+  updateBillingById,
   updateBillingByUserId,
   updateJob,
 } from '@/lib/db/wallet';
@@ -41,10 +45,17 @@ import {
   type JobStatus,
   omitUndefined,
 } from '@/lib/gateway/reserve';
+import { computeCreditLimit } from '@/lib/orgs/creditLimit';
+import { resolvePayingWallet } from '@/lib/orgs/orgContext';
 import { tokenCounts, type UsageScan } from '@/lib/gateway/sse';
 
 function readInt(n: unknown): number {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 0;
+}
+
+/** top_up may be negative for prepaid child orgs (creditLimit). */
+function readTopUp(n: unknown): number {
+  return typeof n === 'number' && Number.isInteger(n) ? n : 0;
 }
 
 /**
@@ -54,7 +65,7 @@ function readInt(n: unknown): number {
 export function readBalances(data: Record<string, unknown> | undefined): BucketBalances {
   if (!data) return { allocationBalance: 0, topUpBalance: 0 };
   const allocation = readInt(data.allocationBalance);
-  let topUp = readInt(data.topUpBalance);
+  let topUp = readTopUp(data.topUpBalance);
   const legacy = readInt(data.creditBalance);
   // Migrate only when new fields were never seeded (both 0) and legacy remains.
   if (allocation === 0 && topUp === 0 && legacy > 0 && data.topUpBalance === undefined) {
@@ -136,6 +147,45 @@ export class PlanConcurrencyError extends Error {
     super('plan concurrency limit');
     this.name = 'PlanConcurrencyError';
   }
+}
+
+export class OrgAccessDeniedError extends Error {
+  readonly code: 'org_access_denied' | 'org_not_found';
+  constructor(code: 'org_access_denied' | 'org_not_found' = 'org_access_denied') {
+    super(code);
+    this.name = 'OrgAccessDeniedError';
+    this.code = code;
+  }
+}
+
+/** Child orgs use the super-org's plan slots (§5.4); prepaid always admits. */
+async function slotsForPayingWallet(
+  tx: TxSql,
+  billing: BillingAccountData
+): Promise<ReturnType<typeof slotsForPlan>> {
+  if (billing.accessMode === 'prepaid' && billing.ownerOrgId) {
+    const parentRows = await tx`
+      select parent_id from organizations where id = ${billing.ownerOrgId}
+    `;
+    const parentId = parentRows[0]?.parent_id as string | undefined;
+    if (parentId) {
+      const parentBilling = await getBillingByOrgId(tx, parentId);
+      return slotsForPlan(parentBilling?.plan, 'active');
+    }
+    return slotsForPlan(billing.plan, 'active');
+  }
+  return slotsForPlan(billing.plan, readPlanStatus(billing));
+}
+
+/** Lock the wallet stamped on the job — never re-resolve by job.uid (§5.1). */
+async function lockBillingForJob(
+  tx: TxSql,
+  jobRow: Record<string, unknown> | undefined
+): Promise<BillingAccountData | undefined> {
+  const billingAccountId =
+    typeof jobRow?.billingAccountId === 'string' ? jobRow.billingAccountId : null;
+  if (!billingAccountId) return undefined;
+  return lockBillingById(tx, billingAccountId);
 }
 
 /**
@@ -281,39 +331,54 @@ export async function reserveCredits(opts: {
   provider: GatewayProvider;
   estimatedCredits: number;
   extra?: Record<string, unknown>;
+  orgPublicId?: string | null;
+  endCustomerRef?: string | null;
+  email?: string | null;
+  emailVerified?: boolean;
 }): Promise<void> {
   const { uid, requestId, provider, estimatedCredits, extra } = opts;
   if (!uid || !requestId) throw new Error('uid and requestId required');
 
   await withTx(async (tx) => {
     const spend = readSpendForHold(extra);
-    const billing = await lockBillingByUserId(tx, uid);
+    const paying = await resolvePayingWallet(tx, {
+      userId: uid,
+      orgPublicId: opts.orgPublicId,
+      endCustomerRef: opts.endCustomerRef,
+      email: opts.email,
+      emailVerified: opts.emailVerified,
+    });
+    if (!paying.ok) throw new OrgAccessDeniedError(paying.code);
+    const billing = await lockBillingById(tx, paying.billingAccountId);
+    if (!billing) throw new OrgAccessDeniedError('org_access_denied');
     const holds = await listOpenHolds(tx, uid);
     const jobRow = await lockJob(tx, requestId);
-    const data = billing;
-    if (!isEntitled(data)) {
+    // ponytail: creditLimit recompute per reserve; cache on wallet if hot.
+    const creditLimit = await computeCreditLimit(tx, billing.id);
+    if (billing.accessMode !== 'prepaid' && !isEntitled(billing)) {
       throw new PlanNotActiveError();
     }
     if (provider === 'openrouter' && holds) {
-      const plan = slotsForPlan(data?.plan, readPlanStatus(data));
+      const plan = await slotsForPayingWallet(tx, billing);
       if (plan.admit && chatConcurrencyBlocked(holds.openChat, plan.slots)) {
         throw new PlanConcurrencyError();
       }
     }
-    const balances = readBalances(data);
+    const balances = readBalances(billing);
     const result = applyReserve(
       balances,
       jobFromSnap(jobRow),
       estimatedCredits,
       uid,
-      provider
+      provider,
+      creditLimit
     );
     if (!result.ok) {
       if (result.reason === 'duplicate') return;
       if (
         holds &&
         denialForFailedReserve({
-          spendable: balances.allocationBalance + balances.topUpBalance,
+          spendable: balances.allocationBalance + balances.topUpBalance + creditLimit,
           estimated: estimatedCredits,
           inFlightHeld: holds.held,
         }) === 'in_flight_budget_exhausted'
@@ -323,7 +388,7 @@ export async function reserveCredits(opts: {
       throw new InsufficientCreditsError();
     }
     await applySpendHold(tx, spend);
-    await updateBillingByUserId(tx, uid, {
+    await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
@@ -331,8 +396,11 @@ export async function reserveCredits(opts: {
       provider === 'openrouter' || provider === 'tavily'
         ? new Date(Date.now() + CHAT_HOLD_TTL_MS)
         : undefined;
-    await insertJob(tx, requestId, uid, billing!.id, {
+    await insertJob(tx, requestId, uid, billing.id, {
       uid,
+      orgId: paying.orgId,
+      superOrgId: paying.superOrgId,
+      endCustomerRef: paying.endCustomerRef,
       provider,
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
@@ -479,6 +547,10 @@ export async function reserveFalRun(opts: {
   bodyHash: string;
   estimatedCredits: number;
   extra?: Record<string, unknown>;
+  orgPublicId?: string | null;
+  endCustomerRef?: string | null;
+  email?: string | null;
+  emailVerified?: boolean;
 }): Promise<{
   kind: 'created' | 'continue' | 'replay' | 'unknown';
   holdId: string;
@@ -502,28 +574,41 @@ export async function reserveFalRun(opts: {
       };
     }
     const holdId = crypto.randomUUID();
-    const billing = await lockBillingByUserId(tx, opts.uid);
+    const paying = await resolvePayingWallet(tx, {
+      userId: opts.uid,
+      orgPublicId: opts.orgPublicId,
+      endCustomerRef: opts.endCustomerRef,
+      email: opts.email,
+      emailVerified: opts.emailVerified,
+    });
+    if (!paying.ok) throw new OrgAccessDeniedError(paying.code);
+    const billing = await lockBillingById(tx, paying.billingAccountId);
+    if (!billing) throw new OrgAccessDeniedError('org_access_denied');
     const jobRow = await lockJob(tx, holdId);
     const queue = await lockQueue(tx, opts.uid);
-    const data = billing;
-    if (!isEntitled(data)) throw new PlanNotActiveError();
-    const plan = slotsForPlan(data?.plan, readPlanStatus(data));
+    // ponytail: creditLimit recompute per reserve; cache on wallet if hot.
+    const creditLimit = await computeCreditLimit(tx, billing.id);
+    if (billing.accessMode !== 'prepaid' && !isEntitled(billing)) {
+      throw new PlanNotActiveError();
+    }
+    const plan = await slotsForPayingWallet(tx, billing);
     if (!plan.admit) throw new PlanNotActiveError();
     const admitted = admit(parseQueue(queue), holdId, plan.slots);
     if (!admitted.ok) throw new QueueFullError();
     const result = applyReserve(
-      readBalances(data),
+      readBalances(billing),
       jobFromSnap(jobRow),
       opts.estimatedCredits,
       opts.uid,
-      'fal'
+      'fal',
+      creditLimit
     );
     if (!result.ok) {
       if (result.reason === 'duplicate') throw new IdempotencyConflictError();
       throw new InsufficientCreditsError();
     }
     await applySpendHold(tx, spend);
-    await updateBillingByUserId(tx, opts.uid, {
+    await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
@@ -533,8 +618,11 @@ export async function reserveFalRun(opts: {
       queuedCount: admitted.state.queued.length,
       needsSubmit: admitted.placement === 'running' || queue?.needsSubmit === true,
     });
-    await insertJob(tx, holdId, opts.uid, billing!.id, {
+    await insertJob(tx, holdId, opts.uid, billing.id, {
       uid: opts.uid,
+      orgId: paying.orgId,
+      superOrgId: paying.superOrgId,
+      endCustomerRef: paying.endCustomerRef,
       provider: 'fal',
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
@@ -806,14 +894,15 @@ export async function reconcileCredits(opts: {
     // touches the day row (even reservedFalUsd 0) to match the Firestore original.
     const spendCurrent = spendDay ? await lockSpendDaily(tx, spendDay) : undefined;
 
-    const billing = await lockBillingByUserId(tx, job.uid);
-    const data = billing;
+    const billing = await lockBillingForJob(tx, jobData);
+    if (!billing) return;
     // Limits are checked only at reserve. Admitted work is always charged (§5.1),
-    // even if the plan lapsed mid-call.
-    const result = applyReconcile(readBalances(data), job, actualCredits);
+    // even if the plan lapsed mid-call. creditLimit still floors prepaid settle.
+    const creditLimit = await computeCreditLimit(tx, billing.id);
+    const result = applyReconcile(readBalances(billing), job, actualCredits, creditLimit);
     if (result.skipped) return;
 
-    await updateBillingByUserId(tx, job.uid, {
+    await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
@@ -843,8 +932,12 @@ export async function reconcileCredits(opts: {
     if (result.debitAmount <= 0) return;
 
     const amount = clampDebitAmount(result.walletDebit, result.walletDebit);
-    await insertCreditTransaction(tx, requestId, billing!.id, omitUndefined({
+    await insertCreditTransaction(tx, requestId, billing.id, omitUndefined({
       user_id: job.uid,
+      org_id: typeof jobData?.orgId === 'string' ? jobData.orgId : null,
+      super_org_id: typeof jobData?.superOrgId === 'string' ? jobData.superOrgId : null,
+      end_customer_ref:
+        typeof jobData?.endCustomerRef === 'string' ? jobData.endCustomerRef : null,
       type: 'debit',
       amount,
       absorbed: result.absorbed,
@@ -905,12 +998,13 @@ export async function releaseCredits(
       if (idemRow?.submitStarted === true) return false;
       unsentIdemId = idemId;
     }
-    const billing = await lockBillingByUserId(tx, job.uid);
+    const billing = await lockBillingForJob(tx, jobRow);
+    if (!billing) return false;
     const spend = await loadSpendRelease(tx, jobRow);
     const result = applyRelease(readBalances(billing), job);
     if (result.skipped) return false;
     writeSpendRelease(tx, spend);
-    await updateBillingByUserId(tx, job.uid, {
+    await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
     });
@@ -927,7 +1021,10 @@ export type GrantBucket = 'allocation' | 'topUp';
  * Idempotent when requestId is provided (credit_transactions/{requestId}).
  */
 export async function grantCredits(opts: {
-  uid: string;
+  /** Individual wallet owner. Required unless `billingAccountId` is set (org wallets). */
+  uid?: string;
+  /** Org / upgraded wallet id. When set, skips ensureUserAndBilling + owner_user_id lock. */
+  billingAccountId?: string;
   amount: number;
   reason: string;
   bucket: GrantBucket;
@@ -937,10 +1034,12 @@ export async function grantCredits(opts: {
   /** allocation only. `set` (default) replaces the bucket; `add` is an upgrade delta. */
   mode?: 'set' | 'add';
 }): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
-  const { uid, reason, bucket, userPatch } = opts;
+  const { reason, bucket, userPatch } = opts;
+  const uid = opts.uid;
+  const billingAccountId = opts.billingAccountId;
   const mode = opts.mode ?? 'set';
   const amount = opts.amount;
-  if (!uid) throw new Error('uid required');
+  if (!uid && !billingAccountId) throw new Error('uid or billingAccountId required');
   if (!Number.isInteger(amount) || amount < 0) {
     throw new Error('amount must be a non-negative integer');
   }
@@ -957,14 +1056,21 @@ export async function grantCredits(opts: {
 
   return withTx(async (tx) => {
     if (await creditTransactionExists(tx, requestId)) {
-      const billing = await getBillingByUserId(tx, uid);
+      const billing = billingAccountId
+        ? await lockBillingById(tx, billingAccountId)
+        : await getBillingByUserId(tx, uid!);
       const b = readBalances(billing);
       return { ...b, requestId };
     }
 
-    // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
-    await ensureUserAndBilling(tx, uid);
-    const billing = await lockBillingByUserId(tx, uid);
+    let billing;
+    if (billingAccountId) {
+      billing = await lockBillingById(tx, billingAccountId);
+    } else {
+      // Firestore parity: the first-ever grant for a brand-new user creates its wallet row.
+      await ensureUserAndBilling(tx, uid!);
+      billing = await lockBillingByUserId(tx, uid!);
+    }
     if (!billing) throw new Error('billing account missing after ensure');
 
     // Cron reads due rows without a lock, then SETs here. Re-check on the locked
@@ -988,6 +1094,13 @@ export async function grantCredits(opts: {
     }
 
     const current = readBalances(billing);
+    let debtRecovered = 0;
+    let grantLedgerAmount = grantAmount;
+    if (bucket === 'topUp' && current.topUpBalance < 0 && grantAmount > 0) {
+      // Same repay step as transferCredits: net debt before recording the grant remainder.
+      debtRecovered = Math.min(grantAmount, -current.topUpBalance);
+      grantLedgerAmount = grantAmount - debtRecovered;
+    }
     const next: BucketBalances =
       bucket === 'allocation'
         ? {
@@ -1000,13 +1113,13 @@ export async function grantCredits(opts: {
             topUpBalance: current.topUpBalance + grantAmount,
           };
 
-    await updateBillingByUserId(tx, uid, {
+    const balancePatch = {
       allocationBalance: next.allocationBalance,
       topUpBalance: next.topUpBalance,
       ...(bucket === 'topUp'
         ? {
             // Additional % bar resets to 100% of the post-purchase balance.
-            topUpReference: next.topUpBalance,
+            topUpReference: next.topUpBalance > 0 ? next.topUpBalance : billing.topUpReference,
             topUpPurchasedTotal: nextTopUpPurchasedTotal(
               readInt(billing.topUpPurchasedTotal),
               grantAmount,
@@ -1023,17 +1136,40 @@ export async function grantCredits(opts: {
             ),
           }),
       ...(patch ?? {}),
-    });
+    };
+    if (billingAccountId) {
+      await updateBillingById(tx, billing.id, balancePatch);
+    } else {
+      await updateBillingByUserId(tx, uid!, balancePatch);
+    }
 
-    if (grantAmount > 0 || mode === 'add') {
+    if (bucket === 'topUp' && debtRecovered > 0) {
+      await insertCreditTransaction(tx, `${requestId}:debt`, billing.id, {
+        user_id: billing.ownerUserId ?? uid ?? null,
+        org_id: billing.ownerOrgId,
+        type: 'debt_recovery',
+        amount: debtRecovered,
+        bucket: 'top_up',
+        request_id: requestId,
+        reason: `${reason}.debt`,
+      });
+    }
+
+    if (grantLedgerAmount > 0 || (mode === 'add' && bucket === 'allocation')) {
+      const expiresAt =
+        bucket === 'topUp'
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : null;
       await insertCreditTransaction(tx, requestId, billing.id, {
-        user_id: uid,
+        user_id: billing.ownerUserId ?? uid ?? null,
+        org_id: billing.ownerOrgId,
         type: 'grant',
-        amount: grantAmount,
+        amount: grantLedgerAmount > 0 ? grantLedgerAmount : grantAmount,
         bucket: bucket === 'topUp' ? 'top_up' : 'allocation',
         request_id: requestId,
         reason,
         mode,
+        ...(expiresAt ? { expires_at: expiresAt } : {}),
       });
     }
 

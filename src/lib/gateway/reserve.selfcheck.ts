@@ -170,4 +170,139 @@ const inactive = refreshAllocationIfDue(
 );
 assert.equal(inactive, null);
 
+// Test 2 (plan §9): creditLimit=0 reproduces every existing reserve/reconcile result.
+{
+  const cases: Array<() => void> = [
+    () => {
+      const a = applyReserve(
+        { allocationBalance: 100, topUpBalance: 50 },
+        undefined,
+        120,
+        uid,
+        'openrouter'
+      );
+      const b = applyReserve(
+        { allocationBalance: 100, topUpBalance: 50 },
+        undefined,
+        120,
+        uid,
+        'openrouter',
+        0
+      );
+      assert.deepEqual(a, b);
+    },
+    () => {
+      const a = applyReserve(
+        { allocationBalance: 10, topUpBalance: 5 },
+        undefined,
+        20,
+        uid,
+        'openrouter'
+      );
+      const b = applyReserve(
+        { allocationBalance: 10, topUpBalance: 5 },
+        undefined,
+        20,
+        uid,
+        'openrouter',
+        0
+      );
+      assert.deepEqual(a, b);
+    },
+    () => {
+      const job = (
+        applyReserve(
+          { allocationBalance: 100, topUpBalance: 50 },
+          undefined,
+          120,
+          uid,
+          'openrouter'
+        ) as Extract<ReturnType<typeof applyReserve>, { ok: true }>
+      ).job;
+      assert.deepEqual(
+        applyReserve({ allocationBalance: 100, topUpBalance: 50 }, job, 10, uid, 'openrouter'),
+        applyReserve({ allocationBalance: 100, topUpBalance: 50 }, job, 10, uid, 'openrouter', 0)
+      );
+    },
+    () => {
+      const start = { allocationBalance: 50, topUpBalance: 0 };
+      const a = applyReserve(start, undefined, 40, uid, 'fal');
+      const b = applyReserve(start, undefined, 40, uid, 'fal', 0);
+      assert.deepEqual(a, b);
+      if (!a.ok || !b.ok) throw new Error('unreachable');
+      assert.deepEqual(
+        applyReserve(a.balances, a.job, 40, uid, 'fal'),
+        applyReserve(b.balances, b.job, 40, uid, 'fal', 0)
+      );
+      const submitted = { ...a.job, status: 'submitted' as const };
+      assert.deepEqual(
+        applyReconcile(a.balances, submitted, 10),
+        applyReconcile(b.balances, submitted, 10, 0)
+      );
+      assert.deepEqual(
+        applyReconcile(
+          { allocationBalance: 0, topUpBalance: 10 },
+          { ...submitted, heldAllocation: 40, heldTopUp: 0 },
+          55
+        ),
+        applyReconcile(
+          { allocationBalance: 0, topUpBalance: 10 },
+          { ...submitted, heldAllocation: 40, heldTopUp: 0 },
+          55,
+          0
+        )
+      );
+    },
+    () => {
+      assert.deepEqual(
+        applyReserve({ allocationBalance: 5, topUpBalance: 0 }, undefined, 0, uid, 'tavily'),
+        applyReserve({ allocationBalance: 5, topUpBalance: 0 }, undefined, 0, uid, 'tavily', 0)
+      );
+    },
+  ];
+  for (const run of cases) run();
+}
+
+// Prepaid child org: top-up may go negative up to creditLimit.
+const prepaidOk = applyReserve(
+  { allocationBalance: 0, topUpBalance: 0 },
+  undefined,
+  50,
+  uid,
+  'openrouter',
+  100
+);
+assert.equal(prepaidOk.ok, true);
+if (!prepaidOk.ok) throw new Error('unreachable');
+assert.equal(prepaidOk.balances.topUpBalance, -50);
+
+const prepaidCap = applyReserve(
+  { allocationBalance: 0, topUpBalance: 0 },
+  undefined,
+  101,
+  uid,
+  'openrouter',
+  100
+);
+assert.equal(prepaidCap.ok, false);
+
+const settleNeg = applyReconcile(
+  { allocationBalance: 0, topUpBalance: -20 },
+  {
+    uid,
+    provider: 'openrouter',
+    estimatedCredits: 50,
+    status: 'reserved',
+    heldAllocation: 0,
+    heldTopUp: 50,
+  },
+  50,
+  100
+);
+assert.equal(settleNeg.skipped, false);
+if (settleNeg.skipped) throw new Error('unreachable');
+assert.equal(settleNeg.balances.topUpBalance, -20);
+assert.equal(settleNeg.walletDebit, 50);
+assert.equal(settleNeg.absorbed, 0);
+
 console.log('reserve.selfcheck: ok');

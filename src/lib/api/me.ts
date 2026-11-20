@@ -12,11 +12,19 @@ export type MeUser = {
   bio: string | null
 }
 
+export type MeMembership = {
+  orgPublicId: string
+  name: string
+  kind: 'org' | 'super_org'
+  role: 'owner' | 'admin' | 'member'
+  parent: string | null
+}
+
 export type MePayload = {
   user: MeUser
-  memberships: []
-  hidePersonal: false
-  upgradedOrgPublicId: null
+  memberships: MeMembership[]
+  hidePersonal: boolean
+  upgradedOrgPublicId: string | null
   isPlatformAdmin: boolean
 }
 
@@ -77,11 +85,38 @@ export async function getMePayload(
     email: decoded.email_verified === true ? decoded.email ?? null : null,
     displayName: decoded.name ?? null,
   })
+
+  const upgradedRows = await sql`
+    select u.upgraded_org_id, o.public_id as upgraded_public_id
+    from users u
+    left join organizations o on o.id = u.upgraded_org_id
+    where u.id = ${uid}
+  `
+  const upgradedOrgPublicId =
+    (upgradedRows[0]?.upgraded_public_id as string | null | undefined) ?? null
+  const hidePersonal = upgradedOrgPublicId != null
+
+  const memRows = await sql`
+    select o.public_id, o.name, o.kind, m.role, p.public_id as parent_public_id
+    from memberships m
+    join organizations o on o.id = m.org_id
+    left join organizations p on p.id = o.parent_id
+    where m.user_id = ${uid} and m.status = 'active'
+    order by o.created_at asc
+  `
+  const memberships: MeMembership[] = memRows.map((row) => ({
+    orgPublicId: String(row.public_id),
+    name: String(row.name),
+    kind: row.kind as 'org' | 'super_org',
+    role: row.role as 'owner' | 'admin' | 'member',
+    parent: (row.parent_public_id as string | null) ?? null,
+  }))
+
   return {
     user,
-    memberships: [],
-    hidePersonal: false,
-    upgradedOrgPublicId: null,
+    memberships,
+    hidePersonal,
+    upgradedOrgPublicId,
     isPlatformAdmin: isPlatformAdmin(decoded),
   }
 }

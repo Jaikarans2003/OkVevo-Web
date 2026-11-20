@@ -117,8 +117,8 @@ export function userBillingFromData(uid: string, data: Record<string, unknown> |
 
 export async function loadUserBillingSoT(uid: string): Promise<UserBillingSoT> {
   const { sql } = await import('@/lib/db/client');
-  const { getBillingByUserId } = await import('@/lib/db/wallet');
-  const billing = await getBillingByUserId(sql, uid);
+  const { loadBillingAccountForUser } = await import('@/lib/db/wallet');
+  const billing = await loadBillingAccountForUser(sql, uid);
   return userBillingFromData(uid, billing);
 }
 

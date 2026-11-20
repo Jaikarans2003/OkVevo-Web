@@ -21,17 +21,23 @@ export type Database = {
                   ]
                 },"billing_accounts": {
                   Row: {
-                    "access_mode": string,"account_kind": string,"allocation_balance": number,"allocation_granted_total": number,"billing_cycle": string | null,"cancel_at_period_end": boolean,"concurrency_override": number | null,"created_at": string,"credits_included": number,"currency": string | null,"current_period_end": string | null,"has_scheduled_changes": boolean,"id": string,"next_allocation_date": string | null,"owner_user_id": string,"payment_method": string | null,"plan": string | null,"plan_name": string | null,"plan_status": string | null,"razorpay_customer_id": string | null,"razorpay_subscription_id": string | null,"scheduled_change_at": string | null,"scheduled_plan_id": string | null,"scheduled_plan_type": string | null,"top_up_balance": number,"top_up_purchased_total": number,"top_up_reference": number,"updated_at": string
+                    "access_mode": string,"account_kind": string,"allocation_balance": number,"allocation_granted_total": number,"billing_cycle": string | null,"cancel_at_period_end": boolean,"concurrency_override": number | null,"created_at": string,"credits_included": number,"currency": string | null,"current_period_end": string | null,"has_scheduled_changes": boolean,"id": string,"next_allocation_date": string | null,"owner_org_id": string | null,"owner_user_id": string | null,"payment_method": string | null,"plan": string | null,"plan_name": string | null,"plan_status": string | null,"razorpay_customer_id": string | null,"razorpay_subscription_id": string | null,"scheduled_change_at": string | null,"scheduled_plan_id": string | null,"scheduled_plan_type": string | null,"top_up_balance": number,"top_up_purchased_total": number,"top_up_reference": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_user_id": string,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
+                    "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_org_id"?: string | null,"owner_user_id"?: string | null,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
                   }
                   Update: {
-                    "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_user_id"?: string,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
+                    "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_org_id"?: string | null,"owner_user_id"?: string | null,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "billing_accounts_owner_org_id_fkey"
+      columns: ["owner_org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "billing_accounts_owner_user_id_fkey"
       columns: ["owner_user_id"]
 isOneToOne: true
@@ -61,28 +67,46 @@ isOneToOne: false
                   ]
                 },"contact_submissions": {
                   Row: {
-                    "category": string,"created_at": string,"email": string,"id": string,"message": string,"whatsapp": string | null
+                    "approved_at": string | null,"approved_by": string | null,"category": string,"created_at": string,"email": string,"id": string,"message": string,"subject_org_id": string | null,"user_id": string | null,"whatsapp": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "category": string,"created_at"?: string,"email": string,"id"?: string,"message": string,"whatsapp"?: string | null
+                    "approved_at"?: string | null,"approved_by"?: string | null,"category": string,"created_at"?: string,"email": string,"id"?: string,"message": string,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
                   }
                   Update: {
-                    "category"?: string,"created_at"?: string,"email"?: string,"id"?: string,"message"?: string,"whatsapp"?: string | null
+                    "approved_at"?: string | null,"approved_by"?: string | null,"category"?: string,"created_at"?: string,"email"?: string,"id"?: string,"message"?: string,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "contact_submissions_approved_by_fkey"
+      columns: ["approved_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contact_submissions_subject_org_id_fkey"
+      columns: ["subject_org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contact_submissions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"credit_transactions": {
                   Row: {
-                    "absorbed": number,"amount": number,"billing_account_id": string,"bucket": string | null,"completion_tokens": number | null,"cost_usd": number | null,"created_at": string,"end_customer_ref": string | null,"expires_at": string | null,"id": string,"mode": string | null,"model": string | null,"price_usd": number | null,"prompt_tokens": number | null,"provider": string | null,"reason": string | null,"request_id": string | null,"type": string,"user_id": string | null
+                    "absorbed": number,"amount": number,"billing_account_id": string,"bucket": string | null,"completion_tokens": number | null,"cost_usd": number | null,"counterparty_billing_account_id": string | null,"created_at": string,"end_customer_ref": string | null,"expires_at": string | null,"id": string,"mode": string | null,"model": string | null,"org_id": string | null,"price_usd": number | null,"prompt_tokens": number | null,"provider": string | null,"reason": string | null,"request_id": string | null,"super_org_id": string | null,"type": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "absorbed"?: number,"amount": number,"billing_account_id": string,"bucket"?: string | null,"completion_tokens"?: number | null,"cost_usd"?: number | null,"created_at"?: string,"end_customer_ref"?: string | null,"expires_at"?: string | null,"id": string,"mode"?: string | null,"model"?: string | null,"price_usd"?: number | null,"prompt_tokens"?: number | null,"provider"?: string | null,"reason"?: string | null,"request_id"?: string | null,"type": string,"user_id"?: string | null
+                    "absorbed"?: number,"amount": number,"billing_account_id": string,"bucket"?: string | null,"completion_tokens"?: number | null,"cost_usd"?: number | null,"counterparty_billing_account_id"?: string | null,"created_at"?: string,"end_customer_ref"?: string | null,"expires_at"?: string | null,"id": string,"mode"?: string | null,"model"?: string | null,"org_id"?: string | null,"price_usd"?: number | null,"prompt_tokens"?: number | null,"provider"?: string | null,"reason"?: string | null,"request_id"?: string | null,"super_org_id"?: string | null,"type": string,"user_id"?: string | null
                   }
                   Update: {
-                    "absorbed"?: number,"amount"?: number,"billing_account_id"?: string,"bucket"?: string | null,"completion_tokens"?: number | null,"cost_usd"?: number | null,"created_at"?: string,"end_customer_ref"?: string | null,"expires_at"?: string | null,"id"?: string,"mode"?: string | null,"model"?: string | null,"price_usd"?: number | null,"prompt_tokens"?: number | null,"provider"?: string | null,"reason"?: string | null,"request_id"?: string | null,"type"?: string,"user_id"?: string | null
+                    "absorbed"?: number,"amount"?: number,"billing_account_id"?: string,"bucket"?: string | null,"completion_tokens"?: number | null,"cost_usd"?: number | null,"counterparty_billing_account_id"?: string | null,"created_at"?: string,"end_customer_ref"?: string | null,"expires_at"?: string | null,"id"?: string,"mode"?: string | null,"model"?: string | null,"org_id"?: string | null,"price_usd"?: number | null,"prompt_tokens"?: number | null,"provider"?: string | null,"reason"?: string | null,"request_id"?: string | null,"super_org_id"?: string | null,"type"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -90,6 +114,24 @@ isOneToOne: false
       columns: ["billing_account_id"]
 isOneToOne: false
       referencedRelation: "billing_accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_counterparty_billing_account_id_fkey"
+      columns: ["counterparty_billing_account_id"]
+isOneToOne: false
+      referencedRelation: "billing_accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_super_org_id_fkey"
+      columns: ["super_org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "credit_transactions_user_id_fkey"
@@ -201,14 +243,14 @@ isOneToOne: false
                   ]
                 },"gateway_jobs": {
                   Row: {
-                    "actual_credits": number | null,"alias_of": string | null,"billing_account_id": string,"cancel_requested": boolean,"captured": boolean,"captured_at": string | null,"captured_fal_usd": number | null,"character": string | null,"client_code": string | null,"client_message": string | null,"consent_at": string | null,"created_at": string,"dispatched_at": string | null,"end_customer_ref": string | null,"endpoint": string | null,"estimated_credits": number | null,"fal_body": Json | null,"fal_cancel_url": string | null,"fal_request_id": string | null,"fal_response_url": string | null,"fal_status_url": string | null,"first_reject_at_ms": number | null,"held_allocation": number | null,"held_top_up": number | null,"hold_expires_at": string | null,"hold_id": string | null,"id": string,"media": Json | null,"next_attempt_at_ms": number | null,"payload": Json | null,"price_snapshot": Json | null,"project": string | null,"provider": string | null,"queue_position": number | null,"release_reason": string | null,"request_id": string | null,"reserved_fal_usd": number | null,"run_id": string | null,"sample_sha256": string | null,"settled_at": string | null,"settled_credits": number | null,"settled_fal_usd": number | null,"spend_day": string | null,"status": string | null,"submit_args": Json | null,"submit_attempts": number,"unit": string | null,"unit_price": number | null,"updated_at": string,"user_id": string,"vendor_status": number | null
+                    "actual_credits": number | null,"alias_of": string | null,"billing_account_id": string,"cancel_requested": boolean,"captured": boolean,"captured_at": string | null,"captured_fal_usd": number | null,"character": string | null,"client_code": string | null,"client_message": string | null,"consent_at": string | null,"created_at": string,"dispatched_at": string | null,"end_customer_ref": string | null,"endpoint": string | null,"estimated_credits": number | null,"fal_body": Json | null,"fal_cancel_url": string | null,"fal_request_id": string | null,"fal_response_url": string | null,"fal_status_url": string | null,"first_reject_at_ms": number | null,"held_allocation": number | null,"held_top_up": number | null,"hold_expires_at": string | null,"hold_id": string | null,"id": string,"media": Json | null,"next_attempt_at_ms": number | null,"org_id": string | null,"payload": Json | null,"price_snapshot": Json | null,"project": string | null,"provider": string | null,"queue_position": number | null,"release_reason": string | null,"request_id": string | null,"reserved_fal_usd": number | null,"run_id": string | null,"sample_sha256": string | null,"settled_at": string | null,"settled_credits": number | null,"settled_fal_usd": number | null,"spend_day": string | null,"status": string | null,"submit_args": Json | null,"submit_attempts": number,"super_org_id": string | null,"unit": string | null,"unit_price": number | null,"updated_at": string,"user_id": string,"vendor_status": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id": string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id": string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id": string,"vendor_status"?: number | null
+                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id": string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id": string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"org_id"?: string | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"super_org_id"?: string | null,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id": string,"vendor_status"?: number | null
                   }
                   Update: {
-                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id"?: string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id"?: string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id"?: string,"vendor_status"?: number | null
+                    "actual_credits"?: number | null,"alias_of"?: string | null,"billing_account_id"?: string,"cancel_requested"?: boolean,"captured"?: boolean,"captured_at"?: string | null,"captured_fal_usd"?: number | null,"character"?: string | null,"client_code"?: string | null,"client_message"?: string | null,"consent_at"?: string | null,"created_at"?: string,"dispatched_at"?: string | null,"end_customer_ref"?: string | null,"endpoint"?: string | null,"estimated_credits"?: number | null,"fal_body"?: Json | null,"fal_cancel_url"?: string | null,"fal_request_id"?: string | null,"fal_response_url"?: string | null,"fal_status_url"?: string | null,"first_reject_at_ms"?: number | null,"held_allocation"?: number | null,"held_top_up"?: number | null,"hold_expires_at"?: string | null,"hold_id"?: string | null,"id"?: string,"media"?: Json | null,"next_attempt_at_ms"?: number | null,"org_id"?: string | null,"payload"?: Json | null,"price_snapshot"?: Json | null,"project"?: string | null,"provider"?: string | null,"queue_position"?: number | null,"release_reason"?: string | null,"request_id"?: string | null,"reserved_fal_usd"?: number | null,"run_id"?: string | null,"sample_sha256"?: string | null,"settled_at"?: string | null,"settled_credits"?: number | null,"settled_fal_usd"?: number | null,"spend_day"?: string | null,"status"?: string | null,"submit_args"?: Json | null,"submit_attempts"?: number,"super_org_id"?: string | null,"unit"?: string | null,"unit_price"?: number | null,"updated_at"?: string,"user_id"?: string,"vendor_status"?: number | null
                   }
                   Relationships: [
                     {
@@ -218,7 +260,123 @@ isOneToOne: false
       referencedRelation: "billing_accounts"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "gateway_jobs_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "gateway_jobs_super_org_id_fkey"
+      columns: ["super_org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "gateway_jobs_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"invitations": {
+                  Row: {
+                    "accepted_at": string | null,"accepted_by": string | null,"created_at": string,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"org_id": string,"revoked_at": string | null,"role": string,"token_hash": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"email": string,"expires_at": string,"id"?: string,"invited_by"?: string | null,"org_id": string,"revoked_at"?: string | null,"role": string,"token_hash": string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"email"?: string,"expires_at"?: string,"id"?: string,"invited_by"?: string | null,"org_id"?: string,"revoked_at"?: string | null,"role"?: string,"token_hash"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invitations_accepted_by_fkey"
+      columns: ["accepted_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invitations_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invitations_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"join_codes": {
+                  Row: {
+                    "code_hash": string,"created_at": string,"created_by": string | null,"expires_at": string | null,"id": string,"max_uses": number | null,"org_id": string,"revoked_at": string | null,"role": string,"uses": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "code_hash": string,"created_at"?: string,"created_by"?: string | null,"expires_at"?: string | null,"id"?: string,"max_uses"?: number | null,"org_id": string,"revoked_at"?: string | null,"role"?: string,"uses"?: number
+                  }
+                  Update: {
+                    "code_hash"?: string,"created_at"?: string,"created_by"?: string | null,"expires_at"?: string | null,"id"?: string,"max_uses"?: number | null,"org_id"?: string,"revoked_at"?: string | null,"role"?: string,"uses"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "join_codes_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "join_codes_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"join_rate_limits": {
+                  Row: {
+                    "count": number,"user_id": string,"window_start_ms": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "count"?: number,"user_id": string,"window_start_ms": number
+                  }
+                  Update: {
+                    "count"?: number,"user_id"?: string,"window_start_ms"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "join_rate_limits_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: true
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"memberships": {
+                  Row: {
+                    "created_at": string,"org_id": string,"role": string,"status": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"org_id": string,"role": string,"status"?: string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"org_id"?: string,"role"?: string,"status"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "memberships_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "memberships_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "users"
@@ -238,6 +396,32 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"organizations": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"kind": string,"name": string,"parent_id": string | null,"public_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"kind": string,"name": string,"parent_id"?: string | null,"public_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"name"?: string,"parent_id"?: string | null,"public_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "organizations_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "organizations_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"razorpay_subscriptions": {
                   Row: {
@@ -309,22 +493,60 @@ isOneToOne: true
                   ]
                 },"users": {
                   Row: {
-                    "bio": string | null,"created_at": string,"display_name": string | null,"email": string | null,"id": string,"phone_number": string | null,"updated_at": string
+                    "bio": string | null,"created_at": string,"display_name": string | null,"email": string | null,"id": string,"phone_number": string | null,"updated_at": string,"upgraded_org_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"email"?: string | null,"id": string,"phone_number"?: string | null,"updated_at"?: string
+                    "bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"email"?: string | null,"id": string,"phone_number"?: string | null,"updated_at"?: string,"upgraded_org_id"?: string | null
                   }
                   Update: {
-                    "bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"email"?: string | null,"id"?: string,"phone_number"?: string | null,"updated_at"?: string
+                    "bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"email"?: string | null,"id"?: string,"phone_number"?: string | null,"updated_at"?: string,"upgraded_org_id"?: string | null
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "users_upgraded_org_id_fkey"
+      columns: ["upgraded_org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
                   ]
                 }
           }
           Views: {
-            [_ in never]: never
+            "usage_daily": {
+                  Row: {
+                    "billing_account_id": string,"cost_usd": number | null,"credits": number | null,"day": string | null,"end_customer_ref": string | null,"model": string | null,"org_id": string | null,"provider": string | null,"requests": number | null,"super_org_id": string | null,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_transactions_billing_account_id_fkey"
+      columns: ["billing_account_id"]
+isOneToOne: false
+      referencedRelation: "billing_accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_super_org_id_fkey"
+      columns: ["super_org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_transactions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Functions: {
             [_ in never]: never

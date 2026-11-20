@@ -6,6 +6,7 @@ import { gatewayIdToken } from '@/lib/gateway/auth';
 import {
   InFlightBudgetError,
   InsufficientCreditsError,
+  OrgAccessDeniedError,
   PlanConcurrencyError,
   PlanNotActiveError,
   releaseCredits,
@@ -18,6 +19,10 @@ import {
   invalidTokenResponse,
   planConcurrencyResponse,
 } from '@/lib/gateway/httpErrors';
+import {
+  endCustomerRefFromRequest,
+  orgPublicIdFromRequest,
+} from '@/lib/orgs/orgContext';
 import {
   creditsFromTokens,
   hasPositiveRates,
@@ -98,11 +103,18 @@ export async function POST(request: NextRequest) {
   if (!idToken) return invalidTokenResponse();
 
   let uid: string;
+  let email: string | undefined;
+  let emailVerified: boolean | undefined;
   try {
-    uid = (await auth.verifyIdToken(idToken)).uid;
+    const decoded = await auth.verifyIdToken(idToken);
+    uid = decoded.uid;
+    email = decoded.email;
+    emailVerified = decoded.email_verified === true;
   } catch {
     return invalidTokenResponse();
   }
+  const orgPublicId = orgPublicIdFromRequest(request);
+  const endCustomerRef = endCustomerRefFromRequest(request);
 
   const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) {
@@ -164,8 +176,15 @@ export async function POST(request: NextRequest) {
         provider: 'openrouter',
         estimatedCredits: estimated,
         extra: { model },
+        orgPublicId,
+        endCustomerRef,
+        email,
+        emailVerified,
       });
     } catch (err) {
+      if (err instanceof OrgAccessDeniedError) {
+        return openaiError(403, err.code, err.code, err.code);
+      }
       if (err instanceof PlanNotActiveError) {
         return openaiError(403, 'plan not active', 'plan_not_active', 'plan_not_active');
       }

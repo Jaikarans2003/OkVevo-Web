@@ -85,8 +85,13 @@ assert.match(
 );
 assert.match(
   billingPage,
-  /Authorization: `Bearer \$\{idToken\}`/,
-  'billing mutations send the ID token'
+  /authedFetch|Authorization: `Bearer \$\{idToken\}`/,
+  'billing mutations send the ID token (inline or via authedFetch)'
+);
+assert.match(
+  src('lib/api/browser.ts'),
+  /Authorization.*Bearer \$\{idToken\}/,
+  'authedFetch attaches Bearer ID token'
 );
 assert.doesNotMatch(
   billingPage,

@@ -19,11 +19,17 @@ export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [me, setMe] = useState<MePayload | null>(null);
     const [billing, setBilling] = useState<BillingSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+    const [orgName, setOrgName] = useState('');
+    const [orgNameConfirm, setOrgNameConfirm] = useState('');
+    const [joinCode, setJoinCode] = useState('');
+    const [applyMessage, setApplyMessage] = useState('');
+    const [orgBusy, setOrgBusy] = useState(false);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -36,19 +42,20 @@ export default function ProfilePage() {
             if (currentUser) {
                 setUser(currentUser);
                 try {
-                    const [me, summary] = await Promise.all([
+                    const [mePayload, summary] = await Promise.all([
                         authedJson<MePayload>(currentUser, '/api/me'),
                         authedJson<BillingSummary>(currentUser, '/api/billing/summary'),
                     ]);
                     const profileData: UserProfile = {
-                        uid: me.user.id,
-                        email: me.user.email || currentUser.email || '',
+                        uid: mePayload.user.id,
+                        email: mePayload.user.email || currentUser.email || '',
                         onboardingComplete: true,
-                        bio: me.user.bio ?? undefined,
-                        phoneNumber: me.user.phoneNumber ?? undefined,
+                        bio: mePayload.user.bio ?? undefined,
+                        phoneNumber: mePayload.user.phoneNumber ?? undefined,
                         createdAt: null,
                         updatedAt: null,
                     };
+                    setMe(mePayload);
                     setProfile(profileData);
                     setBilling(summary);
                     setFormData({
@@ -120,13 +127,13 @@ export default function ProfilePage() {
 
     if (!user) return null;
 
-    const userTypeConfig = {
-        single: { label: 'Individual', icon: Users, ink: 'ochre', detail: 'Single user account' },
-        pro: { label: 'Pro Team', icon: Crown, ink: 'orange', detail: '5-seat team account' },
-        organisation: { label: 'Organisation', icon: Building2, ink: 'slate', detail: 'Organisation account' },
-    };
-    const typeKey = (profile?.userType || 'single') as keyof typeof userTypeConfig;
-    const typeInfo = userTypeConfig[typeKey] || userTypeConfig.single;
+    const accountKind = billing?.accountKind || 'individual';
+    const typeInfo =
+        accountKind === 'super_org'
+            ? { label: 'Super-organisation', icon: Crown, ink: 'orange', detail: 'Parent organisation' }
+            : accountKind === 'org'
+              ? { label: 'Organisation', icon: Building2, ink: 'slate', detail: 'Organisation account' }
+              : { label: 'Individual', icon: Users, ink: 'ochre', detail: 'Personal account' };
 
     const facts = [
         {
@@ -143,6 +150,22 @@ export default function ProfilePage() {
         { label: 'Phone', value: formData.phoneNumber || 'Not added', icon: Phone, ink: 'olive', detail: 'Primary contact' },
     ];
     const closeEdit = () => { setIsEditing(false); setStatus({ type: null, message: '' }); };
+
+    const runOrgAction = async (fn: () => Promise<void>) => {
+        if (!user) return;
+        setOrgBusy(true);
+        setStatus({ type: null, message: '' });
+        try {
+            await fn();
+            const refreshed = await authedJson<MePayload>(user, '/api/me');
+            setMe(refreshed);
+            setStatus({ type: 'success', message: 'Done.' });
+        } catch (e: unknown) {
+            setStatus({ type: 'error', message: e instanceof Error ? e.message : 'Request failed' });
+        } finally {
+            setOrgBusy(false);
+        }
+    };
 
     return (
         <PortalShell>
@@ -270,6 +293,151 @@ export default function ProfilePage() {
                         </motion.form>
                     )}
                 </AnimatePresence>
+
+                {!isEditing && me ? (
+                    <section className="pt-stack" style={{ marginTop: 28 }}>
+                        <h2>Organisation</h2>
+                        {!me.hidePersonal ? (
+                            <div className="pt-fact" style={{ '--spot': 'var(--slate)' } as CSSProperties}>
+                                <p className="pt-label">Upgrade to organisation</p>
+                                <p className="pt-fine">This can&apos;t be undone. Your plan and credits stay on the same wallet.</p>
+                                <div className="pt-field" style={{ marginTop: 12 }}>
+                                    <label htmlFor="org-name">Organisation name</label>
+                                    <input
+                                        id="org-name"
+                                        className="pt-input"
+                                        value={orgName}
+                                        onChange={(e) => setOrgName(e.target.value)}
+                                        placeholder="Acme Studio"
+                                    />
+                                </div>
+                                <div className="pt-field">
+                                    <label htmlFor="org-name-confirm">Type the name to confirm</label>
+                                    <input
+                                        id="org-name-confirm"
+                                        className="pt-input"
+                                        value={orgNameConfirm}
+                                        onChange={(e) => setOrgNameConfirm(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn--go"
+                                    disabled={orgBusy || !orgName.trim() || orgName.trim() !== orgNameConfirm.trim()}
+                                    onClick={() =>
+                                        runOrgAction(async () => {
+                                            await authedJson(user!, '/api/me/upgrade', {
+                                                method: 'POST',
+                                                body: JSON.stringify({ name: orgName.trim() }),
+                                            });
+                                            setOrgName('');
+                                            setOrgNameConfirm('');
+                                        })
+                                    }
+                                >
+                                    Upgrade
+                                </button>
+                            </div>
+                        ) : null}
+
+                        <div className="pt-fact" style={{ '--spot': 'var(--olive)' } as CSSProperties}>
+                            <p className="pt-label">Join with a code</p>
+                            <p className="pt-fine">Keeps your personal account. Switch accounts from the header.</p>
+                            <div className="pt-field" style={{ marginTop: 12 }}>
+                                <label htmlFor="join-code">Join code</label>
+                                <input
+                                    id="join-code"
+                                    className="pt-input"
+                                    value={joinCode}
+                                    onChange={(e) => setJoinCode(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                className="btn"
+                                disabled={orgBusy || !joinCode.trim()}
+                                onClick={() =>
+                                    runOrgAction(async () => {
+                                        await authedJson(user!, '/api/orgs/join', {
+                                            method: 'POST',
+                                            body: JSON.stringify({ code: joinCode.trim() }),
+                                        });
+                                        setJoinCode('');
+                                    })
+                                }
+                            >
+                                Join
+                            </button>
+                        </div>
+
+                        <div className="pt-fact" style={{ '--spot': 'var(--orange)' } as CSSProperties}>
+                            <p className="pt-label">Apply for super-organisation</p>
+                            <p className="pt-fine">
+                                {me.hidePersonal
+                                    ? 'Applies to the organisation you own.'
+                                    : 'Applies to your personal account (or upgrade first).'}
+                            </p>
+                            <div className="pt-field" style={{ marginTop: 12 }}>
+                                <label htmlFor="apply-msg">Why you need it</label>
+                                <textarea
+                                    id="apply-msg"
+                                    className="pt-input"
+                                    value={applyMessage}
+                                    onChange={(e) => setApplyMessage(e.target.value)}
+                                    placeholder="Tell us about your team"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                className="btn"
+                                disabled={orgBusy || !applyMessage.trim()}
+                                onClick={() =>
+                                    runOrgAction(async () => {
+                                        const subject =
+                                            me.hidePersonal && me.upgradedOrgPublicId
+                                                ? me.upgradedOrgPublicId
+                                                : undefined;
+                                        await authedJson(user!, '/api/contact', {
+                                            method: 'POST',
+                                            body: JSON.stringify({
+                                                category: 'super_org_application',
+                                                email: formData.email,
+                                                message: applyMessage.trim(),
+                                                ...(subject ? { subjectOrgPublicId: subject } : {}),
+                                            }),
+                                        });
+                                        setApplyMessage('');
+                                    })
+                                }
+                            >
+                                Submit application
+                            </button>
+                        </div>
+
+                        {me.memberships.length > 0 ? (
+                            <ul className="pt-facts">
+                                {me.memberships.map((m) => (
+                                    <li key={m.orgPublicId}>
+                                        <div className="pt-fact" style={{ '--spot': 'var(--teal)' } as CSSProperties}>
+                                            <p className="pt-label">{m.kind === 'super_org' ? 'Super-org' : 'Organisation'}</p>
+                                            <b>{m.name}</b>
+                                            <p className="pt-fine">Role: {m.role}</p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
+
+                        {status.message && !isEditing ? (
+                            <p
+                                className={`pt-note ${status.type === 'success' ? 'pt-note--good' : 'pt-note--bad'}`}
+                                role={status.type === 'success' ? 'status' : 'alert'}
+                            >
+                                {status.message}
+                            </p>
+                        ) : null}
+                    </section>
+                ) : null}
             </div>
         </PortalShell>
     );

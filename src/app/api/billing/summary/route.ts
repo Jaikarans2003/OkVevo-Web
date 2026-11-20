@@ -1,20 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { billingSummaryFromAccount } from '@/lib/api/billingSummary'
+import {
+  billingSummaryFromAccount,
+  loadAdditionalNextExpiry,
+} from '@/lib/api/billingSummary'
 import { ensureMe } from '@/lib/api/me'
-import { getBillingByUserId } from '@/lib/db/wallet'
 import { sql } from '@/lib/db/client'
+import { getBillingByOrgId, getBillingByUserId } from '@/lib/db/wallet'
 import { uidFromIdToken } from '@/lib/gateway/auth'
+import { authorizeOrg } from '@/lib/orgs/authorize'
+import { orgPublicIdFromRequest } from '@/lib/orgs/orgContext'
 
 export const runtime = 'nodejs'
 
-/** GET /api/billing/summary — percentages only; no raw balances. */
+/** GET /api/billing/summary — percentages only; no raw balances. Honours X-OkVevo-Org. */
 export async function GET(req: NextRequest) {
   const user = await uidFromIdToken(req)
   if (!user) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   await ensureMe(user.uid, { email: user.email || null })
-  const billing = await getBillingByUserId(sql, user.uid)
-  return NextResponse.json(billingSummaryFromAccount(billing))
+
+  const orgPublicId = orgPublicIdFromRequest(req)
+  if (orgPublicId) {
+    const authz = await authorizeOrg(sql, {
+      userId: user.uid,
+      orgPublicId,
+      need: 'read',
+      email: user.email,
+    })
+    if (!authz.ok) {
+      return NextResponse.json(
+        { error: authz.code, code: authz.code },
+        { status: authz.code === 'org_not_found' ? 404 : 403 }
+      )
+    }
+    const billing = await getBillingByOrgId(sql, authz.org.id)
+    const additionalNextExpiry = billing
+      ? await loadAdditionalNextExpiry(sql, billing.id)
+      : null
+    let fundedBy: string | null = null
+    if (authz.org.parentId) {
+      const parent = await sql`
+        select name from organizations where id = ${authz.org.parentId}
+      `
+      fundedBy = parent[0]?.name ? String(parent[0].name) : null
+    }
+    const canPurchase =
+      billing?.accessMode !== 'prepaid' &&
+      (authz.role === 'owner' || authz.role === 'platform_admin')
+    return NextResponse.json(
+      billingSummaryFromAccount(billing, new Date(), {
+        additionalNextExpiry,
+        fundedBy,
+        canPurchase,
+      })
+    )
+  }
+
+  // Personal wallet — after upgrade, owner_user_id is null; fall back to upgraded org.
+  let billing = await getBillingByUserId(sql, user.uid)
+  if (!billing) {
+    const upgraded = await sql`
+      select u.upgraded_org_id from users u where u.id = ${user.uid}
+    `
+    const orgId = upgraded[0]?.upgraded_org_id as string | undefined
+    if (orgId) billing = await getBillingByOrgId(sql, orgId)
+  }
+  const additionalNextExpiry = billing
+    ? await loadAdditionalNextExpiry(sql, billing.id)
+    : null
+  return NextResponse.json(
+    billingSummaryFromAccount(billing, new Date(), { additionalNextExpiry })
+  )
 }

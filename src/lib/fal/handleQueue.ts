@@ -67,6 +67,7 @@ import {
   getIdemRow,
   getQueue,
   InsufficientCreditsError,
+  OrgAccessDeniedError,
   PlanNotActiveError,
   claimFalSubmit,
   commitFalSubmitted,
@@ -81,6 +82,10 @@ import {
   reserveFalRun,
 } from '@/lib/gateway/debit';
 import { omitUndefined } from '@/lib/gateway/reserve';
+import {
+  endCustomerRefFromRequest,
+  orgPublicIdFromRequest,
+} from '@/lib/orgs/orgContext';
 import { creditsFromUsd } from '@/lib/gateway/pricing';
 import {
   MAX_JOB_CREDITS,
@@ -671,7 +676,11 @@ export async function alertDailySpend(
 async function handleSubmit(
   uid: string,
   endpoint: string,
-  body: unknown
+  body: unknown,
+  spendCtx: {
+    orgPublicId: string | null;
+    endCustomerRef: string | null;
+  }
 ): Promise<Response> {
   if (!isMeterableEndpoint(endpoint)) {
     return jsonError(400, `Fal endpoint is not meterable on the OkVevo gateway: ${endpoint}`);
@@ -859,6 +868,8 @@ async function handleSubmit(
       bodyHash,
       estimatedCredits: estimated,
       extra,
+      orgPublicId: spendCtx.orgPublicId,
+      endCustomerRef: spendCtx.endCustomerRef,
     });
     if (reserved.kind === 'replay' && reserved.falRequestId) {
       const slot = await slotView(uid, reserved.holdId);
@@ -911,6 +922,12 @@ async function handleSubmit(
       })
     );
   } catch (err) {
+    if (err instanceof OrgAccessDeniedError) {
+      return NextResponse.json(
+        { error: { message: err.code, code: err.code } },
+        { status: 403 }
+      );
+    }
     if (err instanceof PlanNotActiveError) {
       return jsonError(403, 'plan not active');
     }
@@ -1085,7 +1102,10 @@ export async function handleFalQueue(
       } catch {
         return jsonError(400, 'invalid json');
       }
-      return await handleSubmit(uid, parsed.endpoint, body);
+      return await handleSubmit(uid, parsed.endpoint, body, {
+        orgPublicId: orgPublicIdFromRequest(request),
+        endCustomerRef: endCustomerRefFromRequest(request),
+      });
     }
 
     if (parsed.kind === 'status' && request.method === 'GET') {
