@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
-import { updateBillingByUserId } from '@/lib/db/wallet';
+import { updateBillingById } from '@/lib/db/wallet';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { isCancellablePlanStatus, loadUserBillingSoT } from '@/lib/billing/userSoT';
-import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
+import { isCancellablePlanStatus, loadBillingSoTByAccountId } from '@/lib/billing/userSoT';
+import {
+    childPurchaseResponse,
+    orgPublicIdFromRequest,
+    rejectChildOrgPurchase,
+    resolvePayingWallet,
+} from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +18,18 @@ export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const paying = await resolvePayingWallet(sql, {
+        userId: user.uid,
+        orgPublicId: orgPublicIdFromRequest(request),
+        email: user.email,
+    });
+    if (!paying.ok) {
+        return NextResponse.json(
+            { error: paying.code, code: paying.code },
+            { status: paying.status }
+        );
     }
 
     const childBlock = await rejectChildOrgPurchase(sql, {
@@ -26,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const billing = await loadUserBillingSoT(user.uid);
+        const billing = await loadBillingSoTByAccountId(user.uid, paying.billingAccountId);
         const subscriptionId = billing.razorpaySubscriptionId;
 
         if (!subscriptionId) {
@@ -65,7 +82,7 @@ export async function POST(request: NextRequest) {
         const willCancelAt = billing.currentPeriodEnd
             ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        await updateBillingByUserId(sql, user.uid, { cancelAtPeriodEnd: true });
+        await updateBillingById(sql, paying.billingAccountId, { cancelAtPeriodEnd: true });
 
         return NextResponse.json({
             success: true,

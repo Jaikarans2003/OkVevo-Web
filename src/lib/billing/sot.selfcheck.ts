@@ -102,7 +102,8 @@ assert.doesNotMatch(
 const changeClient = src('lib/billing/changeSubscription.ts');
 assert.match(changeClient, /\/api\/razorpay\/upgrade-upi/, 'plan change uses new-subscription route');
 assert.doesNotMatch(changeClient, /upi_upgrade_required/, 'no card→UPI fallback');
-assert.match(changeClient, /content-type/, 'plan change parses JSON only when the body is JSON');
+assert.match(changeClient, /authedFetch/, 'plan change uses authedFetch (org header)');
+assert.match(changeClient, /content-type|contentType/, 'plan change parses JSON only when the body is JSON');
 assert.doesNotMatch(changeClient, /userId/, 'plan change client must not send userId');
 
 const updateRoute = src('app/api/razorpay/update-subscription/route.ts');
@@ -140,8 +141,8 @@ assert.doesNotMatch(creditsService, /firebase\/firestore/);
 const checkout = src('components/shared/payment/RazorpayCheckout.tsx');
 assert.match(
   checkout,
-  /create-subscription[\s\S]*Authorization: `Bearer \$\{idToken\}`/,
-  'checkout must send the ID token'
+  /authedFetch\(user,\s*'\/api\/razorpay\/create-subscription'/,
+  'checkout must send the ID token via authedFetch'
 );
 assert.doesNotMatch(
   checkout,

@@ -78,11 +78,14 @@ async function patchUserBilling(
     data: Record<string, unknown>,
     billingAccountId?: string | null
 ): Promise<void> {
-    const { loadBillingAccountForUser, updateBillingById } = await import('@/lib/db/wallet');
-    const id =
-        (typeof billingAccountId === 'string' && billingAccountId) ||
-        (await loadBillingAccountForUser(sql, uid))?.id;
-    if (id) {
+    const { getBillingById, updateBillingById } = await import('@/lib/db/wallet');
+    const { resolvePayingWallet } = await import('@/lib/orgs/orgContext');
+    let id = typeof billingAccountId === 'string' && billingAccountId ? billingAccountId : null;
+    if (!id) {
+        const paying = await resolvePayingWallet(sql, { userId: uid });
+        if (paying.ok) id = paying.billingAccountId;
+    }
+    if (id && (await getBillingById(sql, id))) {
         await updateBillingById(sql, id, data);
         return;
     }
@@ -97,7 +100,7 @@ async function patchUserBilling(
 async function cancelReplacedSubscriptionAtCycleEnd(opts: {
     oldSubId: string;
     newSubId: string;
-    userId: string;
+    billingAccountId: string | null;
     willCancelAt: Date;
 }): Promise<'cancelled' | 'already'> {
     const existing = await getRazorpaySubscription(sql, opts.oldSubId);
@@ -111,7 +114,7 @@ async function cancelReplacedSubscriptionAtCycleEnd(opts: {
     });
     await razorpay.subscriptions.cancel(opts.oldSubId, 1);
 
-    await upsertRazorpaySubscription(sql, opts.oldSubId, opts.userId, {
+    await upsertRazorpaySubscription(sql, opts.oldSubId, opts.billingAccountId, {
         cancelAtCycleEnd: true,
         cancelledAt: new Date(),
         beingReplacedBy: opts.newSubId,
@@ -120,13 +123,32 @@ async function cancelReplacedSubscriptionAtCycleEnd(opts: {
     return 'cancelled';
 }
 
-async function loadWebhookUser(uid: string, notesBillingAccountId?: string | null) {
-    const { getBillingById, loadBillingAccountForUser } = await import('@/lib/db/wallet');
-    let account =
-        typeof notesBillingAccountId === 'string' && notesBillingAccountId
-            ? await getBillingById(sql, notesBillingAccountId)
-            : undefined;
-    if (!account) account = await loadBillingAccountForUser(sql, uid);
+/**
+ * Webhook wallet order (subscription row → notes id as-is → resolvePayingWallet).
+ * Never calls ensureUserAndBilling. Notes id is not checked against the no-header wallet.
+ */
+async function loadWebhookUser(
+    uid: string,
+    notesBillingAccountId?: string | null,
+    subscriptionId?: string | null
+) {
+    const { getBillingById, getRazorpaySubscription } = await import('@/lib/db/wallet');
+    const { resolvePayingWallet } = await import('@/lib/orgs/orgContext');
+
+    let account;
+    if (typeof subscriptionId === 'string' && subscriptionId) {
+        const sub = await getRazorpaySubscription(sql, subscriptionId);
+        if (sub?.billingAccountId) {
+            account = await getBillingById(sql, sub.billingAccountId);
+        }
+    }
+    if (!account && typeof notesBillingAccountId === 'string' && notesBillingAccountId) {
+        account = await getBillingById(sql, notesBillingAccountId);
+    }
+    if (!account) {
+        const paying = await resolvePayingWallet(sql, { userId: uid });
+        if (paying.ok) account = await getBillingById(sql, paying.billingAccountId);
+    }
     const data = (account ?? {}) as unknown as Record<string, unknown>;
     return {
         data,
@@ -285,7 +307,7 @@ export async function POST(request: NextRequest) {
                         // Only seed coupon fields if not already written
                         if (rows[0]?.coupon_code) return;
 
-                        await upsertRazorpaySubscription(tx, subscription.id, userId, {
+                        await upsertRazorpaySubscription(tx, subscription.id, (notes.billing_account_id as string) || null, {
                             couponCode: notes.couponCode,
                             couponType: notes.couponType || '',
                             affiliateId: notes.affiliateId || '',
@@ -301,7 +323,7 @@ export async function POST(request: NextRequest) {
                     notes.schedule_change_at === 'cycle_end'
                 ) {
                     const oldSubId = notes.replacing_subscription_id as string;
-                    const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
+                    const webhookUser = await loadWebhookUser(userId, notes.billing_account_id, subscription.id);
                     const willCancelAt =
                         typeof subscription.start_at === 'number'
                             ? new Date(subscription.start_at * 1000)
@@ -317,7 +339,7 @@ export async function POST(request: NextRequest) {
                         scheduledPlanId: subscription.plan_id || null,
                         scheduledPlanType: planType,
                     }, webhookUser.billingAccountId);
-                    await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                    await upsertRazorpaySubscription(sql, subscription.id, webhookUser.billingAccountId, {
                         replacingSubscriptionId: oldSubId,
                         planType,
                         willActivateAt: willCancelAt,
@@ -327,7 +349,7 @@ export async function POST(request: NextRequest) {
                         const outcome = await cancelReplacedSubscriptionAtCycleEnd({
                             oldSubId,
                             newSubId: subscription.id,
-                            userId,
+                            billingAccountId: webhookUser.billingAccountId,
                             willCancelAt,
                         });
                         console.log(
@@ -391,11 +413,11 @@ export async function POST(request: NextRequest) {
                     updates.discountAmount = notes.discountAmount || '0';
                 }
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, updates);
+                await upsertRazorpaySubscription(sql, subscription.id, (notes.billing_account_id as string) || null, updates);
 
                 console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
 
-                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id, subscription.id);
                 const activatedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -463,10 +485,10 @@ export async function POST(request: NextRequest) {
                         const outcome = await cancelReplacedSubscriptionAtCycleEnd({
                             oldSubId,
                             newSubId: subscription.id,
-                            userId,
+                            billingAccountId: webhookUser.billingAccountId,
                             willCancelAt,
                         });
-                        await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                        await upsertRazorpaySubscription(sql, subscription.id, webhookUser.billingAccountId, {
                             replacingSubscriptionId: oldSubId,
                             willActivateAt: willCancelAt,
                         });
@@ -505,7 +527,7 @@ export async function POST(request: NextRequest) {
                             select charge_count from razorpay_subscriptions where id = ${subscription.id} for update
                         `;
                         cycleNumber = (Number(rows[0]?.charge_count) || 0) + 1;
-                        await upsertRazorpaySubscription(tx, subscription.id, userId, {
+                        await upsertRazorpaySubscription(tx, subscription.id, (notes.billing_account_id as string) || null, {
                             chargeCount: cycleNumber,
                             lastPaymentId: payment?.id,
                             lastPaymentAmount: payment?.amount,
@@ -521,7 +543,7 @@ export async function POST(request: NextRequest) {
 
                 const planMeta = resolvePlanMeta(subscription);
                 const periodEnd = unixToDate(subscription.current_end);
-                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id, subscription.id);
                 const chargedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -582,7 +604,7 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id, subscription.id);
                 const updatedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -672,7 +694,7 @@ export async function POST(request: NextRequest) {
                 const gracePeriodEnds = new Date();
                 gracePeriodEnds.setDate(gracePeriodEnds.getDate() + GRACE_PERIOD_DAYS);
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'pending',
                     gracePeriodEndsAt: gracePeriodEnds,
                 });
@@ -690,12 +712,12 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'halted',
                     haltedAt: new Date(),
                 });
 
-                const haltedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
+                const haltedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'halted', haltedUser.billing, subscription.notes).apply) {
                     await patchUserBilling(userId, { planStatus: 'halted' }, haltedUser.billingAccountId);
                 }
@@ -713,12 +735,12 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'cancelled',
                     cancelledAt: new Date(),
                 });
 
-                const cancelledUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
+                const cancelledUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'cancelled', cancelledUser.billing, subscription.notes).apply) {
                     await patchUserBilling(userId, {
                         planStatus: 'cancelled',
@@ -739,12 +761,12 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'paused',
                     pausedAt: new Date(),
                 });
 
-                const pausedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
+                const pausedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'paused', pausedUser.billing, subscription.notes).apply) {
                     await patchUserBilling(userId, { planStatus: 'paused' }, pausedUser.billingAccountId);
                 }
@@ -762,12 +784,12 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'active',
                     resumedAt: new Date(),
                 });
 
-                const resumedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
+                const resumedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'resumed', resumedUser.billing, subscription.notes).apply) {
                     const planStatus = planStatusForSubscriptionEvent('resumed');
                     if (planStatus) {
@@ -793,13 +815,13 @@ export async function POST(request: NextRequest) {
                     ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
                     : null;
 
-                await upsertRazorpaySubscription(sql, subscription.id, userId, {
+                await upsertRazorpaySubscription(sql, subscription.id, ((subscription.notes || {}).billing_account_id as string) || null, {
                     status: 'completed',
                     completedAt: new Date(),
                     ...(expiresAt && { expiresAt }),
                 });
 
-                const completedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
+                const completedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'completed', completedUser.billing, subscription.notes).apply) {
                     const planStatus = planStatusForSubscriptionEvent('completed');
                     if (planStatus) {
@@ -872,9 +894,9 @@ export async function POST(request: NextRequest) {
                     updates.status = 'active';
                 }
 
-                await upsertRazorpaySubscription(sql, subscriptionId, userId, updates);
+                const invoiceUser = await loadWebhookUser(userId, null, subscriptionId);
+                await upsertRazorpaySubscription(sql, subscriptionId, invoiceUser.billingAccountId, updates);
 
-                const invoiceUser = await loadWebhookUser(userId);
                 const instrument = normalizePaymentMethod(paymentMethod);
                 if (
                     instrument &&
@@ -920,7 +942,7 @@ export async function POST(request: NextRequest) {
                 const gracePeriodEnds = new Date();
                 gracePeriodEnds.setDate(gracePeriodEnds.getDate() + GRACE_PERIOD_DAYS);
 
-                await upsertRazorpaySubscription(sql, subscriptionId, userId, {
+                await upsertRazorpaySubscription(sql, subscriptionId, null, {
                     gracePeriodEndsAt: gracePeriodEnds,
                     lastPaymentFailure: {
                         paymentId: payment?.id || 'unknown',

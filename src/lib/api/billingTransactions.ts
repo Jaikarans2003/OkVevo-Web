@@ -1,9 +1,8 @@
 /**
  * Cursor page for GET /api/billing/transactions.
- * Owner of the personal wallet only in PR 1 (no org memberships).
+ * Caller supplies the resolved paying wallet id.
  */
 import { sql } from '@/lib/db/client'
-import { getBillingByUserId } from '@/lib/db/wallet'
 
 export type LedgerItem = {
   id: string
@@ -44,12 +43,9 @@ function decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
 }
 
 export async function listBillingTransactions(
-  uid: string,
+  billingAccountId: string,
   cursor: string | null
 ): Promise<LedgerPage> {
-  const billing = await getBillingByUserId(sql, uid)
-  if (!billing) return { items: [], nextCursor: null }
-
   const decoded = cursor ? decodeCursor(cursor) : null
   if (cursor && !decoded) {
     throw new Error('invalid_cursor')
@@ -59,7 +55,7 @@ export async function listBillingTransactions(
     ? await sql`
         select id, type, amount, bucket, absorbed, reason, request_id, provider, model, created_at
         from credit_transactions
-        where billing_account_id = ${billing.id}
+        where billing_account_id = ${billingAccountId}
           and (created_at, id) < (${decoded.createdAt}, ${decoded.id})
         order by created_at desc, id desc
         limit ${PAGE_SIZE + 1}
@@ -67,7 +63,7 @@ export async function listBillingTransactions(
     : await sql`
         select id, type, amount, bucket, absorbed, reason, request_id, provider, model, created_at
         from credit_transactions
-        where billing_account_id = ${billing.id}
+        where billing_account_id = ${billingAccountId}
         order by created_at desc, id desc
         limit ${PAGE_SIZE + 1}
       `

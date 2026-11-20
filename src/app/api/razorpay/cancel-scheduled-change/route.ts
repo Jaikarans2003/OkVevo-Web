@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { loadUserBillingSoT } from '@/lib/billing/userSoT';
-import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
+import { loadBillingSoTByAccountId } from '@/lib/billing/userSoT';
+import {
+    childPurchaseResponse,
+    orgPublicIdFromRequest,
+    rejectChildOrgPurchase,
+    resolvePayingWallet,
+} from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +23,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const paying = await resolvePayingWallet(sql, {
+        userId: user.uid,
+        orgPublicId: orgPublicIdFromRequest(request),
+        email: user.email,
+    });
+    if (!paying.ok) {
+        return NextResponse.json(
+            { error: paying.code, code: paying.code },
+            { status: paying.status }
+        );
+    }
+
     const childBlock = await rejectChildOrgPurchase(sql, {
         req: request,
         userId: user.uid,
@@ -28,7 +45,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(r.body, { status: r.status });
     }
 
-    const billing = await loadUserBillingSoT(user.uid);
+    const billing = await loadBillingSoTByAccountId(user.uid, paying.billingAccountId);
     if (!billing.hasScheduledChanges) {
         return NextResponse.json(
             { error: 'No scheduled changes to cancel' },

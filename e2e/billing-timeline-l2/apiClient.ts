@@ -56,6 +56,33 @@ export function upgradeToOrg(idToken: string, name: string) {
   );
 }
 
+export function applySuperOrg(idToken: string, message: string, email: string) {
+  return authedFetch<{ ok?: boolean; id?: string; error?: string }>(
+    '/api/contact',
+    idToken,
+    { body: { category: 'super_org_application', message, email } }
+  );
+}
+
+export function approveSuperOrg(adminIdToken: string, applicationId: string) {
+  return authedFetch<{ success?: boolean; orgPublicId?: string; error?: string }>(
+    `/api/admin/super-org-applications/${applicationId}/approve`,
+    adminIdToken,
+    { body: {} }
+  );
+}
+
+export function getBillingTransactions(
+  idToken: string,
+  opts: { orgPublicId?: string } = {}
+) {
+  return authedFetch<{ items?: Array<{ type: string }>; error?: string }>(
+    '/api/billing/transactions',
+    idToken,
+    { method: 'GET', orgPublicId: opts.orgPublicId }
+  );
+}
+
 export type ChangePlanResponse = {
   success?: boolean;
   flow?: string;

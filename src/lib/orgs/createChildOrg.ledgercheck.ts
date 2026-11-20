@@ -75,13 +75,14 @@ const allowed = await rejectChildOrgPurchase(sql, {
 })
 assert.equal(allowed.blocked, false)
 
-// No header → not blocked
+// No header → upgraded owner's org (owner check); not a child → not blocked
 const personal = await rejectChildOrgPurchase(sql, {
   req: { headers: { get: () => null } } as never,
   userId: uid,
 })
 assert.equal(personal.blocked, false)
-assert.equal(personal.org, null)
+assert.ok(personal.org)
+assert.equal(personal.org?.id, upgraded.orgId)
 
 // Creating under non-super parent fails
 const bad = await withTx((tx) =>

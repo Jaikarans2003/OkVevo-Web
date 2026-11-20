@@ -15,12 +15,16 @@ import {
   changePlan,
   cancelSubscription,
   getBillingSummary,
+  getBillingTransactions,
   pollBillingSummary,
   upgradeToOrg,
+  applySuperOrg,
+  approveSuperOrg,
 } from './apiClient';
 import { createTestUser, deleteTestUser, ensureServerUser, type TestUser } from './testUsers';
 import { forceCancelSubscription } from './razorpayAdmin';
 import { openSubscriptionCheckout, payWithUpiSuccess, payWithTestCard } from './razorpayCheckout';
+import { L2_ENV } from './env';
 
 /** Buys `planType` via Checkout and waits for the webhook to land as active. */
 async function buyAndActivate(
@@ -219,6 +223,99 @@ test.describe('billing timeline Layer 2', () => {
       expect(summary.plan).toBe('starter');
       expect(summary.razorpaySubscriptionId).toBe(subscriptionId);
       expect(summary.remainingPct).toBe(100);
+    } finally {
+      if (subscriptionId) await forceCancelSubscription(subscriptionId);
+      await deleteTestUser(user);
+    }
+  });
+
+  test('org-wallet buy without header: upgrade then buy lands on org wallet', async ({
+    page,
+  }) => {
+    const user = await createTestUser('org-buy-nohdr');
+    let subscriptionId: string | undefined;
+    try {
+      await ensureServerUser(user.idToken);
+      const { status, json: upgraded } = await upgradeToOrg(user.idToken, 'L2 Org NoHdr Co');
+      expect(upgraded, `upgrade HTTP ${status}`).toEqual(
+        expect.objectContaining({ success: true })
+      );
+      const orgPublicId = upgraded.orgPublicId!;
+
+      // No X-OkVevo-Org — resolvePayingWallet uses upgraded_org_id.
+      subscriptionId = await buyAndActivate(page, user, 'starter', 'card');
+
+      const { json: summary } = await getBillingSummary(user.idToken, { orgPublicId });
+      expect(summary.accountKind).toBe('org');
+      expect(summary.status).toBe('active');
+      expect(summary.plan).toBe('starter');
+      expect(summary.razorpaySubscriptionId).toBe(subscriptionId);
+      expect(summary.remainingPct).toBe(100);
+
+      const { json: txns } = await getBillingTransactions(user.idToken, { orgPublicId });
+      expect((txns.items ?? []).some((t) => t.type === 'grant')).toBe(true);
+    } finally {
+      if (subscriptionId) await forceCancelSubscription(subscriptionId);
+      await deleteTestUser(user);
+    }
+  });
+
+  test('super-org wallet buy without header after approval', async ({ page }) => {
+    const adminEmail = (process.env.L2_ADMIN_EMAIL ?? '').trim();
+    const adminPassword = (process.env.L2_ADMIN_PASSWORD ?? '').trim();
+    test.skip(
+      !adminEmail || !adminPassword,
+      'set L2_ADMIN_EMAIL + L2_ADMIN_PASSWORD (must be in ADMIN_EMAILS)'
+    );
+
+    const user = await createTestUser('sorg-buy');
+    let subscriptionId: string | undefined;
+    try {
+      await ensureServerUser(user.idToken);
+      // Use a deliverable-looking email for the application validator.
+      const { status: appStatus, json: app } = await applySuperOrg(
+        user.idToken,
+        'L2 super-org please',
+        `${user.uid}@example.com`
+      );
+      expect(app, `contact HTTP ${appStatus}`).toEqual(expect.objectContaining({ ok: true }));
+      expect(app.id).toBeTruthy();
+
+      const adminTokenRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${L2_ENV.firebaseApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: adminEmail,
+            password: adminPassword,
+            returnSecureToken: true,
+          }),
+        }
+      );
+      const adminJson = (await adminTokenRes.json()) as { idToken?: string };
+      expect(adminJson.idToken).toBeTruthy();
+
+      const { status: apprStatus, json: approved } = await approveSuperOrg(
+        adminJson.idToken!,
+        app.id!
+      );
+      expect(approved, `approve HTTP ${apprStatus}`).toEqual(
+        expect.objectContaining({ success: true })
+      );
+      const orgPublicId = approved.orgPublicId!;
+
+      subscriptionId = await buyAndActivate(page, user, 'starter', 'card');
+
+      const { json: summary } = await getBillingSummary(user.idToken, { orgPublicId });
+      expect(summary.accountKind).toBe('super_org');
+      expect(summary.status).toBe('active');
+      expect(summary.plan).toBe('starter');
+      expect(summary.razorpaySubscriptionId).toBe(subscriptionId);
+      expect(summary.remainingPct).toBe(100);
+
+      const { json: txns } = await getBillingTransactions(user.idToken, { orgPublicId });
+      expect((txns.items ?? []).some((t) => t.type === 'grant')).toBe(true);
     } finally {
       if (subscriptionId) await forceCancelSubscription(subscriptionId);
       await deleteTestUser(user);

@@ -137,9 +137,9 @@ export type ChildPurchaseBlock =
   | { blocked: true; status: 403 | 404; code: string }
 
 /**
- * Child orgs cannot buy or change plan. Call on every Razorpay mutate route.
- * No header → personal wallet path (not blocked here).
- * Header → authorize `owner`; prepaid/parented org → 403 org_managed_by_super_org.
+ * Owner-only purchase / plan mutate for an org wallet; child orgs blocked.
+ * Header org, else the caller's upgraded_org_id (same wallet resolvePayingWallet uses).
+ * No org → personal path (not blocked here).
  */
 export async function rejectChildOrgPurchase(
   db: DbHandle,
@@ -150,7 +150,16 @@ export async function rejectChildOrgPurchase(
     emailVerified?: boolean
   }
 ): Promise<ChildPurchaseBlock> {
-  const orgPublicId = orgPublicIdFromRequest(opts.req)
+  let orgPublicId = orgPublicIdFromRequest(opts.req)
+  if (!orgPublicId) {
+    const rows = await db`
+      select o.public_id
+      from users u
+      join organizations o on o.id = u.upgraded_org_id
+      where u.id = ${opts.userId}
+    `
+    orgPublicId = (rows[0]?.public_id as string | undefined) ?? null
+  }
   if (!orgPublicId) return { blocked: false, org: null }
 
   const authz = await authorizeOrg(db, {

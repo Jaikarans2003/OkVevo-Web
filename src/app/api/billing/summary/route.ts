@@ -6,10 +6,13 @@ import {
 } from '@/lib/api/billingSummary'
 import { ensureMe } from '@/lib/api/me'
 import { sql } from '@/lib/db/client'
-import { getBillingByOrgId, getBillingByUserId } from '@/lib/db/wallet'
+import { getBillingById, getBillingByOrgId } from '@/lib/db/wallet'
 import { uidFromIdToken } from '@/lib/gateway/auth'
 import { authorizeOrg } from '@/lib/orgs/authorize'
-import { orgPublicIdFromRequest } from '@/lib/orgs/orgContext'
+import {
+  orgPublicIdFromRequest,
+  resolvePayingWallet,
+} from '@/lib/orgs/orgContext'
 
 export const runtime = 'nodejs'
 
@@ -58,15 +61,14 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Personal wallet — after upgrade, owner_user_id is null; fall back to upgraded org.
-  let billing = await getBillingByUserId(sql, user.uid)
-  if (!billing) {
-    const upgraded = await sql`
-      select u.upgraded_org_id from users u where u.id = ${user.uid}
-    `
-    const orgId = upgraded[0]?.upgraded_org_id as string | undefined
-    if (orgId) billing = await getBillingByOrgId(sql, orgId)
+  const paying = await resolvePayingWallet(sql, { userId: user.uid })
+  if (!paying.ok) {
+    return NextResponse.json(
+      { error: paying.code, code: paying.code },
+      { status: paying.status }
+    )
   }
+  const billing = await getBillingById(sql, paying.billingAccountId)
   const additionalNextExpiry = billing
     ? await loadAdditionalNextExpiry(sql, billing.id)
     : null

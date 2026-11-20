@@ -450,8 +450,9 @@ scenario('downgrade: authenticated cancels old once; replay does not cancel twic
     currentPeriodEnd: new Date(periodEndUnix * 1000),
   })
   const { upsertRazorpaySubscription } = await import('@/lib/db/wallet')
-  await upsertRazorpaySubscription(sql, oldSubId, id, { beingReplacedBy: newSubId })
-  await upsertRazorpaySubscription(sql, newSubId, id, {
+  const walletId = (await getBillingByUserId(sql, id))!.id
+  await upsertRazorpaySubscription(sql, oldSubId, walletId, { beingReplacedBy: newSubId })
+  await upsertRazorpaySubscription(sql, newSubId, walletId, {
     replacingSubscriptionId: oldSubId,
     planType: 'starter',
     willActivateAt: new Date(periodEndUnix * 1000),
@@ -534,7 +535,7 @@ scenario('downgrade: new sub activated SETs credits; old cancel is idempotent', 
     currentPeriodEnd: new Date((BASE_NOW_UNIX + MONTH) * 1000),
   })
   // Authenticated already cancelled the old sub at cycle end.
-  await upsertRazorpaySubscription(sql, oldSubId, id, {
+  await upsertRazorpaySubscription(sql, oldSubId, (await getBillingByUserId(sql, id))!.id, {
     cancelAtCycleEnd: true,
     cancelledAt: new Date(),
     beingReplacedBy: newSubId,

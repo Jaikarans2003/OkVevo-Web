@@ -1,9 +1,13 @@
 /**
  * Client plan-change: always a new Razorpay subscription (every payment method).
  * Identity comes from the ID token on the server — never a client uid field.
+ * Sends X-OkVevo-Org via authedFetch when an org account is selected.
  */
 
+import type { User } from 'firebase/auth';
+
 import type { BillingPeriod, SelfServePlanType } from '@/config/razorpay';
+import { authedFetch } from '@/lib/api/browser';
 
 export type PlanChangeResult =
   | {
@@ -16,18 +20,14 @@ export type PlanChangeResult =
     }
   | { ok: false; error: string };
 
-async function postJson(
-  path: string,
-  idToken: string,
-  body: Record<string, unknown>
-): Promise<{ status: number; data: Record<string, unknown> }> {
-  const response = await fetch(path, {
+export async function changeSubscriptionPlan(
+  user: User,
+  newPlanType: SelfServePlanType,
+  newBillingPeriod: BillingPeriod
+): Promise<PlanChangeResult> {
+  const response = await authedFetch(user, '/api/razorpay/upgrade-upi', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ newPlanType, newBillingPeriod }),
   });
   let data: Record<string, unknown> = {};
   const contentType = response.headers.get('content-type') ?? '';
@@ -39,29 +39,19 @@ async function postJson(
       data = {};
     }
   }
-  return { status: response.status, data };
-}
 
-export async function changeSubscriptionPlan(
-  idToken: string,
-  newPlanType: SelfServePlanType,
-  newBillingPeriod: BillingPeriod
-): Promise<PlanChangeResult> {
-  const payload = { newPlanType, newBillingPeriod };
-  const res = await postJson('/api/razorpay/upgrade-upi', idToken, payload);
-
-  if (res.status === 200 && (res.data.success === true || res.data.requiresNewAuth === true)) {
+  if (response.status === 200 && (data.success === true || data.requiresNewAuth === true)) {
     return {
       ok: true,
-      scheduleChangeAt: res.data.scheduleChangeAt === 'cycle_end' ? 'cycle_end' : 'now',
-      shortUrl: typeof res.data.shortUrl === 'string' ? res.data.shortUrl : undefined,
+      scheduleChangeAt: data.scheduleChangeAt === 'cycle_end' ? 'cycle_end' : 'now',
+      shortUrl: typeof data.shortUrl === 'string' ? data.shortUrl : undefined,
       newSubscriptionId:
-        typeof res.data.newSubscriptionId === 'string' ? res.data.newSubscriptionId : undefined,
+        typeof data.newSubscriptionId === 'string' ? data.newSubscriptionId : undefined,
       razorpayKeyId:
-        typeof res.data.razorpayKeyId === 'string' ? res.data.razorpayKeyId : undefined,
+        typeof data.razorpayKeyId === 'string' ? data.razorpayKeyId : undefined,
       message:
-        typeof res.data.message === 'string'
-          ? res.data.message
+        typeof data.message === 'string'
+          ? data.message
           : 'Complete payment authorization to finish the plan change.',
     };
   }
@@ -69,6 +59,6 @@ export async function changeSubscriptionPlan(
   return {
     ok: false,
     error:
-      typeof res.data.error === 'string' ? res.data.error : 'Failed to start plan change',
+      typeof data.error === 'string' ? data.error : 'Failed to start plan change',
   };
 }

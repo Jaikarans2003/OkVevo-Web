@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { BillingCurrency } from '@/config/razorpay';
+import { authedFetch } from '@/lib/api/browser';
 
 type CouponValidationResponse = {
     valid: boolean;
@@ -62,14 +63,8 @@ const RazorpayCheckout = ({ planType, billingPeriod = 'monthly', currency = 'USD
         setLoading(true);
 
         try {
-            // Create subscription
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/razorpay/create-subscription', {
+            const response = await authedFetch(user, '/api/razorpay/create-subscription', {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${idToken}`,
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     planType,
                     billingPeriod,
