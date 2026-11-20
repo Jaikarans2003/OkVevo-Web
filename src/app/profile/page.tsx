@@ -14,6 +14,11 @@ import DrawnArt from '@/components/landing-page/DrawnArt';
 import { authedJson } from '@/lib/api/browser';
 import type { MePayload } from '@/lib/api/me';
 import type { BillingSummary } from '@/lib/api/billingSummary';
+import {
+    readActiveOrgPublicId,
+    resolveActiveOrg,
+    showCreateOrganisationUnder,
+} from '@/lib/orgs/activeOrg';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -27,6 +32,7 @@ export default function ProfilePage() {
     const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
     const [orgName, setOrgName] = useState('');
     const [orgNameConfirm, setOrgNameConfirm] = useState('');
+    const [childOrgName, setChildOrgName] = useState('');
     const [joinCode, setJoinCode] = useState('');
     const [applyMessage, setApplyMessage] = useState('');
     const [orgBusy, setOrgBusy] = useState(false);
@@ -297,6 +303,59 @@ export default function ProfilePage() {
                 {!isEditing && me ? (
                     <section className="pt-stack" style={{ marginTop: 28 }}>
                         <h2>Organisation</h2>
+                        {(() => {
+                            const activeOrgPublicId = resolveActiveOrg({
+                                stored: readActiveOrgPublicId(),
+                                hidePersonal: me.hidePersonal,
+                                upgradedOrgPublicId: me.upgradedOrgPublicId,
+                                memberships: me.memberships,
+                            });
+                            const createUnder = showCreateOrganisationUnder({
+                                activeOrgPublicId,
+                                upgradedOrgPublicId: me.upgradedOrgPublicId,
+                                memberships: me.memberships,
+                            });
+                            if (!createUnder.show) return null;
+                            return (
+                                <div className="pt-fact" style={{ '--spot': 'var(--teal)' } as CSSProperties}>
+                                    <p className="pt-label">
+                                        Create organisation under {createUnder.name}
+                                    </p>
+                                    <p className="pt-fine">
+                                        Creates a prepaid child organisation. You become its owner.
+                                    </p>
+                                    <div className="pt-field" style={{ marginTop: 12 }}>
+                                        <label htmlFor="child-org-name">Organisation name</label>
+                                        <input
+                                            id="child-org-name"
+                                            className="pt-input"
+                                            value={childOrgName}
+                                            onChange={(e) => setChildOrgName(e.target.value)}
+                                            placeholder="Acme Studio"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn--go"
+                                        disabled={orgBusy || !childOrgName.trim()}
+                                        onClick={() =>
+                                            runOrgAction(async () => {
+                                                await authedJson(user!, '/api/orgs', {
+                                                    method: 'POST',
+                                                    body: JSON.stringify({
+                                                        name: childOrgName.trim(),
+                                                        parent: createUnder.parentPublicId,
+                                                    }),
+                                                });
+                                                setChildOrgName('');
+                                            })
+                                        }
+                                    >
+                                        Create organisation
+                                    </button>
+                                </div>
+                            );
+                        })()}
                         {!me.hidePersonal ? (
                             <div className="pt-fact" style={{ '--spot': 'var(--slate)' } as CSSProperties}>
                                 <p className="pt-label">Upgrade to organisation</p>
