@@ -263,10 +263,12 @@ test.describe('billing timeline Layer 2', () => {
   test('super-org wallet buy without header after approval', async ({ page }) => {
     const adminEmail = (process.env.L2_ADMIN_EMAIL ?? '').trim();
     const adminPassword = (process.env.L2_ADMIN_PASSWORD ?? '').trim();
-    test.skip(
-      !adminEmail || !adminPassword,
-      'set L2_ADMIN_EMAIL + L2_ADMIN_PASSWORD (must be in ADMIN_EMAILS)'
-    );
+    // Fail closed in CI — never skip. Secrets must be set on Environment staging.
+    if (!adminEmail || !adminPassword) {
+      throw new Error(
+        'billing-timeline-l2: missing L2_ADMIN_EMAIL / L2_ADMIN_PASSWORD (must match an email in staging ADMIN_EMAILS)'
+      );
+    }
 
     const user = await createTestUser('sorg-buy');
     let subscriptionId: string | undefined;

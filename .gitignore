@@ -103,3 +103,4 @@ infrastructure/cdk.out/
 infrastructure/cdk.out-*/
 infrastructure/dist/
 *adminsdk*.json
+.staging-org-smoke-state.json
