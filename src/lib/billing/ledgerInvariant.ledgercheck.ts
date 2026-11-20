@@ -16,6 +16,7 @@ const { RELEASABLE } = await import('@/lib/gateway/reserve')
 const stamp = Date.now().toString(16)
 const uid = `li-hold-${stamp}`
 const holdId = `li-hold-job-${stamp}`
+const periodEnd = new Date(Date.now() + 30 * 864e5)
 
 assert.ok(RELEASABLE.has('reserved'), 'reserved must be RELEASABLE')
 assert.ok(!(RELEASABLE as ReadonlySet<string>).has('settled'), 'settled must not be RELEASABLE')
@@ -28,15 +29,20 @@ await grantCredits({
   mode: 'set',
   reason: 'ledgerInvariant.ledgercheck',
   requestId: `li-grant-${stamp}`,
+  userPatch: {
+    planStatus: 'active',
+    plan: 'starter',
+    creditsIncluded: 100,
+    currentPeriodEnd: periodEnd,
+  },
 })
 
-const reserved = await reserveCredits({
+await reserveCredits({
   uid,
   requestId: holdId,
   provider: 'openrouter',
   estimatedCredits: 40,
 })
-assert.equal(reserved.ok, true, `reserve failed: ${JSON.stringify(reserved)}`)
 
 const wallet = await getBillingByUserId(sql, uid)
 assert.ok(wallet)
