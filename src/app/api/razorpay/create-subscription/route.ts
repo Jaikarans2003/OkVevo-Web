@@ -12,6 +12,7 @@ import {
     type SelfServePlanType,
 } from '@/config/razorpay';
 import { sql } from '@/lib/db/client';
+import { getBillingByOrgId, loadBillingAccountForUser } from '@/lib/db/wallet';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { loadUserBillingSoT } from '@/lib/billing/userSoT';
 import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
@@ -76,6 +77,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const wallet =
+            childBlock.org != null
+                ? await getBillingByOrgId(sql, childBlock.org.id)
+                : await loadBillingAccountForUser(sql, userId);
+        if (!wallet) {
+            return NextResponse.json(
+                { success: false, error: 'billing_account_not_found' },
+                { status: 400 }
+            );
+        }
         const billing = await loadUserBillingSoT(userId);
         const requestedCurrency: BillingCurrency = parseBillingCurrency(currencyRaw, 'USD');
         const liveSub =
@@ -134,6 +145,7 @@ export async function POST(request: NextRequest) {
                 planType,
                 billingPeriod,
                 currency,
+                billing_account_id: wallet.id,
                 userEmail: userEmail || '',
                 userName: userName || '',
                 ...(isUpgradeFlow && existingSubscriptionId && {

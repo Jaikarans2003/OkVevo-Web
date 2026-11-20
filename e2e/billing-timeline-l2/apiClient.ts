@@ -10,13 +10,18 @@ export type ApiResult<T = Record<string, unknown>> = { status: number; json: T }
 async function authedFetch<T>(
   path: string,
   idToken: string,
-  init: { method?: 'GET' | 'POST'; body?: Record<string, unknown> } = {}
+  init: {
+    method?: 'GET' | 'POST'
+    body?: Record<string, unknown>
+    orgPublicId?: string
+  } = {}
 ): Promise<ApiResult<T>> {
   const res = await fetch(`${L2_ENV.baseUrl}${path}`, {
     method: init.method ?? (init.body ? 'POST' : 'GET'),
     headers: {
       authorization: `Bearer ${idToken}`,
       ...(init.body ? { 'content-type': 'application/json' } : {}),
+      ...(init.orgPublicId ? { 'x-okvevo-org': init.orgPublicId } : {}),
     },
     body: init.body ? JSON.stringify(init.body) : undefined,
   });
@@ -34,9 +39,21 @@ export type CreateSubscriptionResponse = {
 
 export function createSubscription(
   idToken: string,
-  body: { planType: 'starter' | 'pro' | 'max'; billingPeriod?: 'monthly' | 'annual'; currency?: 'USD' | 'INR' }
+  body: { planType: 'starter' | 'pro' | 'max'; billingPeriod?: 'monthly' | 'annual'; currency?: 'USD' | 'INR' },
+  opts: { orgPublicId?: string } = {}
 ) {
-  return authedFetch<CreateSubscriptionResponse>('/api/razorpay/create-subscription', idToken, { body });
+  return authedFetch<CreateSubscriptionResponse>('/api/razorpay/create-subscription', idToken, {
+    body,
+    orgPublicId: opts.orgPublicId,
+  });
+}
+
+export function upgradeToOrg(idToken: string, name: string) {
+  return authedFetch<{ success?: boolean; orgPublicId?: string; error?: string }>(
+    '/api/me/upgrade',
+    idToken,
+    { body: { name } }
+  );
 }
 
 export type ChangePlanResponse = {
@@ -72,24 +89,28 @@ export type BillingSummaryResponse = {
   scheduledChange: { planType: string | null; planId: string | null; changeAt: string | null } | null;
   paymentMethod: string | null;
   razorpaySubscriptionId: string | null;
+  accountKind?: string;
 };
 
-export function getBillingSummary(idToken: string) {
-  return authedFetch<BillingSummaryResponse>('/api/billing/summary', idToken, { method: 'GET' });
+export function getBillingSummary(idToken: string, opts: { orgPublicId?: string } = {}) {
+  return authedFetch<BillingSummaryResponse>('/api/billing/summary', idToken, {
+    method: 'GET',
+    orgPublicId: opts.orgPublicId,
+  });
 }
 
 /** Poll until `predicate` is true or timeout — webhooks land asynchronously. */
 export async function pollBillingSummary(
   idToken: string,
   predicate: (s: BillingSummaryResponse) => boolean,
-  opts: { timeoutMs?: number; intervalMs?: number } = {}
+  opts: { timeoutMs?: number; intervalMs?: number; orgPublicId?: string } = {}
 ): Promise<BillingSummaryResponse> {
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const intervalMs = opts.intervalMs ?? 2_000;
   const deadline = Date.now() + timeoutMs;
   let last: BillingSummaryResponse | undefined;
   while (Date.now() < deadline) {
-    const { json } = await getBillingSummary(idToken);
+    const { json } = await getBillingSummary(idToken, { orgPublicId: opts.orgPublicId });
     last = json;
     if (predicate(json)) return json;
     await new Promise((r) => setTimeout(r, intervalMs));

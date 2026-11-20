@@ -3,7 +3,6 @@ import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
 import { withTx } from '@/lib/db/tx';
 import {
-    getBillingByUserId,
     getRazorpaySubscription,
     updateBillingByUserId,
     upsertRazorpaySubscription,
@@ -74,7 +73,19 @@ function shouldUpdateStatus(currentStatus: string | undefined | null, newStatus:
     return newPriority > currentPriority;
 }
 
-async function patchUserBilling(uid: string, data: Record<string, unknown>): Promise<void> {
+async function patchUserBilling(
+    uid: string,
+    data: Record<string, unknown>,
+    billingAccountId?: string | null
+): Promise<void> {
+    const { loadBillingAccountForUser, updateBillingById } = await import('@/lib/db/wallet');
+    const id =
+        (typeof billingAccountId === 'string' && billingAccountId) ||
+        (await loadBillingAccountForUser(sql, uid))?.id;
+    if (id) {
+        await updateBillingById(sql, id, data);
+        return;
+    }
     await updateBillingByUserId(sql, uid, data);
 }
 
@@ -109,10 +120,19 @@ async function cancelReplacedSubscriptionAtCycleEnd(opts: {
     return 'cancelled';
 }
 
-async function loadWebhookUser(uid: string) {
-    const billing = await getBillingByUserId(sql, uid);
-    const data = (billing ?? {}) as unknown as Record<string, unknown>;
-    return { data, billing: userBillingFromData(uid, data) };
+async function loadWebhookUser(uid: string, notesBillingAccountId?: string | null) {
+    const { getBillingById, loadBillingAccountForUser } = await import('@/lib/db/wallet');
+    let account =
+        typeof notesBillingAccountId === 'string' && notesBillingAccountId
+            ? await getBillingById(sql, notesBillingAccountId)
+            : undefined;
+    if (!account) account = await loadBillingAccountForUser(sql, uid);
+    const data = (account ?? {}) as unknown as Record<string, unknown>;
+    return {
+        data,
+        billing: userBillingFromData(uid, data),
+        billingAccountId: account?.id ?? null,
+    };
 }
 
 function pointerDecision(
@@ -281,7 +301,7 @@ export async function POST(request: NextRequest) {
                     notes.schedule_change_at === 'cycle_end'
                 ) {
                     const oldSubId = notes.replacing_subscription_id as string;
-                    const webhookUser = await loadWebhookUser(userId);
+                    const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
                     const willCancelAt =
                         typeof subscription.start_at === 'number'
                             ? new Date(subscription.start_at * 1000)
@@ -291,12 +311,12 @@ export async function POST(request: NextRequest) {
 
                     // DB first — then the irreversible Razorpay cancel (same order as
                     // upgrade cancel-after-activation grant).
-                    await updateBillingByUserId(sql, userId, {
+                    await patchUserBilling(userId, {
                         hasScheduledChanges: true,
                         scheduledChangeAt: willCancelAt,
                         scheduledPlanId: subscription.plan_id || null,
                         scheduledPlanType: planType,
-                    });
+                    }, webhookUser.billingAccountId);
                     await upsertRazorpaySubscription(sql, subscription.id, userId, {
                         replacingSubscriptionId: oldSubId,
                         planType,
@@ -375,7 +395,7 @@ export async function POST(request: NextRequest) {
 
                 console.log(`✅ Subscription activated: ${subscription.id}${currentStatus && !shouldUpdateStatus(currentStatus, 'active') ? ' (status not updated)' : ''}`);
 
-                const webhookUser = await loadWebhookUser(userId);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
                 const activatedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -398,6 +418,7 @@ export async function POST(request: NextRequest) {
 
                     await grantCredits({
                         uid: userId,
+                        billingAccountId: webhookUser.billingAccountId ?? undefined,
                         amount: planMeta.creditsIncluded,
                         reason: 'subscription.activated',
                         bucket: 'allocation',
@@ -500,7 +521,7 @@ export async function POST(request: NextRequest) {
 
                 const planMeta = resolvePlanMeta(subscription);
                 const periodEnd = unixToDate(subscription.current_end);
-                const webhookUser = await loadWebhookUser(userId);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
                 const chargedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -518,7 +539,7 @@ export async function POST(request: NextRequest) {
                 if (periodEnd) statusPatch.currentPeriodEnd = periodEnd;
                 if (instrument) statusPatch.paymentMethod = instrument;
                 if (Object.keys(statusPatch).length > 0) {
-                    await patchUserBilling(userId, statusPatch);
+                    await patchUserBilling(userId, statusPatch, webhookUser.billingAccountId);
                 }
 
                 const refreshPatch = refreshAllocationIfDue({
@@ -533,6 +554,7 @@ export async function POST(request: NextRequest) {
                 if (refreshPatch) {
                     await grantCredits({
                         uid: userId,
+                        billingAccountId: webhookUser.billingAccountId ?? undefined,
                         amount: refreshPatch.allocationBalance,
                         reason: 'subscription.charged',
                         bucket: 'allocation',
@@ -560,7 +582,7 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ success: false }, { status: 400 });
                 }
 
-                const webhookUser = await loadWebhookUser(userId);
+                const webhookUser = await loadWebhookUser(userId, notes.billing_account_id);
                 const updatedDecision = pointerDecision(
                     userId,
                     subscription.id,
@@ -575,7 +597,7 @@ export async function POST(request: NextRequest) {
                     await patchUserBilling(userId, {
                         hasScheduledChanges: true,
                         ...(scheduledAt && { scheduledChangeAt: scheduledAt }),
-                    });
+                    }, webhookUser.billingAccountId);
                     console.log(`📅 Plan change scheduled: ${subscription.id}`);
                     break;
                 }
@@ -609,6 +631,7 @@ export async function POST(request: NextRequest) {
 
                 await grantCredits({
                     uid: userId,
+                    billingAccountId: webhookUser.billingAccountId ?? undefined,
                     amount: grant,
                     reason: 'subscription.updated',
                     bucket: 'allocation',
@@ -672,9 +695,9 @@ export async function POST(request: NextRequest) {
                     haltedAt: new Date(),
                 });
 
-                const haltedUser = await loadWebhookUser(userId);
+                const haltedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
                 if (pointerDecision(userId, subscription.id, 'halted', haltedUser.billing, subscription.notes).apply) {
-                    await patchUserBilling(userId, { planStatus: 'halted' });
+                    await patchUserBilling(userId, { planStatus: 'halted' }, haltedUser.billingAccountId);
                 }
 
                 console.log(`🛑 Subscription halted: ${subscription.id}`);
@@ -695,12 +718,12 @@ export async function POST(request: NextRequest) {
                     cancelledAt: new Date(),
                 });
 
-                const cancelledUser = await loadWebhookUser(userId);
+                const cancelledUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
                 if (pointerDecision(userId, subscription.id, 'cancelled', cancelledUser.billing, subscription.notes).apply) {
                     await patchUserBilling(userId, {
                         planStatus: 'cancelled',
                         cancelAtPeriodEnd: false,
-                    });
+                    }, cancelledUser.billingAccountId);
                 }
 
                 console.log(`✅ Subscription cancelled: ${subscription.id}`);
@@ -721,9 +744,9 @@ export async function POST(request: NextRequest) {
                     pausedAt: new Date(),
                 });
 
-                const pausedUser = await loadWebhookUser(userId);
+                const pausedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
                 if (pointerDecision(userId, subscription.id, 'paused', pausedUser.billing, subscription.notes).apply) {
-                    await patchUserBilling(userId, { planStatus: 'paused' });
+                    await patchUserBilling(userId, { planStatus: 'paused' }, pausedUser.billingAccountId);
                 }
 
                 console.log(`⏸️ Subscription paused: ${subscription.id}`);
@@ -744,11 +767,11 @@ export async function POST(request: NextRequest) {
                     resumedAt: new Date(),
                 });
 
-                const resumedUser = await loadWebhookUser(userId);
+                const resumedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
                 if (pointerDecision(userId, subscription.id, 'resumed', resumedUser.billing, subscription.notes).apply) {
                     const planStatus = planStatusForSubscriptionEvent('resumed');
                     if (planStatus) {
-                        await patchUserBilling(userId, { planStatus });
+                        await patchUserBilling(userId, { planStatus }, resumedUser.billingAccountId);
                     }
                 }
 
@@ -776,11 +799,11 @@ export async function POST(request: NextRequest) {
                     ...(expiresAt && { expiresAt }),
                 });
 
-                const completedUser = await loadWebhookUser(userId);
+                const completedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id);
                 if (pointerDecision(userId, subscription.id, 'completed', completedUser.billing, subscription.notes).apply) {
                     const planStatus = planStatusForSubscriptionEvent('completed');
                     if (planStatus) {
-                        await patchUserBilling(userId, { planStatus });
+                        await patchUserBilling(userId, { planStatus }, completedUser.billingAccountId);
                     }
                 }
 
@@ -859,7 +882,7 @@ export async function POST(request: NextRequest) {
                 ) {
                     await patchUserBilling(userId, {
                         paymentMethod: instrument,
-                    });
+                    }, invoiceUser.billingAccountId);
                 }
 
                 // Pro Team shared-pool reset (proOrganisations) is a dead product
@@ -947,11 +970,11 @@ export async function POST(request: NextRequest) {
                           ? payNotes.uid
                           : null;
                 if (capturedUid && capturedSubId && capturedMethod) {
-                    const capturedUser = await loadWebhookUser(capturedUid);
+                    const capturedUser = await loadWebhookUser(capturedUid, payment.notes?.billing_account_id);
                     if (capturedUser.billing.razorpaySubscriptionId === capturedSubId) {
                         await patchUserBilling(capturedUid, {
                             paymentMethod: capturedMethod,
-                        });
+                        }, capturedUser.billingAccountId);
                     }
                 }
 
@@ -962,8 +985,13 @@ export async function POST(request: NextRequest) {
                         : payment.amount / 100;
                     const credits = Math.round(amountUsd * PLACEHOLDER_CREDITS_PER_USD);
                     if (Number.isFinite(credits) && credits > 0) {
+                        const topUpUser = await loadWebhookUser(
+                            payNotes.uid,
+                            payNotes.billing_account_id
+                        );
                         await grantCredits({
                             uid: payNotes.uid,
+                            billingAccountId: topUpUser.billingAccountId ?? undefined,
                             amount: credits,
                             reason: 'nia_add_credits',
                             bucket: 'topUp',

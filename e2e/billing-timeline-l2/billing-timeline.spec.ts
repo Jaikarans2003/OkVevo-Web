@@ -1,6 +1,6 @@
 /**
  * Billing timeline Layer 2 (plan §14.3). Staging only, Razorpay test mode
- * only (env.ts fails closed on RAZORPAY_KEY_ID). Five scenarios, each with
+ * only (env.ts fails closed on RAZORPAY_KEY_ID). Six scenarios, each with
  * its own fresh subscription and dedicated test user.
  *
  * Plan change = new subscription for every payment method (no
@@ -16,6 +16,7 @@ import {
   cancelSubscription,
   getBillingSummary,
   pollBillingSummary,
+  upgradeToOrg,
 } from './apiClient';
 import { createTestUser, deleteTestUser, ensureServerUser, type TestUser } from './testUsers';
 import { forceCancelSubscription } from './razorpayAdmin';
@@ -26,12 +27,17 @@ async function buyAndActivate(
   page: import('@playwright/test').Page,
   user: TestUser,
   planType: 'starter' | 'pro',
-  payWith: 'upi' | 'card'
+  payWith: 'upi' | 'card',
+  opts: { orgPublicId?: string } = {}
 ): Promise<string> {
   await ensureServerUser(user.idToken);
   // Staging Razorpay test account rejects USD Checkout ("Currency is not
   // supported"). INR also surfaces UPI for the buy scenario.
-  const { json } = await createSubscription(user.idToken, { planType, currency: 'INR' });
+  const { json } = await createSubscription(
+    user.idToken,
+    { planType, currency: 'INR' },
+    { orgPublicId: opts.orgPublicId }
+  );
   if (!json.success || !json.subscriptionId || !json.razorpayKeyId) {
     throw new Error(`create-subscription failed: ${JSON.stringify(json)}`);
   }
@@ -42,7 +48,11 @@ async function buyAndActivate(
   if (payWith === 'upi') await payWithUpiSuccess(page);
   else await payWithTestCard(page);
 
-  await pollBillingSummary(user.idToken, (s) => s.status === 'active' && s.plan === planType);
+  await pollBillingSummary(
+    user.idToken,
+    (s) => s.status === 'active' && s.plan === planType,
+    { orgPublicId: opts.orgPublicId }
+  );
   return json.subscriptionId;
 }
 
@@ -181,6 +191,34 @@ test.describe('billing timeline Layer 2', () => {
       const summary = await pollBillingSummary(user.idToken, (s) => s.cancelAtPeriodEnd === true);
       // No grace period: credits stay usable until currentPeriodEnd, plan unchanged.
       expect(summary.plan).toBe('starter');
+    } finally {
+      if (subscriptionId) await forceCancelSubscription(subscriptionId);
+      await deleteTestUser(user);
+    }
+  });
+
+  test('org-wallet buy: upgrade then buy with X-OkVevo-Org lands on org wallet', async ({
+    page,
+  }) => {
+    const user = await createTestUser('org-buy');
+    let subscriptionId: string | undefined;
+    try {
+      await ensureServerUser(user.idToken);
+      const { status, json: upgraded } = await upgradeToOrg(user.idToken, 'L2 Org Buy Co');
+      expect(upgraded, `upgrade HTTP ${status}`).toEqual(
+        expect.objectContaining({ success: true })
+      );
+      expect(upgraded.orgPublicId).toBeTruthy();
+      const orgPublicId = upgraded.orgPublicId!;
+
+      subscriptionId = await buyAndActivate(page, user, 'starter', 'card', { orgPublicId });
+
+      const { json: summary } = await getBillingSummary(user.idToken, { orgPublicId });
+      expect(summary.accountKind).toBe('org');
+      expect(summary.status).toBe('active');
+      expect(summary.plan).toBe('starter');
+      expect(summary.razorpaySubscriptionId).toBe(subscriptionId);
+      expect(summary.remainingPct).toBe(100);
     } finally {
       if (subscriptionId) await forceCancelSubscription(subscriptionId);
       await deleteTestUser(user);

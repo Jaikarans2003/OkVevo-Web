@@ -6,6 +6,7 @@ import { topUpAmountMinorUnits } from '@/lib/billing/currency';
 import { isEntitled } from '@/lib/billing/entitlement';
 import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
 import { sql } from '@/lib/db/client';
+import { getBillingByOrgId, loadBillingAccountForUser } from '@/lib/db/wallet';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
 
@@ -47,6 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        const wallet =
+            childBlock.org != null
+                ? await getBillingByOrgId(sql, childBlock.org.id)
+                : await loadBillingAccountForUser(sql, uid);
+        if (!wallet) {
+            return NextResponse.json({ error: 'billing_account_not_found' }, { status: 400 });
+        }
         const billing = await loadUserBillingSoT(uid);
         if (!isEntitled(billing)) {
             return NextResponse.json(
@@ -67,7 +75,7 @@ export async function POST(request: NextRequest) {
             amount: amountMinor,
             currency,
             accept_partial: false,
-            description: 'Nia credits top-up',
+            description: 'OkVevo credits top-up',
             customer: {
                 name: customerName,
                 email: customerEmail || `${uid}@users.okvevo.com`,
@@ -77,6 +85,7 @@ export async function POST(request: NextRequest) {
                 purpose: 'nia_add_credits',
                 amountUsd: String(amountUsd),
                 currency,
+                billing_account_id: wallet.id,
             },
         });
 

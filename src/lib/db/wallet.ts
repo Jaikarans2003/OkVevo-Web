@@ -107,6 +107,29 @@ export async function getBillingByOrgId(
   return billingRowToData(rows[0] as Record<string, unknown> | undefined)
 }
 
+export async function getBillingById(
+  db: DbHandle,
+  id: string
+): Promise<BillingAccountData | undefined> {
+  const rows = await db`select * from billing_accounts where id = ${id}`
+  return billingRowToData(rows[0] as Record<string, unknown> | undefined)
+}
+
+/**
+ * Personal wallet, or the upgraded-org wallet when owner_user_id was cleared (§3.4 / §7.1).
+ */
+export async function loadBillingAccountForUser(
+  db: DbHandle,
+  uid: string
+): Promise<BillingAccountData | undefined> {
+  const personal = await getBillingByUserId(db, uid)
+  if (personal) return personal
+  const rows = await db`select upgraded_org_id from users where id = ${uid}`
+  const orgId = (rows[0]?.upgraded_org_id as string | null) ?? null
+  if (!orgId) return undefined
+  return getBillingByOrgId(db, orgId)
+}
+
 export async function lockBillingById(
   tx: TxSql,
   id: string
