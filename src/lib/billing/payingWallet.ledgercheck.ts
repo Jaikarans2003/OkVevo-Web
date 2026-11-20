@@ -127,8 +127,9 @@ try {
     await new Promise((r) => setTimeout(r, 500))
   })
   await upgradeLocked
+  // Direct insert (not ensure's early return) while upgrade is open: waits, then rejects.
   await assert.rejects(
-    () => ensureUserAndBilling(b, raceUser),
+    () => b`insert into billing_accounts (owner_user_id) values (${raceUser})`,
     /personal_wallet_forbidden_when_upgraded/
   )
   await upgradeP
