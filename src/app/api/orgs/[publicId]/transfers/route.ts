@@ -9,9 +9,9 @@ import { sql } from '@/lib/db/client'
 
 export const runtime = 'nodejs'
 
-type Ctx = { params: Promise<{ superOrgPublicId: string }> }
+type Ctx = { params: Promise<{ publicId: string }> }
 
-/** POST /api/orgs/:superOrgPublicId/transfers — super-org owner sends top-up credits to a child. */
+/** POST /api/orgs/:publicId/transfers — super-org owner sends top-up credits to a child. */
 export async function POST(req: NextRequest, ctx: Ctx) {
   const token = gatewayIdToken(req)
   if (!token) {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const { superOrgPublicId } = await ctx.params
+  const { publicId } = await ctx.params
   let body: { toOrg?: unknown; credits?: unknown; idempotencyKey?: unknown }
   try {
     body = (await req.json()) as typeof body
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   const authz = await authorizeOrg(sql, {
     userId: decoded.uid,
-    orgPublicId: superOrgPublicId,
+    orgPublicId: publicId,
     need: 'owner',
     email: decoded.email,
     emailVerified: decoded.email_verified === true,
