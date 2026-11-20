@@ -4,7 +4,10 @@
  */
 import assert from 'node:assert/strict'
 
-import { showCreateOrganisationUnder } from '@/lib/orgs/activeOrg'
+import {
+  showCreateOrganisationUnder,
+  showJoinWithCode,
+} from '@/lib/orgs/activeOrg'
 
 const superOrg = {
   orgPublicId: 'sorg_acme',
@@ -54,5 +57,8 @@ assert.deepEqual(
   }),
   { show: false }
 )
+
+assert.equal(showJoinWithCode(false), true)
+assert.equal(showJoinWithCode(true), false)
 
 console.log('activeOrg.selfcheck: ok')

@@ -18,6 +18,7 @@ import {
     readActiveOrgPublicId,
     resolveActiveOrg,
     showCreateOrganisationUnder,
+    showJoinWithCode,
 } from '@/lib/orgs/activeOrg';
 
 export default function ProfilePage() {
@@ -399,35 +400,37 @@ export default function ProfilePage() {
                             </div>
                         ) : null}
 
-                        <div className="pt-fact" style={{ '--spot': 'var(--olive)' } as CSSProperties}>
-                            <p className="pt-label">Join with a code</p>
-                            <p className="pt-fine">Keeps your personal account. Switch accounts from the header.</p>
-                            <div className="pt-field" style={{ marginTop: 12 }}>
-                                <label htmlFor="join-code">Join code</label>
-                                <input
-                                    id="join-code"
-                                    className="pt-input"
-                                    value={joinCode}
-                                    onChange={(e) => setJoinCode(e.target.value)}
-                                />
+                        {showJoinWithCode(me.hidePersonal) ? (
+                            <div className="pt-fact" style={{ '--spot': 'var(--olive)' } as CSSProperties}>
+                                <p className="pt-label">Join with a code</p>
+                                <p className="pt-fine">Keeps your personal account. Switch accounts from the header.</p>
+                                <div className="pt-field" style={{ marginTop: 12 }}>
+                                    <label htmlFor="join-code">Join code</label>
+                                    <input
+                                        id="join-code"
+                                        className="pt-input"
+                                        value={joinCode}
+                                        onChange={(e) => setJoinCode(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn"
+                                    disabled={orgBusy || !joinCode.trim()}
+                                    onClick={() =>
+                                        runOrgAction(async () => {
+                                            await authedJson(user!, '/api/orgs/join', {
+                                                method: 'POST',
+                                                body: JSON.stringify({ code: joinCode.trim() }),
+                                            });
+                                            setJoinCode('');
+                                        })
+                                    }
+                                >
+                                    Join
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                className="btn"
-                                disabled={orgBusy || !joinCode.trim()}
-                                onClick={() =>
-                                    runOrgAction(async () => {
-                                        await authedJson(user!, '/api/orgs/join', {
-                                            method: 'POST',
-                                            body: JSON.stringify({ code: joinCode.trim() }),
-                                        });
-                                        setJoinCode('');
-                                    })
-                                }
-                            >
-                                Join
-                            </button>
-                        </div>
+                        ) : null}
 
                         <div className="pt-fact" style={{ '--spot': 'var(--orange)' } as CSSProperties}>
                             <p className="pt-label">Apply for super-organisation</p>

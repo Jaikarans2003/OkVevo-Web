@@ -1,6 +1,7 @@
 /**
  * Join codes: create (plaintext once) / revoke / redeem (plan §6).
  */
+import type { DbHandle } from '@/lib/db/wallet'
 import type { TxSql } from '@/lib/db/tx'
 import { mintJoinCode, sha256Hex } from '@/lib/orgs/tokens'
 
@@ -95,6 +96,14 @@ async function bumpJoinRate(tx: TxSql, userId: string, nowMs: number): Promise<b
       count = excluded.count
   `
   return true
+}
+
+/** True when the user already upgraded — join-by-code is individuals only. */
+export async function userCannotJoinByCode(db: DbHandle, userId: string): Promise<boolean> {
+  const rows = await db`
+    select upgraded_org_id from users where id = ${userId}
+  `
+  return rows[0]?.upgraded_org_id != null
 }
 
 export async function redeemJoinCode(

@@ -69,3 +69,8 @@ export function showCreateOrganisationUnder(opts: {
   if (m.role !== 'owner' && m.role !== 'admin') return { show: false }
   return { show: true, parentPublicId: m.orgPublicId, name: m.name }
 }
+
+/** Join-with-code is for individuals only (hidePersonal false). */
+export function showJoinWithCode(hidePersonal: boolean): boolean {
+  return !hidePersonal
+}
