@@ -218,8 +218,7 @@ export default function BillingPage() {
         setChangeBusy(true);
         setChangeError(null);
         try {
-            const idToken = await user.getIdToken();
-            const result = await changeSubscriptionPlan(idToken, newPlanType, newBillingPeriod);
+            const result = await changeSubscriptionPlan(user, newPlanType, newBillingPeriod);
             if (!result.ok) {
                 setChangeError(result.error);
                 return;

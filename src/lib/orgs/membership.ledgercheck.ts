@@ -117,5 +117,9 @@ const demote = await withTx((tx) =>
 assert.equal(demote.ok, false)
 if (!demote.ok) assert.equal(demote.code, 'last_owner')
 
+const { userCannotJoinByCode } = await import('@/lib/orgs/joinCodes')
+assert.equal(await userCannotJoinByCode(sql, joiner), false)
+assert.equal(await userCannotJoinByCode(sql, owner), true)
+
 console.log('membership.ledgercheck: ok')
 await sql.end({ timeout: 1 })

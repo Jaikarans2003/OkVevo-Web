@@ -43,3 +43,34 @@ export function resolveActiveOrg(opts: {
   if (opts.hidePersonal) return opts.upgradedOrgPublicId
   return null
 }
+
+export type CreateOrgUnder =
+  | { show: true; parentPublicId: string; name: string }
+  | { show: false }
+
+/**
+ * Profile “Create organisation under {name}” — active account (switcher, else
+ * upgraded org) is a super_org and the caller is owner or admin.
+ */
+export function showCreateOrganisationUnder(opts: {
+  activeOrgPublicId: string | null
+  upgradedOrgPublicId: string | null
+  memberships: Array<{
+    orgPublicId: string
+    kind: 'org' | 'super_org'
+    role: 'owner' | 'admin' | 'member'
+    name: string
+  }>
+}): CreateOrgUnder {
+  const active = opts.activeOrgPublicId ?? opts.upgradedOrgPublicId
+  if (!active) return { show: false }
+  const m = opts.memberships.find((row) => row.orgPublicId === active)
+  if (!m || m.kind !== 'super_org') return { show: false }
+  if (m.role !== 'owner' && m.role !== 'admin') return { show: false }
+  return { show: true, parentPublicId: m.orgPublicId, name: m.name }
+}
+
+/** Join-with-code is for individuals only (hidePersonal false). */
+export function showJoinWithCode(hidePersonal: boolean): boolean {
+  return !hidePersonal
+}

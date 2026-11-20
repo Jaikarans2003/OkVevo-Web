@@ -148,13 +148,20 @@ export async function updateBillingById(
   await tx`update billing_accounts set ${tx(row)}, updated_at = now() where id = ${id}`
 }
 
-/** Lazy-create users + billing_accounts rows. For tests, and grantCredits's first-ever grant. */
+/**
+ * Lazy-create users + personal billing_accounts.
+ * When users.upgraded_org_id is set, only ensures the users row — never a personal wallet.
+ */
 export async function ensureUserAndBilling(
   db: DbHandle,
   uid: string,
   seed?: Record<string, unknown>
 ): Promise<void> {
   await db`insert into users (id) values (${uid}) on conflict (id) do nothing`
+  const upgraded = await db`
+    select upgraded_org_id from users where id = ${uid}
+  `
+  if (upgraded[0]?.upgraded_org_id) return
   await db`insert into billing_accounts (owner_user_id) values (${uid}) on conflict (owner_user_id) do nothing`
   const patch = seed ? omitUndefined(toBillingRow(seed)) : {}
   if (Object.keys(patch).length > 0) {
@@ -375,6 +382,7 @@ function subscriptionPatchToRow(patch: Record<string, unknown>): Record<string, 
 export type RazorpaySubscriptionData = {
   id: string
   userId: string | null
+  billingAccountId: string | null
   status: string | null
   planType: string | null
   chargeCount: number
@@ -387,7 +395,11 @@ function subscriptionRowToData(
   row: (Record<string, unknown> & { user_id?: string | null }) | undefined
 ): RazorpaySubscriptionData | undefined {
   if (!row) return undefined
-  const out: Record<string, unknown> = { id: String(row.id), userId: (row.user_id as string | null) ?? null }
+  const out: Record<string, unknown> = {
+    id: String(row.id),
+    userId: (row.user_id as string | null) ?? null,
+    billingAccountId: (row.billing_account_id as string | null) ?? null,
+  }
   for (const [camel, col] of Object.entries(SUBSCRIPTION_KEY_MAP)) {
     out[camel] = row[col] ?? null
   }
@@ -409,18 +421,28 @@ export async function getRazorpaySubscription(
 }
 
 /**
- * Create-if-missing + patch a razorpay_subscriptions row (was the Firestore dual-write to
- * razorpaySubscriptions + users/{uid}/subscriptions — now a single table, no dual write).
+ * Create-if-missing + patch a razorpay_subscriptions row.
+ * billingAccountId is the wallet SoT for this subscription — never resolved via getBillingByUserId.
  */
 export async function upsertRazorpaySubscription(
   db: DbHandle,
   id: string,
-  uid: string,
+  billingAccountId: string | null,
   patch: Record<string, unknown>
 ): Promise<void> {
-  const billing = await getBillingByUserId(db, uid)
-  await db`insert into razorpay_subscriptions (id, billing_account_id) values (${id}, ${billing?.id ?? null})
-    on conflict (id) do nothing`
+  await db`
+    insert into razorpay_subscriptions (id, billing_account_id)
+    values (${id}, ${billingAccountId})
+    on conflict (id) do nothing
+  `
+  if (billingAccountId) {
+    await db`
+      update razorpay_subscriptions
+      set billing_account_id = coalesce(billing_account_id, ${billingAccountId}),
+          updated_at = now()
+      where id = ${id}
+    `
+  }
   const row = subscriptionPatchToRow(patch)
   if (Object.keys(row).length > 0) {
     await db`update razorpay_subscriptions set ${db(row)}, updated_at = now() where id = ${id}`

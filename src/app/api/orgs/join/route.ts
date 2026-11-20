@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { ensureMe } from '@/lib/api/me'
+import { sql } from '@/lib/db/client'
 import { withTx } from '@/lib/db/tx'
-import { redeemJoinCode } from '@/lib/orgs/joinCodes'
+import { redeemJoinCode, userCannotJoinByCode } from '@/lib/orgs/joinCodes'
 import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
 
 export const runtime = 'nodejs'
@@ -27,6 +28,13 @@ export async function POST(req: NextRequest) {
     email: user.emailVerified ? user.email ?? null : null,
     displayName: user.name ?? null,
   })
+
+  if (await userCannotJoinByCode(sql, user.uid)) {
+    return NextResponse.json(
+      { error: 'org_cannot_join_by_code', code: 'org_cannot_join_by_code' },
+      { status: 403 }
+    )
+  }
 
   const result = await withTx((tx) =>
     redeemJoinCode(tx, { code, userId: user.uid })

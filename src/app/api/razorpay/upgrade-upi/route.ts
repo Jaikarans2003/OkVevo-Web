@@ -11,10 +11,14 @@ import {
     type SelfServePlanType,
 } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { isUpdatablePlanStatus, loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { isUpdatablePlanStatus, loadBillingSoTByAccountId, razorpayErrorDescription } from '@/lib/billing/userSoT';
 import { isSamePlan, scheduleChangeAt } from '@/lib/billing/planChange';
-import { getBillingByOrgId, loadBillingAccountForUser } from '@/lib/db/wallet';
-import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
+import {
+    childPurchaseResponse,
+    orgPublicIdFromRequest,
+    rejectChildOrgPurchase,
+    resolvePayingWallet,
+} from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +34,18 @@ export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const paying = await resolvePayingWallet(sql, {
+        userId: user.uid,
+        orgPublicId: orgPublicIdFromRequest(request),
+        email: user.email,
+    });
+    if (!paying.ok) {
+        return NextResponse.json(
+            { error: paying.code, code: paying.code },
+            { status: paying.status }
+        );
     }
 
     const childBlock = await rejectChildOrgPurchase(sql, {
@@ -67,14 +83,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const wallet =
-            childBlock.org != null
-                ? await getBillingByOrgId(sql, childBlock.org.id)
-                : await loadBillingAccountForUser(sql, userId);
-        if (!wallet) {
-            return NextResponse.json({ error: 'billing_account_not_found' }, { status: 400 });
-        }
-        const billing = await loadUserBillingSoT(userId);
+        const billing = await loadBillingSoTByAccountId(userId, paying.billingAccountId);
         const oldSubscriptionId = billing.razorpaySubscriptionId;
 
         if (!oldSubscriptionId) {
@@ -142,7 +151,7 @@ export async function POST(request: NextRequest) {
             planType: newPlanType,
             billingPeriod: newBillingPeriod,
             currency: planCurrency,
-            billing_account_id: wallet.id,
+            billing_account_id: paying.billingAccountId,
             userEmail: user.email || '',
             userName: user.name || '',
             replacing_subscription_id: oldSubscriptionId,
@@ -164,10 +173,10 @@ export async function POST(request: NextRequest) {
 
         // Link rows only. Downgrade cycle-end cancel + scheduled-change fields land in
         // the webhook on subscription.authenticated (after Checkout auth), not here.
-        await upsertRazorpaySubscription(sql, oldSubscriptionId, userId, {
+        await upsertRazorpaySubscription(sql, oldSubscriptionId, paying.billingAccountId, {
             beingReplacedBy: newSubscription.id,
         });
-        await upsertRazorpaySubscription(sql, newSubscription.id, userId, {
+        await upsertRazorpaySubscription(sql, newSubscription.id, paying.billingAccountId, {
             replacingSubscriptionId: oldSubscriptionId,
             planType: newPlanType,
             ...(when === 'cycle_end' && { willActivateAt: changeScheduledAt }),

@@ -122,6 +122,17 @@ export async function loadUserBillingSoT(uid: string): Promise<UserBillingSoT> {
   return userBillingFromData(uid, billing);
 }
 
+/** Billing SoT for a specific wallet (paying-wallet routes). */
+export async function loadBillingSoTByAccountId(
+  uid: string,
+  billingAccountId: string
+): Promise<UserBillingSoT> {
+  const { sql } = await import('@/lib/db/client');
+  const { getBillingById } = await import('@/lib/db/wallet');
+  const billing = await getBillingById(sql, billingAccountId);
+  return userBillingFromData(uid, billing);
+}
+
 export function isCancellablePlanStatus(status: string | null): boolean {
   return status === 'active';
 }

@@ -4,11 +4,15 @@ import Razorpay from 'razorpay';
 import { RAZORPAY_CONFIG, PLACEHOLDER_CREDITS_PER_USD, parseBillingCurrency } from '@/config/razorpay';
 import { topUpAmountMinorUnits } from '@/lib/billing/currency';
 import { isEntitled } from '@/lib/billing/entitlement';
-import { loadUserBillingSoT, razorpayErrorDescription } from '@/lib/billing/userSoT';
+import { loadBillingSoTByAccountId, razorpayErrorDescription } from '@/lib/billing/userSoT';
 import { sql } from '@/lib/db/client';
-import { getBillingByOrgId, loadBillingAccountForUser } from '@/lib/db/wallet';
 import { uidFromIdToken } from '@/lib/gateway/auth';
-import { childPurchaseResponse, rejectChildOrgPurchase } from '@/lib/orgs/orgContext';
+import {
+    childPurchaseResponse,
+    orgPublicIdFromRequest,
+    rejectChildOrgPurchase,
+    resolvePayingWallet,
+} from '@/lib/orgs/orgContext';
 
 export const runtime = 'nodejs';
 
@@ -16,6 +20,18 @@ export async function POST(request: NextRequest) {
     const user = await uidFromIdToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const paying = await resolvePayingWallet(sql, {
+        userId: user.uid,
+        orgPublicId: orgPublicIdFromRequest(request),
+        email: user.email,
+    });
+    if (!paying.ok) {
+        return NextResponse.json(
+            { error: paying.code, code: paying.code },
+            { status: paying.status }
+        );
     }
 
     const childBlock = await rejectChildOrgPurchase(sql, {
@@ -48,14 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const wallet =
-            childBlock.org != null
-                ? await getBillingByOrgId(sql, childBlock.org.id)
-                : await loadBillingAccountForUser(sql, uid);
-        if (!wallet) {
-            return NextResponse.json({ error: 'billing_account_not_found' }, { status: 400 });
-        }
-        const billing = await loadUserBillingSoT(uid);
+        const billing = await loadBillingSoTByAccountId(uid, paying.billingAccountId);
         if (!isEntitled(billing)) {
             return NextResponse.json(
                 { error: 'plan_not_active', message: 'Subscription is not active' },
@@ -85,7 +94,7 @@ export async function POST(request: NextRequest) {
                 purpose: 'nia_add_credits',
                 amountUsd: String(amountUsd),
                 currency,
-                billing_account_id: wallet.id,
+                billing_account_id: paying.billingAccountId,
             },
         });
 

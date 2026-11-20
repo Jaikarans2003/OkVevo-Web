@@ -73,7 +73,7 @@ await insertCreditTransaction(sql, `${uid}-debit`, billing!.id, {
   bucket: 'allocation',
   absorbed: 0,
 })
-const page = await listBillingTransactions(uid, null)
+const page = await listBillingTransactions(billing!.id, null)
 assert.equal(page.items.length, 1)
 assert.equal(page.items[0].type, 'debit')
 assert.equal(page.items[0].amount, 10)
