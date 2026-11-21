@@ -20,27 +20,36 @@ export type Database = {
                     
                   ]
                 },"audit_log": {
-                Row: {
-                    "id": string,"org_id": string,"actor_user_id": string,"action": string,"target_type": string,"target_id": string | null,"metadata": Json,"created_at": string
-                }
-                Insert: {
-                    "id"?: string,"org_id": string,"actor_user_id": string,"action": string,"target_type": string,"target_id"?: string | null,"metadata"?: Json,"created_at"?: string
-                }
-                Update: {
-                    "id"?: string,"org_id"?: string,"actor_user_id"?: string,"action"?: string,"target_type"?: string,"target_id"?: string | null,"metadata"?: Json,"created_at"?: string
-                }
-                Relationships: []
+                  Row: {
+                    "action": string,"actor_user_id": string,"created_at": string,"id": string,"metadata": NonNullable<Json>,"org_id": string,"target_id": string | null,"target_type": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_user_id": string,"created_at"?: string,"id"?: string,"metadata"?: NonNullable<Json>,"org_id": string,"target_id"?: string | null,"target_type": string
+                  }
+                  Update: {
+                    "action"?: string,"actor_user_id"?: string,"created_at"?: string,"id"?: string,"metadata"?: NonNullable<Json>,"org_id"?: string,"target_id"?: string | null,"target_type"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "audit_log_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"billing_accounts": {
                   Row: {
                     "access_mode": string,"account_kind": string,"allocation_balance": number,"allocation_granted_total": number,"billing_cycle": string | null,"cancel_at_period_end": boolean,"concurrency_override": number | null,"created_at": string,"credits_included": number,"currency": string | null,"current_period_end": string | null,"has_scheduled_changes": boolean,"id": string,"next_allocation_date": string | null,"owner_org_id": string | null,"owner_user_id": string | null,"payment_method": string | null,"plan": string | null,"plan_name": string | null,"plan_status": string | null,"razorpay_customer_id": string | null,"razorpay_subscription_id": string | null,"scheduled_change_at": string | null,"scheduled_plan_id": string | null,"scheduled_plan_type": string | null,"sponsored_balance": number,"sponsored_reference": number,"top_up_balance": number,"top_up_purchased_total": number,"top_up_reference": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-"access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_org_id"?: string | null,"owner_user_id"?: string | null,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"sponsored_balance"?: number,"sponsored_reference"?: number,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
-                }
-                Update: {
                     "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_org_id"?: string | null,"owner_user_id"?: string | null,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"sponsored_balance"?: number,"sponsored_reference"?: number,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
-                }
+                  }
+                  Update: {
+                    "access_mode"?: string,"account_kind"?: string,"allocation_balance"?: number,"allocation_granted_total"?: number,"billing_cycle"?: string | null,"cancel_at_period_end"?: boolean,"concurrency_override"?: number | null,"created_at"?: string,"credits_included"?: number,"currency"?: string | null,"current_period_end"?: string | null,"has_scheduled_changes"?: boolean,"id"?: string,"next_allocation_date"?: string | null,"owner_org_id"?: string | null,"owner_user_id"?: string | null,"payment_method"?: string | null,"plan"?: string | null,"plan_name"?: string | null,"plan_status"?: string | null,"razorpay_customer_id"?: string | null,"razorpay_subscription_id"?: string | null,"scheduled_change_at"?: string | null,"scheduled_plan_id"?: string | null,"scheduled_plan_type"?: string | null,"sponsored_balance"?: number,"sponsored_reference"?: number,"top_up_balance"?: number,"top_up_purchased_total"?: number,"top_up_reference"?: number,"updated_at"?: string
+                  }
                   Relationships: [
                     {
       foreignKeyName: "billing_accounts_owner_org_id_fkey"
