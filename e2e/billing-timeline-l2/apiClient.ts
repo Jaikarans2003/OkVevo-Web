@@ -117,7 +117,26 @@ export type BillingSummaryResponse = {
   paymentMethod: string | null;
   razorpaySubscriptionId: string | null;
   accountKind?: string;
+  canPurchase?: boolean;
+  fundedBy?: string | null;
+  sponsoredPct?: number;
 };
+
+export function acceptParent(idToken: string, orgPublicId: string, superOrgPublicId: string) {
+  return authedFetch<{ success?: boolean; error?: string; code?: string }>(
+    `/api/orgs/${orgPublicId}/accept-parent`,
+    idToken,
+    { body: { superOrgPublicId }, orgPublicId }
+  );
+}
+
+export function leaveSuperOrg(idToken: string, orgPublicId: string) {
+  return authedFetch<{ success?: boolean; error?: string; code?: string }>(
+    `/api/orgs/${orgPublicId}/leave`,
+    idToken,
+    { body: {}, orgPublicId }
+  );
+}
 
 export function getBillingSummary(idToken: string, opts: { orgPublicId?: string } = {}) {
   return authedFetch<BillingSummaryResponse>('/api/billing/summary', idToken, {

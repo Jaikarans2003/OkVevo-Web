@@ -20,6 +20,8 @@ import {
   upgradeToOrg,
   applySuperOrg,
   approveSuperOrg,
+  acceptParent,
+  leaveSuperOrg,
 } from './apiClient';
 import { createTestUser, deleteTestUser, ensureServerUser, type TestUser } from './testUsers';
 import { forceCancelSubscription } from './razorpayAdmin';
@@ -321,6 +323,93 @@ test.describe('billing timeline Layer 2', () => {
     } finally {
       if (subscriptionId) await forceCancelSubscription(subscriptionId);
       await deleteTestUser(user);
+    }
+  });
+
+  test('2b-a: accept super-org then leave then buy again', async ({ page }) => {
+    const adminEmail = (process.env.L2_ADMIN_EMAIL ?? '').trim();
+    const adminPassword = (process.env.L2_ADMIN_PASSWORD ?? '').trim();
+    if (!adminEmail || !adminPassword) {
+      throw new Error(
+        'billing-timeline-l2: missing L2_ADMIN_EMAIL / L2_ADMIN_PASSWORD (must match an email in staging ADMIN_EMAILS)'
+      );
+    }
+
+    const orgUser = await createTestUser('2ba-org');
+    const superUser = await createTestUser('2ba-super');
+    let orgSubId: string | undefined;
+    let newSubId: string | undefined;
+    let superSubId: string | undefined;
+    try {
+      await ensureServerUser(orgUser.idToken);
+      await ensureServerUser(superUser.idToken);
+
+      const { json: upgraded } = await upgradeToOrg(orgUser.idToken, 'L2 2ba Org');
+      expect(upgraded.success).toBe(true);
+      const orgPublicId = upgraded.orgPublicId!;
+      orgSubId = await buyAndActivate(page, orgUser, 'starter', 'card', { orgPublicId });
+
+      const { json: app } = await applySuperOrg(
+        superUser.idToken,
+        'L2 2ba super',
+        `${superUser.uid}@example.com`
+      );
+      expect(app.ok).toBe(true);
+
+      const adminTokenRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${L2_ENV.firebaseApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: adminEmail,
+            password: adminPassword,
+            returnSecureToken: true,
+          }),
+        }
+      );
+      const adminJson = (await adminTokenRes.json()) as { idToken?: string };
+      expect(adminJson.idToken).toBeTruthy();
+      const { json: approved } = await approveSuperOrg(adminJson.idToken!, app.id!);
+      expect(approved.success).toBe(true);
+      const superOrgPublicId = approved.orgPublicId!;
+      superSubId = await buyAndActivate(page, superUser, 'starter', 'card', {
+        orgPublicId: superOrgPublicId,
+      });
+
+      // Until 2b-b invitations: accept-parent is platform-admin only (L2 admin).
+      const { status: acceptStatus, json: accepted } = await acceptParent(
+        adminJson.idToken!,
+        orgPublicId,
+        superOrgPublicId
+      );
+      expect(accepted, `accept-parent HTTP ${acceptStatus}`).toEqual(
+        expect.objectContaining({ success: true })
+      );
+
+      const { json: prepaid } = await getBillingSummary(orgUser.idToken, { orgPublicId });
+      expect(prepaid.canPurchase).toBe(false);
+      expect(prepaid.fundedBy).toBeTruthy();
+      expect(prepaid.cancelAtPeriodEnd).toBe(true);
+
+      const { status: leaveStatus, json: left } = await leaveSuperOrg(
+        orgUser.idToken,
+        orgPublicId
+      );
+      expect(left, `leave HTTP ${leaveStatus}`).toEqual(expect.objectContaining({ success: true }));
+
+      newSubId = await buyAndActivate(page, orgUser, 'starter', 'card', { orgPublicId });
+      const { json: afterBuy } = await getBillingSummary(orgUser.idToken, { orgPublicId });
+      expect(afterBuy.canPurchase).toBe(true);
+      expect(afterBuy.plan).toBe('starter');
+      expect(afterBuy.status).toBe('active');
+      expect(afterBuy.razorpaySubscriptionId).toBe(newSubId);
+    } finally {
+      for (const id of [orgSubId, newSubId, superSubId]) {
+        if (id) await forceCancelSubscription(id);
+      }
+      await deleteTestUser(orgUser);
+      await deleteTestUser(superUser);
     }
   });
 });

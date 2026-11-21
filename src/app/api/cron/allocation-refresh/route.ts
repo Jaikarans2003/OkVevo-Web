@@ -10,6 +10,10 @@ import { withTx } from '@/lib/db/tx';
 import { billingRowToData } from '@/lib/db/wallet';
 import { grantCredits } from '@/lib/gateway/debit';
 import {
+  expireAllocationLotsForWallet,
+  listWalletsWithDueAllocationLots,
+} from '@/lib/billing/expireAllocationLots';
+import {
   expireAdditionalForWallet,
   listWalletsWithDueAdditional,
 } from '@/lib/orgs/expireAdditional';
@@ -29,6 +33,7 @@ export async function POST(request: NextRequest) {
     let refreshed = 0;
     let expiredWallets = 0;
     let expiredCredits = 0;
+    let expiredAllocLots = 0;
 
     // --- 1-year additional expiry (before allocation SET so balance is current) ---
     const dueWalletIds = await listWalletsWithDueAdditional(sql, now);
@@ -38,6 +43,15 @@ export async function POST(request: NextRequest) {
             expiredWallets++;
             expiredCredits += result.expired;
         }
+    }
+
+    // --- allocation lot expiry (cancelled plan end; per-lot expires_at) ---
+    const dueAllocWallets = await listWalletsWithDueAllocationLots(sql, now);
+    for (const billingAccountId of dueAllocWallets) {
+        const result = await withTx((tx) =>
+            expireAllocationLotsForWallet(tx, billingAccountId, now)
+        );
+        expiredAllocLots += result.expired;
     }
 
     // ponytail: no Firestore-API page limit on Postgres — one query over the
@@ -59,6 +73,10 @@ export async function POST(request: NextRequest) {
         if (!patch) continue;
 
         const nextAllocationDate = patch.nextAllocationDate;
+        const lotOpts = {
+            razorpaySubscriptionId: user.razorpaySubscriptionId,
+            expiresAt: user.currentPeriodEnd,
+        };
         // Org wallets (post-upgrade) have null owner_user_id — grant by billing id.
         if (user.ownerUserId) {
             await grantCredits({
@@ -68,6 +86,7 @@ export async function POST(request: NextRequest) {
                 bucket: 'allocation',
                 requestId: `cron_alloc_${user.ownerUserId}_${nextAllocationDate.getTime()}`,
                 userPatch: { nextAllocationDate },
+                ...lotOpts,
             });
         } else {
             await grantCredits({
@@ -77,6 +96,7 @@ export async function POST(request: NextRequest) {
                 bucket: 'allocation',
                 requestId: `cron_alloc_${user.id}_${nextAllocationDate.getTime()}`,
                 userPatch: { nextAllocationDate },
+                ...lotOpts,
             });
         }
         refreshed++;
@@ -87,5 +107,6 @@ export async function POST(request: NextRequest) {
         scanned,
         expiredWallets,
         expiredCredits,
+        expiredAllocLots,
     });
 }

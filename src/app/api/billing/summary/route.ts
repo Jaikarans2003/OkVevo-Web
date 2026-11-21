@@ -9,6 +9,7 @@ import { sql } from '@/lib/db/client'
 import { getBillingById, getBillingByOrgId } from '@/lib/db/wallet'
 import { uidFromIdToken } from '@/lib/gateway/auth'
 import { authorizeOrg } from '@/lib/orgs/authorize'
+import { computeCreditLimit } from '@/lib/orgs/creditLimit'
 import {
   orgPublicIdFromRequest,
   resolvePayingWallet,
@@ -52,11 +53,13 @@ export async function GET(req: NextRequest) {
     const canPurchase =
       billing?.accessMode !== 'prepaid' &&
       (authz.role === 'owner' || authz.role === 'platform_admin')
+    const creditLimit = billing ? await computeCreditLimit(sql, billing.id) : 0
     return NextResponse.json(
       billingSummaryFromAccount(billing, new Date(), {
         additionalNextExpiry,
         fundedBy,
         canPurchase,
+        creditLimit,
       })
     )
   }
@@ -72,7 +75,8 @@ export async function GET(req: NextRequest) {
   const additionalNextExpiry = billing
     ? await loadAdditionalNextExpiry(sql, billing.id)
     : null
+  const creditLimit = billing ? await computeCreditLimit(sql, billing.id) : 0
   return NextResponse.json(
-    billingSummaryFromAccount(billing, new Date(), { additionalNextExpiry })
+    billingSummaryFromAccount(billing, new Date(), { additionalNextExpiry, creditLimit })
   )
 }

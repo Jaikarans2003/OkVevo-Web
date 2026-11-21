@@ -1,6 +1,7 @@
 /**
- * Super-org → child-org top-up transfer (Stripe Connect pattern).
- * Oldest-expiry source purchases; debt recovery before transfer_in; top_up_reference reset.
+ * Super-org → child-org sponsored transfer (Stripe Connect / Orb credit blocks).
+ * Source spends additional (top_up) lots; destination lands in sponsored.
+ * Debt recovery before transfer_in; sponsored_reference reset when positive.
  * Idempotency keys are scoped to the source wallet (Stripe-style).
  */
 import { isEntitled } from '@/lib/billing/entitlement'
@@ -106,7 +107,7 @@ async function replayOrConflict(
     transferred: opts.expectedAmount,
     debtRecovered: 0,
     fromBalance: from?.topUpBalance ?? 0,
-    toBalance: to?.topUpBalance ?? 0,
+    toBalance: to?.sponsoredBalance ?? 0,
     idempotent: true,
   }
 }
@@ -135,7 +136,6 @@ export async function transferCredits(
 
   const ids = transferLedgerIds(fromWallet.id, idempotencyKey)
 
-  // Fast path before locks (same key + same params → replay).
   const early = await replayOrConflict(tx, {
     outId: ids.out,
     expectedAmount: credits,
@@ -153,7 +153,6 @@ export async function transferCredits(
     return { ok: false, code: 'not_child' }
   }
 
-  // Lock in id order to avoid deadlocks.
   const [firstId, secondId] =
     fromWallet.id < toWallet.id
       ? [fromWallet.id, toWallet.id]
@@ -163,7 +162,6 @@ export async function transferCredits(
   const from = (first?.id === fromWallet.id ? first : second) as BillingAccountData
   const to = (first?.id === toWallet.id ? first : second) as BillingAccountData
 
-  // Re-check after locks so two identical concurrent requests return the same result.
   const afterLock = await replayOrConflict(tx, {
     outId: ids.out,
     expectedAmount: credits,
@@ -187,7 +185,6 @@ export async function transferCredits(
     return { ok: false, code: 'insufficient_quota' }
   }
 
-  // Claim the scoped out id before mutating balances (Stripe idempotency).
   const claimed = await tx`
     insert into credit_transactions (
       id, billing_account_id, user_id, org_id, super_org_id,
@@ -215,12 +212,11 @@ export async function transferCredits(
   await updateBillingById(tx, from.id, { topUpBalance: fromNext })
 
   let repay = 0
-  let toBalance = to.topUpBalance
-  if (toBalance < 0) {
-    repay = Math.min(credits, -toBalance)
+  let toSponsored = to.sponsoredBalance
+  if (toSponsored < 0) {
+    repay = Math.min(credits, -toSponsored)
   }
 
-  // Debt recovery consumes soonest-expiring slices first.
   let debtLeft = repay
   const transferSlices: typeof slices = []
   for (const slice of slices) {
@@ -236,14 +232,14 @@ export async function transferCredits(
   }
 
   if (repay > 0) {
-    toBalance += repay
+    toSponsored += repay
     await insertCreditTransaction(tx, ids.debt, to.id, {
       user_id: actorUserId,
       org_id: toOrgId,
       super_org_id: fromSuperOrgId,
       type: 'debt_recovery',
       amount: repay,
-      bucket: 'top_up',
+      bucket: 'sponsored',
       request_id: idempotencyKey,
       reason: 'org.transfer.debt',
       counterparty_billing_account_id: from.id,
@@ -253,14 +249,14 @@ export async function transferCredits(
   let n = 0
   for (const slice of transferSlices) {
     n += 1
-    toBalance += slice.amount
+    toSponsored += slice.amount
     await insertCreditTransaction(tx, ids.in(n), to.id, {
       user_id: actorUserId,
       org_id: toOrgId,
       super_org_id: fromSuperOrgId,
       type: 'transfer_in',
       amount: slice.amount,
-      bucket: 'top_up',
+      bucket: 'sponsored',
       request_id: idempotencyKey,
       reason: 'org.transfer',
       expires_at: slice.expiresAt,
@@ -268,10 +264,11 @@ export async function transferCredits(
     })
   }
 
-  const toPatch: Record<string, unknown> = { topUpBalance: toBalance }
-  if (toBalance > 0) {
-    // Additional % bar → 100% after a net-positive received balance.
-    toPatch.topUpReference = toBalance
+  const toPatch: Record<string, unknown> = { sponsoredBalance: toSponsored }
+  if (toSponsored > 0) {
+    toPatch.sponsoredReference = toSponsored
+  } else {
+    toPatch.sponsoredReference = 0
   }
   await updateBillingById(tx, to.id, toPatch)
 
@@ -280,7 +277,7 @@ export async function transferCredits(
     transferred: credits,
     debtRecovered: repay,
     fromBalance: fromNext,
-    toBalance,
+    toBalance: toSponsored,
     idempotent: false,
   }
 }

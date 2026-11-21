@@ -57,9 +57,11 @@ const superWalletId = String(superWallet[0]!.id)
 
 await sql`
   insert into billing_accounts (
-    owner_org_id, account_kind, access_mode, top_up_balance, top_up_reference
+    owner_org_id, account_kind, access_mode, top_up_balance, top_up_reference,
+    sponsored_balance, sponsored_reference
   ) values (
-    ${childId}, 'org', 'prepaid', -300, 0
+    ${childId}, 'org', 'prepaid', 0, 0,
+    -300, 0
   ) returning id
 `
 
@@ -100,8 +102,9 @@ assert.equal(first.toBalance, 700)
 assert.equal(first.fromBalance, 9000)
 
 const childAfter = await getBillingByOrgId(sql, childId)
-assert.equal(childAfter?.topUpBalance, 700)
-assert.equal(childAfter?.topUpReference, 700)
+assert.equal(childAfter?.sponsoredBalance, 700)
+assert.equal(childAfter?.sponsoredReference, 700)
+assert.equal(childAfter?.topUpBalance, 0)
 
 const debtRows = await sql`
   select amount from credit_transactions where id = ${ids.debt}
@@ -128,7 +131,7 @@ assert.equal(replay.ok, true)
 if (!replay.ok) throw new Error('unreachable')
 assert.equal(replay.idempotent, true)
 const childReplay = await getBillingByOrgId(sql, childId)
-assert.equal(childReplay?.topUpBalance, 700)
+assert.equal(childReplay?.sponsoredBalance, 700)
 
 // Same key, different amount → 409 idempotency_conflict
 const badAmount = await withTx((tx) =>
@@ -235,8 +238,8 @@ assert.equal(moved.length, 1)
 assert.equal(replayed.length, 1)
 const afterConcurrent = await getBillingByOrgId(sql, childId)
 assert.equal(
-  afterConcurrent!.topUpBalance,
-  (beforeConcurrent?.topUpBalance ?? 0) + 50
+  afterConcurrent!.sponsoredBalance,
+  (beforeConcurrent?.sponsoredBalance ?? 0) + 50
 )
 
 // Above balance → 402

@@ -77,7 +77,8 @@ assert.match(
 );
 
 const debit = src('lib/gateway/debit.ts');
-assert.match(debit, /mode === 'add' \? current\.allocationBalance \+ grantAmount : grantAmount/);
+// 2b-a: allocation SET is lot-aware; ADD still grows allocationBalance by grantAmount.
+assert.match(debit, /if \(mode === 'add'\) \{\s*\n\s*nextAlloc = current\.allocationBalance \+ grantAmount/);
 assert.match(debit, /Spend gate: entitled/);
 assert.match(debit, /accessMode !== 'prepaid' && !isEntitled\(billing\)/);
 

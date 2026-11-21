@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { cancelSubscriptionAtPeriodEndAfterCommit } from '@/lib/billing/cancelSubscriptionAtPeriodEnd'
+import { sql } from '@/lib/db/client'
+import { getBillingByUserId, getBillingByOrgId } from '@/lib/db/wallet'
 import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
 import { gatewayIdToken } from '@/lib/gateway/auth'
@@ -36,6 +39,9 @@ export async function POST(req: NextRequest) {
     displayName: decoded.name ?? null,
   })
 
+  const before = await getBillingByUserId(sql, decoded.uid)
+  const priorSubId = before?.razorpaySubscriptionId ?? null
+
   const result = await withTx(async (tx) =>
     upgradeIndividualToOrg(tx, { userId: decoded.uid, name: body.name as string })
   )
@@ -48,6 +54,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_name' }, { status: 400 })
     }
     return NextResponse.json({ error: result.code }, { status: 400 })
+  }
+
+  // Post-commit: cancel old Razorpay sub at period end (do not roll back upgrade).
+  const orgWallet = await getBillingByOrgId(sql, result.orgId)
+  if (orgWallet && priorSubId) {
+    await cancelSubscriptionAtPeriodEndAfterCommit({
+      billingAccountId: orgWallet.id,
+      razorpaySubscriptionId: priorSubId,
+      reason: 'upgrade.individual_to_org',
+    })
   }
 
   return NextResponse.json({

@@ -1,6 +1,7 @@
--- PR 2 pgTAP: org hierarchy + forward-only kinds + prepaid negative top_up.
+-- PR 2 pgTAP: org hierarchy + forward-only kinds.
+-- 2b-a: sponsored may go negative on prepaid only; top_up/allocation never.
 begin;
-select plan(12);
+select plan(17);
 
 -- Parent of a child org must be a super_org
 insert into public.users (id) values ('_pgtap_org_owner');
@@ -60,7 +61,7 @@ select lives_ok(
   'organizations.kind may move org → super_org'
 );
 
--- Child prepaid wallet may go negative; subscription may not
+-- Child prepaid: sponsored may go negative; top_up/allocation may not
 insert into public.billing_accounts (
   id, owner_org_id, account_kind, access_mode, top_up_balance, top_up_reference
 ) values (
@@ -74,9 +75,27 @@ insert into public.billing_accounts (
 
 select lives_ok(
   $$update public.billing_accounts
-      set top_up_balance = -100
+      set sponsored_balance = -100
     where id = '20000000-0000-4000-8000-000000000001'$$,
-  'prepaid child wallet may go negative on top_up_balance'
+  'prepaid child wallet may go negative on sponsored_balance'
+);
+
+select throws_ok(
+  $$update public.billing_accounts
+      set top_up_balance = -1
+    where id = '20000000-0000-4000-8000-000000000001'$$,
+  '23514',
+  null,
+  'prepaid child rejects negative top_up_balance'
+);
+
+select throws_ok(
+  $$update public.billing_accounts
+      set allocation_balance = -1
+    where id = '20000000-0000-4000-8000-000000000001'$$,
+  '23514',
+  null,
+  'prepaid child rejects negative allocation_balance'
 );
 
 insert into public.users (id) values ('_pgtap_indiv2');
@@ -94,7 +113,43 @@ select throws_ok(
     where id = '20000000-0000-4000-8000-000000000002'$$,
   '23514',
   null,
-  'subscription wallet still rejects negative top_up_balance'
+  'individual rejects negative top_up_balance'
+);
+
+select throws_ok(
+  $$update public.billing_accounts
+      set sponsored_balance = -1
+    where id = '20000000-0000-4000-8000-000000000002'$$,
+  '23514',
+  null,
+  'individual rejects negative sponsored_balance'
+);
+
+-- Standalone org (subscription) rejects negative sponsored
+insert into public.organizations (id, public_id, kind, name, created_by)
+values (
+  '10000000-0000-4000-8000-000000000020',
+  'org_pgtap_standalone00001',
+  'org',
+  'Standalone',
+  '_pgtap_org_owner'
+);
+insert into public.billing_accounts (
+  id, owner_org_id, account_kind, access_mode
+) values (
+  '20000000-0000-4000-8000-000000000010',
+  '10000000-0000-4000-8000-000000000020',
+  'org',
+  'subscription'
+);
+
+select throws_ok(
+  $$update public.billing_accounts
+      set sponsored_balance = -1
+    where id = '20000000-0000-4000-8000-000000000010'$$,
+  '23514',
+  null,
+  'standalone org rejects negative sponsored_balance'
 );
 
 -- account_kind must match organizations.kind
@@ -123,6 +178,15 @@ select lives_ok(
       'subscription'
     )$$,
   'super_org wallet with matching kind + subscription access_mode'
+);
+
+select throws_ok(
+  $$update public.billing_accounts
+      set sponsored_balance = -1
+    where id = '20000000-0000-4000-8000-000000000004'$$,
+  '23514',
+  null,
+  'super_org rejects negative sponsored_balance'
 );
 
 -- Forward-only account_kind on billing_accounts

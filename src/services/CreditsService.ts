@@ -78,6 +78,8 @@ export function emptyBillingSnapshot(): BillingSnapshot {
     remainingPct: 0,
     additionalPct: 0,
     additionalNextExpiry: null,
+    sponsoredPct: 0,
+    overdrawnPct: 0,
     periodEnd: null,
     cancelAtPeriodEnd: false,
     scheduledChange: null,

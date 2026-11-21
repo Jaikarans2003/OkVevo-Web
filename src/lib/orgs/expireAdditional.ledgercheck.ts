@@ -83,7 +83,7 @@ async function seedPair(
   assert.equal((await getBillingByUserId(sql, uid))?.topUpBalance, 800)
 }
 
-// Prepaid child org may be negative → expire nothing
+// Prepaid child org: top_up never negative post-2b-a (only sponsored carries debt) → expire nothing
 {
   const uid = `exp3-${Date.now().toString(16)}`
   await ensureUserAndBilling(sql, uid)
@@ -101,7 +101,7 @@ async function seedPair(
   const orgId = String(child[0]!.id)
   const wallet = await sql`
     insert into billing_accounts (owner_org_id, account_kind, access_mode, top_up_balance, top_up_reference)
-    values (${orgId}, 'org', 'prepaid', -100, 0)
+    values (${orgId}, 'org', 'prepaid', 0, 0)
     returning id
   `
   const bid = String(wallet[0]!.id)

@@ -28,6 +28,8 @@ const base: BillingAccountData = {
   allocationBalance: 15_000,
   topUpBalance: 500,
   topUpReference: 1_000,
+  sponsoredBalance: 0,
+  sponsoredReference: 0,
   allocationGrantedTotal: 20_000,
   topUpPurchasedTotal: 1_000,
   nextAllocationDate: null,
@@ -47,6 +49,8 @@ assert.equal(summary.entitled, true)
 assert.equal(summary.status, 'active')
 assert.equal(summary.remainingPct, 75)
 assert.equal(summary.additionalPct, 50)
+assert.equal(summary.sponsoredPct, 0)
+assert.equal(summary.overdrawnPct, 0)
 assert.equal(summary.accountKind, 'individual')
 assert.equal(summary.canPurchase, true)
 assert.equal(summary.fundedBy, null)
