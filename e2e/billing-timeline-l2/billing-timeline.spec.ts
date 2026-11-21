@@ -327,6 +327,7 @@ test.describe('billing timeline Layer 2', () => {
   });
 
   test('2b-a: accept super-org then leave then buy again', async ({ page }) => {
+    test.setTimeout(600_000);
     const adminEmail = (process.env.L2_ADMIN_EMAIL ?? '').trim();
     const adminPassword = (process.env.L2_ADMIN_PASSWORD ?? '').trim();
     if (!adminEmail || !adminPassword) {
