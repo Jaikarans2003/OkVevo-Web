@@ -1,10 +1,11 @@
 /**
  * Server billing summary for GET /api/billing/summary.
- * Percentages only — never return raw allocation/top-up balances.
+ * Percentages only — never return raw allocation/top-up/sponsored balances.
  */
 import { isEntitled } from '@/lib/billing/entitlement'
 import type { BillingAccountData, DbHandle } from '@/lib/db/wallet'
-import { additionalRemainingPct, remainingPct } from '@/types/credits'
+import { overdrawnPct } from '@/lib/orgs/overdrawn'
+import { additionalRemainingPct, flooredPct, remainingPct } from '@/types/credits'
 
 export type BillingSummary = {
   plan: string | null
@@ -14,6 +15,10 @@ export type BillingSummary = {
   remainingPct: number
   additionalPct: number
   additionalNextExpiry: string | null
+  /** Sponsored bar: balance/reference when > 0, else 0. */
+  sponsoredPct: number
+  /** Overdrawn % of this month's 1.5% limit (0 when not overdrawn). */
+  overdrawnPct: number
   periodEnd: string | null
   cancelAtPeriodEnd: boolean
   scheduledChange: {
@@ -64,6 +69,16 @@ export type BillingSummaryExtras = {
   fundedBy?: string | null
   /** When false, hides buy/change even for subscription wallets (non-owner). */
   canPurchase?: boolean
+  /** This month's 1.5% credit limit (for overdrawnPct). */
+  creditLimit?: number
+}
+
+export function sponsoredRemainingPct(
+  sponsoredBalance: number,
+  sponsoredReference: number
+): number {
+  if (sponsoredBalance <= 0) return 0
+  return flooredPct(sponsoredBalance, Math.max(0, sponsoredReference))
 }
 
 export function billingSummaryFromAccount(
@@ -80,6 +95,8 @@ export function billingSummaryFromAccount(
       remainingPct: 0,
       additionalPct: 0,
       additionalNextExpiry: extras.additionalNextExpiry ?? null,
+      sponsoredPct: 0,
+      overdrawnPct: 0,
       periodEnd: null,
       cancelAtPeriodEnd: false,
       scheduledChange: null,
@@ -103,6 +120,7 @@ export function billingSummaryFromAccount(
   // Child orgs (prepaid) never buy; fundedBy filled when summary is resolved with org context.
   const canPurchase =
     extras.canPurchase ?? billing.accessMode !== 'prepaid'
+  const creditLimit = extras.creditLimit ?? 0
 
   return {
     plan: billing.plan,
@@ -116,6 +134,11 @@ export function billingSummaryFromAccount(
     ),
     additionalPct: additionalRemainingPct(billing.topUpBalance, billing.topUpReference),
     additionalNextExpiry: extras.additionalNextExpiry ?? null,
+    sponsoredPct: sponsoredRemainingPct(
+      billing.sponsoredBalance,
+      billing.sponsoredReference
+    ),
+    overdrawnPct: overdrawnPct(billing.sponsoredBalance, creditLimit),
     periodEnd: iso(billing.currentPeriodEnd),
     cancelAtPeriodEnd: billing.cancelAtPeriodEnd,
     scheduledChange: hasScheduled

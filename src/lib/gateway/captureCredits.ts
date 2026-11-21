@@ -28,7 +28,11 @@ function jobFromSnap(data: Record<string, unknown> | undefined): JobRecord | und
   }
   const heldAllocation = readInt(data.heldAllocation);
   const heldTopUp = readInt(data.heldTopUp);
-  const hasSplit = data.heldAllocation !== undefined || data.heldTopUp !== undefined;
+  const heldSponsored = readInt(data.heldSponsored);
+  const hasSplit =
+    data.heldAllocation !== undefined ||
+    data.heldTopUp !== undefined ||
+    data.heldSponsored !== undefined;
   return {
     uid,
     provider: 'fal',
@@ -36,6 +40,7 @@ function jobFromSnap(data: Record<string, unknown> | undefined): JobRecord | und
     status: 'settled',
     heldAllocation: hasSplit ? heldAllocation : estimated,
     heldTopUp: hasSplit ? heldTopUp : 0,
+    ...(hasSplit && heldSponsored !== 0 ? { heldSponsored } : {}),
     settledCredits: typeof data.settledCredits === 'number' ? data.settledCredits : undefined,
     captured: data.captured === true,
   };
@@ -85,6 +90,9 @@ export async function captureCreditsOn(
     await updateBillingById(tx, billing.id, {
       allocationBalance: result.balances.allocationBalance,
       topUpBalance: result.balances.topUpBalance,
+      ...(result.balances.sponsoredBalance !== undefined
+        ? { sponsoredBalance: result.balances.sponsoredBalance }
+        : {}),
     });
     await updateJob(tx, requestId, {
       captured: true,
@@ -94,6 +102,7 @@ export async function captureCreditsOn(
       actualCredits: result.settledCredits,
       heldAllocation: result.heldAllocation,
       heldTopUp: result.heldTopUp,
+      ...(result.heldSponsored ? { heldSponsored: result.heldSponsored } : {}),
     });
     await insertCreditTransaction(tx, txnId, billing.id, omitUndefined({
       user_id: job.uid,

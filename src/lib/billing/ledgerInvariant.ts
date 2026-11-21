@@ -42,7 +42,7 @@ export async function findLedgerMismatches(db: Sql): Promise<LedgerMismatch[]> {
       select
         billing_account_id,
         case
-          when type in ('grant', 'transfer_in', 'topup', 'top_up', 'refund', 'release')
+          when type in ('grant', 'transfer_in', 'topup', 'top_up', 'refund', 'release', 'absorbed')
             then amount
           when type in ('debit', 'expire', 'transfer_out', 'debt_recovery', 'forfeit')
             then -amount
@@ -57,7 +57,9 @@ export async function findLedgerMismatches(db: Sql): Promise<LedgerMismatch[]> {
         coalesce(sum(case when bucket = 'allocation' then signed_amount else 0 end), 0)::bigint
           as ledger_alloc,
         coalesce(sum(case when bucket = 'top_up' then signed_amount else 0 end), 0)::bigint
-          as ledger_topup
+          as ledger_topup,
+        coalesce(sum(case when bucket = 'sponsored' then signed_amount else 0 end), 0)::bigint
+          as ledger_sponsored
       from signed
       group by billing_account_id
     ),
@@ -65,7 +67,8 @@ export async function findLedgerMismatches(db: Sql): Promise<LedgerMismatch[]> {
       select
         billing_account_id,
         coalesce(sum(held_allocation), 0)::bigint as hold_alloc,
-        coalesce(sum(held_top_up), 0)::bigint as hold_topup
+        coalesce(sum(held_top_up), 0)::bigint as hold_topup,
+        coalesce(sum(held_sponsored), 0)::bigint as hold_sponsored
       from gateway_jobs
       where status in ${db(OPEN_HOLD_STATUSES)}
       group by billing_account_id
@@ -74,10 +77,13 @@ export async function findLedgerMismatches(db: Sql): Promise<LedgerMismatch[]> {
       ba.id as billing_account_id,
       ba.allocation_balance::bigint as allocation_balance,
       ba.top_up_balance::bigint as top_up_balance,
+      ba.sponsored_balance::bigint as sponsored_balance,
       coalesce(l.ledger_alloc, 0)::bigint as ledger_alloc,
       coalesce(l.ledger_topup, 0)::bigint as ledger_topup,
+      coalesce(l.ledger_sponsored, 0)::bigint as ledger_sponsored,
       coalesce(h.hold_alloc, 0)::bigint as hold_alloc,
-      coalesce(h.hold_topup, 0)::bigint as hold_topup
+      coalesce(h.hold_topup, 0)::bigint as hold_topup,
+      coalesce(h.hold_sponsored, 0)::bigint as hold_sponsored
     from billing_accounts ba
     left join ledger l on l.billing_account_id = ba.id
     left join holds h on h.billing_account_id = ba.id
@@ -87,13 +93,17 @@ export async function findLedgerMismatches(db: Sql): Promise<LedgerMismatch[]> {
   for (const r of rows) {
     const allocationBalance = Number(r.allocation_balance)
     const topUpBalance = Number(r.top_up_balance)
+    const sponsoredBalance = Number(r.sponsored_balance)
     const ledgerAlloc = Number(r.ledger_alloc)
     const ledgerTopUp = Number(r.ledger_topup)
+    const ledgerSponsored = Number(r.ledger_sponsored)
     const holdAlloc = Number(r.hold_alloc)
     const holdTopUp = Number(r.hold_topup)
+    const holdSponsored = Number(r.hold_sponsored)
     const allocDelta = ledgerBucketDelta(allocationBalance, ledgerAlloc, holdAlloc)
     const topUpDelta = ledgerBucketDelta(topUpBalance, ledgerTopUp, holdTopUp)
-    if (allocDelta !== 0 || topUpDelta !== 0) {
+    const sponsoredDelta = ledgerBucketDelta(sponsoredBalance, ledgerSponsored, holdSponsored)
+    if (allocDelta !== 0 || topUpDelta !== 0 || sponsoredDelta !== 0) {
       out.push({
         billingAccountId: String(r.billing_account_id),
         allocationBalance,

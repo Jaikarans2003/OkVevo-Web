@@ -263,9 +263,9 @@ assert.equal(inactive, null);
   for (const run of cases) run();
 }
 
-// Prepaid child org: top-up may go negative up to creditLimit.
+// Prepaid child org (2b-a): sponsored may go negative up to creditLimit; top_up stays >= 0.
 const prepaidOk = applyReserve(
-  { allocationBalance: 0, topUpBalance: 0 },
+  { allocationBalance: 0, topUpBalance: 0, sponsoredBalance: 0 },
   undefined,
   50,
   uid,
@@ -274,10 +274,12 @@ const prepaidOk = applyReserve(
 );
 assert.equal(prepaidOk.ok, true);
 if (!prepaidOk.ok) throw new Error('unreachable');
-assert.equal(prepaidOk.balances.topUpBalance, -50);
+assert.equal(prepaidOk.balances.topUpBalance, 0);
+assert.equal(prepaidOk.balances.sponsoredBalance, -50);
+assert.equal(prepaidOk.job.heldSponsored, 50);
 
 const prepaidCap = applyReserve(
-  { allocationBalance: 0, topUpBalance: 0 },
+  { allocationBalance: 0, topUpBalance: 0, sponsoredBalance: 0 },
   undefined,
   101,
   uid,
@@ -286,22 +288,39 @@ const prepaidCap = applyReserve(
 );
 assert.equal(prepaidCap.ok, false);
 
+// Spend order: allocation → topUp → sponsored
+const three = applyReserve(
+  { allocationBalance: 10, topUpBalance: 20, sponsoredBalance: 100 },
+  undefined,
+  40,
+  uid,
+  'openrouter'
+);
+assert.equal(three.ok, true);
+if (!three.ok) throw new Error('unreachable');
+assert.equal(three.job.heldAllocation, 10);
+assert.equal(three.job.heldTopUp, 20);
+assert.equal(three.job.heldSponsored, 10);
+assert.equal(three.balances.sponsoredBalance, 90);
+
 const settleNeg = applyReconcile(
-  { allocationBalance: 0, topUpBalance: -20 },
+  { allocationBalance: 0, topUpBalance: 0, sponsoredBalance: -20 },
   {
     uid,
     provider: 'openrouter',
     estimatedCredits: 50,
     status: 'reserved',
     heldAllocation: 0,
-    heldTopUp: 50,
+    heldTopUp: 0,
+    heldSponsored: 50,
   },
   50,
   100
 );
 assert.equal(settleNeg.skipped, false);
 if (settleNeg.skipped) throw new Error('unreachable');
-assert.equal(settleNeg.balances.topUpBalance, -20);
+assert.equal(settleNeg.balances.topUpBalance, 0);
+assert.equal(settleNeg.balances.sponsoredBalance, -20);
 assert.equal(settleNeg.walletDebit, 50);
 assert.equal(settleNeg.absorbed, 0);
 

@@ -32,6 +32,10 @@ export type BillingAccountData = {
   topUpBalance: number
   /** Balance right after the most recent top-up; additional % denominator. */
   topUpReference: number
+  /** Super-org sponsored credits (2b-a). May be negative only when accessMode=prepaid. */
+  sponsoredBalance: number
+  /** Positive sponsored balance after last transfer; sponsored % denominator. */
+  sponsoredReference: number
   allocationGrantedTotal: number
   topUpPurchasedTotal: number
   nextAllocationDate: Date | null
@@ -69,6 +73,8 @@ export function billingRowToData(row: Record<string, unknown> | undefined): Bill
     allocationBalance: num(row.allocation_balance),
     topUpBalance: num(row.top_up_balance),
     topUpReference: num(row.top_up_reference),
+    sponsoredBalance: num(row.sponsored_balance),
+    sponsoredReference: num(row.sponsored_reference),
     allocationGrantedTotal: num(row.allocation_granted_total),
     topUpPurchasedTotal: num(row.top_up_purchased_total),
     nextAllocationDate: (row.next_allocation_date as Date | null) ?? null,
@@ -193,8 +199,12 @@ const BILLING_KEY_MAP: Record<string, string> = {
   allocationBalance: 'allocation_balance',
   topUpBalance: 'top_up_balance',
   topUpReference: 'top_up_reference',
+  sponsoredBalance: 'sponsored_balance',
+  sponsoredReference: 'sponsored_reference',
   allocationGrantedTotal: 'allocation_granted_total',
   topUpPurchasedTotal: 'top_up_purchased_total',
+  accessMode: 'access_mode',
+  accountKind: 'account_kind',
   nextAllocationDate: 'next_allocation_date',
   currentPeriodEnd: 'current_period_end',
   cancelAtPeriodEnd: 'cancel_at_period_end',
@@ -225,6 +235,7 @@ const JOB_KEY_MAP: Record<string, string> = {
   status: 'status',
   heldAllocation: 'held_allocation',
   heldTopUp: 'held_top_up',
+  heldSponsored: 'held_sponsored',
   endpoint: 'endpoint',
   unit: 'unit',
   unitPrice: 'unit_price',

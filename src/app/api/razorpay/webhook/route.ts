@@ -447,6 +447,8 @@ export async function POST(request: NextRequest) {
                         mode: addFullGrant ? 'add' : 'set',
                         // Include current_start so paused/halted → activated recovery can SET again.
                         requestId: `sub_activated_${subscription.id}_${subscription.current_start || '0'}`,
+                        razorpaySubscriptionId: subscription.id,
+                        expiresAt: periodEnd ?? null,
                         userPatch: {
                             planStatus: 'active',
                             plan: planMeta.plan,
@@ -581,9 +583,12 @@ export async function POST(request: NextRequest) {
                         reason: 'subscription.charged',
                         bucket: 'allocation',
                         requestId: `sub_charged_${subscription.id}_${cycleNumber}`,
+                        razorpaySubscriptionId: subscription.id,
+                        expiresAt: periodEnd ?? null,
                         userPatch: {
                             nextAllocationDate: refreshPatch.nextAllocationDate,
                             planStatus: 'active',
+                            razorpaySubscriptionId: subscription.id,
                             ...(periodEnd && { currentPeriodEnd: periodEnd }),
                             ...(instrument && { paymentMethod: instrument }),
                         },
@@ -659,6 +664,8 @@ export async function POST(request: NextRequest) {
                     bucket: 'allocation',
                     mode: 'add',
                     requestId,
+                    razorpaySubscriptionId: subscription.id,
+                    expiresAt: unixToDate(subscription.current_end) ?? null,
                     userPatch: {
                         plan: planMeta.plan,
                         planName: planMeta.planName,

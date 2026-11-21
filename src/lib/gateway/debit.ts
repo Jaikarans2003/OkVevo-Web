@@ -24,6 +24,12 @@ import { canTransition } from '@/lib/fal/jobMachine';
 
 import { applySpendClose, applySpendRelease, type SpendDaily } from '@/lib/fal/dramaSwitches';
 import { refreshAllocationIfDue } from '@/lib/billing/allocation';
+import {
+  loadAllocationLots,
+  remainingForSubscription,
+  remainingByLot,
+  takeFromLots,
+} from '@/lib/billing/allocationLots';
 import { isEntitled } from '@/lib/billing/entitlement';
 import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
@@ -53,14 +59,20 @@ function readInt(n: unknown): number {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
-/** top_up may be negative for prepaid child orgs (creditLimit). */
+/** top_up stays >= 0 (2b-a); keep signed reader for legacy rows pre-migrate. */
 function readTopUp(n: unknown): number {
   return typeof n === 'number' && Number.isInteger(n) ? n : 0;
 }
 
+/** Sponsored may be negative on prepaid children. */
+function readSponsored(n: unknown): number {
+  return typeof n === 'number' && Number.isInteger(n) ? n : 0;
+}
+
 /**
- * Read two buckets. One-time migrate: legacy creditBalance → topUpBalance
+ * Read buckets. One-time migrate: legacy creditBalance → topUpBalance
  * when both new buckets are absent/zero and creditBalance > 0.
+ * sponsoredBalance omitted when unset/0 so pre-2b-a selfchecks stay identical.
  */
 export function readBalances(data: Record<string, unknown> | undefined): BucketBalances {
   if (!data) return { allocationBalance: 0, topUpBalance: 0 };
@@ -71,7 +83,23 @@ export function readBalances(data: Record<string, unknown> | undefined): BucketB
   if (allocation === 0 && topUp === 0 && legacy > 0 && data.topUpBalance === undefined) {
     topUp = legacy;
   }
-  return { allocationBalance: allocation, topUpBalance: topUp };
+  const out: BucketBalances = { allocationBalance: allocation, topUpBalance: topUp };
+  if (data.sponsoredBalance !== undefined && data.sponsoredBalance !== 0) {
+    out.sponsoredBalance = readSponsored(data.sponsoredBalance);
+  }
+  return out;
+}
+
+/** Persist bucket balances; only write sponsored when the pure path set it. */
+function billingBalancePatch(balances: BucketBalances): Record<string, number> {
+  const patch: Record<string, number> = {
+    allocationBalance: balances.allocationBalance,
+    topUpBalance: balances.topUpBalance,
+  };
+  if (balances.sponsoredBalance !== undefined) {
+    patch.sponsoredBalance = balances.sponsoredBalance;
+  }
+  return patch;
 }
 
 function readPlanStatus(data: Record<string, unknown> | undefined): string | null {
@@ -103,8 +131,12 @@ export function jobFromSnap(data: Record<string, unknown> | undefined): JobRecor
   }
   const heldAllocation = readInt(data.heldAllocation);
   const heldTopUp = readInt(data.heldTopUp);
+  const heldSponsored = readInt(data.heldSponsored);
   // Legacy jobs without hold split: treat entire hold as allocation
-  const hasSplit = data.heldAllocation !== undefined || data.heldTopUp !== undefined;
+  const hasSplit =
+    data.heldAllocation !== undefined ||
+    data.heldTopUp !== undefined ||
+    data.heldSponsored !== undefined;
   return {
     uid,
     provider,
@@ -112,6 +144,7 @@ export function jobFromSnap(data: Record<string, unknown> | undefined): JobRecor
     status,
     heldAllocation: hasSplit ? heldAllocation : estimated,
     heldTopUp: hasSplit ? heldTopUp : 0,
+    ...(hasSplit && heldSponsored !== 0 ? { heldSponsored } : {}),
     settledCredits: typeof data.settledCredits === 'number' ? data.settledCredits : undefined,
     captured: data.captured === true,
   };
@@ -378,7 +411,11 @@ export async function reserveCredits(opts: {
       if (
         holds &&
         denialForFailedReserve({
-          spendable: balances.allocationBalance + balances.topUpBalance + creditLimit,
+          spendable:
+            balances.allocationBalance +
+            balances.topUpBalance +
+            (balances.sponsoredBalance ?? 0) +
+            creditLimit,
           estimated: estimatedCredits,
           inFlightHeld: holds.held,
         }) === 'in_flight_budget_exhausted'
@@ -388,10 +425,7 @@ export async function reserveCredits(opts: {
       throw new InsufficientCreditsError();
     }
     await applySpendHold(tx, spend);
-    await updateBillingById(tx, billing.id, {
-      allocationBalance: result.balances.allocationBalance,
-      topUpBalance: result.balances.topUpBalance,
-    });
+    await updateBillingById(tx, billing.id, billingBalancePatch(result.balances));
     const holdExpiresAt =
       provider === 'openrouter' || provider === 'tavily'
         ? new Date(Date.now() + CHAT_HOLD_TTL_MS)
@@ -405,6 +439,7 @@ export async function reserveCredits(opts: {
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
       heldTopUp: result.job.heldTopUp,
+      ...(result.job.heldSponsored ? { heldSponsored: result.job.heldSponsored } : {}),
       status: 'reserved',
       ...(holdExpiresAt ? { holdExpiresAt } : {}),
       ...(extra ?? {}),
@@ -608,10 +643,7 @@ export async function reserveFalRun(opts: {
       throw new InsufficientCreditsError();
     }
     await applySpendHold(tx, spend);
-    await updateBillingById(tx, billing.id, {
-      allocationBalance: result.balances.allocationBalance,
-      topUpBalance: result.balances.topUpBalance,
-    });
+    await updateBillingById(tx, billing.id, billingBalancePatch(result.balances));
     await upsertQueue(tx, opts.uid, {
       running: admitted.state.running,
       queued: admitted.state.queued,
@@ -627,6 +659,7 @@ export async function reserveFalRun(opts: {
       estimatedCredits: result.job.estimatedCredits,
       heldAllocation: result.job.heldAllocation,
       heldTopUp: result.job.heldTopUp,
+      ...(result.job.heldSponsored ? { heldSponsored: result.job.heldSponsored } : {}),
       status: 'queued',
       queuePosition: admitted.position,
       ...(opts.extra ?? {}),
@@ -902,16 +935,14 @@ export async function reconcileCredits(opts: {
     const result = applyReconcile(readBalances(billing), job, actualCredits, creditLimit);
     if (result.skipped) return;
 
-    await updateBillingById(tx, billing.id, {
-      allocationBalance: result.balances.allocationBalance,
-      topUpBalance: result.balances.topUpBalance,
-    });
+    await updateBillingById(tx, billing.id, billingBalancePatch(result.balances));
     await updateJob(tx, requestId, {
       status: 'settled',
       captured: false,
       actualCredits: result.debitAmount,
       heldAllocation: result.heldAllocation,
       heldTopUp: result.heldTopUp,
+      ...(result.heldSponsored ? { heldSponsored: result.heldSponsored } : {}),
     });
     if (spendDay) {
       const closed = applySpendClose(spendCurrent, {
@@ -931,15 +962,12 @@ export async function reconcileCredits(opts: {
 
     if (result.debitAmount <= 0) return;
 
-    const amount = clampDebitAmount(result.walletDebit, result.walletDebit);
-    await insertCreditTransaction(tx, requestId, billing.id, omitUndefined({
+    const common = omitUndefined({
       user_id: job.uid,
       org_id: typeof jobData?.orgId === 'string' ? jobData.orgId : null,
       super_org_id: typeof jobData?.superOrgId === 'string' ? jobData.superOrgId : null,
       end_customer_ref:
         typeof jobData?.endCustomerRef === 'string' ? jobData.endCustomerRef : null,
-      type: 'debit',
-      amount,
       absorbed: result.absorbed,
       provider,
       model: opts.model,
@@ -948,7 +976,67 @@ export async function reconcileCredits(opts: {
       cost_usd: opts.costUsd,
       price_usd: opts.priceUsd,
       request_id: requestId,
-    }));
+    });
+
+    // Bucketed debits (null bucket historically counted as allocation — split for 2b-a).
+    if (result.heldAllocation > 0) {
+      const lots = await loadAllocationLots(tx, billing.id);
+      const restoredAlloc = billing.allocationBalance + job.heldAllocation;
+      const rem = remainingByLot(lots, restoredAlloc);
+      const slices = takeFromLots(rem, result.heldAllocation);
+      if (slices.length === 0) {
+        await insertCreditTransaction(tx, requestId, billing.id, {
+          ...common,
+          type: 'debit',
+          amount: result.heldAllocation,
+          bucket: 'allocation',
+        });
+      } else {
+        let i = 0;
+        for (const slice of slices) {
+          i += 1;
+          const id = i === 1 ? requestId : `${requestId}:alloc:${i}`;
+          await insertCreditTransaction(tx, id, billing.id, {
+            ...common,
+            type: 'debit',
+            amount: slice.amount,
+            bucket: 'allocation',
+            razorpay_subscription_id: slice.subscriptionId,
+          });
+        }
+      }
+    }
+    if (result.heldTopUp > 0) {
+      await insertCreditTransaction(tx, `${requestId}:top_up`, billing.id, {
+        ...common,
+        type: 'debit',
+        amount: result.heldTopUp,
+        bucket: 'top_up',
+      });
+    }
+    if (result.heldSponsored > 0) {
+      await insertCreditTransaction(tx, `${requestId}:sponsored`, billing.id, {
+        ...common,
+        type: 'debit',
+        amount: result.heldSponsored,
+        bucket: 'sponsored',
+      });
+    }
+    // Legacy path: wallet debit with no hold split recorded.
+    if (
+      result.heldAllocation === 0 &&
+      result.heldTopUp === 0 &&
+      result.heldSponsored === 0 &&
+      result.walletDebit > 0
+    ) {
+      const amount = clampDebitAmount(result.walletDebit, result.walletDebit);
+      await insertCreditTransaction(tx, requestId, billing.id, {
+        ...common,
+        type: 'debit',
+        amount,
+        bucket: 'allocation',
+      });
+    }
   });
 }
 
@@ -1004,10 +1092,7 @@ export async function releaseCredits(
     const result = applyRelease(readBalances(billing), job);
     if (result.skipped) return false;
     writeSpendRelease(tx, spend);
-    await updateBillingById(tx, billing.id, {
-      allocationBalance: result.balances.allocationBalance,
-      topUpBalance: result.balances.topUpBalance,
-    });
+    await updateBillingById(tx, billing.id, billingBalancePatch(result.balances));
     await updateJob(tx, requestId, { status: 'released', ...(opts?.patch ?? {}) });
     if (unsentIdemId) await updateIdemRow(tx, unsentIdemId, { phase: 'released', submitStarted: true });
     return true;
@@ -1018,6 +1103,7 @@ export type GrantBucket = 'allocation' | 'topUp';
 
 /**
  * allocation grants SET (default) or ADD (`mode: 'add'`); topUp grants ADD.
+ * Allocation SET with razorpaySubscriptionId replaces only that subscription's lot.
  * Idempotent when requestId is provided (credit_transactions/{requestId}).
  */
 export async function grantCredits(opts: {
@@ -1033,6 +1119,10 @@ export async function grantCredits(opts: {
   userPatch?: Record<string, unknown>;
   /** allocation only. `set` (default) replaces the bucket; `add` is an upgrade delta. */
   mode?: 'set' | 'add';
+  /** Allocation lot stamp (Razorpay subscription id). */
+  razorpaySubscriptionId?: string | null;
+  /** Allocation lot expiry (= subscription current_period_end). */
+  expiresAt?: Date | null;
 }): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
   const { reason, bucket, userPatch } = opts;
   const uid = opts.uid;
@@ -1094,31 +1184,69 @@ export async function grantCredits(opts: {
     }
 
     const current = readBalances(billing);
+    const lotSubId =
+      opts.razorpaySubscriptionId ??
+      billing.razorpaySubscriptionId ??
+      null;
+    const lotExpires =
+      opts.expiresAt ??
+      (bucket === 'allocation' ? billing.currentPeriodEnd : null);
+
     let debtRecovered = 0;
     let grantLedgerAmount = grantAmount;
     if (bucket === 'topUp' && current.topUpBalance < 0 && grantAmount > 0) {
-      // Same repay step as transferCredits: net debt before recording the grant remainder.
+      // Legacy repay (pre-2b-a negative top_up). New debt lives on sponsored.
       debtRecovered = Math.min(grantAmount, -current.topUpBalance);
       grantLedgerAmount = grantAmount - debtRecovered;
     }
-    const next: BucketBalances =
-      bucket === 'allocation'
-        ? {
-            allocationBalance:
-              mode === 'add' ? current.allocationBalance + grantAmount : grantAmount,
-            topUpBalance: current.topUpBalance,
+
+    let nextAlloc = current.allocationBalance;
+    let nextTopUp = current.topUpBalance;
+    if (bucket === 'allocation') {
+      if (mode === 'add') {
+        nextAlloc = current.allocationBalance + grantAmount;
+      } else if (lotSubId) {
+        const lots = await loadAllocationLots(tx, billing.id);
+        if (lots.length === 0) {
+          // No stamped lots yet — legacy full SET.
+          nextAlloc = grantAmount;
+        } else {
+          const lotRem = remainingForSubscription(
+            lots,
+            current.allocationBalance,
+            lotSubId
+          );
+          nextAlloc = current.allocationBalance - lotRem + grantAmount;
+          if (lotRem > 0) {
+            await insertCreditTransaction(tx, `${requestId}:expire_lot`, billing.id, {
+              user_id: billing.ownerUserId ?? uid ?? null,
+              org_id: billing.ownerOrgId,
+              type: 'expire',
+              amount: lotRem,
+              bucket: 'allocation',
+              request_id: requestId,
+              reason: `${reason}.lot_replace`,
+              razorpay_subscription_id: lotSubId,
+            });
           }
-        : {
-            allocationBalance: current.allocationBalance,
-            topUpBalance: current.topUpBalance + grantAmount,
-          };
+        }
+      } else {
+        nextAlloc = grantAmount;
+      }
+    } else {
+      nextTopUp = current.topUpBalance + grantAmount;
+    }
+
+    const next: BucketBalances = {
+      allocationBalance: nextAlloc,
+      topUpBalance: nextTopUp,
+    };
 
     const balancePatch = {
       allocationBalance: next.allocationBalance,
       topUpBalance: next.topUpBalance,
       ...(bucket === 'topUp'
         ? {
-            // Additional % bar resets to 100% of the post-purchase balance.
             topUpReference: next.topUpBalance > 0 ? next.topUpBalance : billing.topUpReference,
             topUpPurchasedTotal: nextTopUpPurchasedTotal(
               readInt(billing.topUpPurchasedTotal),
@@ -1127,7 +1255,6 @@ export async function grantCredits(opts: {
             ),
           }
         : {
-            // Spend must not touch this field — missing stays on creditsIncluded until seed/next grant.
             allocationGrantedTotal: nextAllocationGrantedTotal(
               mode,
               readInt(billing.allocationGrantedTotal),
@@ -1159,7 +1286,7 @@ export async function grantCredits(opts: {
       const expiresAt =
         bucket === 'topUp'
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          : null;
+          : lotExpires;
       await insertCreditTransaction(tx, requestId, billing.id, {
         user_id: billing.ownerUserId ?? uid ?? null,
         org_id: billing.ownerOrgId,
@@ -1170,6 +1297,9 @@ export async function grantCredits(opts: {
         reason,
         mode,
         ...(expiresAt ? { expires_at: expiresAt } : {}),
+        ...(bucket === 'allocation' && lotSubId
+          ? { razorpay_subscription_id: lotSubId }
+          : {}),
       });
     }
 

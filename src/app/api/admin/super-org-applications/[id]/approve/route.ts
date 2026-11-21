@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { ensureMe, isPlatformAdmin } from '@/lib/api/me'
+import { cancelSubscriptionAtPeriodEndAfterCommit } from '@/lib/billing/cancelSubscriptionAtPeriodEnd'
+import { sql } from '@/lib/db/client'
+import { getBillingByOrgId } from '@/lib/db/wallet'
 import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
 import { gatewayIdToken } from '@/lib/gateway/auth'
@@ -52,6 +55,16 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             ? 409
             : 400
     return NextResponse.json({ error: result.code, code: result.code }, { status })
+  }
+
+  // Same wallet converted in place — cancel its Razorpay sub after commit.
+  const orgWallet = await getBillingByOrgId(sql, result.orgId)
+  if (orgWallet?.razorpaySubscriptionId) {
+    await cancelSubscriptionAtPeriodEndAfterCommit({
+      billingAccountId: orgWallet.id,
+      razorpaySubscriptionId: orgWallet.razorpaySubscriptionId,
+      reason: 'approve.super_org',
+    })
   }
 
   return NextResponse.json({

@@ -19,11 +19,13 @@ export async function computeCreditLimit(
   if (modeRows[0]?.access_mode !== 'prepaid') return 0
 
   const since = monthStartUtc(now)
+  // 2b-a: 1.5% floor is on sponsored inflows only (top_up never goes negative).
   const rows = await db`
     select coalesce(sum(amount), 0)::int as s
     from credit_transactions
     where billing_account_id = ${billingAccountId}
       and type in ('transfer_in', 'debt_recovery')
+      and bucket = 'sponsored'
       and created_at >= ${since}
   `
   const received = Number(rows[0]?.s ?? 0)
