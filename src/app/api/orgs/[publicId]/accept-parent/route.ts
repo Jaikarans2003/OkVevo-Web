@@ -1,9 +1,15 @@
 /**
  * POST /api/orgs/:publicId/accept-parent — set parent_id + prepaid (2b-a wallet).
- * Body: { superOrgPublicId }. Invitation gating lands in 2b-b.
+ * Body: { superOrgPublicId }.
+ *
+ * Until 2b-b: platform-admin only (staging L2 uses the L2 admin). 2b-b replaces
+ * this with the org_invitations check — parent-initiated only (super-org invites
+ * by org public id or owner email; org owner accepts/declines; no org-initiated
+ * join request).
  */
 import { NextRequest, NextResponse } from 'next/server'
 
+import { isPlatformAdmin } from '@/lib/api/me'
 import { cancelSubscriptionAtPeriodEndAfterCommit } from '@/lib/billing/cancelSubscriptionAtPeriodEnd'
 import { sql } from '@/lib/db/client'
 import { withTx } from '@/lib/db/tx'
@@ -18,6 +24,16 @@ type Ctx = { params: Promise<{ publicId: string }> }
 export async function POST(req: NextRequest, ctx: Ctx) {
   const authed = await requireAuthed(req)
   if (!isAuthed(authed)) return authed
+
+  // 2b-b: replace with org_invitations accept/decline for the invited org owner.
+  if (
+    !isPlatformAdmin({
+      email: authed.email,
+      email_verified: authed.emailVerified,
+    })
+  ) {
+    return NextResponse.json({ error: 'forbidden', code: 'forbidden' }, { status: 403 })
+  }
 
   const { publicId } = await ctx.params
   let body: { superOrgPublicId?: unknown }

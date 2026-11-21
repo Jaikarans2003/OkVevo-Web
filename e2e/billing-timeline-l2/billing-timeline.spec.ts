@@ -377,8 +377,9 @@ test.describe('billing timeline Layer 2', () => {
         orgPublicId: superOrgPublicId,
       });
 
+      // Until 2b-b invitations: accept-parent is platform-admin only (L2 admin).
       const { status: acceptStatus, json: accepted } = await acceptParent(
-        orgUser.idToken,
+        adminJson.idToken!,
         orgPublicId,
         superOrgPublicId
       );

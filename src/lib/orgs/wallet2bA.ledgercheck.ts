@@ -3,16 +3,26 @@
  * Run: DATABASE_URL=... npx tsx src/lib/orgs/wallet2bA.ledgercheck.ts
  */
 import assert from 'node:assert/strict'
+import postgres from 'postgres'
 
 process.env.OKVEVO_ENV ??= 'local'
 process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+process.env.ADMIN_EMAILS ??= 'admin@okvevo.com'
+// Lets firebase-admin init without a real service account (auth is mocked below).
+process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:9099'
 
 const { sql } = await import('@/lib/db/client')
 const { withTx } = await import('@/lib/db/tx')
 const { acceptParent } = await import('@/lib/orgs/acceptParent')
 const { leaveOrRemoveParent, previewLeaveDebt } = await import('@/lib/orgs/leaveOrRemoveParent')
 const { grantCredits } = await import('@/lib/gateway/debit')
-const { getBillingByOrgId, insertJob, updateBillingById } = await import('@/lib/db/wallet')
+const {
+  getBillingByOrgId,
+  insertCreditTransaction,
+  insertJob,
+  lockBillingById,
+  updateBillingById,
+} = await import('@/lib/db/wallet')
 const {
   loadAllocationLots,
   remainingByLot,
@@ -21,12 +31,15 @@ const {
 const { expireAllocationLotsForWallet } = await import('@/lib/billing/expireAllocationLots')
 const {
   installRazorpayApiMock,
+  installFirebaseAuthMock,
+  setFakeAuthUid,
   setRazorpayResponder,
   resetRazorpayResponder,
 } = await import('@/lib/billing/layer1Harness')
 const { cancelSubscriptionAtPeriodEndAfterCommit } = await import(
   '@/lib/billing/cancelSubscriptionAtPeriodEnd'
 )
+const { additionalRemainingPct } = await import('@/types/credits')
 
 const stamp = Date.now().toString(16)
 const uid = `w2ba-${stamp}`
@@ -173,6 +186,188 @@ const audit = await sql`
   select action from audit_log where target_id = ${childId} and action = 'org.leave_super'
 `
 assert.equal(audit.length, 1)
+// Fix 4: debt paydown must not reset topUpReference → additionalPct below 100.
+const superAfterDebt = await getBillingByOrgId(sql, superId)
+assert.ok(superAfterDebt)
+assert.equal(superAfterDebt!.topUpBalance, 920)
+assert.equal(superAfterDebt!.topUpReference, 1000)
+assert.ok(
+  additionalRemainingPct(superAfterDebt!.topUpBalance, superAfterDebt!.topUpReference) < 100
+)
+
+// --- Fix 1: org owner who is not platform admin → accept-parent 403 ---
+await installFirebaseAuthMock()
+setFakeAuthUid(uid)
+{
+  const { NextRequest } = await import('next/server')
+  const { POST } = await import('@/app/api/orgs/[publicId]/accept-parent/route')
+  const childPub = String(childRows[0]!.public_id)
+  const superPub = String(superRows[0]!.public_id)
+  // Mock email is `${uid}@layer1.test` (not in ADMIN_EMAILS) → forbidden before accept.
+  const req = new NextRequest(`http://localhost/api/orgs/${childPub}/accept-parent`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${uid}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ superOrgPublicId: superPub }),
+  })
+  const res = await POST(req, { params: Promise.resolve({ publicId: childPub }) })
+  assert.equal(res.status, 403)
+  const body = (await res.json()) as { code?: string }
+  assert.equal(body.code, 'forbidden')
+}
+
+// --- Fix 2: reserve holds child wallet lock; Leave waits then 409 ---
+{
+  const raceUid = `w2ba-lock-${stamp}`
+  await sql`insert into users (id) values (${raceUid}) on conflict (id) do nothing`
+  const sRows = await sql`
+    insert into organizations (public_id, kind, name, created_by)
+    values (${`sorg_lock_${stamp}`}, 'super_org', 'Lock Super', ${raceUid})
+    returning id
+  `
+  const cRows = await sql`
+    insert into organizations (public_id, kind, name, created_by, parent_id)
+    values (${`org_lock_${stamp}`}, 'org', 'Lock Child', ${raceUid}, ${sRows[0]!.id})
+    returning id
+  `
+  const sId = String(sRows[0]!.id)
+  const cId = String(cRows[0]!.id)
+  await sql`
+    insert into memberships (org_id, user_id, role, status)
+    values (${cId}, ${raceUid}, 'owner', 'active'), (${sId}, ${raceUid}, 'owner', 'active')
+  `
+  const cw = await sql`
+    insert into billing_accounts (
+      owner_org_id, account_kind, access_mode, plan_status, allocation_balance, top_up_balance
+    ) values (${cId}, 'org', 'prepaid', 'active', 5000, 0)
+    returning id
+  `
+  await sql`
+    insert into billing_accounts (
+      owner_org_id, account_kind, access_mode, plan_status, top_up_balance, top_up_reference
+    ) values (${sId}, 'super_org', 'subscription', 'active', 500, 500)
+  `
+  const cwId = String(cw[0]!.id)
+  const jobId = `job_lock_${stamp}`
+  const dbUrl = process.env.DATABASE_URL!
+  const a = postgres(dbUrl, { max: 1 })
+  try {
+    let unlock!: () => void
+    const locked = new Promise<void>((resolve) => {
+      unlock = resolve
+    })
+    const holdP = a.begin(async (txA) => {
+      await lockBillingById(txA as never, cwId)
+      await insertJob(txA as never, jobId, raceUid, cwId, {
+        provider: 'openrouter',
+        estimatedCredits: 10,
+        status: 'reserved',
+        heldAllocation: 10,
+        heldTopUp: 0,
+      })
+      unlock()
+      await new Promise((r) => setTimeout(r, 400))
+    })
+    await locked
+    const raced = await withTx((tx) =>
+      leaveOrRemoveParent(tx, {
+        childOrgId: cId,
+        superOrgId: sId,
+        actorUserId: raceUid,
+        action: 'leave',
+      })
+    )
+    assert.equal(raced.ok, false)
+    if (raced.ok) throw new Error('unreachable')
+    assert.equal(raced.code, 'jobs_in_flight')
+    await holdP
+  } finally {
+    await a.end({ timeout: 1 })
+  }
+}
+
+// --- Fix 3: two sponsored lots → two return rows with matching expires_at ---
+{
+  const lotUid = `w2ba-ret-${stamp}`
+  await sql`insert into users (id) values (${lotUid}) on conflict (id) do nothing`
+  const sRows = await sql`
+    insert into organizations (public_id, kind, name, created_by)
+    values (${`sorg_ret_${stamp}`}, 'super_org', 'Ret Super', ${lotUid})
+    returning id
+  `
+  const cRows = await sql`
+    insert into organizations (public_id, kind, name, created_by, parent_id)
+    values (${`org_ret_${stamp}`}, 'org', 'Ret Child', ${lotUid}, ${sRows[0]!.id})
+    returning id
+  `
+  const sId = String(sRows[0]!.id)
+  const cId = String(cRows[0]!.id)
+  await sql`
+    insert into memberships (org_id, user_id, role, status)
+    values (${cId}, ${lotUid}, 'owner', 'active'), (${sId}, ${lotUid}, 'owner', 'active')
+  `
+  const cw = await sql`
+    insert into billing_accounts (
+      owner_org_id, account_kind, access_mode, plan_status,
+      sponsored_balance, sponsored_reference, allocation_balance
+    ) values (${cId}, 'org', 'prepaid', 'active', 300, 300, 0)
+    returning id
+  `
+  const sw = await sql`
+    insert into billing_accounts (
+      owner_org_id, account_kind, access_mode, plan_status, top_up_balance, top_up_reference
+    ) values (${sId}, 'super_org', 'subscription', 'active', 0, 0)
+    returning id
+  `
+  const cwId = String(cw[0]!.id)
+  const swId = String(sw[0]!.id)
+  const expA = new Date('2027-01-15T00:00:00.000Z')
+  const expB = new Date('2027-06-15T00:00:00.000Z')
+  await insertCreditTransaction(sql, `ret_in_a_${stamp}`, cwId, {
+    user_id: lotUid,
+    org_id: cId,
+    super_org_id: sId,
+    type: 'transfer_in',
+    amount: 100,
+    bucket: 'sponsored',
+    reason: 'test.seed',
+    expires_at: expA,
+    counterparty_billing_account_id: swId,
+  })
+  await insertCreditTransaction(sql, `ret_in_b_${stamp}`, cwId, {
+    user_id: lotUid,
+    org_id: cId,
+    super_org_id: sId,
+    type: 'transfer_in',
+    amount: 200,
+    bucket: 'sponsored',
+    reason: 'test.seed',
+    expires_at: expB,
+    counterparty_billing_account_id: swId,
+  })
+  const returned = await withTx((tx) =>
+    leaveOrRemoveParent(tx, {
+      childOrgId: cId,
+      superOrgId: sId,
+      actorUserId: lotUid,
+      action: 'leave',
+    })
+  )
+  assert.equal(returned.ok, true)
+  if (!returned.ok) throw new Error('unreachable')
+  assert.equal(returned.sponsoredReturned, 300)
+  const inRows = await sql`
+    select amount, expires_at from credit_transactions
+    where billing_account_id = ${swId}
+      and type = 'transfer_in'
+      and reason = 'org.leave.return'
+    order by expires_at asc
+  `
+  assert.equal(inRows.length, 2)
+  assert.equal(Number(inRows[0]!.amount), 100)
+  assert.equal(Number(inRows[1]!.amount), 200)
+  assert.equal(new Date(String(inRows[0]!.expires_at)).toISOString(), expA.toISOString())
+  assert.equal(new Date(String(inRows[1]!.expires_at)).toISOString(), expB.toISOString())
+}
 
 // --- allocation lots: old annual untouched after monthly SET; draw old first ---
 const lotUid = `lot-${stamp}`

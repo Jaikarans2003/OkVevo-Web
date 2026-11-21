@@ -12,6 +12,7 @@ import {
   updateBillingById,
   type BillingAccountData,
 } from '@/lib/db/wallet'
+import { remainingByInflow, takeFromRemaining, type TopUpInflow } from '@/lib/orgs/inflows'
 
 export type LeaveRemoveFail =
   | { ok: false; code: 'not_found' | 'not_child' | 'jobs_in_flight' | 'forbidden' }
@@ -30,6 +31,33 @@ function openHoldStatuses(): string[] {
 /** Preview debt the super-org would pay if Leave/Remove runs now (0 when not overdrawn). */
 export function previewLeaveDebt(childSponsoredBalance: number): number {
   return childSponsoredBalance < 0 ? -childSponsoredBalance : 0
+}
+
+async function loadSponsoredInflows(
+  tx: TxSql,
+  billingAccountId: string
+): Promise<TopUpInflow[]> {
+  const rows = await tx`
+    select id, amount, expires_at, created_at
+    from credit_transactions
+    where billing_account_id = ${billingAccountId}
+      and bucket = 'sponsored'
+      and type in ('transfer_in', 'grant')
+      and amount > 0
+    order by expires_at asc nulls last, created_at asc
+  `
+  return (rows as Array<Record<string, unknown>>).map((r) => ({
+    id: String(r.id),
+    amount: Number(r.amount) || 0,
+    expiresAt:
+      r.expires_at instanceof Date
+        ? r.expires_at
+        : r.expires_at
+          ? new Date(String(r.expires_at))
+          : null,
+    createdAt:
+      r.created_at instanceof Date ? r.created_at : new Date(String(r.created_at)),
+  }))
 }
 
 export async function leaveOrRemoveParent(
@@ -59,6 +87,17 @@ export async function leaveOrRemoveParent(
   const superWalletId = superWalletRows[0]?.id as string | undefined
   if (!childWalletId || !superWalletId) return { ok: false, code: 'not_found' }
 
+  // Lock wallets before jobs check so a concurrent reserve cannot commit a
+  // RELEASABLE hold onto a wallet we are about to detach (same lock reserve takes).
+  const [firstId, secondId] =
+    childWalletId < superWalletId
+      ? [childWalletId, superWalletId]
+      : [superWalletId, childWalletId]
+  const first = await lockBillingById(tx, firstId)
+  const second = await lockBillingById(tx, secondId)
+  const childBa = (first?.id === childWalletId ? first : second) as BillingAccountData
+  const superBa = (first?.id === superWalletId ? first : second) as BillingAccountData
+
   const statuses = openHoldStatuses()
   const openJobs = await tx`
     select id from gateway_jobs
@@ -70,15 +109,6 @@ export async function leaveOrRemoveParent(
     return { ok: false, code: 'jobs_in_flight' }
   }
 
-  const [firstId, secondId] =
-    childWalletId < superWalletId
-      ? [childWalletId, superWalletId]
-      : [superWalletId, childWalletId]
-  const first = await lockBillingById(tx, firstId)
-  const second = await lockBillingById(tx, secondId)
-  const childBa = (first?.id === childWalletId ? first : second) as BillingAccountData
-  const superBa = (first?.id === superWalletId ? first : second) as BillingAccountData
-
   const previewDebt = previewLeaveDebt(childBa.sponsoredBalance)
   let sponsoredReturned = 0
   let debtFromSuperTopUp = 0
@@ -89,46 +119,60 @@ export async function leaveOrRemoveParent(
   const stamp = Date.now().toString(16)
 
   if (childSponsored > 0) {
-    // Return unused sponsored to super-org (keep expires_at on lots via reverse transfer_in).
+    // Return unused sponsored to super-org: one transfer_in per remaining lot (expires_at).
     sponsoredReturned = childSponsored
-    const inflows = await tx`
-      select id, amount, expires_at
-      from credit_transactions
-      where billing_account_id = ${childWalletId}
-        and bucket = 'sponsored'
-        and type in ('transfer_in', 'grant')
-        and amount > 0
-      order by expires_at asc nulls last, created_at asc
-    `
-    // ponytail: reverse full positive balance as one transfer_out / transfer_in pair;
-    // lot-level expires_at preserved on the inbound row to the super-org when single-slice.
-    await insertCreditTransaction(tx, `leave_${stamp}:out`, childWalletId, {
-      user_id: opts.actorUserId,
-      org_id: opts.childOrgId,
-      super_org_id: opts.superOrgId,
-      type: 'transfer_out',
-      amount: sponsoredReturned,
-      bucket: 'sponsored',
-      reason: `org.${opts.action}.return`,
-      counterparty_billing_account_id: superWalletId,
-    })
-    const exp =
-      inflows[0]?.expires_at instanceof Date
-        ? inflows[0].expires_at
-        : inflows[0]?.expires_at
-          ? new Date(String(inflows[0].expires_at))
-          : null
-    await insertCreditTransaction(tx, `leave_${stamp}:in`, superWalletId, {
-      user_id: opts.actorUserId,
-      org_id: opts.superOrgId,
-      super_org_id: opts.superOrgId,
-      type: 'transfer_in',
-      amount: sponsoredReturned,
-      bucket: 'top_up',
-      reason: `org.${opts.action}.return`,
-      expires_at: exp,
-      counterparty_billing_account_id: childWalletId,
-    })
+    const inflows = await loadSponsoredInflows(tx, childWalletId)
+    const remaining = remainingByInflow(inflows, childSponsored)
+    const slices = takeFromRemaining(remaining, sponsoredReturned)
+    if (slices.length === 0) {
+      // Fallback: still move the balance if ledger lots are missing (should not happen).
+      await insertCreditTransaction(tx, `leave_${stamp}:out`, childWalletId, {
+        user_id: opts.actorUserId,
+        org_id: opts.childOrgId,
+        super_org_id: opts.superOrgId,
+        type: 'transfer_out',
+        amount: sponsoredReturned,
+        bucket: 'sponsored',
+        reason: `org.${opts.action}.return`,
+        counterparty_billing_account_id: superWalletId,
+      })
+      await insertCreditTransaction(tx, `leave_${stamp}:in`, superWalletId, {
+        user_id: opts.actorUserId,
+        org_id: opts.superOrgId,
+        super_org_id: opts.superOrgId,
+        type: 'transfer_in',
+        amount: sponsoredReturned,
+        bucket: 'top_up',
+        reason: `org.${opts.action}.return`,
+        counterparty_billing_account_id: childWalletId,
+      })
+    } else {
+      await insertCreditTransaction(tx, `leave_${stamp}:out`, childWalletId, {
+        user_id: opts.actorUserId,
+        org_id: opts.childOrgId,
+        super_org_id: opts.superOrgId,
+        type: 'transfer_out',
+        amount: sponsoredReturned,
+        bucket: 'sponsored',
+        reason: `org.${opts.action}.return`,
+        counterparty_billing_account_id: superWalletId,
+      })
+      let n = 0
+      for (const slice of slices) {
+        n += 1
+        await insertCreditTransaction(tx, `leave_${stamp}:in:${n}`, superWalletId, {
+          user_id: opts.actorUserId,
+          org_id: opts.superOrgId,
+          super_org_id: opts.superOrgId,
+          type: 'transfer_in',
+          amount: slice.amount,
+          bucket: 'top_up',
+          reason: `org.${opts.action}.return`,
+          expires_at: slice.expiresAt,
+          counterparty_billing_account_id: childWalletId,
+        })
+      }
+    }
     childSponsored = 0
     superTopUp += sponsoredReturned
   } else if (childSponsored < 0) {
@@ -206,9 +250,11 @@ export async function leaveOrRemoveParent(
     sponsoredReference: 0,
     accessMode: 'subscription',
   })
+  // Reset topUpReference only when unused sponsored credits return (bought-again bar).
+  // Debt paydown must leave the prior reference so additionalPct drops below 100.
   await updateBillingById(tx, superWalletId, {
     topUpBalance: superTopUp,
-    ...(superTopUp > 0 ? { topUpReference: superTopUp } : {}),
+    ...(sponsoredReturned > 0 ? { topUpReference: superTopUp } : {}),
   })
 
   await tx`
