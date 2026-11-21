@@ -1,5 +1,7 @@
 /**
- * Move legacy transfer_in / transfer_out / debt_recovery rows from top_up → sponsored.
+ * Move legacy receiver-side transfer rows from top_up → sponsored.
+ * Only transfer_in and debt_recovery (child/receiver). transfer_out stays on
+ * top_up — that matches transferCredits, which debits the sender's top_up.
  *
  *   cd OkVevo-Web
  *   npx tsx scripts/migrate-sponsored-bucket.ts                 # dry-run
@@ -35,21 +37,18 @@ async function main() {
   const { findLedgerMismatches } = await import('../src/lib/billing/ledgerInvariant.ts')
   const { withTx } = await import('../src/lib/db/tx.ts')
 
+  // Receiver side only. transfer_out stays on top_up (sender debit).
   const candidates = await sql`
     select billing_account_id,
-           coalesce(sum(case when type in ('transfer_in', 'debt_recovery') then amount
-                             when type = 'transfer_out' then -amount
-                             else 0 end), 0)::int as net
+           coalesce(sum(amount), 0)::int as net
     from credit_transactions
     where bucket = 'top_up'
-      and type in ('transfer_in', 'transfer_out', 'debt_recovery')
+      and type in ('transfer_in', 'debt_recovery')
     group by billing_account_id
-    having coalesce(sum(case when type in ('transfer_in', 'debt_recovery') then amount
-                             when type = 'transfer_out' then -amount
-                             else 0 end), 0) <> 0
+    having coalesce(sum(amount), 0) <> 0
   `
 
-  console.log(`wallets with legacy transfer rows on top_up: ${candidates.length}`)
+  console.log(`wallets with legacy transfer_in/debt_recovery on top_up: ${candidates.length}`)
   for (const row of candidates) {
     console.log(`  ${row.billing_account_id} net=${row.net}`)
   }
@@ -65,23 +64,23 @@ async function main() {
       update credit_transactions
       set bucket = 'sponsored'
       where bucket = 'top_up'
-        and type in ('transfer_in', 'transfer_out', 'debt_recovery')
+        and type in ('transfer_in', 'debt_recovery')
     `
 
     for (const row of candidates) {
       const id = String(row.billing_account_id)
       const net = Number(row.net) || 0
       const ba = await tx`
-        select top_up_balance, sponsored_balance from billing_accounts where id = ${id} for update
+        select top_up_balance, sponsored_balance, access_mode
+        from billing_accounts where id = ${id} for update
       `
       const topUp = Number(ba[0]?.top_up_balance ?? 0)
       const sponsored = Number(ba[0]?.sponsored_balance ?? 0)
-      // Move net off top_up onto sponsored; top_up ends >= 0.
+      // Move receiver net off top_up onto sponsored; top_up ends >= 0.
       const move = Math.min(Math.max(net, 0), Math.max(topUp, 0))
-      const debtMove = net < 0 ? net : 0 // negative net → sponsored debt
       let nextTopUp = topUp - move
       if (nextTopUp < 0) nextTopUp = 0
-      const nextSponsored = sponsored + move + debtMove
+      const nextSponsored = sponsored + move
       await tx`
         update billing_accounts
         set top_up_balance = ${nextTopUp},
