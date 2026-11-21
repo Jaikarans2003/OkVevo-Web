@@ -194,6 +194,13 @@ export async function leaveOrRemoveParent(
     childSponsored = 0
   }
 
+  // Clear parent first: billing_accounts_shape_matches_owner requires access_mode=prepaid
+  // while parent_id is still set, so flipping access_mode back to subscription must come after.
+  await tx`
+    update organizations set parent_id = null
+    where id = ${opts.childOrgId}
+  `
+
   await updateBillingById(tx, childWalletId, {
     sponsoredBalance: 0,
     sponsoredReference: 0,
@@ -203,11 +210,6 @@ export async function leaveOrRemoveParent(
     topUpBalance: superTopUp,
     ...(superTopUp > 0 ? { topUpReference: superTopUp } : {}),
   })
-
-  await tx`
-    update organizations set parent_id = null
-    where id = ${opts.childOrgId}
-  `
 
   await tx`
     insert into audit_log (org_id, actor_user_id, action, target_type, target_id, metadata)

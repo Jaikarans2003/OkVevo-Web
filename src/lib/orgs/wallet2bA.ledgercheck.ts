@@ -237,7 +237,9 @@ await sql`
     and razorpay_subscription_id = 'sub_annual'
     and type = 'grant'
 `
-const expired = await withTx((tx) => expireAllocationLotsForWallet(tx, lotId, new Date()))
+// Fixed "now": after the forced annual expiry, before monthly's real expiry.
+const expireCheckNow = new Date('2026-06-01T00:00:00.000Z')
+const expired = await withTx((tx) => expireAllocationLotsForWallet(tx, lotId, expireCheckNow))
 assert.ok(expired.expired >= 1000)
 ba = await sql`select allocation_balance from billing_accounts where id = ${lotId}`
 assert.equal(Number(ba[0]!.allocation_balance), 2000)

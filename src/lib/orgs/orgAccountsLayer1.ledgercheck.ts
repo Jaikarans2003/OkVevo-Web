@@ -61,10 +61,10 @@ await updateBillingById(sql, superBilling!.id, {
   currentPeriodEnd: new Date(Date.now() + 30 * 864e5),
 })
 
-// Drive child into debt via creditLimit path: seed then negative via update (prepaid)
+// Drive child into debt (2b-a: debt lives on sponsored, not top_up)
 await updateBillingById(sql, child.billingAccountId, {
-  topUpBalance: -300,
-  topUpReference: 0,
+  sponsoredBalance: -300,
+  sponsoredReference: 0,
 })
 
 const xfer = await withTx((tx) =>

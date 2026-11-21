@@ -87,7 +87,7 @@ export async function loadAllocationLots(
       and amount > 0
     order by expires_at asc nulls last, created_at asc
   `
-  return (rows as Array<Record<string, unknown>>).map((r) => ({
+  const lots = (rows as Array<Record<string, unknown>>).map((r) => ({
     subscriptionId:
       r.razorpay_subscription_id == null ? null : String(r.razorpay_subscription_id),
     amount: Number(r.amount) || 0,
@@ -100,4 +100,27 @@ export async function loadAllocationLots(
     createdAt:
       r.created_at instanceof Date ? r.created_at : new Date(String(r.created_at)),
   }))
+  // grantCredits' SET-replace fully zeroes the prior grant for the same
+  // subscription (credit_transactions `.lot_replace` expire row) — only the
+  // newest grant per subscriptionId is still live. Keeping superseded rows
+  // here would let remainingByLot's global expires_at sort misattribute
+  // spend across unrelated subscriptions once one lot's expiry moves.
+  const latestBySub = new Map<string, AllocationLot>()
+  const unstamped: AllocationLot[] = []
+  for (const lot of lots) {
+    if (lot.subscriptionId === null) {
+      unstamped.push(lot)
+      continue
+    }
+    const existing = latestBySub.get(lot.subscriptionId)
+    if (!existing || lot.createdAt.getTime() >= existing.createdAt.getTime()) {
+      latestBySub.set(lot.subscriptionId, lot)
+    }
+  }
+  return [...unstamped, ...latestBySub.values()].sort((a, b) => {
+    const ae = a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY
+    const be = b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY
+    if (ae !== be) return ae - be
+    return a.createdAt.getTime() - b.createdAt.getTime()
+  })
 }

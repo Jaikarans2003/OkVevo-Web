@@ -33,9 +33,16 @@ alter table public.billing_accounts
 alter table public.credit_transactions
   add column if not exists razorpay_subscription_id text;
 
--- bucket check may already allow free text; ensure sponsored is usable (no enum).
 comment on column public.credit_transactions.razorpay_subscription_id is
   'Allocation lot stamp: plan-grant rows keyed by Razorpay subscription id for SET renewals.';
+
+-- bucket check was a strict enum ('allocation', 'top_up'); widen for sponsored transfers.
+alter table public.credit_transactions
+  drop constraint if exists credit_transactions_bucket_check;
+
+alter table public.credit_transactions
+  add constraint credit_transactions_bucket_check
+    check (bucket in ('allocation', 'top_up', 'sponsored'));
 
 -- --- gateway_jobs: third hold bucket ---
 alter table public.gateway_jobs

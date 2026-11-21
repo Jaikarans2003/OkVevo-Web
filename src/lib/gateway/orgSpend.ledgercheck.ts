@@ -222,12 +222,13 @@ await insertCreditTransaction(sql, `osp_burn_${stamp}`, child.billingAccountId, 
   super_org_id: childSuper.orgId,
   type: 'debit',
   amount: 1_000_000,
-  bucket: 'top_up',
+  bucket: 'sponsored',
   reason: 'test.burn',
 })
 await updateBillingById(sql, child.billingAccountId, {
   allocationBalance: 0,
   topUpBalance: 0,
+  sponsoredBalance: 0,
 })
 
 // tavily skips chat-slot concurrency so this isolates the creditLimit floor.
@@ -251,10 +252,10 @@ assert.ok(failCount >= 35, `expected ≥35 denials, got ${failCount}`)
   const b = await getBillingByOrgId(sql, child.orgId)
   assert.ok(b)
   assert.ok(
-    (b!.topUpBalance ?? 0) >= -15_000,
-    `child went below -15000: ${b!.topUpBalance}`
+    (b!.sponsoredBalance ?? 0) >= -15_000,
+    `child went below -15000: ${b!.sponsoredBalance}`
   )
-  assert.equal(b!.topUpBalance, -okCount * 1000)
+  assert.equal(b!.sponsoredBalance, -okCount * 1000)
 }
 
 // X-OkVevo-Org selects the child wallet
