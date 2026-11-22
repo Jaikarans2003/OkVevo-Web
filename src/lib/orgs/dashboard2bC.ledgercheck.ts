@@ -178,14 +178,24 @@ assert.ok(childRow)
 assert.equal(typeof childRow!.owesCredits, 'number')
 assert.equal(typeof childRow!.owesPct, 'number')
 
-// Member must not see exact credits
+// Member must not see exact credits; members list is self only
 const memberDash = await getOrg(member, superPub)
 assert.equal(memberDash.status, 200)
 assert.equal(memberDash.json.exact, undefined)
+const memberMembers = memberDash.json.members as Array<Record<string, unknown>>
+assert.equal(memberMembers.length, 1)
+assert.equal(String(memberMembers[0]!.userId), member)
+assert.equal(String(memberMembers[0]!.role), 'member')
 const memberChildren = memberDash.json.children as Array<Record<string, unknown>>
 if (memberChildren[0]) {
   assert.equal(memberChildren[0].owesCredits, undefined)
 }
+
+// Admin/owner sees full member list
+const ownerMembers = ownerDash.json.members as Array<Record<string, unknown>>
+assert.ok(ownerMembers.length >= 2)
+assert.ok(ownerMembers.some((m) => String(m.userId) === owner))
+assert.ok(ownerMembers.some((m) => String(m.userId) === member))
 
 // Member usage scoped to self (usage_daily is a view over debit rows)
 await insertCreditTransaction(sql, `d2bcd_o_${stamp}`, superBilling!.id, {

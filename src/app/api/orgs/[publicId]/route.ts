@@ -134,12 +134,26 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       billingAccountId: billing.id,
       window,
     })
-  } else {
+  } else if (admin) {
     const rows = await sql`
       select user_id, role, status, created_at
       from memberships
       where org_id = ${authz.org.id} and status = 'active'
       order by role desc, created_at asc
+    `
+    members = rows.map((m) => ({
+      userId: m.user_id,
+      role: m.role,
+      createdAt: m.created_at,
+    }))
+  } else {
+    // Members see only My usage — return the caller's own membership row.
+    const rows = await sql`
+      select user_id, role, status, created_at
+      from memberships
+      where org_id = ${authz.org.id}
+        and user_id = ${user.uid}
+        and status = 'active'
     `
     members = rows.map((m) => ({
       userId: m.user_id,
