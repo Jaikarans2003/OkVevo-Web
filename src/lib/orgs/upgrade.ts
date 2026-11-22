@@ -2,6 +2,7 @@
  * One-way upgrade: individual wallet → organisation (same billing_accounts row).
  */
 import type { TxSql } from '@/lib/db/tx'
+import { ensureJoinCode } from '@/lib/orgs/joinCodes'
 import { randomPublicId } from '@/lib/orgs/publicId'
 
 export type UpgradeResult =
@@ -58,6 +59,8 @@ export async function upgradeIndividualToOrg(
     set upgraded_org_id = ${orgId}, updated_at = now()
     where id = ${opts.userId}
   `
+
+  await ensureJoinCode(tx, { orgId, createdBy: opts.userId })
 
   return { ok: true, orgPublicId: publicId, orgId }
 }

@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string; id: string }> }
 
-/** DELETE /api/orgs/:publicId/join-codes/:id — revoke. */
+/** DELETE /api/orgs/:publicId/join-codes/:id — deactivate. */
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -31,7 +31,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   }
 
   const result = await withTx((tx) =>
-    revokeJoinCode(tx, { orgId: authz.org.id, joinCodeId: id })
+    revokeJoinCode(tx, { orgId: authz.org.id, joinCodeId: id, actorUserId: user.uid })
   )
   if (result === 'not_found') {
     return NextResponse.json({ error: 'not_found', code: 'not_found' }, { status: 404 })

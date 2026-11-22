@@ -207,7 +207,7 @@ assert.ok(
   additionalRemainingPct(superAfterDebt!.topUpBalance, superAfterDebt!.topUpReference) < 100
 )
 
-// --- Fix 1: org owner who is not platform admin → accept-parent 403 ---
+// --- Fix 1: accept-parent without pending org_invitation → 409 ---
 await installFirebaseAuthMock()
 setFakeAuthUid(uid)
 {
@@ -215,16 +215,15 @@ setFakeAuthUid(uid)
   const { POST } = await import('@/app/api/orgs/[publicId]/accept-parent/route')
   const childPub = String(childRows[0]!.public_id)
   const superPub = String(superRows[0]!.public_id)
-  // Mock email is `${uid}@layer1.test` (not in ADMIN_EMAILS) → forbidden before accept.
   const req = new NextRequest(`http://localhost/api/orgs/${childPub}/accept-parent`, {
     method: 'POST',
     headers: { authorization: `Bearer ${uid}`, 'content-type': 'application/json' },
     body: JSON.stringify({ superOrgPublicId: superPub }),
   })
   const res = await POST(req, { params: Promise.resolve({ publicId: childPub }) })
-  assert.equal(res.status, 403)
+  assert.equal(res.status, 409)
   const body = (await res.json()) as { code?: string }
-  assert.equal(body.code, 'forbidden')
+  assert.equal(body.code, 'no_pending_invitation')
 }
 
 // --- Fix 2: reserve holds child wallet lock; Leave waits then 409 ---

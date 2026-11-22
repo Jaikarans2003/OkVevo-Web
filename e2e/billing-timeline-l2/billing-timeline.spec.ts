@@ -21,6 +21,7 @@ import {
   applySuperOrg,
   approveSuperOrg,
   acceptParent,
+  inviteExistingOrg,
   leaveSuperOrg,
 } from './apiClient';
 import { createTestUser, deleteTestUser, ensureServerUser, type TestUser } from './testUsers';
@@ -378,9 +379,17 @@ test.describe('billing timeline Layer 2', () => {
         orgPublicId: superOrgPublicId,
       });
 
-      // Until 2b-b invitations: accept-parent is platform-admin only (L2 admin).
+      const { status: inviteStatus, json: orgInvite } = await inviteExistingOrg(
+        superUser.idToken,
+        superOrgPublicId,
+        { orgPublicId }
+      );
+      expect(orgInvite, `org-invite HTTP ${inviteStatus}`).toEqual(
+        expect.objectContaining({ success: true })
+      );
+
       const { status: acceptStatus, json: accepted } = await acceptParent(
-        adminJson.idToken!,
+        orgUser.idToken,
         orgPublicId,
         superOrgPublicId
       );

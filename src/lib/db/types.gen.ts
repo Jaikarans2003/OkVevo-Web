@@ -87,14 +87,14 @@ isOneToOne: false
                   ]
                 },"contact_submissions": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"category": string,"created_at": string,"email": string,"id": string,"message": string,"subject_org_id": string | null,"user_id": string | null,"whatsapp": string | null
+                    "approved_at": string | null,"approved_by": string | null,"category": string,"created_at": string,"email": string,"extra_owners": Json | null,"id": string,"message": string,"requested_name": string | null,"subject_org_id": string | null,"user_id": string | null,"whatsapp": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"category": string,"created_at"?: string,"email": string,"id"?: string,"message": string,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
+                    "approved_at"?: string | null,"approved_by"?: string | null,"category": string,"created_at"?: string,"email": string,"extra_owners"?: Json | null,"id"?: string,"message": string,"requested_name"?: string | null,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"category"?: string,"created_at"?: string,"email"?: string,"id"?: string,"message"?: string,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
+                    "approved_at"?: string | null,"approved_by"?: string | null,"category"?: string,"created_at"?: string,"email"?: string,"extra_owners"?: Json | null,"id"?: string,"message"?: string,"requested_name"?: string | null,"subject_org_id"?: string | null,"user_id"?: string | null,"whatsapp"?: string | null
                   }
                   Relationships: [
                     {
@@ -158,6 +158,26 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"departments": {
+                  Row: {
+                    "created_at": string,"id": string,"name": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"name": string,"org_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"name"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "departments_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
       referencedColumns: ["id"]
     }
                   ]
@@ -301,14 +321,14 @@ isOneToOne: false
                   ]
                 },"invitations": {
                   Row: {
-                    "accepted_at": string | null,"accepted_by": string | null,"created_at": string,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"org_id": string,"revoked_at": string | null,"role": string,"token_hash": string
+                    "accepted_at": string | null,"accepted_by": string | null,"created_at": string,"department_id": string | null,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"org_id": string,"revoked_at": string | null,"role": string,"token_hash": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"email": string,"expires_at": string,"id"?: string,"invited_by"?: string | null,"org_id": string,"revoked_at"?: string | null,"role": string,"token_hash": string
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"email": string,"expires_at": string,"id"?: string,"invited_by"?: string | null,"org_id": string,"revoked_at"?: string | null,"role": string,"token_hash": string
                   }
                   Update: {
-                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"email"?: string,"expires_at"?: string,"id"?: string,"invited_by"?: string | null,"org_id"?: string,"revoked_at"?: string | null,"role"?: string,"token_hash"?: string
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"email"?: string,"expires_at"?: string,"id"?: string,"invited_by"?: string | null,"org_id"?: string,"revoked_at"?: string | null,"role"?: string,"token_hash"?: string
                   }
                   Relationships: [
                     {
@@ -316,6 +336,12 @@ isOneToOne: false
       columns: ["accepted_by"]
 isOneToOne: false
       referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invitations_department_id_fkey"
+      columns: ["department_id"]
+isOneToOne: false
+      referencedRelation: "departments"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "invitations_invited_by_fkey"
@@ -379,17 +405,23 @@ isOneToOne: true
                   ]
                 },"memberships": {
                   Row: {
-                    "created_at": string,"org_id": string,"role": string,"status": string,"user_id": string
+                    "created_at": string,"department_id": string | null,"org_id": string,"role": string,"status": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"org_id": string,"role": string,"status"?: string,"user_id": string
+                    "created_at"?: string,"department_id"?: string | null,"org_id": string,"role": string,"status"?: string,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"org_id"?: string,"role"?: string,"status"?: string,"user_id"?: string
+                    "created_at"?: string,"department_id"?: string | null,"org_id"?: string,"role"?: string,"status"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "memberships_department_id_fkey"
+      columns: ["department_id"]
+isOneToOne: false
+      referencedRelation: "departments"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "memberships_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
@@ -416,6 +448,38 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"org_invitations": {
+                  Row: {
+                    "created_at": string,"id": string,"invited_by": string,"org_id": string,"responded_at": string | null,"status": string,"super_org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"invited_by": string,"org_id": string,"responded_at"?: string | null,"status"?: string,"super_org_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"invited_by"?: string,"org_id"?: string,"responded_at"?: string | null,"status"?: string,"super_org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "org_invitations_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "org_invitations_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "org_invitations_super_org_id_fkey"
+      columns: ["super_org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"organizations": {
                   Row: {

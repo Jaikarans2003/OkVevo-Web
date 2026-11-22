@@ -34,6 +34,7 @@ export default function ProfilePage() {
     const [orgName, setOrgName] = useState('');
     const [orgNameConfirm, setOrgNameConfirm] = useState('');
     const [childOrgName, setChildOrgName] = useState('');
+    const [childOwnerEmail, setChildOwnerEmail] = useState('');
     const [joinCode, setJoinCode] = useState('');
     const [applyMessage, setApplyMessage] = useState('');
     const [orgBusy, setOrgBusy] = useState(false);
@@ -323,7 +324,7 @@ export default function ProfilePage() {
                                         Create organisation under {createUnder.name}
                                     </p>
                                     <p className="pt-fine">
-                                        Creates a prepaid child organisation. You become its owner.
+                                        Creates a prepaid child organisation. The owner receives a pending invite.
                                     </p>
                                     <div className="pt-field" style={{ marginTop: 12 }}>
                                         <label htmlFor="child-org-name">Organisation name</label>
@@ -335,10 +336,21 @@ export default function ProfilePage() {
                                             placeholder="Acme Studio"
                                         />
                                     </div>
+                                    <div className="pt-field">
+                                        <label htmlFor="child-owner-email">Owner email</label>
+                                        <input
+                                            id="child-owner-email"
+                                            className="pt-input"
+                                            type="email"
+                                            value={childOwnerEmail}
+                                            onChange={(e) => setChildOwnerEmail(e.target.value)}
+                                            placeholder="owner@example.com"
+                                        />
+                                    </div>
                                     <button
                                         type="button"
                                         className="btn btn--go"
-                                        disabled={orgBusy || !childOrgName.trim()}
+                                        disabled={orgBusy || !childOrgName.trim() || !childOwnerEmail.trim()}
                                         onClick={() =>
                                             runOrgAction(async () => {
                                                 await authedJson(user!, '/api/orgs', {
@@ -346,9 +358,11 @@ export default function ProfilePage() {
                                                     body: JSON.stringify({
                                                         name: childOrgName.trim(),
                                                         parent: createUnder.parentPublicId,
+                                                        ownerEmail: childOwnerEmail.trim(),
                                                     }),
                                                 });
                                                 setChildOrgName('');
+                                                setChildOwnerEmail('');
                                             })
                                         }
                                     >
@@ -400,6 +414,102 @@ export default function ProfilePage() {
                             </div>
                         ) : null}
 
+                        {me.pendingInvites?.length ? (
+                            <div className="pt-fact" style={{ '--spot': 'var(--orange)' } as CSSProperties}>
+                                <p className="pt-label">Pending invitations</p>
+                                {me.pendingInvites.map((inv) => (
+                                    <div key={inv.invitationId} style={{ marginTop: 12 }}>
+                                        <p className="pt-fine">
+                                            {inv.orgName} — {inv.role}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                            <button
+                                                type="button"
+                                                className="btn btn--go"
+                                                disabled={orgBusy}
+                                                onClick={() =>
+                                                    runOrgAction(async () => {
+                                                        await authedJson(user!, '/api/invitations/accept', {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({ invitationId: inv.invitationId }),
+                                                        });
+                                                    })
+                                                }
+                                            >
+                                                Accept
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn"
+                                                disabled={orgBusy}
+                                                onClick={() =>
+                                                    runOrgAction(async () => {
+                                                        await authedJson(user!, '/api/invitations/decline', {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({ invitationId: inv.invitationId }),
+                                                        });
+                                                    })
+                                                }
+                                            >
+                                                Decline
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+                        {me.pendingOrgInvitations?.length ? (
+                            <div className="pt-fact" style={{ '--spot': 'var(--slate)' } as CSSProperties}>
+                                <p className="pt-label">Super-organisation invitations</p>
+                                {me.pendingOrgInvitations.map((inv) => (
+                                    <div key={inv.id} style={{ marginTop: 12 }}>
+                                        <p className="pt-fine">
+                                            {inv.superOrgName} wants to manage {inv.orgPublicId}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                            <button
+                                                type="button"
+                                                className="btn btn--go"
+                                                disabled={orgBusy}
+                                                onClick={() =>
+                                                    runOrgAction(async () => {
+                                                        await authedJson(
+                                                            user!,
+                                                            `/api/orgs/${inv.orgPublicId}/accept-parent`,
+                                                            {
+                                                                method: 'POST',
+                                                                body: JSON.stringify({ superOrgPublicId: inv.superOrgPublicId }),
+                                                            }
+                                                        );
+                                                    })
+                                                }
+                                            >
+                                                Accept
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn"
+                                                disabled={orgBusy}
+                                                onClick={() =>
+                                                    runOrgAction(async () => {
+                                                        await authedJson(
+                                                            user!,
+                                                            `/api/orgs/${inv.orgPublicId}/decline-parent`,
+                                                            {
+                                                                method: 'POST',
+                                                                body: JSON.stringify({ superOrgPublicId: inv.superOrgPublicId }),
+                                                            }
+                                                        );
+                                                    })
+                                                }
+                                            >
+                                                Decline
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
                         {showJoinWithCode(me.hidePersonal) ? (
                             <div className="pt-fact" style={{ '--spot': 'var(--olive)' } as CSSProperties}>
                                 <p className="pt-label">Join with a code</p>

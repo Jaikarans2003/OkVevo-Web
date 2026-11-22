@@ -3,6 +3,7 @@
  */
 import type { TxSql } from '@/lib/db/tx'
 import type { OrgRole } from '@/lib/orgs/authorize'
+import { writeAuditLog } from '@/lib/orgs/auditLog'
 
 export type MemberFail =
   | 'not_found'
@@ -21,7 +22,7 @@ async function activeOwnerCount(tx: TxSql, orgId: string): Promise<number> {
 
 export async function setMemberRole(
   tx: TxSql,
-  opts: { orgId: string; userId: string; role: OrgRole }
+  opts: { orgId: string; userId: string; role: OrgRole; actorUserId?: string }
 ): Promise<MemberResult> {
   if (!['owner', 'admin', 'member'].includes(opts.role)) {
     return { ok: false, code: 'invalid_role' }
@@ -44,12 +45,22 @@ export async function setMemberRole(
     update memberships set role = ${opts.role}
     where org_id = ${opts.orgId} and user_id = ${opts.userId}
   `
+  if (opts.actorUserId) {
+    await writeAuditLog(tx, {
+      orgId: opts.orgId,
+      actorUserId: opts.actorUserId,
+      action: 'member.role',
+      targetType: 'user',
+      targetId: opts.userId,
+      metadata: { role: opts.role, previousRole: row.role },
+    })
+  }
   return { ok: true }
 }
 
 export async function removeMember(
   tx: TxSql,
-  opts: { orgId: string; userId: string }
+  opts: { orgId: string; userId: string; actorUserId?: string }
 ): Promise<MemberResult> {
   const rows = await tx`
     select role, status from memberships
@@ -67,5 +78,15 @@ export async function removeMember(
     update memberships set status = 'removed'
     where org_id = ${opts.orgId} and user_id = ${opts.userId}
   `
+  if (opts.actorUserId) {
+    await writeAuditLog(tx, {
+      orgId: opts.orgId,
+      actorUserId: opts.actorUserId,
+      action: 'member.remove',
+      targetType: 'user',
+      targetId: opts.userId,
+      metadata: { role: row.role },
+    })
+  }
   return { ok: true }
 }

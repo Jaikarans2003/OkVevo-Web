@@ -3,6 +3,7 @@
  */
 import type { TxSql } from '@/lib/db/tx'
 import { getBillingByOrgId, getBillingByUserId } from '@/lib/db/wallet'
+import { createInvitation } from '@/lib/orgs/invitations'
 import { upgradeIndividualToOrg } from '@/lib/orgs/upgrade'
 
 export type ApproveResult =
@@ -23,7 +24,7 @@ export async function approveSuperOrgApplication(
   opts: { applicationId: string; approvedBy: string }
 ): Promise<ApproveResult> {
   const rows = await tx`
-    select id, category, user_id, subject_org_id, approved_at
+    select id, category, user_id, subject_org_id, approved_at, requested_name, extra_owners
     from contact_submissions
     where id = ${opts.applicationId}
     for update
@@ -97,7 +98,11 @@ export async function approveSuperOrgApplication(
         select coalesce(nullif(display_name, ''), email, ${applicantId}) as n
         from users where id = ${applicantId}
       `
-      const name = String(nameRows[0]?.n ?? applicantId)
+      const fallbackName = String(nameRows[0]?.n ?? applicantId)
+      const name =
+        typeof app.requested_name === 'string' && app.requested_name.trim()
+          ? app.requested_name.trim()
+          : fallbackName
       const upgraded = await upgradeIndividualToOrg(tx, {
         userId: applicantId,
         name,
@@ -108,6 +113,30 @@ export async function approveSuperOrgApplication(
       orgPublicId = upgraded.orgPublicId
       created = true
     }
+  }
+
+  const requestedName =
+    typeof app.requested_name === 'string' && app.requested_name.trim()
+      ? app.requested_name.trim()
+      : null
+  if (requestedName) {
+    await tx`update organizations set name = ${requestedName} where id = ${orgId}`
+  }
+
+  const extras = Array.isArray(app.extra_owners) ? app.extra_owners : []
+  for (const raw of extras) {
+    if (!raw || typeof raw !== 'object') continue
+    const email =
+      typeof (raw as { email?: unknown }).email === 'string'
+        ? String((raw as { email: string }).email).trim().toLowerCase()
+        : ''
+    if (!email || !email.includes('@')) continue
+    await createInvitation(tx, {
+      orgId,
+      email,
+      role: 'owner',
+      invitedBy: opts.approvedBy,
+    })
   }
 
   await tx`

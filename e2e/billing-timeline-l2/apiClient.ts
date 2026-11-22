@@ -130,6 +130,53 @@ export function acceptParent(idToken: string, orgPublicId: string, superOrgPubli
   );
 }
 
+export function inviteExistingOrg(
+  superUserToken: string,
+  superOrgPublicId: string,
+  body: { orgPublicId?: string; ownerEmail?: string }
+) {
+  return authedFetch<{ success?: boolean; id?: string; error?: string; code?: string }>(
+    `/api/orgs/${superOrgPublicId}/org-invitations`,
+    superUserToken,
+    { body, orgPublicId: superOrgPublicId }
+  );
+}
+
+export function getMe(idToken: string) {
+  return authedFetch<{
+    pendingInvites?: Array<{ invitationId: string; orgName: string; role: string }>;
+    memberships?: Array<{ orgPublicId: string; role: string }>;
+  }>('/api/me', idToken, { method: 'GET' });
+}
+
+export function acceptEmailInvite(idToken: string, invitationId: string) {
+  return authedFetch<{ success?: boolean; error?: string; code?: string }>(
+    '/api/invitations/accept',
+    idToken,
+    { body: { invitationId } }
+  );
+}
+
+export function declineEmailInvite(idToken: string, invitationId: string) {
+  return authedFetch<{ success?: boolean; error?: string; code?: string }>(
+    '/api/invitations/decline',
+    idToken,
+    { body: { invitationId } }
+  );
+}
+
+export function createOrgInvitation(
+  idToken: string,
+  orgPublicId: string,
+  body: { email: string; role?: string }
+) {
+  return authedFetch<{ id?: string; inviteUrl?: string; error?: string }>(
+    `/api/orgs/${orgPublicId}/invitations`,
+    idToken,
+    { body, orgPublicId }
+  );
+}
+
 export function leaveSuperOrg(idToken: string, orgPublicId: string) {
   return authedFetch<{ success?: boolean; error?: string; code?: string }>(
     `/api/orgs/${orgPublicId}/leave`,

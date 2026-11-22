@@ -14,7 +14,8 @@ const { createChildOrg } = await import('@/lib/orgs/createChildOrg')
 const { authorizeOrg } = await import('@/lib/orgs/authorize')
 const { rejectChildOrgPurchase } = await import('@/lib/orgs/orgContext')
 
-const uid = `child-${Date.now().toString(16)}`
+const stamp = Date.now().toString(16)
+const uid = `child-${stamp}`
 await ensureUserAndBilling(sql, uid)
 
 const upgraded = await withTx((tx) =>
@@ -23,11 +24,13 @@ const upgraded = await withTx((tx) =>
 assert.ok(upgraded.ok)
 if (!upgraded.ok) throw new Error('upgrade failed')
 
+await sql`update users set email = ${`child-owner-${stamp}@example.com`} where id = ${uid}`
 const child = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: upgraded.orgId,
     name: 'Acme Studio',
-    ownerUserId: uid,
+    ownerEmail: `child-owner-${stamp}@example.com`,
+    createdBy: uid,
   })
 )
 assert.ok(child.ok)
@@ -38,7 +41,25 @@ assert.equal(wallet?.accessMode, 'prepaid')
 assert.equal(wallet?.accountKind, 'org')
 assert.equal(wallet?.topUpBalance, 0)
 
-// Owner can read/spend; stranger cannot
+// Creator is not child owner until invite accept — no spend on child yet
+const beforeOwner = await authorizeOrg(sql, {
+  userId: uid,
+  orgPublicId: child.orgPublicId,
+  need: 'spend',
+})
+assert.equal(beforeOwner.ok, false)
+
+const { acceptInvitation } = await import('@/lib/orgs/invitations')
+const accepted = await withTx((tx) =>
+  acceptInvitation(tx, {
+    token: child.ownerInviteToken,
+    userId: uid,
+    email: `child-owner-${stamp}@example.com`,
+    emailVerified: true,
+  })
+)
+assert.equal(accepted.ok, true)
+
 const ok = await authorizeOrg(sql, {
   userId: uid,
   orgPublicId: child.orgPublicId,
@@ -89,7 +110,8 @@ const bad = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: child.orgId,
     name: 'Nested',
-    ownerUserId: uid,
+    ownerEmail: `nested-${stamp}@example.com`,
+    createdBy: uid,
   })
 )
 assert.equal(bad.ok, false)
