@@ -61,8 +61,8 @@ for (const rel of clientFiles) {
 const billingPage = src('app/billing/[[...slug]]/page.tsx');
 assert.match(billingPage, /Current Plan/, 'billing shows Current Plan card');
 assert.match(billingPage, /Upgrade available/, 'billing shows Upgrade available card');
-assert.match(billingPage, /Plan remaining/, 'billing shows Plan remaining bar');
-assert.match(billingPage, /Additional remaining/, 'billing shows Additional remaining bar');
+assert.match(billingPage, /Your credits · plan/, 'billing shows Your credits · plan bar');
+assert.match(billingPage, /Your credits · additional/, 'billing shows Your credits · additional bar');
 assert.match(billingPage, /Change Plan/, 'billing has Change Plan');
 assert.match(billingPage, /Cancel Subscription/, 'billing has Cancel Subscription');
 assert.match(billingPage, /Add Credits/, 'billing keeps Add Credits');
@@ -77,7 +77,10 @@ assert.doesNotMatch(
   'billing must floor remaining %, not round'
 );
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
-assert.match(billingPage, /formatPctLabel/, 'UsageBar labels with formatPctLabel');
+assert.match(billingPage, /UsageBar/, 'billing reuses shared UsageBar');
+const usageBar = src('components/billing/UsageBar.tsx');
+assert.match(usageBar, /formatPctLabel/, 'UsageBar labels with formatPctLabel');
+assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
 assert.match(
   billingPage,
   /\/api\/razorpay\/cancel-subscription/,
