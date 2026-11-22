@@ -19,6 +19,7 @@ import {
     resolveActiveOrg,
     showCreateOrganisationUnder,
     showJoinWithCode,
+    writeActiveOrgPublicId,
 } from '@/lib/orgs/activeOrg';
 
 export default function ProfilePage() {
@@ -400,12 +401,19 @@ export default function ProfilePage() {
                                     disabled={orgBusy || !orgName.trim() || orgName.trim() !== orgNameConfirm.trim()}
                                     onClick={() =>
                                         runOrgAction(async () => {
-                                            await authedJson(user!, '/api/me/upgrade', {
+                                            const upgraded = await authedJson<{
+                                                success?: boolean;
+                                                orgPublicId?: string;
+                                            }>(user!, '/api/me/upgrade', {
                                                 method: 'POST',
                                                 body: JSON.stringify({ name: orgName.trim() }),
                                             });
                                             setOrgName('');
                                             setOrgNameConfirm('');
+                                            if (upgraded.orgPublicId) {
+                                                writeActiveOrgPublicId(upgraded.orgPublicId);
+                                                router.push('/dashboard');
+                                            }
                                         })
                                     }
                                 >

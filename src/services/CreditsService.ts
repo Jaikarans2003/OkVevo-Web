@@ -27,6 +27,8 @@ export type BillingSnapshot = {
   remainingPct: number
   additionalPct: number
   additionalNextExpiry: Date | null
+  sponsoredPct: number
+  overdrawnPct: number
   currentPeriodEnd: Date | null
   cancelAtPeriodEnd: boolean
   razorpaySubscriptionId: string | null
@@ -56,6 +58,8 @@ export function billingSnapshotFromSummary(data: BillingSummary): BillingSnapsho
     remainingPct: data.remainingPct,
     additionalPct: data.additionalPct,
     additionalNextExpiry: toDate(data.additionalNextExpiry),
+    sponsoredPct: data.sponsoredPct,
+    overdrawnPct: data.overdrawnPct,
     currentPeriodEnd: toDate(data.periodEnd),
     cancelAtPeriodEnd: data.cancelAtPeriodEnd,
     razorpaySubscriptionId: data.razorpaySubscriptionId,

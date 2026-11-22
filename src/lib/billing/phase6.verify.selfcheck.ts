@@ -93,13 +93,16 @@ assert.equal(formatPctLabel(87.5), '87.5%');
 assert.equal(formatPctLabel(50), '50%');
 
 const billingPage = src('app/billing/[[...slug]]/page.tsx');
-assert.match(billingPage, /Plan remaining/);
-assert.match(billingPage, /Additional remaining/);
-assert.match(billingPage, /formatPctLabel\(clamped\)/);
+assert.match(billingPage, /Your credits · plan/);
+assert.match(billingPage, /Your credits · additional/);
+assert.match(billingPage, /UsageBar/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /allocationBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /topUpBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
+const usageBar = src('components/billing/UsageBar.tsx');
+assert.match(usageBar, /formatPctLabel\(clamped\)/);
+assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/);
 
 const creditsService = src('services/CreditsService.ts');
 assert.match(creditsService, /billingSnapshotFromSummary/);

@@ -115,12 +115,18 @@ const billingPage = fs.readFileSync(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/billing/[[...slug]]/page.tsx'),
   'utf8'
 );
-assert.match(billingPage, /Plan remaining/);
-assert.match(billingPage, /Additional remaining/);
-assert.match(billingPage, /formatPctLabel/);
+assert.match(billingPage, /Your credits · plan/);
+assert.match(billingPage, /Your credits · additional/);
+assert.match(billingPage, /UsageBar/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
 assert.doesNotMatch(billingPage, /billing\?\.additional \?\? 0\)\.toLocaleString/);
+const usageBar = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/billing/UsageBar.tsx'),
+  'utf8'
+);
+assert.match(usageBar, /formatPctLabel/);
+assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/);
 
 const seed = fs.readFileSync(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '../../scripts/seed-allocation-granted-total.ts'),

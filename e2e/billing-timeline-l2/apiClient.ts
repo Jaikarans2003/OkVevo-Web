@@ -118,8 +118,9 @@ export type BillingSummaryResponse = {
   razorpaySubscriptionId: string | null;
   accountKind?: string;
   canPurchase?: boolean;
-  fundedBy?: string | null;
   sponsoredPct?: number;
+  overdrawnPct?: number;
+  fundedBy?: string | null;
 };
 
 export function acceptParent(idToken: string, orgPublicId: string, superOrgPublicId: string) {
