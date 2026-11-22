@@ -43,28 +43,49 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   return NextResponse.json({ success: true })
 }
 
-/** POST — resend (new token). */
+/** POST — resend (new token). Same role gate as create: admin→member only. */
 export async function POST(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
 
   const { publicId, id } = await ctx.params
-  const authz = await authorizeOrg(sql, {
+  const authzAdmin = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
     need: 'admin',
     email: user.email,
     emailVerified: user.emailVerified,
   })
-  if (!authz.ok) {
+  if (!authzAdmin.ok) {
     return NextResponse.json(
-      { error: authz.code, code: authz.code },
-      { status: authz.code === 'org_not_found' ? 404 : 403 }
+      { error: authzAdmin.code, code: authzAdmin.code },
+      { status: authzAdmin.code === 'org_not_found' ? 404 : 403 }
     )
   }
 
+  const inviteRows = await sql`
+    select role from invitations
+    where id = ${id} and org_id = ${authzAdmin.org.id}
+      and accepted_at is null and revoked_at is null
+  `
+  const inviteRole = inviteRows[0]?.role as string | undefined
+  if (!inviteRole) {
+    return NextResponse.json({ error: 'not_found', code: 'not_found' }, { status: 404 })
+  }
+  if (
+    (inviteRole === 'admin' || inviteRole === 'owner') &&
+    authzAdmin.role !== 'owner' &&
+    authzAdmin.role !== 'platform_admin'
+  ) {
+    return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
+  }
+
   const result = await withTx((tx) =>
-    resendInvitation(tx, { orgId: authz.org.id, invitationId: id, actorUserId: user.uid })
+    resendInvitation(tx, {
+      orgId: authzAdmin.org.id,
+      invitationId: id,
+      actorUserId: user.uid,
+    })
   )
   if (!result.ok) {
     const status = result.code === 'not_found' ? 404 : 409

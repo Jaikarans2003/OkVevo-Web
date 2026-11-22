@@ -11,7 +11,12 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string; uid: string }> }
 
-/** PATCH /api/orgs/:publicId/members/:uid `{role}` */
+function isOwnerCapable(role: string): boolean {
+  return role === 'owner' || role === 'platform_admin'
+}
+
+/** PATCH /api/orgs/:publicId/members/:uid `{role?}` and/or `{departmentId?}`.
+ * Role changes: owner only. Department assign: admin. */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -36,10 +41,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: 'invalid_role', code: 'invalid_role' }, { status: 400 })
   }
 
+  // Role management is owner-only; department assign stays admin.
+  const need = role ? 'owner' : 'admin'
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need,
     email: user.email,
     emailVerified: user.emailVerified,
   })
@@ -48,10 +55,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       { error: authz.code, code: authz.code },
       { status: authz.code === 'org_not_found' ? 404 : 403 }
     )
-  }
-  // Only owners may grant/change owner role.
-  if (role === 'owner' && authz.role !== 'owner' && authz.role !== 'platform_admin') {
-    return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
   const result = await withTx(async (tx) => {
@@ -87,7 +90,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   return NextResponse.json({ success: true, role: role ?? undefined })
 }
 
-/** DELETE /api/orgs/:publicId/members/:uid — soft-remove. */
+/** DELETE /api/orgs/:publicId/members/:uid — soft-remove.
+ * Admins may remove members only; removing admin/owner needs owner. */
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -105,6 +109,21 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
       { error: authz.code, code: authz.code },
       { status: authz.code === 'org_not_found' ? 404 : 403 }
     )
+  }
+
+  const target = await sql`
+    select role from memberships
+    where org_id = ${authz.org.id} and user_id = ${uid} and status = 'active'
+  `
+  const targetRole = target[0]?.role as string | undefined
+  if (!targetRole) {
+    return NextResponse.json({ error: 'not_found', code: 'not_found' }, { status: 404 })
+  }
+  if (
+    (targetRole === 'admin' || targetRole === 'owner') &&
+    !isOwnerCapable(authz.role)
+  ) {
+    return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
   const result = await withTx((tx) =>

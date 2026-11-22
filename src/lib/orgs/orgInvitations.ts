@@ -64,22 +64,30 @@ export async function createOrgInvitation(
   return { ok: true, id }
 }
 
+export type ResolveOrgByOwnerEmail =
+  | { ok: true; orgId: string }
+  | { ok: false; code: 'owner_not_found' | 'ambiguous_owner_email' }
+
+/** Match standalone orgs only (kind=org, no parent). Multiple → ambiguous. */
 export async function resolveOrgIdByOwnerEmail(
   tx: TxSql,
   email: string
-): Promise<string | null> {
+): Promise<ResolveOrgByOwnerEmail> {
   const normalized = email.trim().toLowerCase()
-  if (!normalized) return null
+  if (!normalized) return { ok: false, code: 'owner_not_found' }
   const rows = await tx`
     select o.id
     from organizations o
     join memberships m on m.org_id = o.id and m.status = 'active' and m.role = 'owner'
     join users u on u.id = m.user_id
     where lower(coalesce(u.email, '')) = ${normalized}
+      and o.kind = 'org'
+      and o.parent_id is null
     order by o.created_at asc
-    limit 1
   `
-  return rows[0]?.id ? String(rows[0].id) : null
+  if (rows.length === 0) return { ok: false, code: 'owner_not_found' }
+  if (rows.length > 1) return { ok: false, code: 'ambiguous_owner_email' }
+  return { ok: true, orgId: String(rows[0]!.id) }
 }
 
 export async function findPendingOrgInvitation(

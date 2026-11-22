@@ -93,8 +93,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       if (!org) return { ok: false as const, code: 'org_not_found' as const }
       targetOrgId = org.id
     } else if (ownerEmail) {
-      targetOrgId = await resolveOrgIdByOwnerEmail(tx, ownerEmail)
-      if (!targetOrgId) return { ok: false as const, code: 'owner_not_found' as const }
+      const resolved = await resolveOrgIdByOwnerEmail(tx, ownerEmail)
+      if (!resolved.ok) return { ok: false as const, code: resolved.code }
+      targetOrgId = resolved.orgId
     } else {
       return { ok: false as const, code: 'invalid_target' as const }
     }
@@ -107,7 +108,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   if (!result.ok) {
     const status =
-      result.code === 'pending_exists' || result.code === 'already_parented' ? 409 : 400
+      result.code === 'pending_exists' ||
+      result.code === 'already_parented' ||
+      result.code === 'ambiguous_owner_email'
+        ? 409
+        : 400
     return NextResponse.json({ error: result.code, code: result.code }, { status })
   }
   return NextResponse.json({ success: true, id: result.id }, { status: 201 })

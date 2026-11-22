@@ -62,10 +62,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       ? body.departmentId.trim()
       : null
 
+  // Admins invite members only; owner/admin invites need owner.
+  const need = role === 'member' ? 'admin' : 'owner'
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need,
     email: user.email,
     emailVerified: user.emailVerified,
   })
@@ -74,9 +76,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       { error: authz.code, code: authz.code },
       { status: authz.code === 'org_not_found' ? 404 : 403 }
     )
-  }
-  if (role === 'owner' && authz.role !== 'owner' && authz.role !== 'platform_admin') {
-    return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
   if (departmentId) {
