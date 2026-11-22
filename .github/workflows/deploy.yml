@@ -120,6 +120,8 @@ jobs:
       RAZORPAY_KEY_ID: ${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
       RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
       NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+      # Verified L2 invitees (2b-b) — Admin createUser with emailVerified.
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       # Platform admin for super-org approve (must be in App Hosting ADMIN_EMAILS).
       L2_ADMIN_EMAIL: ${{ secrets.L2_ADMIN_EMAIL }}
       L2_ADMIN_PASSWORD: ${{ secrets.L2_ADMIN_PASSWORD }}

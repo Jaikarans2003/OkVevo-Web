@@ -6,13 +6,19 @@ import {
   getMe,
   upgradeToOrg,
 } from './apiClient';
-import { createTestUser, deleteTestUser, ensureServerUser } from './testUsers';
+import {
+  createTestUser,
+  createVerifiedTestUser,
+  deleteTestUser,
+  ensureServerUser,
+} from './testUsers';
 
 test.describe('2b-b email invitations', () => {
   test('verified user accepts to join; decline stays out', async () => {
     test.setTimeout(120_000);
     const owner = await createTestUser('2bb-owner');
-    const invitee = await createTestUser('2bb-invitee');
+    // me.pendingInvites + accept/decline require emailVerified on the invitee token.
+    const invitee = await createVerifiedTestUser('2bb-invitee');
     try {
       await ensureServerUser(owner.idToken);
       await ensureServerUser(invitee.idToken);
