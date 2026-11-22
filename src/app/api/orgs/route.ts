@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { env } from '@/config/env'
+import { sendEmail } from '@/lib/email/sendEmail'
 import { sql } from '@/lib/db/client'
 import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
@@ -12,7 +14,7 @@ export const runtime = 'nodejs'
 
 /**
  * POST /api/orgs — create a child org under a super-org (`parent` = public id).
- * No parent → 400. kind super_org → 403. Caller must be owner or admin of the parent.
+ * `ownerEmail` receives a pending owner invite (caller is not the child owner).
  */
 export async function POST(req: NextRequest) {
   const token = gatewayIdToken(req)
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  let body: { name?: unknown; parent?: unknown; kind?: unknown }
+  let body: { name?: unknown; parent?: unknown; kind?: unknown; ownerEmail?: unknown }
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -49,6 +51,15 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.name !== 'string' || !body.name.trim()) {
     return NextResponse.json({ error: 'invalid_name', code: 'invalid_name' }, { status: 400 })
+  }
+  const ownerEmail =
+    typeof body.ownerEmail === 'string' && body.ownerEmail.trim()
+      ? body.ownerEmail.trim()
+      : typeof decoded.email === 'string' && decoded.email_verified
+        ? decoded.email.trim()
+        : ''
+  if (!ownerEmail) {
+    return NextResponse.json({ error: 'invalid_owner_email', code: 'invalid_owner_email' }, { status: 400 })
   }
 
   await ensureMe(decoded.uid, {
@@ -80,7 +91,8 @@ export async function POST(req: NextRequest) {
     createChildOrg(tx, {
       parentOrgId: authz.org.id,
       name: body.name as string,
-      ownerUserId: decoded.uid,
+      ownerEmail,
+      createdBy: decoded.uid,
     })
   )
 
@@ -88,16 +100,25 @@ export async function POST(req: NextRequest) {
     const status =
       result.code === 'forbidden'
         ? 403
-        : result.code === 'invalid_name'
+        : result.code === 'invalid_name' || result.code === 'invalid_owner_email'
           ? 400
           : 400
     return NextResponse.json({ error: result.code, code: result.code }, { status })
   }
+
+  const inviteUrl = `${env.siteUrl}/invite/${result.ownerInviteToken}`
+  await sendEmail({
+    to: ownerEmail,
+    subject: `You are invited to own ${body.name as string} on OkVevo`,
+    text: inviteUrl,
+  })
 
   return NextResponse.json({
     success: true,
     orgPublicId: result.orgPublicId,
     orgId: result.orgId,
     billingAccountId: result.billingAccountId,
+    ownerInviteId: result.ownerInviteId,
+    inviteUrl,
   })
 }

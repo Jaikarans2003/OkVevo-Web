@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { ensureMe } from '@/lib/api/me'
 import { withTx } from '@/lib/db/tx'
-import { acceptInvitation } from '@/lib/orgs/invitations'
+import { acceptInvitation, getInvitationByIdForAccept } from '@/lib/orgs/invitations'
 import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
 
 export const runtime = 'nodejs'
@@ -12,14 +12,18 @@ export async function POST(req: NextRequest) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
 
-  let body: { token?: unknown }
+  let body: { token?: unknown; invitationId?: unknown }
   try {
     body = (await req.json()) as typeof body
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
+  const invitationId =
+    typeof body.invitationId === 'string' && body.invitationId.trim()
+      ? body.invitationId.trim()
+      : ''
   const token = typeof body.token === 'string' ? body.token.trim() : ''
-  if (!token) {
+  if (!token && !invitationId) {
     return NextResponse.json({ error: 'invalid_token', code: 'invalid_token' }, { status: 400 })
   }
 
@@ -29,12 +33,19 @@ export async function POST(req: NextRequest) {
   })
 
   const result = await withTx((tx) =>
-    acceptInvitation(tx, {
-      token,
-      userId: user.uid,
-      email: user.email,
-      emailVerified: user.emailVerified,
-    })
+    invitationId
+      ? getInvitationByIdForAccept(tx, {
+          invitationId,
+          userId: user.uid,
+          email: user.email ?? '',
+          emailVerified: user.emailVerified,
+        })
+      : acceptInvitation(tx, {
+          token,
+          userId: user.uid,
+          email: user.email,
+          emailVerified: user.emailVerified,
+        })
   )
 
   if (!result.ok) {

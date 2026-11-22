@@ -60,12 +60,28 @@ export async function POST(req: NextRequest) {
     const subjectOrgPublicId =
       typeof body.subjectOrgPublicId === 'string' ? body.subjectOrgPublicId.trim() : null
 
+    const requestedName =
+      typeof body.requestedName === 'string' && body.requestedName.trim()
+        ? body.requestedName.trim()
+        : null
+    const extraOwners = Array.isArray(body.extraOwners)
+      ? body.extraOwners
+          .filter((o): o is Record<string, unknown> => !!o && typeof o === 'object')
+          .map((o) => ({
+            name: typeof o.name === 'string' ? o.name : undefined,
+            email: typeof o.email === 'string' ? o.email : '',
+          }))
+          .filter((o) => o.email.trim())
+      : null
+
     const result = await insertSuperOrgApplication({
       userId: decoded.uid,
       email,
       message,
       whatsapp,
       subjectOrgPublicId,
+      requestedName,
+      extraOwners,
     })
     if (!result.ok) {
       const status =

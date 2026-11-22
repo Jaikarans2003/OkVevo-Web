@@ -1,22 +1,20 @@
 /**
- * Join codes: create (plaintext once) / revoke / redeem (plan §6).
+ * Join codes: one static member code per org (+ super-org team).
  */
 import type { DbHandle } from '@/lib/db/wallet'
 import type { TxSql } from '@/lib/db/tx'
+import { writeAuditLog } from '@/lib/orgs/auditLog'
 import { mintJoinCode, sha256Hex } from '@/lib/orgs/tokens'
 
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const JOIN_RATE_WINDOW_MS = 60 * 60 * 1000
 const JOIN_RATE_MAX = 30
 
 export type JoinCodeRow = {
   id: string
   orgId: string
-  role: 'owner' | 'admin' | 'member'
-  expiresAt: Date | null
-  maxUses: number | null
   uses: number
   revokedAt: Date | null
+  createdAt: Date
 }
 
 export async function createJoinCode(
@@ -24,35 +22,70 @@ export async function createJoinCode(
   opts: {
     orgId: string
     createdBy: string
-    role?: 'admin' | 'member'
-    expiresAt?: Date | null
-    maxUses?: number | null
+    /** API must pass member only. */
+    role?: 'member'
   }
-): Promise<{ id: string; code: string; expiresAt: Date }> {
+): Promise<{ id: string; code: string }> {
   const code = mintJoinCode()
-  const expiresAt =
-    opts.expiresAt === null
-      ? null
-      : opts.expiresAt ?? new Date(Date.now() + DEFAULT_TTL_MS)
-  const role = opts.role ?? 'member'
   const rows = await tx`
     insert into join_codes (org_id, code_hash, role, expires_at, max_uses, created_by)
     values (
       ${opts.orgId},
       ${sha256Hex(code)},
-      ${role},
-      ${expiresAt},
-      ${opts.maxUses ?? null},
+      'member',
+      null,
+      null,
       ${opts.createdBy}
     )
     returning id
   `
-  return { id: String(rows[0]!.id), code, expiresAt: expiresAt ?? new Date(Date.now() + DEFAULT_TTL_MS) }
+  const id = String(rows[0]!.id)
+  await writeAuditLog(tx, {
+    orgId: opts.orgId,
+    actorUserId: opts.createdBy,
+    action: 'join_code.create',
+    targetType: 'join_code',
+    targetId: id,
+  })
+  return { id, code }
+}
+
+export async function getActiveJoinCode(
+  tx: TxSql,
+  orgId: string
+): Promise<JoinCodeRow | null> {
+  const rows = await tx`
+    select id, org_id, uses, revoked_at, created_at
+    from join_codes
+    where org_id = ${orgId} and revoked_at is null
+    order by created_at desc
+    limit 1
+  `
+  const row = rows[0] as Record<string, unknown> | undefined
+  if (!row) return null
+  return {
+    id: String(row.id),
+    orgId: String(row.org_id),
+    uses: Number(row.uses),
+    revokedAt: row.revoked_at ? new Date(String(row.revoked_at)) : null,
+    createdAt: new Date(String(row.created_at)),
+  }
+}
+
+/** Ensure one active code exists (no plaintext returned if already present). */
+export async function ensureJoinCode(
+  tx: TxSql,
+  opts: { orgId: string; createdBy: string }
+): Promise<{ id: string; code: string | null; created: boolean }> {
+  const active = await getActiveJoinCode(tx, opts.orgId)
+  if (active) return { id: active.id, code: null, created: false }
+  const created = await createJoinCode(tx, { orgId: opts.orgId, createdBy: opts.createdBy })
+  return { id: created.id, code: created.code, created: true }
 }
 
 export async function revokeJoinCode(
   tx: TxSql,
-  opts: { orgId: string; joinCodeId: string }
+  opts: { orgId: string; joinCodeId: string; actorUserId: string }
 ): Promise<'ok' | 'not_found'> {
   const rows = await tx`
     update join_codes
@@ -60,7 +93,35 @@ export async function revokeJoinCode(
     where id = ${opts.joinCodeId} and org_id = ${opts.orgId}
     returning id
   `
-  return rows.length ? 'ok' : 'not_found'
+  if (!rows.length) return 'not_found'
+  await writeAuditLog(tx, {
+    orgId: opts.orgId,
+    actorUserId: opts.actorUserId,
+    action: 'join_code.deactivate',
+    targetType: 'join_code',
+    targetId: opts.joinCodeId,
+  })
+  return 'ok'
+}
+
+export async function regenerateJoinCode(
+  tx: TxSql,
+  opts: { orgId: string; actorUserId: string }
+): Promise<{ id: string; code: string }> {
+  await tx`
+    update join_codes
+    set revoked_at = coalesce(revoked_at, now())
+    where org_id = ${opts.orgId} and revoked_at is null
+  `
+  const created = await createJoinCode(tx, { orgId: opts.orgId, createdBy: opts.actorUserId })
+  await writeAuditLog(tx, {
+    orgId: opts.orgId,
+    actorUserId: opts.actorUserId,
+    action: 'join_code.regenerate',
+    targetType: 'join_code',
+    targetId: created.id,
+  })
+  return created
 }
 
 export type RedeemFail =
@@ -70,6 +131,7 @@ export type RedeemFail =
   | 'max_uses'
   | 'already_member'
   | 'rate_limited'
+  | 'invalid_role'
 
 export type RedeemResult =
   | { ok: true; orgId: string; role: string }
@@ -124,14 +186,20 @@ export async function redeemJoinCode(
   const row = rows[0] as Record<string, unknown> | undefined
   if (!row) return { ok: false, code: 'invalid_code' }
   if (row.revoked_at) return { ok: false, code: 'revoked' }
-  const expiresAt = row.expires_at instanceof Date ? row.expires_at : row.expires_at ? new Date(String(row.expires_at)) : null
+  const role = String(row.role)
+  if (role !== 'member') return { ok: false, code: 'invalid_role' }
+  const expiresAt =
+    row.expires_at instanceof Date
+      ? row.expires_at
+      : row.expires_at
+        ? new Date(String(row.expires_at))
+        : null
   if (expiresAt && expiresAt.getTime() <= now.getTime()) return { ok: false, code: 'expired' }
   const maxUses = row.max_uses == null ? null : Number(row.max_uses)
   const uses = Number(row.uses)
   if (maxUses != null && uses >= maxUses) return { ok: false, code: 'max_uses' }
 
   const orgId = String(row.org_id)
-  const role = String(row.role)
 
   const existing = await tx`
     select status from memberships
@@ -143,19 +211,17 @@ export async function redeemJoinCode(
   if (existing[0]) {
     await tx`
       update memberships
-      set role = ${role}, status = 'active', created_at = now()
+      set role = 'member', status = 'active', created_at = now()
       where org_id = ${orgId} and user_id = ${opts.userId}
     `
   } else {
     await tx`
       insert into memberships (org_id, user_id, role, status)
-      values (${orgId}, ${opts.userId}, ${role}, 'active')
+      values (${orgId}, ${opts.userId}, 'member', 'active')
     `
   }
 
-  await tx`
-    update join_codes set uses = uses + 1 where id = ${String(row.id)}
-  `
+  await tx`update join_codes set uses = uses + 1 where id = ${String(row.id)}`
 
-  return { ok: true, orgId, role }
+  return { ok: true, orgId, role: 'member' }
 }

@@ -27,43 +27,37 @@ assert.ok(upgraded.ok)
 if (!upgraded.ok) throw new Error('upgrade')
 
 // --- join code happy path ---
+await withTx(async (tx) => {
+  await tx`update join_codes set revoked_at = now() where org_id = ${upgraded.orgId} and revoked_at is null`
+})
 const minted = await withTx((tx) =>
-  createJoinCode(tx, { orgId: upgraded.orgId, createdBy: owner, maxUses: 1 })
+  createJoinCode(tx, { orgId: upgraded.orgId, createdBy: owner })
 )
 const redeemed = await withTx((tx) =>
   redeemJoinCode(tx, { code: minted.code, userId: joiner })
 )
 assert.equal(redeemed.ok, true)
 
-// max uses (same joiner already member → already_member; fresh user hits max_uses)
 const other = `oth-${Date.now().toString(16)}`
 await ensureUserAndBilling(sql, other)
 const again = await withTx((tx) =>
   redeemJoinCode(tx, { code: minted.code, userId: other })
 )
-assert.equal(again.ok, false)
-if (!again.ok) assert.equal(again.code, 'max_uses')
+assert.equal(again.ok, true)
 
 // revoked
+await withTx(async (tx) => {
+  await tx`update join_codes set revoked_at = now() where org_id = ${upgraded.orgId} and revoked_at is null`
+})
 const minted2 = await withTx((tx) =>
   createJoinCode(tx, { orgId: upgraded.orgId, createdBy: owner })
 )
-await withTx((tx) => revokeJoinCode(tx, { orgId: upgraded.orgId, joinCodeId: minted2.id }))
+await withTx((tx) =>
+  revokeJoinCode(tx, { orgId: upgraded.orgId, joinCodeId: minted2.id, actorUserId: owner })
+)
 const rev = await withTx((tx) => redeemJoinCode(tx, { code: minted2.code, userId: other }))
 assert.equal(rev.ok, false)
 if (!rev.ok) assert.equal(rev.code, 'revoked')
-
-// expired
-const minted3 = await withTx((tx) =>
-  createJoinCode(tx, {
-    orgId: upgraded.orgId,
-    createdBy: owner,
-    expiresAt: new Date('2020-01-01T00:00:00.000Z'),
-  })
-)
-const exp = await withTx((tx) => redeemJoinCode(tx, { code: minted3.code, userId: other }))
-assert.equal(exp.ok, false)
-if (!exp.ok) assert.equal(exp.code, 'expired')
 
 // removed member → org_access_denied
 await withTx((tx) => removeMember(tx, { orgId: upgraded.orgId, userId: joiner }))
