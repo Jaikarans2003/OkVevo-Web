@@ -38,6 +38,7 @@ assert.ok(approved.ok)
 if (!approved.ok) throw new Error('approve')
 assert.equal(approved.created, true)
 assert.match(approved.orgPublicId, /^sorg_/)
+assert.match(approved.joinCode, /^okv_sorg_/)
 
 const billing = await getBillingByOrgId(sql, approved.orgId)
 assert.equal(billing?.accountKind, 'super_org')
@@ -49,6 +50,34 @@ const again = await withTx((tx) =>
 )
 assert.equal(again.ok, false)
 if (!again.ok) assert.equal(again.code, 'already_approved')
+
+// has_active_members blocks promote when org still has members beyond owner
+const uidMembers = `appm-${Date.now().toString(16)}`
+const extraMember = `appx-${Date.now().toString(16)}`
+await ensureUserAndBilling(sql, uidMembers)
+await ensureUserAndBilling(sql, extraMember)
+const orgWithMembers = await withTx((tx) =>
+  upgradeIndividualToOrg(tx, { userId: uidMembers, name: 'MemberCo', kind: 'org' })
+)
+assert.ok(orgWithMembers.ok)
+if (!orgWithMembers.ok) throw new Error('upgrade members')
+await sql`
+  insert into memberships (org_id, user_id, role, status)
+  values (${orgWithMembers.orgId}, ${extraMember}, 'member', 'active')
+`
+const appMembers = await insertSuperOrgApplication({
+  userId: uidMembers,
+  email: 'members@example.com',
+  message: 'promote with members',
+  subjectOrgPublicId: orgWithMembers.orgPublicId,
+})
+assert.ok(appMembers.ok)
+if (!appMembers.ok) throw new Error('appMembers')
+const blockedMembers = await withTx((tx) =>
+  approveSuperOrgApplication(tx, { applicationId: appMembers.id, approvedBy: admin })
+)
+assert.equal(blockedMembers.ok, false)
+if (!blockedMembers.ok) assert.equal(blockedMembers.code, 'has_active_members')
 
 // Org subject: upgrade then apply then approve
 const uid2 = `app2-${Date.now().toString(16)}`
@@ -83,6 +112,7 @@ assert.ok(approved2.ok)
 if (!approved2.ok) throw new Error('approve2')
 assert.equal(approved2.created, false)
 assert.equal(approved2.orgPublicId, org.orgPublicId)
+assert.match(approved2.joinCode, /^okv_sorg_/)
 assert.equal((await getBillingByOrgId(sql, org.orgId))?.accountKind, 'super_org')
 
 console.log('approveSuperOrg.ledgercheck: ok')

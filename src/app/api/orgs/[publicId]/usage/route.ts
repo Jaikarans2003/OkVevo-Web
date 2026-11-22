@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string }> }
 
-type GroupBy = 'user' | 'end_customer' | 'org' | 'day' | 'department'
+type GroupBy = 'user' | 'end_customer' | 'org' | 'day'
 
 /** GET /api/orgs/:publicId/usage?from&to&group_by= */
 export async function GET(req: NextRequest, ctx: Ctx) {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const fromRaw = url.searchParams.get('from')
   const toRaw = url.searchParams.get('to')
   const groupBy = (url.searchParams.get('group_by') || 'day') as GroupBy
-  if (!['user', 'end_customer', 'org', 'day', 'department'].includes(groupBy)) {
+  if (!['user', 'end_customer', 'org', 'day'].includes(groupBy)) {
     return NextResponse.json({ error: 'invalid_group_by', code: 'invalid_group_by' }, { status: 400 })
   }
 
@@ -44,16 +44,14 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  const isAdmin =
+  const canSeeAll =
     authz.role === 'owner' ||
-    authz.role === 'admin' ||
-    authz.role === 'inherited_admin' ||
+    authz.role === 'inherited_read' ||
     authz.role === 'platform_admin'
 
-  // Members only see their own rows; admins see the org (and child orgs for super-org + group_by=org).
-  const memberFilter = isAdmin ? sql`` : sql`and user_id = ${user.uid}`
+  const memberFilter = canSeeAll ? sql`` : sql`and user_id = ${user.uid}`
 
-  if (groupBy === 'org' && !(authz.org.kind === 'super_org' && isAdmin)) {
+  if (groupBy === 'org' && !(authz.org.kind === 'super_org' && canSeeAll)) {
     return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
@@ -88,7 +86,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       group by end_customer_ref
       order by credits desc nulls last
     `
-  } else if (groupBy === 'org') {
+  } else {
     rows = await sql`
       select org_id, sum(requests)::int as requests, sum(credits)::int as credits
       from usage_daily
@@ -97,23 +95,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
           select id from organizations where parent_id = ${authz.org.id}
         ))
       group by org_id
-      order by credits desc nulls last
-    `
-  } else {
-    // department — join current membership label (moving people does not rewrite history).
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
-    }
-    rows = await sql`
-      select m.department_id, d.name as department_name,
-             sum(u.requests)::int as requests, sum(u.credits)::int as credits
-      from usage_daily u
-      left join memberships m
-        on m.org_id = u.org_id and m.user_id = u.user_id and m.status = 'active'
-      left join departments d on d.id = m.department_id
-      where u.day >= ${from} and u.day < ${to}
-        and u.org_id = ${authz.org.id}
-      group by m.department_id, d.name
       order by credits desc nulls last
     `
   }

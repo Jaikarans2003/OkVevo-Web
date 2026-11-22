@@ -60,7 +60,7 @@ export async function upgradeIndividualToOrg(
     where id = ${opts.userId}
   `
 
-  await ensureJoinCode(tx, { orgId, createdBy: opts.userId })
+  await ensureJoinCode(tx, { orgId, createdBy: opts.userId, kind })
 
   return { ok: true, orgPublicId: publicId, orgId }
 }

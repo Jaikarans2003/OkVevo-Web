@@ -1,14 +1,11 @@
 /**
- * Member role changes + soft-remove. Last owner cannot be removed/demoted.
+ * Member role changes + soft-remove + self-leave. Last owner cannot leave/demote.
  */
 import type { TxSql } from '@/lib/db/tx'
 import type { OrgRole } from '@/lib/orgs/authorize'
 import { writeAuditLog } from '@/lib/orgs/auditLog'
 
-export type MemberFail =
-  | 'not_found'
-  | 'last_owner'
-  | 'invalid_role'
+export type MemberFail = 'not_found' | 'last_owner' | 'invalid_role'
 
 export type MemberResult = { ok: true } | { ok: false; code: MemberFail }
 
@@ -24,7 +21,7 @@ export async function setMemberRole(
   tx: TxSql,
   opts: { orgId: string; userId: string; role: OrgRole; actorUserId?: string }
 ): Promise<MemberResult> {
-  if (!['owner', 'admin', 'member'].includes(opts.role)) {
+  if (!['owner', 'member'].includes(opts.role)) {
     return { ok: false, code: 'invalid_role' }
   }
   const rows = await tx`
@@ -89,4 +86,16 @@ export async function removeMember(
     })
   }
   return { ok: true }
+}
+
+/** Member (or non-last owner) leaves the org themselves. */
+export async function leaveOrgAsMember(
+  tx: TxSql,
+  opts: { orgId: string; userId: string }
+): Promise<MemberResult> {
+  return removeMember(tx, {
+    orgId: opts.orgId,
+    userId: opts.userId,
+    actorUserId: opts.userId,
+  })
 }

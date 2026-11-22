@@ -16,24 +16,8 @@ export type MeMembership = {
   orgPublicId: string
   name: string
   kind: 'org' | 'super_org'
-  role: 'owner' | 'admin' | 'member'
+  role: 'owner' | 'member'
   parent: string | null
-}
-
-export type MePendingInvite = {
-  invitationId: string
-  orgPublicId: string
-  orgName: string
-  role: string
-  expiresAt: string
-}
-
-export type MePendingOrgInvitation = {
-  id: string
-  superOrgPublicId: string
-  superOrgName: string
-  orgPublicId: string
-  createdAt: string
 }
 
 export type MePayload = {
@@ -42,8 +26,6 @@ export type MePayload = {
   hidePersonal: boolean
   upgradedOrgPublicId: string | null
   isPlatformAdmin: boolean
-  pendingInvites: MePendingInvite[]
-  pendingOrgInvitations: MePendingOrgInvitation[]
 }
 
 export function isPlatformAdmin(decoded: {
@@ -126,46 +108,8 @@ export async function getMePayload(
     orgPublicId: String(row.public_id),
     name: String(row.name),
     kind: row.kind as 'org' | 'super_org',
-    role: row.role as 'owner' | 'admin' | 'member',
+    role: row.role as 'owner' | 'member',
     parent: (row.parent_public_id as string | null) ?? null,
-  }))
-
-  let pendingInvites: MePendingInvite[] = []
-  if (decoded.email_verified === true && decoded.email) {
-    const { listPendingInvitesWithTokensForEmail } = await import('@/lib/orgs/invitations')
-    const rows = await listPendingInvitesWithTokensForEmail(sql, { email: decoded.email })
-    pendingInvites = rows.map((r) => ({
-      invitationId: r.invitationId,
-      orgPublicId: r.orgPublicId,
-      orgName: r.orgName,
-      role: r.role,
-      expiresAt: r.expiresAt,
-    }))
-  }
-
-  const orgInviteRows =
-    decoded.email_verified === true
-      ? await sql`
-          select oi.id,
-                 oi.created_at,
-                 child.public_id as org_public_id,
-                 super.public_id as super_public_id,
-                 super.name as super_name
-          from org_invitations oi
-          join organizations child on child.id = oi.org_id
-          join organizations super on super.id = oi.super_org_id
-          join memberships m on m.org_id = child.id and m.user_id = ${uid} and m.status = 'active' and m.role = 'owner'
-          where oi.status = 'pending'
-          order by oi.created_at asc
-        `
-      : []
-
-  const pendingOrgInvitations: MePendingOrgInvitation[] = orgInviteRows.map((row) => ({
-    id: String(row.id),
-    orgPublicId: String(row.org_public_id),
-    superOrgPublicId: String(row.super_public_id),
-    superOrgName: String(row.super_name),
-    createdAt: new Date(String(row.created_at)).toISOString(),
   }))
 
   return {
@@ -174,8 +118,6 @@ export async function getMePayload(
     hidePersonal,
     upgradedOrgPublicId,
     isPlatformAdmin: isPlatformAdmin(decoded),
-    pendingInvites,
-    pendingOrgInvitations,
   }
 }
 

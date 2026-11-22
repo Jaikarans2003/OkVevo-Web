@@ -207,23 +207,30 @@ assert.ok(
   additionalRemainingPct(superAfterDebt!.topUpBalance, superAfterDebt!.topUpReference) < 100
 )
 
-// --- Fix 1: accept-parent without pending org_invitation → 409 ---
+// --- Fix 1: join route + X-OkVevo-Org on already-parented child → 409 ---
 await installFirebaseAuthMock()
 setFakeAuthUid(uid)
 {
   const { NextRequest } = await import('next/server')
-  const { POST } = await import('@/app/api/orgs/[publicId]/accept-parent/route')
+  const { POST } = await import('@/app/api/orgs/join/route')
+  const { regenerateJoinCode } = await import('@/lib/orgs/joinCodes')
   const childPub = String(childRows[0]!.public_id)
-  const superPub = String(superRows[0]!.public_id)
-  const req = new NextRequest(`http://localhost/api/orgs/${childPub}/accept-parent`, {
+  const superCode = await withTx((tx) =>
+    regenerateJoinCode(tx, { orgId: superId, actorUserId: uid, kind: 'super_org' })
+  )
+  const req = new NextRequest('http://localhost/api/orgs/join', {
     method: 'POST',
-    headers: { authorization: `Bearer ${uid}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ superOrgPublicId: superPub }),
+    headers: {
+      authorization: `Bearer ${uid}`,
+      'content-type': 'application/json',
+      'x-okvevo-org': childPub,
+    },
+    body: JSON.stringify({ code: superCode.code }),
   })
-  const res = await POST(req, { params: Promise.resolve({ publicId: childPub }) })
+  const res = await POST(req)
   assert.equal(res.status, 409)
   const body = (await res.json()) as { code?: string }
-  assert.equal(body.code, 'no_pending_invitation')
+  assert.equal(body.code, 'already_parented')
 }
 
 // --- Fix 2: reserve holds child wallet lock; Leave waits then 409 ---

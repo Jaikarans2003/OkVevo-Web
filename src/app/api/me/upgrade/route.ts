@@ -7,16 +7,9 @@ import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
 import { gatewayIdToken } from '@/lib/gateway/auth'
 import { ensureMe } from '@/lib/api/me'
-import { createInvitation } from '@/lib/orgs/invitations'
 import { upgradeIndividualToOrg } from '@/lib/orgs/upgrade'
 
 export const runtime = 'nodejs'
-
-type UpgradeMemberInput = {
-  email: string
-  role?: 'admin' | 'member'
-  departmentId?: string | null
-}
 
 /** POST /api/me/upgrade — one-way individual → organisation (same wallet). */
 export async function POST(req: NextRequest) {
@@ -31,27 +24,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  let body: { name?: unknown; members?: unknown }
+  let body: { name?: unknown }
   try {
-    body = (await req.json()) as { name?: unknown; members?: unknown }
+    body = (await req.json()) as { name?: unknown }
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
   if (typeof body.name !== 'string' || !body.name.trim()) {
     return NextResponse.json({ error: 'invalid_name' }, { status: 400 })
   }
-
-  const members: UpgradeMemberInput[] = Array.isArray(body.members)
-    ? body.members
-        .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
-        .map((m): UpgradeMemberInput => ({
-          email: typeof m.email === 'string' ? m.email.trim().toLowerCase() : '',
-          role: m.role === 'admin' ? ('admin' as const) : ('member' as const),
-          departmentId:
-            typeof m.departmentId === 'string' && m.departmentId.trim() ? m.departmentId.trim() : null,
-        }))
-        .filter((m) => m.email.includes('@'))
-    : []
 
   await ensureMe(decoded.uid, {
     email: decoded.email_verified === true ? decoded.email ?? null : null,
@@ -61,23 +42,12 @@ export async function POST(req: NextRequest) {
   const before = await getBillingByUserId(sql, decoded.uid)
   const priorSubId = before?.razorpaySubscriptionId ?? null
 
-  const result = await withTx(async (tx) => {
-    const upgraded = await upgradeIndividualToOrg(tx, {
+  const result = await withTx((tx) =>
+    upgradeIndividualToOrg(tx, {
       userId: decoded.uid,
       name: body.name as string,
     })
-    if (!upgraded.ok) return upgraded
-    for (const m of members) {
-      await createInvitation(tx, {
-        orgId: upgraded.orgId,
-        email: m.email,
-        role: m.role ?? 'member',
-        invitedBy: decoded.uid,
-        departmentId: m.departmentId,
-      })
-    }
-    return upgraded
-  })
+  )
 
   if (!result.ok) {
     if (result.code === 'already_upgraded') {
@@ -102,6 +72,5 @@ export async function POST(req: NextRequest) {
     success: true,
     orgPublicId: result.orgPublicId,
     orgId: result.orgId,
-    pendingInvites: members.length,
   })
 }

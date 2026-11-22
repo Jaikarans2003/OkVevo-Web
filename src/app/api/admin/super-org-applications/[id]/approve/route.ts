@@ -47,13 +47,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   if (!result.ok) {
     const status =
-      result.code === 'already_approved'
+      result.code === 'already_approved' ||
+      result.code === 'negative_balance' ||
+      result.code === 'has_active_members'
         ? 409
         : result.code === 'not_found'
           ? 404
-          : result.code === 'negative_balance'
-            ? 409
-            : 400
+          : 400
     return NextResponse.json({ error: result.code, code: result.code }, { status })
   }
 
@@ -72,5 +72,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     orgPublicId: result.orgPublicId,
     orgId: result.orgId,
     created: result.created,
+    joinCode: result.joinCode,
   })
 }

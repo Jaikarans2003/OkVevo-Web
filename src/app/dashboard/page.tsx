@@ -18,7 +18,6 @@ import {
 } from '@/lib/orgs/activeOrg'
 import {
   canChangeMemberRoles,
-  canInvitePrivilegedRoles,
   canRemovePrivilegedMembers,
   dashboardNavForRole,
 } from '@/lib/orgs/dashboardHelpers'
@@ -51,8 +50,6 @@ type OrgDashboard = {
     userId: string
     email?: string | null
     role: string
-    departmentId?: string | null
-    departmentName?: string | null
     creditsUsed?: number
     lastActive?: string | null
   }>
@@ -80,8 +77,6 @@ type OrgDashboard = {
   period?: { from: string; to: string; creditsUsed: number; activeMemberCount: number }
 }
 
-type Dept = { id: string; name: string }
-type Invite = { id: string; email: string; role: string; inviteUrl?: string; expiresAt?: string }
 type TransferItem = {
   id?: string
   requestId?: string
@@ -108,8 +103,6 @@ export default function DashboardPage() {
   const [me, setMe] = useState<MePayload | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [data, setData] = useState<OrgDashboard | null>(null)
-  const [depts, setDepts] = useState<Dept[]>([])
-  const [invites, setInvites] = useState<Invite[]>([])
   const [joinCode, setJoinCode] = useState<{ id: string; code: string } | null>(null)
   const [transfers, setTransfers] = useState<TransferItem[]>([])
   const [usageRows, setUsageRows] = useState<UsageRow[]>([])
@@ -119,13 +112,9 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(false)
   const [banner, setBanner] = useState<string | null>(null)
 
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'owner'>('member')
-  const [deptName, setDeptName] = useState('')
   const [orgNameEdit, setOrgNameEdit] = useState('')
   const [childName, setChildName] = useState('')
-  const [childOwnerEmail, setChildOwnerEmail] = useState('')
-  const [inviteOrgTarget, setInviteOrgTarget] = useState('')
+  const [childNameConfirm, setChildNameConfirm] = useState('')
   const [sendTo, setSendTo] = useState('')
   const [sendAmount, setSendAmount] = useState(100)
 
@@ -163,16 +152,20 @@ export default function DashboardPage() {
       return
     }
 
-    const [deptRes, invRes, codeRes, xferRes, usage] = await Promise.all([
-      authedJson<{ items?: Dept[]; departments?: Dept[] }>(user, `/api/orgs/${resolved}/departments`),
-      authedJson<{ items: Invite[] }>(user, `/api/orgs/${resolved}/invitations`),
-      authedJson<{ id: string; code: string }>(user, `/api/orgs/${resolved}/join-codes`),
+    const ownerViewer = dashboardNavForRole(dash.role) === 'dashboard' && canChangeMemberRoles(dash.role)
+    const fetches: [
+      Promise<{ id: string; code: string } | null>,
+      Promise<{ items: TransferItem[] }>,
+      Promise<{ rows: UsageRow[] }>,
+    ] = [
+      ownerViewer
+        ? authedJson<{ id: string; code: string }>(user, `/api/orgs/${resolved}/join-codes`)
+        : Promise.resolve(null),
       authedJson<{ items: TransferItem[] }>(user, `/api/orgs/${resolved}/transfers`),
       authedJson<{ rows: UsageRow[] }>(user, `/api/orgs/${resolved}/usage?group_by=${usageGroup}`),
-    ])
-    setDepts(deptRes.items ?? deptRes.departments ?? [])
-    setInvites(invRes.items ?? [])
-    setJoinCode({ id: codeRes.id, code: codeRes.code })
+    ]
+    const [codeRes, xferRes, usage] = await Promise.all(fetches)
+    setJoinCode(codeRes ? { id: codeRes.id, code: codeRes.code } : null)
     setTransfers(xferRes.items ?? [])
     setUsageRows(usage.rows ?? [])
     setLoading(false)
@@ -193,16 +186,15 @@ export default function DashboardPage() {
 
   const isAdmin = data ? dashboardNavForRole(data.role) === 'dashboard' : false
   const ownerCapable = canChangeMemberRoles(data?.role)
-  const canInvitePriv = canInvitePrivilegedRoles(data?.role)
   const canRemovePriv = canRemovePrivilegedMembers(data?.role)
 
-  const run = async (fn: () => Promise<void>) => {
+  const run = async (fn: () => Promise<void>, successMsg = 'Done.') => {
     setBusy(true)
     setBanner(null)
     setError(null)
     try {
       await fn()
-      setBanner('Done.')
+      setBanner(successMsg)
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed')
@@ -401,8 +393,8 @@ export default function DashboardPage() {
                   </table>
                 </div>
 
-                <div className="pt-grid2" style={{ marginTop: 20 }}>
-                  <div>
+                {ownerCapable ? (
+                  <div style={{ marginTop: 20 }}>
                     <h3>Create organisation</h3>
                     <div className="pt-field">
                       <label htmlFor="child-name">Name</label>
@@ -414,69 +406,42 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div className="pt-field">
-                      <label htmlFor="child-owner">Owner email</label>
+                      <label htmlFor="child-name-confirm">Confirm name</label>
                       <input
-                        id="child-owner"
+                        id="child-name-confirm"
                         className="pt-input"
-                        value={childOwnerEmail}
-                        onChange={(e) => setChildOwnerEmail(e.target.value)}
+                        value={childNameConfirm}
+                        onChange={(e) => setChildNameConfirm(e.target.value)}
                       />
                     </div>
                     <button
                       type="button"
                       className="btn btn--go"
-                      disabled={busy || !childName.trim() || !childOwnerEmail.trim()}
+                      disabled={
+                        busy ||
+                        !childName.trim() ||
+                        childName.trim() !== childNameConfirm.trim()
+                      }
                       onClick={() =>
                         run(async () => {
+                          const name = childName.trim()
                           await authedJson(user!, '/api/orgs', {
                             method: 'POST',
                             body: JSON.stringify({
-                              name: childName.trim(),
+                              name,
+                              confirmName: childNameConfirm.trim(),
                               parent: data.org.publicId,
-                              ownerEmail: childOwnerEmail.trim(),
                             }),
                           })
                           setChildName('')
-                          setChildOwnerEmail('')
+                          setChildNameConfirm('')
                         })
                       }
                     >
                       Create
                     </button>
                   </div>
-                  <div>
-                    <h3>Invite existing organisation</h3>
-                    <div className="pt-field">
-                      <label htmlFor="invite-org">Org public id or owner email</label>
-                      <input
-                        id="invite-org"
-                        className="pt-input"
-                        value={inviteOrgTarget}
-                        onChange={(e) => setInviteOrgTarget(e.target.value)}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy || !inviteOrgTarget.trim()}
-                      onClick={() =>
-                        run(async () => {
-                          const t = inviteOrgTarget.trim()
-                          const body = t.includes('@')
-                            ? { ownerEmail: t }
-                            : { orgPublicId: t }
-                          await authedJson(user!, `/api/orgs/${data.org.publicId}/org-invitations`, {
-                            method: 'POST',
-                            body: JSON.stringify(body),
-                          })
-                          setInviteOrgTarget('')
-                        })
-                      }
-                    >
-                      Invite
-                    </button>
-                  </div>
-                </div>
+                ) : null}
 
                 {ownerCapable ? (
                   <div className="prin" style={{ marginTop: 20, ...spot('orange') }}>
@@ -581,7 +546,6 @@ export default function DashboardPage() {
                     <tr>
                       <th align="left">Email</th>
                       <th align="left">Role</th>
-                      <th align="left">Department</th>
                       <th align="right">Used</th>
                       <th align="left">Last active</th>
                       <th align="left">Actions</th>
@@ -589,7 +553,7 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {data.members.map((m) => {
-                      const privileged = m.role === 'admin' || m.role === 'owner'
+                      const privileged = m.role === 'owner'
                       const canRemove = privileged ? canRemovePriv : isAdmin
                       return (
                         <tr key={m.userId}>
@@ -614,40 +578,11 @@ export default function DashboardPage() {
                                 }
                               >
                                 <option value="member">member</option>
-                                <option value="admin">admin</option>
                                 <option value="owner">owner</option>
                               </select>
                             ) : (
                               m.role
                             )}
-                          </td>
-                          <td>
-                            <select
-                              className="pt-input"
-                              value={m.departmentId ?? ''}
-                              disabled={busy}
-                              onChange={(e) =>
-                                run(async () => {
-                                  await authedJson(
-                                    user!,
-                                    `/api/orgs/${data.org.publicId}/members/${m.userId}`,
-                                    {
-                                      method: 'PATCH',
-                                      body: JSON.stringify({
-                                        departmentId: e.target.value || null,
-                                      }),
-                                    }
-                                  )
-                                })
-                              }
-                            >
-                              <option value="">None</option>
-                              {depts.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.name}
-                                </option>
-                              ))}
-                            </select>
                           </td>
                           <td align="right">{m.creditsUsed ?? 0}</td>
                           <td>{fmtDate(m.lastActive)}</td>
@@ -658,13 +593,16 @@ export default function DashboardPage() {
                                 className="btn btn--danger"
                                 disabled={busy}
                                 onClick={() =>
-                                  run(async () => {
-                                    await authedJson(
-                                      user!,
-                                      `/api/orgs/${data.org.publicId}/members/${m.userId}`,
-                                      { method: 'DELETE' }
-                                    )
-                                  })
+                                  run(
+                                    async () => {
+                                      await authedJson(
+                                        user!,
+                                        `/api/orgs/${data.org.publicId}/members/${m.userId}`,
+                                        { method: 'DELETE' }
+                                      )
+                                    },
+                                    'Member removed. Regenerate the join code if they still have it.'
+                                  )
                                 }
                               >
                                 Remove
@@ -678,58 +616,10 @@ export default function DashboardPage() {
                 </table>
               </div>
 
-              <div style={{ marginTop: 16 }} className="pt-grid2">
-                <div>
-                  <h3>Invite by email</h3>
-                  <div className="pt-field">
-                    <label htmlFor="inv-email">Email</label>
-                    <input
-                      id="inv-email"
-                      className="pt-input"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="pt-field">
-                    <label htmlFor="inv-role">Role</label>
-                    <select
-                      id="inv-role"
-                      className="pt-input"
-                      value={inviteRole}
-                      onChange={(e) =>
-                        setInviteRole(e.target.value as 'member' | 'admin' | 'owner')
-                      }
-                    >
-                      <option value="member">member</option>
-                      {canInvitePriv ? (
-                        <>
-                          <option value="admin">admin</option>
-                          <option value="owner">owner</option>
-                        </>
-                      ) : null}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn--go"
-                    disabled={busy || !inviteEmail.trim()}
-                    onClick={() =>
-                      run(async () => {
-                        const role =
-                          inviteRole !== 'member' && !canInvitePriv ? 'member' : inviteRole
-                        await authedJson(user!, `/api/orgs/${data.org.publicId}/invitations`, {
-                          method: 'POST',
-                          body: JSON.stringify({ email: inviteEmail.trim(), role }),
-                        })
-                        setInviteEmail('')
-                      })
-                    }
-                  >
-                    Invite
-                  </button>
-                </div>
-                <div>
+              {ownerCapable ? (
+                <div style={{ marginTop: 16 }}>
                   <h3>Join code</h3>
+                  <p className="pt-fine">Share this code so people can join as members.</p>
                   {joinCode ? (
                     <p className="pt-fine">
                       <code>{joinCode.code}</code>{' '}
@@ -750,7 +640,7 @@ export default function DashboardPage() {
                       run(async () => {
                         await authedJson(user!, `/api/orgs/${data.org.publicId}/join-codes`, {
                           method: 'POST',
-                          body: JSON.stringify({ role: 'member' }),
+                          body: '{}',
                         })
                       })
                     }
@@ -758,94 +648,7 @@ export default function DashboardPage() {
                     Regenerate
                   </button>
                 </div>
-              </div>
-
-              <div style={{ marginTop: 16 }}>
-                <h3>Pending email invites</h3>
-                <ul>
-                  {invites.map((inv) => (
-                    <li key={inv.id} className="pt-fine">
-                      {inv.email} · {inv.role}
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{ marginLeft: 8 }}
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            const res = await authedJson<{ inviteUrl?: string }>(
-                              user!,
-                              `/api/orgs/${data.org.publicId}/invitations/${inv.id}`,
-                              { method: 'POST', body: '{}' }
-                            )
-                            if (res.inviteUrl) {
-                              await navigator.clipboard.writeText(res.inviteUrl)
-                              setBanner('Invite link copied.')
-                            }
-                          })
-                        }
-                      >
-                        Resend / copy link
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--danger"
-                        style={{ marginLeft: 8 }}
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            await authedJson(
-                              user!,
-                              `/api/orgs/${data.org.publicId}/invitations/${inv.id}`,
-                              { method: 'DELETE' }
-                            )
-                          })
-                        }
-                      >
-                        Revoke
-                      </button>
-                    </li>
-                  ))}
-                  {invites.length === 0 ? <li className="pt-fine">None pending.</li> : null}
-                </ul>
-              </div>
-            </section>
-
-            {/* Departments */}
-            <section className="sheet pt-sheet">
-              <h2>Departments</h2>
-              <ul>
-                {depts.map((d) => (
-                  <li key={d.id} className="pt-fine">
-                    {d.name}
-                  </li>
-                ))}
-              </ul>
-              <div className="pt-field">
-                <label htmlFor="dept-name">Create department</label>
-                <input
-                  id="dept-name"
-                  className="pt-input"
-                  value={deptName}
-                  onChange={(e) => setDeptName(e.target.value)}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn btn--go"
-                disabled={busy || !deptName.trim()}
-                onClick={() =>
-                  run(async () => {
-                    await authedJson(user!, `/api/orgs/${data.org.publicId}/departments`, {
-                      method: 'POST',
-                      body: JSON.stringify({ name: deptName.trim() }),
-                    })
-                    setDeptName('')
-                  })
-                }
-              >
-                Create
-              </button>
+              ) : null}
             </section>
 
             {/* Usage */}
@@ -860,7 +663,6 @@ export default function DashboardPage() {
                 >
                   <option value="day">day</option>
                   <option value="user">member</option>
-                  <option value="department">department</option>
                   {data.org.kind === 'super_org' ? <option value="org">organisation</option> : null}
                   <option value="end_customer">end customer</option>
                 </select>

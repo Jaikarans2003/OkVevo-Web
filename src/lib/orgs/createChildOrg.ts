@@ -1,8 +1,8 @@
 /**
- * Create a child organisation under a super-org: prepaid wallet + pending owner invite.
+ * Create a child organisation under a super-org: prepaid wallet + creator as owner.
+ * UI must type-to-confirm the name before calling.
  */
 import type { TxSql } from '@/lib/db/tx'
-import { createInvitation } from '@/lib/orgs/invitations'
 import { ensureJoinCode } from '@/lib/orgs/joinCodes'
 import { randomPublicId } from '@/lib/orgs/publicId'
 
@@ -12,17 +12,10 @@ export type CreateChildResult =
       orgPublicId: string
       orgId: string
       billingAccountId: string
-      ownerInviteId: string
-      ownerInviteToken: string
     }
   | {
       ok: false
-      code:
-        | 'invalid_name'
-        | 'invalid_owner_email'
-        | 'parent_not_found'
-        | 'parent_not_super_org'
-        | 'forbidden'
+      code: 'invalid_name' | 'parent_not_found' | 'parent_not_super_org' | 'confirm_mismatch'
     }
 
 export async function createChildOrg(
@@ -30,15 +23,14 @@ export async function createChildOrg(
   opts: {
     parentOrgId: string
     name: string
-    /** Pending owner invitation — caller does not become owner. */
-    ownerEmail: string
+    /** Must equal trimmed name (type-to-confirm). */
+    confirmName: string
     createdBy: string
   }
 ): Promise<CreateChildResult> {
   const name = opts.name.trim()
   if (!name) return { ok: false, code: 'invalid_name' }
-  const ownerEmail = opts.ownerEmail.trim().toLowerCase()
-  if (!ownerEmail || !ownerEmail.includes('@')) return { ok: false, code: 'invalid_owner_email' }
+  if (opts.confirmName.trim() !== name) return { ok: false, code: 'confirm_mismatch' }
 
   const parentRows = await tx`
     select id, kind from organizations where id = ${opts.parentOrgId} for update
@@ -65,21 +57,17 @@ export async function createChildOrg(
   `
   const billingAccountId = String(walletRows[0]!.id)
 
-  const invite = await createInvitation(tx, {
-    orgId,
-    email: ownerEmail,
-    role: 'owner',
-    invitedBy: opts.createdBy,
-  })
+  await tx`
+    insert into memberships (org_id, user_id, role, status)
+    values (${orgId}, ${opts.createdBy}, 'owner', 'active')
+  `
 
-  await ensureJoinCode(tx, { orgId, createdBy: opts.createdBy })
+  await ensureJoinCode(tx, { orgId, createdBy: opts.createdBy, kind: 'org' })
 
   return {
     ok: true,
     orgPublicId: publicId,
     orgId,
     billingAccountId,
-    ownerInviteId: invite.id,
-    ownerInviteToken: invite.token,
   }
 }

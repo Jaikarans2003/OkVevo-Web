@@ -94,14 +94,14 @@ assert.ok(ownerBlock.org)
 const memberTxnAuthz = await authorizeOrg(sql, {
   userId: member,
   orgPublicId: up.orgPublicId,
-  need: 'admin',
+  need: 'owner',
 })
 assert.equal(memberTxnAuthz.ok, false)
 
 const ownerTxnAuthz = await authorizeOrg(sql, {
   userId: owner,
   orgPublicId: up.orgPublicId,
-  need: 'admin',
+  need: 'owner',
 })
 assert.ok(ownerTxnAuthz.ok)
 

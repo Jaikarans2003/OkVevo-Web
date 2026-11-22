@@ -1,12 +1,12 @@
 /**
- * Org access: active membership with enough role, OR owner/admin on parent
- * super-org (inherited admin — never spending), OR platform admin.
+ * Org access: active membership with enough role, OR owner on parent
+ * super-org (inherited_read — never spending), OR platform admin.
  */
 import type { DbHandle } from '@/lib/db/wallet'
 import { isPlatformAdmin } from '@/lib/api/me'
 
-export type OrgRole = 'owner' | 'admin' | 'member'
-export type OrgNeed = 'read' | 'admin' | 'owner' | 'spend'
+export type OrgRole = 'owner' | 'member'
+export type OrgNeed = 'read' | 'spend' | 'owner'
 
 export type OrgRow = {
   id: string
@@ -16,11 +16,10 @@ export type OrgRow = {
   name: string
 }
 
-const ROLE_RANK: Record<OrgRole, number> = { member: 1, admin: 2, owner: 3 }
+const ROLE_RANK: Record<OrgRole, number> = { member: 1, owner: 2 }
 
 function needRank(need: OrgNeed): number {
   if (need === 'read' || need === 'spend') return ROLE_RANK.member
-  if (need === 'admin') return ROLE_RANK.admin
   return ROLE_RANK.owner
 }
 
@@ -47,7 +46,7 @@ export async function loadOrgByPublicId(
 export type AuthorizeOk = {
   ok: true
   org: OrgRow
-  role: OrgRole | 'platform_admin' | 'inherited_admin'
+  role: OrgRole | 'platform_admin' | 'inherited_read'
   /** Only active members of this org (or platform admin) may spend its wallet. */
   canSpend: boolean
 }
@@ -87,8 +86,8 @@ export async function authorizeOrg(
     return { ok: true, org, role: directRole, canSpend: true }
   }
 
-  // Inherited admin from parent super-org — never spend, never owner-only.
-  if (org.parentId && opts.need !== 'spend' && opts.need !== 'owner') {
+  // Inherited read from parent super-org — never spend, never owner mutations.
+  if (org.parentId && opts.need === 'read') {
     const parent = await db`
       select m.role
       from memberships m
@@ -97,11 +96,10 @@ export async function authorizeOrg(
         and m.user_id = ${opts.userId}
         and m.status = 'active'
         and o.kind = 'super_org'
-        and m.role in ('owner', 'admin')
+        and m.role = 'owner'
     `
-    const inherited = parent[0]?.role as OrgRole | undefined
-    if (inherited && ROLE_RANK[inherited] >= needRank(opts.need)) {
-      return { ok: true, org, role: 'inherited_admin', canSpend: false }
+    if (parent[0]) {
+      return { ok: true, org, role: 'inherited_read', canSpend: false }
     }
   }
 

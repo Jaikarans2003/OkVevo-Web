@@ -59,7 +59,7 @@ export type DashboardNavKind = 'dashboard' | 'my_usage' | 'none'
 
 /**
  * Portal nav label for the active org/super-org.
- * Owners/admins → Dashboard; members → My usage; no org context → none.
+ * Owners / inherited_read / platform → Dashboard; members → My usage.
  */
 export function dashboardNavForRole(
   role: string | null | undefined
@@ -67,8 +67,7 @@ export function dashboardNavForRole(
   if (!role) return 'none'
   if (
     role === 'owner' ||
-    role === 'admin' ||
-    role === 'inherited_admin' ||
+    role === 'inherited_read' ||
     role === 'platform_admin'
   ) {
     return 'dashboard'

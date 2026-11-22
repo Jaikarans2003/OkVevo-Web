@@ -14,7 +14,7 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string }> }
 
-/** GET — active join code metadata (plaintext only when first minted via POST). */
+/** GET — active join code with plaintext (owner-only). */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need: 'owner',
     email: user.email,
     emailVerified: user.emailVerified,
   })
@@ -34,12 +34,17 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  const active = await withTx((tx) => ensureJoinCode(tx, { orgId: authz.org.id, createdBy: user.uid }))
+  const active = await withTx((tx) =>
+    ensureJoinCode(tx, {
+      orgId: authz.org.id,
+      createdBy: user.uid,
+      kind: authz.org.kind,
+    })
+  )
   return NextResponse.json({
     id: active.id,
     code: active.code,
     created: active.created,
-    role: 'member',
   })
 }
 
@@ -49,20 +54,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!isAuthed(user)) return user
 
   const { publicId } = await ctx.params
-  let body: { role?: unknown } = {}
-  try {
-    body = (await req.json()) as typeof body
-  } catch {
-    /* empty ok */
-  }
-  if (body.role != null && body.role !== 'member') {
-    return NextResponse.json({ error: 'invalid_role', code: 'invalid_role' }, { status: 400 })
-  }
-
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need: 'owner',
     email: user.email,
     emailVerified: user.emailVerified,
   })
@@ -75,13 +70,16 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   const meta = await getActiveJoinCode(sql, authz.org.id)
   const created = await withTx((tx) =>
-    regenerateJoinCode(tx, { orgId: authz.org.id, actorUserId: user.uid })
+    regenerateJoinCode(tx, {
+      orgId: authz.org.id,
+      actorUserId: user.uid,
+      kind: authz.org.kind,
+    })
   )
 
   return NextResponse.json({
     id: created.id,
     code: created.code,
-    role: 'member',
     previousId: meta?.id ?? null,
   })
 }
