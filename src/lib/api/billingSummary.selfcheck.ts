@@ -151,7 +151,7 @@ assert.equal(summary.canCancelScheduledChange, false)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const billingPage = fs.readFileSync(
-  path.join(root, 'app/billing/[[...slug]]/page.tsx'),
+  path.join(root, 'app/dashboard/billing/[[...slug]]/page.tsx'),
   'utf8'
 )
 assert.doesNotMatch(

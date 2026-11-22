@@ -207,7 +207,7 @@ assert.ok(
   additionalRemainingPct(superAfterDebt!.topUpBalance, superAfterDebt!.topUpReference) < 100
 )
 
-// --- Fix 1: join route + X-OkVevo-Org on already-parented child → 409 ---
+// --- Fix 1: join route accepts parent once; second call → 409 already_parented ---
 await installFirebaseAuthMock()
 setFakeAuthUid(uid)
 {
@@ -218,18 +218,22 @@ setFakeAuthUid(uid)
   const superCode = await withTx((tx) =>
     regenerateJoinCode(tx, { orgId: superId, actorUserId: uid, kind: 'super_org' })
   )
-  const req = new NextRequest('http://localhost/api/orgs/join', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${uid}`,
-      'content-type': 'application/json',
-      'x-okvevo-org': childPub,
-    },
-    body: JSON.stringify({ code: superCode.code }),
-  })
-  const res = await POST(req)
-  assert.equal(res.status, 409)
-  const body = (await res.json()) as { code?: string }
+  const mkReq = () =>
+    new NextRequest('http://localhost/api/orgs/join', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${uid}`,
+        'content-type': 'application/json',
+        'x-okvevo-org': childPub,
+      },
+      body: JSON.stringify({ code: superCode.code }),
+    })
+  // Child left above — first redeem re-parents.
+  const first = await POST(mkReq())
+  assert.equal(first.status, 200)
+  const second = await POST(mkReq())
+  assert.equal(second.status, 409)
+  const body = (await second.json()) as { code?: string }
   assert.equal(body.code, 'already_parented')
 }
 

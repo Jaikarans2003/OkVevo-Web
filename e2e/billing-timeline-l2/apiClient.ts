@@ -123,24 +123,38 @@ export type BillingSummaryResponse = {
   fundedBy?: string | null;
 };
 
-export function acceptParent(idToken: string, orgPublicId: string, superOrgPublicId: string) {
-  return authedFetch<{ success?: boolean; error?: string; code?: string }>(
-    `/api/orgs/${orgPublicId}/accept-parent`,
+export function getJoinCode(idToken: string, orgPublicId: string) {
+  return authedFetch<{ id?: string; code?: string; created?: boolean; error?: string }>(
+    `/api/orgs/${orgPublicId}/join-codes`,
     idToken,
-    { body: { superOrgPublicId }, orgPublicId }
+    { method: 'GET', orgPublicId }
   );
 }
 
-export function inviteExistingOrg(
-  superUserToken: string,
-  superOrgPublicId: string,
-  body: { orgPublicId?: string; ownerEmail?: string }
-) {
-  return authedFetch<{ success?: boolean; id?: string; error?: string; code?: string }>(
-    `/api/orgs/${superOrgPublicId}/org-invitations`,
-    superUserToken,
-    { body, orgPublicId: superOrgPublicId }
+export function regenerateJoinCode(idToken: string, orgPublicId: string) {
+  return authedFetch<{ id?: string; code?: string; previousId?: string | null; error?: string }>(
+    `/api/orgs/${orgPublicId}/join-codes`,
+    idToken,
+    { method: 'POST', body: {}, orgPublicId }
   );
+}
+
+/** POST /api/orgs/join — personal box or X-OkVevo-Org accept-parent via super code. */
+export function joinWithCode(
+  idToken: string,
+  code: string,
+  opts: { orgPublicId?: string } = {}
+) {
+  return authedFetch<{
+    success?: boolean;
+    action?: string;
+    orgPublicId?: string;
+    error?: string;
+    code?: string;
+  }>('/api/orgs/join', idToken, {
+    body: { code },
+    orgPublicId: opts.orgPublicId,
+  });
 }
 
 export function getMe(idToken: string) {

@@ -20,8 +20,8 @@ import {
   upgradeToOrg,
   applySuperOrg,
   approveSuperOrg,
-  acceptParent,
-  inviteExistingOrg,
+  getJoinCode,
+  joinWithCode,
   leaveSuperOrg,
 } from './apiClient';
 import { createTestUser, deleteTestUser, ensureServerUser, type TestUser } from './testUsers';
@@ -379,22 +379,20 @@ test.describe('billing timeline Layer 2', () => {
         orgPublicId: superOrgPublicId,
       });
 
-      const { status: inviteStatus, json: orgInvite } = await inviteExistingOrg(
+      const { status: joinMetaStatus, json: joinMeta } = await getJoinCode(
         superUser.idToken,
-        superOrgPublicId,
-        { orgPublicId }
-      );
-      expect(orgInvite, `org-invite HTTP ${inviteStatus}`).toEqual(
-        expect.objectContaining({ success: true })
-      );
-
-      const { status: acceptStatus, json: accepted } = await acceptParent(
-        orgUser.idToken,
-        orgPublicId,
         superOrgPublicId
       );
-      expect(accepted, `accept-parent HTTP ${acceptStatus}`).toEqual(
-        expect.objectContaining({ success: true })
+      expect(joinMetaStatus).toBe(200);
+      expect(joinMeta.code).toBeTruthy();
+
+      const { status: acceptStatus, json: accepted } = await joinWithCode(
+        orgUser.idToken,
+        joinMeta.code!,
+        { orgPublicId }
+      );
+      expect(accepted, `join accept-parent HTTP ${acceptStatus}`).toEqual(
+        expect.objectContaining({ success: true, action: 'accept_parent' })
       );
 
       const { json: prepaid } = await getBillingSummary(orgUser.idToken, { orgPublicId });

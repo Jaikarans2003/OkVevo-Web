@@ -613,7 +613,7 @@ scenario('scheduled downgrade: summary and API do not offer cancel', async () =>
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
   const billingPage = readFileSync(
-    join(import.meta.dirname, '../../app/billing/[[...slug]]/page.tsx'),
+    join(import.meta.dirname, '../../app/dashboard/billing/[[...slug]]/page.tsx'),
     'utf8'
   )
   assert.equal(

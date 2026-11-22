@@ -15,6 +15,8 @@ export type TestUser = {
   uid: string;
   email: string;
   idToken: string;
+  /** Present when created via createVerifiedTestUser (UI login). */
+  password?: string;
 };
 
 let adminApp: App | null = null;
@@ -95,7 +97,7 @@ export async function createVerifiedTestUser(scenario: string): Promise<TestUser
   if (signedIn.uid !== created.uid) {
     throw new Error('createVerifiedTestUser: uid mismatch after sign-in');
   }
-  return signedIn;
+  return { ...signedIn, password };
 }
 
 /** Self-delete via the user's own idToken. No admin credentials required. */
