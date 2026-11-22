@@ -1,6 +1,7 @@
 /**
  * Org access: active membership with enough role, OR owner on parent
- * super-org (inherited_read — never spending), OR platform admin.
+ * super-org (inherited_read — never spending), OR platform admin
+ * (view/support only — never spend customer credits).
  */
 import type { DbHandle } from '@/lib/db/wallet'
 import { isPlatformAdmin } from '@/lib/api/me'
@@ -47,7 +48,7 @@ export type AuthorizeOk = {
   ok: true
   org: OrgRow
   role: OrgRole | 'platform_admin' | 'inherited_read'
-  /** Only active members of this org (or platform admin) may spend its wallet. */
+  /** Only active direct members of this org may spend its wallet. */
   canSpend: boolean
 }
 
@@ -72,7 +73,11 @@ export async function authorizeOrg(
       email_verified: opts.emailVerified === true,
     })
   ) {
-    return { ok: true, org, role: 'platform_admin', canSpend: true }
+    // Least privilege: support/view only — never satisfy spend.
+    if (opts.need === 'spend') {
+      return { ok: false, code: 'org_access_denied' }
+    }
+    return { ok: true, org, role: 'platform_admin', canSpend: false }
   }
 
   const membership = await db`

@@ -15,7 +15,7 @@ function src(rel: string): string {
 
 const surfaces = [
   'app/dashboard/billing/[[...slug]]/page.tsx',
-  'app/profile/page.tsx',
+  'app/dashboard/profile/page.tsx',
   'components/shared/AuthForm.tsx',
   'components/shared/ContactUsModal.tsx',
   'hooks/useAuth.ts',
@@ -33,7 +33,7 @@ for (const rel of surfaces) {
 assert.match(src('services/CreditsService.ts'), /\/api\/billing\/summary/)
 assert.match(src('hooks/useAuth.ts'), /\/api\/me/)
 assert.match(src('components/shared/ContactUsModal.tsx'), /\/api\/contact/)
-assert.match(src('app/profile/page.tsx'), /method: 'PATCH'/)
+assert.match(src('app/dashboard/profile/page.tsx'), /method: 'PATCH'/)
 assert.ok(!fs.existsSync(path.join(root, 'app/api/auth/desktop/custom-token/route.ts')))
 assert.ok(!fs.existsSync(path.join(root, 'lib/agent')))
 

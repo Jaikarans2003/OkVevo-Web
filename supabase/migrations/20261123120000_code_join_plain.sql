@@ -47,6 +47,10 @@ select
   now()
 from public.organizations o;
 
+-- Staging may still have hash-era rows with code NULL after remint — drop them
+-- before NOT NULL (empty CI DB never hit this).
+delete from public.join_codes where code is null;
+
 alter table public.join_codes alter column code set not null;
 
 alter table public.join_codes drop constraint if exists join_codes_code_hash_key;

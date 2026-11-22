@@ -176,5 +176,42 @@ assert.equal(second.code, first.code)
 assert.ok(second.code.length > 8)
 assert.equal(second.code, superCode.code)
 
+// --- platform_admin: view ok, canSpend false, spend → denied ---
+process.env.ADMIN_EMAILS = 'platform-admin@okvevo.com'
+const platRead = await authorizeOrg(sql, {
+  userId: 'platform-admin-uid',
+  orgPublicId: upgraded.orgPublicId,
+  need: 'read',
+  email: 'platform-admin@okvevo.com',
+  emailVerified: true,
+})
+assert.equal(platRead.ok, true)
+if (platRead.ok) {
+  assert.equal(platRead.role, 'platform_admin')
+  assert.equal(platRead.canSpend, false)
+}
+const platSpend = await authorizeOrg(sql, {
+  userId: 'platform-admin-uid',
+  orgPublicId: upgraded.orgPublicId,
+  need: 'spend',
+  email: 'platform-admin@okvevo.com',
+  emailVerified: true,
+})
+assert.equal(platSpend.ok, false)
+if (!platSpend.ok) assert.equal(platSpend.code, 'org_access_denied')
+
+const { resolvePayingWallet } = await import('@/lib/orgs/orgContext')
+const platPaying = await resolvePayingWallet(sql, {
+  userId: 'platform-admin-uid',
+  orgPublicId: upgraded.orgPublicId,
+  email: 'platform-admin@okvevo.com',
+  emailVerified: true,
+})
+assert.equal(platPaying.ok, false)
+if (!platPaying.ok) {
+  assert.equal(platPaying.status, 403)
+  assert.equal(platPaying.code, 'org_access_denied')
+}
+
 console.log('codeJoin.ledgercheck: ok')
 await sql.end({ timeout: 1 })
