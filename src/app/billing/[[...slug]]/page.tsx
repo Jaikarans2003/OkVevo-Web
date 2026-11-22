@@ -31,7 +31,6 @@ import {
     type BillingPeriod,
     type SelfServePlanType,
 } from '@/config/razorpay';
-import { formatPctLabel } from '@/types/credits';
 import { changeSubscriptionPlan } from '@/lib/billing/changeSubscription';
 import {
     isLivePlanStatus,
@@ -40,7 +39,9 @@ import {
     portalBillingActionFromSlug,
     toBillingPeriod,
 } from '@/lib/billing/planChange';
+import { overdrawnSentence } from '@/lib/orgs/dashboardHelpers';
 import ChangePlanModal from '@/components/billing/ChangePlanModal';
+import UsageBar from '@/components/billing/UsageBar';
 import PortalShell from '@/components/portal/PortalShell';
 import DrawnArt from '@/components/landing-page/DrawnArt';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -52,29 +53,6 @@ function formatDate(date: Date | null, currency: BillingCurrency): string {
         month: 'long',
         year: 'numeric',
     });
-}
-
-function UsageBar({ label, pct, spot }: { label: string; pct: number; spot: string }) {
-    const clamped = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
-    const shown = formatPctLabel(clamped);
-    return (
-        <div className="pt-meter" style={{ '--spot': spot } as CSSProperties}>
-            <div className="pt-meter-top">
-                <p className="pt-label">{label}</p>
-                <b>{shown}</b>
-            </div>
-            <div
-                role="progressbar"
-                aria-label={label}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={clamped}
-                className="pt-track"
-            >
-                <div className="pt-fill" data-empty={clamped === 0 ? '' : undefined} style={{ width: `${clamped}%` }} />
-            </div>
-        </div>
-    );
 }
 
 export default function BillingPage() {
@@ -361,17 +339,45 @@ export default function BillingPage() {
                 )}
 
                 <div className="pt-grid2">
-                    <UsageBar label="Plan remaining" pct={billing?.remainingPct ?? 0} spot="var(--orange)" />
+                    <UsageBar label="Your credits · plan" pct={billing?.remainingPct ?? 0} spot="var(--orange)" />
                     <UsageBar
                         label={
                             billing?.additionalNextExpiry
-                                ? `Additional remaining · next expiry ${formatDate(billing.additionalNextExpiry, currency)}`
-                                : 'Additional remaining'
+                                ? `Your credits · additional · next expiry ${formatDate(billing.additionalNextExpiry, currency)}`
+                                : 'Your credits · additional'
                         }
                         pct={billing?.additionalPct ?? 0}
                         spot="var(--teal)"
                     />
                 </div>
+
+                {(billing?.fundedBy || (billing?.sponsoredPct ?? 0) > 0 || (billing?.overdrawnPct ?? 0) > 0) && (
+                    <div className="pt-stack" style={{ gap: 12 }}>
+                        <UsageBar
+                            label={billing?.fundedBy ? `From ${billing.fundedBy}` : 'Sponsored credits'}
+                            pct={billing?.sponsoredPct ?? 0}
+                            spot="var(--olive)"
+                        />
+                        {(billing?.overdrawnPct ?? 0) > 0 && billing?.fundedBy ? (
+                            <p className="pt-note pt-note--bad" role="status">
+                                <AlertCircle size={18} aria-hidden />{' '}
+                                {overdrawnSentence(billing.overdrawnPct, billing.fundedBy)}
+                            </p>
+                        ) : null}
+                    </div>
+                )}
+
+                {cancelAtPeriodEnd && hasPlan ? (
+                    <p className="pt-note pt-note--info" role="status">
+                        <CalendarClock size={18} aria-hidden /> Your previous plan ends on {periodEndLabel}.
+                        {canPurchase ? (
+                            <>
+                                {' '}
+                                <Link href="/pricing" className="pt-link">Buy a new plan</Link>
+                            </>
+                        ) : null}
+                    </p>
+                ) : null}
 
                 {hasPlan && canPurchase && (
                     <div className="pt-row">

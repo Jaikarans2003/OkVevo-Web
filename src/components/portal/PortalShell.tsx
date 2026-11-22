@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { LogOut } from 'lucide-react';
 import { auth } from '@/config/firebase';
@@ -13,14 +13,14 @@ import {
     resolveActiveOrg,
     writeActiveOrgPublicId,
 } from '@/lib/orgs/activeOrg';
+import {
+    dashboardNavForRole,
+    dashboardNavLabel,
+} from '@/lib/orgs/dashboardHelpers';
 import '@/components/landing-page/okvevo-landing.css';
 import './portal.css';
 
 const LOGO = '/OKVEVO%20Logos%20WithOut%20BackGrounds/Orange.svg';
-const LINKS = [
-    { name: 'Billing', href: '/billing' },
-    { name: 'Profile', href: '/profile' },
-];
 
 // Frame for the account pages: the landing's paper, inks and printed top bar.
 // Signed out (login) the bar only leads back to the site.
@@ -80,6 +80,23 @@ export default function PortalShell({ children, signedIn = true }: { children: R
         me &&
         (me.memberships.length > 0 || !me.hidePersonal);
 
+    const activeRole = useMemo(() => {
+        if (!me || !activeOrg) return null;
+        return me.memberships.find((m) => m.orgPublicId === activeOrg)?.role ?? null;
+    }, [me, activeOrg]);
+
+    const dashNav = dashboardNavForRole(activeRole);
+    const dashLabel = dashboardNavLabel(dashNav);
+
+    const links = useMemo(() => {
+        const base: Array<{ name: string; href: string }> = [];
+        if (dashLabel) {
+            base.push({ name: dashLabel, href: '/dashboard' });
+        }
+        base.push({ name: 'Billing', href: '/billing' }, { name: 'Profile', href: '/profile' });
+        return base;
+    }, [dashLabel]);
+
     return (
         <div className="ok-landing portal">
             <header className="pt-bar">
@@ -110,7 +127,7 @@ export default function PortalShell({ children, signedIn = true }: { children: R
                                     </select>
                                 </label>
                             ) : null}
-                            {LINKS.map((link) => (
+                            {links.map((link) => (
                                 <Link
                                     key={link.href}
                                     href={link.href}

@@ -4,12 +4,64 @@ import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
 import { gatewayIdToken } from '@/lib/gateway/auth'
 import { authorizeOrg, loadOrgByPublicId } from '@/lib/orgs/authorize'
+import { listSuperOrgTransfers, listTransferReceipts } from '@/lib/orgs/orgDashboard'
 import { transferCredits } from '@/lib/orgs/transferCredits'
+import { getBillingByOrgId } from '@/lib/db/wallet'
 import { sql } from '@/lib/db/client'
+import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
 
 export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string }> }
+
+/**
+ * GET /api/orgs/:publicId/transfers — admin+.
+ * Super-org: outbound sends with repaid/added split.
+ * Child org: received receipts with repaid/added split.
+ */
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const user = await requireAuthed(req)
+  if (!isAuthed(user)) return user
+
+  const { publicId } = await ctx.params
+  const authz = await authorizeOrg(sql, {
+    userId: user.uid,
+    orgPublicId: publicId,
+    need: 'admin',
+    email: user.email,
+    emailVerified: user.emailVerified,
+  })
+  if (!authz.ok) {
+    return NextResponse.json(
+      { error: authz.code, code: authz.code },
+      { status: authz.code === 'org_not_found' ? 404 : 403 }
+    )
+  }
+
+  const billing = await getBillingByOrgId(sql, authz.org.id)
+  if (!billing) {
+    return NextResponse.json({ items: [] })
+  }
+
+  if (authz.org.kind === 'super_org') {
+    const items = await listSuperOrgTransfers(sql, {
+      superOrgId: authz.org.id,
+      superBillingAccountId: billing.id,
+    })
+    return NextResponse.json({ items })
+  }
+
+  let superOrgName = 'your super-organisation'
+  if (authz.org.parentId) {
+    const parent = await sql`select name from organizations where id = ${authz.org.parentId}`
+    if (parent[0]) superOrgName = String(parent[0].name)
+  }
+  const items = await listTransferReceipts(sql, {
+    childBillingAccountId: billing.id,
+    superOrgName,
+  })
+  return NextResponse.json({ items })
+}
 
 /** POST /api/orgs/:publicId/transfers — super-org owner sends top-up credits to a child. */
 export async function POST(req: NextRequest, ctx: Ctx) {
