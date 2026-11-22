@@ -2,14 +2,13 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth } from '../../config/firebase';
+import { auth } from '@/config/firebase';
 import { onAuthStateChanged, User, updateEmail } from 'firebase/auth';
-import type { UserProfile } from '../../services/userService';
+import type { UserProfile } from '@/services/userService';
 import { Loader2, Check, AlertCircle, Edit3, Activity, Phone, Crown, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoadingScreen from '@/components/shared/LoadingScreen';
-import PortalShell from '@/components/portal/PortalShell';
 import DrawnArt from '@/components/landing-page/DrawnArt';
 import { authedJson } from '@/lib/api/browser';
 import type { MePayload } from '@/lib/api/me';
@@ -153,7 +152,7 @@ export default function ProfilePage() {
             detail: billing?.status
                 ? `Status: ${billing.status.charAt(0).toUpperCase() + billing.status.slice(1)}`
                 : 'Manage it in billing',
-            href: '/billing',
+            href: '/dashboard/billing',
         },
         { label: 'Account Type', value: typeInfo.label, icon: typeInfo.icon, ink: typeInfo.ink, detail: typeInfo.detail },
         { label: 'Phone', value: formData.phoneNumber || 'Not added', icon: Phone, ink: 'olive', detail: 'Primary contact' },
@@ -177,7 +176,7 @@ export default function ProfilePage() {
     };
 
     return (
-        <PortalShell>
+        <>
             <section className="wrap pt-head">
                 <div>
                     <h1>{user.displayName || 'Your profile'}<span>.</span></h1>
@@ -523,6 +522,6 @@ export default function ProfilePage() {
                     </section>
                 ) : null}
             </div>
-        </PortalShell>
+        </>
     );
 }

@@ -47,7 +47,7 @@ for (const rel of ROUTES) {
 }
 
 const clientFiles = [
-  'app/billing/[[...slug]]/page.tsx',
+  'app/dashboard/billing/[[...slug]]/page.tsx',
   'lib/billing/userSoT.ts',
   'services/CreditsService.ts',
 ];
@@ -58,7 +58,7 @@ for (const rel of clientFiles) {
   }
 }
 
-const billingPage = src('app/billing/[[...slug]]/page.tsx');
+const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
 assert.match(billingPage, /Current Plan/, 'billing shows Current Plan card');
 assert.match(billingPage, /Upgrade available/, 'billing shows Upgrade available card');
 assert.match(billingPage, /Your credits · plan/, 'billing shows Your credits · plan bar');

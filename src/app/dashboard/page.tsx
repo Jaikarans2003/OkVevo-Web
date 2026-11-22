@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { AlertCircle, Loader2 } from 'lucide-react'
 
 import UsageBar from '@/components/billing/UsageBar'
-import PortalShell from '@/components/portal/PortalShell'
 import LoadingScreen from '@/components/shared/LoadingScreen'
 import { useAuth } from '@/hooks/useAuth'
 import { authedFetch, authedJson } from '@/lib/api/browser'
@@ -213,7 +212,7 @@ export default function DashboardPage() {
   if (authLoading || loading) return <LoadingScreen loadKey="dashboard" />
 
   return (
-    <PortalShell>
+    <>
       <section className="wrap pt-head">
         <div>
           <h1>
@@ -242,7 +241,7 @@ export default function DashboardPage() {
           <section className="sheet pt-sheet">
             <h2>No organisation selected</h2>
             <p className="sub">Upgrade or switch to an organisation account to open the dashboard.</p>
-            <Link href="/profile" className="btn btn--go">
+            <Link href="/dashboard/profile" className="btn btn--go">
               Go to Profile
             </Link>
           </section>
@@ -306,7 +305,7 @@ export default function DashboardPage() {
                 </p>
               ) : null}
               <p style={{ marginTop: 12 }}>
-                <Link href="/billing" className="btn">
+                <Link href="/dashboard/billing" className="btn">
                   Open Billing
                 </Link>
               </p>
@@ -727,7 +726,7 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-    </PortalShell>
+    </>
   )
 }
 

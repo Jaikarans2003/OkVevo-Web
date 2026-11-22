@@ -93,7 +93,10 @@ export default function PortalShell({ children, signedIn = true }: { children: R
         if (dashLabel) {
             base.push({ name: dashLabel, href: '/dashboard' });
         }
-        base.push({ name: 'Billing', href: '/billing' }, { name: 'Profile', href: '/profile' });
+        base.push(
+            { name: 'Billing', href: '/dashboard/billing' },
+            { name: 'Profile', href: '/dashboard/profile' }
+        );
         return base;
     }, [dashLabel]);
 

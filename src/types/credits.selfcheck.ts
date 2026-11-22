@@ -112,7 +112,7 @@ assert.match(debit, /allocationGrantedTotal: nextAllocationGrantedTotal/);
 assert.doesNotMatch(debit, /allocationGrantedTotal: next\.allocationBalance/);
 
 const billingPage = fs.readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/billing/[[...slug]]/page.tsx'),
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/dashboard/billing/[[...slug]]/page.tsx'),
   'utf8'
 );
 assert.match(billingPage, /Your credits · plan/);
