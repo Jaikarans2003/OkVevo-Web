@@ -180,6 +180,18 @@ assert.equal(left.debtAbsorbed, 0)
 const afterLeave = await getBillingByOrgId(sql, childId)
 assert.equal(afterLeave?.accessMode, 'subscription')
 assert.equal(afterLeave?.sponsoredBalance, 0)
+assert.equal(afterLeave?.razorpaySubscriptionId, null)
+assert.equal(afterLeave?.cancelAtPeriodEnd, false)
+const { shouldApplySubscriptionEvent } = await import('@/lib/billing/userSoT')
+assert.equal(
+  shouldApplySubscriptionEvent({
+    eventSubId: 'sub_after_leave',
+    currentSubId: afterLeave?.razorpaySubscriptionId,
+    event: 'activated',
+    currentPlanStatus: afterLeave?.planStatus,
+  }).apply,
+  true
+)
 const parentNull = await sql`select parent_id from organizations where id = ${childId}`
 assert.equal(parentNull[0]!.parent_id, null)
 const audit = await sql`

@@ -245,10 +245,14 @@ export async function leaveOrRemoveParent(
     where id = ${opts.childOrgId}
   `
 
+  // Drop the cancelled-at-period-end pointer so the next purchase is
+  // first_or_recovery in shouldApplySubscriptionEvent (not stale vs old sub id).
   await updateBillingById(tx, childWalletId, {
     sponsoredBalance: 0,
     sponsoredReference: 0,
     accessMode: 'subscription',
+    razorpaySubscriptionId: null,
+    cancelAtPeriodEnd: false,
   })
   // Reset topUpReference only when unused sponsored credits return (bought-again bar).
   // Debt paydown must leave the prior reference so additionalPct drops below 100.
