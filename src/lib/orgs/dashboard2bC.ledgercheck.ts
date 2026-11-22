@@ -19,7 +19,6 @@ const {
 const { upgradeIndividualToOrg } = await import('@/lib/orgs/upgrade')
 const { createChildOrg } = await import('@/lib/orgs/createChildOrg')
 const { transferCredits } = await import('@/lib/orgs/transferCredits')
-const { acceptInvitation } = await import('@/lib/orgs/invitations')
 const {
   owedByOrganisationsTotal,
   owesCredits,
@@ -32,8 +31,6 @@ const { installFirebaseAuthMock, setFakeAuthUid } = await import('@/lib/billing/
 const stamp = Date.now().toString(16)
 const owner = `d2bc-o-${stamp}`
 const member = `d2bc-m-${stamp}`
-const childOwnerEmail = `child-owner-${stamp}@example.com`
-
 await ensureUserAndBilling(sql, owner)
 await ensureUserAndBilling(sql, member)
 await sql`update users set email = ${`${owner}@example.com`} where id = ${owner}`
@@ -45,26 +42,17 @@ const superUp = await withTx((tx) =>
 assert.ok(superUp.ok)
 if (!superUp.ok) throw new Error('super')
 
+const dashChildName = `Dash Child ${stamp}`
 const child = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: superUp.orgId,
-    name: `Dash Child ${stamp}`,
-    ownerEmail: childOwnerEmail,
+    name: dashChildName,
+    confirmName: dashChildName,
     createdBy: owner,
   })
 )
 assert.ok(child.ok)
 if (!child.ok) throw new Error('child')
-
-const accepted = await withTx((tx) =>
-  acceptInvitation(tx, {
-    token: child.ownerInviteToken,
-    userId: owner,
-    email: childOwnerEmail,
-    emailVerified: true,
-  })
-)
-assert.equal(accepted.ok, true)
 
 await sql`
   insert into memberships (org_id, user_id, role, status)

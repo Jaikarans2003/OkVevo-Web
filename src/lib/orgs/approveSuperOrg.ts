@@ -1,13 +1,17 @@
 /**
- * Platform-admin approval: convert subject account in place to super_org (§7.1).
+ * Platform-admin approval: convert subject account in place to super_org.
+ * Refuses orgs that still have active `member` roles. Remints `okv_sorg_` code.
  */
 import type { TxSql } from '@/lib/db/tx'
 import { getBillingByOrgId, getBillingByUserId } from '@/lib/db/wallet'
-import { createInvitation } from '@/lib/orgs/invitations'
+import {
+  orgHasActiveMembers,
+  regenerateJoinCode,
+} from '@/lib/orgs/joinCodes'
 import { upgradeIndividualToOrg } from '@/lib/orgs/upgrade'
 
 export type ApproveResult =
-  | { ok: true; orgPublicId: string; orgId: string; created: boolean }
+  | { ok: true; orgPublicId: string; orgId: string; created: boolean; joinCode: string }
   | {
       ok: false
       code:
@@ -17,6 +21,7 @@ export type ApproveResult =
         | 'negative_balance'
         | 'invalid_subject'
         | 'child_org'
+        | 'has_active_members'
     }
 
 export async function approveSuperOrgApplication(
@@ -24,7 +29,7 @@ export async function approveSuperOrgApplication(
   opts: { applicationId: string; approvedBy: string }
 ): Promise<ApproveResult> {
   const rows = await tx`
-    select id, category, user_id, subject_org_id, approved_at, requested_name, extra_owners
+    select id, category, user_id, subject_org_id, approved_at, requested_name
     from contact_submissions
     where id = ${opts.applicationId}
     for update
@@ -49,8 +54,10 @@ export async function approveSuperOrgApplication(
     const org = orgRows[0] as Record<string, unknown> | undefined
     if (!org) return { ok: false, code: 'invalid_subject' }
     if (org.parent_id) return { ok: false, code: 'child_org' }
+    if (await orgHasActiveMembers(tx, orgId)) {
+      return { ok: false, code: 'has_active_members' }
+    }
     if (org.kind === 'super_org') {
-      // Already super — still mark approved.
       orgPublicId = String(org.public_id)
     } else {
       const billing = await getBillingByOrgId(tx, orgId)
@@ -66,7 +73,6 @@ export async function approveSuperOrgApplication(
       orgPublicId = String(org.public_id)
     }
   } else {
-    // Individual application — if they upgraded since applying, approve that org.
     const userRows = await tx`
       select upgraded_org_id from users where id = ${applicantId} for update
     `
@@ -78,6 +84,9 @@ export async function approveSuperOrgApplication(
       `
       const org = orgRows[0] as Record<string, unknown> | undefined
       if (!org || org.parent_id) return { ok: false, code: 'invalid_subject' }
+      if (await orgHasActiveMembers(tx, orgId)) {
+        return { ok: false, code: 'has_active_members' }
+      }
       const billing = await getBillingByOrgId(tx, orgId)
       if (billing && billing.topUpBalance < 0) return { ok: false, code: 'negative_balance' }
       if (org.kind !== 'super_org') {
@@ -123,21 +132,11 @@ export async function approveSuperOrgApplication(
     await tx`update organizations set name = ${requestedName} where id = ${orgId}`
   }
 
-  const extras = Array.isArray(app.extra_owners) ? app.extra_owners : []
-  for (const raw of extras) {
-    if (!raw || typeof raw !== 'object') continue
-    const email =
-      typeof (raw as { email?: unknown }).email === 'string'
-        ? String((raw as { email: string }).email).trim().toLowerCase()
-        : ''
-    if (!email || !email.includes('@')) continue
-    await createInvitation(tx, {
-      orgId,
-      email,
-      role: 'owner',
-      invitedBy: opts.approvedBy,
-    })
-  }
+  const reminted = await regenerateJoinCode(tx, {
+    orgId,
+    actorUserId: opts.approvedBy,
+    kind: 'super_org',
+  })
 
   await tx`
     update contact_submissions
@@ -145,5 +144,5 @@ export async function approveSuperOrgApplication(
     where id = ${opts.applicationId}
   `
 
-  return { ok: true, orgPublicId, orgId, created }
+  return { ok: true, orgPublicId, orgId, created, joinCode: reminted.code }
 }

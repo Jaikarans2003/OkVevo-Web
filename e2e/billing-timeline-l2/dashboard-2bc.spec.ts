@@ -4,9 +4,9 @@
  */
 import { test, expect } from '@playwright/test'
 import {
-  acceptParent,
   getBillingSummary,
-  inviteExistingOrg,
+  getJoinCode,
+  joinWithCode,
   upgradeToOrg,
   approveSuperOrg,
   applySuperOrg,
@@ -73,19 +73,18 @@ test.describe('2b-c dashboards', () => {
       expect(approved.success).toBe(true)
       const superOrgPublicId = approved.orgPublicId!
 
-      const { json: orgInvite } = await inviteExistingOrg(
+      const { json: joinMeta, status: joinMetaStatus } = await getJoinCode(
         superUser.idToken,
-        superOrgPublicId,
-        { orgPublicId }
-      )
-      expect(orgInvite.success).toBe(true)
-
-      const { json: accepted } = await acceptParent(
-        orgUser.idToken,
-        orgPublicId,
         superOrgPublicId
       )
+      expect(joinMetaStatus).toBe(200)
+      expect(joinMeta.code).toBeTruthy()
+
+      const { json: accepted } = await joinWithCode(orgUser.idToken, joinMeta.code!, {
+        orgPublicId,
+      })
       expect(accepted.success).toBe(true)
+      expect(accepted.action).toBe('accept_parent')
 
       // Drive child sponsored negative via admin SQL is not available in L2;
       // assert API shapes that power the dashboard copy when overdrawnPct > 0.

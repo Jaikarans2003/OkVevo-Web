@@ -50,7 +50,7 @@ export type CreateOrgUnder =
 
 /**
  * Profile “Create organisation under {name}” — active account (switcher, else
- * upgraded org) is a super_org and the caller is owner or admin.
+ * upgraded org) is a super_org and the caller is owner.
  */
 export function showCreateOrganisationUnder(opts: {
   activeOrgPublicId: string | null
@@ -58,7 +58,7 @@ export function showCreateOrganisationUnder(opts: {
   memberships: Array<{
     orgPublicId: string
     kind: 'org' | 'super_org'
-    role: 'owner' | 'admin' | 'member'
+    role: 'owner' | 'member'
     name: string
   }>
 }): CreateOrgUnder {
@@ -66,7 +66,7 @@ export function showCreateOrganisationUnder(opts: {
   if (!active) return { show: false }
   const m = opts.memberships.find((row) => row.orgPublicId === active)
   if (!m || m.kind !== 'super_org') return { show: false }
-  if (m.role !== 'owner' && m.role !== 'admin') return { show: false }
+  if (m.role !== 'owner') return { show: false }
   return { show: true, parentPublicId: m.orgPublicId, name: m.name }
 }
 

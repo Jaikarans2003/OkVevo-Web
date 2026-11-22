@@ -24,12 +24,12 @@ const upgraded = await withTx((tx) =>
 assert.ok(upgraded.ok)
 if (!upgraded.ok) throw new Error('upgrade failed')
 
-await sql`update users set email = ${`child-owner-${stamp}@example.com`} where id = ${uid}`
+const childName = 'Acme Studio'
 const child = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: upgraded.orgId,
-    name: 'Acme Studio',
-    ownerEmail: `child-owner-${stamp}@example.com`,
+    name: childName,
+    confirmName: childName,
     createdBy: uid,
   })
 )
@@ -41,25 +41,7 @@ assert.equal(wallet?.accessMode, 'prepaid')
 assert.equal(wallet?.accountKind, 'org')
 assert.equal(wallet?.topUpBalance, 0)
 
-// Creator is not child owner until invite accept — no spend on child yet
-const beforeOwner = await authorizeOrg(sql, {
-  userId: uid,
-  orgPublicId: child.orgPublicId,
-  need: 'spend',
-})
-assert.equal(beforeOwner.ok, false)
-
-const { acceptInvitation } = await import('@/lib/orgs/invitations')
-const accepted = await withTx((tx) =>
-  acceptInvitation(tx, {
-    token: child.ownerInviteToken,
-    userId: uid,
-    email: `child-owner-${stamp}@example.com`,
-    emailVerified: true,
-  })
-)
-assert.equal(accepted.ok, true)
-
+// Creator is child owner immediately
 const ok = await authorizeOrg(sql, {
   userId: uid,
   orgPublicId: child.orgPublicId,
@@ -105,12 +87,24 @@ assert.equal(personal.blocked, false)
 assert.ok(personal.org)
 assert.equal(personal.org?.id, upgraded.orgId)
 
+// confirmName mismatch
+const badConfirm = await withTx((tx) =>
+  createChildOrg(tx, {
+    parentOrgId: upgraded.orgId,
+    name: 'Mismatch',
+    confirmName: 'Other',
+    createdBy: uid,
+  })
+)
+assert.equal(badConfirm.ok, false)
+if (!badConfirm.ok) assert.equal(badConfirm.code, 'confirm_mismatch')
+
 // Creating under non-super parent fails
 const bad = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: child.orgId,
     name: 'Nested',
-    ownerEmail: `nested-${stamp}@example.com`,
+    confirmName: 'Nested',
     createdBy: uid,
   })
 )

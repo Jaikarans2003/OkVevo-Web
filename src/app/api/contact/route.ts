@@ -64,15 +64,6 @@ export async function POST(req: NextRequest) {
       typeof body.requestedName === 'string' && body.requestedName.trim()
         ? body.requestedName.trim()
         : null
-    const extraOwners = Array.isArray(body.extraOwners)
-      ? body.extraOwners
-          .filter((o): o is Record<string, unknown> => !!o && typeof o === 'object')
-          .map((o) => ({
-            name: typeof o.name === 'string' ? o.name : undefined,
-            email: typeof o.email === 'string' ? o.email : '',
-          }))
-          .filter((o) => o.email.trim())
-      : null
 
     const result = await insertSuperOrgApplication({
       userId: decoded.uid,
@@ -81,7 +72,6 @@ export async function POST(req: NextRequest) {
       whatsapp,
       subjectOrgPublicId,
       requestedName,
-      extraOwners,
     })
     if (!result.ok) {
       const status =

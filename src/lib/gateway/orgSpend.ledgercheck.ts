@@ -175,28 +175,17 @@ const childSuper = await withTx((tx) =>
 )
 assert.ok(childSuper.ok)
 if (!childSuper.ok) throw new Error('childSuper')
-const childOwnerEmail = `child-owner-${stamp}@example.com`
-await sql`update users set email = ${childOwnerEmail} where id = ${childOwner}`
+const limitChildName = 'Limit Child'
 const child = await withTx((tx) =>
   createChildOrg(tx, {
     parentOrgId: childSuper.orgId,
-    name: 'Limit Child',
-    ownerEmail: childOwnerEmail,
+    name: limitChildName,
+    confirmName: limitChildName,
     createdBy: childOwner,
   })
 )
 assert.ok(child.ok)
 if (!child.ok) throw new Error('child')
-const { acceptInvitation } = await import('@/lib/orgs/invitations')
-const childOwnerAccepted = await withTx((tx) =>
-  acceptInvitation(tx, {
-    token: child.ownerInviteToken,
-    userId: childOwner,
-    email: childOwnerEmail,
-    emailVerified: true,
-  })
-)
-assert.equal(childOwnerAccepted.ok, true)
 
 const superBilling = await getBillingByOrgId(sql, childSuper.orgId)
 assert.ok(superBilling)

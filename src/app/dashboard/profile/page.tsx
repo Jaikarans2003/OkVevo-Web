@@ -2,14 +2,13 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth } from '../../config/firebase';
+import { auth } from '@/config/firebase';
 import { onAuthStateChanged, User, updateEmail } from 'firebase/auth';
-import type { UserProfile } from '../../services/userService';
+import type { UserProfile } from '@/services/userService';
 import { Loader2, Check, AlertCircle, Edit3, Activity, Phone, Crown, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoadingScreen from '@/components/shared/LoadingScreen';
-import PortalShell from '@/components/portal/PortalShell';
 import DrawnArt from '@/components/landing-page/DrawnArt';
 import { authedJson } from '@/lib/api/browser';
 import type { MePayload } from '@/lib/api/me';
@@ -153,7 +152,7 @@ export default function ProfilePage() {
             detail: billing?.status
                 ? `Status: ${billing.status.charAt(0).toUpperCase() + billing.status.slice(1)}`
                 : 'Manage it in billing',
-            href: '/billing',
+            href: '/dashboard/billing',
         },
         { label: 'Account Type', value: typeInfo.label, icon: typeInfo.icon, ink: typeInfo.ink, detail: typeInfo.detail },
         { label: 'Phone', value: formData.phoneNumber || 'Not added', icon: Phone, ink: 'olive', detail: 'Primary contact' },
@@ -177,7 +176,7 @@ export default function ProfilePage() {
     };
 
     return (
-        <PortalShell>
+        <>
             <section className="wrap pt-head">
                 <div>
                     <h1>{user.displayName || 'Your profile'}<span>.</span></h1>
@@ -422,102 +421,6 @@ export default function ProfilePage() {
                             </div>
                         ) : null}
 
-                        {me.pendingInvites?.length ? (
-                            <div className="pt-fact" style={{ '--spot': 'var(--orange)' } as CSSProperties}>
-                                <p className="pt-label">Pending invitations</p>
-                                {me.pendingInvites.map((inv) => (
-                                    <div key={inv.invitationId} style={{ marginTop: 12 }}>
-                                        <p className="pt-fine">
-                                            {inv.orgName} — {inv.role}
-                                        </p>
-                                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                            <button
-                                                type="button"
-                                                className="btn btn--go"
-                                                disabled={orgBusy}
-                                                onClick={() =>
-                                                    runOrgAction(async () => {
-                                                        await authedJson(user!, '/api/invitations/accept', {
-                                                            method: 'POST',
-                                                            body: JSON.stringify({ invitationId: inv.invitationId }),
-                                                        });
-                                                    })
-                                                }
-                                            >
-                                                Accept
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn"
-                                                disabled={orgBusy}
-                                                onClick={() =>
-                                                    runOrgAction(async () => {
-                                                        await authedJson(user!, '/api/invitations/decline', {
-                                                            method: 'POST',
-                                                            body: JSON.stringify({ invitationId: inv.invitationId }),
-                                                        });
-                                                    })
-                                                }
-                                            >
-                                                Decline
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : null}
-                        {me.pendingOrgInvitations?.length ? (
-                            <div className="pt-fact" style={{ '--spot': 'var(--slate)' } as CSSProperties}>
-                                <p className="pt-label">Super-organisation invitations</p>
-                                {me.pendingOrgInvitations.map((inv) => (
-                                    <div key={inv.id} style={{ marginTop: 12 }}>
-                                        <p className="pt-fine">
-                                            {inv.superOrgName} wants to manage {inv.orgPublicId}
-                                        </p>
-                                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                            <button
-                                                type="button"
-                                                className="btn btn--go"
-                                                disabled={orgBusy}
-                                                onClick={() =>
-                                                    runOrgAction(async () => {
-                                                        await authedJson(
-                                                            user!,
-                                                            `/api/orgs/${inv.orgPublicId}/accept-parent`,
-                                                            {
-                                                                method: 'POST',
-                                                                body: JSON.stringify({ superOrgPublicId: inv.superOrgPublicId }),
-                                                            }
-                                                        );
-                                                    })
-                                                }
-                                            >
-                                                Accept
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn"
-                                                disabled={orgBusy}
-                                                onClick={() =>
-                                                    runOrgAction(async () => {
-                                                        await authedJson(
-                                                            user!,
-                                                            `/api/orgs/${inv.orgPublicId}/decline-parent`,
-                                                            {
-                                                                method: 'POST',
-                                                                body: JSON.stringify({ superOrgPublicId: inv.superOrgPublicId }),
-                                                            }
-                                                        );
-                                                    })
-                                                }
-                                            >
-                                                Decline
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : null}
                         {showJoinWithCode(me.hidePersonal) ? (
                             <div className="pt-fact" style={{ '--spot': 'var(--olive)' } as CSSProperties}>
                                 <p className="pt-label">Join with a code</p>
@@ -619,6 +522,6 @@ export default function ProfilePage() {
                     </section>
                 ) : null}
             </div>
-        </PortalShell>
+        </>
     );
 }

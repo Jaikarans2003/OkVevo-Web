@@ -64,6 +64,24 @@ const nextConfig = {
                 destination: '/okvevo-download/:path*',
                 permanent: true,
             },
+            {
+                source: '/billing',
+                destination: '/dashboard/billing',
+                permanent: true,
+                statusCode: 308,
+            },
+            {
+                source: '/billing/:path*',
+                destination: '/dashboard/billing/:path*',
+                permanent: true,
+                statusCode: 308,
+            },
+            {
+                source: '/profile',
+                destination: '/dashboard/profile',
+                permanent: true,
+                statusCode: 308,
+            },
         ];
     },
 

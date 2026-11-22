@@ -78,7 +78,7 @@ export default function AuthForm({
         return onAuthStateChanged(auth, (user) => {
             if (!initial) return;
             initial = false;
-            if (user) router.replace('/billing');
+            if (user) router.replace('/dashboard');
         });
         // bounceToDesktop closes over the allowlisted redirect + state for this mount.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +91,7 @@ export default function AuthForm({
             router.push('/pricing');
             return;
         }
-        router.push('/billing');
+        router.push('/dashboard');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

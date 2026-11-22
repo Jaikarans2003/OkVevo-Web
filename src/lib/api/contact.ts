@@ -80,8 +80,6 @@ export type SuperOrgAppResult =
   | { ok: false; code: SuperOrgAppFail }
 
 /** Authenticated super-org application. */
-export type ExtraOwnerInput = { name?: string; email: string }
-
 export async function insertSuperOrgApplication(opts: {
   userId: string
   email: string
@@ -89,7 +87,6 @@ export async function insertSuperOrgApplication(opts: {
   whatsapp?: string | null
   subjectOrgPublicId?: string | null
   requestedName?: string | null
-  extraOwners?: ExtraOwnerInput[] | null
 }): Promise<SuperOrgAppResult> {
   const email = opts.email.trim()
   const message = opts.message.trim()
@@ -120,22 +117,10 @@ export async function insertSuperOrgApplication(opts: {
     typeof opts.requestedName === 'string' && opts.requestedName.trim()
       ? opts.requestedName.trim()
       : null
-  const extraOwners =
-    opts.extraOwners?.filter((o) => o && typeof o.email === 'string' && o.email.trim()) ?? null
-  const extraJson =
-    extraOwners && extraOwners.length
-      ? JSON.stringify(
-          extraOwners.map((o) => ({
-            name: typeof o.name === 'string' ? o.name.trim() : null,
-            email: o.email.trim().toLowerCase(),
-          }))
-        )
-      : null
 
   const rows = await sql`
     insert into contact_submissions (
-      category, email, message, whatsapp, user_id, subject_org_id,
-      requested_name, extra_owners
+      category, email, message, whatsapp, user_id, subject_org_id, requested_name
     )
     values (
       ${SUPER_ORG_APPLICATION},
@@ -144,8 +129,7 @@ export async function insertSuperOrgApplication(opts: {
       ${opts.whatsapp ?? null},
       ${opts.userId},
       ${subjectOrgId},
-      ${requestedName},
-      ${extraJson}::jsonb
+      ${requestedName}
     )
     returning id
   `

@@ -53,18 +53,17 @@ assert.equal(
 )
 
 assert.equal(dashboardNavForRole('owner'), 'dashboard')
-assert.equal(dashboardNavForRole('admin'), 'dashboard')
-assert.equal(dashboardNavForRole('inherited_admin'), 'dashboard')
+assert.equal(dashboardNavForRole('inherited_read'), 'dashboard')
 assert.equal(dashboardNavForRole('member'), 'my_usage')
 assert.equal(dashboardNavForRole(null), 'none')
 assert.equal(dashboardNavLabel('dashboard'), 'Dashboard')
 assert.equal(dashboardNavLabel('my_usage'), 'My usage')
 
 assert.equal(canChangeMemberRoles('owner'), true)
-assert.equal(canChangeMemberRoles('admin'), false)
-assert.equal(canInvitePrivilegedRoles('admin'), false)
+assert.equal(canChangeMemberRoles('member'), false)
+assert.equal(canInvitePrivilegedRoles('member'), false)
 assert.equal(canInvitePrivilegedRoles('owner'), true)
-assert.equal(canRemovePrivilegedMembers('admin'), false)
+assert.equal(canRemovePrivilegedMembers('member'), false)
 assert.equal(canRemovePrivilegedMembers('platform_admin'), true)
 
 console.log('dashboardHelpers.selfcheck: ok')

@@ -255,11 +255,8 @@ export async function loadMemberDashboardRows(
   }
 ) {
   const members = await db`
-    select m.user_id, m.role, m.status, m.created_at, m.department_id,
-           d.name as department_name,
-           u.email
+    select m.user_id, m.role, m.status, m.created_at, u.email
     from memberships m
-    left join departments d on d.id = m.department_id
     left join users u on u.id = m.user_id
     where m.org_id = ${opts.orgId} and m.status = 'active'
     order by m.role desc, m.created_at asc
@@ -287,8 +284,6 @@ export async function loadMemberDashboardRows(
       userId: uid,
       email: (m.email as string | null) ?? null,
       role: String(m.role),
-      departmentId: m.department_id ? String(m.department_id) : null,
-      departmentName: m.department_name ? String(m.department_name) : null,
       status: String(m.status),
       creditsUsed: Number(usage[0]?.credits ?? 0),
       lastActive: lastAt instanceof Date ? lastAt.toISOString() : null,

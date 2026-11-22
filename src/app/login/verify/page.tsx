@@ -79,7 +79,7 @@ function VerifyEmailContent() {
     };
 
     const handleContinue = () => {
-        router.push('/billing');
+        router.push('/dashboard');
     };
 
     return (

@@ -42,7 +42,6 @@ import {
 import { overdrawnSentence } from '@/lib/orgs/dashboardHelpers';
 import ChangePlanModal from '@/components/billing/ChangePlanModal';
 import UsageBar from '@/components/billing/UsageBar';
-import PortalShell from '@/components/portal/PortalShell';
 import DrawnArt from '@/components/landing-page/DrawnArt';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 
@@ -221,7 +220,7 @@ export default function BillingPage() {
     const spot = (ink: string) => ({ '--spot': `var(--${ink})` } as CSSProperties);
 
     return (
-        <PortalShell>
+        <>
             <section className="wrap pt-head">
                 <div>
                     <h1>Billing<span>.</span></h1>
@@ -595,6 +594,6 @@ export default function BillingPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </PortalShell>
+        </>
     );
 }

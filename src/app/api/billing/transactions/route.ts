@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const authz = await authorizeOrg(sql, {
       userId: user.uid,
       orgPublicId: publicId,
-      need: 'admin',
+      need: 'owner',
       email: user.email,
     })
     if (!authz.ok) {

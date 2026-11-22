@@ -92,7 +92,7 @@ assert.equal(remainingPct(60_000, 59_999, 60_000), 99.99);
 assert.equal(formatPctLabel(87.5), '87.5%');
 assert.equal(formatPctLabel(50), '50%');
 
-const billingPage = src('app/billing/[[...slug]]/page.tsx');
+const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
 assert.match(billingPage, /Your credits · plan/);
 assert.match(billingPage, /Your credits · additional/);
 assert.match(billingPage, /UsageBar/);
@@ -129,7 +129,7 @@ assert.match(src('lib/gateway/debit.ts'), /topUpReference:\s*next\.topUpBalance/
 
 // --- zero tax on checkout + billing surfaces ---
 const taxSurfaces = [
-  'app/billing/[[...slug]]/page.tsx',
+  'app/dashboard/billing/[[...slug]]/page.tsx',
   'components/landing-page/Pricing.tsx',
   'components/shared/payment/RazorpayCheckout.tsx',
   'components/billing/ChangePlanModal.tsx',

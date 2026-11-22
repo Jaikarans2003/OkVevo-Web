@@ -35,9 +35,9 @@ assert.deepEqual(
   showCreateOrganisationUnder({
     activeOrgPublicId: null,
     upgradedOrgPublicId: 'sorg_acme',
-    memberships: [{ ...superOrg, role: 'admin' }],
+    memberships: [{ ...superOrg, role: 'member' }],
   }),
-  { show: true, parentPublicId: 'sorg_acme', name: 'Acme Super' }
+  { show: false }
 )
 
 assert.deepEqual(

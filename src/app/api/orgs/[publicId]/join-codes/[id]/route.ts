@@ -19,7 +19,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need: 'owner',
     email: user.email,
     emailVerified: user.emailVerified,
   })

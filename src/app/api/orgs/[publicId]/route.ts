@@ -18,17 +18,21 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string }> }
 
-function isAdminRole(role: string): boolean {
+/** Owner / platform / inherited_read may see full member list + per-member usage. */
+function canSeeMembersList(role: string): boolean {
   return (
     role === 'owner' ||
-    role === 'admin' ||
-    role === 'inherited_admin' ||
+    role === 'inherited_read' ||
     role === 'platform_admin'
   )
 }
 
-/** GET /api/orgs/:publicId — org, members, wallet %s, children (super-org).
- * Exact credit fields (availableToSend, owesCredits, owedByOrganisations) only when admin+. */
+/** Exact balances only for direct owner / platform — never inherited_read. */
+function canSeeExact(role: string): boolean {
+  return role === 'owner' || role === 'platform_admin'
+}
+
+/** GET /api/orgs/:publicId — org, members, wallet %s, children (super-org). */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -48,7 +52,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  const admin = isAdminRole(authz.role)
+  const membersList = canSeeMembersList(authz.role)
+  const exactOk = canSeeExact(authz.role)
   const billing = await getBillingByOrgId(sql, authz.org.id)
   const now = new Date()
 
@@ -89,7 +94,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         now,
       })
       childSponsored.push(childBilling?.sponsoredBalance ?? 0)
-      if (admin) {
+      if (exactOk) {
         children.push({
           publicId: row.publicId,
           name: row.name,
@@ -122,7 +127,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   }
 
   let members: Array<Record<string, unknown>>
-  if (admin && billing) {
+  if (membersList && billing) {
     const window = usagePeriodWindow({
       accessMode: billing.accessMode,
       billingCycle: billing.billingCycle,
@@ -134,7 +139,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       billingAccountId: billing.id,
       window,
     })
-  } else if (admin) {
+  } else if (membersList) {
     const rows = await sql`
       select user_id, role, status, created_at
       from memberships
@@ -147,7 +152,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       createdAt: m.created_at,
     }))
   } else {
-    // Members see only My usage — return the caller's own membership row.
     const rows = await sql`
       select user_id, role, status, created_at
       from memberships
@@ -177,7 +181,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     children,
   }
 
-  if (admin) {
+  if (exactOk) {
     body.exact = await buildAdminExactCredits(sql, {
       billing: billing ?? null,
       childrenSponsoredBalances: childSponsored,
@@ -210,7 +214,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   return NextResponse.json(body)
 }
 
-/** PATCH /api/orgs/:publicId `{name}` — owner/admin rename. */
+/** PATCH /api/orgs/:publicId `{name}` — owner rename. */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -230,7 +234,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
-    need: 'admin',
+    need: 'owner',
     email: user.email,
     emailVerified: user.emailVerified,
   })

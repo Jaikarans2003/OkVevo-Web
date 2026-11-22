@@ -93,7 +93,17 @@ export default {
     			'vintage-gold': '#D4AF37',
     			'vintage-sepia': '#2a2420',
     			'vintage-cream': '#EAE5D9',
-    			'vintage-dark-purple': '#0D0810'
+    			'vintage-dark-purple': '#0D0810',
+    			sidebar: {
+    				DEFAULT: 'hsl(var(--sidebar-background))',
+    				foreground: 'hsl(var(--sidebar-foreground))',
+    				primary: 'hsl(var(--sidebar-primary))',
+    				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+    				accent: 'hsl(var(--sidebar-accent))',
+    				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+    				border: 'hsl(var(--sidebar-border))',
+    				ring: 'hsl(var(--sidebar-ring))'
+    			}
     		},
     		backgroundImage: {
     			'orange-gradient': 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',

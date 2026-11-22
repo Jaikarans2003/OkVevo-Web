@@ -1,6 +1,20 @@
 /* Account pages (login, billing, profile) printed on the landing's stock: same tokens, cards and drawn art
    (okvevo-landing.css), laid out as a page head with its drawing, then printed panels. */
 .ok-landing.portal{min-height:100dvh;display:flex;flex-direction:column}
+/* sidebar dashboard: OkVevo tokens on shadcn sidebar (not default purple) */
+.ok-landing.portal.dashboard-shell{
+  --sidebar-background:38 33% 97%;
+  --sidebar-foreground:0 0% 16%;
+  --sidebar-primary:24 100% 56%;
+  --sidebar-primary-foreground:0 0% 16%;
+  --sidebar-accent:30 24% 88%;
+  --sidebar-accent-foreground:0 0% 16%;
+  --sidebar-border:30 8% 82%;
+  --sidebar-ring:24 100% 56%;
+  flex-direction:row;
+  min-height:100dvh;
+}
+.portal .dashboard-main{flex:1;padding:48px 0 72px;animation:pt-in .5s cubic-bezier(.2,.7,.2,1) backwards}
 .portal .pt-main{flex:1;padding:112px 0 72px;animation:pt-in .5s cubic-bezier(.2,.7,.2,1) backwards}
 .portal .pt-main:has(> .pt-auth){padding:0;display:grid}
 @keyframes pt-in{from{opacity:0}}
