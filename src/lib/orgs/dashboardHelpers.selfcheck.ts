@@ -66,4 +66,23 @@ assert.equal(canInvitePrivilegedRoles('owner'), true)
 assert.equal(canRemovePrivilegedMembers('member'), false)
 assert.equal(canRemovePrivilegedMembers('platform_admin'), true)
 
+// Sidebar Account nav landmark (signed-in shell) — L2 cannot Firebase-login in CI.
+{
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const root = path.resolve(import.meta.dirname, '../../..')
+  const sidebar = fs.readFileSync(
+    path.join(root, 'src/components/ui/sidebar.tsx'),
+    'utf8'
+  )
+  assert.match(sidebar, /role=\"navigation\"/)
+  assert.match(sidebar, /aria-label=\"Account\"/)
+  const shell = fs.readFileSync(
+    path.join(root, 'src/components/portal/DashboardShell.tsx'),
+    'utf8'
+  )
+  assert.match(shell, /href: '\/dashboard\/billing'/)
+  assert.match(shell, /name: 'Billing'/)
+}
+
 console.log('dashboardHelpers.selfcheck: ok')
