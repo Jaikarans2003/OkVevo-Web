@@ -47,12 +47,10 @@ const USER_DATA_TABLES = [
   'ops_alerts',
   'admin_rollups',
   'audit_log',
-  'org_invitations',
-  'invitations',
+  // org_invitations / invitations / departments dropped in code_join migration
   'join_codes',
   'join_rate_limits',
   'memberships',
-  'departments',
   'billing_accounts',
   'organizations',
   'users',
