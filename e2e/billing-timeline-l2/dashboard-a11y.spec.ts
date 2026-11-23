@@ -23,16 +23,25 @@ test.describe('dashboard a11y smoke', () => {
       await page.locator('#auth-password').fill(user.password!)
       await page.getByRole('button', { name: /sign in|log in/i }).click()
 
-      await page.waitForURL(/\/dashboard/, { timeout: 60_000 })
+      // Pathname only — `/login?redirect=/dashboard` must not count as arrived.
+      await page.waitForURL(
+        (url) => {
+          const path = url.pathname.replace(/\/$/, '') || '/'
+          return path === '/dashboard' || path.startsWith('/dashboard/')
+        },
+        { timeout: 60_000 }
+      )
 
       const main = page.locator('#main, main[role="main"], main').first()
       await expect(main).toBeVisible({ timeout: 30_000 })
 
-      const nav = page.getByRole('navigation').first()
+      const nav = page.getByRole('navigation', { name: /account/i }).first()
       if (await nav.count()) {
         await expect(nav).toBeVisible()
       } else {
-        const dashLink = page.getByRole('link', { name: /dashboard|billing|usage/i }).first()
+        const dashLink = page
+          .getByRole('link', { name: /overview|billing|profile|dashboard|usage/i })
+          .first()
         await expect(dashLink).toBeVisible({ timeout: 15_000 })
       }
     } finally {
