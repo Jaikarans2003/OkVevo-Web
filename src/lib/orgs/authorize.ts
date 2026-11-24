@@ -1,7 +1,7 @@
 /**
- * Org access: active membership with enough role, OR owner on parent
- * super-org (inherited_read — never spending), OR platform admin
- * (view/support only — never spend customer credits).
+ * Org access: active membership first (that role's rights, including spend),
+ * else platform admin (read-only, canSpend false — never removes member rights),
+ * else owner of the parent super-org (inherited_read — never spending).
  */
 import type { DbHandle } from '@/lib/db/wallet'
 import { isPlatformAdmin } from '@/lib/api/me'
@@ -67,19 +67,6 @@ export async function authorizeOrg(
   const org = await loadOrgByPublicId(db, opts.orgPublicId)
   if (!org) return { ok: false, code: 'org_not_found' }
 
-  if (
-    isPlatformAdmin({
-      email: opts.email,
-      email_verified: opts.emailVerified === true,
-    })
-  ) {
-    // Least privilege: support/view only — never satisfy spend.
-    if (opts.need === 'spend') {
-      return { ok: false, code: 'org_access_denied' }
-    }
-    return { ok: true, org, role: 'platform_admin', canSpend: false }
-  }
-
   const membership = await db`
     select role from memberships
     where org_id = ${org.id}
@@ -89,6 +76,19 @@ export async function authorizeOrg(
   const directRole = membership[0]?.role as OrgRole | undefined
   if (directRole && ROLE_RANK[directRole] >= needRank(opts.need)) {
     return { ok: true, org, role: directRole, canSpend: true }
+  }
+
+  if (
+    isPlatformAdmin({
+      email: opts.email,
+      email_verified: opts.emailVerified === true,
+    })
+  ) {
+    // No membership: support/view only. Spend stays denied.
+    if (opts.need === 'spend') {
+      return { ok: false, code: 'org_access_denied' }
+    }
+    return { ok: true, org, role: 'platform_admin', canSpend: false }
   }
 
   // Inherited read from parent super-org — never spend, never owner mutations.
