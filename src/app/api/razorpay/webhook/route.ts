@@ -4,7 +4,6 @@ import { sql } from '@/lib/db/client';
 import { withTx } from '@/lib/db/tx';
 import {
     getRazorpaySubscription,
-    updateBillingByUserId,
     upsertRazorpaySubscription,
     type RazorpaySubscriptionData,
 } from '@/lib/db/wallet';
@@ -76,20 +75,36 @@ function shouldUpdateStatus(currentStatus: string | undefined | null, newStatus:
 async function patchUserBilling(
     uid: string,
     data: Record<string, unknown>,
-    billingAccountId?: string | null
+    billingAccountId?: string | null,
+    planAudit?: { action: string; reason: string }
 ): Promise<void> {
-    const { getBillingById, updateBillingById } = await import('@/lib/db/wallet');
+    const { getBillingById, updateBillingById, updateBillingByUserId } = await import('@/lib/db/wallet');
     const { resolvePayingWallet } = await import('@/lib/orgs/orgContext');
-    let id = typeof billingAccountId === 'string' && billingAccountId ? billingAccountId : null;
-    if (!id) {
-        const paying = await resolvePayingWallet(sql, { userId: uid });
-        if (paying.ok) id = paying.billingAccountId;
-    }
-    if (id && (await getBillingById(sql, id))) {
-        await updateBillingById(sql, id, data);
-        return;
-    }
-    await updateBillingByUserId(sql, uid, data);
+    const { withTx } = await import('@/lib/db/tx');
+    const { writeAuditLog } = await import('@/lib/orgs/auditLog');
+    await withTx(async (tx) => {
+        let id = typeof billingAccountId === 'string' && billingAccountId ? billingAccountId : null;
+        if (!id) {
+            const paying = await resolvePayingWallet(tx, { userId: uid });
+            if (paying.ok) id = paying.billingAccountId;
+        }
+        const billing = id ? await getBillingById(tx, id) : undefined;
+        if (billing) {
+            await updateBillingById(tx, billing.id, data);
+            if (planAudit && billing.ownerOrgId) {
+                await writeAuditLog(tx, {
+                    orgId: billing.ownerOrgId,
+                    actorUserId: 'system',
+                    action: planAudit.action,
+                    targetType: 'organization',
+                    targetId: billing.ownerOrgId,
+                    metadata: { plan: billing.plan, reason: planAudit.reason },
+                });
+            }
+            return;
+        }
+        await updateBillingByUserId(tx, uid, data);
+    });
 }
 
 /**
@@ -449,6 +464,7 @@ export async function POST(request: NextRequest) {
                         requestId: `sub_activated_${subscription.id}_${subscription.current_start || '0'}`,
                         razorpaySubscriptionId: subscription.id,
                         expiresAt: periodEnd ?? null,
+                        planAudit: { action: 'plan.activated', metadata: { plan: planMeta.plan } },
                         userPatch: {
                             planStatus: 'active',
                             plan: planMeta.plan,
@@ -726,7 +742,10 @@ export async function POST(request: NextRequest) {
 
                 const haltedUser = await loadWebhookUser(userId, (subscription.notes || {}).billing_account_id, subscription.id);
                 if (pointerDecision(userId, subscription.id, 'halted', haltedUser.billing, subscription.notes).apply) {
-                    await patchUserBilling(userId, { planStatus: 'halted' }, haltedUser.billingAccountId);
+                    await patchUserBilling(userId, { planStatus: 'halted' }, haltedUser.billingAccountId, {
+                        action: 'plan.ended',
+                        reason: 'subscription.halted',
+                    });
                 }
 
                 console.log(`🛑 Subscription halted: ${subscription.id}`);
@@ -752,7 +771,10 @@ export async function POST(request: NextRequest) {
                     await patchUserBilling(userId, {
                         planStatus: 'cancelled',
                         cancelAtPeriodEnd: false,
-                    }, cancelledUser.billingAccountId);
+                    }, cancelledUser.billingAccountId, {
+                        action: 'plan.ended',
+                        reason: 'subscription.cancelled',
+                    });
                 }
 
                 console.log(`✅ Subscription cancelled: ${subscription.id}`);
@@ -832,7 +854,10 @@ export async function POST(request: NextRequest) {
                 if (pointerDecision(userId, subscription.id, 'completed', completedUser.billing, subscription.notes).apply) {
                     const planStatus = planStatusForSubscriptionEvent('completed');
                     if (planStatus) {
-                        await patchUserBilling(userId, { planStatus }, completedUser.billingAccountId);
+                        await patchUserBilling(userId, { planStatus }, completedUser.billingAccountId, {
+                            action: 'plan.ended',
+                            reason: 'subscription.completed',
+                        });
                     }
                 }
 

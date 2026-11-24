@@ -845,6 +845,7 @@ async function handleSubmit(
     ? undefined
     : omitUndefined({
     endpoint,
+    requestedModel: endpoint,
     unit: snapshot?.unit ?? pricing?.unit,
     unitPrice: snapshot?.unitPrice ?? pricing?.unitPrice,
     submitArgs,

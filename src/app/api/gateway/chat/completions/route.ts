@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/config/env';
 import { auth } from '@/lib/firebase-admin';
 import { gatewayIdToken } from '@/lib/gateway/auth';
+import { acceptedRequestedModel } from '@/lib/gateway/modelCatalog';
 import {
   InFlightBudgetError,
   InsufficientCreditsError,
@@ -175,7 +176,12 @@ export async function POST(request: NextRequest) {
         requestId,
         provider: 'openrouter',
         estimatedCredits: estimated,
-        extra: { model },
+        extra: {
+          model,
+          requestedModel:
+            acceptedRequestedModel(request.headers.get('x-okvevo-requested-model'), model) ??
+            model,
+        },
         orgPublicId,
         endCustomerRef,
         email,

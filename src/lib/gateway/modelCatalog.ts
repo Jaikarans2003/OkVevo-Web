@@ -6,6 +6,7 @@
  */
 
 import { env } from '@/config/env';
+import { isRouterAliasModel } from '@/lib/gateway/pricing';
 
 export const MODEL_CATALOG_TTL_MS = 60 * 60 * 1000;
 export const MIN_CONTEXT_TOKENS = 64_000;
@@ -126,4 +127,89 @@ export async function loadModelCatalog(opts?: {
   const list = toCatalogList(Array.isArray(body.data) ? body.data : []);
   cache = { at: now, body: list };
   return list;
+}
+
+export type CustomerJobType = 'Chat' | 'Search' | 'Image' | 'Video' | 'Audio';
+
+const MEDIA_MODELS: { prefix: string; label: string; jobType: CustomerJobType }[] = [
+  { prefix: 'bytedance/seedance-2.0', label: 'Seedance 2.0', jobType: 'Video' },
+  { prefix: 'bytedance/seedance-2.5', label: 'Seedance 2.5', jobType: 'Video' },
+  { prefix: 'minimax/h3-max', label: 'H3 Max', jobType: 'Video' },
+  { prefix: 'alibaba/wan-3.0-prime', label: 'Wan 3.0 Prime', jobType: 'Video' },
+  { prefix: 'openai/gpt-image-2', label: 'GPT Image 2', jobType: 'Image' },
+  { prefix: 'minimax/music-3', label: 'Music 3', jobType: 'Audio' },
+  { prefix: 'fal-ai/minimax/speech-02-hd', label: 'Speech 02 HD', jobType: 'Audio' },
+  { prefix: 'fal-ai/minimax/voice-clone', label: 'Voice clone', jobType: 'Audio' },
+];
+
+const AUTO_LABEL: Record<string, string> = {
+  'okvevo/auto-cost': 'Auto · Cost-effective',
+  'okvevo/auto-intelligence': 'Auto · Intelligence',
+};
+
+/** Header is kept only for an Auto id when the body model is a router alias. */
+export function acceptedRequestedModel(header: string | null | undefined, bodyModel: string): string | null {
+  const value = header?.trim() ?? '';
+  if (!AUTO_LABEL[value]) return null;
+  if (!isRouterAliasModel(bodyModel)) return null;
+  return value;
+}
+
+function humaniseId(id: string): string {
+  const segment = id.split('/').pop() || id;
+  return segment
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function stripVendors(label: string): string {
+  return label
+    .replace(/^[^:]+:\s*/, '')
+    .replace(/\bopenrouter\b/gi, '')
+    .replace(/\bfal-ai\b/gi, '')
+    .replace(/\b(openai|minimax|bytedance|alibaba|tavily)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.:])/g, '$1')
+    .trim();
+}
+
+function mediaMatch(id: string) {
+  return MEDIA_MODELS.find((row) => id === row.prefix || id.startsWith(`${row.prefix}/`));
+}
+
+/**
+ * Customer-facing model name and job type. SQL groups by the raw key;
+ * callers map keys through this and then merge labels.
+ */
+export function customerModel(input: {
+  requestedModel?: string | null;
+  model?: string | null;
+  provider?: string | null;
+  catalogName?: (id: string) => string | null;
+}): { label: string; jobType: CustomerJobType } {
+  const requested = input.requestedModel?.trim() || '';
+  const billed = input.model?.trim() || '';
+  const key = requested || billed;
+  const provider = (input.provider ?? '').trim().toLowerCase();
+  const media = mediaMatch(key);
+
+  let label = AUTO_LABEL[key];
+  if (!label && (isRouterAliasModel(key) || (!requested && isRouterAliasModel(billed)))) {
+    label = 'Auto';
+  }
+  if (!label && key === 'tavily-search') label = 'Web search';
+  if (!label && key === 'tavily-extract') label = 'Web extract';
+  if (!label && media) label = media.label;
+  if (!label && key) {
+    const fromCatalog = input.catalogName?.(key) ?? input.catalogName?.(billed);
+    label = fromCatalog ? stripVendors(fromCatalog) : humaniseId(key);
+  }
+  if (!label) label = 'Unknown';
+  label = stripVendors(label) || 'Unknown';
+
+  let jobType: CustomerJobType = 'Chat';
+  if (provider === 'tavily' || key.startsWith('tavily-')) jobType = 'Search';
+  else if (media) jobType = media.jobType;
+  else if (provider === 'fal') jobType = 'Video';
+  return { label, jobType };
 }

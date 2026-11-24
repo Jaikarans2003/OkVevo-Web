@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { sql } from '@/lib/db/client'
+import { withTx } from '@/lib/db/tx'
 import { getBillingByOrgId } from '@/lib/db/wallet'
+import { writeAuditLog } from '@/lib/orgs/auditLog'
 import { authorizeOrg } from '@/lib/orgs/authorize'
 import { computeCreditLimit } from '@/lib/orgs/creditLimit'
 import { overdrawnPct } from '@/lib/orgs/dashboardHelpers'
@@ -245,10 +247,26 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  await sql`
-    update organizations
-    set name = ${name}
-    where id = ${authz.org.id}
-  `
+  await withTx(async (tx) => {
+    const rows = await tx`
+      select name from organizations where id = ${authz.org.id} for update
+    `
+    const from = String(rows[0]?.name ?? '')
+    await tx`
+      update organizations
+      set name = ${name}
+      where id = ${authz.org.id}
+    `
+    if (from !== name) {
+      await writeAuditLog(tx, {
+        orgId: authz.org.id,
+        actorUserId: user.uid,
+        action: 'org.rename',
+        targetType: 'organization',
+        targetId: authz.org.id,
+        metadata: { from, to: name },
+      })
+    }
+  })
   return NextResponse.json({ success: true, name })
 }

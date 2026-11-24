@@ -78,7 +78,7 @@ export async function handleTavily(
       requestId,
       provider: 'tavily',
       estimatedCredits: estimated,
-      extra: { action, tavilyCredits: tavilyEst },
+      extra: { action, tavilyCredits: tavilyEst, requestedModel: `tavily-${action}` },
       orgPublicId,
       endCustomerRef,
       email,
