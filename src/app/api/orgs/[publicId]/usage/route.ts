@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { csvCell, csvLine } from '@/lib/analytics/csv'
 import { sql } from '@/lib/db/client'
 import { authorizeOrg } from '@/lib/orgs/authorize'
 import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
@@ -97,6 +98,21 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       group by org_id
       order by credits desc nulls last
     `
+  }
+
+  if (url.searchParams.get('format') === 'csv') {
+    const header = csvLine(['Group', 'Requests', 'Credits'].map((cell) => csvCell(cell)))
+    const body = (rows as Array<Record<string, unknown>>).map((row) => {
+      const group = row.day ?? row.user_id ?? row.end_customer_ref ?? row.org_id ?? ''
+      const groupText = group instanceof Date ? group.toISOString() : String(group)
+      return csvLine([csvCell(groupText), csvCell(Number(row.requests) || 0, 'number'), csvCell(Number(row.credits) || 0, 'number')])
+    })
+    return new NextResponse(header + body.join(''), {
+      headers: {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="usage.csv"',
+      },
+    })
   }
 
   return NextResponse.json({
