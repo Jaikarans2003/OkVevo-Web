@@ -1,0 +1,89 @@
+# Nightly full suite on the staging tip. Never cancelled. A failure opens a
+# GitHub issue so Karan sees it. Same commands as pr-checks.yml, one job.
+
+name: Nightly full suite
+
+on:
+  schedule:
+    - cron: "30 19 * * *" # 19:30 UTC = 01:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-staging
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    name: Full suite on staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: staging
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --no-save tsx
+
+      - name: Typecheck
+        run: |
+          set -euo pipefail
+          npx next typegen
+          npx tsc --noEmit
+
+      - name: check:all
+        run: npm run check:all
+
+      - name: Drama selfchecks
+        run: |
+          set -euo pipefail
+          for f in src/lib/fal/*.selfcheck.ts \
+                   src/lib/admin/rollup.selfcheck.ts \
+                   src/lib/ops/alert.selfcheck.ts \
+                   src/lib/gateway/reserve.selfcheck.ts \
+                   src/lib/billing/fxDrift.selfcheck.ts \
+                   src/lib/billing/ledgerInvariant.selfcheck.ts; do
+            echo "==> $f"
+            npx tsx "$f"
+          done
+          npm run check:fal-webhook
+
+      - name: Start local Supabase + reset
+        run: |
+          set -euo pipefail
+          npx supabase start
+          npx supabase db reset
+
+      - name: pgTAP
+        run: npm run db:test
+
+      - name: Ledger race suite + billing timeline Layer 1
+        run: npm run test:ledger
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="Nightly full suite failed on staging"
+          existing="$(gh issue list --state open --search "$title in:title" --json title --jq 'length')"
+          if [ "$existing" = "0" ]; then
+            gh issue create \
+              --title "$title" \
+              --body "The nightly full suite failed on the staging tip. Run: $RUN_URL"
+          else
+            gh issue comment "$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')" \
+              --body "Failed again: $RUN_URL"
+          fi
