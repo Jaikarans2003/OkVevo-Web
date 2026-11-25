@@ -122,9 +122,6 @@ assert.equal(xfer.transferred, 100)
 const superPub = String(
   (await sql`select public_id from organizations where id = ${superUp.orgId}`)[0]!.public_id
 )
-const childPub = String(
-  (await sql`select public_id from organizations where id = ${child.orgId}`)[0]!.public_id
-)
 
 await installFirebaseAuthMock()
 const { NextRequest } = await import('next/server')
@@ -159,12 +156,8 @@ const exact = ownerDash.json.exact as Record<string, unknown>
 assert.equal(typeof exact.availableToSend, 'number')
 assert.ok(String(exact.availableToSendLabel).includes('Available to send:'))
 assert.equal(typeof exact.owedByOrganisations, 'number')
-const children = ownerDash.json.children as Array<Record<string, unknown>>
-assert.ok(children.length >= 1)
-const childRow = children.find((c) => c.publicId === childPub)
-assert.ok(childRow)
-assert.equal(typeof childRow!.owesCredits, 'number')
-assert.equal(typeof childRow!.owesPct, 'number')
+// Children moved to GET /api/orgs/:publicId/organisations (list-apis PR).
+assert.equal(ownerDash.json.children, undefined)
 
 // Member must not see exact credits; members list is self only
 const memberDash = await getOrg(member, superPub)
@@ -174,10 +167,7 @@ const memberMembers = memberDash.json.members as Array<Record<string, unknown>>
 assert.equal(memberMembers.length, 1)
 assert.equal(String(memberMembers[0]!.userId), member)
 assert.equal(String(memberMembers[0]!.role), 'member')
-const memberChildren = memberDash.json.children as Array<Record<string, unknown>>
-if (memberChildren[0]) {
-  assert.equal(memberChildren[0].owesCredits, undefined)
-}
+assert.equal(memberDash.json.children, undefined)
 
 // Admin/owner sees full member list
 const ownerMembers = ownerDash.json.members as Array<Record<string, unknown>>

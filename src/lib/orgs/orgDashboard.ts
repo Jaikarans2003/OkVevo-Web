@@ -3,6 +3,7 @@
  * Exact credit fields require admin+; members get % / own usage only via other routes.
  */
 import { sponsoredRemainingPct } from '@/lib/api/billingSummary'
+import { decodeCursor, encodeCursor } from '@/lib/analytics/cursor'
 import type { BillingAccountData, DbHandle } from '@/lib/db/wallet'
 import { computeCreditLimit } from '@/lib/orgs/creditLimit'
 import {
@@ -142,16 +143,18 @@ export async function buildAdminExactCredits(
   }
 }
 
-/** Group child transfer_in + debt_recovery by request_id (idempotency key). */
+/** Group child transfer_in + debt_recovery by request_id (idempotency key). Keyset-paged. */
 export async function listTransferReceipts(
   db: DbHandle,
   opts: {
     childBillingAccountId: string
     superOrgName: string
     limit?: number
+    cursor?: string | null
   }
-) {
-  const limit = opts.limit ?? 50
+): Promise<{ items: TransferReceipt[]; nextCursor: string | null }> {
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 50)
+  const cursor = decodeCursor(opts.cursor ?? null)
   const rows = await db`
     select request_id,
            sum(case when type = 'debt_recovery' then amount else 0 end)::int as repaid,
@@ -163,10 +166,12 @@ export async function listTransferReceipts(
       and bucket = 'sponsored'
       and request_id is not null
     group by request_id
-    order by max(created_at) desc
-    limit ${limit}
+    ${cursor ? db`having (max(created_at), request_id) < (${cursor.at}::timestamptz, ${cursor.id})` : db``}
+    order by max(created_at) desc, request_id desc
+    limit ${limit + 1}
   `
-  return rows.map((r) => {
+  const page = rows.slice(0, limit)
+  const items: TransferReceipt[] = page.map((r) => {
     const repaid = Number(r.repaid ?? 0)
     const added = Number(r.added ?? 0)
     const total = repaid + added
@@ -180,70 +185,94 @@ export async function listTransferReceipts(
       label: `Received ${total} credits from ${opts.superOrgName} (${split.repaid} repaid, ${split.added} added)`,
     }
   })
+  const last = page[page.length - 1]
+  const nextCursor =
+    rows[limit] && last ? encodeCursor(last.createdAt, last.requestId) : null
+  return { items, nextCursor }
 }
 
-/** Super-org outbound transfers with repay/added split from child ledgers. */
+export type TransferReceipt = {
+  requestId: string
+  total: number
+  repaid: number
+  added: number
+  createdAt: string
+  label: string
+}
+
+export type SuperOrgTransfer = {
+  id: string
+  requestId: string
+  transferred: number
+  repaid: number
+  added: number
+  childPublicId: string | null
+  childName: string | null
+  createdAt: string
+}
+
+/**
+ * Super-org outbound transfers with repay/added split from child ledgers.
+ * One SQL query per page (lateral split + child join), keyset-paged,
+ * optional `to` filter on the child public id.
+ */
 export async function listSuperOrgTransfers(
   db: DbHandle,
-  opts: { superOrgId: string; superBillingAccountId: string; limit?: number }
-) {
-  const limit = opts.limit ?? 50
-  const outs = await db`
-    select id, amount, request_id, counterparty_billing_account_id, created_at, org_id
-    from credit_transactions
-    where billing_account_id = ${opts.superBillingAccountId}
-      and type = 'transfer_out'
-      and reason = 'org.transfer'
-    order by created_at desc
-    limit ${limit}
+  opts: {
+    superOrgId: string
+    superBillingAccountId: string
+    limit?: number
+    cursor?: string | null
+    to?: string | null
+  }
+): Promise<{ items: SuperOrgTransfer[]; nextCursor: string | null }> {
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 50)
+  const cursor = decodeCursor(opts.cursor ?? null)
+  const rows = await db`
+    select t.id, t.amount, t.request_id, t.created_at,
+           o.public_id as child_public_id, o.name as child_name,
+           s.repaid, s.added
+    from credit_transactions t
+    left join billing_accounts cb on cb.id = t.counterparty_billing_account_id
+    left join organizations o on o.id = cb.owner_org_id
+    cross join lateral (
+      select
+        coalesce(sum(case when c.type = 'debt_recovery' then c.amount else 0 end), 0)::int as repaid,
+        coalesce(sum(case when c.type = 'transfer_in' then c.amount else 0 end), 0)::int as added
+      from credit_transactions c
+      where c.billing_account_id = t.counterparty_billing_account_id
+        and c.request_id = t.request_id
+        and c.type in ('transfer_in', 'debt_recovery')
+    ) s
+    where t.billing_account_id = ${opts.superBillingAccountId}
+      and t.type = 'transfer_out'
+      and t.reason = 'org.transfer'
+      ${opts.to ? db`and o.public_id = ${opts.to}` : db``}
+      ${cursor ? db`and (t.created_at, t.id) < (${cursor.at}::timestamptz, ${cursor.id})` : db``}
+    order by t.created_at desc, t.id desc
+    limit ${limit + 1}
   `
-
-  const items = []
-  for (const row of outs) {
-    const requestId = String(row.request_id ?? '')
-    const counterpartyId = String(row.counterparty_billing_account_id ?? '')
-    let repaid = 0
-    let added = 0
-    let childPublicId: string | null = null
-    let childName: string | null = null
-    if (counterpartyId && requestId) {
-      const splitRows = await db`
-        select
-          coalesce(sum(case when type = 'debt_recovery' then amount else 0 end), 0)::int as repaid,
-          coalesce(sum(case when type = 'transfer_in' then amount else 0 end), 0)::int as added
-        from credit_transactions
-        where billing_account_id = ${counterpartyId}
-          and request_id = ${requestId}
-          and type in ('transfer_in', 'debt_recovery')
-      `
-      repaid = Number(splitRows[0]?.repaid ?? 0)
-      added = Number(splitRows[0]?.added ?? 0)
-      const child = await db`
-        select o.public_id, o.name
-        from billing_accounts b
-        join organizations o on o.id = b.owner_org_id
-        where b.id = ${counterpartyId}
-      `
-      childPublicId = child[0] ? String(child[0].public_id) : null
-      childName = child[0] ? String(child[0].name) : null
-    }
+  const page = rows.slice(0, limit)
+  const items: SuperOrgTransfer[] = page.map((row) => {
     const transferred = Number(row.amount) || 0
     const split = transferRepayAddedSplit({
       transferred,
-      debtRecovered: repaid,
+      debtRecovered: Number(row.repaid ?? 0),
     })
-    items.push({
+    return {
       id: String(row.id),
-      requestId,
+      requestId: String(row.request_id ?? ''),
       transferred,
       repaid: split.repaid,
       added: split.added,
-      childPublicId,
-      childName,
+      childPublicId: row.child_public_id == null ? null : String(row.child_public_id),
+      childName: row.child_name == null ? null : String(row.child_name),
       createdAt: (row.created_at as Date).toISOString(),
-    })
-  }
-  return items
+    }
+  })
+  const last = items[items.length - 1]
+  const nextCursor = rows[limit] && last ? encodeCursor(last.createdAt, last.id) : null
+  return { items, nextCursor }
 }
 
 export async function loadMemberDashboardRows(
