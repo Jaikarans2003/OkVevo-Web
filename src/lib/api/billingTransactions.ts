@@ -1,8 +1,10 @@
 /**
  * Cursor page for GET /api/billing/transactions.
  * Caller supplies the resolved paying wallet id.
+ * Customer-safe: provider and raw model never leave the server.
  */
 import { sql } from '@/lib/db/client'
+import { customerModel } from '@/lib/gateway/modelCatalog'
 
 export type LedgerItem = {
   id: string
@@ -12,8 +14,8 @@ export type LedgerItem = {
   absorbed: number
   reason: string | null
   requestId: string | null
-  provider: string | null
-  model: string | null
+  modelLabel: string
+  jobType: string
   createdAt: string
 }
 
@@ -44,7 +46,9 @@ function decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
 
 export async function listBillingTransactions(
   billingAccountId: string,
-  cursor: string | null
+  cursor: string | null,
+  /** Force rows to one member (org-wallet member reads / ?mine=1). */
+  userId: string | null = null
 ): Promise<LedgerPage> {
   const decoded = cursor ? decodeCursor(cursor) : null
   if (cursor && !decoded) {
@@ -53,17 +57,19 @@ export async function listBillingTransactions(
 
   const rows = decoded
     ? await sql`
-        select id, type, amount, bucket, absorbed, reason, request_id, provider, model, created_at
+        select id, type, amount, bucket, absorbed, reason, request_id, requested_model, provider, model, created_at
         from credit_transactions
         where billing_account_id = ${billingAccountId}
+          ${userId ? sql`and user_id = ${userId}` : sql``}
           and (created_at, id) < (${decoded.createdAt}, ${decoded.id})
         order by created_at desc, id desc
         limit ${PAGE_SIZE + 1}
       `
     : await sql`
-        select id, type, amount, bucket, absorbed, reason, request_id, provider, model, created_at
+        select id, type, amount, bucket, absorbed, reason, request_id, requested_model, provider, model, created_at
         from credit_transactions
         where billing_account_id = ${billingAccountId}
+        ${userId ? sql`and user_id = ${userId}` : sql``}
         order by created_at desc, id desc
         limit ${PAGE_SIZE + 1}
       `
@@ -72,6 +78,11 @@ export async function listBillingTransactions(
   const items: LedgerItem[] = page.map((r) => {
     const row = r as Record<string, unknown>
     const createdAt = row.created_at as Date
+    const shown = customerModel({
+      requestedModel: (row.requested_model as string | null) ?? null,
+      model: (row.model as string | null) ?? null,
+      provider: (row.provider as string | null) ?? null,
+    })
     return {
       id: String(row.id),
       type: String(row.type),
@@ -80,8 +91,8 @@ export async function listBillingTransactions(
       absorbed: Number(row.absorbed) || 0,
       reason: (row.reason as string | null) ?? null,
       requestId: (row.request_id as string | null) ?? null,
-      provider: (row.provider as string | null) ?? null,
-      model: (row.model as string | null) ?? null,
+      modelLabel: shown.label,
+      jobType: shown.jobType,
       createdAt: createdAt.toISOString(),
     }
   })

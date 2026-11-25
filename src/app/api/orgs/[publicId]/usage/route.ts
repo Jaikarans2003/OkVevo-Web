@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { csvCell, csvLine } from '@/lib/analytics/csv'
 import { sql } from '@/lib/db/client'
+import { parseUsageParams, queryUsage, usageCsv } from '@/lib/analytics/usage'
 import { authorizeOrg } from '@/lib/orgs/authorize'
 import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
 
@@ -9,26 +9,16 @@ export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ publicId: string }> }
 
-type GroupBy = 'user' | 'end_customer' | 'org' | 'day'
-
-/** GET /api/orgs/:publicId/usage?from&to&group_by= */
+/** GET /api/orgs/:publicId/usage — tz-bucketed credits; members see only their own rows. */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
 
   const { publicId } = await ctx.params
   const url = new URL(req.url)
-  const fromRaw = url.searchParams.get('from')
-  const toRaw = url.searchParams.get('to')
-  const groupBy = (url.searchParams.get('group_by') || 'day') as GroupBy
-  if (!['user', 'end_customer', 'org', 'day'].includes(groupBy)) {
-    return NextResponse.json({ error: 'invalid_group_by', code: 'invalid_group_by' }, { status: 400 })
-  }
-
-  const from = fromRaw ? new Date(fromRaw) : new Date(Date.now() - 30 * 864e5)
-  const to = toRaw ? new Date(toRaw) : new Date()
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-    return NextResponse.json({ error: 'invalid_range', code: 'invalid_range' }, { status: 400 })
+  const parsed = parseUsageParams(url.searchParams)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.code, code: parsed.code }, { status: 400 })
   }
 
   const authz = await authorizeOrg(sql, {
@@ -50,64 +40,24 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     authz.role === 'inherited_read' ||
     authz.role === 'platform_admin'
 
-  const memberFilter = canSeeAll ? sql`` : sql`and user_id = ${user.uid}`
-
-  if (groupBy === 'org' && !(authz.org.kind === 'super_org' && canSeeAll)) {
+  if (parsed.params.groupBy === 'org' && !(authz.org.kind === 'super_org' && canSeeAll)) {
     return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
-  let rows
-  if (groupBy === 'day') {
-    rows = await sql`
-      select day, sum(requests)::int as requests, sum(credits)::int as credits
-      from usage_daily
-      where day >= ${from} and day < ${to}
-        and (org_id = ${authz.org.id} or super_org_id = ${authz.org.id})
-        ${memberFilter}
-      group by day
-      order by day asc
-    `
-  } else if (groupBy === 'user') {
-    rows = await sql`
-      select user_id, sum(requests)::int as requests, sum(credits)::int as credits
-      from usage_daily
-      where day >= ${from} and day < ${to}
-        and (org_id = ${authz.org.id} or super_org_id = ${authz.org.id})
-        ${memberFilter}
-      group by user_id
-      order by credits desc nulls last
-    `
-  } else if (groupBy === 'end_customer') {
-    rows = await sql`
-      select end_customer_ref, sum(requests)::int as requests, sum(credits)::int as credits
-      from usage_daily
-      where day >= ${from} and day < ${to}
-        and (org_id = ${authz.org.id} or super_org_id = ${authz.org.id})
-        ${memberFilter}
-      group by end_customer_ref
-      order by credits desc nulls last
-    `
-  } else {
-    rows = await sql`
-      select org_id, sum(requests)::int as requests, sum(credits)::int as credits
-      from usage_daily
-      where day >= ${from} and day < ${to}
-        and (org_id = ${authz.org.id} or super_org_id = ${authz.org.id} or org_id in (
-          select id from organizations where parent_id = ${authz.org.id}
-        ))
-      group by org_id
-      order by credits desc nulls last
-    `
+  // Member role: always own rows, any member param is ignored.
+  const userId = canSeeAll ? parsed.params.member : user.uid
+  const out = await queryUsage(
+    sql,
+    parsed.params,
+    { kind: 'org', orgId: authz.org.id, includeChildren: parsed.params.groupBy === 'org' },
+    userId
+  )
+  if (!out.ok) {
+    return NextResponse.json({ error: out.code, code: out.code }, { status: 400 })
   }
 
-  if (url.searchParams.get('format') === 'csv') {
-    const header = csvLine(['Group', 'Requests', 'Credits'].map((cell) => csvCell(cell)))
-    const body = (rows as Array<Record<string, unknown>>).map((row) => {
-      const group = row.day ?? row.user_id ?? row.end_customer_ref ?? row.org_id ?? ''
-      const groupText = group instanceof Date ? group.toISOString() : String(group)
-      return csvLine([csvCell(groupText), csvCell(Number(row.requests) || 0, 'number'), csvCell(Number(row.credits) || 0, 'number')])
-    })
-    return new NextResponse(header + body.join(''), {
+  if (parsed.params.csv) {
+    return new NextResponse(usageCsv(out.result), {
       headers: {
         'content-type': 'text/csv; charset=utf-8',
         'content-disposition': 'attachment; filename="usage.csv"',
@@ -115,10 +65,5 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     })
   }
 
-  return NextResponse.json({
-    from: from.toISOString(),
-    to: to.toISOString(),
-    groupBy,
-    rows,
-  })
+  return NextResponse.json(out.result)
 }

@@ -1,8 +1,10 @@
 import { decodeCursor, encodeCursor } from '@/lib/analytics/cursor'
+import { csvCell, csvLine } from '@/lib/analytics/csv'
+import { jobTypeCaseSql } from '@/lib/analytics/jobTypeSql'
 import { notAliasJob } from '@/lib/analytics/jobScope'
 import { releaseReasonWording } from '@/lib/analytics/releaseReasonCopy'
 import type { DbHandle } from '@/lib/db/wallet'
-import { customerModel } from '@/lib/gateway/modelCatalog'
+import { customerModel, type CustomerJobType } from '@/lib/gateway/modelCatalog'
 
 export type JobRow = {
   id: string
@@ -17,21 +19,113 @@ export type JobRow = {
 
 const PAGE = 50
 
+/** Job lifecycle statuses (reserve → queue/dispatch → settle/release). */
+const JOB_STATUSES = ['reserved', 'queued', 'dispatching', 'submitted', 'settled', 'released']
+
+const JOB_TYPES: Record<string, CustomerJobType> = {
+  chat: 'Chat',
+  search: 'Search',
+  image: 'Image',
+  video: 'Video',
+  audio: 'Audio',
+}
+
+export type JobParams = {
+  from: Date | null
+  to: Date | null
+  member: string | null
+  model: string | null
+  jobType: CustomerJobType | null
+  status: string | null
+  cursor: string | null
+  limit: number
+  csv: boolean
+}
+
+export function parseJobParams(
+  searchParams: URLSearchParams
+): { ok: true; params: JobParams } | { ok: false; code: string } {
+  const fromRaw = searchParams.get('from')
+  const toRaw = searchParams.get('to')
+  const from = fromRaw ? new Date(fromRaw) : null
+  const to = toRaw ? new Date(toRaw) : null
+  if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) {
+    return { ok: false, code: 'invalid_range' }
+  }
+  if (from && to && to < from) return { ok: false, code: 'invalid_range' }
+  const member = searchParams.get('member')?.trim() || null
+  if (member && member.length > 128) return { ok: false, code: 'invalid_member' }
+  const model = searchParams.get('model')?.trim() || null
+  if (model && model.length > 200) return { ok: false, code: 'invalid_model' }
+  const jobTypeRaw = searchParams.get('job_type')?.trim().toLowerCase()
+  let jobType: CustomerJobType | null = null
+  if (jobTypeRaw) {
+    jobType = JOB_TYPES[jobTypeRaw] ?? null
+    if (!jobType) return { ok: false, code: 'invalid_job_type' }
+  }
+  const status = searchParams.get('status')?.trim().toLowerCase() || null
+  if (status && !JOB_STATUSES.includes(status)) return { ok: false, code: 'invalid_status' }
+  const limitRaw = searchParams.get('limit')
+  const limit = limitRaw ? Number(limitRaw) : 50
+  if (!Number.isInteger(limit) || limit < 1) return { ok: false, code: 'invalid_limit' }
+  return {
+    ok: true,
+    params: {
+      from,
+      to,
+      member,
+      model,
+      jobType,
+      status,
+      cursor: searchParams.get('cursor'),
+      limit,
+      csv: searchParams.get('format') === 'csv',
+    },
+  }
+}
+
+export type JobFilters = {
+  /** Org scope (org jobs route). Exactly one of orgId / billingAccountId. */
+  orgId?: string
+  /** Wallet scope (billing jobs route). */
+  billingAccountId?: string
+  /** Final user_id filter (member-forced by the route, or an owner's member pick). */
+  userId?: string | null
+  from?: Date | null
+  to?: Date | null
+  model?: string | null
+  jobType?: CustomerJobType | null
+  status?: string | null
+  limit?: number
+  cursor?: string | null
+}
+
 /** Customer jobs page. The row is an explicit field list. */
 export async function listOrgJobs(
   db: DbHandle,
-  opts: { orgId: string; userId?: string | null; limit?: number; cursor?: string | null }
+  opts: JobFilters
 ): Promise<{ items: JobRow[]; nextCursor: string | null }> {
   const limit = Math.min(Math.max(opts.limit ?? PAGE, 1), PAGE)
   const cursor = decodeCursor(opts.cursor ?? null)
+  if (!opts.billingAccountId && !opts.orgId) {
+    throw new Error('listOrgJobs: orgId or billingAccountId required')
+  }
+  const scopeFrag = opts.billingAccountId
+    ? db`billing_account_id = ${opts.billingAccountId}`
+    : db`org_id = ${opts.orgId!}`
   const rows = await db`
     select id, created_at, user_id, requested_model, provider, status,
            coalesce(settled_credits, estimated_credits, 0)::int as credits,
            release_reason
     from gateway_jobs
-    where org_id = ${opts.orgId}
+    where ${scopeFrag}
       and ${notAliasJob(db)}
       ${opts.userId ? db`and user_id = ${opts.userId}` : db``}
+      ${opts.from ? db`and created_at >= ${opts.from}` : db``}
+      ${opts.to ? db`and created_at < ${opts.to}` : db``}
+      ${opts.model ? db`and requested_model = ${opts.model}` : db``}
+      ${opts.jobType ? db`and ${jobTypeCaseSql(db, 'jobs')} = ${opts.jobType}` : db``}
+      ${opts.status ? db`and status = ${opts.status}` : db``}
       ${cursor ? db`and (created_at, id) < (${cursor.at}::timestamptz, ${cursor.id})` : db``}
     order by created_at desc, id desc
     limit ${limit + 1}
@@ -60,4 +154,23 @@ export async function listOrgJobs(
   const last = items[items.length - 1]
   const nextCursor = extra && last ? encodeCursor(last.createdAt, last.id) : null
   return { items, nextCursor }
+}
+
+/** Shared CSV for org + billing jobs routes. */
+export function jobsCsv(items: JobRow[]): string {
+  const lines = [
+    csvLine(['Time', 'Member', 'Model', 'Job type', 'Status', 'Credits', 'Release reason'].map((c) => csvCell(c))),
+    ...items.map((row) =>
+      csvLine([
+        csvCell(row.createdAt),
+        csvCell(row.memberUserId),
+        csvCell(row.modelLabel),
+        csvCell(row.jobType),
+        csvCell(row.status),
+        csvCell(row.credits, 'number'),
+        csvCell(row.releaseReason),
+      ])
+    ),
+  ]
+  return lines.join('')
 }

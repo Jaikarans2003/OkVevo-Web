@@ -12,8 +12,8 @@ export type CreditTransaction = {
   id: string
   type: string
   amount: number
-  provider?: string | null
-  model?: string | null
+  /** Customer display name from the server-side model map. Provider never reaches the client. */
+  modelLabel?: string
   createdAt: Date
 }
 
@@ -152,8 +152,7 @@ export async function getCreditHistory(user: User, limitCount: number = 50): Pro
     id: String(row.id),
     type: String(row.type),
     amount: Number(row.amount) || 0,
-    provider: (row.provider as string | null) ?? null,
-    model: (row.model as string | null) ?? null,
+    modelLabel: String(row.modelLabel ?? ''),
     createdAt: toDate(String(row.createdAt)) ?? new Date(0),
   }))
 }
