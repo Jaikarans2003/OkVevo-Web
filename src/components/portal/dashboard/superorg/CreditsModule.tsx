@@ -54,14 +54,14 @@ export default function CreditsModule() {
             <KpiCard
               label="Pool"
               value={o.poolPct != null ? fmtPct(o.poolPct) : '—'}
-              sub={o.poolPct != null ? <PctBar value={o.poolPct} /> : undefined}
+              sub={o.poolPct != null ? <PctBar value={o.poolPct} label="Pool" /> : undefined}
             />
             <KpiCard label="Available to send" value={o.availableToSend != null ? fmtInt(o.availableToSend) : '—'} />
             <KpiCard label="Sent this month" value={o.sentThisMonth != null ? fmtInt(o.sentThisMonth) : '—'} />
             <KpiCard label="Owed back" value={o.owed != null ? fmtInt(o.owed) : '—'} />
           </KpiGrid>
 
-          <section className="grid gap-3" aria-label="Owed credits">
+          <section className="grid gap-3" role="region" aria-label="Owed credits">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium">Owed by organisations</h2>
               {ctx.canManage ? <Button onClick={() => setSendOpen(true)}>Send credits</Button> : null}
@@ -99,7 +99,7 @@ export default function CreditsModule() {
             ) : null}
           </section>
 
-          <section className="grid gap-3" aria-label="Transfers">
+          <section className="grid gap-3" role="region" aria-label="Transfers">
             <h2 className="text-sm font-medium">Transfers</h2>
             {transfers.isError ? <ErrorNote error={errorText('request_failed')} /> : null}
             {transfers.data ? (

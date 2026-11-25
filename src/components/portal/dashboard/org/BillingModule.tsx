@@ -75,7 +75,7 @@ function TransactionsTab() {
   if (txns.isError) return <ErrorNote error={txns.error} />
   const rows = txns.data?.pages.flatMap((p) => p.items) ?? []
   if (txns.isPending) {
-    return <div className="h-72 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Loading transactions" />
+    return <div className="h-72 animate-pulse rounded-xl bg-muted" role="status" aria-busy="true" aria-label="Loading transactions" />
   }
   if (rows.length === 0) return <EmptyState title="No transactions yet" />
 
@@ -133,7 +133,7 @@ function CreditsTab() {
     )
   }
   if (credits.isPending) {
-    return <div className="h-72 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Loading credits" />
+    return <div className="h-72 animate-pulse rounded-xl bg-muted" role="status" aria-busy="true" aria-label="Loading credits" />
   }
   if (!credits.data) return null
   const { buckets, burn, forecastDays } = credits.data
@@ -148,7 +148,7 @@ function CreditsTab() {
             </CardHeader>
             <CardContent className="grid gap-2">
               <div className="text-2xl font-semibold tabular-nums">{fmtPct(b.remainingPct)}</div>
-              <PctBar value={b.remainingPct} />
+              <PctBar value={b.remainingPct} label={b.label} />
               {b.expiresAt ? (
                 <p className="text-xs text-muted-foreground">Soonest expiry {fmtDate(b.expiresAt)} (UTC)</p>
               ) : null}
@@ -189,7 +189,7 @@ function PaymentsTab() {
   const header = payments.data?.pages[0]?.header
   const rows = payments.data?.pages.flatMap((p) => p.items) ?? []
   if (payments.isPending) {
-    return <div className="h-72 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Loading payments" />
+    return <div className="h-72 animate-pulse rounded-xl bg-muted" role="status" aria-busy="true" aria-label="Loading payments" />
   }
 
   return (

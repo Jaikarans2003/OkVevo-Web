@@ -280,7 +280,7 @@ export default function UsageExplore({ state }: { state: UsageExploreState }) {
       </div>
 
       {query.isPending ? (
-        <div className="grid gap-5" aria-busy="true" aria-label="Loading usage">
+        <div className="grid gap-5" role="status" aria-busy="true" aria-label="Loading usage">
           <Skeleton className="h-24 rounded-[var(--r)]" />
           <Skeleton className="h-72 rounded-[var(--r)]" />
         </div>

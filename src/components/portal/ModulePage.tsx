@@ -65,7 +65,7 @@ export default function ModulePage({
         </div>
       </header>
       {query.isPending ? (
-        <div className="grid gap-5" aria-busy="true" aria-label={`Loading ${title}`}>
+        <div className="grid gap-5" role="status" aria-busy="true" aria-label={`Loading ${title}`}>
           <Skeleton className="h-36 rounded-[var(--r)]" />
           <Skeleton className="h-56 rounded-[var(--r)]" />
         </div>

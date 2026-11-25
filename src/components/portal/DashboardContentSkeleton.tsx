@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function DashboardContentSkeleton() {
   return (
-    <div className="wrap pt-stack" aria-busy="true" aria-label="Loading">
+    <div className="wrap pt-stack" role="status" aria-busy="true" aria-label="Loading">
       <div className="grid gap-3">
         <Skeleton className="h-9 w-56" />
         <Skeleton className="h-4 w-80 max-w-full" />

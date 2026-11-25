@@ -12,8 +12,9 @@
   --sidebar-border:30 8% 82%;
   --sidebar-ring:24 100% 56%;
   /* shadcn tokens (HSL triplets) scoped to the dashboard: same paper/ink/orange
-     as the portal. --muted stays the portal hex colour, so it is NOT
-     redefined here — only --muted-foreground (unused by portal classes). */
+     as the portal. Small text (table headers, text-xs, sidebar group label via
+     --muted) must clear 4.5:1 on --background. 34 6% 41% / #6f6962 does.
+     Landing --muted stays #7d776f outside this shell. */
   --background:40 14% 95%;
   --foreground:0 0% 16%;
   --card:36 45% 96%;
@@ -24,7 +25,8 @@
   --primary-foreground:0 0% 16%;
   --secondary:38 25% 93%;
   --secondary-foreground:0 0% 16%;
-  --muted-foreground:34 6% 46%;
+  --muted:#6f6962;
+  --muted-foreground:34 6% 41%;
   --accent:30 24% 88%;
   --accent-foreground:0 0% 16%;
   --destructive:0 62% 42%;
@@ -36,6 +38,9 @@
   flex-direction:row;
   min-height:100dvh;
 }
+/* The main column is a nested .ok-landing, which resets --muted to the
+   marketing hex. Keep the darker dashboard value on that column too. */
+.ok-landing.portal.dashboard-shell .ok-landing{--muted:#6f6962}
 /* account switcher trigger: a printed field, sidebar height */
 .portal .dashboard-switcher{height:40px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;cursor:pointer}
 /* module page head: title left, updated label + refresh right */

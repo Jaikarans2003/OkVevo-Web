@@ -445,7 +445,7 @@ function MemberSheet({
                 </div>
               ) : null}
 
-              <section className="grid gap-2" aria-label="Credits by model, last 30 days">
+              <section className="grid gap-2" role="region" aria-label="Credits by model, last 30 days">
                 <h3 className="text-sm font-medium">Credits by model, last 30 days</h3>
                 {usage.isError ? <ErrorNote error={usage.error} /> : null}
                 {usage.data ? (
@@ -484,7 +484,7 @@ function MemberSheet({
                 ) : null}
               </section>
 
-              <section className="grid gap-2" aria-label="Recent activity">
+              <section className="grid gap-2" role="region" aria-label="Recent activity">
                 <h3 className="text-sm font-medium">Recent activity</h3>
                 {jobs.isError ? <ErrorNote error={jobs.error} /> : null}
                 {jobs.data ? (

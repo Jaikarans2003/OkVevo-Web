@@ -26,7 +26,7 @@ export default function CreditsPanel({
 }) {
   if (query.isPending) {
     return (
-      <div className="grid gap-4" aria-busy="true" aria-label="Loading credits">
+      <div className="grid gap-4" role="status" aria-busy="true" aria-label="Loading credits">
         <Skeleton className="h-36 rounded-[var(--r)]" />
         <Skeleton className="h-36 rounded-[var(--r)]" />
       </div>
