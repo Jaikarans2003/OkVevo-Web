@@ -1,5 +1,7 @@
-import OrgDetailModule from '@/components/portal/OrgDetailModule';
+'use client';
+
+import CreditsModule from '@/components/portal/dashboard/superorg/CreditsModule';
 
 export default function OrgCreditsPage() {
-    return <OrgDetailModule title="Credits" placeholder="Credits module lands in the next wave." />;
+    return <CreditsModule />;
 }
