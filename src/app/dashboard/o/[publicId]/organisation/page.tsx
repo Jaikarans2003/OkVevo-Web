@@ -1,7 +1,7 @@
-import OrgDetailModule from '@/components/portal/OrgDetailModule';
+'use client';
+
+import OrganisationModule from '@/components/portal/dashboard/org/OrganisationModule';
 
 export default function OrgOrganisationPage() {
-    return (
-        <OrgDetailModule title="Organisation" placeholder="Organisation module lands in the next wave." />
-    );
+    return <OrganisationModule />;
 }

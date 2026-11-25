@@ -1,5 +1,7 @@
-import SummaryModule from '@/components/portal/SummaryModule';
+'use client';
+
+import OrgBillingModule from '@/components/portal/dashboard/org/BillingModule';
 
 export default function OrgBillingPage() {
-    return <SummaryModule title="Billing" placeholder="Billing module lands in the next wave." />;
+    return <OrgBillingModule />;
 }

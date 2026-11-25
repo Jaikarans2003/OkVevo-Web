@@ -1,5 +1,11 @@
-import OrgDetailModule from '@/components/portal/OrgDetailModule';
+'use client';
+
+import OrgSettingsModule from '@/components/portal/dashboard/org/SettingsModule';
+import SuperSettingsModule from '@/components/portal/dashboard/superorg/SettingsModule';
+import { useOrgContext } from '@/components/portal/dashboard/org/dashboard-hooks';
 
 export default function OrgSettingsPage() {
-    return <OrgDetailModule title="Settings" placeholder="Settings module lands in the next wave." />;
+    const ctx = useOrgContext();
+    if (!ctx) return null;
+    return ctx.kind === 'super_org' ? <SuperSettingsModule /> : <OrgSettingsModule />;
 }

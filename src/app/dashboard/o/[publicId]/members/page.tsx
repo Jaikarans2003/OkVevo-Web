@@ -1,5 +1,7 @@
-import OrgDetailModule from '@/components/portal/OrgDetailModule';
+'use client';
+
+import MembersModule from '@/components/portal/dashboard/org/MembersModule';
 
 export default function OrgMembersPage() {
-    return <OrgDetailModule title="Members" placeholder="Members module lands in the next wave." />;
+    return <MembersModule />;
 }
