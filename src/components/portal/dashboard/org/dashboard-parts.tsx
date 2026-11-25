@@ -52,12 +52,21 @@ export function KpiGrid({ children }: { children: ReactNode }) {
 }
 
 /** Wallet / pool percentage bar (percentages only — never exact credits). */
-export function PctBar({ value, className }: { value: number; className?: string }) {
+export function PctBar({
+  value,
+  label,
+  className,
+}: {
+  value: number
+  label: string
+  className?: string
+}) {
   const pct = Math.max(0, Math.min(100, value))
   return (
     <div
       className={cn('h-2 w-full overflow-hidden rounded-full bg-secondary', className)}
       role="meter"
+      aria-label={label}
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
       aria-valuemax={100}

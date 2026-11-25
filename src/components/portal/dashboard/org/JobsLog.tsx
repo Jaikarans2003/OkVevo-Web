@@ -253,7 +253,7 @@ export default function JobsLog({
       {csvError ? <ErrorNote error={csvError} /> : null}
 
       {jobs.isPending ? (
-        <div className="h-72 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Loading jobs" />
+        <div className="h-72 animate-pulse rounded-xl bg-muted" role="status" aria-busy="true" aria-label="Loading jobs" />
       ) : rows.length === 0 ? (
         <EmptyState title="No jobs in this range" hint="Try a wider date range." />
       ) : (

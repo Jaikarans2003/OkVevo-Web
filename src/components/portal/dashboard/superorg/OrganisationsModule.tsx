@@ -167,7 +167,7 @@ export default function OrganisationsModule() {
         header: 'Wallet',
         cell: (c) => (
           <div className="flex w-28 items-center gap-2">
-            <PctBar value={c.getValue()} className="w-16" />
+            <PctBar value={c.getValue()} className="w-16" label="Wallet" />
             <span className="text-xs tabular-nums">{fmtPct(c.getValue())}</span>
           </div>
         ),
@@ -471,7 +471,7 @@ function OrgDetailSheet({
               ) : null}
 
               <div className="grid grid-cols-2 gap-3">
-                <KpiCard label="Wallet" value={fmtPct(row.walletPct)} sub={<PctBar value={row.walletPct} />} />
+                <KpiCard label="Wallet" value={fmtPct(row.walletPct)} sub={<PctBar value={row.walletPct} label="Wallet" />} />
                 <KpiCard
                   label="Days left"
                   value={row.daysLeft != null ? fmtInt(row.daysLeft) : '—'}

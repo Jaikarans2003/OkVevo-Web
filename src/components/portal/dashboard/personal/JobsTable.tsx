@@ -205,7 +205,7 @@ export default function JobsTable({ state }: { state: JobsExploreState }) {
       </div>
 
       {query.isPending ? (
-        <div className="grid gap-3" aria-busy="true" aria-label="Loading jobs">
+        <div className="grid gap-3" role="status" aria-busy="true" aria-label="Loading jobs">
           <Skeleton className="h-10 rounded-[var(--r)]" />
           <Skeleton className="h-64 rounded-[var(--r)]" />
         </div>

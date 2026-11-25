@@ -50,16 +50,16 @@ function OwnerOverview({ publicId }: { publicId: string }) {
 
           <KpiGrid>
             {overview.data.planPct != null ? (
-              <KpiCard label="Plan credits" value={fmtPct(overview.data.planPct)} sub={<PctBar value={overview.data.planPct} />} />
+              <KpiCard label="Plan credits" value={fmtPct(overview.data.planPct)} sub={<PctBar value={overview.data.planPct} label="Plan credits" />} />
             ) : null}
             {overview.data.additionalPct != null ? (
-              <KpiCard label="Additional credits" value={fmtPct(overview.data.additionalPct)} sub={<PctBar value={overview.data.additionalPct} />} />
+              <KpiCard label="Additional credits" value={fmtPct(overview.data.additionalPct)} sub={<PctBar value={overview.data.additionalPct} label="Additional credits" />} />
             ) : null}
             {overview.data.sponsoredPct != null ? (
               <KpiCard
                 label={parentName ? `From ${parentName}` : 'From super-organisation'}
                 value={fmtPct(overview.data.sponsoredPct)}
-                sub={<PctBar value={overview.data.sponsoredPct} />}
+                sub={<PctBar value={overview.data.sponsoredPct} label={parentName ? `From ${parentName}` : 'From super-organisation'} />}
               />
             ) : null}
             <KpiCard label="Members" value={fmtInt(overview.data.memberCount)} icon={Users} />
@@ -173,13 +173,13 @@ function MemberOverview({ publicId }: { publicId: string }) {
             {ctx.detail.org.parentName ? <Badge>Part of {ctx.detail.org.parentName}</Badge> : null}
           </div>
           <KpiGrid>
-            <KpiCard label="Plan credits" value={fmtPct(summary.data.remainingPct)} sub={<PctBar value={summary.data.remainingPct} />} />
-            <KpiCard label="Additional credits" value={fmtPct(summary.data.additionalPct)} sub={<PctBar value={summary.data.additionalPct} />} />
+            <KpiCard label="Plan credits" value={fmtPct(summary.data.remainingPct)} sub={<PctBar value={summary.data.remainingPct} label="Plan credits" />} />
+            <KpiCard label="Additional credits" value={fmtPct(summary.data.additionalPct)} sub={<PctBar value={summary.data.additionalPct} label="Additional credits" />} />
             {summary.data.sponsoredPct > 0 || wallet?.fundedBy ? (
               <KpiCard
                 label={wallet?.fundedBy ? `From ${wallet.fundedBy}` : 'From super-organisation'}
                 value={fmtPct(summary.data.sponsoredPct)}
-                sub={<PctBar value={summary.data.sponsoredPct} />}
+                sub={<PctBar value={summary.data.sponsoredPct} label={wallet?.fundedBy ? `From ${wallet.fundedBy}` : 'From super-organisation'} />}
               />
             ) : null}
           </KpiGrid>

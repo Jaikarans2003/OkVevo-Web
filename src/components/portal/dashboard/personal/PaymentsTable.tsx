@@ -76,7 +76,7 @@ export default function PaymentsTable({
 
   if (query.isPending) {
     return (
-      <div className="grid gap-3" aria-busy="true" aria-label="Loading payments">
+      <div className="grid gap-3" role="status" aria-busy="true" aria-label="Loading payments">
         <Skeleton className="h-16 rounded-[var(--r)]" />
         <Skeleton className="h-64 rounded-[var(--r)]" />
       </div>

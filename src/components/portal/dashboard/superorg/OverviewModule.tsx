@@ -42,7 +42,7 @@ export default function SuperOrgOverviewModule() {
             {data.organisationsCount != null ? <KpiCard label="Organisations" value={fmtInt(data.organisationsCount)} /> : null}
             {data.activeOrgs30d != null ? <KpiCard label="Active in the last 30 days" value={fmtInt(data.activeOrgs30d)} /> : null}
             {data.poolPct != null ? (
-              <KpiCard label="Credit pool" value={fmtPct(data.poolPct)} sub={<PctBar value={data.poolPct} />} />
+              <KpiCard label="Credit pool" value={fmtPct(data.poolPct)} sub={<PctBar value={data.poolPct} label="Credit pool" />} />
             ) : null}
             {data.availableToSend != null ? <KpiCard label="Available to send" value={fmtInt(data.availableToSend)} /> : null}
             {data.sentThisMonth != null ? <KpiCard label="Sent this month" value={fmtInt(data.sentThisMonth)} /> : null}
