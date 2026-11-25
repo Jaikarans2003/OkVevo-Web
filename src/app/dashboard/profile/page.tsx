@@ -8,7 +8,7 @@ import type { UserProfile } from '@/services/userService';
 import { Loader2, Check, AlertCircle, Edit3, Activity, Phone, Crown, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import LoadingScreen from '@/components/shared/LoadingScreen';
+import DashboardContentSkeleton from '@/components/portal/DashboardContentSkeleton';
 import DrawnArt from '@/components/landing-page/DrawnArt';
 import { authedJson } from '@/lib/api/browser';
 import type { MePayload } from '@/lib/api/me';
@@ -130,7 +130,7 @@ export default function ProfilePage() {
     };
     
     if (loading) {
-        return <LoadingScreen loadKey="profile" />;
+        return <DashboardContentSkeleton />;
     }
 
     if (!user) return null;

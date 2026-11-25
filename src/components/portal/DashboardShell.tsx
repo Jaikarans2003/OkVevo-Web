@@ -1,15 +1,18 @@
 'use client';
 
+/**
+ * URL-scoped dashboard shell (plan §1, §7). Account comes from the URL
+ * (/dashboard/personal, /dashboard/o/:publicId); switching accounts is plain
+ * navigation — never a hard page reload. Data comes from the one TanStack
+ * Query cache (useMe / useOrgDetail share keys with the account layouts, so
+ * nothing fetches twice).
+ */
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import {
-    CreditCard,
-    LayoutDashboard,
-    LogOut,
-    User,
-} from 'lucide-react';
+import { useMemo } from 'react';
+import { signOut } from 'firebase/auth';
+import { useQueryClient } from '@tanstack/react-query';
+import { ChevronsUpDown, LogOut, User } from 'lucide-react';
 
 import {
     Sidebar,
@@ -23,132 +26,131 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSkeleton,
     SidebarProvider,
     SidebarRail,
-    SidebarSeparator,
     SidebarTrigger,
 } from '@/components/ui/sidebar';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { auth } from '@/config/firebase';
-import { authedJson } from '@/lib/api/browser';
-import type { MePayload } from '@/lib/api/me';
+import AccountSwitcher from '@/components/portal/AccountSwitcher';
+import DashboardBreadcrumb from '@/components/portal/DashboardBreadcrumb';
+import { useMe, useOrgDetail } from '@/hooks/useAuthedQuery';
 import {
     readActiveOrgPublicId,
     resolveActiveOrg,
     writeActiveOrgPublicId,
 } from '@/lib/orgs/activeOrg';
-import {
-    dashboardNavForRole,
-    dashboardNavLabel,
-} from '@/lib/orgs/dashboardHelpers';
+import type { AccountRef } from '@/lib/orgs/accountContext';
+import { dashboardMenu, navItemHref } from '@/components/portal/nav';
 import '@/components/landing-page/okvevo-landing.css';
 import './portal.css';
 
 const LOGO = '/OKVEVO%20Logos%20WithOut%20BackGrounds/Orange.svg';
 
-function navIsCurrent(pathname: string | null, href: string): boolean {
-    if (!pathname) return false;
-    if (href === '/dashboard') {
-        return pathname === '/dashboard' || pathname === '/dashboard/';
-    }
+/** Account-less deep links kept alive: next.config.mjs 308s land on these,
+ *  and /dashboard/billing[...] client-redirects to the active account's
+ *  billing (L2 desktop deeplinks depend on both). */
+const PROFILE_DEEP_LINK = { name: 'Profile', href: '/dashboard/profile' } as const;
+const BILLING_DEEP_LINK = { name: 'Billing', href: '/dashboard/billing' } as const;
+
+/** Active account from the URL; null on account-less pages (profile, redirects). */
+function accountFromPath(pathname: string | null): AccountRef | null {
+    const seg = (pathname ?? '').split('/').filter(Boolean);
+    if (seg[0] !== 'dashboard') return null;
+    if (seg[1] === 'personal') return { account: 'personal' };
+    if (seg[1] === 'o' && seg[2]) return { account: 'org', publicId: seg[2] };
+    return null;
+}
+
+function navIsCurrent(pathname: string, href: string, isAccountRoot: boolean): boolean {
+    if (isAccountRoot) return pathname === href || pathname === `${href}/`;
     return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const [me, setMe] = useState<MePayload | null>(null);
-    const [activeOrg, setActiveOrg] = useState<string | null>(null);
+    const queryClient = useQueryClient();
+    const meQuery = useMe();
+    const me = meQuery.data ?? null;
 
-    useEffect(() => {
-        const unsub = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                setMe(null);
-                setActiveOrg(null);
-                return;
-            }
-            try {
-                const payload = await authedJson<MePayload>(user, '/api/me');
-                setMe(payload);
-                const resolved = resolveActiveOrg({
-                    stored: readActiveOrgPublicId(),
-                    hidePersonal: payload.hidePersonal,
-                    upgradedOrgPublicId: payload.upgradedOrgPublicId,
-                    memberships: payload.memberships,
-                });
-                writeActiveOrgPublicId(resolved);
-                setActiveOrg(resolved);
-            } catch (e) {
-                console.error('DashboardShell /api/me', e);
-            }
+    const urlAccount = accountFromPath(pathname);
+    const urlOrgId = urlAccount?.account === 'org' ? urlAccount.publicId : null;
+    const orgQuery = useOrgDetail(urlOrgId);
+
+    // Account-less pages (profile): show the last-used account's nav.
+    const displayAccount: AccountRef | null = useMemo(() => {
+        if (urlAccount) return urlAccount;
+        if (!me) return null;
+        const resolved = resolveActiveOrg({
+            stored: readActiveOrgPublicId(),
+            hidePersonal: me.hidePersonal,
+            upgradedOrgPublicId: me.upgradedOrgPublicId,
+            memberships: me.memberships,
         });
-        return () => unsub();
-    }, []);
+        return resolved ? { account: 'org', publicId: resolved } : { account: 'personal' };
+    }, [urlAccount, me]);
+
+    const membership = useMemo(() => {
+        if (!me || displayAccount?.account !== 'org') return null;
+        return (
+            me.memberships.find((m) => m.orgPublicId === displayAccount.publicId) ?? null
+        );
+    }, [me, displayAccount]);
+
+    // Role/kind for menu filtering: org detail wins (covers inherited_read /
+    // platform_admin), membership is the instant fallback.
+    const orgDetail = orgQuery.data ?? null;
+    const role =
+        displayAccount?.account === 'org'
+            ? (orgDetail?.role ?? membership?.role ?? null)
+            : null;
+    const kind =
+        displayAccount?.account === 'org'
+            ? (membership?.kind ?? orgDetail?.org.kind ?? null)
+            : null;
+
+    const menu = useMemo(() => {
+        if (!displayAccount) return [];
+        if (displayAccount.account === 'org' && !membership && orgQuery.isError) {
+            // Unreadable org (NoAccess in the content area): minimal nav.
+            return dashboardMenu({ account: displayAccount, role: 'member', kind: 'org' });
+        }
+        return dashboardMenu({ account: displayAccount, role, kind });
+    }, [displayAccount, membership, orgQuery.isError, role, kind]);
+
+    const navLoading =
+        !me ||
+        (displayAccount?.account === 'org' &&
+            !membership &&
+            orgQuery.isPending &&
+            !!urlOrgId);
+
+    const accountName =
+        displayAccount?.account === 'org'
+            ? (membership?.name ?? orgDetail?.org.name ?? null)
+            : null;
 
     const handleSignOut = async () => {
         try {
             await signOut(auth);
             writeActiveOrgPublicId(null);
+            queryClient.clear();
             router.push('/login');
         } catch (error) {
             console.error('Sign out error:', error);
         }
     };
 
-    const onAccountChange = (value: string) => {
-        const next = value === '' ? null : value;
-        writeActiveOrgPublicId(next);
-        setActiveOrg(next);
-        router.refresh();
-        window.location.reload();
-    };
-
-    const showSwitcher =
-        me && (me.memberships.length > 0 || !me.hidePersonal);
-
-    const activeRole = useMemo(() => {
-        if (!me || !activeOrg) return null;
-        return me.memberships.find((m) => m.orgPublicId === activeOrg)?.role ?? null;
-    }, [me, activeOrg]);
-
-    const dashNav = dashboardNavForRole(activeRole);
-    const dashLabel = dashboardNavLabel(dashNav);
-
-    const navItems = useMemo(() => {
-        const items: Array<{
-            name: string;
-            href: string;
-            icon: typeof LayoutDashboard;
-        }> = [];
-
-        if (!activeOrg) {
-            items.push({
-                name: 'Overview',
-                href: '/dashboard',
-                icon: LayoutDashboard,
-            });
-        } else if (dashLabel) {
-            items.push({
-                name: dashLabel,
-                href: '/dashboard',
-                icon: LayoutDashboard,
-            });
-        }
-
-        items.push(
-            { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
-            { name: 'Profile', href: '/dashboard/profile', icon: User }
-        );
-
-        return items;
-    }, [activeOrg, dashLabel]);
-
-    const activeMembership = useMemo(
-        () => me?.memberships.find((m) => m.orgPublicId === activeOrg),
-        [me, activeOrg]
-    );
-    const isSuperOrgOwner =
-        activeMembership?.kind === 'super_org' &&
-        dashboardNavForRole(activeRole) === 'dashboard';
+    const userLabel = me?.user.displayName || me?.user.email || 'Account';
 
     return (
         <SidebarProvider className="ok-landing portal dashboard-shell min-h-svh w-full">
@@ -164,28 +166,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                                 OkVevo
                             </span>
                         </Link>
-                        {showSwitcher && me ? (
-                            <label className="grid gap-1.5 px-1 group-data-[collapsible=icon]:hidden">
-                                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                                    Use credits from
-                                </span>
-                                <select
-                                    aria-label="Use credits from"
-                                    value={activeOrg ?? ''}
-                                    onChange={(e) => onAccountChange(e.target.value)}
-                                    className="pt-input h-9 w-full text-sm"
-                                >
-                                    {!me.hidePersonal ? (
-                                        <option value="">Personal</option>
-                                    ) : null}
-                                    {me.memberships.map((m) => (
-                                        <option key={m.orgPublicId} value={m.orgPublicId}>
-                                            {m.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        ) : null}
+                        <div className="group-data-[collapsible=icon]:hidden">
+                            {me ? <AccountSwitcher me={me} account={displayAccount} /> : null}
+                        </div>
                     </SidebarHeader>
 
                     <SidebarContent>
@@ -195,61 +178,84 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                             </SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {navItems.map((item) => (
-                                        <SidebarMenuItem key={item.href}>
-                                            <SidebarMenuButton
-                                                asChild
-                                                isActive={navIsCurrent(pathname, item.href)}
-                                                tooltip={item.name}
-                                                className="rounded-full data-[active=true]:bg-[var(--orange)] data-[active=true]:font-medium data-[active=true]:text-[var(--ink)] data-[active=true]:shadow-[inset_0_0_0_1.5px_var(--ink)]"
-                                            >
-                                                <Link
-                                                    href={item.href}
-                                                    aria-current={
-                                                        navIsCurrent(pathname, item.href)
-                                                            ? 'page'
-                                                            : undefined
-                                                    }
-                                                >
-                                                    <item.icon aria-hidden />
-                                                    <span>{item.name}</span>
-                                                </Link>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    ))}
+                                    {navLoading
+                                        ? Array.from({ length: 4 }).map((_, i) => (
+                                              <SidebarMenuItem key={i}>
+                                                  <SidebarMenuSkeleton showIcon />
+                                              </SidebarMenuItem>
+                                          ))
+                                        : menu.map((item) => {
+                                              const href = navItemHref(displayAccount!, item);
+                                              const current = navIsCurrent(
+                                                  pathname ?? '',
+                                                  href,
+                                                  item.segment === '' && !item.externalHref
+                                              );
+                                              return (
+                                                  <SidebarMenuItem key={item.name}>
+                                                      <SidebarMenuButton
+                                                          asChild
+                                                          isActive={current}
+                                                          tooltip={item.name}
+                                                          className="rounded-full data-[active=true]:bg-[var(--orange)] data-[active=true]:font-medium data-[active=true]:text-[var(--ink)] data-[active=true]:shadow-[inset_0_0_0_1.5px_var(--ink)]"
+                                                      >
+                                                          <Link
+                                                              href={href}
+                                                              aria-current={current ? 'page' : undefined}
+                                                          >
+                                                              <item.icon aria-hidden />
+                                                              <span>{item.name}</span>
+                                                          </Link>
+                                                      </SidebarMenuButton>
+                                                  </SidebarMenuItem>
+                                              );
+                                          })}
                                 </SidebarMenu>
                             </SidebarGroupContent>
                         </SidebarGroup>
-
-                        {isSuperOrgOwner ? (
-                            <>
-                                <SidebarSeparator className="bg-[var(--rule)]" />
-                                <SidebarGroup>
-                                    <SidebarGroupLabel className="text-[var(--muted)]">
-                                        Organisations
-                                    </SidebarGroupLabel>
-                                    <SidebarGroupContent>
-                                        <p className="px-2 text-xs leading-relaxed text-[var(--ink-2)] group-data-[collapsible=icon]:hidden">
-                                            Child organisations appear on the overview page.
-                                        </p>
-                                    </SidebarGroupContent>
-                                </SidebarGroup>
-                            </>
-                        ) : null}
                     </SidebarContent>
 
                     <SidebarFooter className="border-t border-[var(--rule)] p-2">
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    type="button"
-                                    onClick={handleSignOut}
-                                    aria-label="Sign out"
-                                    className="rounded-full"
-                                >
-                                    <LogOut aria-hidden />
-                                    <span>Sign out</span>
-                                </SidebarMenuButton>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <SidebarMenuButton
+                                            type="button"
+                                            aria-label="Open user menu"
+                                            className="rounded-full"
+                                        >
+                                            <User aria-hidden />
+                                            <span className="truncate">{userLabel}</span>
+                                            <ChevronsUpDown
+                                                aria-hidden
+                                                className="ml-auto"
+                                                size={15}
+                                            />
+                                        </SidebarMenuButton>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent side="top" align="start" className="w-56">
+                                        <DropdownMenuLabel className="truncate">
+                                            {me?.user.email ?? userLabel}
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem asChild>
+                                            <Link href={PROFILE_DEEP_LINK.href}>
+                                                {PROFILE_DEEP_LINK.name}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem asChild>
+                                            <Link href={BILLING_DEEP_LINK.href}>
+                                                {BILLING_DEEP_LINK.name}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={handleSignOut}>
+                                            <LogOut aria-hidden size={15} />
+                                            Sign out
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarFooter>
@@ -257,11 +263,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </Sidebar>
 
                 <SidebarInset className="ok-landing bg-[var(--paper)]">
-                    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--rule)] bg-[var(--grain),var(--card)] px-4 md:hidden">
-                        <SidebarTrigger aria-label="Open navigation menu" />
-                        <span className="font-[family-name:var(--f-head)] text-lg italic">
-                            Account
-                        </span>
+                    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--rule)] bg-[var(--grain),var(--card)] px-4">
+                        <SidebarTrigger aria-label="Toggle navigation menu" />
+                        <DashboardBreadcrumb account={displayAccount} accountName={accountName} />
                     </header>
                     <main id="main" className="pt-main dashboard-main">
                         {children}
