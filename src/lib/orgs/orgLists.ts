@@ -250,6 +250,9 @@ export async function listChildOrganisations(
         coalesce(bool_or(ct.type = 'debit' and ct.created_at >= now() - interval '30 days'), false) as active_30d
       from credit_transactions ct
       where ct.billing_account_id = b.id
+        -- Every aggregate above only reads rows from period_from or the last 30 days,
+        -- whichever is older; bound the scan so the account_created index serves it.
+        and ct.created_at >= least(w.period_from, now() - interval '30 days')
     ) agg on true
     where o.parent_id = ${opts.superOrgId}
       ${q}

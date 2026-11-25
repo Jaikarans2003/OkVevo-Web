@@ -172,15 +172,18 @@ async function fillSuperOrgCards(
   const stats = await db`
     select
       count(*)::int as orgs,
-      count(*) filter (where act.billing_account_id is not null)::int as active,
+      count(*) filter (where act.hit is not null)::int as active,
       coalesce(sum(case when b.sponsored_balance < 0 then -b.sponsored_balance else 0 end), 0)::int as owed
     from organizations o
     join billing_accounts b on b.owner_org_id = o.id
-    left join (
-      select distinct billing_account_id
-      from credit_transactions
-      where type = 'debit' and created_at >= ${trendFrom}
-    ) act on act.billing_account_id = b.id
+    -- Per-child existence probe (account_created index) instead of a global
+    -- distinct over every tenant's last-30d debits.
+    left join lateral (
+      select 1 as hit
+      from credit_transactions ct
+      where ct.billing_account_id = b.id and ct.type = 'debit' and ct.created_at >= ${trendFrom}
+      limit 1
+    ) act on true
     where o.parent_id = ${org.id}
   `
   body.organisationsCount = Number(stats[0]?.orgs ?? 0)
