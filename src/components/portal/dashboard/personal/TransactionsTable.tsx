@@ -5,13 +5,13 @@
  * Description comes from the API's modelLabel/jobType for usage rows and
  * the stored reason (humanised) otherwise — never raw model or provider.
  */
-import { flexRender } from '@tanstack/react-table/flex-render'
 import {
-  getCoreRowModel,
-  legacyCreateColumnHelper,
-  useLegacyTable,
-  type LegacyColumnDef,
-} from '@tanstack/react-table/legacy'
+  columnVisibilityFeature,
+  createColumnHelper,
+  flexRender,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
 import { useMemo } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -36,7 +36,10 @@ import {
 } from './format'
 import { useTransactionsQuery } from './queries'
 
-const columnHelper = legacyCreateColumnHelper<LedgerItem>()
+/* Only column visibility is registered: rows render via row.getVisibleCells().
+   Sorting/paging stay server-side, so no v9 row-model features are needed. */
+const features = tableFeatures({ columnVisibilityFeature })
+const columnHelper = createColumnHelper<typeof features, LedgerItem>()
 
 function description(tx: LedgerItem): { title: string; sub: string | null } {
   if (tx.type === 'debit' || tx.type === 'refund') {
@@ -47,8 +50,7 @@ function description(tx: LedgerItem): { title: string; sub: string | null } {
   return { title: bucket ? `${bucket} credits` : humanize(tx.type), sub: null }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const columns: LegacyColumnDef<LedgerItem, any>[] = [
+const columns = columnHelper.columns([
   columnHelper.accessor('createdAt', {
     header: 'Date',
     cell: (c) => fmtDateTime(c.getValue()),
@@ -87,7 +89,7 @@ const columns: LegacyColumnDef<LedgerItem, any>[] = [
       return b ? (BUCKET_LABELS[b] ?? humanize(b)) : '—'
     },
   }),
-]
+])
 
 export default function TransactionsTable({
   query,
@@ -95,7 +97,7 @@ export default function TransactionsTable({
   query: ReturnType<typeof useTransactionsQuery>
 }) {
   const items = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data])
-  const table = useLegacyTable({ data: items, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useTable({ features, data: items, columns })
 
   if (query.isPending) {
     return (

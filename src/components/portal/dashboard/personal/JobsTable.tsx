@@ -6,13 +6,13 @@
  * badges, and polling only while a loaded row is still in progress.
  * Model, job type and release-reason wording come straight from the API.
  */
-import { flexRender } from '@tanstack/react-table/flex-render'
 import {
-  getCoreRowModel,
-  legacyCreateColumnHelper,
-  useLegacyTable,
-  type LegacyColumnDef,
-} from '@tanstack/react-table/legacy'
+  columnVisibilityFeature,
+  createColumnHelper,
+  flexRender,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -46,10 +46,12 @@ import { useJobsQuery, useUsageQuery, type JobRow } from './queries'
 
 const ALL = 'all'
 
-const columnHelper = legacyCreateColumnHelper<JobRow>()
+/* Only column visibility is registered: rows render via row.getVisibleCells().
+   Filtering/paging stay server-side, so no v9 row-model features are needed. */
+const features = tableFeatures({ columnVisibilityFeature })
+const columnHelper = createColumnHelper<typeof features, JobRow>()
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const columns: LegacyColumnDef<JobRow, any>[] = [
+const columns = columnHelper.columns([
   columnHelper.accessor('createdAt', {
     header: 'Time',
     cell: (c) => fmtDateTime(c.getValue()),
@@ -78,7 +80,7 @@ const columns: LegacyColumnDef<JobRow, any>[] = [
     header: 'Release reason',
     cell: (c) => c.getValue() ?? '—',
   }),
-]
+])
 
 export function useJobsExplore(keyPrefix: readonly unknown[], opts?: { enabled?: boolean }) {
   const [tz] = useState(viewerTz)
@@ -133,11 +135,7 @@ export type JobsExploreState = ReturnType<typeof useJobsExplore>
 
 export default function JobsTable({ state }: { state: JobsExploreState }) {
   const { query, items } = state
-  const table = useLegacyTable({
-    data: items,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
+  const table = useTable({ features, data: items, columns })
 
   return (
     <div className="grid gap-4">

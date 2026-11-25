@@ -7,14 +7,13 @@
  * (existing usage export, group_by=org), child detail slide-over.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-/* TanStack Table v9 ships the v8-compatible API under /legacy. */
-import { flexRender } from '@tanstack/react-table/flex-render'
 import {
-  getCoreRowModel,
-  legacyCreateColumnHelper as createColumnHelper,
-  useLegacyTable as useReactTable,
-  type LegacyColumnDef,
-} from '@tanstack/react-table/legacy'
+  columnVisibilityFeature,
+  createColumnHelper,
+  flexRender,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
 import { Download, MoreHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
@@ -85,7 +84,10 @@ const SORTS = [
   { value: 'active', label: 'Active' },
 ] as const
 
-const columnHelper = createColumnHelper<ChildOrgRow>()
+/* Only column visibility is registered: rows render via row.getVisibleCells().
+   Sorting/search/paging stay server-side, so no v9 row-model features are needed. */
+const features = tableFeatures({ columnVisibilityFeature })
+const columnHelper = createColumnHelper<typeof features, ChildOrgRow>()
 
 export default function OrganisationsModule() {
   const ctx = useOrgContext()
@@ -139,7 +141,7 @@ export default function OrganisationsModule() {
 
   const canManage = ctx?.canManage ?? false
   const columns = useMemo(
-    () => [
+    () => columnHelper.columns([
       columnHelper.accessor('name', {
         header: 'Name',
         cell: (c) => (
@@ -220,13 +222,12 @@ export default function OrganisationsModule() {
           )
         },
       }),
-    ],
+    ]),
     [canManage]
   )
 
   const rows = useMemo(() => orgs.data?.pages.flatMap((p) => p.items) ?? [], [orgs.data])
-  /* Legacy ColumnDef is invariant in TValue; columns are built per-accessor, cast once here. */
-  const table = useReactTable({ data: rows, columns: columns as LegacyColumnDef<ChildOrgRow>[], getCoreRowModel: getCoreRowModel() })
+  const table = useTable({ features, data: rows, columns })
 
   if (!ctx) return null
 
