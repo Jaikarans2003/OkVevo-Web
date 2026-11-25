@@ -954,7 +954,7 @@ async function handleSubmit(
 }
 
 /** Read-side mirror of debit.ts slotsForPayingWallet: prepaid child orgs ride the super-org's plan. */
-async function slotsForPayingWalletRead(billing: BillingAccountData): Promise<SlotDecision> {
+export async function slotsForPayingWalletRead(billing: BillingAccountData): Promise<SlotDecision> {
   if (billing.accessMode === 'prepaid' && billing.ownerOrgId) {
     const parentRows = await sql`select parent_id from organizations where id = ${billing.ownerOrgId}`;
     const parentId = parentRows[0]?.parent_id as string | undefined;
@@ -973,9 +973,10 @@ async function slotsForPayingWalletRead(billing: BillingAccountData): Promise<Sl
  * for the wallet that PAID for the job (billing_account_id) — previously the
  * caller's personal plan gated this, releasing org-paid queued jobs when the
  * caller's own plan lapsed. Legacy rows without a stamped wallet keep the
- * old personal-wallet behavior.
+ * old personal-wallet behavior. Exported for the W2g dispatch-sweep gate
+ * (releaseInactiveQueued in dispatch.ts decides per job with the same rule).
  */
-async function payingWalletEligible(uid: string, requestId: string): Promise<boolean> {
+export async function payingWalletEligible(uid: string, requestId: string): Promise<boolean> {
   const data = await getJob(sql, requestId);
   const billingAccountId = typeof data?.billingAccountId === 'string' ? data.billingAccountId : '';
   const billing = billingAccountId
