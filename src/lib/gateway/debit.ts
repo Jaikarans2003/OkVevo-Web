@@ -754,8 +754,8 @@ export async function commitFalSubmitted(opts: {
         if (billingAccountId) {
           await insertJob(tx, opts.falRequestId, opts.uid, billingAccountId, {
             aliasOf: opts.holdId,
-            ...(typeof job.orgId === 'string' ? { orgId: job.orgId } : {}),
-            ...(typeof job.superOrgId === 'string' ? { superOrgId: job.superOrgId } : {}),
+            ...(typeof job?.orgId === 'string' ? { orgId: job.orgId } : {}),
+            ...(typeof job?.superOrgId === 'string' ? { superOrgId: job.superOrgId } : {}),
           });
         }
       }
