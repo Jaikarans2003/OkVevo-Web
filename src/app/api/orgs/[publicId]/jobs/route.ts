@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { sql } from '@/lib/db/client'
-import { csvCell, csvLine } from '@/lib/analytics/csv'
-import { listOrgJobs } from '@/lib/analytics/jobs'
+import { jobsCsv, listOrgJobs, parseJobParams } from '@/lib/analytics/jobs'
 import { authorizeOrg } from '@/lib/orgs/authorize'
 import { isAuthed, requireAuthed } from '@/lib/orgs/orgHttp'
 
@@ -16,6 +15,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!isAuthed(user)) return user
 
   const { publicId } = await ctx.params
+  const url = new URL(req.url)
+  const parsed = parseJobParams(url.searchParams)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.code, code: parsed.code }, { status: 400 })
+  }
+
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
@@ -30,31 +35,27 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     )
   }
 
-  const url = new URL(req.url)
-  const ownOnly = authz.role === 'member'
+  const canSeeAll =
+    authz.role === 'owner' ||
+    authz.role === 'inherited_read' ||
+    authz.role === 'platform_admin'
+
+  // Member role: always own rows, any member param is ignored.
+  const userId = canSeeAll ? parsed.params.member : user.uid
   const page = await listOrgJobs(sql, {
     orgId: authz.org.id,
-    userId: ownOnly ? user.uid : null,
-    cursor: url.searchParams.get('cursor'),
-    limit: Number(url.searchParams.get('limit') || 50),
+    userId,
+    from: parsed.params.from,
+    to: parsed.params.to,
+    model: parsed.params.model,
+    jobType: parsed.params.jobType,
+    status: parsed.params.status,
+    cursor: parsed.params.cursor,
+    limit: parsed.params.limit,
   })
 
-  if (url.searchParams.get('format') === 'csv') {
-    const lines = [
-      csvLine(['Time', 'Member', 'Model', 'Job type', 'Status', 'Credits', 'Release reason'].map((c) => csvCell(c))),
-      ...page.items.map((row) =>
-        csvLine([
-          csvCell(row.createdAt),
-          csvCell(row.memberUserId),
-          csvCell(row.modelLabel),
-          csvCell(row.jobType),
-          csvCell(row.status),
-          csvCell(row.credits, 'number'),
-          csvCell(row.releaseReason),
-        ])
-      ),
-    ]
-    return new NextResponse(lines.join(''), {
+  if (parsed.params.csv) {
+    return new NextResponse(jobsCsv(page.items), {
       headers: {
         'content-type': 'text/csv; charset=utf-8',
         'content-disposition': 'attachment; filename="jobs.csv"',

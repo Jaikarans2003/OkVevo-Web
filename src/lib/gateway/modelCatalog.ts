@@ -131,7 +131,7 @@ export async function loadModelCatalog(opts?: {
 
 export type CustomerJobType = 'Chat' | 'Search' | 'Image' | 'Video' | 'Audio';
 
-const MEDIA_MODELS: { prefix: string; label: string; jobType: CustomerJobType }[] = [
+export const MEDIA_MODELS: { prefix: string; label: string; jobType: CustomerJobType }[] = [
   { prefix: 'bytedance/seedance-2.0', label: 'Seedance 2.0', jobType: 'Video' },
   { prefix: 'bytedance/seedance-2.5', label: 'Seedance 2.5', jobType: 'Video' },
   { prefix: 'minimax/h3-max', label: 'H3 Max', jobType: 'Video' },

@@ -486,7 +486,7 @@ export default function BillingPage() {
                             {creditHistory.map((transaction) => {
                                 const isDebit = transaction.type === 'debit';
                                 const Icon = isDebit ? TrendingDown : TrendingUp;
-                                const label = [transaction.type, transaction.provider, transaction.model]
+                                const label = [transaction.type, transaction.modelLabel]
                                     .filter(Boolean)
                                     .join(' · ');
                                 return (
