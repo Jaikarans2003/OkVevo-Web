@@ -1,5 +1,5 @@
-import SummaryModule from '@/components/portal/SummaryModule';
+import PersonalOverview from '@/components/portal/dashboard/personal/OverviewBody';
 
 export default function PersonalOverviewPage() {
-    return <SummaryModule title="Overview" placeholder="Overview module lands in the next wave." />;
+    return <PersonalOverview />;
 }
