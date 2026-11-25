@@ -34,8 +34,10 @@ const EXPECTED_BILLABLE = [
  * - WALLET: the definition site.
  * - orgContext: resolvePayingWallet's sanctioned personal fallback (header absent).
  * - debit: grantCredits idempotent re-read; reserve paths lock resolvePayingWallet's id.
- * - handleQueue: fal queue slot/status VIEW only (slotView, handleStatus plan check);
- *   it never debits — the paying wallet comes from reserveFalRun → resolvePayingWallet.
+ * - handleQueue: fal queue slot/status VIEW (slotView) plus the legacy no-stamped-wallet
+ *   fallback in the poll-time release gate; the gate itself checks the job's wallet
+ *   (job.billing_account_id) via getBillingById, never the caller's personal plan.
+ *   It never debits — the paying wallet comes from reserveFalRun → resolvePayingWallet.
  */
 const ALLOWED_PERSONAL_READERS = new Set([
   WALLET,
