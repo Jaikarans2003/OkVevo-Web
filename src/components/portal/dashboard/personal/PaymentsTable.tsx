@@ -5,13 +5,13 @@
  * the keyset-paged payments list — top-ups and subscription cycles from the
  * credit ledger. Failed payments are never stored, so every row is a success.
  */
-import { flexRender } from '@tanstack/react-table/flex-render'
 import {
-  getCoreRowModel,
-  legacyCreateColumnHelper,
-  useLegacyTable,
-  type LegacyColumnDef,
-} from '@tanstack/react-table/legacy'
+  columnVisibilityFeature,
+  createColumnHelper,
+  flexRender,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
 import { useMemo } from 'react'
 
 import type { PaymentRow } from '@/lib/analytics/payments'
@@ -29,10 +29,12 @@ import {
 import { fmtDate, paymentStatusVariant } from './format'
 import type { usePaymentsQuery } from './queries'
 
-const columnHelper = legacyCreateColumnHelper<PaymentRow>()
+/* Only column visibility is registered: rows render via row.getVisibleCells().
+   Paging stays server-side, so no v9 row-model features are needed. */
+const features = tableFeatures({ columnVisibilityFeature })
+const columnHelper = createColumnHelper<typeof features, PaymentRow>()
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const columns: LegacyColumnDef<PaymentRow, any>[] = [
+const columns = columnHelper.columns([
   columnHelper.accessor('date', {
     header: 'Date',
     cell: (c) => fmtDate(c.getValue()),
@@ -61,7 +63,7 @@ const columns: LegacyColumnDef<PaymentRow, any>[] = [
     header: 'Razorpay id',
     cell: (c) => <span className="font-mono text-xs break-all">{c.getValue()}</span>,
   }),
-]
+])
 
 export default function PaymentsTable({
   query,
@@ -70,7 +72,7 @@ export default function PaymentsTable({
 }) {
   const items = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data])
   const header = query.data?.pages[0]?.header
-  const table = useLegacyTable({ data: items, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useTable({ features, data: items, columns })
 
   if (query.isPending) {
     return (

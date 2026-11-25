@@ -6,14 +6,13 @@
  * change and remove (owner only), join-code card.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-/* TanStack Table v9 ships the v8-compatible API under /legacy. */
-import { flexRender } from '@tanstack/react-table/flex-render'
 import {
-  getCoreRowModel,
-  legacyCreateColumnHelper as createColumnHelper,
-  useLegacyTable as useReactTable,
-  type LegacyColumnDef,
-} from '@tanstack/react-table/legacy'
+  columnVisibilityFeature,
+  createColumnHelper,
+  flexRender,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
@@ -62,7 +61,11 @@ const SORTS = [
   { value: 'lastActive', label: 'Last active' },
 ] as const
 
-const columnHelper = createColumnHelper<MemberRow>()
+/* Only column visibility is registered: rows render via row.getVisibleCells()
+   and the actions column sets enableHiding. Sorting/search/paging stay
+   server-side, so no v9 row-model features are needed. */
+const features = tableFeatures({ columnVisibilityFeature })
+const columnHelper = createColumnHelper<typeof features, MemberRow>()
 
 export default function MembersModule() {
   const ctx = useOrgContext()
@@ -159,7 +162,7 @@ export default function MembersModule() {
   })
 
   const columns = useMemo(
-    () => [
+    () => columnHelper.columns([
       columnHelper.accessor((r) => r.name ?? r.email ?? r.userId, {
         id: 'name',
         header: 'Name',
@@ -220,13 +223,12 @@ export default function MembersModule() {
           )
         },
       }),
-    ],
+    ]),
     [ctx?.canManage, me.data?.user.id, roleChange, selected]
   )
 
   const rows = useMemo(() => members.data?.pages.flatMap((p) => p.items) ?? [], [members.data])
-  /* Legacy ColumnDef is invariant in TValue; columns are built per-accessor, cast once here. */
-  const table = useReactTable({ data: rows, columns: columns as LegacyColumnDef<MemberRow>[], getCoreRowModel: getCoreRowModel() })
+  const table = useTable({ features, data: rows, columns })
 
   if (!ctx) return null
 
