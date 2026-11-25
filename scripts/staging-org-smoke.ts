@@ -13,6 +13,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const STATE_PATH = resolve(process.cwd(), '.staging-org-smoke-state.json')
 
@@ -55,7 +56,7 @@ function required(name: string): string {
   return v
 }
 
-function assertStagingOrigin(origin: string) {
+export function assertStagingOrigin(origin: string) {
   const o = origin.replace(/\/$/, '')
   if (/www\.okvevo\.com|text2video-16cbf|okvevo-prod/i.test(o)) {
     throw new Error(`refusing production origin: ${o}`)
@@ -66,7 +67,7 @@ function assertStagingOrigin(origin: string) {
   return o
 }
 
-type Authed = { uid: string; email: string; idToken: string }
+export type Authed = { uid: string; email: string; idToken: string }
 
 type SmokeState = {
   origin: string
@@ -79,7 +80,7 @@ type SmokeState = {
   applicationId: string
 }
 
-async function authedJson<T>(
+export async function authedJson<T>(
   origin: string,
   idToken: string,
   path: string,
@@ -98,7 +99,7 @@ async function authedJson<T>(
   return { status: res.status, json }
 }
 
-async function initAdmin() {
+export async function initAdmin() {
   const key = required('FB_SERVICE_ACCOUNT_KEY')
   const { initializeApp, getApps, cert } = await import('firebase-admin/app')
   const { getAuth } = await import('firebase-admin/auth')
@@ -112,7 +113,7 @@ async function initAdmin() {
   return getAuth()
 }
 
-async function idTokenFromCustom(apiKey: string, customToken: string): Promise<string> {
+export async function idTokenFromCustom(apiKey: string, customToken: string): Promise<string> {
   const res = await fetch(`${IDENTITY}:signInWithCustomToken?key=${apiKey}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -125,7 +126,7 @@ async function idTokenFromCustom(apiKey: string, customToken: string): Promise<s
   return json.idToken
 }
 
-async function mintUser(
+export async function mintUser(
   adminAuth: Awaited<ReturnType<typeof initAdmin>>,
   apiKey: string,
   email: string
@@ -200,15 +201,33 @@ where owner_org_id = '${orgId}'::uuid;
 `.trim()
 }
 
-async function seedViaDatabase(orgId: string) {
-  const url = (process.env.DATABASE_URL ?? '').trim()
-  if (!url) return false
+/** Localhost (ssl off, OKVEVO_ENV=local) or the staging project ref. Anything else throws. */
+function databaseMode(url: string): { ssl: false | 'require'; env: 'local' | 'staging' } {
   if (/radwdxigdywwdvizczho|okvevo-prod|text2video/i.test(url)) {
     throw new Error('refusing DATABASE_URL that looks like production')
   }
-  process.env.OKVEVO_ENV ??= 'staging'
+  let host = ''
+  try {
+    host = new URL(url).hostname
+  } catch {
+    throw new Error('refusing DATABASE_URL that is not a URL')
+  }
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return { ssl: false, env: 'local' }
+  }
+  if (url.includes('wnbaxrmnnnfmrquwgsac')) {
+    return { ssl: 'require', env: 'staging' }
+  }
+  throw new Error('refusing DATABASE_URL: not localhost and not the staging project')
+}
+
+export async function seedViaDatabase(orgId: string) {
+  const url = (process.env.DATABASE_URL ?? '').trim()
+  if (!url) return false
+  const mode = databaseMode(url)
+  process.env.OKVEVO_ENV = mode.env
   const postgres = (await import('postgres')).default
-  const lookup = postgres(url, { prepare: false, ssl: 'require', max: 2 })
+  const lookup = postgres(url, { prepare: false, ssl: mode.ssl, max: 2 })
   let billingAccountId: string
   try {
     const rows = await lookup`
@@ -466,8 +485,11 @@ async function main() {
   await finishAfterSeed(state)
 }
 
-main().catch((err) => {
-  console.error('staging-org-smoke: FAIL')
-  console.error(err instanceof Error ? err.message : err)
-  process.exit(1)
-})
+const entry = process.argv[1]
+if (entry && import.meta.url === pathToFileURL(resolve(entry)).href) {
+  main().catch((err) => {
+    console.error('staging-org-smoke: FAIL')
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  })
+}
