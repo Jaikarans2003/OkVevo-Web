@@ -1,5 +1,6 @@
 import { decodeCursor, encodeCursor } from '@/lib/analytics/cursor'
 import { notAliasJob } from '@/lib/analytics/jobScope'
+import { releaseReasonWording } from '@/lib/analytics/releaseReasonCopy'
 import type { DbHandle } from '@/lib/db/wallet'
 import { customerModel } from '@/lib/gateway/modelCatalog'
 
@@ -50,7 +51,9 @@ export async function listOrgJobs(
       jobType: shown.jobType,
       status: String(row.status ?? ''),
       credits: Number(row.credits) || 0,
-      releaseReason: row.release_reason == null ? null : String(row.release_reason),
+      releaseReason: releaseReasonWording(
+        row.release_reason == null ? null : String(row.release_reason)
+      ),
     }
   })
   const extra = rows[limit]
