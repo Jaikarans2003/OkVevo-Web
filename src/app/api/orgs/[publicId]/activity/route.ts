@@ -14,7 +14,7 @@ function canReadActivity(role: string): boolean {
   return role === 'owner' || role === 'inherited_read' || role === 'platform_admin'
 }
 
-/** GET /api/orgs/:publicId/activity — owners. A super-org owner also sees children. */
+/** GET /api/orgs/:publicId/activity — owner / inherited_read / platform_admin. Super-org feeds include children. */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -37,11 +37,15 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: 'org_access_denied', code: 'org_access_denied' }, { status: 403 })
   }
 
-  const includeChildren = authz.org.kind === 'super_org' && authz.role !== 'inherited_read'
+  // Super-org feed includes children's events for every read-capable role
+  // (owner / inherited_read / platform_admin — member is 403 above).
+  const includeChildren = authz.org.kind === 'super_org'
   const cursor = decodeCursor(new URL(req.url).searchParams.get('cursor'))
   const rows = await sql`
-    select a.id, a.created_at, a.actor_user_id, a.action, a.target_id, a.metadata, o.name as target_name
+    select a.id, a.created_at, a.actor_user_id, a.action, a.target_id, a.metadata, o.name as target_name,
+           ao.name as org_name
     from audit_log a
+    join organizations ao on ao.id = a.org_id
     left join organizations o on o.id::text = a.target_id
     where (
       a.org_id = ${authz.org.id}
@@ -54,7 +58,18 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   const page = rows.slice(0, 50)
   const items = page.map((row) => {
-    const metadata = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<string, unknown>
+    // jsonb arrives as a string with prepare:false — parse so wording sees real fields.
+    let metadata: Record<string, unknown> = {}
+    if (row.metadata && typeof row.metadata === 'object') {
+      metadata = row.metadata as Record<string, unknown>
+    } else if (typeof row.metadata === 'string') {
+      try {
+        const parsed = JSON.parse(row.metadata) as unknown
+        if (parsed && typeof parsed === 'object') metadata = parsed as Record<string, unknown>
+      } catch {
+        // keep {} — wording falls back to generic
+      }
+    }
     const targetName = row.target_name == null ? null : String(row.target_name)
     const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at)
     return {
@@ -63,6 +78,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       actor: actorLabel(String(row.actor_user_id)),
       action: activityWording(String(row.action), metadata, targetName),
       target: targetName,
+      orgName: String(row.org_name),
     }
   })
   const last = items[items.length - 1]
