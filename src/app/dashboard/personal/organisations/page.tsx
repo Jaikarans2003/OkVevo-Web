@@ -1,7 +1,5 @@
-import MeModule from '@/components/portal/MeModule';
+import PersonalOrganisations from '@/components/portal/dashboard/personal/OrganisationsBody';
 
 export default function PersonalOrganisationsPage() {
-    return (
-        <MeModule title="Organisations" placeholder="Organisations module lands in the next wave." />
-    );
+    return <PersonalOrganisations />;
 }

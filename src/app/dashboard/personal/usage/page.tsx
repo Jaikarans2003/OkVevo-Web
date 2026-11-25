@@ -1,5 +1,5 @@
-import SummaryModule from '@/components/portal/SummaryModule';
+import PersonalUsage from '@/components/portal/dashboard/personal/UsageBody';
 
 export default function PersonalUsagePage() {
-    return <SummaryModule title="Usage" placeholder="Usage module lands in the next wave." />;
+    return <PersonalUsage />;
 }

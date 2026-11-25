@@ -1,10 +1,5 @@
-import SummaryModule from '@/components/portal/SummaryModule';
+import PersonalAccountType from '@/components/portal/dashboard/personal/AccountTypeBody';
 
 export default function PersonalAccountTypePage() {
-    return (
-        <SummaryModule
-            title="Account type"
-            placeholder="Account type module lands in the next wave."
-        />
-    );
+    return <PersonalAccountType />;
 }

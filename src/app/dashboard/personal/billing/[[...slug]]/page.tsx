@@ -1,5 +1,5 @@
-import SummaryModule from '@/components/portal/SummaryModule';
+import PersonalBilling from '@/components/portal/dashboard/personal/BillingBody';
 
 export default function PersonalBillingPage() {
-    return <SummaryModule title="Billing" placeholder="Billing module lands in the next wave." />;
+    return <PersonalBilling />;
 }
