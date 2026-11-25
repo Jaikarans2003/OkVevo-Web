@@ -144,7 +144,7 @@ async function getOrg(actor: string, publicId: string) {
 
 async function getUsage(actor: string, publicId: string) {
   setFakeAuthUid(actor)
-  const req = new NextRequest(`http://localhost/api/orgs/${publicId}/usage?group_by=user`, {
+  const req = new NextRequest(`http://localhost/api/orgs/${publicId}/usage?group_by=member`, {
     headers: { authorization: `Bearer ${actor}` },
   })
   const res = await usageRoute.GET(req, { params: Promise.resolve({ publicId }) })
@@ -204,15 +204,19 @@ await insertCreditTransaction(sql, `d2bcd_m_${stamp}`, superBilling!.id, {
 })
 const memberUsage = await getUsage(member, superPub)
 assert.equal(memberUsage.status, 200)
-const rows = (memberUsage.json.rows as Array<Record<string, unknown>>) ?? []
+const rows = (memberUsage.json.series as Array<Record<string, unknown>>) ?? []
+assert.ok(rows.length >= 1)
 for (const r of rows) {
-  assert.equal(String(r.user_id), member)
+  assert.equal(String(r.key), member)
 }
 
 const ownerUsage = await getUsage(owner, superPub)
 assert.equal(ownerUsage.status, 200)
-const ownerRows = (ownerUsage.json.rows as Array<Record<string, unknown>>) ?? []
+const ownerRows = (ownerUsage.json.series as Array<Record<string, unknown>>) ?? []
 assert.ok(ownerRows.length >= 1)
+const ownerKeys = new Set(ownerRows.map((r) => String(r.key)))
+assert.ok(ownerKeys.has(owner))
+assert.ok(ownerKeys.has(member))
 
 // Transfers list (admin) includes repay/added split
 setFakeAuthUid(owner)
