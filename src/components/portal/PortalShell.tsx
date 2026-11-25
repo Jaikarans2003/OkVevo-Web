@@ -70,9 +70,8 @@ export default function PortalShell({ children, signedIn = true }: { children: R
         const next = value === '' ? null : value;
         writeActiveOrgPublicId(next);
         setActiveOrg(next);
-        // Reload so billing/profile refetch with the new X-OkVevo-Org header.
-        router.refresh();
-        window.location.reload();
+        // No reload: the URL-scoped dashboard passes org explicitly per
+        // request; this shell only remains on signed-out pages (login).
     };
 
     const showSwitcher =
