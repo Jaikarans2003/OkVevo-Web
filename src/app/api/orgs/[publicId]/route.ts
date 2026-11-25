@@ -9,7 +9,6 @@ import { computeCreditLimit } from '@/lib/orgs/creditLimit'
 import { overdrawnPct } from '@/lib/orgs/dashboardHelpers'
 import {
   buildAdminExactCredits,
-  buildChildOrgRow,
   loadMemberDashboardRows,
   walletPctSummary,
 } from '@/lib/orgs/orgDashboard'
@@ -34,7 +33,7 @@ function canSeeExact(role: string): boolean {
   return role === 'owner' || role === 'platform_admin'
 }
 
-/** GET /api/orgs/:publicId — org, members, wallet %s, children (super-org). */
+/** GET /api/orgs/:publicId — org, members, wallet %s. Children moved to GET .../organisations. */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await requireAuthed(req)
   if (!isAuthed(user)) return user
@@ -76,57 +75,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         fundedBy: parentName,
       }
     : null
-
-  const children: Array<Record<string, unknown>> = []
-  const childSponsored: number[] = []
-  if (authz.org.kind === 'super_org') {
-    const childRows = await sql`
-      select id, public_id, name, kind
-      from organizations
-      where parent_id = ${authz.org.id}
-      order by created_at asc
-    `
-    for (const c of childRows) {
-      const childBilling = await getBillingByOrgId(sql, String(c.id))
-      const row = await buildChildOrgRow(sql, {
-        publicId: String(c.public_id),
-        name: String(c.name),
-        kind: String(c.kind),
-        billing: childBilling ?? null,
-        now,
-      })
-      childSponsored.push(childBilling?.sponsoredBalance ?? 0)
-      if (exactOk) {
-        children.push({
-          publicId: row.publicId,
-          name: row.name,
-          kind: row.kind,
-          wallet: row.wallet,
-          active: row.active,
-          creditsUsed: row.creditsUsed,
-          memberCount: row.memberCount,
-          owesPct: row.owesPct,
-          owesCredits: row.owesCredits,
-        })
-      } else {
-        children.push({
-          publicId: row.publicId,
-          name: row.name,
-          kind: row.kind,
-          wallet: row.wallet
-            ? {
-                accountKind: row.wallet.accountKind,
-                accessMode: row.wallet.accessMode,
-                remainingPct: row.wallet.remainingPct,
-                additionalPct: row.wallet.additionalPct,
-                sponsoredPct: row.wallet.sponsoredPct,
-                canPurchase: row.wallet.canPurchase,
-              }
-            : null,
-        })
-      }
-    }
-  }
 
   let members: Array<Record<string, unknown>>
   if (membersList && billing) {
@@ -180,10 +128,20 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     canSpend: authz.canSpend,
     wallet,
     members,
-    children,
   }
 
   if (exactOk) {
+    // Child list moved to GET .../organisations — one aggregate keeps owedByOrganisations.
+    let childSponsored: number[] = []
+    if (authz.org.kind === 'super_org') {
+      const rows = await sql`
+        select b.sponsored_balance
+        from billing_accounts b
+        join organizations o on o.id = b.owner_org_id
+        where o.parent_id = ${authz.org.id}
+      `
+      childSponsored = rows.map((r) => Number(r.sponsored_balance) || 0)
+    }
     body.exact = await buildAdminExactCredits(sql, {
       billing: billing ?? null,
       childrenSponsoredBalances: childSponsored,
