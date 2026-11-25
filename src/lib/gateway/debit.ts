@@ -749,9 +749,14 @@ export async function commitFalSubmitted(opts: {
     if (opts.falRequestId !== opts.holdId) {
       const aliasRow = await lockJob(tx, opts.falRequestId);
       if (!aliasRow) {
-        const billing = await getBillingByUserId(tx, opts.uid);
-        if (billing) {
-          await insertJob(tx, opts.falRequestId, opts.uid, billing.id, { aliasOf: opts.holdId });
+        const billingAccountId =
+          typeof job?.billingAccountId === 'string' ? job.billingAccountId : null;
+        if (billingAccountId) {
+          await insertJob(tx, opts.falRequestId, opts.uid, billingAccountId, {
+            aliasOf: opts.holdId,
+            ...(typeof job.orgId === 'string' ? { orgId: job.orgId } : {}),
+            ...(typeof job.superOrgId === 'string' ? { superOrgId: job.superOrgId } : {}),
+          });
         }
       }
     }

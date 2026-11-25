@@ -1,4 +1,5 @@
 import { decodeCursor, encodeCursor } from '@/lib/analytics/cursor'
+import { notAliasJob } from '@/lib/analytics/jobScope'
 import type { DbHandle } from '@/lib/db/wallet'
 import { customerModel } from '@/lib/gateway/modelCatalog'
 
@@ -28,6 +29,7 @@ export async function listOrgJobs(
            release_reason
     from gateway_jobs
     where org_id = ${opts.orgId}
+      and ${notAliasJob(db)}
       ${opts.userId ? db`and user_id = ${opts.userId}` : db``}
       ${cursor ? db`and (created_at, id) < (${cursor.at}::timestamptz, ${cursor.id})` : db``}
     order by created_at desc, id desc
