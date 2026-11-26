@@ -29,6 +29,19 @@ async function getOrgDashboard(idToken: string, orgPublicId: string) {
   return { status: res.status, json }
 }
 
+async function getOrganisations(idToken: string, orgPublicId: string) {
+  const res = await fetch(`${L2_ENV.baseUrl}/api/orgs/${orgPublicId}/organisations`, {
+    headers: {
+      authorization: `Bearer ${idToken}`,
+      'x-okvevo-org': orgPublicId,
+    },
+  })
+  const json = (await res.json().catch(() => ({}))) as {
+    items?: Array<{ publicId: string; owes?: number }>
+  }
+  return { status: res.status, json }
+}
+
 test.describe('2b-c dashboards', () => {
   test('overdrawn sentence on child summary; Owes on super-org organisations', async () => {
     test.setTimeout(180_000)
@@ -110,17 +123,17 @@ test.describe('2b-c dashboards', () => {
       expect(typeof exact.availableToSend).toBe('number')
       expect(exact.availableToSendLabel).toMatch(/Available to send:/)
 
-      const children = superDash.children as Array<{
-        publicId: string
-        owesPct?: number
-        owesCredits?: number
-      }>
-      const child = children.find((c) => c.publicId === orgPublicId)
+      // Child rows live on GET …/organisations. Detail no longer returns children.
+      const { status: listStatus, json: orgList } = await getOrganisations(
+        superUser.idToken,
+        superOrgPublicId
+      )
+      expect(listStatus).toBe(200)
+      const child = orgList.items?.find((c) => c.publicId === orgPublicId)
       expect(child).toBeTruthy()
-      expect(typeof child!.owesPct).toBe('number')
-      expect(typeof child!.owesCredits).toBe('number')
-      // When not overdrawn, both are 0; UI still renders credits + %.
-      expect(child!.owesCredits).toBe(exact.owedByOrganisations)
+      expect(typeof child!.owes).toBe('number')
+      // One child: its Owes amount is the super-org owed total (0 when not overdrawn).
+      expect(child!.owes).toBe(exact.owedByOrganisations)
     } finally {
       await deleteTestUser(orgUser)
       await deleteTestUser(superUser)
