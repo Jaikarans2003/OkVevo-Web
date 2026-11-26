@@ -104,3 +104,6 @@ infrastructure/cdk.out-*/
 infrastructure/dist/
 *adminsdk*.json
 .staging-org-smoke-state.json
+
+# Agent coordination files (orchestrator-worker; never committed)
+.cursor/coordination/

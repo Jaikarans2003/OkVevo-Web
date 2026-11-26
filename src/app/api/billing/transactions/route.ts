@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  let mineOnly = false
   if (paying.orgId) {
     const orgRows = await sql`
       select public_id from organizations where id = ${paying.orgId}
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
     const authz = await authorizeOrg(sql, {
       userId: user.uid,
       orgPublicId: publicId,
-      need: 'owner',
+      need: 'read',
       email: user.email,
     })
     if (!authz.ok) {
@@ -56,11 +57,19 @@ export async function GET(req: NextRequest) {
         { status: authz.code === 'org_not_found' ? 404 : 403 }
       )
     }
+    // Org wallet: members always see only their own rows; owners can ask with ?mine=1.
+    mineOnly =
+      authz.role === 'member' ||
+      req.nextUrl.searchParams.get('mine') === '1'
   }
 
   const cursor = req.nextUrl.searchParams.get('cursor')
   try {
-    const page = await listBillingTransactions(paying.billingAccountId, cursor)
+    const page = await listBillingTransactions(
+      paying.billingAccountId,
+      cursor,
+      mineOnly ? user.uid : null
+    )
     return NextResponse.json(page)
   } catch (err) {
     if (err instanceof Error && err.message === 'invalid_cursor') {

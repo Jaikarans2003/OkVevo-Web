@@ -6,6 +6,7 @@
  */
 import { isEntitled } from '@/lib/billing/entitlement'
 import type { TxSql } from '@/lib/db/tx'
+import { writeAuditLog } from '@/lib/orgs/auditLog'
 import {
   getBillingByOrgId,
   insertCreditTransaction,
@@ -271,6 +272,15 @@ export async function transferCredits(
     toPatch.sponsoredReference = 0
   }
   await updateBillingById(tx, to.id, toPatch)
+
+  await writeAuditLog(tx, {
+    orgId: fromSuperOrgId,
+    actorUserId,
+    action: 'credits.transfer',
+    targetType: 'organization',
+    targetId: toOrgId,
+    metadata: { amount: credits, credited: credits - repay, debtRecovered: repay },
+  })
 
   return {
     ok: true,

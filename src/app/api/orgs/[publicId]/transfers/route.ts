@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withTx } from '@/lib/db/tx'
 import { auth } from '@/lib/firebase-admin'
 import { gatewayIdToken } from '@/lib/gateway/auth'
+import { decodeCursor } from '@/lib/analytics/cursor'
 import { authorizeOrg, loadOrgByPublicId } from '@/lib/orgs/authorize'
 import { listSuperOrgTransfers, listTransferReceipts } from '@/lib/orgs/orgDashboard'
+import { parseLimit } from '@/lib/orgs/orgLists'
 import { transferCredits } from '@/lib/orgs/transferCredits'
 import { getBillingByOrgId } from '@/lib/db/wallet'
 import { sql } from '@/lib/db/client'
@@ -15,8 +17,8 @@ export const runtime = 'nodejs'
 type Ctx = { params: Promise<{ publicId: string }> }
 
 /**
- * GET /api/orgs/:publicId/transfers — admin+.
- * Super-org: outbound sends with repaid/added split.
+ * GET /api/orgs/:publicId/transfers — admin+. Keyset-paged (`cursor`, `limit` <= 50).
+ * Super-org: outbound sends with repaid/added split; `to=<childPublicId>` filters one child.
  * Child org: received receipts with repaid/added split.
  */
 export async function GET(req: NextRequest, ctx: Ctx) {
@@ -24,6 +26,17 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!isAuthed(user)) return user
 
   const { publicId } = await ctx.params
+  const url = new URL(req.url)
+  const limit = parseLimit(url.searchParams.get('limit'))
+  if (limit == null) {
+    return NextResponse.json({ error: 'invalid_limit', code: 'invalid_limit' }, { status: 400 })
+  }
+  const cursorRaw = url.searchParams.get('cursor')
+  const cursor = decodeCursor(cursorRaw)
+  if (cursorRaw && !cursor) {
+    return NextResponse.json({ error: 'invalid_cursor', code: 'invalid_cursor' }, { status: 400 })
+  }
+
   const authz = await authorizeOrg(sql, {
     userId: user.uid,
     orgPublicId: publicId,
@@ -40,15 +53,19 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   const billing = await getBillingByOrgId(sql, authz.org.id)
   if (!billing) {
-    return NextResponse.json({ items: [] })
+    return NextResponse.json({ items: [], nextCursor: null })
   }
 
   if (authz.org.kind === 'super_org') {
-    const items = await listSuperOrgTransfers(sql, {
+    const to = (url.searchParams.get('to') ?? '').trim() || null
+    const page = await listSuperOrgTransfers(sql, {
       superOrgId: authz.org.id,
       superBillingAccountId: billing.id,
+      limit,
+      cursor: cursorRaw,
+      to,
     })
-    return NextResponse.json({ items })
+    return NextResponse.json(page)
   }
 
   let superOrgName = 'your super-organisation'
@@ -56,11 +73,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const parent = await sql`select name from organizations where id = ${authz.org.parentId}`
     if (parent[0]) superOrgName = String(parent[0].name)
   }
-  const items = await listTransferReceipts(sql, {
+  const page = await listTransferReceipts(sql, {
     childBillingAccountId: billing.id,
     superOrgName,
+    limit,
+    cursor: cursorRaw,
   })
-  return NextResponse.json({ items })
+  return NextResponse.json(page)
 }
 
 /** POST /api/orgs/:publicId/transfers — super-org owner sends top-up credits to a child. */

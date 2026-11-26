@@ -1,9 +1,10 @@
 /**
- * Billing timeline Layer 2 env (plan §14.3). Staging only, Razorpay test
- * keys only. Loaded by playwright.config.ts and every spec/helper in this
- * directory — never imported by app code.
+ * Billing timeline Layer 2 env. Razorpay test keys only. Loaded by
+ * playwright.config.ts and every spec/helper in this directory — never
+ * imported by app code.
  *
- * Mirrors the fail-closed guard in ../../scripts/cleanup-stale-test-subscriptions.ts.
+ * L2_BASE_URL, when set, replaces STAGING_BASE_URL. The rzp_test_ guard
+ * stays fail-closed either way.
  */
 
 function loadDotEnv() {
@@ -32,8 +33,11 @@ if (!razorpayKeyId.startsWith('rzp_test_')) {
 }
 
 export const L2_ENV = {
-  /** Deployed staging origin, e.g. https://okvevo-web--okvevo-testing.us-central1.hosted.app */
-  baseUrl: required('STAGING_BASE_URL').replace(/\/$/, ''),
+  /**
+   * L2_BASE_URL replaces the staging origin for a local (or later post-merge)
+   * run. Unset, the suite still targets STAGING_BASE_URL.
+   */
+  baseUrl: (process.env.L2_BASE_URL?.trim() || required('STAGING_BASE_URL')).replace(/\/$/, ''),
   razorpayKeyId,
   razorpayKeySecret: required('RAZORPAY_KEY_SECRET'),
   /** Public Firebase Web API key — same one shipped to the browser, not a secret. */

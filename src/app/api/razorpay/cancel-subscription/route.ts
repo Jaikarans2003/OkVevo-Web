@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
+import { withTx } from '@/lib/db/tx';
 import { updateBillingById } from '@/lib/db/wallet';
+import { writeAuditLog } from '@/lib/orgs/auditLog';
 import { RAZORPAY_CONFIG } from '@/config/razorpay';
 import { uidFromIdToken } from '@/lib/gateway/auth';
 import { isCancellablePlanStatus, loadBillingSoTByAccountId } from '@/lib/billing/userSoT';
@@ -82,7 +84,19 @@ export async function POST(request: NextRequest) {
         const willCancelAt = billing.currentPeriodEnd
             ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        await updateBillingById(sql, paying.billingAccountId, { cancelAtPeriodEnd: true });
+        await withTx(async (tx) => {
+            await updateBillingById(tx, paying.billingAccountId, { cancelAtPeriodEnd: true });
+            if (paying.orgId) {
+                await writeAuditLog(tx, {
+                    orgId: paying.orgId,
+                    actorUserId: user.uid,
+                    action: 'plan.cancel',
+                    targetType: 'organization',
+                    targetId: paying.orgId,
+                    metadata: { plan: billing.plan, endsAt: willCancelAt.toISOString() },
+                });
+            }
+        });
 
         return NextResponse.json({
             success: true,

@@ -31,6 +31,7 @@ import {
   takeFromLots,
 } from '@/lib/billing/allocationLots';
 import { isEntitled } from '@/lib/billing/entitlement';
+import { writeAuditLog } from '@/lib/orgs/auditLog';
 import { admit, parseQueue, QueueFullError, slotsForPlan } from '@/lib/fal/falQueue';
 import { captureCreditsOn } from '@/lib/gateway/captureCredits';
 import { nextAllocationGrantedTotal, nextTopUpPurchasedTotal } from '@/types/credits';
@@ -748,9 +749,14 @@ export async function commitFalSubmitted(opts: {
     if (opts.falRequestId !== opts.holdId) {
       const aliasRow = await lockJob(tx, opts.falRequestId);
       if (!aliasRow) {
-        const billing = await getBillingByUserId(tx, opts.uid);
-        if (billing) {
-          await insertJob(tx, opts.falRequestId, opts.uid, billing.id, { aliasOf: opts.holdId });
+        const billingAccountId =
+          typeof job?.billingAccountId === 'string' ? job.billingAccountId : null;
+        if (billingAccountId) {
+          await insertJob(tx, opts.falRequestId, opts.uid, billingAccountId, {
+            aliasOf: opts.holdId,
+            ...(typeof job?.orgId === 'string' ? { orgId: job.orgId } : {}),
+            ...(typeof job?.superOrgId === 'string' ? { superOrgId: job.superOrgId } : {}),
+          });
         }
       }
     }
@@ -971,6 +977,7 @@ export async function reconcileCredits(opts: {
       absorbed: result.absorbed,
       provider,
       model: opts.model,
+      requested_model: typeof jobData?.requestedModel === 'string' ? jobData.requestedModel : undefined,
       prompt_tokens: opts.promptTokens,
       completion_tokens: opts.completionTokens,
       cost_usd: opts.costUsd,
@@ -1123,6 +1130,8 @@ export async function grantCredits(opts: {
   razorpaySubscriptionId?: string | null;
   /** Allocation lot expiry (= subscription current_period_end). */
   expiresAt?: Date | null;
+  /** Written in this transaction only when the wallet belongs to an org. */
+  planAudit?: { action: string; metadata?: Record<string, unknown> };
 }): Promise<{ allocationBalance: number; topUpBalance: number; requestId: string }> {
   const { reason, bucket, userPatch } = opts;
   const uid = opts.uid;
@@ -1300,6 +1309,17 @@ export async function grantCredits(opts: {
         ...(bucket === 'allocation' && lotSubId
           ? { razorpay_subscription_id: lotSubId }
           : {}),
+      });
+    }
+
+    if (opts.planAudit && billing.ownerOrgId) {
+      await writeAuditLog(tx, {
+        orgId: billing.ownerOrgId,
+        actorUserId: 'system',
+        action: opts.planAudit.action,
+        targetType: 'organization',
+        targetId: billing.ownerOrgId,
+        metadata: opts.planAudit.metadata,
       });
     }
 

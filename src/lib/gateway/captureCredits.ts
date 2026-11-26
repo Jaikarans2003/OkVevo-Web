@@ -114,6 +114,7 @@ export async function captureCreditsOn(
       amount: result.refund,
       provider: 'fal',
       request_id: requestId,
+      requested_model: typeof jobRow?.requestedModel === 'string' ? jobRow.requestedModel : undefined,
     }));
     out = { skipped: false, refund: result.refund, overReserve: result.overReserve };
   });

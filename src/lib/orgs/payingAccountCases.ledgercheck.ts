@@ -129,6 +129,11 @@ const sent = await withTx((tx) =>
   })
 )
 assert.equal(sent.ok, true)
+const audit = await sql`
+  select action, metadata from audit_log
+  where org_id = ${superUp.orgId} and action = 'credits.transfer'
+`
+assert.equal(audit.length, 1)
 const case1 = await spend(promoted, child.orgPublicId, 40)
 {
   const org = await getBillingByOrgId(sql, child.orgId)
@@ -150,13 +155,14 @@ const own = await withTx((tx) => upgradeIndividualToOrg(tx, { userId: creator, n
 assert.ok(own.ok)
 if (!own.ok) throw new Error('own')
 await spend(creator, null, 25)
-const withHeader = await spend(creator, own.orgPublicId, 15)
+const withHeader = await spend(creator, own.orgPublicId, 15, 'okvevo/auto-cost')
 {
   const org = await getBillingByOrgId(sql, own.orgId)
   assert.equal(org?.allocationBalance, 60)
   assert.equal(await getBillingByUserId(sql, creator), undefined)
   const job = await getJob(sql, withHeader)
   assert.equal(job?.billingAccountId, org?.id)
+  assert.equal(job?.requestedModel, 'okvevo/auto-cost')
 }
 
 // --- 3. Code joiner and a member promoted to owner, independent org ---

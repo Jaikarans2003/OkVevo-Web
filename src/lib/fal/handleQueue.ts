@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { env } from '@/config/env';
 import { sql } from '@/lib/db/client';
-import { getBillingByUserId, getJob } from '@/lib/db/wallet';
+import {
+  getBillingById,
+  getBillingByOrgId,
+  getBillingByUserId,
+  getJob,
+  type BillingAccountData,
+} from '@/lib/db/wallet';
+import { isEntitled } from '@/lib/billing/entitlement';
 import { auth } from '@/lib/firebase-admin';
 import { isMeterableEndpoint } from '@/lib/fal/allowlist';
 import {
@@ -34,6 +41,7 @@ import {
   slotWaitMessage,
   slotsForPlan,
   spendAlertCrossed,
+  type SlotDecision,
 } from '@/lib/fal/falQueue';
 import {
   indexPayloadMedia,
@@ -845,6 +853,7 @@ async function handleSubmit(
     ? undefined
     : omitUndefined({
     endpoint,
+    requestedModel: endpoint,
     unit: snapshot?.unit ?? pricing?.unit,
     unitPrice: snapshot?.unitPrice ?? pricing?.unitPrice,
     submitArgs,
@@ -944,7 +953,41 @@ async function handleSubmit(
   }
 }
 
-async function handleStatus(uid: string, requestId: string): Promise<Response> {
+/** Read-side mirror of debit.ts slotsForPayingWallet: prepaid child orgs ride the super-org's plan. */
+export async function slotsForPayingWalletRead(billing: BillingAccountData): Promise<SlotDecision> {
+  if (billing.accessMode === 'prepaid' && billing.ownerOrgId) {
+    const parentRows = await sql`select parent_id from organizations where id = ${billing.ownerOrgId}`;
+    const parentId = parentRows[0]?.parent_id as string | undefined;
+    if (parentId) {
+      const parentBilling = await getBillingByOrgId(sql, parentId);
+      return slotsForPlan(parentBilling?.plan, 'active');
+    }
+    return slotsForPlan(billing.plan, 'active');
+  }
+  return slotsForPlan(billing.plan, billing.planStatus);
+}
+
+/**
+ * W2f: the queued-poll release gate now mirrors the reserve eligibility rule
+ * (reserveFalRun: prepaid or entitled, and the paying wallet's plan admits)
+ * for the wallet that PAID for the job (billing_account_id) — previously the
+ * caller's personal plan gated this, releasing org-paid queued jobs when the
+ * caller's own plan lapsed. Legacy rows without a stamped wallet keep the
+ * old personal-wallet behavior. Exported for the W2g dispatch-sweep gate
+ * (releaseInactiveQueued in dispatch.ts decides per job with the same rule).
+ */
+export async function payingWalletEligible(uid: string, requestId: string): Promise<boolean> {
+  const data = await getJob(sql, requestId);
+  const billingAccountId = typeof data?.billingAccountId === 'string' ? data.billingAccountId : '';
+  const billing = billingAccountId
+    ? await getBillingById(sql, billingAccountId)
+    : await getBillingByUserId(sql, uid);
+  if (!billing) return false;
+  if (billing.accessMode !== 'prepaid' && !isEntitled(billing)) return false;
+  return (await slotsForPayingWalletRead(billing)).admit;
+}
+
+export async function handleStatus(uid: string, requestId: string): Promise<Response> {
   const job = await readGatewayJob(requestId);
   if (!job || job.uid !== uid) return jsonError(404, 'unknown Fal job');
 
@@ -968,13 +1011,13 @@ async function handleStatus(uid: string, requestId: string): Promise<Response> {
   }
 
   if (job.status === 'queued' || job.status === 'dispatching') {
-    if (job.status === 'queued') {
-      const billing = await getBillingByUserId(sql, uid);
-      const decision = slotsForPlan(billing?.plan, billing?.planStatus);
-      if (!decision.admit) {
-        await releaseInactiveQueued(uid);
-        return jsonError(403, PLAN_INACTIVE_MESSAGE);
-      }
+    if (job.status === 'queued' && !(await payingWalletEligible(uid, requestId))) {
+      // Release only this job; the refund follows the wallet that paid for it
+      // (releaseCredits → lockBillingForJob), not the caller's personal wallet.
+      await releaseCredits(requestId, {
+        patch: { releaseReason: 'plan_inactive', clientMessage: PLAN_INACTIVE_MESSAGE },
+      });
+      return jsonError(403, PLAN_INACTIVE_MESSAGE);
     }
     const slot = await slotView(uid, job.holdId || job.id);
     const waiting = job.status === 'queued';

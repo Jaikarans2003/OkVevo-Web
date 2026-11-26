@@ -277,6 +277,7 @@ const JOB_KEY_MAP: Record<string, string> = {
   dispatchedAt: 'dispatched_at',
   settledAt: 'settled_at',
   settledFalUsd: 'settled_fal_usd',
+  requestedModel: 'requested_model',
 }
 
 /** camelCase job patch (GatewayJobFields-shaped) -> snake_case SET/INSERT fragment. Unknown keys drop. */

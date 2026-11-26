@@ -612,16 +612,18 @@ scenario('scheduled downgrade: summary and API do not offer cancel', async () =>
 
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
-  const billingPage = readFileSync(
-    join(import.meta.dirname, '../../app/dashboard/billing/[[...slug]]/page.tsx'),
-    'utf8'
-  )
-  assert.equal(
-    /Cancel change/.test(billingPage),
-    false,
-    'billing UI must not render a cancel-scheduled button'
-  )
-  assert.equal(/cancel-scheduled-change/.test(billingPage), false)
+  for (const rel of [
+    '../../app/dashboard/billing/[[...slug]]/page.tsx',
+    '../../components/billing/AccountBillingActions.tsx',
+  ]) {
+    const billingPage = readFileSync(join(import.meta.dirname, rel), 'utf8')
+    assert.equal(
+      /Cancel change/.test(billingPage),
+      false,
+      `${rel} must not render a cancel-scheduled button`
+    )
+    assert.equal(/cancel-scheduled-change/.test(billingPage), false)
+  }
 })
 
 // ---------------------------------------------------------------------------

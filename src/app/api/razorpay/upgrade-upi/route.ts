@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { sql } from '@/lib/db/client';
+import { withTx } from '@/lib/db/tx';
 import { upsertRazorpaySubscription } from '@/lib/db/wallet';
+import { writeAuditLog } from '@/lib/orgs/auditLog';
 import {
     RAZORPAY_CONFIG,
     getPlanDetailsByPeriod,
@@ -173,13 +175,25 @@ export async function POST(request: NextRequest) {
 
         // Link rows only. Downgrade cycle-end cancel + scheduled-change fields land in
         // the webhook on subscription.authenticated (after Checkout auth), not here.
-        await upsertRazorpaySubscription(sql, oldSubscriptionId, paying.billingAccountId, {
-            beingReplacedBy: newSubscription.id,
-        });
-        await upsertRazorpaySubscription(sql, newSubscription.id, paying.billingAccountId, {
-            replacingSubscriptionId: oldSubscriptionId,
-            planType: newPlanType,
-            ...(when === 'cycle_end' && { willActivateAt: changeScheduledAt }),
+        await withTx(async (tx) => {
+            await upsertRazorpaySubscription(tx, oldSubscriptionId, paying.billingAccountId, {
+                beingReplacedBy: newSubscription.id,
+            });
+            await upsertRazorpaySubscription(tx, newSubscription.id, paying.billingAccountId, {
+                replacingSubscriptionId: oldSubscriptionId,
+                planType: newPlanType,
+                ...(when === 'cycle_end' && { willActivateAt: changeScheduledAt }),
+            });
+            if (paying.orgId) {
+                await writeAuditLog(tx, {
+                    orgId: paying.orgId,
+                    actorUserId: user.uid,
+                    action: 'plan.change',
+                    targetType: 'organization',
+                    targetId: paying.orgId,
+                    metadata: { fromPlan: billing.plan, toPlan: newPlanType },
+                });
+            }
         });
 
         return NextResponse.json({

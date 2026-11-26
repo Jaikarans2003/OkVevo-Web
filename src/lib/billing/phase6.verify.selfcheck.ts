@@ -92,7 +92,9 @@ assert.equal(remainingPct(60_000, 59_999, 60_000), 99.99);
 assert.equal(formatPctLabel(87.5), '87.5%');
 assert.equal(formatPctLabel(50), '50%');
 
-const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
+const billingPage = src('components/billing/AccountBillingActions.tsx');
+assert.match(src('components/portal/dashboard/personal/BillingBody.tsx'), /AccountBillingActions/);
+assert.match(src('components/portal/dashboard/org/BillingModule.tsx'), /AccountBillingActions/);
 assert.match(billingPage, /Your credits · plan/);
 assert.match(billingPage, /Your credits · additional/);
 assert.match(billingPage, /UsageBar/);
@@ -124,12 +126,15 @@ assert.doesNotMatch(src('lib/api/billingSummary.ts'), /additionalCredits/);
 assert.match(creditsService, /additionalPct/);
 assert.doesNotMatch(creditsService, /additionalCredits/);
 assert.match(billingPage, /additionalPct/);
+assert.match(billingPage, /Cancellation scheduled/);
+assert.match(billingPage, /Won&apos;t renew/);
 assert.doesNotMatch(billingPage, /additionalCredits/);
 assert.match(src('lib/gateway/debit.ts'), /topUpReference:\s*next\.topUpBalance/);
 
 // --- zero tax on checkout + billing surfaces ---
 const taxSurfaces = [
   'app/dashboard/billing/[[...slug]]/page.tsx',
+  'components/billing/AccountBillingActions.tsx',
   'components/landing-page/Pricing.tsx',
   'components/shared/payment/RazorpayCheckout.tsx',
   'components/billing/ChangePlanModal.tsx',
@@ -167,8 +172,6 @@ assert.equal(lookupPlanById('plan_TapXDOpk6VF1qo')?.currency, 'INR');
 assert.equal(lookupPlanById(getRazorpayPlanId('starter', 'monthly', 'USD'))?.currency, 'USD');
 
 // --- cancel: banner now; spend blocked only after Razorpay fires cancelled ---
-assert.match(billingPage, /Cancellation scheduled/);
-assert.match(billingPage, /Won&apos;t renew/);
 const cancelRoute = src('app/api/razorpay/cancel-subscription/route.ts');
 assert.match(cancelRoute, /cancelAtPeriodEnd: true/);
 assert.doesNotMatch(cancelRoute, /planStatus: 'cancelled'/);

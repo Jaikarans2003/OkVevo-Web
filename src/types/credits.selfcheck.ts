@@ -111,9 +111,18 @@ assert.match(debit, /nextAllocationGrantedTotal/);
 assert.match(debit, /allocationGrantedTotal: nextAllocationGrantedTotal/);
 assert.doesNotMatch(debit, /allocationGrantedTotal: next\.allocationBalance/);
 
+const here = path.dirname(fileURLToPath(import.meta.url));
 const billingPage = fs.readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/dashboard/billing/[[...slug]]/page.tsx'),
+  path.join(here, '../components/billing/AccountBillingActions.tsx'),
   'utf8'
+);
+assert.match(
+  fs.readFileSync(path.join(here, '../components/portal/dashboard/personal/BillingBody.tsx'), 'utf8'),
+  /AccountBillingActions/
+);
+assert.match(
+  fs.readFileSync(path.join(here, '../components/portal/dashboard/org/BillingModule.tsx'), 'utf8'),
+  /AccountBillingActions/
 );
 assert.match(billingPage, /Your credits · plan/);
 assert.match(billingPage, /Your credits · additional/);
