@@ -100,7 +100,7 @@ export default function JobsLog({
     refetchInterval: 60_000,
   })
 
-  /* Model options harvested from this wallet's usage (same raw keys). */
+  /* Model options harvested from this wallet's usage (customer labels). */
   const modelOptionsQuery = useAuthedQuery<UsageResult>({
     queryKey: ['usage', 'model-options'],
     path: `/api/orgs/${publicId}/usage?${new URLSearchParams({ tz: VIEWER_TZ, bucket: 'day', group_by: 'model' })}`,

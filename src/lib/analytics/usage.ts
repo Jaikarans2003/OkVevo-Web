@@ -3,7 +3,8 @@
  * Reads credit_transactions directly — usage_daily buckets in UTC, so
  * tz-aware buckets need the raw rows. Credits and requests mirror the view:
  * debits minus refunds; requests = count of debit rows.
- * SQL groups by RAW keys only; labels are applied server-side after.
+ * SQL groups by raw keys. Model series are returned under the customer label
+ * (raw ids never leave this module). A model filter accepts that label or the raw id.
  */
 import { csvCell, csvLine } from '@/lib/analytics/csv'
 import { jobTypeCaseSql } from '@/lib/analytics/jobTypeSql'
@@ -162,6 +163,7 @@ export async function queryUsage(
     select
       to_char(date_trunc(${params.bucket}, created_at at time zone ${tz}), ${fmt}) as bucket,
       ${keyFrag} as key,
+      coalesce(nullif(requested_model, ''), model, '') as model_key,
       (count(*) filter (where type = 'debit'))::int as requests,
       (sum(case type when 'debit' then amount when 'refund' then -amount else 0 end))::int as credits,
       (count(*) filter (where type = 'debit' and created_at >= ${fromUtc}))::int as cur_requests,
@@ -174,13 +176,12 @@ export async function queryUsage(
       and created_at < ${toUtc}
       and ${scopeFrag}
       ${userId ? db`and user_id = ${userId}` : db``}
-      ${params.model ? db`and coalesce(nullif(requested_model, ''), model, '') = ${params.model}` : db``}
       ${params.jobType ? db`and ${jobTypeCaseSql(db, 'ledger')} = ${params.jobType}` : db``}
-    group by 1, 2
+    group by 1, 2, 3
     order by 1 asc, 2 asc
   `
 
-  const series: UsageSeriesRow[] = []
+  const seriesAcc = new Map<string, UsageSeriesRow>()
   const labels: Record<string, string> = {}
   let credits = 0
   let requests = 0
@@ -188,6 +189,10 @@ export async function queryUsage(
   let prevRequests = 0
   for (const row of rows) {
     const r = row as Record<string, unknown>
+    const rawModel = String(r.model_key ?? '')
+    const modelLabel = customerModel({ requestedModel: rawModel || null }).label
+    // Filter accepts the label the customer saw, or the raw id (older links).
+    if (params.model && params.model !== rawModel && params.model !== modelLabel) continue
     const curCredits = Number(r.cur_credits) || 0
     const curRequests = Number(r.cur_requests) || 0
     prevCredits += (Number(r.credits) || 0) - curCredits
@@ -195,14 +200,19 @@ export async function queryUsage(
     credits += curCredits
     requests += curRequests
     if (curCredits === 0 && curRequests === 0) continue
-    const key = String(r.key ?? '')
-    series.push({ bucket: String(r.bucket), key, credits: curCredits, requests: curRequests })
-    if (params.groupBy === 'model') {
-      labels[key] = customerModel({ requestedModel: key || null }).label
-    } else if (params.groupBy === 'job_type') {
-      labels[key] = key
+    const rawKey = String(r.key ?? '')
+    const key = params.groupBy === 'model' ? modelLabel : rawKey
+    const id = `${String(r.bucket)}\0${key}`
+    const existing = seriesAcc.get(id)
+    if (existing) {
+      existing.credits += curCredits
+      existing.requests += curRequests
+    } else {
+      seriesAcc.set(id, { bucket: String(r.bucket), key, credits: curCredits, requests: curRequests })
     }
+    if (params.groupBy === 'model' || params.groupBy === 'job_type') labels[key] = key
   }
+  const series = [...seriesAcc.values()]
 
   // Member/org labels live in the database — one lookup for the page's keys, no N+1.
   if (params.groupBy === 'member' && series.length > 0) {

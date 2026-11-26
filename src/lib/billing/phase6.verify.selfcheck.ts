@@ -92,16 +92,16 @@ assert.equal(remainingPct(60_000, 59_999, 60_000), 99.99);
 assert.equal(formatPctLabel(87.5), '87.5%');
 assert.equal(formatPctLabel(50), '50%');
 
-const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
-// The old billing page is a deep-link redirect. Percent labels live on the overview.
-const overview = src('components/portal/dashboard/org/OverviewModule.tsx');
-assert.match(overview, /Plan credits/);
-assert.match(overview, /Additional credits/);
+const billingPage = src('components/billing/AccountBillingActions.tsx');
+assert.match(src('components/portal/dashboard/personal/BillingBody.tsx'), /AccountBillingActions/);
+assert.match(src('components/portal/dashboard/org/BillingModule.tsx'), /AccountBillingActions/);
+assert.match(billingPage, /Your credits · plan/);
+assert.match(billingPage, /Your credits · additional/);
+assert.match(billingPage, /UsageBar/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /allocationBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /topUpBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
-assert.doesNotMatch(overview, /Math\.round\(\(billing\?\.remainingPct/);
 const usageBar = src('components/billing/UsageBar.tsx');
 assert.match(usageBar, /formatPctLabel\(clamped\)/);
 assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/);
@@ -125,14 +125,16 @@ assert.match(src('lib/api/billingSummary.ts'), /additionalPct/);
 assert.doesNotMatch(src('lib/api/billingSummary.ts'), /additionalCredits/);
 assert.match(creditsService, /additionalPct/);
 assert.doesNotMatch(creditsService, /additionalCredits/);
-assert.match(overview, /additionalPct/);
+assert.match(billingPage, /additionalPct/);
+assert.match(billingPage, /Cancellation scheduled/);
+assert.match(billingPage, /Won&apos;t renew/);
 assert.doesNotMatch(billingPage, /additionalCredits/);
-assert.doesNotMatch(overview, /additionalCredits/);
 assert.match(src('lib/gateway/debit.ts'), /topUpReference:\s*next\.topUpBalance/);
 
 // --- zero tax on checkout + billing surfaces ---
 const taxSurfaces = [
   'app/dashboard/billing/[[...slug]]/page.tsx',
+  'components/billing/AccountBillingActions.tsx',
   'components/landing-page/Pricing.tsx',
   'components/shared/payment/RazorpayCheckout.tsx',
   'components/billing/ChangePlanModal.tsx',

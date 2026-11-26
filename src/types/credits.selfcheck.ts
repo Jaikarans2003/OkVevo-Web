@@ -111,17 +111,22 @@ assert.match(debit, /nextAllocationGrantedTotal/);
 assert.match(debit, /allocationGrantedTotal: nextAllocationGrantedTotal/);
 assert.doesNotMatch(debit, /allocationGrantedTotal: next\.allocationBalance/);
 
+const here = path.dirname(fileURLToPath(import.meta.url));
 const billingPage = fs.readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/dashboard/billing/[[...slug]]/page.tsx'),
+  path.join(here, '../components/billing/AccountBillingActions.tsx'),
   'utf8'
 );
-const overview = fs.readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/portal/dashboard/org/OverviewModule.tsx'),
-  'utf8'
+assert.match(
+  fs.readFileSync(path.join(here, '../components/portal/dashboard/personal/BillingBody.tsx'), 'utf8'),
+  /AccountBillingActions/
 );
-assert.match(overview, /Plan credits/);
-assert.match(overview, /Additional credits/);
-assert.match(billingPage, /router\.replace/);
+assert.match(
+  fs.readFileSync(path.join(here, '../components/portal/dashboard/org/BillingModule.tsx'), 'utf8'),
+  /AccountBillingActions/
+);
+assert.match(billingPage, /Your credits · plan/);
+assert.match(billingPage, /Your credits · additional/);
+assert.match(billingPage, /UsageBar/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
 assert.doesNotMatch(billingPage, /billing\?\.additional \?\? 0\)\.toLocaleString/);

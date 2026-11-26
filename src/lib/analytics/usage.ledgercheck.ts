@@ -151,10 +151,33 @@ const merged = await queryUsage(
   null
 )
 assert.ok(merged.ok)
-assert.equal(merged.result.series.length, 2)
-assert.equal(merged.result.labels['openai/gpt-image-2'], 'GPT Image 2')
-assert.equal(merged.result.labels['openai/gpt-image-2/hd'], 'GPT Image 2')
+assert.equal(merged.result.series.length, 1)
+assert.equal(merged.result.series[0]!.key, 'GPT Image 2')
+assert.equal(merged.result.series[0]!.credits, 7)
+assert.equal(merged.result.labels['GPT Image 2'], 'GPT Image 2')
+assert.equal(JSON.stringify(merged.result).includes('openai/'), false)
+assert.equal(JSON.stringify(merged.result).includes('fal-ai/'), false)
+assert.equal(usageCsv(merged.result).includes('openai/'), false)
 assert.deepEqual(merged.result.top, [{ key: 'GPT Image 2', credits: 7 }])
+
+const byLabel = await queryUsage(
+  sql,
+  params({ from: '2026-02-10', to: '2026-02-10', groupBy: 'model', model: 'GPT Image 2' }),
+  { kind: 'org', orgId, includeChildren: false },
+  null
+)
+assert.ok(byLabel.ok)
+assert.equal(byLabel.result.totals.credits, 7)
+const byRaw = await queryUsage(
+  sql,
+  params({ from: '2026-02-10', to: '2026-02-10', groupBy: 'model', model: 'openai/gpt-image-2' }),
+  { kind: 'org', orgId, includeChildren: false },
+  null
+)
+assert.ok(byRaw.ok)
+assert.equal(byRaw.result.totals.credits, 3)
+assert.equal(byRaw.result.series[0]!.key, 'GPT Image 2')
+assert.equal(JSON.stringify(byRaw.result).includes('openai/'), false)
 
 // --- previous period (debits minus refunds; requests = debit rows) ----------
 await debit({ at: '2026-03-03T12:00:00Z', amount: 2 })
@@ -294,6 +317,12 @@ assert.deepEqual(ids(memberSettled.items), [jC])
 
 const modelJobs = await listOrgJobs(sql, { orgId, model: 'tavily-search', limit: 50 })
 assert.deepEqual(ids(modelJobs.items), [jC])
+const labelJobs = await listOrgJobs(sql, { orgId, model: 'Web search', limit: 50 })
+assert.deepEqual(ids(labelJobs.items), [jC])
+const imageJobs = await listOrgJobs(sql, { orgId, model: 'GPT Image 2', limit: 50 })
+assert.deepEqual(ids(imageJobs.items), [jB])
+const sonnetJobs = await listOrgJobs(sql, { orgId, model: 'Claude Sonnet 5', limit: 50 })
+assert.deepEqual(ids(sonnetJobs.items), [jA])
 
 const ranged = await listOrgJobs(sql, {
   orgId,

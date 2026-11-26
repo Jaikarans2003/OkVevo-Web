@@ -48,6 +48,9 @@ for (const rel of ROUTES) {
 
 const clientFiles = [
   'app/dashboard/billing/[[...slug]]/page.tsx',
+  'components/billing/AccountBillingActions.tsx',
+  'components/portal/dashboard/personal/BillingBody.tsx',
+  'components/portal/dashboard/org/BillingModule.tsx',
   'lib/billing/userSoT.ts',
   'services/CreditsService.ts',
 ];
@@ -58,8 +61,20 @@ for (const rel of clientFiles) {
   }
 }
 
-const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
-assert.match(billingPage, /router\.replace/, 'old billing URL redirects into the dashboard');
+const redirect = src('app/dashboard/billing/[[...slug]]/page.tsx');
+assert.match(redirect, /router\.replace/, 'old billing URL redirects into the dashboard');
+const billingPage = src('components/billing/AccountBillingActions.tsx');
+assert.match(src('components/portal/dashboard/personal/BillingBody.tsx'), /AccountBillingActions/);
+assert.match(src('components/portal/dashboard/org/BillingModule.tsx'), /AccountBillingActions/);
+assert.match(billingPage, /Current Plan/, 'billing shows current plan');
+assert.match(billingPage, /Upgrade available/, 'billing shows upgrade');
+assert.match(billingPage, /Your credits · plan/, 'billing shows plan credits');
+assert.match(billingPage, /Your credits · additional/, 'billing shows additional credits');
+assert.match(billingPage, /Change Plan/, 'billing can change plan');
+assert.match(billingPage, /Cancel Subscription/, 'billing can cancel');
+assert.match(billingPage, /Add Credits/, 'billing can add credits');
+assert.match(billingPage, /Recent Transactions/, 'billing shows recent transactions');
+assert.match(billingPage, /changeSubscriptionPlan/, 'plan change uses changeSubscriptionPlan');
 assert.doesNotMatch(billingPage, /getUserSubscription/, 'billing reads users\/{uid} snapshot only');
 assert.doesNotMatch(billingPage, /Recent Payment/, 'legacy Recent Payment card removed');
 assert.doesNotMatch(billingPage, /\bGST\b|\btax\b|\bTax\b/, 'no tax line on billing');
@@ -69,13 +84,18 @@ assert.doesNotMatch(
   'billing must floor remaining %, not round'
 );
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
-const overview = src('components/portal/dashboard/org/OverviewModule.tsx');
-assert.match(overview, /Plan credits/, 'overview shows plan credits');
-assert.match(overview, /Additional credits/, 'overview shows additional credits');
 const usageBar = src('components/billing/UsageBar.tsx');
+assert.match(billingPage, /UsageBar/, 'billing renders UsageBar');
 assert.match(usageBar, /formatPctLabel/, 'UsageBar labels with formatPctLabel');
 assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
-assert.doesNotMatch(billingPage, /\/api\/razorpay\/cancel-subscription/);
+assert.match(billingPage, /\/api\/razorpay\/cancel-subscription/, 'cancel posts to cancel-subscription');
+assert.match(billingPage, /showCancelModal && canPurchase/, 'prepaid wallets do not get the cancel dialog');
+assert.match(billingPage, /showChangeModal && canPurchase/, 'prepaid wallets do not get the change dialog');
+assert.match(
+  billingPage,
+  /authedFetch|Authorization: `Bearer \$\{idToken\}`/,
+  'billing calls use the ID token'
+);
 assert.match(
   src('lib/api/browser.ts'),
   /Authorization.*Bearer \$\{idToken\}/,

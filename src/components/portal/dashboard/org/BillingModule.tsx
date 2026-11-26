@@ -9,6 +9,7 @@
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 
+import AccountBillingActions from '@/components/billing/AccountBillingActions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -40,6 +41,7 @@ export default function OrgBillingModule() {
   return (
     <ModulePage title="Billing" placeholder="" queryKey={[tab]} query={detail}>
       <div className="grid gap-6">
+        <AccountBillingActions />
         {fundedBy && !canPurchase ? (
           <p className="text-sm text-muted-foreground">
             Funded by {fundedBy}. Top-ups and plan changes are handled by your super-organisation.

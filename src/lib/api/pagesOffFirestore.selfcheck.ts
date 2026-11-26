@@ -15,6 +15,9 @@ function src(rel: string): string {
 
 const surfaces = [
   'app/dashboard/billing/[[...slug]]/page.tsx',
+  'components/billing/AccountBillingActions.tsx',
+  'components/portal/dashboard/personal/BillingBody.tsx',
+  'components/portal/dashboard/org/BillingModule.tsx',
   'app/dashboard/profile/page.tsx',
   'components/shared/AuthForm.tsx',
   'components/shared/ContactUsModal.tsx',

@@ -23,11 +23,13 @@ export type PlanChangeResult =
 export async function changeSubscriptionPlan(
   user: User,
   newPlanType: SelfServePlanType,
-  newBillingPeriod: BillingPeriod
+  newBillingPeriod: BillingPeriod,
+  org?: string | null
 ): Promise<PlanChangeResult> {
   const response = await authedFetch(user, '/api/razorpay/upgrade-upi', {
     method: 'POST',
     body: JSON.stringify({ newPlanType, newBillingPeriod }),
+    ...(org === undefined ? {} : { org }),
   });
   let data: Record<string, unknown> = {};
   const contentType = response.headers.get('content-type') ?? '';

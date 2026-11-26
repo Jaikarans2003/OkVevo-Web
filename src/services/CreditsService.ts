@@ -98,8 +98,12 @@ export function emptyBillingSnapshot(): BillingSnapshot {
   })
 }
 
-export async function getBillingSnapshot(user: User): Promise<BillingSnapshot> {
-  const data = await authedJson<BillingSummary>(user, '/api/billing/summary')
+export async function getBillingSnapshot(user: User, org?: string | null): Promise<BillingSnapshot> {
+  const data = await authedJson<BillingSummary>(
+    user,
+    '/api/billing/summary',
+    org === undefined ? {} : { org }
+  )
   return billingSnapshotFromSummary(data)
 }
 
@@ -109,14 +113,15 @@ export async function getBillingSnapshot(user: User): Promise<BillingSnapshot> {
 export function subscribeUserBilling(
   user: User,
   onData: (snap: BillingSnapshot) => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error) => void,
+  org?: string | null
 ): () => void {
   let stopped = false
   let timer: ReturnType<typeof setInterval> | null = null
 
   const pull = async () => {
     try {
-      const snap = await getBillingSnapshot(user)
+      const snap = await getBillingSnapshot(user, org)
       if (!stopped) onData(snap)
     } catch (err) {
       if (!stopped) onError?.(err instanceof Error ? err : new Error(String(err)))
@@ -143,10 +148,15 @@ export function subscribeUserBilling(
   }
 }
 
-export async function getCreditHistory(user: User, limitCount: number = 50): Promise<CreditTransaction[]> {
+export async function getCreditHistory(
+  user: User,
+  limitCount: number = 50,
+  org?: string | null
+): Promise<CreditTransaction[]> {
   const data = await authedJson<{ items: Array<Record<string, unknown>> }>(
     user,
-    '/api/billing/transactions'
+    '/api/billing/transactions',
+    org === undefined ? {} : { org }
   )
   return (data.items ?? []).slice(0, limitCount).map((row) => ({
     id: String(row.id),

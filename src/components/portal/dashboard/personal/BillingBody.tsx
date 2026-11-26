@@ -4,11 +4,12 @@
  * Personal Billing module (catch-all slug): tabs Transactions | Usage |
  * Credits | Payments, deep-linked at /dashboard/personal/billing/{tab}. The
  * /dashboard/billing/* redirect lands here with slug + query preserved;
- * legacy plan-action slugs (plans, change-plan, cancel, upgrade) fall back
- * to the default tab.
+ * legacy plan-action slugs (change-plan, cancel, upgrade) open the plan
+ * modal in AccountBillingActions; unknown slugs stay on the default tab.
  */
 import { useParams, useRouter } from 'next/navigation'
 
+import AccountBillingActions from '@/components/billing/AccountBillingActions'
 import ModulePage from '@/components/portal/ModulePage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { accountKey, useAccount } from '@/lib/orgs/accountContext'
@@ -62,10 +63,12 @@ export default function PersonalBilling() {
   return (
     <ModulePage
       title="Billing"
-      placeholder="Billing module lands in the next wave."
+      placeholder=""
       queryKey={base}
-      query={active}
+      // Plan actions stay on screen while a tab query is still loading.
+      query={{ isPending: false, dataUpdatedAt: active.dataUpdatedAt }}
     >
+      <AccountBillingActions />
       <Tabs
         value={tab}
         onValueChange={(v) => router.push(`/dashboard/personal/billing/${v}`)}

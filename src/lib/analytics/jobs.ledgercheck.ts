@@ -49,6 +49,53 @@ assert.equal(row!.credits, 3)
 assert.equal(Object.hasOwn(row!, 'provider'), false)
 assert.equal(Object.hasOwn(row!, 'model'), false)
 
+const oldAutoId = `oldauto-${stamp}`
+await insertJob(sql, oldAutoId, uid, billing!.id, {
+  orgId: up.orgId,
+  provider: 'openrouter',
+  status: 'settled',
+  requestedModel: null,
+  estimatedCredits: 1,
+  settledCredits: 1,
+})
+await insertCreditTransaction(sql, `txn-oldauto-${stamp}`, billing!.id, {
+  user_id: uid,
+  org_id: up.orgId,
+  type: 'debit',
+  bucket: 'allocation',
+  amount: 1,
+  provider: 'openrouter',
+  model: 'openrouter/auto-beta',
+  request_id: oldAutoId,
+})
+const oldAuto = (await listOrgJobs(sql, { orgId: up.orgId, limit: 10 })).items.find((item) => item.id === oldAutoId)
+assert.equal(oldAuto?.modelLabel, 'Auto')
+assert.equal(oldAuto?.jobType, 'Chat')
+
+const oldNamedId = `oldnamed-${stamp}`
+await insertJob(sql, oldNamedId, uid, billing!.id, {
+  orgId: up.orgId,
+  provider: 'openrouter',
+  status: 'settled',
+  requestedModel: null,
+  estimatedCredits: 2,
+  settledCredits: 2,
+})
+await insertCreditTransaction(sql, `txn-oldnamed-${stamp}`, billing!.id, {
+  user_id: uid,
+  org_id: up.orgId,
+  type: 'debit',
+  bucket: 'allocation',
+  amount: 2,
+  provider: 'openrouter',
+  model: 'anthropic/claude-sonnet-5',
+  request_id: oldNamedId,
+})
+const oldNamed = (await listOrgJobs(sql, { orgId: up.orgId, limit: 10 })).items.find((item) => item.id === oldNamedId)
+assert.equal(oldNamed?.modelLabel, 'Claude Sonnet 5')
+const byLabel = await listOrgJobs(sql, { orgId: up.orgId, model: 'Auto · Cost-effective', limit: 10 })
+assert.ok(byLabel.items.some((item) => item.id === id))
+
 await insertCreditTransaction(sql, `txn-${stamp}`, billing!.id, {
   user_id: uid,
   org_id: up.orgId,
