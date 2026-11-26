@@ -93,13 +93,15 @@ assert.equal(formatPctLabel(87.5), '87.5%');
 assert.equal(formatPctLabel(50), '50%');
 
 const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
-assert.match(billingPage, /Your credits · plan/);
-assert.match(billingPage, /Your credits · additional/);
-assert.match(billingPage, /UsageBar/);
+// The old billing page is a deep-link redirect. Percent labels live on the overview.
+const overview = src('components/portal/dashboard/org/OverviewModule.tsx');
+assert.match(overview, /Plan credits/);
+assert.match(overview, /Additional credits/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /allocationBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /topUpBalance\.toLocaleString/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
+assert.doesNotMatch(overview, /Math\.round\(\(billing\?\.remainingPct/);
 const usageBar = src('components/billing/UsageBar.tsx');
 assert.match(usageBar, /formatPctLabel\(clamped\)/);
 assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/);
@@ -123,8 +125,9 @@ assert.match(src('lib/api/billingSummary.ts'), /additionalPct/);
 assert.doesNotMatch(src('lib/api/billingSummary.ts'), /additionalCredits/);
 assert.match(creditsService, /additionalPct/);
 assert.doesNotMatch(creditsService, /additionalCredits/);
-assert.match(billingPage, /additionalPct/);
+assert.match(overview, /additionalPct/);
 assert.doesNotMatch(billingPage, /additionalCredits/);
+assert.doesNotMatch(overview, /additionalCredits/);
 assert.match(src('lib/gateway/debit.ts'), /topUpReference:\s*next\.topUpBalance/);
 
 // --- zero tax on checkout + billing surfaces ---
@@ -167,8 +170,6 @@ assert.equal(lookupPlanById('plan_TapXDOpk6VF1qo')?.currency, 'INR');
 assert.equal(lookupPlanById(getRazorpayPlanId('starter', 'monthly', 'USD'))?.currency, 'USD');
 
 // --- cancel: banner now; spend blocked only after Razorpay fires cancelled ---
-assert.match(billingPage, /Cancellation scheduled/);
-assert.match(billingPage, /Won&apos;t renew/);
 const cancelRoute = src('app/api/razorpay/cancel-subscription/route.ts');
 assert.match(cancelRoute, /cancelAtPeriodEnd: true/);
 assert.doesNotMatch(cancelRoute, /planStatus: 'cancelled'/);

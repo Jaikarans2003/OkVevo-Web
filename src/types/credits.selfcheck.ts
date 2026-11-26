@@ -115,9 +115,13 @@ const billingPage = fs.readFileSync(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/dashboard/billing/[[...slug]]/page.tsx'),
   'utf8'
 );
-assert.match(billingPage, /Your credits · plan/);
-assert.match(billingPage, /Your credits · additional/);
-assert.match(billingPage, /UsageBar/);
+const overview = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/portal/dashboard/org/OverviewModule.tsx'),
+  'utf8'
+);
+assert.match(overview, /Plan credits/);
+assert.match(overview, /Additional credits/);
+assert.match(billingPage, /router\.replace/);
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/);
 assert.doesNotMatch(billingPage, /Math\.round\(\(billing\?\.remainingPct/);
 assert.doesNotMatch(billingPage, /billing\?\.additional \?\? 0\)\.toLocaleString/);

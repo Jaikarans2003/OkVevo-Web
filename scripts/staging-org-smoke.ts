@@ -240,7 +240,7 @@ export async function seedViaDatabase(orgId: string) {
     await lookup.end({ timeout: 2 })
   }
 
-  const { grantCredits } = await import('../src/lib/gateway/debit.ts')
+  const { grantCredits } = await import('../src/lib/gateway/debit')
   const ids = smokeRequestIds(orgId)
   const periodEnd = new Date(Date.now() + 30 * 864e5)
   await grantCredits({

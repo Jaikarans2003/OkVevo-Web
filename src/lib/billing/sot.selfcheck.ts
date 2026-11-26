@@ -59,15 +59,7 @@ for (const rel of clientFiles) {
 }
 
 const billingPage = src('app/dashboard/billing/[[...slug]]/page.tsx');
-assert.match(billingPage, /Current Plan/, 'billing shows Current Plan card');
-assert.match(billingPage, /Upgrade available/, 'billing shows Upgrade available card');
-assert.match(billingPage, /Your credits · plan/, 'billing shows Your credits · plan bar');
-assert.match(billingPage, /Your credits · additional/, 'billing shows Your credits · additional bar');
-assert.match(billingPage, /Change Plan/, 'billing has Change Plan');
-assert.match(billingPage, /Cancel Subscription/, 'billing has Cancel Subscription');
-assert.match(billingPage, /Add Credits/, 'billing keeps Add Credits');
-assert.match(billingPage, /Recent Transactions/, 'billing keeps Recent Transactions');
-assert.match(billingPage, /changeSubscriptionPlan/, 'Change Plan uses Phase 2 update route');
+assert.match(billingPage, /router\.replace/, 'old billing URL redirects into the dashboard');
 assert.doesNotMatch(billingPage, /getUserSubscription/, 'billing reads users\/{uid} snapshot only');
 assert.doesNotMatch(billingPage, /Recent Payment/, 'legacy Recent Payment card removed');
 assert.doesNotMatch(billingPage, /\bGST\b|\btax\b|\bTax\b/, 'no tax line on billing');
@@ -77,20 +69,13 @@ assert.doesNotMatch(
   'billing must floor remaining %, not round'
 );
 assert.doesNotMatch(billingPage, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
-assert.match(billingPage, /UsageBar/, 'billing reuses shared UsageBar');
+const overview = src('components/portal/dashboard/org/OverviewModule.tsx');
+assert.match(overview, /Plan credits/, 'overview shows plan credits');
+assert.match(overview, /Additional credits/, 'overview shows additional credits');
 const usageBar = src('components/billing/UsageBar.tsx');
 assert.match(usageBar, /formatPctLabel/, 'UsageBar labels with formatPctLabel');
 assert.doesNotMatch(usageBar, /Number\.isInteger\(pct\)/, 'UsageBar must accept two-decimal pct');
-assert.match(
-  billingPage,
-  /\/api\/razorpay\/cancel-subscription/,
-  'billing cancel posts to cancel-subscription'
-);
-assert.match(
-  billingPage,
-  /authedFetch|Authorization: `Bearer \$\{idToken\}`/,
-  'billing mutations send the ID token (inline or via authedFetch)'
-);
+assert.doesNotMatch(billingPage, /\/api\/razorpay\/cancel-subscription/);
 assert.match(
   src('lib/api/browser.ts'),
   /Authorization.*Bearer \$\{idToken\}/,
