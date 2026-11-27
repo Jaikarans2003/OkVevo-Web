@@ -85,24 +85,48 @@ function dbHost(url: string): string {
   }
 }
 
+function dbUser(url: string): string {
+  try {
+    return new URL(url.replace(/^postgres(ql)?:/i, 'http:')).username || ''
+  } catch {
+    return ''
+  }
+}
+
+/** Direct host contains the staging ref, or exact STAGING_SUPABASE_HOST.
+ *  Pooler (IPv4): username must be postgres.<staging-ref> and host must end
+ *  in .pooler.supabase.com. Prod ref anywhere in the URL is refused. */
+function isStagingDatabaseUrl(url: string): boolean {
+  if (url.includes(PROD_SUPABASE_REF) || /okvevo-prod|text2video/i.test(url)) {
+    return false
+  }
+  const host = dbHost(url)
+  if (!host) return false
+  if (host.includes(STAGING_SUPABASE_REF) || host === STAGING_SUPABASE_HOST) {
+    return true
+  }
+  const user = dbUser(url)
+  return (
+    user === `postgres.${STAGING_SUPABASE_REF}` &&
+    host.endsWith('.pooler.supabase.com')
+  )
+}
+
 function assertStagingTargets(opts: {
   databaseUrl: string
   firebaseProjectId: string
   razorpayKeyId: string
 }) {
-  const host = dbHost(opts.databaseUrl)
-  if (!host) {
-    throw new Error('refusing: cannot parse DATABASE_URL host')
-  }
-  if (host.includes(PROD_SUPABASE_REF) || host.includes('okvevo-prod')) {
+  if (opts.databaseUrl.includes(PROD_SUPABASE_REF) || /okvevo-prod/i.test(opts.databaseUrl)) {
     throw new Error('refusing: DATABASE_URL points at okvevo-prod')
   }
   if (opts.firebaseProjectId === PROD_FIREBASE) {
     throw new Error(`refusing: Firebase project is ${PROD_FIREBASE}`)
   }
-  if (!host.includes(STAGING_SUPABASE_REF) && host !== STAGING_SUPABASE_HOST) {
+  if (!isStagingDatabaseUrl(opts.databaseUrl)) {
+    const host = dbHost(opts.databaseUrl)
     throw new Error(
-      `refusing: DATABASE_URL host must be staging (${STAGING_SUPABASE_REF}); got host length ${host.length}`
+      `refusing: DATABASE_URL must be staging direct (${STAGING_SUPABASE_REF}) or pooler user postgres.${STAGING_SUPABASE_REF}; got host length ${host.length}`
     )
   }
   if (opts.firebaseProjectId !== STAGING_FIREBASE) {
